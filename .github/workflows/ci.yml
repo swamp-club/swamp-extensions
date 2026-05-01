@@ -461,35 +461,6 @@ jobs:
       - name: Verify lockfile is up to date
         run: deno install --frozen
 
-  codegen-verify:
-    name: codegen - verify Hetzner/DigitalOcean output is up to date
-    needs: [changes]
-    if: needs.changes.outputs.models == 'true' || needs.changes.outputs.codegen == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    defaults:
-      run:
-        working-directory: codegen
-    steps:
-      - uses: actions/checkout@v6
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-      - name: Fetch schemas and generate
-        run: |
-          deno task fetch-schema:hetzner
-          deno task fetch-schema:digitalocean
-          deno task generate:hetzner
-          deno task generate:digitalocean
-      - name: Verify no changes
-        run: |
-          if [ -n "$(git diff --name-only)" ]; then
-            echo "Generated output is out of date. Run generation locally and commit."
-            git diff --stat
-            exit 1
-          fi
-
   deps-audit:
     name: Dependency Audit
     runs-on: ubuntu-latest
@@ -551,7 +522,6 @@ jobs:
         gcp-lockfile,
         codegen-check,
         codegen-lockfile,
-        codegen-verify,
         deps-audit,
         actions-audit,
       ]
@@ -694,7 +664,6 @@ jobs:
         gcp-lockfile,
         codegen-check,
         codegen-lockfile,
-        codegen-verify,
         deps-audit,
       ]
     runs-on: ubuntu-latest

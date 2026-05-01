@@ -16,7 +16,9 @@ import { z } from "npm:zod@4.3.6";
 import { create, read, remove, tryRead, update } from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe("Name of the Load Balancer."),
+  name: z.string().min(1).max(128).regex(new RegExp("^\\S(.*\\S)?$")).describe(
+    "Name of the Load Balancer.",
+  ),
   labels: z.record(z.string(), z.unknown()).describe(
     'User-defined labels (`key/value` pairs) for the Resource.\nFor more information, see "[Labels](#description/labels)".\n',
   ).optional(),
@@ -27,44 +29,37 @@ const GlobalArgsSchema = z.object({
     type: z.enum(["round_robin", "least_connections"]),
   }).describe("Algorithm of the Load Balancer.").optional(),
   services: z.array(z.object({
-    protocol: z.enum(["tcp", "http", "https"]),
+    protocol: z.enum(["tcp"]),
     listen_port: z.number().int(),
     destination_port: z.number().int(),
     proxyprotocol: z.boolean(),
     health_check: z.object({
       protocol: z.enum(["tcp", "http"]),
       port: z.number().int(),
-      interval: z.number().int(),
-      timeout: z.number().int(),
-      retries: z.number().int(),
+      interval: z.number().int().min(3).max(60),
+      timeout: z.number().int().min(1).max(60),
+      retries: z.number().int().min(1).max(5),
       http: z.object({
-        domain: z.string(),
-        path: z.string(),
-        response: z.string().optional(),
+        domain: z.string().max(128),
+        path: z.string().min(1).max(256),
+        response: z.string().max(256).optional(),
         status_codes: z.array(z.string()).optional(),
         tls: z.boolean().optional(),
       }).optional(),
     }),
-    http: z.object({
-      cookie_name: z.string().optional(),
-      cookie_lifetime: z.number().int().optional(),
-      certificates: z.array(z.number().int()).optional(),
-      redirect_http: z.boolean().optional(),
-      sticky_sessions: z.boolean().optional(),
-    }).optional(),
   })).describe("Array of services.").optional(),
   targets: z.array(z.object({
     type: z.enum(["server", "label_selector", "ip"]),
     server: z.object({
       id: z.number().int(),
     }).optional(),
-    use_private_ip: z.boolean().optional(),
     label_selector: z.object({
-      selector: z.string(),
+      selector: z.string().min(1).max(1000),
     }).optional(),
     ip: z.object({
       ip: z.string(),
     }).optional(),
+    use_private_ip: z.boolean().optional(),
   })).describe("Array of targets.").optional(),
   public_interface: z.boolean().describe(
     "Enable or disable the public interface of the Load Balancer.",
@@ -156,41 +151,17 @@ const ResourceSchema = z.object({
         tls: z.boolean().optional(),
       }).optional(),
     }).optional(),
-    http: z.object({
-      cookie_name: z.string().optional(),
-      cookie_lifetime: z.number().optional(),
-      certificates: z.array(z.number()).optional(),
-      redirect_http: z.boolean().optional(),
-      sticky_sessions: z.boolean().optional(),
-    }).optional(),
   })).optional(),
   targets: z.array(z.object({
     type: z.string().optional(),
     server: z.object({
       id: z.number().optional(),
     }).optional(),
-    label_selector: z.object({
-      selector: z.string().optional(),
-    }).optional(),
-    ip: z.object({
-      ip: z.string().optional(),
-    }).optional(),
     health_status: z.array(z.object({
       listen_port: z.number().optional(),
       status: z.string().optional(),
     })).optional(),
     use_private_ip: z.boolean().optional(),
-    targets: z.array(z.object({
-      type: z.string().optional(),
-      server: z.object({
-        id: z.number().optional(),
-      }).optional(),
-      health_status: z.array(z.object({
-        listen_port: z.number().optional(),
-        status: z.string().optional(),
-      })).optional(),
-      use_private_ip: z.boolean().optional(),
-    })).optional(),
   })).optional(),
   algorithm: z.object({
     type: z.string().optional(),
@@ -203,51 +174,45 @@ const ResourceSchema = z.object({
 type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().optional(),
+  name: z.string().min(1).max(128).regex(new RegExp("^\\S(.*\\S)?$"))
+    .optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   load_balancer_type: z.string().optional(),
   algorithm: z.object({
     type: z.enum(["round_robin", "least_connections"]),
   }).optional(),
   services: z.array(z.object({
-    protocol: z.enum(["tcp", "http", "https"]),
+    protocol: z.enum(["tcp"]),
     listen_port: z.number().int(),
     destination_port: z.number().int(),
     proxyprotocol: z.boolean(),
     health_check: z.object({
       protocol: z.enum(["tcp", "http"]),
       port: z.number().int(),
-      interval: z.number().int(),
-      timeout: z.number().int(),
-      retries: z.number().int(),
+      interval: z.number().int().min(3).max(60),
+      timeout: z.number().int().min(1).max(60),
+      retries: z.number().int().min(1).max(5),
       http: z.object({
-        domain: z.string(),
-        path: z.string(),
-        response: z.string().optional(),
+        domain: z.string().max(128),
+        path: z.string().min(1).max(256),
+        response: z.string().max(256).optional(),
         status_codes: z.array(z.string()).optional(),
         tls: z.boolean().optional(),
       }).optional(),
     }),
-    http: z.object({
-      cookie_name: z.string().optional(),
-      cookie_lifetime: z.number().int().optional(),
-      certificates: z.array(z.number().int()).optional(),
-      redirect_http: z.boolean().optional(),
-      sticky_sessions: z.boolean().optional(),
-    }).optional(),
   })).optional(),
   targets: z.array(z.object({
     type: z.enum(["server", "label_selector", "ip"]),
     server: z.object({
       id: z.number().int(),
     }).optional(),
-    use_private_ip: z.boolean().optional(),
     label_selector: z.object({
-      selector: z.string(),
+      selector: z.string().min(1).max(1000),
     }).optional(),
     ip: z.object({
       ip: z.string(),
     }).optional(),
+    use_private_ip: z.boolean().optional(),
   })).optional(),
   public_interface: z.boolean().optional(),
   network: z.number().int().optional(),
@@ -258,7 +223,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud load balancer. Registered at `@swamp/hetzner-cloud/load-balancers`. */
 export const model = {
   type: "@swamp/hetzner-cloud/load-balancers",
-  version: "2026.04.23.4",
+  version: "2026.05.01.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -292,6 +257,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.4",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

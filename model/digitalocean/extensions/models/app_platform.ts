@@ -125,10 +125,13 @@ const GlobalArgsSchema = z.object({
       instance_size_slug: z.string().optional(),
       autoscaling: z.object({
         min_instance_count: z.number().int().min(1).optional(),
-        max_instance_count: z.number().int().min(1).optional(),
+        max_instance_count: z.number().int().min(1).max(250).optional(),
         metrics: z.object({
-          cpu: z.object({
-            percent: z.number().int().min(1).max(100).optional(),
+          requests_per_second: z.object({
+            per_instance: z.number().int().min(1).optional(),
+          }).optional(),
+          request_duration: z.object({
+            p95_milliseconds: z.number().int().min(1).optional(),
           }).optional(),
         }).optional(),
       }).optional(),
@@ -341,15 +344,6 @@ const GlobalArgsSchema = z.object({
       })).optional(),
       instance_count: z.number().int().min(1).optional(),
       instance_size_slug: z.string().optional(),
-      autoscaling: z.object({
-        min_instance_count: z.number().int().min(1).optional(),
-        max_instance_count: z.number().int().min(1).optional(),
-        metrics: z.object({
-          cpu: z.object({
-            percent: z.number().int().min(1).max(100).optional(),
-          }).optional(),
-        }).optional(),
-      }).optional(),
       kind: z.enum([
         "UNSPECIFIED",
         "PRE_DEPLOY",
@@ -436,7 +430,7 @@ const GlobalArgsSchema = z.object({
       instance_size_slug: z.string().optional(),
       autoscaling: z.object({
         min_instance_count: z.number().int().min(1).optional(),
-        max_instance_count: z.number().int().min(1).optional(),
+        max_instance_count: z.number().int().min(1).max(250).optional(),
         metrics: z.object({
           cpu: z.object({
             percent: z.number().int().min(1).max(100).optional(),
@@ -495,6 +489,8 @@ const GlobalArgsSchema = z.object({
           "FUNCTIONS_AVERAGE_WAIT_TIME_MS",
           "FUNCTIONS_ERROR_COUNT",
           "FUNCTIONS_GB_RATE_PER_SECOND",
+          "REQUESTS_PER_SECOND",
+          "REQUEST_DURATION_P95_MS",
         ]).optional(),
         disabled: z.boolean().optional(),
         operator: z.enum(["UNSPECIFIED_OPERATOR", "GREATER_THAN", "LESS_THAN"])
@@ -778,8 +774,11 @@ const ResourceSchema = z.object({
           min_instance_count: z.number().optional(),
           max_instance_count: z.number().optional(),
           metrics: z.object({
-            cpu: z.object({
-              percent: z.number().optional(),
+            requests_per_second: z.object({
+              per_instance: z.number().optional(),
+            }).optional(),
+            request_duration: z.object({
+              p95_milliseconds: z.number().optional(),
             }).optional(),
           }).optional(),
         }).optional(),
@@ -978,15 +977,6 @@ const ResourceSchema = z.object({
         })).optional(),
         instance_count: z.number().optional(),
         instance_size_slug: z.string().optional(),
-        autoscaling: z.object({
-          min_instance_count: z.number().optional(),
-          max_instance_count: z.number().optional(),
-          metrics: z.object({
-            cpu: z.object({
-              percent: z.number().optional(),
-            }).optional(),
-          }).optional(),
-        }).optional(),
         kind: z.string().optional(),
         termination: z.object({
           grace_period_seconds: z.number().optional(),
@@ -1383,8 +1373,11 @@ const ResourceSchema = z.object({
           min_instance_count: z.number().optional(),
           max_instance_count: z.number().optional(),
           metrics: z.object({
-            cpu: z.object({
-              percent: z.number().optional(),
+            requests_per_second: z.object({
+              per_instance: z.number().optional(),
+            }).optional(),
+            request_duration: z.object({
+              p95_milliseconds: z.number().optional(),
             }).optional(),
           }).optional(),
         }).optional(),
@@ -1583,15 +1576,6 @@ const ResourceSchema = z.object({
         })).optional(),
         instance_count: z.number().optional(),
         instance_size_slug: z.string().optional(),
-        autoscaling: z.object({
-          min_instance_count: z.number().optional(),
-          max_instance_count: z.number().optional(),
-          metrics: z.object({
-            cpu: z.object({
-              percent: z.number().optional(),
-            }).optional(),
-          }).optional(),
-        }).optional(),
         kind: z.string().optional(),
         termination: z.object({
           grace_period_seconds: z.number().optional(),
@@ -1973,8 +1957,11 @@ const ResourceSchema = z.object({
           min_instance_count: z.number().optional(),
           max_instance_count: z.number().optional(),
           metrics: z.object({
-            cpu: z.object({
-              percent: z.number().optional(),
+            requests_per_second: z.object({
+              per_instance: z.number().optional(),
+            }).optional(),
+            request_duration: z.object({
+              p95_milliseconds: z.number().optional(),
             }).optional(),
           }).optional(),
         }).optional(),
@@ -2173,15 +2160,6 @@ const ResourceSchema = z.object({
         })).optional(),
         instance_count: z.number().optional(),
         instance_size_slug: z.string().optional(),
-        autoscaling: z.object({
-          min_instance_count: z.number().optional(),
-          max_instance_count: z.number().optional(),
-          metrics: z.object({
-            cpu: z.object({
-              percent: z.number().optional(),
-            }).optional(),
-          }).optional(),
-        }).optional(),
         kind: z.string().optional(),
         termination: z.object({
           grace_period_seconds: z.number().optional(),
@@ -2516,8 +2494,11 @@ const ResourceSchema = z.object({
         min_instance_count: z.number().optional(),
         max_instance_count: z.number().optional(),
         metrics: z.object({
-          cpu: z.object({
-            percent: z.number().optional(),
+          requests_per_second: z.object({
+            per_instance: z.number().optional(),
+          }).optional(),
+          request_duration: z.object({
+            p95_milliseconds: z.number().optional(),
           }).optional(),
         }).optional(),
       }).optional(),
@@ -2716,15 +2697,6 @@ const ResourceSchema = z.object({
       })).optional(),
       instance_count: z.number().optional(),
       instance_size_slug: z.string().optional(),
-      autoscaling: z.object({
-        min_instance_count: z.number().optional(),
-        max_instance_count: z.number().optional(),
-        metrics: z.object({
-          cpu: z.object({
-            percent: z.number().optional(),
-          }).optional(),
-        }).optional(),
-      }).optional(),
       kind: z.string().optional(),
       termination: z.object({
         grace_period_seconds: z.number().optional(),
@@ -3092,8 +3064,11 @@ const ResourceSchema = z.object({
           min_instance_count: z.number().optional(),
           max_instance_count: z.number().optional(),
           metrics: z.object({
-            cpu: z.object({
-              percent: z.number().optional(),
+            requests_per_second: z.object({
+              per_instance: z.number().optional(),
+            }).optional(),
+            request_duration: z.object({
+              p95_milliseconds: z.number().optional(),
             }).optional(),
           }).optional(),
         }).optional(),
@@ -3292,15 +3267,6 @@ const ResourceSchema = z.object({
         })).optional(),
         instance_count: z.number().optional(),
         instance_size_slug: z.string().optional(),
-        autoscaling: z.object({
-          min_instance_count: z.number().optional(),
-          max_instance_count: z.number().optional(),
-          metrics: z.object({
-            cpu: z.object({
-              percent: z.number().optional(),
-            }).optional(),
-          }).optional(),
-        }).optional(),
         kind: z.string().optional(),
         termination: z.object({
           grace_period_seconds: z.number().optional(),
@@ -3663,10 +3629,13 @@ const InputsSchema = z.object({
       instance_size_slug: z.string().optional(),
       autoscaling: z.object({
         min_instance_count: z.number().int().min(1).optional(),
-        max_instance_count: z.number().int().min(1).optional(),
+        max_instance_count: z.number().int().min(1).max(250).optional(),
         metrics: z.object({
-          cpu: z.object({
-            percent: z.number().int().min(1).max(100).optional(),
+          requests_per_second: z.object({
+            per_instance: z.number().int().min(1).optional(),
+          }).optional(),
+          request_duration: z.object({
+            p95_milliseconds: z.number().int().min(1).optional(),
           }).optional(),
         }).optional(),
       }).optional(),
@@ -3879,15 +3848,6 @@ const InputsSchema = z.object({
       })).optional(),
       instance_count: z.number().int().min(1).optional(),
       instance_size_slug: z.string().optional(),
-      autoscaling: z.object({
-        min_instance_count: z.number().int().min(1).optional(),
-        max_instance_count: z.number().int().min(1).optional(),
-        metrics: z.object({
-          cpu: z.object({
-            percent: z.number().int().min(1).max(100).optional(),
-          }).optional(),
-        }).optional(),
-      }).optional(),
       kind: z.enum([
         "UNSPECIFIED",
         "PRE_DEPLOY",
@@ -3974,7 +3934,7 @@ const InputsSchema = z.object({
       instance_size_slug: z.string().optional(),
       autoscaling: z.object({
         min_instance_count: z.number().int().min(1).optional(),
-        max_instance_count: z.number().int().min(1).optional(),
+        max_instance_count: z.number().int().min(1).max(250).optional(),
         metrics: z.object({
           cpu: z.object({
             percent: z.number().int().min(1).max(100).optional(),
@@ -4033,6 +3993,8 @@ const InputsSchema = z.object({
           "FUNCTIONS_AVERAGE_WAIT_TIME_MS",
           "FUNCTIONS_ERROR_COUNT",
           "FUNCTIONS_GB_RATE_PER_SECOND",
+          "REQUESTS_PER_SECOND",
+          "REQUEST_DURATION_P95_MS",
         ]).optional(),
         disabled: z.boolean().optional(),
         operator: z.enum(["UNSPECIFIED_OPERATOR", "GREATER_THAN", "LESS_THAN"])
@@ -4177,7 +4139,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean app platform. Registered at `@swamp/digitalocean/app-platform`. */
 export const model = {
   type: "@swamp/digitalocean/app-platform",
-  version: "2026.04.23.2",
+  version: "2026.05.01.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -4201,6 +4163,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
