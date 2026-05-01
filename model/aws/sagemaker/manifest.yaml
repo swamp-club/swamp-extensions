@@ -9,8 +9,6 @@ labels:
   - sagemaker
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: domain
 models:
   - app.ts
   - app_image_config.ts

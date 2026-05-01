@@ -21,6 +21,11 @@ import {
   updateResource,
 } from "./_lib/aws.ts";
 
+const TagSchema = z.object({
+  Key: z.string(),
+  Value: z.string(),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -44,6 +49,9 @@ const GlobalArgsSchema = z.object({
     "Security Group IDs to be used on ENI.",
   ),
   SubnetId: z.string().describe("Subnet must be in the AZ of the Flow"),
+  Tags: z.array(TagSchema).describe(
+    "Key-value pairs that can be used to tag and organize this VPC network interface.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -53,6 +61,7 @@ const StateSchema = z.object({
   SecurityGroupIds: z.array(z.string()).optional(),
   SubnetId: z.string().optional(),
   NetworkInterfaceIds: z.array(z.string()).optional(),
+  Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -79,12 +88,15 @@ const InputsSchema = z.object({
   ).optional(),
   SubnetId: z.string().describe("Subnet must be in the AZ of the Flow")
     .optional(),
+  Tags: z.array(TagSchema).describe(
+    "Key-value pairs that can be used to tag and organize this VPC network interface.",
+  ).optional(),
 });
 
 /** Swamp extension model for MediaConnect FlowVpcInterface. Registered at `@swamp/aws/mediaconnect/flow-vpc-interface`. */
 export const model = {
   type: "@swamp/aws/mediaconnect/flow-vpc-interface",
-  version: "2026.04.23.2",
+  version: "2026.05.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -109,6 +121,11 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.01.1",
+      description: "Added: Tags",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

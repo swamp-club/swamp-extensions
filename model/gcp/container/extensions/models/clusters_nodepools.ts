@@ -525,6 +525,26 @@ const GlobalArgsSchema = z.object({
         ]).describe(
           "cgroup_mode specifies the cgroup mode to be used on the node.",
         ).optional(),
+        customNodeInit: z.object({
+          initScript: z.object({
+            args: z.unknown().describe(
+              "Optional. The optional arguments line to be passed to the init script.",
+            ).optional(),
+            gcpSecretManagerSecretUri: z.unknown().describe(
+              "The resource name of the secret manager secret hosting the init script. Both global and regional secrets are supported with format below: Global secret: projects/{project}/secrets/{secret}/versions/{version} Regional secret: projects/{project}/locations/{location}/secrets/{secret}/versions/{version} Example: projects/1234567890/secrets/script_1/versions/1. Accept version number only, not support version alias. User can't configure both gcp_secret_manager_secret_uri and gcs_uri.",
+            ).optional(),
+            gcsGeneration: z.unknown().describe(
+              'The generation of the init script stored in Gloud Storage. This is the required field to identify the version of the init script. User can get the genetaion from `gcloud storage objects describe gs://BUCKET_NAME/OBJECT_NAME --format="value(generation)"` or from the "Version history" tab of the object in the Cloud Console UI.',
+            ).optional(),
+            gcsUri: z.unknown().describe(
+              "The Cloud Storage URI for storing the init script. Format: gs://BUCKET_NAME/OBJECT_NAME The service account on the node pool must have read access to the object. User can't configure both gcs_uri and gcp_secret_manager_secret_uri.",
+            ).optional(),
+          }).describe(
+            "InitScript provide a simply bash script to be executed on the node.",
+          ).optional(),
+        }).describe(
+          "Support for running custom init code while bootstrapping nodes.",
+        ).optional(),
         hugepages: z.object({
           hugepageSize1g: z.number().int().describe(
             "Optional. Amount of 1G hugepages",
@@ -1327,6 +1347,26 @@ const GlobalArgsSchema = z.object({
       "CGROUP_MODE_V2",
     ]).describe("cgroup_mode specifies the cgroup mode to be used on the node.")
       .optional(),
+    customNodeInit: z.object({
+      initScript: z.object({
+        args: z.array(z.string()).describe(
+          "Optional. The optional arguments line to be passed to the init script.",
+        ).optional(),
+        gcpSecretManagerSecretUri: z.string().describe(
+          "The resource name of the secret manager secret hosting the init script. Both global and regional secrets are supported with format below: Global secret: projects/{project}/secrets/{secret}/versions/{version} Regional secret: projects/{project}/locations/{location}/secrets/{secret}/versions/{version} Example: projects/1234567890/secrets/script_1/versions/1. Accept version number only, not support version alias. User can't configure both gcp_secret_manager_secret_uri and gcs_uri.",
+        ).optional(),
+        gcsGeneration: z.string().describe(
+          'The generation of the init script stored in Gloud Storage. This is the required field to identify the version of the init script. User can get the genetaion from `gcloud storage objects describe gs://BUCKET_NAME/OBJECT_NAME --format="value(generation)"` or from the "Version history" tab of the object in the Cloud Console UI.',
+        ).optional(),
+        gcsUri: z.string().describe(
+          "The Cloud Storage URI for storing the init script. Format: gs://BUCKET_NAME/OBJECT_NAME The service account on the node pool must have read access to the object. User can't configure both gcs_uri and gcp_secret_manager_secret_uri.",
+        ).optional(),
+      }).describe(
+        "InitScript provide a simply bash script to be executed on the node.",
+      ).optional(),
+    }).describe(
+      "Support for running custom init code while bootstrapping nodes.",
+    ).optional(),
     hugepages: z.object({
       hugepageSize1g: z.number().int().describe(
         "Optional. Amount of 1G hugepages",
@@ -1531,6 +1571,16 @@ const GlobalArgsSchema = z.object({
     tags: z.array(z.string()).describe("List of network tags.").optional(),
   }).describe(
     "Collection of Compute Engine network tags that can be applied to a node's underlying VM instance.",
+  ).optional(),
+  taintConfig: z.object({
+    architectureTaintBehavior: z.enum([
+      "ARCHITECTURE_TAINT_BEHAVIOR_UNSPECIFIED",
+      "NONE",
+      "ARM",
+    ]).describe("Optional. Controls architecture tainting behavior.")
+      .optional(),
+  }).describe(
+    "TaintConfig contains the configuration for the taints of the node pool.",
   ).optional(),
   taints: z.object({
     taints: z.array(z.object({
@@ -1756,6 +1806,14 @@ const StateSchema = z.object({
         enablePtpKvmTimeSync: z.boolean(),
       }),
       cgroupMode: z.string(),
+      customNodeInit: z.object({
+        initScript: z.object({
+          args: z.array(z.unknown()),
+          gcpSecretManagerSecretUri: z.string(),
+          gcsGeneration: z.string(),
+          gcsUri: z.string(),
+        }),
+      }),
       hugepages: z.object({
         hugepageSize1g: z.number(),
         hugepageSize2m: z.number(),
@@ -2350,6 +2408,26 @@ const InputsSchema = z.object({
         ]).describe(
           "cgroup_mode specifies the cgroup mode to be used on the node.",
         ).optional(),
+        customNodeInit: z.object({
+          initScript: z.object({
+            args: z.unknown().describe(
+              "Optional. The optional arguments line to be passed to the init script.",
+            ).optional(),
+            gcpSecretManagerSecretUri: z.unknown().describe(
+              "The resource name of the secret manager secret hosting the init script. Both global and regional secrets are supported with format below: Global secret: projects/{project}/secrets/{secret}/versions/{version} Regional secret: projects/{project}/locations/{location}/secrets/{secret}/versions/{version} Example: projects/1234567890/secrets/script_1/versions/1. Accept version number only, not support version alias. User can't configure both gcp_secret_manager_secret_uri and gcs_uri.",
+            ).optional(),
+            gcsGeneration: z.unknown().describe(
+              'The generation of the init script stored in Gloud Storage. This is the required field to identify the version of the init script. User can get the genetaion from `gcloud storage objects describe gs://BUCKET_NAME/OBJECT_NAME --format="value(generation)"` or from the "Version history" tab of the object in the Cloud Console UI.',
+            ).optional(),
+            gcsUri: z.unknown().describe(
+              "The Cloud Storage URI for storing the init script. Format: gs://BUCKET_NAME/OBJECT_NAME The service account on the node pool must have read access to the object. User can't configure both gcs_uri and gcp_secret_manager_secret_uri.",
+            ).optional(),
+          }).describe(
+            "InitScript provide a simply bash script to be executed on the node.",
+          ).optional(),
+        }).describe(
+          "Support for running custom init code while bootstrapping nodes.",
+        ).optional(),
         hugepages: z.object({
           hugepageSize1g: z.number().int().describe(
             "Optional. Amount of 1G hugepages",
@@ -3152,6 +3230,26 @@ const InputsSchema = z.object({
       "CGROUP_MODE_V2",
     ]).describe("cgroup_mode specifies the cgroup mode to be used on the node.")
       .optional(),
+    customNodeInit: z.object({
+      initScript: z.object({
+        args: z.array(z.string()).describe(
+          "Optional. The optional arguments line to be passed to the init script.",
+        ).optional(),
+        gcpSecretManagerSecretUri: z.string().describe(
+          "The resource name of the secret manager secret hosting the init script. Both global and regional secrets are supported with format below: Global secret: projects/{project}/secrets/{secret}/versions/{version} Regional secret: projects/{project}/locations/{location}/secrets/{secret}/versions/{version} Example: projects/1234567890/secrets/script_1/versions/1. Accept version number only, not support version alias. User can't configure both gcp_secret_manager_secret_uri and gcs_uri.",
+        ).optional(),
+        gcsGeneration: z.string().describe(
+          'The generation of the init script stored in Gloud Storage. This is the required field to identify the version of the init script. User can get the genetaion from `gcloud storage objects describe gs://BUCKET_NAME/OBJECT_NAME --format="value(generation)"` or from the "Version history" tab of the object in the Cloud Console UI.',
+        ).optional(),
+        gcsUri: z.string().describe(
+          "The Cloud Storage URI for storing the init script. Format: gs://BUCKET_NAME/OBJECT_NAME The service account on the node pool must have read access to the object. User can't configure both gcs_uri and gcp_secret_manager_secret_uri.",
+        ).optional(),
+      }).describe(
+        "InitScript provide a simply bash script to be executed on the node.",
+      ).optional(),
+    }).describe(
+      "Support for running custom init code while bootstrapping nodes.",
+    ).optional(),
     hugepages: z.object({
       hugepageSize1g: z.number().int().describe(
         "Optional. Amount of 1G hugepages",
@@ -3357,6 +3455,16 @@ const InputsSchema = z.object({
   }).describe(
     "Collection of Compute Engine network tags that can be applied to a node's underlying VM instance.",
   ).optional(),
+  taintConfig: z.object({
+    architectureTaintBehavior: z.enum([
+      "ARCHITECTURE_TAINT_BEHAVIOR_UNSPECIFIED",
+      "NONE",
+      "ARM",
+    ]).describe("Optional. Controls architecture tainting behavior.")
+      .optional(),
+  }).describe(
+    "TaintConfig contains the configuration for the taints of the node pool.",
+  ).optional(),
   taints: z.object({
     taints: z.array(z.object({
       effect: z.enum([
@@ -3435,7 +3543,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Kubernetes Engine Clusters.NodePools. Registered at `@swamp/gcp/container/clusters-nodepools`. */
 export const model = {
   type: "@swamp/gcp/container/clusters-nodepools",
-  version: "2026.04.23.1",
+  version: "2026.05.01.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -3485,6 +3593,11 @@ export const model = {
     {
       toVersion: "2026.04.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.01.1",
+      description: "Added: taintConfig",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -3664,6 +3777,9 @@ export const model = {
           body["storagePools"] = g["storagePools"];
         }
         if (g["tags"] !== undefined) body["tags"] = g["tags"];
+        if (g["taintConfig"] !== undefined) {
+          body["taintConfig"] = g["taintConfig"];
+        }
         if (g["taints"] !== undefined) body["taints"] = g["taints"];
         if (g["upgradeSettings"] !== undefined) {
           body["upgradeSettings"] = g["upgradeSettings"];

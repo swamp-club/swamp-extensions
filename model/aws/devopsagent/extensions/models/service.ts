@@ -37,6 +37,9 @@ const GlobalArgsSchema = z.object({
     "mcpservernewrelic",
     "gitlab",
     "servicenow",
+    "pagerduty",
+    "azureidentity",
+    "mcpserversigv4",
   ]).describe("The type of service being registered"),
   ServiceDetails: z.string().describe(
     "Service-specific configuration details for create operation",
@@ -71,6 +74,9 @@ const InputsSchema = z.object({
     "mcpservernewrelic",
     "gitlab",
     "servicenow",
+    "pagerduty",
+    "azureidentity",
+    "mcpserversigv4",
   ]).describe("The type of service being registered").optional(),
   ServiceDetails: z.string().describe(
     "Service-specific configuration details for create operation",
@@ -86,7 +92,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DevOpsAgent Service. Registered at `@swamp/aws/devopsagent/service`. */
 export const model = {
   type: "@swamp/aws/devopsagent/service",
-  version: "2026.04.23.2",
+  version: "2026.05.01.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -120,6 +126,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -245,7 +245,7 @@ const GlobalArgsSchema = z.object({
           "Required for each regional disk associated with the instance. Specify the URLs of the zones where the disk should be replicated to. You must provide exactly two replica zones, and one zone must be the same as the instance zone.",
         ).optional(),
         resourceManagerTags: z.record(z.string(), z.unknown()).describe(
-          "Input only. Resource manager tags to be bound to the disk. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/456` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
+          "Input only. Resource manager tags to be bound to the disk. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/{tag_value_id}` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
         ).optional(),
         resourcePolicies: z.array(z.unknown()).describe(
           "Resource policies applied to this disk for automatic snapshot creations. Specified using the full or partial URL. For instance template, specify only the resource policy name.",
@@ -553,7 +553,7 @@ const GlobalArgsSchema = z.object({
       "Specifies the reservations that this instance can consume from.",
     ).optional(),
     resourceManagerTags: z.record(z.string(), z.string()).describe(
-      "Input only. Resource manager tags to be bound to the instance. Tag keys and values have the same definition as resource manager tags. Keys must be in the format `tagKeys/{tag_key_id}`, and values are in the format `tagValues/456`. The field is ignored (both PUT & PATCH) when empty.",
+      "Input only. Resource manager tags to be bound to the instance. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/{tag_value_id}` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
     ).optional(),
     resourcePolicies: z.array(z.string()).describe(
       "Resource policies (names, not URLs) applied to instances created from these properties. Note that for MachineImage, this is not supported yet.",
@@ -1080,7 +1080,7 @@ const InputsSchema = z.object({
           "Required for each regional disk associated with the instance. Specify the URLs of the zones where the disk should be replicated to. You must provide exactly two replica zones, and one zone must be the same as the instance zone.",
         ).optional(),
         resourceManagerTags: z.record(z.string(), z.unknown()).describe(
-          "Input only. Resource manager tags to be bound to the disk. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/456` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
+          "Input only. Resource manager tags to be bound to the disk. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/{tag_value_id}` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
         ).optional(),
         resourcePolicies: z.array(z.unknown()).describe(
           "Resource policies applied to this disk for automatic snapshot creations. Specified using the full or partial URL. For instance template, specify only the resource policy name.",
@@ -1388,7 +1388,7 @@ const InputsSchema = z.object({
       "Specifies the reservations that this instance can consume from.",
     ).optional(),
     resourceManagerTags: z.record(z.string(), z.string()).describe(
-      "Input only. Resource manager tags to be bound to the instance. Tag keys and values have the same definition as resource manager tags. Keys must be in the format `tagKeys/{tag_key_id}`, and values are in the format `tagValues/456`. The field is ignored (both PUT & PATCH) when empty.",
+      "Input only. Resource manager tags to be bound to the instance. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/{tag_value_id}` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
     ).optional(),
     resourcePolicies: z.array(z.string()).describe(
       "Resource policies (names, not URLs) applied to instances created from these properties. Note that for MachineImage, this is not supported yet.",
@@ -1550,7 +1550,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine RegionInstanceTemplates. Registered at `@swamp/gcp/compute/regioninstancetemplates`. */
 export const model = {
   type: "@swamp/gcp/compute/regioninstancetemplates",
-  version: "2026.04.23.1",
+  version: "2026.05.01.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1604,6 +1604,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

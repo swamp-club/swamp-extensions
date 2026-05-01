@@ -439,6 +439,10 @@ const ParameterDefinitionSchema = z.object({
   }).describe("The value that you assigned to the parameter."),
 });
 
+const CacheTagConfigSchema = z.object({
+  HeaderName: z.string(),
+});
+
 const TrustStoreConfigSchema = z.object({
   TrustStoreId: z.string().describe("The trust store ID."),
   AdvertiseTrustStoreCaNames: z.boolean().describe(
@@ -557,6 +561,7 @@ const GlobalArgsSchema = z.object({
     }).describe(
       "This field only supports multi-tenant distributions. You can't specify this field for standard distributions. For more information, see [Unsupported features for SaaS Manager for Amazon CloudFront](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-config-options.html#unsupported-saas) in the *Amazon CloudFront Developer Guide*. A distribution tenant configuration.",
     ).optional(),
+    CacheTagConfig: CacheTagConfigSchema.optional(),
     ViewerMtlsConfig: ViewerMtlsConfigSchema.describe(
       "The distribution's viewer mTLS configuration.",
     ).optional(),
@@ -601,6 +606,7 @@ const StateSchema = z.object({
     TenantConfig: z.object({
       ParameterDefinitions: z.array(ParameterDefinitionSchema),
     }),
+    CacheTagConfig: CacheTagConfigSchema,
     ViewerMtlsConfig: ViewerMtlsConfigSchema,
     ViewerCertificate: ViewerCertificateSchema,
     WebACLId: z.string(),
@@ -683,6 +689,7 @@ const InputsSchema = z.object({
     }).describe(
       "This field only supports multi-tenant distributions. You can't specify this field for standard distributions. For more information, see [Unsupported features for SaaS Manager for Amazon CloudFront](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-config-options.html#unsupported-saas) in the *Amazon CloudFront Developer Guide*. A distribution tenant configuration.",
     ).optional(),
+    CacheTagConfig: CacheTagConfigSchema.optional(),
     ViewerMtlsConfig: ViewerMtlsConfigSchema.describe(
       "The distribution's viewer mTLS configuration.",
     ).optional(),
@@ -701,7 +708,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for CloudFront Distribution. Registered at `@swamp/aws/cloudfront/distribution`. */
 export const model = {
   type: "@swamp/aws/cloudfront/distribution",
-  version: "2026.04.23.2",
+  version: "2026.05.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -725,6 +732,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

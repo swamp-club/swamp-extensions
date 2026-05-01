@@ -267,6 +267,9 @@ const GlobalArgsSchema = z.object({
       ]).describe("State of the answer generation.").optional(),
     }).describe("AssistAnswer resource, main part of AssistResponse.")
       .optional(),
+    live: z.boolean().describe(
+      "Optional. Indicates whether this turn is a live turn.",
+    ).optional(),
     query: z.object({
       queryId: z.string().describe("Output only. Unique Id for the query.")
         .optional(),
@@ -353,6 +356,7 @@ const StateSchema = z.object({
       })),
       state: z.string(),
     }),
+    live: z.boolean(),
     query: z.object({
       queryId: z.string(),
       text: z.string(),
@@ -529,6 +533,9 @@ const InputsSchema = z.object({
       ]).describe("State of the answer generation.").optional(),
     }).describe("AssistAnswer resource, main part of AssistResponse.")
       .optional(),
+    live: z.boolean().describe(
+      "Optional. Indicates whether this turn is a live turn.",
+    ).optional(),
     query: z.object({
       queryId: z.string().describe("Output only. Unique Id for the query.")
         .optional(),
@@ -551,7 +558,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Discovery Engine Collections.Engines.Sessions. Registered at `@swamp/gcp/discoveryengine/collections-engines-sessions`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-engines-sessions",
-  version: "2026.04.23.1",
+  version: "2026.05.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -590,6 +597,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

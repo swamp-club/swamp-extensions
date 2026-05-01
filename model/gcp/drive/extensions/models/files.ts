@@ -266,7 +266,7 @@ const GlobalArgsSchema = z.object({
         "Whether download and copy is restricted for readers.",
       ).optional(),
       restrictedForWriters: z.boolean().describe(
-        "Whether download and copy is restricted for writers. If `true`, download is also restricted for readers.",
+        "Whether download and copy is restricted for writers. If true, download is also restricted for readers.",
       ).optional(),
     }).describe("A restriction for copy and download of the file.").optional(),
     itemDownloadRestriction: z.object({
@@ -274,7 +274,7 @@ const GlobalArgsSchema = z.object({
         "Whether download and copy is restricted for readers.",
       ).optional(),
       restrictedForWriters: z.boolean().describe(
-        "Whether download and copy is restricted for writers. If `true`, download is also restricted for readers.",
+        "Whether download and copy is restricted for writers. If true, download is also restricted for readers.",
       ).optional(),
     }).describe("A restriction for copy and download of the file.").optional(),
   }).describe("Download restrictions applied to the file.").optional(),
@@ -285,6 +285,42 @@ const GlobalArgsSchema = z.object({
   inheritedPermissionsDisabled: z.boolean().describe(
     "Whether this file has inherited permissions disabled. Inherited permissions are enabled by default.",
   ).optional(),
+  labelInfo: z.object({
+    labels: z.array(z.object({
+      fields: z.record(
+        z.string(),
+        z.object({
+          dateString: z.unknown().describe(
+            "Only present if valueType is dateString. RFC 3339 formatted date: YYYY-MM-DD.",
+          ).optional(),
+          id: z.unknown().describe("The identifier of this label field.")
+            .optional(),
+          integer: z.unknown().describe(
+            "Only present if `valueType` is `integer`.",
+          ).optional(),
+          kind: z.unknown().describe("This is always drive#labelField.")
+            .optional(),
+          selection: z.unknown().describe(
+            "Only present if `valueType` is `selection`",
+          ).optional(),
+          text: z.unknown().describe("Only present if `valueType` is `text`.")
+            .optional(),
+          user: z.unknown().describe("Only present if `valueType` is `user`.")
+            .optional(),
+          valueType: z.unknown().describe(
+            "The field type. While new values may be supported in the future, the following are currently allowed: * `dateString` * `integer` * `selection` * `text` * `user`",
+          ).optional(),
+        }),
+      ).describe("A map of the fields on the label, keyed by the field's ID.")
+        .optional(),
+      id: z.string().describe("The ID of the label.").optional(),
+      kind: z.string().describe("This is always drive#label").optional(),
+      revisionId: z.string().describe("The revision ID of the label.")
+        .optional(),
+    })).describe(
+      "Output only. The set of labels on the file as requested by the label IDs in the `includeLabels` parameter. By default, no labels are returned.",
+    ).optional(),
+  }).describe("Label information on the file.").optional(),
   lastModifyingUser: z.object({
     displayName: z.string().describe(
       "Output only. A plain text displayable name for this user.",
@@ -369,9 +405,7 @@ const GlobalArgsSchema = z.object({
     targetResourceKey: z.string().describe(
       "Output only. The `resourceKey` for the target file.",
     ).optional(),
-  }).describe(
-    "Shortcut file details. Only populated for shortcut files, which have the mimeType field set to `application/vnd.google-apps.shortcut`. Can only be set on `files.create` requests.",
-  ).optional(),
+  }).describe("Information about a shortcut file.").optional(),
   starred: z.boolean().describe("Whether the user has starred the file.")
     .optional(),
   trashed: z.boolean().describe(
@@ -473,6 +507,7 @@ const StateSchema = z.object({
     canRemoveMyDriveParent: z.boolean(),
     canRename: z.boolean(),
     canShare: z.boolean(),
+    canStartApproval: z.boolean(),
     canTrash: z.boolean(),
     canTrashChildren: z.boolean(),
     canUntrash: z.boolean(),
@@ -789,7 +824,7 @@ const InputsSchema = z.object({
         "Whether download and copy is restricted for readers.",
       ).optional(),
       restrictedForWriters: z.boolean().describe(
-        "Whether download and copy is restricted for writers. If `true`, download is also restricted for readers.",
+        "Whether download and copy is restricted for writers. If true, download is also restricted for readers.",
       ).optional(),
     }).describe("A restriction for copy and download of the file.").optional(),
     itemDownloadRestriction: z.object({
@@ -797,7 +832,7 @@ const InputsSchema = z.object({
         "Whether download and copy is restricted for readers.",
       ).optional(),
       restrictedForWriters: z.boolean().describe(
-        "Whether download and copy is restricted for writers. If `true`, download is also restricted for readers.",
+        "Whether download and copy is restricted for writers. If true, download is also restricted for readers.",
       ).optional(),
     }).describe("A restriction for copy and download of the file.").optional(),
   }).describe("Download restrictions applied to the file.").optional(),
@@ -808,6 +843,42 @@ const InputsSchema = z.object({
   inheritedPermissionsDisabled: z.boolean().describe(
     "Whether this file has inherited permissions disabled. Inherited permissions are enabled by default.",
   ).optional(),
+  labelInfo: z.object({
+    labels: z.array(z.object({
+      fields: z.record(
+        z.string(),
+        z.object({
+          dateString: z.unknown().describe(
+            "Only present if valueType is dateString. RFC 3339 formatted date: YYYY-MM-DD.",
+          ).optional(),
+          id: z.unknown().describe("The identifier of this label field.")
+            .optional(),
+          integer: z.unknown().describe(
+            "Only present if `valueType` is `integer`.",
+          ).optional(),
+          kind: z.unknown().describe("This is always drive#labelField.")
+            .optional(),
+          selection: z.unknown().describe(
+            "Only present if `valueType` is `selection`",
+          ).optional(),
+          text: z.unknown().describe("Only present if `valueType` is `text`.")
+            .optional(),
+          user: z.unknown().describe("Only present if `valueType` is `user`.")
+            .optional(),
+          valueType: z.unknown().describe(
+            "The field type. While new values may be supported in the future, the following are currently allowed: * `dateString` * `integer` * `selection` * `text` * `user`",
+          ).optional(),
+        }),
+      ).describe("A map of the fields on the label, keyed by the field's ID.")
+        .optional(),
+      id: z.string().describe("The ID of the label.").optional(),
+      kind: z.string().describe("This is always drive#label").optional(),
+      revisionId: z.string().describe("The revision ID of the label.")
+        .optional(),
+    })).describe(
+      "Output only. The set of labels on the file as requested by the label IDs in the `includeLabels` parameter. By default, no labels are returned.",
+    ).optional(),
+  }).describe("Label information on the file.").optional(),
   lastModifyingUser: z.object({
     displayName: z.string().describe(
       "Output only. A plain text displayable name for this user.",
@@ -892,9 +963,7 @@ const InputsSchema = z.object({
     targetResourceKey: z.string().describe(
       "Output only. The `resourceKey` for the target file.",
     ).optional(),
-  }).describe(
-    "Shortcut file details. Only populated for shortcut files, which have the mimeType field set to `application/vnd.google-apps.shortcut`. Can only be set on `files.create` requests.",
-  ).optional(),
+  }).describe("Information about a shortcut file.").optional(),
   starred: z.boolean().describe("Whether the user has starred the file.")
     .optional(),
   trashed: z.boolean().describe(
@@ -955,7 +1024,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Drive Files. Registered at `@swamp/gcp/drive/files`. */
 export const model = {
   type: "@swamp/gcp/drive/files",
-  version: "2026.04.23.1",
+  version: "2026.05.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -990,6 +1059,11 @@ export const model = {
     {
       toVersion: "2026.04.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.01.1",
+      description: "Added: labelInfo",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1046,6 +1120,7 @@ export const model = {
           body["inheritedPermissionsDisabled"] =
             g["inheritedPermissionsDisabled"];
         }
+        if (g["labelInfo"] !== undefined) body["labelInfo"] = g["labelInfo"];
         if (g["lastModifyingUser"] !== undefined) {
           body["lastModifyingUser"] = g["lastModifyingUser"];
         }
@@ -1210,6 +1285,7 @@ export const model = {
           body["inheritedPermissionsDisabled"] =
             g["inheritedPermissionsDisabled"];
         }
+        if (g["labelInfo"] !== undefined) body["labelInfo"] = g["labelInfo"];
         if (g["lastModifyingUser"] !== undefined) {
           body["lastModifyingUser"] = g["lastModifyingUser"];
         }
@@ -1232,6 +1308,9 @@ export const model = {
         }
         if (g["sharingUser"] !== undefined) {
           body["sharingUser"] = g["sharingUser"];
+        }
+        if (g["shortcutDetails"] !== undefined) {
+          body["shortcutDetails"] = g["shortcutDetails"];
         }
         if (g["starred"] !== undefined) body["starred"] = g["starred"];
         if (g["trashed"] !== undefined) body["trashed"] = g["trashed"];

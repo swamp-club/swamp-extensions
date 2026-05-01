@@ -21,6 +21,55 @@ import {
   updateResource,
 } from "./_lib/aws.ts";
 
+const StringValidationSchema = z.object({
+  AllowedValues: z.array(z.string()),
+});
+
+const StringListValidationSchema = z.object({
+  AllowedValues: z.array(z.string()).optional(),
+  MaxItems: z.number().int().min(1).max(5).optional(),
+});
+
+const NumberValidationSchema = z.object({
+  MinValue: z.number().optional(),
+  MaxValue: z.number().optional(),
+});
+
+const ValidationSchema = z.object({
+  StringValidation: StringValidationSchema.optional(),
+  StringListValidation: StringListValidationSchema.optional(),
+  NumberValidation: NumberValidationSchema.optional(),
+});
+
+const LlmExtractionConfigSchema = z.object({
+  LlmExtractionInstruction: z.string().min(1).max(1000).describe(
+    "LLM extraction instruction",
+  ).optional(),
+  Definition: z.string().min(1).max(1000).describe(
+    "Definition for the metadata schema entry",
+  ),
+  Validation: ValidationSchema.optional(),
+});
+
+const ExtractionConfigSchema = z.object({
+  LlmExtractionConfig: LlmExtractionConfigSchema.optional(),
+});
+
+const MetadataSchemaEntrySchema = z.object({
+  Key: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9\\s._:/=+@-]*$"))
+    .describe("Key name for metadata fields"),
+  Type: z.enum(["STRING", "STRINGLIST", "NUMBER"]).describe(
+    "Supported data types for metadata values",
+  ).optional(),
+  ExtractionConfig: ExtractionConfigSchema.optional(),
+});
+
+const MemoryRecordSchemaSchema = z.object({
+  MetadataSchema: z.array(MetadataSchemaEntrySchema).describe(
+    "List of metadata schema entries",
+  ).optional(),
+});
+
 const SemanticMemoryStrategySchema = z.object({
   Name: z.string().regex(new RegExp("^[a-zA-Z][a-zA-Z0-9_]{0,47}$")).describe(
     "Name of the Memory resource",
@@ -41,6 +90,7 @@ const SemanticMemoryStrategySchema = z.object({
       ),
     ),
   ).describe("List of namespaces for memory strategy").optional(),
+  MemoryRecordSchema: MemoryRecordSchemaSchema.optional(),
   StrategyId: z.string().min(12).regex(
     new RegExp("^[a-zA-Z][a-zA-Z0-9-_]{0,99}-[a-zA-Z0-9]{10}$"),
   ).describe("Unique identifier for the memory strategy").optional(),
@@ -80,6 +130,7 @@ const SummaryMemoryStrategySchema = z.object({
       ),
     ),
   ).describe("List of namespaces for memory strategy").optional(),
+  MemoryRecordSchema: MemoryRecordSchemaSchema.optional(),
   StrategyId: z.string().min(12).regex(
     new RegExp("^[a-zA-Z][a-zA-Z0-9-_]{0,99}-[a-zA-Z0-9]{10}$"),
   ).describe("Unique identifier for the memory strategy").optional(),
@@ -119,6 +170,7 @@ const UserPreferenceMemoryStrategySchema = z.object({
       ),
     ),
   ).describe("List of namespaces for memory strategy").optional(),
+  MemoryRecordSchema: MemoryRecordSchemaSchema.optional(),
   StrategyId: z.string().min(12).regex(
     new RegExp("^[a-zA-Z][a-zA-Z0-9-_]{0,99}-[a-zA-Z0-9]{10}$"),
   ).describe("Unique identifier for the memory strategy").optional(),
@@ -259,6 +311,7 @@ const EpisodicOverrideReflectionConfigurationInputSchema = z.object({
       ),
     ),
   ).describe("List of namespaces for memory strategy").optional(),
+  MemoryRecordSchema: MemoryRecordSchemaSchema.optional(),
 });
 
 const EpisodicOverrideSchema = z.object({
@@ -297,6 +350,7 @@ const CustomMemoryStrategySchema = z.object({
     ),
   ).describe("List of namespaces for memory strategy").optional(),
   Configuration: CustomConfigurationInputSchema.optional(),
+  MemoryRecordSchema: MemoryRecordSchemaSchema.optional(),
   StrategyId: z.string().min(12).regex(
     new RegExp("^[a-zA-Z][a-zA-Z0-9-_]{0,99}-[a-zA-Z0-9]{10}$"),
   ).describe("Unique identifier for the memory strategy").optional(),
@@ -331,6 +385,7 @@ const EpisodicReflectionConfigurationInputSchema = z.object({
       ),
     ),
   ).describe("List of namespaces for memory strategy").optional(),
+  MemoryRecordSchema: MemoryRecordSchemaSchema.optional(),
 });
 
 const EpisodicMemoryStrategySchema = z.object({
@@ -355,6 +410,7 @@ const EpisodicMemoryStrategySchema = z.object({
   ).describe("List of namespaces for memory strategy").optional(),
   ReflectionConfiguration: EpisodicReflectionConfigurationInputSchema
     .optional(),
+  MemoryRecordSchema: MemoryRecordSchemaSchema.optional(),
   StrategyId: z.string().min(12).regex(
     new RegExp("^[a-zA-Z][a-zA-Z0-9-_]{0,99}-[a-zA-Z0-9]{10}$"),
   ).describe("Unique identifier for the memory strategy").optional(),
@@ -380,6 +436,14 @@ const MemoryStrategySchema = z.object({
   UserPreferenceMemoryStrategy: UserPreferenceMemoryStrategySchema.optional(),
   CustomMemoryStrategy: CustomMemoryStrategySchema.optional(),
   EpisodicMemoryStrategy: EpisodicMemoryStrategySchema.optional(),
+});
+
+const IndexedKeySchema = z.object({
+  Key: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9\\s._:/=+@-]*$"))
+    .describe("Key name for metadata fields"),
+  Type: z.enum(["STRING", "STRINGLIST", "NUMBER"]).describe(
+    "Supported data types for metadata values",
+  ),
 });
 
 const ContentConfigurationSchema = z.object({
@@ -427,6 +491,9 @@ const GlobalArgsSchema = z.object({
   MemoryStrategies: z.array(MemoryStrategySchema).describe(
     "List of memory strategies attached to this memory",
   ).optional(),
+  IndexedKeys: z.array(IndexedKeySchema).describe(
+    "List of indexed keys for the memory",
+  ).optional(),
   StreamDeliveryResources: z.object({
     Resources: z.array(StreamDeliveryResourceSchema),
   }).optional(),
@@ -449,6 +516,7 @@ const StateSchema = z.object({
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
   MemoryStrategies: z.array(MemoryStrategySchema).optional(),
+  IndexedKeys: z.array(IndexedKeySchema).optional(),
   StreamDeliveryResources: z.object({
     Resources: z.array(StreamDeliveryResourceSchema),
   }).optional(),
@@ -480,6 +548,9 @@ const InputsSchema = z.object({
   MemoryStrategies: z.array(MemoryStrategySchema).describe(
     "List of memory strategies attached to this memory",
   ).optional(),
+  IndexedKeys: z.array(IndexedKeySchema).describe(
+    "List of indexed keys for the memory",
+  ).optional(),
   StreamDeliveryResources: z.object({
     Resources: z.array(StreamDeliveryResourceSchema).optional(),
   }).optional(),
@@ -492,7 +563,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for BedrockAgentCore Memory. Registered at `@swamp/aws/bedrockagentcore/memory`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/memory",
-  version: "2026.04.23.2",
+  version: "2026.05.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -522,6 +593,11 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.01.1",
+      description: "Added: IndexedKeys",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

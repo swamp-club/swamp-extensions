@@ -183,6 +183,9 @@ const GlobalArgsSchema = z.object({
   Rebalancing: z.object({
     Status: z.enum(["PAUSED", "ACTIVE"]),
   }).optional(),
+  ZookeeperAccess: z.object({
+    Enabled: z.boolean().optional(),
+  }).optional(),
 });
 
 const StateSchema = z.object({
@@ -223,6 +226,9 @@ const StateSchema = z.object({
   StorageMode: z.string().optional(),
   Rebalancing: z.object({
     Status: z.string(),
+  }).optional(),
+  ZookeeperAccess: z.object({
+    Enabled: z.boolean(),
   }).optional(),
 }).passthrough();
 
@@ -272,12 +278,15 @@ const InputsSchema = z.object({
   Rebalancing: z.object({
     Status: z.enum(["PAUSED", "ACTIVE"]).optional(),
   }).optional(),
+  ZookeeperAccess: z.object({
+    Enabled: z.boolean().optional(),
+  }).optional(),
 });
 
 /** Swamp extension model for MSK Cluster. Registered at `@swamp/aws/msk/cluster`. */
 export const model = {
   type: "@swamp/aws/msk/cluster",
-  version: "2026.04.23.2",
+  version: "2026.05.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -302,6 +311,11 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.01.1",
+      description: "Added: ZookeeperAccess",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

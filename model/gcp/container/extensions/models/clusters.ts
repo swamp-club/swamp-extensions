@@ -199,6 +199,12 @@ const GlobalArgsSchema = z.object({
       }).describe(
         "Configuration for NetworkPolicy. This only tracks whether the addon is enabled or not on the Master, it does not track whether network policy is enabled for the nodes.",
       ).optional(),
+      nodeReadinessConfig: z.object({
+        enabled: z.boolean().describe(
+          "Optional. Whether the GKE Node Readiness Controller is enabled for this cluster.",
+        ).optional(),
+      }).describe("Configuration for the GKE Node Readiness Controller.")
+        .optional(),
       parallelstoreCsiDriverConfig: z.object({
         enabled: z.boolean().describe(
           "Whether the Cloud Storage Parallelstore CSI driver is enabled for this cluster.",
@@ -907,6 +913,45 @@ const GlobalArgsSchema = z.object({
         ).describe(
           "Exceptions to maintenance window. Non-emergency maintenance should not occur in these windows.",
         ).optional(),
+        recurringMaintenanceWindow: z.object({
+          delayUntil: z.object({
+            day: z.unknown().describe(
+              "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+            ).optional(),
+            month: z.unknown().describe(
+              "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+            ).optional(),
+            year: z.unknown().describe(
+              "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+            ).optional(),
+          }).describe(
+            "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+          ).optional(),
+          recurrence: z.string().describe(
+            "Required. An RRULE (https://tools.ietf.org/html/rfc5545#section-3.8.5.3) for how this window recurs. For example, to have something repeat every weekday, you'd use: `FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR` To repeat some window daily (equivalent to the DailyMaintenanceWindow): `FREQ=DAILY` For the first weekend of every month: `FREQ=MONTHLY;BYSETPOS=1;BYDAY=SA,SU` The FREQ values of HOURLY, MINUTELY, and SECONDLY are not supported.",
+          ).optional(),
+          windowDuration: z.string().describe(
+            "Required. Duration of the window.",
+          ).optional(),
+          windowStartTime: z.object({
+            hours: z.unknown().describe(
+              'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+            ).optional(),
+            minutes: z.unknown().describe(
+              "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+            ).optional(),
+            nanos: z.unknown().describe(
+              "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+            ).optional(),
+            seconds: z.unknown().describe(
+              "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+            ).optional(),
+          }).describe(
+            "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+          ).optional(),
+        }).describe(
+          "Represents an arbitrary window of time that recurs. Will replace RecurringTimeWindow.",
+        ).optional(),
         recurringWindow: z.object({
           recurrence: z.string().describe(
             "An RRULE (https://tools.ietf.org/html/rfc5545#section-3.8.5.3) for how this window recurs. They go on for the span of time between the start and end time. For example, to have something repeat every weekday, you'd use: `FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR` To repeat some window daily (equivalent to the DailyMaintenanceWindow): `FREQ=DAILY` For the first weekend of every month: `FREQ=MONTHLY;BYSETPOS=1;BYDAY=SA,SU` This specifies how frequently the window starts. Eg, if you wanted to have a 9-5 UTC-4 window every weekday, you'd use something like: ` start time = 2019-01-01T09:00:00-0400 end time = 2019-01-01T17:00:00-0400 recurrence = FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR ` Windows can span multiple days. Eg, to make the window encompass every weekend from midnight Saturday till the last minute of Sunday UTC: ` start time = 2019-01-05T00:00:00Z end time = 2019-01-07T23:59:00Z recurrence = FREQ=WEEKLY;BYDAY=SA ` Note the start and end time's specific dates are largely arbitrary except to specify duration of the window and when it first starts. The FREQ values of HOURLY, MINUTELY, and SECONDLY are not supported.",
@@ -1510,6 +1555,26 @@ const GlobalArgsSchema = z.object({
         ]).describe(
           "cgroup_mode specifies the cgroup mode to be used on the node.",
         ).optional(),
+        customNodeInit: z.object({
+          initScript: z.object({
+            args: z.unknown().describe(
+              "Optional. The optional arguments line to be passed to the init script.",
+            ).optional(),
+            gcpSecretManagerSecretUri: z.unknown().describe(
+              "The resource name of the secret manager secret hosting the init script. Both global and regional secrets are supported with format below: Global secret: projects/{project}/secrets/{secret}/versions/{version} Regional secret: projects/{project}/locations/{location}/secrets/{secret}/versions/{version} Example: projects/1234567890/secrets/script_1/versions/1. Accept version number only, not support version alias. User can't configure both gcp_secret_manager_secret_uri and gcs_uri.",
+            ).optional(),
+            gcsGeneration: z.unknown().describe(
+              'The generation of the init script stored in Gloud Storage. This is the required field to identify the version of the init script. User can get the genetaion from `gcloud storage objects describe gs://BUCKET_NAME/OBJECT_NAME --format="value(generation)"` or from the "Version history" tab of the object in the Cloud Console UI.',
+            ).optional(),
+            gcsUri: z.unknown().describe(
+              "The Cloud Storage URI for storing the init script. Format: gs://BUCKET_NAME/OBJECT_NAME The service account on the node pool must have read access to the object. User can't configure both gcs_uri and gcp_secret_manager_secret_uri.",
+            ).optional(),
+          }).describe(
+            "InitScript provide a simply bash script to be executed on the node.",
+          ).optional(),
+        }).describe(
+          "Support for running custom init code while bootstrapping nodes.",
+        ).optional(),
         hugepages: z.object({
           hugepageSize1g: z.number().int().describe(
             "Optional. Amount of 1G hugepages",
@@ -1778,6 +1843,26 @@ const GlobalArgsSchema = z.object({
           "CGROUP_MODE_V2",
         ]).describe(
           "cgroup_mode specifies the cgroup mode to be used on the node.",
+        ).optional(),
+        customNodeInit: z.object({
+          initScript: z.object({
+            args: z.unknown().describe(
+              "Optional. The optional arguments line to be passed to the init script.",
+            ).optional(),
+            gcpSecretManagerSecretUri: z.unknown().describe(
+              "The resource name of the secret manager secret hosting the init script. Both global and regional secrets are supported with format below: Global secret: projects/{project}/secrets/{secret}/versions/{version} Regional secret: projects/{project}/locations/{location}/secrets/{secret}/versions/{version} Example: projects/1234567890/secrets/script_1/versions/1. Accept version number only, not support version alias. User can't configure both gcp_secret_manager_secret_uri and gcs_uri.",
+            ).optional(),
+            gcsGeneration: z.unknown().describe(
+              'The generation of the init script stored in Gloud Storage. This is the required field to identify the version of the init script. User can get the genetaion from `gcloud storage objects describe gs://BUCKET_NAME/OBJECT_NAME --format="value(generation)"` or from the "Version history" tab of the object in the Cloud Console UI.',
+            ).optional(),
+            gcsUri: z.unknown().describe(
+              "The Cloud Storage URI for storing the init script. Format: gs://BUCKET_NAME/OBJECT_NAME The service account on the node pool must have read access to the object. User can't configure both gcs_uri and gcp_secret_manager_secret_uri.",
+            ).optional(),
+          }).describe(
+            "InitScript provide a simply bash script to be executed on the node.",
+          ).optional(),
+        }).describe(
+          "Support for running custom init code while bootstrapping nodes.",
         ).optional(),
         hugepages: z.object({
           hugepageSize1g: z.number().int().describe(
@@ -2448,6 +2533,9 @@ const GlobalArgsSchema = z.object({
           ).optional(),
           cgroupMode: z.unknown().describe(
             "cgroup_mode specifies the cgroup mode to be used on the node.",
+          ).optional(),
+          customNodeInit: z.unknown().describe(
+            "Support for running custom init code while bootstrapping nodes.",
           ).optional(),
           hugepages: z.unknown().describe(
             "Hugepages amount in both 2m and 1g size",
@@ -3144,6 +3232,12 @@ const GlobalArgsSchema = z.object({
       }).describe(
         "Configuration for NetworkPolicy. This only tracks whether the addon is enabled or not on the Master, it does not track whether network policy is enabled for the nodes.",
       ).optional(),
+      nodeReadinessConfig: z.object({
+        enabled: z.boolean().describe(
+          "Optional. Whether the GKE Node Readiness Controller is enabled for this cluster.",
+        ).optional(),
+      }).describe("Configuration for the GKE Node Readiness Controller.")
+        .optional(),
       parallelstoreCsiDriverConfig: z.object({
         enabled: z.boolean().describe(
           "Whether the Cloud Storage Parallelstore CSI driver is enabled for this cluster.",
@@ -4102,6 +4196,26 @@ const GlobalArgsSchema = z.object({
         "CGROUP_MODE_V2",
       ]).describe(
         "cgroup_mode specifies the cgroup mode to be used on the node.",
+      ).optional(),
+      customNodeInit: z.object({
+        initScript: z.object({
+          args: z.array(z.unknown()).describe(
+            "Optional. The optional arguments line to be passed to the init script.",
+          ).optional(),
+          gcpSecretManagerSecretUri: z.string().describe(
+            "The resource name of the secret manager secret hosting the init script. Both global and regional secrets are supported with format below: Global secret: projects/{project}/secrets/{secret}/versions/{version} Regional secret: projects/{project}/locations/{location}/secrets/{secret}/versions/{version} Example: projects/1234567890/secrets/script_1/versions/1. Accept version number only, not support version alias. User can't configure both gcp_secret_manager_secret_uri and gcs_uri.",
+          ).optional(),
+          gcsGeneration: z.string().describe(
+            'The generation of the init script stored in Gloud Storage. This is the required field to identify the version of the init script. User can get the genetaion from `gcloud storage objects describe gs://BUCKET_NAME/OBJECT_NAME --format="value(generation)"` or from the "Version history" tab of the object in the Cloud Console UI.',
+          ).optional(),
+          gcsUri: z.string().describe(
+            "The Cloud Storage URI for storing the init script. Format: gs://BUCKET_NAME/OBJECT_NAME The service account on the node pool must have read access to the object. User can't configure both gcs_uri and gcp_secret_manager_secret_uri.",
+          ).optional(),
+        }).describe(
+          "InitScript provide a simply bash script to be executed on the node.",
+        ).optional(),
+      }).describe(
+        "Support for running custom init code while bootstrapping nodes.",
       ).optional(),
       hugepages: z.object({
         hugepageSize1g: z.number().int().describe(
@@ -4551,6 +4665,9 @@ const StateSchema = z.object({
     networkPolicyConfig: z.object({
       disabled: z.boolean(),
     }),
+    nodeReadinessConfig: z.object({
+      enabled: z.boolean(),
+    }),
     parallelstoreCsiDriverConfig: z.object({
       enabled: z.boolean(),
     }),
@@ -4817,6 +4934,21 @@ const StateSchema = z.object({
         startTime: z.string(),
       }),
       maintenanceExclusions: z.record(z.string(), z.unknown()),
+      recurringMaintenanceWindow: z.object({
+        delayUntil: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }),
+        recurrence: z.string(),
+        windowDuration: z.string(),
+        windowStartTime: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }),
+      }),
       recurringWindow: z.object({
         recurrence: z.string(),
         window: z.object({
@@ -5040,6 +5172,14 @@ const StateSchema = z.object({
         enablePtpKvmTimeSync: z.boolean(),
       }),
       cgroupMode: z.string(),
+      customNodeInit: z.object({
+        initScript: z.object({
+          args: z.array(z.unknown()),
+          gcpSecretManagerSecretUri: z.string(),
+          gcsGeneration: z.string(),
+          gcsUri: z.string(),
+        }),
+      }),
       hugepages: z.object({
         hugepageSize1g: z.number(),
         hugepageSize2m: z.number(),
@@ -5140,6 +5280,14 @@ const StateSchema = z.object({
         enablePtpKvmTimeSync: z.boolean(),
       }),
       cgroupMode: z.string(),
+      customNodeInit: z.object({
+        initScript: z.object({
+          args: z.array(z.unknown()),
+          gcpSecretManagerSecretUri: z.string(),
+          gcsGeneration: z.string(),
+          gcsUri: z.string(),
+        }),
+      }),
       hugepages: z.object({
         hugepageSize1g: z.number(),
         hugepageSize2m: z.number(),
@@ -5444,6 +5592,9 @@ const StateSchema = z.object({
           enablePtpKvmTimeSync: z.unknown(),
         }),
         cgroupMode: z.string(),
+        customNodeInit: z.object({
+          initScript: z.unknown(),
+        }),
         hugepages: z.object({
           hugepageSize1g: z.unknown(),
           hugepageSize2m: z.unknown(),
@@ -5798,6 +5949,12 @@ const InputsSchema = z.object({
       }).describe(
         "Configuration for NetworkPolicy. This only tracks whether the addon is enabled or not on the Master, it does not track whether network policy is enabled for the nodes.",
       ).optional(),
+      nodeReadinessConfig: z.object({
+        enabled: z.boolean().describe(
+          "Optional. Whether the GKE Node Readiness Controller is enabled for this cluster.",
+        ).optional(),
+      }).describe("Configuration for the GKE Node Readiness Controller.")
+        .optional(),
       parallelstoreCsiDriverConfig: z.object({
         enabled: z.boolean().describe(
           "Whether the Cloud Storage Parallelstore CSI driver is enabled for this cluster.",
@@ -6506,6 +6663,45 @@ const InputsSchema = z.object({
         ).describe(
           "Exceptions to maintenance window. Non-emergency maintenance should not occur in these windows.",
         ).optional(),
+        recurringMaintenanceWindow: z.object({
+          delayUntil: z.object({
+            day: z.unknown().describe(
+              "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+            ).optional(),
+            month: z.unknown().describe(
+              "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+            ).optional(),
+            year: z.unknown().describe(
+              "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+            ).optional(),
+          }).describe(
+            "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+          ).optional(),
+          recurrence: z.string().describe(
+            "Required. An RRULE (https://tools.ietf.org/html/rfc5545#section-3.8.5.3) for how this window recurs. For example, to have something repeat every weekday, you'd use: `FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR` To repeat some window daily (equivalent to the DailyMaintenanceWindow): `FREQ=DAILY` For the first weekend of every month: `FREQ=MONTHLY;BYSETPOS=1;BYDAY=SA,SU` The FREQ values of HOURLY, MINUTELY, and SECONDLY are not supported.",
+          ).optional(),
+          windowDuration: z.string().describe(
+            "Required. Duration of the window.",
+          ).optional(),
+          windowStartTime: z.object({
+            hours: z.unknown().describe(
+              'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+            ).optional(),
+            minutes: z.unknown().describe(
+              "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+            ).optional(),
+            nanos: z.unknown().describe(
+              "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+            ).optional(),
+            seconds: z.unknown().describe(
+              "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+            ).optional(),
+          }).describe(
+            "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+          ).optional(),
+        }).describe(
+          "Represents an arbitrary window of time that recurs. Will replace RecurringTimeWindow.",
+        ).optional(),
         recurringWindow: z.object({
           recurrence: z.string().describe(
             "An RRULE (https://tools.ietf.org/html/rfc5545#section-3.8.5.3) for how this window recurs. They go on for the span of time between the start and end time. For example, to have something repeat every weekday, you'd use: `FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR` To repeat some window daily (equivalent to the DailyMaintenanceWindow): `FREQ=DAILY` For the first weekend of every month: `FREQ=MONTHLY;BYSETPOS=1;BYDAY=SA,SU` This specifies how frequently the window starts. Eg, if you wanted to have a 9-5 UTC-4 window every weekday, you'd use something like: ` start time = 2019-01-01T09:00:00-0400 end time = 2019-01-01T17:00:00-0400 recurrence = FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR ` Windows can span multiple days. Eg, to make the window encompass every weekend from midnight Saturday till the last minute of Sunday UTC: ` start time = 2019-01-05T00:00:00Z end time = 2019-01-07T23:59:00Z recurrence = FREQ=WEEKLY;BYDAY=SA ` Note the start and end time's specific dates are largely arbitrary except to specify duration of the window and when it first starts. The FREQ values of HOURLY, MINUTELY, and SECONDLY are not supported.",
@@ -7109,6 +7305,26 @@ const InputsSchema = z.object({
         ]).describe(
           "cgroup_mode specifies the cgroup mode to be used on the node.",
         ).optional(),
+        customNodeInit: z.object({
+          initScript: z.object({
+            args: z.unknown().describe(
+              "Optional. The optional arguments line to be passed to the init script.",
+            ).optional(),
+            gcpSecretManagerSecretUri: z.unknown().describe(
+              "The resource name of the secret manager secret hosting the init script. Both global and regional secrets are supported with format below: Global secret: projects/{project}/secrets/{secret}/versions/{version} Regional secret: projects/{project}/locations/{location}/secrets/{secret}/versions/{version} Example: projects/1234567890/secrets/script_1/versions/1. Accept version number only, not support version alias. User can't configure both gcp_secret_manager_secret_uri and gcs_uri.",
+            ).optional(),
+            gcsGeneration: z.unknown().describe(
+              'The generation of the init script stored in Gloud Storage. This is the required field to identify the version of the init script. User can get the genetaion from `gcloud storage objects describe gs://BUCKET_NAME/OBJECT_NAME --format="value(generation)"` or from the "Version history" tab of the object in the Cloud Console UI.',
+            ).optional(),
+            gcsUri: z.unknown().describe(
+              "The Cloud Storage URI for storing the init script. Format: gs://BUCKET_NAME/OBJECT_NAME The service account on the node pool must have read access to the object. User can't configure both gcs_uri and gcp_secret_manager_secret_uri.",
+            ).optional(),
+          }).describe(
+            "InitScript provide a simply bash script to be executed on the node.",
+          ).optional(),
+        }).describe(
+          "Support for running custom init code while bootstrapping nodes.",
+        ).optional(),
         hugepages: z.object({
           hugepageSize1g: z.number().int().describe(
             "Optional. Amount of 1G hugepages",
@@ -7377,6 +7593,26 @@ const InputsSchema = z.object({
           "CGROUP_MODE_V2",
         ]).describe(
           "cgroup_mode specifies the cgroup mode to be used on the node.",
+        ).optional(),
+        customNodeInit: z.object({
+          initScript: z.object({
+            args: z.unknown().describe(
+              "Optional. The optional arguments line to be passed to the init script.",
+            ).optional(),
+            gcpSecretManagerSecretUri: z.unknown().describe(
+              "The resource name of the secret manager secret hosting the init script. Both global and regional secrets are supported with format below: Global secret: projects/{project}/secrets/{secret}/versions/{version} Regional secret: projects/{project}/locations/{location}/secrets/{secret}/versions/{version} Example: projects/1234567890/secrets/script_1/versions/1. Accept version number only, not support version alias. User can't configure both gcp_secret_manager_secret_uri and gcs_uri.",
+            ).optional(),
+            gcsGeneration: z.unknown().describe(
+              'The generation of the init script stored in Gloud Storage. This is the required field to identify the version of the init script. User can get the genetaion from `gcloud storage objects describe gs://BUCKET_NAME/OBJECT_NAME --format="value(generation)"` or from the "Version history" tab of the object in the Cloud Console UI.',
+            ).optional(),
+            gcsUri: z.unknown().describe(
+              "The Cloud Storage URI for storing the init script. Format: gs://BUCKET_NAME/OBJECT_NAME The service account on the node pool must have read access to the object. User can't configure both gcs_uri and gcp_secret_manager_secret_uri.",
+            ).optional(),
+          }).describe(
+            "InitScript provide a simply bash script to be executed on the node.",
+          ).optional(),
+        }).describe(
+          "Support for running custom init code while bootstrapping nodes.",
         ).optional(),
         hugepages: z.object({
           hugepageSize1g: z.number().int().describe(
@@ -8047,6 +8283,9 @@ const InputsSchema = z.object({
           ).optional(),
           cgroupMode: z.unknown().describe(
             "cgroup_mode specifies the cgroup mode to be used on the node.",
+          ).optional(),
+          customNodeInit: z.unknown().describe(
+            "Support for running custom init code while bootstrapping nodes.",
           ).optional(),
           hugepages: z.unknown().describe(
             "Hugepages amount in both 2m and 1g size",
@@ -8743,6 +8982,12 @@ const InputsSchema = z.object({
       }).describe(
         "Configuration for NetworkPolicy. This only tracks whether the addon is enabled or not on the Master, it does not track whether network policy is enabled for the nodes.",
       ).optional(),
+      nodeReadinessConfig: z.object({
+        enabled: z.boolean().describe(
+          "Optional. Whether the GKE Node Readiness Controller is enabled for this cluster.",
+        ).optional(),
+      }).describe("Configuration for the GKE Node Readiness Controller.")
+        .optional(),
       parallelstoreCsiDriverConfig: z.object({
         enabled: z.boolean().describe(
           "Whether the Cloud Storage Parallelstore CSI driver is enabled for this cluster.",
@@ -9702,6 +9947,26 @@ const InputsSchema = z.object({
       ]).describe(
         "cgroup_mode specifies the cgroup mode to be used on the node.",
       ).optional(),
+      customNodeInit: z.object({
+        initScript: z.object({
+          args: z.array(z.unknown()).describe(
+            "Optional. The optional arguments line to be passed to the init script.",
+          ).optional(),
+          gcpSecretManagerSecretUri: z.string().describe(
+            "The resource name of the secret manager secret hosting the init script. Both global and regional secrets are supported with format below: Global secret: projects/{project}/secrets/{secret}/versions/{version} Regional secret: projects/{project}/locations/{location}/secrets/{secret}/versions/{version} Example: projects/1234567890/secrets/script_1/versions/1. Accept version number only, not support version alias. User can't configure both gcp_secret_manager_secret_uri and gcs_uri.",
+          ).optional(),
+          gcsGeneration: z.string().describe(
+            'The generation of the init script stored in Gloud Storage. This is the required field to identify the version of the init script. User can get the genetaion from `gcloud storage objects describe gs://BUCKET_NAME/OBJECT_NAME --format="value(generation)"` or from the "Version history" tab of the object in the Cloud Console UI.',
+          ).optional(),
+          gcsUri: z.string().describe(
+            "The Cloud Storage URI for storing the init script. Format: gs://BUCKET_NAME/OBJECT_NAME The service account on the node pool must have read access to the object. User can't configure both gcs_uri and gcp_secret_manager_secret_uri.",
+          ).optional(),
+        }).describe(
+          "InitScript provide a simply bash script to be executed on the node.",
+        ).optional(),
+      }).describe(
+        "Support for running custom init code while bootstrapping nodes.",
+      ).optional(),
       hugepages: z.object({
         hugepageSize1g: z.number().int().describe(
           "Optional. Amount of 1G hugepages",
@@ -10109,7 +10374,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Kubernetes Engine Clusters. Registered at `@swamp/gcp/container/clusters`. */
 export const model = {
   type: "@swamp/gcp/container/clusters",
-  version: "2026.04.23.1",
+  version: "2026.05.01.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -10163,6 +10428,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -40,7 +40,7 @@ const GlobalArgsSchema = z.object({
   ComputationPreference: z.object({
     PricingPlanArn: z.string().regex(
       new RegExp(
-        "arn:aws(-cn)?:billingconductor::(aws|[0-9]{12}):pricingplan/(BasicPricingPlan|[a-zA-Z0-9]{10})",
+        "arn:aws(-cn)?:billingconductor::(aws|[0-9]{12}):pricingplan/(BasicPricingPlan|Passthrough|[a-zA-Z0-9]{10})",
       ),
     ).describe("ARN of the attached pricing plan"),
   }),
@@ -91,7 +91,7 @@ const InputsSchema = z.object({
   ComputationPreference: z.object({
     PricingPlanArn: z.string().regex(
       new RegExp(
-        "arn:aws(-cn)?:billingconductor::(aws|[0-9]{12}):pricingplan/(BasicPricingPlan|[a-zA-Z0-9]{10})",
+        "arn:aws(-cn)?:billingconductor::(aws|[0-9]{12}):pricingplan/(BasicPricingPlan|Passthrough|[a-zA-Z0-9]{10})",
       ),
     ).describe("ARN of the attached pricing plan").optional(),
   }).optional(),
@@ -111,7 +111,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for BillingConductor BillingGroup. Registered at `@swamp/aws/billingconductor/billing-group`. */
 export const model = {
   type: "@swamp/aws/billingconductor/billing-group",
-  version: "2026.04.23.2",
+  version: "2026.05.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -135,6 +135,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

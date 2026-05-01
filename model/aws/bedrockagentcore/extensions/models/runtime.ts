@@ -49,6 +49,7 @@ const CodeConfigurationSchema = z.object({
     "PYTHON_3_12",
     "PYTHON_3_13",
     "PYTHON_3_14",
+    "NODE_22",
   ]).describe("Managed runtime types"),
   EntryPoint: z.array(z.string()).describe("List of entry points"),
 });
@@ -298,7 +299,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for BedrockAgentCore Runtime. Registered at `@swamp/aws/bedrockagentcore/runtime`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/runtime",
-  version: "2026.04.23.2",
+  version: "2026.05.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -327,6 +328,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
