@@ -9,8 +9,6 @@ labels:
   - s3express
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: directory_bucket
 models:
   - access_point.ts
   - bucket_policy.ts

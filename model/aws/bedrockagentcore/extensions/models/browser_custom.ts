@@ -34,6 +34,29 @@ const S3LocationSchema = z.object({
   Prefix: z.string().min(1),
 });
 
+const CertificateLocationSchema = z.object({
+  SecretArn: z.string().regex(
+    new RegExp(
+      "^arn:(aws(?:-cn|-us-gov|-iso(?:-[bef])?)?):secretsmanager:[a-z0-9-]+:\\d{12}:secret:[a-zA-Z0-9/_+=.@-]+$",
+    ),
+  ).describe("Secrets Manager secret ARN."),
+});
+
+const CertificateSchema = z.object({
+  CertificateLocation: CertificateLocationSchema.describe(
+    "Certificate location in Secrets Manager.",
+  ),
+});
+
+const BrowserEnterprisePolicySchema = z.object({
+  Location: S3LocationSchema.describe(
+    "The S3 location of the enterprise policy file.",
+  ),
+  Type: z.enum(["MANAGED", "RECOMMENDED"]).describe(
+    "The type of browser enterprise policy.",
+  ),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -56,6 +79,12 @@ const GlobalArgsSchema = z.object({
   BrowserSigning: z.object({
     Enabled: z.boolean().optional(),
   }).describe("Browser signing configuration.").optional(),
+  Certificates: z.array(CertificateSchema).describe(
+    "List of root CA certificates in PEM format.",
+  ).optional(),
+  EnterprisePolicies: z.array(BrowserEnterprisePolicySchema).describe(
+    "A list of enterprise policy files for the browser.",
+  ).optional(),
   ExecutionRoleArn: z.string().regex(
     new RegExp(
       "^arn:(aws(?:-cn|-us-gov|-iso(?:-[bef])?)?):iam::[0-9]{12}:role/.+$",
@@ -85,6 +114,8 @@ const StateSchema = z.object({
   BrowserSigning: z.object({
     Enabled: z.boolean(),
   }).optional(),
+  Certificates: z.array(CertificateSchema).optional(),
+  EnterprisePolicies: z.array(BrowserEnterprisePolicySchema).optional(),
   ExecutionRoleArn: z.string().optional(),
   Status: z.string().optional(),
   FailureReason: z.string().optional(),
@@ -115,6 +146,12 @@ const InputsSchema = z.object({
   BrowserSigning: z.object({
     Enabled: z.boolean().optional(),
   }).describe("Browser signing configuration.").optional(),
+  Certificates: z.array(CertificateSchema).describe(
+    "List of root CA certificates in PEM format.",
+  ).optional(),
+  EnterprisePolicies: z.array(BrowserEnterprisePolicySchema).describe(
+    "A list of enterprise policy files for the browser.",
+  ).optional(),
   ExecutionRoleArn: z.string().regex(
     new RegExp(
       "^arn:(aws(?:-cn|-us-gov|-iso(?:-[bef])?)?):iam::[0-9]{12}:role/.+$",
@@ -131,7 +168,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for BedrockAgentCore BrowserCustom. Registered at `@swamp/aws/bedrockagentcore/browser-custom`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/browser-custom",
-  version: "2026.04.23.2",
+  version: "2026.05.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -161,6 +198,11 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.01.1",
+      description: "Added: Certificates, EnterprisePolicies",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -268,6 +310,8 @@ export const model = {
             "NetworkConfiguration",
             "RecordingConfig",
             "BrowserSigning",
+            "Certificates",
+            "EnterprisePolicies",
             "ExecutionRoleArn",
           ],
         );

@@ -9,8 +9,6 @@ labels:
   - ec2
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: ec2fleet
 models:
   - capacity_manager_data_export.ts
   - capacity_reservation.ts

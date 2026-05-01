@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud Access Context Manager Permissions.
  *
- * Lists all supported permissions in VPCSC Granular Controls.
+ * Lists all supported permissions in VPC Service Controls ingress and egress rules for Granular Controls.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -55,7 +55,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Access Context Manager Permissions. Registered at `@swamp/gcp/accesscontextmanager/permissions`. */
 export const model = {
   type: "@swamp/gcp/accesscontextmanager/permissions",
-  version: "2026.04.23.1",
+  version: "2026.05.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -87,13 +87,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
       description:
-        "Lists all supported permissions in VPCSC Granular Controls.",
+        "Lists all supported permissions in VPC Service Controls ingress and egress ru...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,

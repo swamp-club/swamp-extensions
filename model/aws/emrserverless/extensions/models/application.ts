@@ -235,6 +235,9 @@ const GlobalArgsSchema = z.object({
     StudioEnabled: z.boolean().describe(
       "Enabled you to connect an Application to Amazon EMR Studio to run interactive workloads in a notebook",
     ).optional(),
+    SessionEnabled: z.boolean().describe(
+      "Enables interactive sessions on the application",
+    ).optional(),
   }).optional(),
   NetworkConfiguration: z.object({
     SubnetIds: z.array(
@@ -306,6 +309,7 @@ const StateSchema = z.object({
   InteractiveConfiguration: z.object({
     LivyEndpointEnabled: z.boolean(),
     StudioEnabled: z.boolean(),
+    SessionEnabled: z.boolean(),
   }).optional(),
   NetworkConfiguration: z.object({
     SubnetIds: z.array(z.string()),
@@ -403,6 +407,9 @@ const InputsSchema = z.object({
     StudioEnabled: z.boolean().describe(
       "Enabled you to connect an Application to Amazon EMR Studio to run interactive workloads in a notebook",
     ).optional(),
+    SessionEnabled: z.boolean().describe(
+      "Enables interactive sessions on the application",
+    ).optional(),
   }).optional(),
   NetworkConfiguration: z.object({
     SubnetIds: z.array(
@@ -447,7 +454,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for EMRServerless Application. Registered at `@swamp/aws/emrserverless/application`. */
 export const model = {
   type: "@swamp/aws/emrserverless/application",
-  version: "2026.04.23.2",
+  version: "2026.05.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -471,6 +478,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

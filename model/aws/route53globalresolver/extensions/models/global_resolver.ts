@@ -34,7 +34,9 @@ const GlobalArgsSchema = z.object({
     new RegExp("(?!^[0-9]+$)([a-zA-Z0-9-_' ']+)"),
   ),
   Description: z.string().min(1).max(256).optional(),
-  Regions: z.array(z.string().min(1).max(32)),
+  Regions: z.array(z.string().min(1).max(32)).describe(
+    "A list of regions the Global Resolver will exist in. This list cannot be updated and will stay fixed for the duration of the Global Resolver.",
+  ),
   ObservabilityRegion: z.string().min(1).max(32).optional(),
   IpAddressType: z.enum(["IPV4", "DUAL_STACK"]).optional(),
   ClientToken: z.string().min(1).max(256).optional(),
@@ -67,7 +69,9 @@ const InputsSchema = z.object({
     new RegExp("(?!^[0-9]+$)([a-zA-Z0-9-_' ']+)"),
   ).optional(),
   Description: z.string().min(1).max(256).optional(),
-  Regions: z.array(z.string().min(1).max(32)).optional(),
+  Regions: z.array(z.string().min(1).max(32)).describe(
+    "A list of regions the Global Resolver will exist in. This list cannot be updated and will stay fixed for the duration of the Global Resolver.",
+  ).optional(),
   ObservabilityRegion: z.string().min(1).max(32).optional(),
   IpAddressType: z.enum(["IPV4", "DUAL_STACK"]).optional(),
   ClientToken: z.string().min(1).max(256).optional(),
@@ -77,7 +81,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Route53GlobalResolver GlobalResolver. Registered at `@swamp/aws/route53globalresolver/global-resolver`. */
 export const model = {
   type: "@swamp/aws/route53globalresolver/global-resolver",
-  version: "2026.04.23.2",
+  version: "2026.05.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -101,6 +105,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -203,7 +212,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["Regions", "ClientToken"],
+          ["ClientToken"],
         );
         const handle = await context.writeResource(
           "state",

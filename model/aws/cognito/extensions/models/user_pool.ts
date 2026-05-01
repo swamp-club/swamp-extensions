@@ -154,6 +154,10 @@ const GlobalArgsSchema = z.object({
   SmsVerificationMessage: z.string().min(6).max(140).optional(),
   WebAuthnRelyingPartyID: z.string().min(1).max(63).optional(),
   WebAuthnUserVerification: z.string().min(1).max(9).optional(),
+  WebAuthnFactorConfiguration: z.enum([
+    "SINGLE_FACTOR",
+    "MULTI_FACTOR_WITH_USER_VERIFICATION",
+  ]).optional(),
   Schema: z.array(SchemaAttributeSchema).optional(),
   UsernameConfiguration: z.object({
     CaseSensitive: z.boolean().optional(),
@@ -239,6 +243,7 @@ const StateSchema = z.object({
   SmsVerificationMessage: z.string().optional(),
   WebAuthnRelyingPartyID: z.string().optional(),
   WebAuthnUserVerification: z.string().optional(),
+  WebAuthnFactorConfiguration: z.string().optional(),
   Schema: z.array(SchemaAttributeSchema).optional(),
   UsernameConfiguration: z.object({
     CaseSensitive: z.boolean(),
@@ -330,6 +335,10 @@ const InputsSchema = z.object({
   SmsVerificationMessage: z.string().min(6).max(140).optional(),
   WebAuthnRelyingPartyID: z.string().min(1).max(63).optional(),
   WebAuthnUserVerification: z.string().min(1).max(9).optional(),
+  WebAuthnFactorConfiguration: z.enum([
+    "SINGLE_FACTOR",
+    "MULTI_FACTOR_WITH_USER_VERIFICATION",
+  ]).optional(),
   Schema: z.array(SchemaAttributeSchema).optional(),
   UsernameConfiguration: z.object({
     CaseSensitive: z.boolean().optional(),
@@ -357,7 +366,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cognito UserPool. Registered at `@swamp/aws/cognito/user-pool`. */
 export const model = {
   type: "@swamp/aws/cognito/user-pool",
-  version: "2026.04.23.2",
+  version: "2026.05.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -382,6 +391,11 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.01.1",
+      description: "Added: WebAuthnFactorConfiguration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

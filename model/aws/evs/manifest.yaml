@@ -9,8 +9,6 @@ labels:
   - evs
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: environment
 models:
   - environment.ts
 additionalFiles:

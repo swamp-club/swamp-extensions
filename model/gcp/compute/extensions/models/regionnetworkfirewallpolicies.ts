@@ -304,8 +304,8 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   })).describe("A list of packet mirroring rules that belong to this policy.")
     .optional(),
-  policyType: z.enum(["RDMA_ROCE_POLICY", "VPC_POLICY"]).describe(
-    "The type of the firewall policy. This field can be eitherVPC_POLICY or RDMA_ROCE_POLICY. Note: if not specified then VPC_POLICY will be used.",
+  policyType: z.enum(["RDMA_ROCE_POLICY", "ULL_POLICY", "VPC_POLICY"]).describe(
+    "The type of the firewall policy. This field can be one of VPC_POLICY, RDMA_ROCE_POLICY or ULL_POLICY. Note: if not specified then VPC_POLICY will be used.",
   ).optional(),
   region: z.string().describe(
     "Output only. [Output Only] URL of the region where the regional firewall policy resides. This field is not applicable to global firewall policies. You must specify this field as part of the HTTP request URL. It is not settable as a field in the request body.",
@@ -748,8 +748,8 @@ const InputsSchema = z.object({
     ).optional(),
   })).describe("A list of packet mirroring rules that belong to this policy.")
     .optional(),
-  policyType: z.enum(["RDMA_ROCE_POLICY", "VPC_POLICY"]).describe(
-    "The type of the firewall policy. This field can be eitherVPC_POLICY or RDMA_ROCE_POLICY. Note: if not specified then VPC_POLICY will be used.",
+  policyType: z.enum(["RDMA_ROCE_POLICY", "ULL_POLICY", "VPC_POLICY"]).describe(
+    "The type of the firewall policy. This field can be one of VPC_POLICY, RDMA_ROCE_POLICY or ULL_POLICY. Note: if not specified then VPC_POLICY will be used.",
   ).optional(),
   region: z.string().describe(
     "Output only. [Output Only] URL of the region where the regional firewall policy resides. This field is not applicable to global firewall policies. You must specify this field as part of the HTTP request URL. It is not settable as a field in the request body.",
@@ -912,7 +912,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine RegionNetworkFirewallPolicies. Registered at `@swamp/gcp/compute/regionnetworkfirewallpolicies`. */
 export const model = {
   type: "@swamp/gcp/compute/regionnetworkfirewallpolicies",
-  version: "2026.04.23.1",
+  version: "2026.05.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -946,6 +946,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
