@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI EvaluationItems.
+ * Swamp extension model for Google Cloud Agent Platform EvaluationItems.
  *
  * EvaluationItem is a single evaluation request or result. The content of an EvaluationItem is immutable - it cannot be updated once created. EvaluationItems can be deleted when no longer needed.
  *
@@ -682,10 +682,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI EvaluationItems. Registered at `@swamp/gcp/aiplatform/evaluationitems`. */
+/** Swamp extension model for Google Cloud Agent Platform EvaluationItems. Registered at `@swamp/gcp/aiplatform/evaluationitems`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/evaluationitems",
-  version: "2026.04.23.1",
+  version: "2026.05.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -719,6 +719,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

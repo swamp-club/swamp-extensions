@@ -9,8 +9,6 @@ labels:
   - route53globalresolver
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: global_resolver
 models:
   - access_source.ts
   - access_token.ts

@@ -10,8 +10,6 @@ labels:
   - accesscontextmanager
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: permissions
 models:
   - accesspolicies.ts
   - accesspolicies_accesslevels.ts

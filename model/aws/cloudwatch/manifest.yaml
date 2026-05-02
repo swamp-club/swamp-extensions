@@ -9,8 +9,6 @@ labels:
   - cloudwatch
   - cloud
   - infrastructure
-releaseNotes: |
-  - Added: otel_enrichment
 models:
   - alarm.ts
   - alarm_mute_rule.ts

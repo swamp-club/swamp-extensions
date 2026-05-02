@@ -9,8 +9,6 @@ labels:
   - batch
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: job_definition
 models:
   - compute_environment.ts
   - consumable_resource.ts

@@ -9,8 +9,6 @@ labels:
   - bedrockagentcore
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: browser_custom, code_interpreter_custom, memory, runtime
 models:
   - api_key_credential_provider.ts
   - browser_custom.ts

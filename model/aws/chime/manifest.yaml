@@ -9,8 +9,6 @@ labels:
   - chime
   - cloud
   - infrastructure
-releaseNotes: |
-  - Added: app_instance
 models:
   - app_instance.ts
 additionalFiles:

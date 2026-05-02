@@ -325,7 +325,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for EC2 VPNConnection. Registered at `@swamp/aws/ec2/vpnconnection`. */
 export const model = {
   type: "@swamp/aws/ec2/vpnconnection",
-  version: "2026.04.23.2",
+  version: "2026.05.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -349,6 +349,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -464,7 +469,6 @@ export const model = {
             "TransportTransitGatewayAttachmentId",
             "TunnelInsideIpVersion",
             "PreSharedKeyStorage",
-            "TunnelBandwidth",
           ],
         );
         const handle = await context.writeResource(

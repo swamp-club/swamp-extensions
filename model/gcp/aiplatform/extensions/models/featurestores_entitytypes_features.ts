@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI Featurestores.EntityTypes.Features.
+ * Swamp extension model for Google Cloud Agent Platform Featurestores.EntityTypes.Features.
  *
  * Feature Metadata information. For example, color is a feature that describes an apple.
  *
@@ -207,10 +207,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI Featurestores.EntityTypes.Features. Registered at `@swamp/gcp/aiplatform/featurestores-entitytypes-features`. */
+/** Swamp extension model for Google Cloud Agent Platform Featurestores.EntityTypes.Features. Registered at `@swamp/gcp/aiplatform/featurestores-entitytypes-features`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/featurestores-entitytypes-features",
-  version: "2026.04.23.1",
+  version: "2026.05.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -239,6 +239,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

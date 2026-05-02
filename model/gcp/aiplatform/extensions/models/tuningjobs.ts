@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI TuningJobs.
+ * Swamp extension model for Google Cloud Agent Platform TuningJobs.
  *
  * Represents a TuningJob that runs with Google owned models.
  *
@@ -2510,10 +2510,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI TuningJobs. Registered at `@swamp/gcp/aiplatform/tuningjobs`. */
+/** Swamp extension model for Google Cloud Agent Platform TuningJobs. Registered at `@swamp/gcp/aiplatform/tuningjobs`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/tuningjobs",
-  version: "2026.04.23.1",
+  version: "2026.05.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2557,6 +2557,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

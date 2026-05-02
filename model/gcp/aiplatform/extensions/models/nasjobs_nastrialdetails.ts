@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI NasJobs.NasTrialDetails.
+ * Swamp extension model for Google Cloud Agent Platform NasJobs.NasTrialDetails.
  *
  * Represents a NasTrial details along with its parameters. If there is a corresponding train NasTrial, the train NasTrial is also returned.
  *
@@ -94,10 +94,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI NasJobs.NasTrialDetails. Registered at `@swamp/gcp/aiplatform/nasjobs-nastrialdetails`. */
+/** Swamp extension model for Google Cloud Agent Platform NasJobs.NasTrialDetails. Registered at `@swamp/gcp/aiplatform/nasjobs-nastrialdetails`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/nasjobs-nastrialdetails",
-  version: "2026.04.23.1",
+  version: "2026.05.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -126,6 +126,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

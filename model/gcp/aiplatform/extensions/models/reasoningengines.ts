@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI ReasoningEngines.
+ * Swamp extension model for Google Cloud Agent Platform ReasoningEngines.
  *
  * ReasoningEngine provides a customizable runtime for models to determine which actions to take and in which order.
  *
@@ -810,10 +810,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI ReasoningEngines. Registered at `@swamp/gcp/aiplatform/reasoningengines`. */
+/** Swamp extension model for Google Cloud Agent Platform ReasoningEngines. Registered at `@swamp/gcp/aiplatform/reasoningengines`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines",
-  version: "2026.04.23.1",
+  version: "2026.05.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -857,6 +857,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1092,6 +1097,44 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    async_query: {
+      description: "async query",
+      arguments: z.object({
+        inputGcsUri: z.any().optional(),
+        outputGcsUri: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (args["inputGcsUri"] !== undefined) {
+          body["inputGcsUri"] = args["inputGcsUri"];
+        }
+        if (args["outputGcsUri"] !== undefined) {
+          body["outputGcsUri"] = args["outputGcsUri"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "aiplatform.projects.locations.reasoningEngines.asyncQuery",
+            "path": "v1/{+name}:asyncQuery",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
+        );
+        return { result };
       },
     },
     execute_code: {

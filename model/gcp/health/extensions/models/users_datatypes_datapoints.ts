@@ -440,6 +440,92 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Captures the altitude gain (i.e. deltas), and not level above sea, for a user in millimeters.",
   ).optional(),
+  basalEnergyBurned: z.object({
+    interval: z.object({
+      civilEndTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      civilStartTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      endTime: z.string().describe("Required. Observed interval end time.")
+        .optional(),
+      endUtcOffset: z.string().describe(
+        "Required. The offset of the user's local time at the end of the observation relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+      startTime: z.string().describe("Required. Observed interval start time.")
+        .optional(),
+      startUtcOffset: z.string().describe(
+        "Required. The offset of the user's local time at the start of the observation relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+    }).describe("Represents a time interval of an observed data point.")
+      .optional(),
+    kcal: z.number().describe(
+      "Required. Number of calories burned due to basal metabolic rate in kilocalories over the observed interval.",
+    ).optional(),
+  }).describe(
+    "Number of calories burned due to basal metabolic rate (BMR) over a period of time.",
+  ).optional(),
   bodyFat: z.object({
     percentage: z.number().describe(
       "Required. Body fat percentage, in range [0, 100].",
@@ -2568,6 +2654,41 @@ const StateSchema = z.object({
       startUtcOffset: z.string(),
     }),
   }).optional(),
+  basalEnergyBurned: z.object({
+    interval: z.object({
+      civilEndTime: z.object({
+        date: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }),
+        time: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }),
+      }),
+      civilStartTime: z.object({
+        date: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }),
+        time: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }),
+      }),
+      endTime: z.string(),
+      endUtcOffset: z.string(),
+      startTime: z.string(),
+      startUtcOffset: z.string(),
+    }),
+    kcal: z.number(),
+  }).optional(),
   bodyFat: z.object({
     percentage: z.number(),
     sampleTime: z.object({
@@ -3690,6 +3811,92 @@ const InputsSchema = z.object({
       .optional(),
   }).describe(
     "Captures the altitude gain (i.e. deltas), and not level above sea, for a user in millimeters.",
+  ).optional(),
+  basalEnergyBurned: z.object({
+    interval: z.object({
+      civilEndTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      civilStartTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      endTime: z.string().describe("Required. Observed interval end time.")
+        .optional(),
+      endUtcOffset: z.string().describe(
+        "Required. The offset of the user's local time at the end of the observation relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+      startTime: z.string().describe("Required. Observed interval start time.")
+        .optional(),
+      startUtcOffset: z.string().describe(
+        "Required. The offset of the user's local time at the start of the observation relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+    }).describe("Represents a time interval of an observed data point.")
+      .optional(),
+    kcal: z.number().describe(
+      "Required. Number of calories burned due to basal metabolic rate in kilocalories over the observed interval.",
+    ).optional(),
+  }).describe(
+    "Number of calories burned due to basal metabolic rate (BMR) over a period of time.",
   ).optional(),
   bodyFat: z.object({
     percentage: z.number().describe(
@@ -5677,7 +5884,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Health Users.DataTypes.DataPoints. Registered at `@swamp/gcp/health/users-datatypes-datapoints`. */
 export const model = {
   type: "@swamp/gcp/health/users-datatypes-datapoints",
-  version: "2026.04.23.1",
+  version: "2026.05.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -5724,6 +5931,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.02.1",
+      description: "Added: basalEnergyBurned",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -5755,6 +5967,9 @@ export const model = {
           body["activityLevel"] = g["activityLevel"];
         }
         if (g["altitude"] !== undefined) body["altitude"] = g["altitude"];
+        if (g["basalEnergyBurned"] !== undefined) {
+          body["basalEnergyBurned"] = g["basalEnergyBurned"];
+        }
         if (g["bodyFat"] !== undefined) body["bodyFat"] = g["bodyFat"];
         if (g["dailyHeartRateVariability"] !== undefined) {
           body["dailyHeartRateVariability"] = g["dailyHeartRateVariability"];
@@ -5901,6 +6116,9 @@ export const model = {
           body["activityLevel"] = g["activityLevel"];
         }
         if (g["altitude"] !== undefined) body["altitude"] = g["altitude"];
+        if (g["basalEnergyBurned"] !== undefined) {
+          body["basalEnergyBurned"] = g["basalEnergyBurned"];
+        }
         if (g["bodyFat"] !== undefined) body["bodyFat"] = g["bodyFat"];
         if (g["dailyHeartRateVariability"] !== undefined) {
           body["dailyHeartRateVariability"] = g["dailyHeartRateVariability"];

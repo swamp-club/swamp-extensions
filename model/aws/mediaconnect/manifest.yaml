@@ -9,8 +9,6 @@ labels:
   - mediaconnect
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: flow_vpc_interface
 models:
   - bridge.ts
   - bridge_output.ts

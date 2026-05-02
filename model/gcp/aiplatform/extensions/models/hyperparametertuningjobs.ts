@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI HyperparameterTuningJobs.
+ * Swamp extension model for Google Cloud Agent Platform HyperparameterTuningJobs.
  *
  * Represents a HyperparameterTuningJob. A HyperparameterTuningJob has a Study specification and multiple CustomJobs with identical CustomJob specification.
  *
@@ -1119,10 +1119,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI HyperparameterTuningJobs. Registered at `@swamp/gcp/aiplatform/hyperparametertuningjobs`. */
+/** Swamp extension model for Google Cloud Agent Platform HyperparameterTuningJobs. Registered at `@swamp/gcp/aiplatform/hyperparametertuningjobs`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/hyperparametertuningjobs",
-  version: "2026.04.23.1",
+  version: "2026.05.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1156,6 +1156,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

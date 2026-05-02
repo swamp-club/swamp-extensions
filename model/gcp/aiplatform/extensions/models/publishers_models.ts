@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI Publishers.Models.
+ * Swamp extension model for Google Cloud Agent Platform Publishers.Models.
  *
  * A Model Garden Publisher Model.
  *
@@ -365,10 +365,10 @@ const InputsSchema = z.object({
   name: z.string().optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI Publishers.Models. Registered at `@swamp/gcp/aiplatform/publishers-models`. */
+/** Swamp extension model for Google Cloud Agent Platform Publishers.Models. Registered at `@swamp/gcp/aiplatform/publishers-models`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/publishers-models",
-  version: "2026.04.23.1",
+  version: "2026.05.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -402,6 +402,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

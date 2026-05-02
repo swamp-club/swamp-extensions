@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI ReasoningEngines.SandboxEnvironmentTemplates.
+ * Swamp extension model for Google Cloud Agent Platform ReasoningEngines.SandboxEnvironmentTemplates.
  *
  * The specification of a SandboxEnvironmentTemplate. A SandboxEnvironmentTemplate defines a template for creating SandboxEnvironments.
  *
@@ -127,11 +127,6 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Identifier. The resource name of the SandboxEnvironmentTemplate. Format: `projects/{project}/locations/{location}/reasoningEngines/{reasoning_engine}/sandboxEnvironmentTemplates/{sandbox_environment_template}`",
   ).optional(),
-  warmPoolConfig: z.object({
-    targetInstanceCount: z.number().int().describe(
-      "Optional. The target number of pre-warmed instances to maintain.",
-    ).optional(),
-  }).describe("Configuration for a warm pool of sandbox instances.").optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
@@ -162,9 +157,6 @@ const StateSchema = z.object({
   name: z.string(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
-  warmPoolConfig: z.object({
-    targetInstanceCount: z.number(),
-  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -218,20 +210,15 @@ const InputsSchema = z.object({
   name: z.string().describe(
     "Identifier. The resource name of the SandboxEnvironmentTemplate. Format: `projects/{project}/locations/{location}/reasoningEngines/{reasoning_engine}/sandboxEnvironmentTemplates/{sandbox_environment_template}`",
   ).optional(),
-  warmPoolConfig: z.object({
-    targetInstanceCount: z.number().int().describe(
-      "Optional. The target number of pre-warmed instances to maintain.",
-    ).optional(),
-  }).describe("Configuration for a warm pool of sandbox instances.").optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI ReasoningEngines.SandboxEnvironmentTemplates. Registered at `@swamp/gcp/aiplatform/reasoningengines-sandboxenvironmenttemplates`. */
+/** Swamp extension model for Google Cloud Agent Platform ReasoningEngines.SandboxEnvironmentTemplates. Registered at `@swamp/gcp/aiplatform/reasoningengines-sandboxenvironmenttemplates`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines-sandboxenvironmenttemplates",
-  version: "2026.04.23.1",
+  version: "2026.05.02.1",
   upgrades: [
     {
       toVersion: "2026.04.15.1",
@@ -242,6 +229,14 @@ export const model = {
       toVersion: "2026.04.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.02.1",
+      description: "Removed: warmPoolConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { warmPoolConfig: _warmPoolConfig, ...rest } = old;
+        return rest;
+      },
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -283,9 +278,6 @@ export const model = {
           body["egressControlConfig"] = g["egressControlConfig"];
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
-        if (g["warmPoolConfig"] !== undefined) {
-          body["warmPoolConfig"] = g["warmPoolConfig"];
-        }
         if (g["parent"] !== undefined && g["name"] !== undefined) {
           params["name"] = buildResourceName(
             String(g["parent"]),

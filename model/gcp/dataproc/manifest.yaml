@@ -10,8 +10,6 @@ labels:
   - dataproc
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: batches, sessiontemplates, sessions
 models:
   - autoscalingpolicies.ts
   - batches.ts

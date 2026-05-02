@@ -9,8 +9,6 @@ labels:
   - emrserverless
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: application
 models:
   - application.ts
 additionalFiles:

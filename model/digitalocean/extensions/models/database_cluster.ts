@@ -36,8 +36,10 @@ const GlobalArgsSchema = z.object({
     "mongodb",
     "kafka",
     "opensearch",
+    "advanced_pg",
+    "advanced_mysql",
   ]).describe(
-    'A slug representing the database engine used for the cluster. The possible values are: "pg" for PostgreSQL, "mysql" for MySQL, "redis" for Caching, "mongodb" for MongoDB, "kafka" for Kafka, "opensearch" for OpenSearch, and "valkey" for Valkey.',
+    'A slug representing the database engine used for the cluster. The possible values are: "pg" for PostgreSQL, "mysql" for MySQL, "redis" for Caching, "mongodb" for MongoDB, "kafka" for Kafka, "opensearch" for OpenSearch, "valkey" for Valkey, "advanced_pg" for PostgreSQL Advanced Edition, and "advanced_mysql" for MySQL Advanced Edition. Advanced Edition engines are currently in public preview.',
   ),
   version: z.string().describe(
     "A string representing the version of the database engine in use for the cluster.",
@@ -313,6 +315,8 @@ const InputsSchema = z.object({
     "mongodb",
     "kafka",
     "opensearch",
+    "advanced_pg",
+    "advanced_mysql",
   ]).optional(),
   version: z.string().optional(),
   num_nodes: z.number().int().optional(),
@@ -441,7 +445,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean database cluster. Registered at `@swamp/digitalocean/database-cluster`. */
 export const model = {
   type: "@swamp/digitalocean/database-cluster",
-  version: "2026.04.23.2",
+  version: "2026.05.02.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -475,6 +479,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
