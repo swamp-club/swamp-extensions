@@ -9,8 +9,6 @@ labels:
   - billingconductor
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: billing_group
 models:
   - billing_group.ts
   - custom_line_item.ts

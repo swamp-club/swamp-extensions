@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI ReasoningEngines.Sessions.
+ * Swamp extension model for Google Cloud Agent Platform ReasoningEngines.Sessions.
  *
  * A session contains a set of actions between users and Vertex agents.
  *
@@ -169,10 +169,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI ReasoningEngines.Sessions. Registered at `@swamp/gcp/aiplatform/reasoningengines-sessions`. */
+/** Swamp extension model for Google Cloud Agent Platform ReasoningEngines.Sessions. Registered at `@swamp/gcp/aiplatform/reasoningengines-sessions`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines-sessions",
-  version: "2026.04.23.1",
+  version: "2026.05.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -201,6 +201,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

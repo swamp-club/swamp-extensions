@@ -9,8 +9,6 @@ labels:
   - msk
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: cluster
 models:
   - batch_scram_secret.ts
   - cluster.ts

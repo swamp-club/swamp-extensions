@@ -101,6 +101,28 @@ const GlobalArgsSchema = z.object({
   advisoryPublishTime: z.string().describe(
     "The time this advisory was published by the source.",
   ).optional(),
+  aiSkillAnalysis: z.object({
+    findings: z.array(z.object({
+      category: z.string().describe("Category of the finding.").optional(),
+      description: z.string().describe("Detailed description of the finding.")
+        .optional(),
+      filePath: z.string().describe(
+        "Path to the file where the finding was detected.",
+      ).optional(),
+      ruleId: z.string().describe(
+        "Unique identifier of the rule that produced this finding.",
+      ).optional(),
+      severity: z.string().describe("Severity of the finding.").optional(),
+      snippet: z.string().describe("Code snippet relevant to the finding.")
+        .optional(),
+      title: z.string().describe("Title of the finding.").optional(),
+    })).describe("Findings produced by the analysis.").optional(),
+    skillName: z.string().describe(
+      "Name of the skill that produced this analysis.",
+    ).optional(),
+  }).describe(
+    "AISkillAnalysisOccurrence provides the results of an AI-based skill analysis.",
+  ).optional(),
   attestation: z.object({
     jwts: z.array(z.object({
       compactJwt: z.string().describe(
@@ -1509,6 +1531,18 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   advisoryPublishTime: z.string().optional(),
+  aiSkillAnalysis: z.object({
+    findings: z.array(z.object({
+      category: z.string(),
+      description: z.string(),
+      filePath: z.string(),
+      ruleId: z.string(),
+      severity: z.string(),
+      snippet: z.string(),
+      title: z.string(),
+    })),
+    skillName: z.string(),
+  }).optional(),
   attestation: z.object({
     jwts: z.array(z.object({
       compactJwt: z.string(),
@@ -2114,6 +2148,28 @@ const InputsSchema = z.object({
   name: z.string().optional(),
   advisoryPublishTime: z.string().describe(
     "The time this advisory was published by the source.",
+  ).optional(),
+  aiSkillAnalysis: z.object({
+    findings: z.array(z.object({
+      category: z.string().describe("Category of the finding.").optional(),
+      description: z.string().describe("Detailed description of the finding.")
+        .optional(),
+      filePath: z.string().describe(
+        "Path to the file where the finding was detected.",
+      ).optional(),
+      ruleId: z.string().describe(
+        "Unique identifier of the rule that produced this finding.",
+      ).optional(),
+      severity: z.string().describe("Severity of the finding.").optional(),
+      snippet: z.string().describe("Code snippet relevant to the finding.")
+        .optional(),
+      title: z.string().describe("Title of the finding.").optional(),
+    })).describe("Findings produced by the analysis.").optional(),
+    skillName: z.string().describe(
+      "Name of the skill that produced this analysis.",
+    ).optional(),
+  }).describe(
+    "AISkillAnalysisOccurrence provides the results of an AI-based skill analysis.",
   ).optional(),
   attestation: z.object({
     jwts: z.array(z.object({
@@ -3524,7 +3580,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Container Analysis Occurrences. Registered at `@swamp/gcp/containeranalysis/occurrences`. */
 export const model = {
   type: "@swamp/gcp/containeranalysis/occurrences",
-  version: "2026.04.23.1",
+  version: "2026.05.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3561,6 +3617,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.02.1",
+      description: "Added: aiSkillAnalysis",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -3585,6 +3646,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["advisoryPublishTime"] !== undefined) {
           body["advisoryPublishTime"] = g["advisoryPublishTime"];
+        }
+        if (g["aiSkillAnalysis"] !== undefined) {
+          body["aiSkillAnalysis"] = g["aiSkillAnalysis"];
         }
         if (g["attestation"] !== undefined) {
           body["attestation"] = g["attestation"];
@@ -3696,6 +3760,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["advisoryPublishTime"] !== undefined) {
           body["advisoryPublishTime"] = g["advisoryPublishTime"];
+        }
+        if (g["aiSkillAnalysis"] !== undefined) {
+          body["aiSkillAnalysis"] = g["aiSkillAnalysis"];
         }
         if (g["attestation"] !== undefined) {
           body["attestation"] = g["attestation"];

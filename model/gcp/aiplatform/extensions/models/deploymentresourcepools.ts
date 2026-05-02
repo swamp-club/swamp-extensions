@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI DeploymentResourcePools.
+ * Swamp extension model for Google Cloud Agent Platform DeploymentResourcePools.
  *
  * A description of resources that can be shared by multiple DeployedModels, whose underlying specification consists of a DedicatedResources.
  *
@@ -568,10 +568,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI DeploymentResourcePools. Registered at `@swamp/gcp/aiplatform/deploymentresourcepools`. */
+/** Swamp extension model for Google Cloud Agent Platform DeploymentResourcePools. Registered at `@swamp/gcp/aiplatform/deploymentresourcepools`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/deploymentresourcepools",
-  version: "2026.04.23.1",
+  version: "2026.05.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -605,6 +605,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

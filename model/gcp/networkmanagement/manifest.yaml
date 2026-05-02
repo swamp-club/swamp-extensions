@@ -10,8 +10,6 @@ labels:
   - networkmanagement
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: global_connectivitytests
 models:
   - global_connectivitytests.ts
   - locations.ts

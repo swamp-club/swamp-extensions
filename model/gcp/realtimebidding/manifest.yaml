@@ -10,8 +10,6 @@ labels:
   - realtimebidding
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: buyers_creatives
 models:
   - bidders.ts
   - bidders_creatives.ts

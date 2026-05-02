@@ -9,8 +9,6 @@ labels:
   - cloudfront
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: distribution, function
 models:
   - anycast_ip_list.ts
   - cache_policy.ts

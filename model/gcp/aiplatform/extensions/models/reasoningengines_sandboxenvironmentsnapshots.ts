@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI ReasoningEngines.SandboxEnvironmentSnapshots.
+ * Swamp extension model for Google Cloud Agent Platform ReasoningEngines.SandboxEnvironmentSnapshots.
  *
  * SandboxEnvironmentSnapshot is a snapshot of the SandboxEnvironment.
  *
@@ -93,13 +93,18 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI ReasoningEngines.SandboxEnvironmentSnapshots. Registered at `@swamp/gcp/aiplatform/reasoningengines-sandboxenvironmentsnapshots`. */
+/** Swamp extension model for Google Cloud Agent Platform ReasoningEngines.SandboxEnvironmentSnapshots. Registered at `@swamp/gcp/aiplatform/reasoningengines-sandboxenvironmentsnapshots`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines-sandboxenvironmentsnapshots",
-  version: "2026.04.23.1",
+  version: "2026.05.02.1",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI CustomJobs.
+ * Swamp extension model for Google Cloud Agent Platform CustomJobs.
  *
  * Represents a job that runs custom workloads such as a Docker container or a Python package. A CustomJob can have multiple worker pools and each worker pool can have its own machine and input spec. A CustomJob will be cleaned up once the job enters terminal state (failed or succeeded).
  *
@@ -653,10 +653,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI CustomJobs. Registered at `@swamp/gcp/aiplatform/customjobs`. */
+/** Swamp extension model for Google Cloud Agent Platform CustomJobs. Registered at `@swamp/gcp/aiplatform/customjobs`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/customjobs",
-  version: "2026.04.23.1",
+  version: "2026.05.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -690,6 +690,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

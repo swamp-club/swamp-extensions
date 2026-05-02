@@ -9,8 +9,6 @@ labels:
   - cognito
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: user_pool
 models:
   - identity_pool.ts
   - identity_pool_principal_tag.ts
