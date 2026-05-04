@@ -114,6 +114,93 @@ export class S3OperationError extends Error {
 }
 
 /**
+ * Classification of AWS-SDK-surfaced credential failures. `session-expired`
+ * means the credential resolver could not produce valid credentials (SSO
+ * token expired, STS session aged out). `credentials-rejected` means
+ * credentials were sent to AWS and explicitly rejected.
+ */
+export type AwsCredentialErrorKind =
+  | "session-expired"
+  | "credentials-rejected"
+  | "other";
+
+/**
+ * Classify an SDK error by its normalized `code` and HTTP `status`. Pure
+ * function — takes primitives so it can be unit-tested without constructing
+ * SDK error shapes. `code` is the value derived inside `wrapError` from
+ * `e.Code ?? e.name ?? cause.name` (with leading-underscore strip for
+ * minified class names).
+ */
+export function classifyAwsCredentialError(
+  code: string | undefined,
+  status: number | undefined,
+): AwsCredentialErrorKind {
+  if (code === "CredentialsProviderError" || code === "ExpiredTokenException") {
+    return "session-expired";
+  }
+  if (
+    code === "InvalidAccessKeyId" ||
+    code === "SignatureDoesNotMatch" ||
+    (status === 403 && code === "AccessDenied")
+  ) {
+    return "credentials-rejected";
+  }
+  return "other";
+}
+
+/**
+ * Derive a normalized error `code` string from an AWS SDK error. The SDK
+ * surfaces codes in three places:
+ *
+ * 1. `e.Code` — XML/JSON-coded error from the service (e.g. `InvalidAccessKeyId`).
+ * 2. `e.name` — the SDK's class name (e.g. `CredentialsProviderError`,
+ *    `TimeoutError`). Generic `"Error"` is treated as no signal.
+ * 3. `e.cause.name` — minified SDK builds wrap the real error class behind a
+ *    generic outer error, with the underscored class name (e.g.
+ *    `_CredentialsProviderError`) on the cause. Strip the leading underscore
+ *    so the classifier can match the canonical name.
+ *
+ * Pure function — takes a structural shape so it can be unit-tested without
+ * constructing real SDK errors.
+ */
+export function deriveAwsErrorCode(e: {
+  Code?: string;
+  name?: string;
+  cause?: unknown;
+}): string | undefined {
+  if (e.Code) return e.Code;
+  if (e.name && e.name !== "Error") return e.name;
+  if (e.cause instanceof Error && e.cause.name && e.cause.name !== "Error") {
+    return e.cause.name.replace(/^_+/, "");
+  }
+  return undefined;
+}
+
+/**
+ * Render a swamp-flavoured remediation hint for the classified credential
+ * failure. The hint names the cause in swamp's vocabulary ("datastore session
+ * expired") rather than S3's ("putObjectConditional failed") and points at a
+ * concrete next action. Returns `undefined` for `kind === "other"` so the
+ * caller can fall through to existing generic messaging.
+ */
+export function formatAwsCredentialHint(
+  kind: AwsCredentialErrorKind,
+  awsProfile: string | undefined,
+): string | undefined {
+  if (kind === "session-expired") {
+    const cmd = awsProfile
+      ? `aws sso login --profile ${awsProfile}`
+      : `aws sso login`;
+    return `Datastore session expired: your AWS profile's SSO session is no longer valid. Run '${cmd}' to refresh, then retry.`;
+  }
+  if (kind === "credentials-rejected") {
+    const who = awsProfile ? `'${awsProfile}'` : `your AWS profile`;
+    return `Datastore credentials rejected by AWS: verify ${who}, environment variables, or credential provider, then retry.`;
+  }
+  return undefined;
+}
+
+/**
  * Drain a Node Readable into a Uint8Array, capped at `maxBytes`. The AWS
  * SDK's default Node request handler (used under Deno-npm) returns an
  * IncomingMessage, which is an async-iterable Readable. Returns the
@@ -356,10 +443,20 @@ export class S3Client {
     };
     const status = e.$metadata?.httpStatusCode;
     const requestId = e.$metadata?.requestId;
-    const code = e.Code ?? (e.name !== "Error" ? e.name : undefined);
+    const code = deriveAwsErrorCode(e);
     const preview = e.$response?.__errorBodyPreview;
 
-    const parts: string[] = [`S3 ${op} failed`];
+    const credentialKind = classifyAwsCredentialError(code, status);
+    const credentialHint = formatAwsCredentialHint(
+      credentialKind,
+      Deno.env.get("AWS_PROFILE"),
+    );
+
+    const parts: string[] = [];
+    // Front-load the swamp-flavoured hint so the user sees the cause and
+    // remediation before the SDK's framing of the failure.
+    if (credentialHint) parts.push(credentialHint);
+    parts.push(`S3 ${op} failed`);
     // Signal-triggered aborts carry no HTTP status; surface the timeout
     // context so callers can distinguish "timed out" from "service 5xx".
     // `AbortSignal.timeout()` triggers a DOMException with name
@@ -373,7 +470,10 @@ export class S3Client {
     if (code && code !== "Unknown") parts.push(code);
     const rawMsg = e.message && e.message !== "UnknownError" ? e.message : "";
     if (rawMsg) parts.push(`— ${rawMsg}`);
-    if (status === 401 || status === 403) {
+    // The generic 401/403 hint stays as a fallback for non-credential auth
+    // failures (e.g. BucketRegionMismatch surfaced as 403). Skip it when the
+    // credential classifier already produced a more specific hint.
+    if ((status === 401 || status === 403) && credentialKind === "other") {
       parts.push(
         "(check AWS credentials — profile, env vars, or credential provider — and endpoint configuration)",
       );

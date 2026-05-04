@@ -33,10 +33,14 @@ import {
   assertStringIncludes,
 } from "jsr:@std/assert@1.0.19";
 import {
+  classifyGcpCredentialError,
+  clearTokenCache,
+  formatGcpCredentialHint,
   GcsClient,
   GcsOperationError,
   NotFoundError,
   PreconditionFailedError,
+  tokenRefreshError,
 } from "./gcs_client.ts";
 
 /**
@@ -211,7 +215,12 @@ Deno.test({
       assertEquals(err.httpStatusCode, 403);
       assertEquals(err.code, "authError");
       assertStringIncludes(err.message, "HTTP 403");
-      assertStringIncludes(err.message, "check GCS credentials");
+      // Issue #226: 403 now leads with the swamp-flavoured credentials-rejected
+      // hint instead of the old generic "check GCS credentials" message.
+      assert(
+        err.message.startsWith("Datastore credentials rejected by GCS"),
+        `expected swamp hint to lead message, got: ${err.message}`,
+      );
       assert(
         err.bodyPreview && err.bodyPreview.length > 0,
         "bodyPreview must be non-empty",
@@ -399,4 +408,229 @@ Deno.test({
       await shutdown();
     }
   },
+});
+
+// --- Issue #226: SSO/credential errors get a swamp-flavoured hint ---------
+// Pure-helper unit tests (no SDK, no mock server, no env).
+
+Deno.test("classifyGcpCredentialError: CredentialsProviderError → session-expired", () => {
+  assertEquals(
+    classifyGcpCredentialError("CredentialsProviderError", undefined),
+    "session-expired",
+  );
+});
+
+Deno.test("classifyGcpCredentialError: 401 → credentials-rejected", () => {
+  assertEquals(
+    classifyGcpCredentialError(undefined, 401),
+    "credentials-rejected",
+  );
+});
+
+Deno.test("classifyGcpCredentialError: 403 → credentials-rejected", () => {
+  assertEquals(
+    classifyGcpCredentialError(undefined, 403),
+    "credentials-rejected",
+  );
+});
+
+Deno.test("classifyGcpCredentialError: 404 → other (regression)", () => {
+  assertEquals(classifyGcpCredentialError(undefined, 404), "other");
+});
+
+Deno.test("classifyGcpCredentialError: 500 → other (regression)", () => {
+  assertEquals(classifyGcpCredentialError(undefined, 500), "other");
+});
+
+Deno.test("formatGcpCredentialHint: session-expired references gcloud auth", () => {
+  const hint = formatGcpCredentialHint("session-expired");
+  assert(hint !== undefined);
+  assert(hint.startsWith("Datastore session expired"));
+  assert(hint.includes("gcloud auth application-default login"));
+});
+
+Deno.test("formatGcpCredentialHint: credentials-rejected references ADC env vars", () => {
+  const hint = formatGcpCredentialHint("credentials-rejected");
+  assert(hint !== undefined);
+  assert(hint.startsWith("Datastore credentials rejected by GCS"));
+  assert(hint.includes("GOOGLE_APPLICATION_CREDENTIALS"));
+});
+
+Deno.test("formatGcpCredentialHint: other → undefined", () => {
+  assertEquals(formatGcpCredentialHint("other"), undefined);
+});
+
+// --- Wrapper integration tests -------------------------------------------
+//
+// The token-refresh path is exercised by writing a temporary
+// `authorized_user` credentials file, pointing the OAuth token endpoint at
+// our mock server, and intercepting the refresh request. `GOOGLE_APPLICATION_CREDENTIALS`
+// is restored in `finally`. `clearTokenCache()` runs in setup AND teardown
+// because the module-level cache leaks across tests otherwise.
+
+Deno.test({
+  sanitizeResources: false,
+  name: "Issue #226: GCS 401 prepends credentials-rejected hint",
+  fn: async () => {
+    clearTokenCache();
+    const { url, shutdown } = startServer(() =>
+      new Response("unauthorized", {
+        status: 401,
+        headers: { "Content-Type": "text/plain" },
+      })
+    );
+    try {
+      const client = new GcsClient({ bucket: "b", apiEndpoint: url });
+      const err = await assertRejects(
+        () => client.getObject("any"),
+        GcsOperationError,
+      );
+      assertEquals(err.httpStatusCode, 401);
+      assert(
+        err.message.startsWith("Datastore credentials rejected by GCS"),
+        `expected credentials-rejected hint to lead message, got: ${err.message}`,
+      );
+    } finally {
+      await shutdown();
+      clearTokenCache();
+    }
+  },
+});
+
+Deno.test({
+  sanitizeResources: false,
+  name: "Issue #226: GCS 500 does not add credential framing",
+  fn: async () => {
+    clearTokenCache();
+    const { url, shutdown } = startServer(() =>
+      new Response("internal error", {
+        status: 500,
+        headers: { "Content-Type": "text/plain" },
+      })
+    );
+    try {
+      const client = new GcsClient({ bucket: "b", apiEndpoint: url });
+      const err = await assertRejects(
+        () => client.getObject("any"),
+        GcsOperationError,
+      );
+      assertEquals(err.httpStatusCode, 500);
+      assert(
+        !err.message.startsWith("Datastore"),
+        `5xx should not add credential framing, got: ${err.message}`,
+      );
+    } finally {
+      await shutdown();
+      clearTokenCache();
+    }
+  },
+});
+
+// 404/412 fast paths still throw the narrow types — regression guard for
+// the issue #226 changes that did NOT touch lines 675-682 of gcs_client.ts.
+Deno.test({
+  sanitizeResources: false,
+  name: "Issue #226 regression: GCS 404 still throws NotFoundError",
+  fn: async () => {
+    clearTokenCache();
+    const { url, shutdown } = startServer(() =>
+      new Response("not found", { status: 404 })
+    );
+    try {
+      const client = new GcsClient({ bucket: "b", apiEndpoint: url });
+      await assertRejects(() => client.getObject("any"), NotFoundError);
+    } finally {
+      await shutdown();
+      clearTokenCache();
+    }
+  },
+});
+
+Deno.test({
+  sanitizeResources: false,
+  name: "Issue #226 regression: GCS 412 still throws PreconditionFailedError",
+  fn: async () => {
+    clearTokenCache();
+    const { url, shutdown } = startServer(() =>
+      new Response("precondition", { status: 412 })
+    );
+    try {
+      const client = new GcsClient({ bucket: "b", apiEndpoint: url });
+      await assertRejects(
+        () => client.getObject("any"),
+        PreconditionFailedError,
+      );
+    } finally {
+      await shutdown();
+      clearTokenCache();
+    }
+  },
+});
+
+// --- tokenRefreshError unit tests (proves the invalid_grant path) -----------
+//
+// `tokenRefreshError` is what tokenFromUserCredentials and tokenFromServiceAccount
+// call on non-OK token-endpoint responses. We test it directly because the
+// OAuth URL is hardcoded inside those functions and not mockable from outside.
+// Exercising tokenRefreshError end-to-end proves the user-facing behavior:
+// when the body indicates `invalid_grant`, the resulting GcsOperationError
+// has name === "CredentialsProviderError" and a session-expired message.
+
+Deno.test("tokenRefreshError: invalid_grant body produces session-expired hint", () => {
+  const err = tokenRefreshError(
+    "User credential token refresh failed",
+    400,
+    JSON.stringify({
+      error: "invalid_grant",
+      error_description: "Token has been expired or revoked.",
+    }),
+  );
+  assert(
+    err.message.startsWith("Datastore session expired"),
+    `expected session-expired hint to lead message, got: ${err.message}`,
+  );
+  assert(err.message.includes("gcloud auth application-default login"));
+  assertEquals(err.name, "CredentialsProviderError");
+  assertEquals(err.code, "invalid_grant");
+  assertEquals(err.httpStatusCode, 400);
+});
+
+Deno.test("tokenRefreshError: non-invalid_grant 4xx keeps generic name", () => {
+  const err = tokenRefreshError(
+    "User credential token refresh failed",
+    400,
+    JSON.stringify({ error: "invalid_request" }),
+  );
+  assert(
+    !err.message.startsWith("Datastore session expired"),
+    `non-invalid_grant should not get session-expired framing, got: ${err.message}`,
+  );
+  assertEquals(err.name, "TokenRefreshError");
+  assertEquals(err.code, undefined);
+});
+
+Deno.test("tokenRefreshError: 5xx without invalid_grant marker", () => {
+  const err = tokenRefreshError(
+    "Service account token exchange failed",
+    503,
+    "service unavailable",
+  );
+  assertEquals(err.name, "TokenRefreshError");
+  assertEquals(err.httpStatusCode, 503);
+  assert(!err.message.startsWith("Datastore"));
+});
+
+// Composition: end-to-end shape that tokenFromUserCredentials throws when
+// the gcloud ADC refresh token is revoked — exactly the GCS equivalent of
+// the SSO-expired path issue #226 describes for AWS.
+Deno.test("composition: invalid_grant token refresh → session-expired classification", () => {
+  const err = tokenRefreshError(
+    "User credential token refresh failed",
+    400,
+    '{"error":"invalid_grant","error_description":"reauth required"}',
+  );
+  assertEquals(
+    classifyGcpCredentialError(err.name, err.httpStatusCode),
+    "session-expired",
+  );
 });

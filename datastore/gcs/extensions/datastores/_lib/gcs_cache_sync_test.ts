@@ -1377,7 +1377,12 @@ Deno.test({
         GcsOperationError,
       );
       assertEquals(err.httpStatusCode, 403);
-      assertStringIncludes(err.message, "check GCS credentials");
+      // Issue #226: 403 now leads with the swamp-flavoured credentials-rejected
+      // hint instead of the old generic "check GCS credentials" message.
+      assertStringIncludes(
+        err.message,
+        "Datastore credentials rejected by GCS",
+      );
       assertEquals(calls, 1, "403 is terminal — no retries");
     } finally {
       await shutdown();

@@ -18,7 +18,33 @@
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
 import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
-import { S3Client, S3OperationError } from "./s3_client.ts";
+import {
+  classifyAwsCredentialError,
+  deriveAwsErrorCode,
+  formatAwsCredentialHint,
+  S3Client,
+  S3OperationError,
+} from "./s3_client.ts";
+
+/**
+ * Run `fn` with `AWS_PROFILE` set to `value` (or unset when `value` is
+ * undefined), restoring the prior value in `finally`. Used by tests that
+ * exercise the profile-aware credential hint.
+ */
+async function withAwsProfile(
+  value: string | undefined,
+  fn: () => Promise<void>,
+): Promise<void> {
+  const prior = Deno.env.get("AWS_PROFILE");
+  if (value === undefined) Deno.env.delete("AWS_PROFILE");
+  else Deno.env.set("AWS_PROFILE", value);
+  try {
+    await fn();
+  } finally {
+    if (prior !== undefined) Deno.env.set("AWS_PROFILE", prior);
+    else Deno.env.delete("AWS_PROFILE");
+  }
+}
 
 /**
  * Start a local HTTP server that produces a fixed response, and run `fn`
@@ -310,4 +336,436 @@ Deno.test({
         );
       },
     ),
+});
+
+// --- Issue #226: SSO/credential errors get a swamp-flavoured hint ---------
+// Pure-helper unit tests (no SDK, no mock server, no env).
+
+Deno.test("classifyAwsCredentialError: CredentialsProviderError → session-expired", () => {
+  assertEquals(
+    classifyAwsCredentialError("CredentialsProviderError", undefined),
+    "session-expired",
+  );
+});
+
+Deno.test("classifyAwsCredentialError: ExpiredTokenException → session-expired", () => {
+  assertEquals(
+    classifyAwsCredentialError("ExpiredTokenException", undefined),
+    "session-expired",
+  );
+});
+
+Deno.test("classifyAwsCredentialError: InvalidAccessKeyId → credentials-rejected", () => {
+  assertEquals(
+    classifyAwsCredentialError("InvalidAccessKeyId", 403),
+    "credentials-rejected",
+  );
+});
+
+Deno.test("classifyAwsCredentialError: SignatureDoesNotMatch → credentials-rejected", () => {
+  assertEquals(
+    classifyAwsCredentialError("SignatureDoesNotMatch", 403),
+    "credentials-rejected",
+  );
+});
+
+Deno.test("classifyAwsCredentialError: AccessDenied + 403 → credentials-rejected", () => {
+  assertEquals(
+    classifyAwsCredentialError("AccessDenied", 403),
+    "credentials-rejected",
+  );
+});
+
+// 401 is a status guard: AccessDenied is the 403 shape; a 401 is a different
+// failure mode (presigned URL expired, etc.) and should not be classified
+// as credentials-rejected by `code` alone.
+Deno.test("classifyAwsCredentialError: AccessDenied + 401 → other (status guard)", () => {
+  assertEquals(
+    classifyAwsCredentialError("AccessDenied", 401),
+    "other",
+  );
+});
+
+Deno.test("classifyAwsCredentialError: BucketRegionMismatch + 403 → other (regression)", () => {
+  assertEquals(
+    classifyAwsCredentialError("BucketRegionMismatch", 403),
+    "other",
+  );
+});
+
+Deno.test("classifyAwsCredentialError: undefined code + 403 → other", () => {
+  assertEquals(
+    classifyAwsCredentialError(undefined, 403),
+    "other",
+  );
+});
+
+Deno.test("formatAwsCredentialHint: session-expired with profile renders --profile flag", () => {
+  const hint = formatAwsCredentialHint("session-expired", "demo");
+  assert(hint !== undefined);
+  assert(
+    hint.includes("aws sso login --profile demo"),
+    `expected --profile in hint, got: ${hint}`,
+  );
+  assert(hint.startsWith("Datastore session expired"));
+});
+
+Deno.test("formatAwsCredentialHint: session-expired without profile renders generic command", () => {
+  const hint = formatAwsCredentialHint("session-expired", undefined);
+  assert(hint !== undefined);
+  assert(hint.includes("aws sso login"));
+  assert(
+    !hint.includes("--profile"),
+    `expected no --profile flag when AWS_PROFILE unset, got: ${hint}`,
+  );
+});
+
+Deno.test("formatAwsCredentialHint: credentials-rejected with profile names it", () => {
+  const hint = formatAwsCredentialHint("credentials-rejected", "demo");
+  assert(hint !== undefined);
+  assert(hint.includes("'demo'"));
+  assert(hint.startsWith("Datastore credentials rejected by AWS"));
+});
+
+Deno.test("formatAwsCredentialHint: credentials-rejected without profile uses generic phrasing", () => {
+  const hint = formatAwsCredentialHint("credentials-rejected", undefined);
+  assert(hint !== undefined);
+  assert(hint.includes("your AWS profile"));
+});
+
+Deno.test("formatAwsCredentialHint: other → undefined (caller falls through)", () => {
+  assertEquals(
+    formatAwsCredentialHint("other", "demo"),
+    undefined,
+  );
+});
+
+// --- Wrapper integration tests via withMockServer for server-side errors ---
+//
+// These tests deliberately do NOT set AWS_PROFILE — when AWS_PROFILE is set,
+// the AWS SDK's credential resolver attempts to load that named profile
+// from ~/.aws/credentials before falling through to the env-var keys
+// withMockServer provides, which causes spurious CredentialsProviderError
+// failures locally. The profile-name branches of formatAwsCredentialHint
+// are covered by the pure-function unit tests above.
+
+Deno.test({
+  sanitizeResources: false,
+  name: "InvalidAccessKeyId 403 prepends credentials-rejected hint",
+  fn: () =>
+    withAwsProfile(undefined, () =>
+      withMockServer(
+        () =>
+          new Response(
+            '<?xml version="1.0"?><Error><Code>InvalidAccessKeyId</Code><Message>The AWS Access Key Id you provided does not exist in our records.</Message><RequestId>req-iaki</RequestId></Error>',
+            {
+              status: 403,
+              headers: {
+                "Content-Type": "application/xml",
+                "x-amz-request-id": "req-iaki",
+              },
+            },
+          ),
+        async (client) => {
+          let caught: unknown;
+          try {
+            await client.getObject("k");
+          } catch (e) {
+            caught = e;
+          }
+          assert(caught instanceof S3OperationError);
+          const err = caught as S3OperationError;
+          assert(
+            err.message.startsWith("Datastore credentials rejected by AWS"),
+            `expected swamp hint to lead message, got: ${err.message}`,
+          );
+          // .name preserved so existing `error.name === "InvalidAccessKeyId"`
+          // checks at call sites keep working.
+          assertEquals(err.name, "InvalidAccessKeyId");
+          // Existing generic 401/403 hint should NOT also fire — the
+          // credential-specific hint replaces it.
+          assert(
+            !err.message.includes("(check AWS credentials"),
+            `generic 401/403 hint should be suppressed when credential-specific hint fires, got: ${err.message}`,
+          );
+        },
+      )),
+});
+
+Deno.test({
+  sanitizeResources: false,
+  name: "AccessDenied 403 prepends credentials-rejected hint",
+  fn: () =>
+    withAwsProfile(undefined, () =>
+      withMockServer(
+        () =>
+          new Response(
+            '<?xml version="1.0"?><Error><Code>AccessDenied</Code><Message>access denied</Message><RequestId>r</RequestId></Error>',
+            {
+              status: 403,
+              headers: { "Content-Type": "application/xml" },
+            },
+          ),
+        async (client) => {
+          let caught: unknown;
+          try {
+            await client.getObject("k");
+          } catch (e) {
+            caught = e;
+          }
+          const err = caught as S3OperationError;
+          assert(
+            err.message.startsWith("Datastore credentials rejected by AWS"),
+            `got: ${err.message}`,
+          );
+          assertEquals(err.name, "AccessDenied");
+        },
+      )),
+});
+
+Deno.test({
+  sanitizeResources: false,
+  name: "SignatureDoesNotMatch 403 prepends credentials-rejected hint",
+  fn: () =>
+    withAwsProfile(undefined, () =>
+      withMockServer(
+        () =>
+          new Response(
+            '<?xml version="1.0"?><Error><Code>SignatureDoesNotMatch</Code><Message>sig mismatch</Message><RequestId>r</RequestId></Error>',
+            {
+              status: 403,
+              headers: { "Content-Type": "application/xml" },
+            },
+          ),
+        async (client) => {
+          let caught: unknown;
+          try {
+            await client.getObject("k");
+          } catch (e) {
+            caught = e;
+          }
+          const err = caught as S3OperationError;
+          assert(err.message.startsWith("Datastore credentials rejected"));
+          assertEquals(err.name, "SignatureDoesNotMatch");
+        },
+      )),
+});
+
+// Regression guard: a non-credential 403 (e.g. BucketRegionMismatch) still
+// gets the existing generic auth hint, not the credential-specific hint.
+Deno.test({
+  sanitizeResources: false,
+  name: "BucketRegionMismatch 403 falls through to generic auth hint",
+  fn: () =>
+    withAwsProfile(undefined, () =>
+      withMockServer(
+        () =>
+          new Response(
+            '<?xml version="1.0"?><Error><Code>BucketRegionMismatch</Code><Message>wrong region</Message><RequestId>r</RequestId></Error>',
+            {
+              status: 403,
+              headers: { "Content-Type": "application/xml" },
+            },
+          ),
+        async (client) => {
+          let caught: unknown;
+          try {
+            await client.getObject("k");
+          } catch (e) {
+            caught = e;
+          }
+          const err = caught as S3OperationError;
+          assert(
+            !err.message.startsWith("Datastore credentials rejected"),
+            `BucketRegionMismatch should not be classified as credentials-rejected, got: ${err.message}`,
+          );
+          assert(
+            !err.message.startsWith("Datastore session expired"),
+            `BucketRegionMismatch should not be classified as session-expired, got: ${err.message}`,
+          );
+          assert(
+            err.message.includes("(check AWS credentials"),
+            `generic auth hint should still fire for non-credential 403, got: ${err.message}`,
+          );
+        },
+      )),
+});
+
+// 5xx regression guard: no credential framing on server errors.
+Deno.test({
+  sanitizeResources: false,
+  name: "500 response does not add credential framing",
+  fn: () =>
+    withAwsProfile(undefined, () =>
+      withMockServer(
+        () =>
+          new Response("internal error", {
+            status: 500,
+            headers: { "Content-Type": "text/plain" },
+          }),
+        async (client) => {
+          let caught: unknown;
+          try {
+            await client.getObject("k");
+          } catch (e) {
+            caught = e;
+          }
+          const err = caught as S3OperationError;
+          assert(!err.message.startsWith("Datastore"));
+        },
+      )),
+});
+
+// --- deriveAwsErrorCode unit tests (cause-chain handling) ----------------
+
+Deno.test("deriveAwsErrorCode: prefers e.Code", () => {
+  assertEquals(
+    deriveAwsErrorCode({
+      Code: "InvalidAccessKeyId",
+      name: "Error",
+    }),
+    "InvalidAccessKeyId",
+  );
+});
+
+Deno.test("deriveAwsErrorCode: falls back to e.name when set", () => {
+  assertEquals(
+    deriveAwsErrorCode({ name: "CredentialsProviderError" }),
+    "CredentialsProviderError",
+  );
+});
+
+Deno.test("deriveAwsErrorCode: ignores generic 'Error' name", () => {
+  assertEquals(deriveAwsErrorCode({ name: "Error" }), undefined);
+});
+
+// Issue #226 stack trace shows `_CredentialsProviderError` on the cause.
+Deno.test("deriveAwsErrorCode: walks cause chain and strips leading underscore", () => {
+  const inner = new Error("Token is expired");
+  inner.name = "_CredentialsProviderError";
+  assertEquals(
+    deriveAwsErrorCode({ name: "Error", cause: inner }),
+    "CredentialsProviderError",
+  );
+});
+
+Deno.test("deriveAwsErrorCode: strips multiple leading underscores", () => {
+  const inner = new Error("x");
+  inner.name = "__CredentialsProviderError";
+  assertEquals(
+    deriveAwsErrorCode({ name: "Error", cause: inner }),
+    "CredentialsProviderError",
+  );
+});
+
+Deno.test("deriveAwsErrorCode: ignores non-Error cause", () => {
+  assertEquals(
+    deriveAwsErrorCode({ name: "Error", cause: { name: "Foo" } }),
+    undefined,
+  );
+});
+
+Deno.test("deriveAwsErrorCode: returns undefined when no signal anywhere", () => {
+  assertEquals(deriveAwsErrorCode({}), undefined);
+  assertEquals(deriveAwsErrorCode({ name: "Error" }), undefined);
+});
+
+// Composition: cause-chain CredentialsProviderError flows through to the
+// classifier via deriveAwsErrorCode → classifyAwsCredentialError → "session-expired".
+Deno.test("composition: cause-chain _CredentialsProviderError classifies as session-expired", () => {
+  const inner = new Error("Token is expired");
+  inner.name = "_CredentialsProviderError";
+  const code = deriveAwsErrorCode({ name: "Error", cause: inner });
+  assertEquals(code, "CredentialsProviderError");
+  assertEquals(
+    classifyAwsCredentialError(code, undefined),
+    "session-expired",
+  );
+});
+
+// --- Client-side CredentialsProviderError integration test ----------------
+//
+// Issue #226's primary path: the SDK throws CredentialsProviderError before
+// any HTTP call when the credential resolver fails. Reproduce by pointing
+// AWS_PROFILE at a profile that doesn't exist, unsetting all env-var keys,
+// and disabling IMDS so the chain exhausts quickly. The first SDK call
+// then surfaces CredentialsProviderError, which wrapError must classify as
+// session-expired and prepend the swamp-flavoured hint.
+
+Deno.test({
+  sanitizeResources: false,
+  // Disable op sanitization too — the SDK's credential chain may leave
+  // pending IO ops on the failed IMDS lookup despite AWS_EC2_METADATA_DISABLED.
+  sanitizeOps: false,
+  name:
+    "Issue #226: client-side CredentialsProviderError surfaces session-expired hint",
+  fn: async () => {
+    const priorAccessKey = Deno.env.get("AWS_ACCESS_KEY_ID");
+    const priorSecret = Deno.env.get("AWS_SECRET_ACCESS_KEY");
+    const priorSession = Deno.env.get("AWS_SESSION_TOKEN");
+    const priorProfile = Deno.env.get("AWS_PROFILE");
+    const priorImds = Deno.env.get("AWS_EC2_METADATA_DISABLED");
+    const priorConfig = Deno.env.get("AWS_CONFIG_FILE");
+    const priorCreds = Deno.env.get("AWS_SHARED_CREDENTIALS_FILE");
+    Deno.env.delete("AWS_ACCESS_KEY_ID");
+    Deno.env.delete("AWS_SECRET_ACCESS_KEY");
+    Deno.env.delete("AWS_SESSION_TOKEN");
+    Deno.env.set("AWS_PROFILE", "swamp-issue-226-nonexistent-profile");
+    Deno.env.set("AWS_EC2_METADATA_DISABLED", "true");
+    // Point at empty files so the SDK doesn't accidentally pick up a real
+    // matching profile from the developer's home directory.
+    const emptyFile = await Deno.makeTempFile({ prefix: "swamp-empty-" });
+    Deno.env.set("AWS_CONFIG_FILE", emptyFile);
+    Deno.env.set("AWS_SHARED_CREDENTIALS_FILE", emptyFile);
+
+    try {
+      const client = new S3Client({
+        bucket: "test-bucket",
+        region: "us-east-1",
+      });
+      let caught: unknown;
+      try {
+        await client.headBucket();
+      } catch (e) {
+        caught = e;
+      }
+      assert(
+        caught instanceof S3OperationError,
+        `expected S3OperationError, got: ${caught}`,
+      );
+      const err = caught as S3OperationError;
+      assert(
+        err.message.startsWith("Datastore session expired"),
+        `expected session-expired hint to lead message, got: ${err.message}`,
+      );
+      assert(
+        err.message.includes("aws sso login"),
+        `expected aws sso login remediation, got: ${err.message}`,
+      );
+      assert(
+        err.message.includes("--profile swamp-issue-226-nonexistent-profile"),
+        `expected --profile flag with the configured profile, got: ${err.message}`,
+      );
+      // .name preserved so existing `error.name === "CredentialsProviderError"`
+      // checks at call sites keep working.
+      assert(
+        err.name === "CredentialsProviderError" ||
+          err.name.endsWith("CredentialsProviderError"),
+        `expected name to reflect underlying SDK error, got: ${err.name}`,
+      );
+    } finally {
+      await Deno.remove(emptyFile).catch(() => {});
+      if (priorAccessKey) Deno.env.set("AWS_ACCESS_KEY_ID", priorAccessKey);
+      if (priorSecret) Deno.env.set("AWS_SECRET_ACCESS_KEY", priorSecret);
+      if (priorSession) Deno.env.set("AWS_SESSION_TOKEN", priorSession);
+      if (priorProfile) Deno.env.set("AWS_PROFILE", priorProfile);
+      else Deno.env.delete("AWS_PROFILE");
+      if (priorImds) Deno.env.set("AWS_EC2_METADATA_DISABLED", priorImds);
+      else Deno.env.delete("AWS_EC2_METADATA_DISABLED");
+      if (priorConfig) Deno.env.set("AWS_CONFIG_FILE", priorConfig);
+      else Deno.env.delete("AWS_CONFIG_FILE");
+      if (priorCreds) Deno.env.set("AWS_SHARED_CREDENTIALS_FILE", priorCreds);
+      else Deno.env.delete("AWS_SHARED_CREDENTIALS_FILE");
+    }
+  },
 });

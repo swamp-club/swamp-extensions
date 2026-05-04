@@ -140,6 +140,52 @@ export class GcsOperationError extends Error {
   }
 }
 
+/**
+ * Classification of GCS-surfaced credential failures. Mirrors
+ * `AwsCredentialErrorKind` from the s3 datastore for symmetry — the user-
+ * facing concept ("session expired" vs "credentials rejected") is the same
+ * across providers, only the remediation command differs.
+ */
+export type GcpCredentialErrorKind =
+  | "session-expired"
+  | "credentials-rejected"
+  | "other";
+
+/**
+ * Classify a GCS error by its derived `causeName` (from the cause-chain) and
+ * HTTP `status`. Pure function — takes primitives so it can be unit-tested
+ * without constructing token-refresh failures or HTTP responses.
+ *
+ * Detection is HTTP-status-only for the credentials-rejected branch — body
+ * shape varies (JSON vs HTML vs plain text on edge cases) and is not
+ * reliable for classification.
+ */
+export function classifyGcpCredentialError(
+  causeName: string | undefined,
+  status: number | undefined | null,
+): GcpCredentialErrorKind {
+  if (causeName === "CredentialsProviderError") return "session-expired";
+  if (status === 401 || status === 403) return "credentials-rejected";
+  return "other";
+}
+
+/**
+ * Render a swamp-flavoured remediation hint for the classified credential
+ * failure. Returns `undefined` for `kind === "other"` so the caller falls
+ * through to existing generic messaging.
+ */
+export function formatGcpCredentialHint(
+  kind: GcpCredentialErrorKind,
+): string | undefined {
+  if (kind === "session-expired") {
+    return "Datastore session expired: your GCP Application Default Credentials have expired or been revoked. Run 'gcloud auth application-default login' to refresh, then retry.";
+  }
+  if (kind === "credentials-rejected") {
+    return "Datastore credentials rejected by GCS: verify GOOGLE_APPLICATION_CREDENTIALS, gcloud ADC, or the attached service account, then retry.";
+  }
+  return undefined;
+}
+
 // ---------------------------------------------------------------------------
 // ADC token acquisition
 // ---------------------------------------------------------------------------
@@ -229,6 +275,50 @@ async function createSignedJwt(
   return `${signingInput}.${base64url(signature)}`;
 }
 
+/**
+ * Wrap a token-endpoint failure as a `GcsOperationError`. When the body
+ * indicates `invalid_grant` (refresh token revoked, expired, or never valid),
+ * stamp `name = "CredentialsProviderError"` so the downstream classifier in
+ * `send()` recognises the SSO-equivalent path. Other failures keep a
+ * generic name; the message preserves status + body for debugging.
+ */
+/**
+ * Wrap a token-endpoint failure as a GcsOperationError. Exported for tests
+ * because mocking `oauth2.googleapis.com/token` from outside the module
+ * isn't feasible (the URL is hardcoded in `tokenFromUserCredentials`).
+ * Exporting this lets us prove end-to-end that an `invalid_grant` body
+ * produces the swamp-flavoured "session expired" message.
+ */
+export function tokenRefreshError(
+  context: string,
+  status: number,
+  body: string,
+): GcsOperationError {
+  const isInvalidGrant = body.includes("invalid_grant");
+  const name = isInvalidGrant
+    ? "CredentialsProviderError"
+    : "TokenRefreshError";
+  // Front-load the swamp-flavoured hint when the failure is the GCP-equivalent
+  // of an expired SSO session, so the user sees the cause and remediation
+  // before the raw token-endpoint response.
+  const hint = isInvalidGrant
+    ? formatGcpCredentialHint("session-expired")
+    : undefined;
+  const message = hint
+    ? `${hint} ${context}: ${status} ${body}`
+    : `${context}: ${status} ${body}`;
+  return new GcsOperationError(
+    message,
+    {
+      name,
+      httpStatusCode: status,
+      code: isInvalidGrant ? "invalid_grant" : undefined,
+      bodyPreview: body.slice(0, 256),
+      uploadId: undefined,
+    },
+  );
+}
+
 /** Exchange a signed JWT for an access token. */
 async function tokenFromServiceAccount(
   sa: ServiceAccountKey,
@@ -243,9 +333,10 @@ async function tokenFromServiceAccount(
     }),
   });
   if (!resp.ok) {
-    throw new Error(
-      `Service account token exchange failed: ${resp.status} ${await resp
-        .text()}`,
+    throw tokenRefreshError(
+      "Service account token exchange failed",
+      resp.status,
+      await resp.text(),
     );
   }
   return await resp.json() as TokenResponse;
@@ -266,9 +357,10 @@ async function tokenFromUserCredentials(
     }),
   });
   if (!resp.ok) {
-    throw new Error(
-      `User credential token refresh failed: ${resp.status} ${await resp
-        .text()}`,
+    throw tokenRefreshError(
+      "User credential token refresh failed",
+      resp.status,
+      await resp.text(),
     );
   }
   return await resp.json() as TokenResponse;
@@ -619,9 +711,27 @@ export class GcsClient {
       response.headers.get("content-type"),
     );
 
-    const parts: string[] = [`GCS ${op} failed`, `HTTP ${response.status}`];
+    const credentialKind = classifyGcpCredentialError(
+      undefined,
+      response.status,
+    );
+    const credentialHint = formatGcpCredentialHint(credentialKind);
+
+    const parts: string[] = [];
+    // Front-load the swamp-flavoured hint so the user sees the cause and
+    // remediation before the SDK's framing of the failure.
+    if (credentialHint) parts.push(credentialHint);
+    parts.push(`GCS ${op} failed`, `HTTP ${response.status}`);
     if (code) parts.push(code);
-    if (response.status === 401 || response.status === 403) {
+    // Existing generic 401/403 hint stays as fallback when the credential
+    // classifier did not produce a more specific hint. Currently
+    // `classifyGcpCredentialError` covers all 401/403 cases so this branch
+    // is dead today, but kept structurally for future kinds that might
+    // resolve to "other" with status 401/403.
+    if (
+      (response.status === 401 || response.status === 403) &&
+      credentialKind === "other"
+    ) {
       parts.push(
         "(check GCS credentials — GOOGLE_APPLICATION_CREDENTIALS, gcloud ADC, or attached service account — and project/bucket configuration)",
       );
