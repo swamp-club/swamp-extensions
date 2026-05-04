@@ -141,6 +141,27 @@ function createMockGcsClient(): GcsClient & {
         generation: genFor(key),
       });
     },
+
+    listAllObjects(
+      _subPrefix?: string,
+      signal?: AbortSignal,
+    ): Promise<
+      Array<{
+        key: string;
+        size: number;
+        generation?: string;
+        updated?: Date;
+      }>
+    > {
+      throwIfAborted(signal);
+      return Promise.resolve(
+        [...storage.entries()].map(([key, body]) => ({
+          key,
+          size: body.length,
+          generation: genFor(key),
+        })),
+      );
+    },
   } as unknown as GcsClient & {
     storage: Map<string, Uint8Array>;
     generationOverrides: Map<string, string>;
@@ -470,6 +491,210 @@ Deno.test("pullIndex cache-hit path: scrubs in-memory and leaves local file unto
       diskJson,
       pollutedJson,
       "cache-hit branch must not rewrite the local index file",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// -- (i) self-healing discovery for unindexed buckets (swamp-club #225) ---
+
+// Test A — discovery from a populated bucket without an index.
+Deno.test("pullIndex: discovers files when remote index is missing (swamp-club #225)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-225-A-" });
+  try {
+    const mock = createMockGcsClient();
+    mock.storage.set(
+      "data/@org/m/payload-1.yaml",
+      new TextEncoder().encode("hello\n"),
+    );
+    mock.storage.set(
+      "data/@org/m/payload-2.yaml",
+      new TextEncoder().encode("world!\n"),
+    );
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    const fingerprint = await (service as unknown as {
+      pullIndex: (
+        opts: { forceRemote: boolean },
+      ) => Promise<string | null>;
+    }).pullIndex({ forceRemote: true });
+
+    const indexPut = mock.puts.find((p) => p.key === ".datastore-index.json");
+    assertExists(indexPut, "discovery must publish a synthesized index");
+
+    const synthesized = JSON.parse(new TextDecoder().decode(indexPut.body));
+    assertEquals(
+      Object.keys(synthesized.entries).sort(),
+      ["data/@org/m/payload-1.yaml", "data/@org/m/payload-2.yaml"],
+      "synthesized index keys must match the bucket listing exactly",
+    );
+    assertEquals(synthesized.entries["data/@org/m/payload-1.yaml"].size, 6);
+    assertEquals(synthesized.entries["data/@org/m/payload-2.yaml"].size, 7);
+
+    assertExists(fingerprint, "discovery must return a fingerprint generation");
+
+    const state = privateState(service);
+    assertExists(state.index);
+    assertEquals(
+      Object.keys(state.index.entries).sort(),
+      ["data/@org/m/payload-1.yaml", "data/@org/m/payload-2.yaml"],
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// Test B — pullChanged hydrates everything after discovery.
+Deno.test("pullChanged: hydrates an unindexed bucket via discovery (swamp-club #225)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-225-B-" });
+  try {
+    const mock = createMockGcsClient();
+    mock.storage.set(
+      "data/@org/m/a.yaml",
+      new TextEncoder().encode("alpha\n"),
+    );
+    mock.storage.set(
+      "data/@org/m/b.yaml",
+      new TextEncoder().encode("beta\n"),
+    );
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    const pulled = await service.pullChanged();
+    assertEquals(pulled, 2, "both files must be downloaded");
+
+    const aOnDisk = await Deno.readTextFile(
+      join(cachePath, "data/@org/m/a.yaml"),
+    );
+    const bOnDisk = await Deno.readTextFile(
+      join(cachePath, "data/@org/m/b.yaml"),
+    );
+    assertEquals(aOnDisk, "alpha\n");
+    assertEquals(bOnDisk, "beta\n");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// Test C — discovery filters internal cache files.
+Deno.test("pullIndex discovery: skips internal cache files (swamp-club #225)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-225-C-" });
+  try {
+    const mock = createMockGcsClient();
+    mock.storage.set(
+      "data/@org/m/legit.yaml",
+      new TextEncoder().encode("ok\n"),
+    );
+    mock.storage.set(
+      ".datastore.lock",
+      new TextEncoder().encode("lock-data"),
+    );
+    mock.storage.set(
+      ".push-queue.json",
+      new TextEncoder().encode("[]"),
+    );
+    mock.storage.set(
+      "data/_catalog.db",
+      new TextEncoder().encode("SQLITE-MAIN"),
+    );
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    await (service as unknown as {
+      pullIndex: (
+        opts: { forceRemote: boolean },
+      ) => Promise<string | null>;
+    }).pullIndex({ forceRemote: true });
+
+    const indexPut = mock.puts.find((p) => p.key === ".datastore-index.json");
+    assertExists(indexPut);
+    const synthesized = JSON.parse(new TextDecoder().decode(indexPut.body));
+    assertEquals(
+      Object.keys(synthesized.entries).sort(),
+      ["data/@org/m/legit.yaml"],
+      "synthesized index must contain only the legit file",
+    );
+    for (
+      const internal of [
+        ".datastore.lock",
+        ".push-queue.json",
+        "data/_catalog.db",
+      ]
+    ) {
+      assertEquals(
+        synthesized.entries[internal],
+        undefined,
+        `internal cache file must not appear in synthesized index: ${internal}`,
+      );
+    }
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// Test D — empty bucket regression pin: brand-new-bucket fallthrough.
+Deno.test("pullIndex discovery: empty bucket falls through to empty index (swamp-club #225 regression pin)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-225-D-" });
+  try {
+    const mock = createMockGcsClient();
+    const service = new GcsCacheSyncService(mock, cachePath);
+    const fingerprint = await (service as unknown as {
+      pullIndex: (
+        opts: { forceRemote: boolean },
+      ) => Promise<string | null>;
+    }).pullIndex({ forceRemote: true });
+
+    assertEquals(
+      fingerprint,
+      null,
+      "empty-bucket fallthrough must return null fingerprint",
+    );
+    const indexPut = mock.puts.find((p) => p.key === ".datastore-index.json");
+    assertEquals(
+      indexPut,
+      undefined,
+      "no PutObject must fire on a genuinely empty bucket",
+    );
+    const state = privateState(service);
+    assertExists(state.index);
+    assertEquals(
+      Object.keys(state.index.entries).length,
+      0,
+      "in-memory entries must be empty for a brand-new bucket",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// Test E — pushChanged side benefit on an unindexed populated bucket.
+Deno.test("pushChanged: against unindexed populated bucket builds a complete index (swamp-club #225 side benefit)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-225-E-" });
+  try {
+    const mock = createMockGcsClient();
+    mock.storage.set(
+      "data/@org/m/remote-only.yaml",
+      new TextEncoder().encode("remote\n"),
+    );
+    await seedFile(cachePath, "data/@org/m/local-only.yaml", "local\n");
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    const pushed = await service.pushChanged();
+    assertEquals(pushed, 1, "exactly one local file should push");
+
+    const indexPuts = mock.puts.filter((p) =>
+      p.key === ".datastore-index.json"
+    );
+    assertExists(indexPuts.at(-1), "pushChanged must publish an index");
+    const finalIndex = JSON.parse(
+      new TextDecoder().decode(indexPuts.at(-1)!.body),
+    );
+    assertEquals(
+      Object.keys(finalIndex.entries).sort(),
+      [
+        "data/@org/m/local-only.yaml",
+        "data/@org/m/remote-only.yaml",
+      ],
+      "merged index must contain both the remote-discovered and local-pushed entries",
     );
   } finally {
     await Deno.remove(cachePath, { recursive: true });

@@ -657,13 +657,17 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       generation = response.generation;
     } catch (err) {
       if (err instanceof NotFoundError) {
-        this.index = {
-          version: 1,
-          lastPulled: new Date().toISOString(),
-          entries: {},
-        };
-        // No remote object yet → no fingerprint to return.
-        return null;
+        // Bucket has no index file. Two sub-cases:
+        //   (1) Brand-new empty bucket — fall back to an empty
+        //       in-memory index, return null. Existing behaviour.
+        //   (2) Bucket pre-dates the indexed-sync model and holds data
+        //       under standard prefixes but was never written by a
+        //       swamp version that publishes `.datastore-index.json`.
+        // Discovery: list, filter via isInternalCacheFile, build an
+        // index, publish it, and continue. See discoverIndexFromBucket
+        // for the full inline rationale (matches the @swamp/s3-datastore
+        // sibling implementation; swamp-club#225 follow-up to #220).
+        return await this.discoverIndexFromBucket(signal);
       }
       throw err;
     }
@@ -681,6 +685,85 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       await atomicWriteTextFile(this.indexPath, text);
     }
     return generation ?? null;
+  }
+
+  /**
+   * Self-healing fallback for `pullIndex` when the remote
+   * `.datastore-index.json` is absent. Lists the bucket, filters
+   * internal cache files, builds an index from the listing, publishes
+   * it, and writes the local copy — leaving the caller's slow-path
+   * bookkeeping behaving identically to a normal index fetch.
+   *
+   * Inline-comment requirements (mirror of the s3-datastore sibling;
+   * a future reader must not "fix" any of these without understanding
+   * the trade-off):
+   *
+   *   i. The PutObject is unconditional. Discovery is idempotent
+   *      (same listing → same synthesized index across racing peers)
+   *      and matches the existing pushChanged writeback pattern.
+   *      `ifGenerationMatch=0` is available on GCS but skipped here
+   *      to keep symmetry with the s3-datastore implementation and
+   *      because the discovery is content-idempotent.
+   *
+   *  ii. `this.index` is set in-memory BEFORE the put, mirroring the
+   *      post-fetch order. If put throws, the in-memory state reflects
+   *      an unpublished snapshot, no local file is written
+   *      (atomicWriteTextFile happens after put), and the next
+   *      forceRemote call re-triggers discovery — idempotent with no
+   *      orphaned state.
+   *
+   * iii. All callers of pullIndex (both pullChanged and pushChanged)
+   *      inherit this fallback automatically.
+   *
+   * GCS list eventual consistency: generally strong since 2020, but a
+   * freshly-uploaded object may briefly miss from a listing. Discovery
+   * is convergent — re-running setup picks up any missed objects on
+   * the next pass.
+   */
+  private async discoverIndexFromBucket(
+    signal?: AbortSignal,
+  ): Promise<string | null> {
+    const discoverStart = Date.now();
+    const listing = await this.gcs.listAllObjects(undefined, signal);
+    const filtered = listing.filter((entry) => !isInternalCacheFile(entry.key));
+
+    if (filtered.length === 0) {
+      this.index = {
+        version: 1,
+        lastPulled: new Date().toISOString(),
+        entries: {},
+      };
+      tracePhase("pullIndex.discover", discoverStart, "n=0");
+      return null;
+    }
+
+    const entries: Record<string, IndexEntry> = {};
+    for (const entry of filtered) {
+      entries[entry.key] = {
+        key: entry.key,
+        size: entry.size,
+        lastModified: (entry.updated ?? new Date()).toISOString(),
+      };
+    }
+    this.index = {
+      version: 1,
+      lastPulled: new Date().toISOString(),
+      entries,
+    };
+    const indexJson = JSON.stringify(this.index, null, 2);
+    const indexData = new TextEncoder().encode(indexJson);
+    const putResult = await retryWithBackoff(
+      () => this.gcs.putObject(".datastore-index.json", indexData, signal),
+      { signal },
+    );
+    await ensureDir(this.cachePath);
+    await atomicWriteTextFile(this.indexPath, indexJson);
+    tracePhase(
+      "pullIndex.discover",
+      discoverStart,
+      `n=${filtered.length}`,
+    );
+    return putResult?.generation ?? null;
   }
 
   /** Fetches a single file from GCS to the local cache. */
