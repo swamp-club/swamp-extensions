@@ -688,9 +688,10 @@ export class S3CacheSyncService implements DatastoreSyncService {
         //       cache empty (swamp-club#225, residual from #220).
         // Discovery: list the bucket, filter via isInternalCacheFile,
         // build an index from the listing, publish it, and continue.
-        // Idempotent across racing peers (same listing → same index)
-        // so the unconditional PutObject is benign — see inline notes
-        // i, ii, iii below.
+        // Functionally idempotent across racing peers (entry keys and
+        // sizes match; only metadata timestamps like `lastPulled` and
+        // the `lastModified` fallback differ), so the unconditional
+        // PutObject is benign — see inline notes i, ii, iii below.
         return await this.discoverIndexFromBucket(signal);
       }
       throw err;
@@ -725,13 +726,19 @@ export class S3CacheSyncService implements DatastoreSyncService {
    * Inline-comment requirements (a future reader must not "fix" any of
    * these without understanding the trade-off):
    *
-   *   i. The PutObject is unconditional. Discovery is idempotent
-   *      (same listing → same synthesized index across racing peers),
-   *      matches the existing pushChanged writeback (see line ~1029),
-   *      and `If-None-Match: *` is not portable across all
-   *      S3-compatible backends this extension supports (older
-   *      MinIO/Spaces/R2 implement it inconsistently). Last-writer-wins
-   *      is benign here because both writers compute the same content.
+   *   i. The PutObject is unconditional. Discovery is functionally
+   *      idempotent across racing peers — entry keys and sizes match
+   *      (same listing in, same fields populated out), but metadata
+   *      timestamps (`lastPulled`, and the `lastModified` fallback
+   *      when the SDK didn't surface one) are evaluated per peer so
+   *      the JSON bodies are NOT byte-identical. That's still safe:
+   *      sync behaviour depends on keys + sizes, not timestamps. Do
+   *      NOT add a content-fingerprint optimization here on the
+   *      assumption of byte-equality. Matches the existing
+   *      pushChanged writeback (see line ~1029); `If-None-Match: *`
+   *      is not portable across all S3-compatible backends this
+   *      extension supports (older MinIO/Spaces/R2 implement it
+   *      inconsistently).
    *
    *  ii. `this.index` is set in-memory BEFORE the PutObject attempt,
    *      mirroring the existing post-fetch path's order. If PutObject

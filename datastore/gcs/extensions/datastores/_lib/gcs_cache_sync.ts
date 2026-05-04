@@ -698,12 +698,17 @@ export class GcsCacheSyncService implements DatastoreSyncService {
    * a future reader must not "fix" any of these without understanding
    * the trade-off):
    *
-   *   i. The PutObject is unconditional. Discovery is idempotent
-   *      (same listing → same synthesized index across racing peers)
-   *      and matches the existing pushChanged writeback pattern.
-   *      `ifGenerationMatch=0` is available on GCS but skipped here
-   *      to keep symmetry with the s3-datastore implementation and
-   *      because the discovery is content-idempotent.
+   *   i. The PutObject is unconditional. Discovery is functionally
+   *      idempotent across racing peers — entry keys and sizes match,
+   *      but metadata timestamps (`lastPulled`, and the `lastModified`
+   *      fallback when the listing didn't surface an `updated` value)
+   *      are evaluated per peer so the JSON bodies are NOT byte-
+   *      identical. Sync behaviour depends on keys + sizes, not
+   *      timestamps, so last-writer-wins is benign. Do NOT add a
+   *      content-fingerprint optimization here on the assumption of
+   *      byte-equality. Matches the existing pushChanged writeback
+   *      pattern; `ifGenerationMatch=0` is available on GCS but skipped
+   *      to keep symmetry with the s3-datastore sibling.
    *
    *  ii. `this.index` is set in-memory BEFORE the put, mirroring the
    *      post-fetch order. If put throws, the in-memory state reflects

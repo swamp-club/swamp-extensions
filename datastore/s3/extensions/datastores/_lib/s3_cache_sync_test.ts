@@ -2506,6 +2506,12 @@ Deno.test("pullChanged + pushChanged: fresh-process push after pull against popu
 // "NoSuchKey"} — this proves the real SDK produces the same shape going
 // over real HTTP. Without this, an SDK upgrade could rename or
 // reclassify the error and silently break the discovery fallback.
+//
+// `sanitizeResources: false` is the same setting used by every test in
+// the DEF-2 integration block above (see line 1076): the AWS SDK keeps
+// TCP connections alive in its keep-alive agent, which trips Deno's
+// resource-leak detector. The connections are reclaimed when the
+// runtime tears down between test runs, so this is safe.
 Deno.test({
   sanitizeResources: false,
   name:
