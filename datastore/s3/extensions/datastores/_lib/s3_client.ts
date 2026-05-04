@@ -188,8 +188,11 @@ export function formatAwsCredentialHint(
   awsProfile: string | undefined,
 ): string | undefined {
   if (kind === "session-expired") {
+    // Wrap the profile name in double quotes inside the single-quoted
+    // command so the copy-pasted shell command stays valid for profiles
+    // that contain spaces (uncommon but legal in AWS config).
     const cmd = awsProfile
-      ? `aws sso login --profile ${awsProfile}`
+      ? `aws sso login --profile "${awsProfile}"`
       : `aws sso login`;
     return `Datastore session expired: your AWS profile's SSO session is no longer valid. Run '${cmd}' to refresh, then retry.`;
   }
