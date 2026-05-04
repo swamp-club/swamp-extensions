@@ -400,14 +400,27 @@ Deno.test("classifyAwsCredentialError: undefined code + 403 → other", () => {
   );
 });
 
-Deno.test("formatAwsCredentialHint: session-expired with profile renders --profile flag", () => {
+Deno.test("formatAwsCredentialHint: session-expired with profile renders quoted --profile flag", () => {
   const hint = formatAwsCredentialHint("session-expired", "demo");
   assert(hint !== undefined);
+  // Profile is double-quoted so spaces in profile names don't break the
+  // copy-pasted command. Outer single quotes wrap the whole command in prose.
   assert(
-    hint.includes("aws sso login --profile demo"),
-    `expected --profile in hint, got: ${hint}`,
+    hint.includes(`aws sso login --profile "demo"`),
+    `expected double-quoted --profile in hint, got: ${hint}`,
   );
   assert(hint.startsWith("Datastore session expired"));
+});
+
+Deno.test("formatAwsCredentialHint: session-expired with multi-word profile stays valid shell", () => {
+  const hint = formatAwsCredentialHint("session-expired", "my dev profile");
+  assert(hint !== undefined);
+  // The full command appears as `Run 'aws sso login --profile "my dev profile"' to refresh`
+  // — single-quoted outer, double-quoted profile, valid POSIX shell.
+  assert(
+    hint.includes(`aws sso login --profile "my dev profile"`),
+    `expected multi-word profile to be double-quoted, got: ${hint}`,
+  );
 });
 
 Deno.test("formatAwsCredentialHint: session-expired without profile renders generic command", () => {
@@ -743,8 +756,10 @@ Deno.test({
         `expected aws sso login remediation, got: ${err.message}`,
       );
       assert(
-        err.message.includes("--profile swamp-issue-226-nonexistent-profile"),
-        `expected --profile flag with the configured profile, got: ${err.message}`,
+        err.message.includes(
+          `--profile "swamp-issue-226-nonexistent-profile"`,
+        ),
+        `expected double-quoted --profile flag with the configured profile, got: ${err.message}`,
       );
       // .name preserved so existing `error.name === "CredentialsProviderError"`
       // checks at call sites keep working.

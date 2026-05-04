@@ -159,6 +159,12 @@ export type GcpCredentialErrorKind =
  * Detection is HTTP-status-only for the credentials-rejected branch — body
  * shape varies (JSON vs HTML vs plain text on edge cases) and is not
  * reliable for classification.
+ *
+ * The `causeName` parameter is intended for callers that need to
+ * re-classify a caught `GcsOperationError` (e.g. by passing in `err.name`).
+ * `send()` itself never reaches the cause-name branch from this function —
+ * the session-expired path for token-refresh failures is short-circuited
+ * inside `tokenRefreshError`, which embeds the hint at construction time.
  */
 export function classifyGcpCredentialError(
   causeName: string | undefined,
@@ -278,16 +284,15 @@ async function createSignedJwt(
 /**
  * Wrap a token-endpoint failure as a `GcsOperationError`. When the body
  * indicates `invalid_grant` (refresh token revoked, expired, or never valid),
- * stamp `name = "CredentialsProviderError"` so the downstream classifier in
- * `send()` recognises the SSO-equivalent path. Other failures keep a
- * generic name; the message preserves status + body for debugging.
- */
-/**
- * Wrap a token-endpoint failure as a GcsOperationError. Exported for tests
- * because mocking `oauth2.googleapis.com/token` from outside the module
- * isn't feasible (the URL is hardcoded in `tokenFromUserCredentials`).
- * Exporting this lets us prove end-to-end that an `invalid_grant` body
- * produces the swamp-flavoured "session expired" message.
+ * stamp `name = "CredentialsProviderError"` and front-load the
+ * swamp-flavoured "session expired" hint so callers see the cause and
+ * remediation before the raw token-endpoint response. Other failures keep
+ * a generic `TokenRefreshError` name; the message preserves status + body
+ * for debugging.
+ *
+ * Exported so tests can drive it directly — mocking the hardcoded
+ * `oauth2.googleapis.com/token` URL inside `tokenFromUserCredentials` from
+ * outside the module isn't feasible.
  */
 export function tokenRefreshError(
   context: string,
@@ -373,6 +378,12 @@ async function tokenFromMetadataServer(): Promise<TokenResponse> {
     { headers: { "Metadata-Flavor": "Google" } },
   );
   if (!resp.ok) {
+    // Intentionally a plain Error rather than the typed `tokenRefreshError`
+    // path used by the user-credential and service-account paths. The
+    // remediation differs (check the instance's attached service account
+    // and IAM scopes, not `gcloud auth application-default login`), so
+    // stamping `name = "CredentialsProviderError"` here would mislead
+    // `classifyGcpCredentialError` into prepending the wrong hint.
     throw new Error(
       `Metadata server token request failed: ${resp.status} ${await resp
         .text()}`,

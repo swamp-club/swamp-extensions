@@ -462,11 +462,12 @@ Deno.test("formatGcpCredentialHint: other → undefined", () => {
 
 // --- Wrapper integration tests -------------------------------------------
 //
-// The token-refresh path is exercised by writing a temporary
-// `authorized_user` credentials file, pointing the OAuth token endpoint at
-// our mock server, and intercepting the refresh request. `GOOGLE_APPLICATION_CREDENTIALS`
-// is restored in `finally`. `clearTokenCache()` runs in setup AND teardown
-// because the module-level cache leaks across tests otherwise.
+// `send()` is exercised against a mock server returning the relevant
+// status codes. `clearTokenCache()` runs in setup AND teardown because
+// the module-level token cache leaks across tests otherwise. The
+// token-refresh `invalid_grant` path is covered separately below by
+// driving `tokenRefreshError` directly — see the comment on its export
+// for why we don't mock the OAuth endpoint.
 
 Deno.test({
   sanitizeResources: false,
