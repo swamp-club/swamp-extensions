@@ -62,8 +62,15 @@ export interface GcsObjectMetadata {
   generation?: string;
 }
 
+export interface GcsListEntry {
+  key: string;
+  size: number;
+  generation?: string;
+  updated?: Date;
+}
+
 export interface GcsListResult {
-  keys: string[];
+  entries: GcsListEntry[];
   truncated: boolean;
   pageToken?: string;
 }
@@ -995,12 +1002,26 @@ export class GcsClient {
     const data = await resp.json();
 
     const prefixLen = this.prefix ? this.prefix.length + 1 : 0;
-    const keys = (data.items ?? [])
-      .map((obj: { name: string }) => obj.name)
-      .map((name: string) => name.slice(prefixLen));
+    const entries: GcsListEntry[] = (data.items ?? []).map(
+      (obj: {
+        name: string;
+        size?: string;
+        generation?: string;
+        updated?: string;
+      }) => ({
+        key: obj.name.slice(prefixLen),
+        // GCS JSON API returns `size` as a numeric string. Number("…")
+        // handles undefined and empty-string cleanly via `|| 0`; the
+        // S3 sibling gets a native number from the SDK and avoids
+        // parsing altogether.
+        size: Number(obj.size) || 0,
+        generation: obj.generation,
+        updated: obj.updated ? new Date(obj.updated) : undefined,
+      }),
+    );
 
     return {
-      keys,
+      entries,
       truncated: !!data.nextPageToken,
       pageToken: data.nextPageToken,
     };
@@ -1010,16 +1031,16 @@ export class GcsClient {
   async listAllObjects(
     subPrefix?: string,
     signal?: AbortSignal,
-  ): Promise<string[]> {
-    const allKeys: string[] = [];
+  ): Promise<GcsListEntry[]> {
+    const all: GcsListEntry[] = [];
     let pageToken: string | undefined;
 
     do {
       const result = await this.listObjects(subPrefix, pageToken, signal);
-      allKeys.push(...result.keys);
+      all.push(...result.entries);
       pageToken = result.truncated ? result.pageToken : undefined;
     } while (pageToken);
 
-    return allKeys;
+    return all;
   }
 }

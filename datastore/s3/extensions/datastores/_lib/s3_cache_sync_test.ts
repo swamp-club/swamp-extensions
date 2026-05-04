@@ -65,9 +65,10 @@ function fakeETag(body: Uint8Array): string {
 }
 
 /**
- * In-memory mock of S3Client recording getObject/putObject/headObject
- * calls. `etagOverrides` lets a test pin a specific ETag (for example
- * a multipart-shaped one) regardless of stored content.
+ * In-memory mock of S3Client recording getObject/putObject/headObject/
+ * listAllObjects calls. `etagOverrides` lets a test pin a specific
+ * ETag (for example a multipart-shaped one) regardless of stored
+ * content.
  */
 function createMockS3Client(): S3Client & {
   storage: Map<string, Uint8Array>;
@@ -75,12 +76,14 @@ function createMockS3Client(): S3Client & {
   puts: PutCall[];
   gets: string[];
   heads: string[];
+  lists: number;
 } {
   const storage = new Map<string, Uint8Array>();
   const etagOverrides = new Map<string, string>();
   const puts: PutCall[] = [];
   const gets: string[] = [];
   const heads: string[] = [];
+  const counters = { lists: 0 };
 
   const etagFor = (key: string, body: Uint8Array): string =>
     etagOverrides.get(key) ?? fakeETag(body);
@@ -91,6 +94,9 @@ function createMockS3Client(): S3Client & {
     puts,
     gets,
     heads,
+    get lists() {
+      return counters.lists;
+    },
 
     putObject(key: string, body: Uint8Array): Promise<{ etag: string }> {
       storage.set(key, body);
@@ -121,12 +127,31 @@ function createMockS3Client(): S3Client & {
         etag: etagFor(key, data),
       });
     },
+
+    listAllObjects(): Promise<
+      Array<{
+        key: string;
+        size: number;
+        etag?: string;
+        lastModified?: Date;
+      }>
+    > {
+      counters.lists++;
+      return Promise.resolve(
+        [...storage.entries()].map(([key, body]) => ({
+          key,
+          size: body.length,
+          etag: etagFor(key, body),
+        })),
+      );
+    },
   } as unknown as S3Client & {
     storage: Map<string, Uint8Array>;
     etagOverrides: Map<string, string>;
     puts: PutCall[];
     gets: string[];
     heads: string[];
+    lists: number;
   };
 }
 
@@ -487,6 +512,232 @@ Deno.test("pullIndex cache-hit path: scrubs in-memory and leaves local file unto
   }
 });
 
+// -- (h) self-healing discovery for unindexed buckets (swamp-club #225) ---
+
+// Test A — discovery from a populated bucket without an index.
+// pullIndex's NotFound branch must list, build, and publish a synthesized
+// index whose entries match the listing exactly (no extras, no
+// omissions, sizes match).
+Deno.test("pullIndex: discovers files when remote index is missing (swamp-club #225)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-225-A-" });
+  try {
+    const mock = createMockS3Client();
+    // Bucket has data files but no .datastore-index.json.
+    mock.storage.set(
+      "data/@org/m/payload-1.yaml",
+      new TextEncoder().encode("hello\n"),
+    );
+    mock.storage.set(
+      "data/@org/m/payload-2.yaml",
+      new TextEncoder().encode("world!\n"),
+    );
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    const fingerprint = await (service as unknown as {
+      pullIndex: (
+        opts: { forceRemote: boolean },
+      ) => Promise<string | null>;
+    }).pullIndex({ forceRemote: true });
+
+    // 1. discovery wrote the index back
+    const indexPut = mock.puts.find((p) => p.key === ".datastore-index.json");
+    assertExists(indexPut, "discovery must publish a synthesized index");
+
+    // 2. synthesized index entries match the listing EXACTLY
+    const synthesized = JSON.parse(new TextDecoder().decode(indexPut.body));
+    assertEquals(
+      Object.keys(synthesized.entries).sort(),
+      ["data/@org/m/payload-1.yaml", "data/@org/m/payload-2.yaml"],
+      "synthesized index keys must match the bucket listing exactly",
+    );
+    assertEquals(synthesized.entries["data/@org/m/payload-1.yaml"].size, 6);
+    assertEquals(synthesized.entries["data/@org/m/payload-2.yaml"].size, 7);
+
+    // 3. fingerprint returned (the put response ETag) so the caller's
+    //    slow-path bookkeeping behaves like a normal index fetch
+    assertExists(fingerprint, "discovery must return a fingerprint ETag");
+
+    // 4. in-memory index reflects discovery
+    const state = privateState(service);
+    assertExists(state.index);
+    assertEquals(
+      Object.keys(state.index.entries).sort(),
+      ["data/@org/m/payload-1.yaml", "data/@org/m/payload-2.yaml"],
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// Test B — pullChanged hydrates everything after discovery.
+Deno.test("pullChanged: hydrates an unindexed bucket via discovery (swamp-club #225)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-225-B-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(
+      "data/@org/m/a.yaml",
+      new TextEncoder().encode("alpha\n"),
+    );
+    mock.storage.set(
+      "data/@org/m/b.yaml",
+      new TextEncoder().encode("beta\n"),
+    );
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    const pulled = await service.pullChanged();
+    assertEquals(pulled, 2, "both files must be downloaded");
+
+    const aOnDisk = await Deno.readTextFile(
+      join(cachePath, "data/@org/m/a.yaml"),
+    );
+    const bOnDisk = await Deno.readTextFile(
+      join(cachePath, "data/@org/m/b.yaml"),
+    );
+    assertEquals(aOnDisk, "alpha\n");
+    assertEquals(bOnDisk, "beta\n");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// Test C — discovery filters internal cache files.
+Deno.test("pullIndex discovery: skips internal cache files (swamp-club #225)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-225-C-" });
+  try {
+    const mock = createMockS3Client();
+    // One legitimate data file, plus three classes of internal files
+    // that must NEVER appear in a synthesized index: lock, push-queue,
+    // and a SQLite catalog file.
+    mock.storage.set(
+      "data/@org/m/legit.yaml",
+      new TextEncoder().encode("ok\n"),
+    );
+    mock.storage.set(
+      ".datastore.lock",
+      new TextEncoder().encode("lock-data"),
+    );
+    mock.storage.set(
+      ".push-queue.json",
+      new TextEncoder().encode("[]"),
+    );
+    mock.storage.set(
+      "data/_catalog.db",
+      new TextEncoder().encode("SQLITE-MAIN"),
+    );
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    await (service as unknown as {
+      pullIndex: (
+        opts: { forceRemote: boolean },
+      ) => Promise<string | null>;
+    }).pullIndex({ forceRemote: true });
+
+    const indexPut = mock.puts.find((p) => p.key === ".datastore-index.json");
+    assertExists(indexPut);
+    const synthesized = JSON.parse(new TextDecoder().decode(indexPut.body));
+    assertEquals(
+      Object.keys(synthesized.entries).sort(),
+      ["data/@org/m/legit.yaml"],
+      "synthesized index must contain only the legit file",
+    );
+    for (
+      const internal of [
+        ".datastore.lock",
+        ".push-queue.json",
+        "data/_catalog.db",
+      ]
+    ) {
+      assertEquals(
+        synthesized.entries[internal],
+        undefined,
+        `internal cache file must not appear in synthesized index: ${internal}`,
+      );
+    }
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// Test D — empty bucket regression pin: brand-new-bucket fallthrough is
+// preserved. No PutObject must fire; in-memory entries must be {}.
+Deno.test("pullIndex discovery: empty bucket falls through to empty index (swamp-club #225 regression pin)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-225-D-" });
+  try {
+    const mock = createMockS3Client();
+    // Storage is intentionally empty.
+    const service = new S3CacheSyncService(mock, cachePath);
+    const fingerprint = await (service as unknown as {
+      pullIndex: (
+        opts: { forceRemote: boolean },
+      ) => Promise<string | null>;
+    }).pullIndex({ forceRemote: true });
+
+    assertEquals(
+      fingerprint,
+      null,
+      "empty-bucket fallthrough must return null fingerprint",
+    );
+    const indexPut = mock.puts.find((p) => p.key === ".datastore-index.json");
+    assertEquals(
+      indexPut,
+      undefined,
+      "no PutObject must fire on a genuinely empty bucket",
+    );
+    const state = privateState(service);
+    assertExists(state.index);
+    assertEquals(
+      Object.keys(state.index.entries).length,
+      0,
+      "in-memory entries must be empty for a brand-new bucket",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// Test E — pushChanged side benefit. Previously, push against an
+// unindexed populated bucket would write an index reflecting only LOCAL
+// files, dropping existing remote entries from the index even though
+// the storage still held them. With discovery in pullIndex, push first
+// builds a complete merged view.
+Deno.test("pushChanged: against unindexed populated bucket builds a complete index (swamp-club #225 side benefit)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-225-E-" });
+  try {
+    const mock = createMockS3Client();
+    // Remote has a pre-existing data file but no index.
+    mock.storage.set(
+      "data/@org/m/remote-only.yaml",
+      new TextEncoder().encode("remote\n"),
+    );
+    // Local cache has a different file ready to push.
+    await seedFile(cachePath, "data/@org/m/local-only.yaml", "local\n");
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    const pushed = await service.pushChanged();
+    assertEquals(pushed, 1, "exactly one local file should push");
+
+    // Final remote index must contain BOTH the remote-only and the
+    // local-only entry — the pre-existing remote file is NOT lost.
+    const indexPuts = mock.puts.filter((p) =>
+      p.key === ".datastore-index.json"
+    );
+    assertExists(indexPuts.at(-1), "pushChanged must publish an index");
+    const finalIndex = JSON.parse(
+      new TextDecoder().decode(indexPuts.at(-1)!.body),
+    );
+    assertEquals(
+      Object.keys(finalIndex.entries).sort(),
+      [
+        "data/@org/m/local-only.yaml",
+        "data/@org/m/remote-only.yaml",
+      ],
+      "merged index must contain both the remote-discovered and local-pushed entries",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
 // -- (g) push merges remote index instead of clobbering it ----------------
 
 // Regression test for swamp-club#30: without the fix, a client whose
@@ -768,6 +1019,9 @@ Deno.test("pushChanged: batch failure message includes underlying error details"
   try {
     // Mock whose putObject rejects with 403 (non-retryable, so fails fast)
     // for every file push. Index fetch returns empty so writeback is unused.
+    // Empty listAllObjects keeps the swamp-club#225 discovery fallback on
+    // its empty-bucket branch — no synthesized index, behaves like the
+    // original brand-new-bucket case.
     const mock = {
       getObject(
         key: string,
@@ -781,6 +1035,16 @@ Deno.test("pushChanged: batch failure message includes underlying error details"
       },
       putObject(_key: string, _body: Uint8Array): Promise<void> {
         return Promise.reject(opError(403));
+      },
+      listAllObjects(): Promise<
+        Array<{
+          key: string;
+          size: number;
+          etag?: string;
+          lastModified?: Date;
+        }>
+      > {
+        return Promise.resolve([]);
       },
     } as unknown as S3Client;
 
@@ -2234,4 +2498,88 @@ Deno.test("pullChanged + pushChanged: fresh-process push after pull against popu
   } finally {
     await Deno.remove(cachePath, { recursive: true });
   }
+});
+
+// swamp-club #225: prove the AWS SDK actually surfaces a missing-index
+// 404 with the error name our pullIndex catch branch matches against.
+// The unit tests above use a hand-built mock that throws Error{name:
+// "NoSuchKey"} — this proves the real SDK produces the same shape going
+// over real HTTP. Without this, an SDK upgrade could rename or
+// reclassify the error and silently break the discovery fallback.
+//
+// `sanitizeResources: false` is the same setting used by every test in
+// the DEF-2 integration block above (see line 1076): the AWS SDK keeps
+// TCP connections alive in its keep-alive agent, which trips Deno's
+// resource-leak detector. The connections are reclaimed when the
+// runtime tears down between test runs, so this is safe.
+Deno.test({
+  sanitizeResources: false,
+  name:
+    "integration: pullIndex discovery handles real SDK 404 on missing index (swamp-club #225)",
+  fn: async () => {
+    const cachePath = await Deno.makeTempDir({
+      prefix: "s3sync-225-integration-",
+    });
+    try {
+      await withProgrammableServer(
+        [
+          // 1. GET .datastore-index.json → 404 NoSuchKey
+          //    (the catch branch our discovery hangs off)
+          () =>
+            new Response(
+              '<?xml version="1.0"?><Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>.datastore-index.json</Key><RequestId>r1</RequestId></Error>',
+              {
+                status: 404,
+                headers: { "Content-Type": "application/xml" },
+              },
+            ),
+          // 2. ListObjectsV2 → one Contents entry
+          //    (proves the real SDK parses Size + ETag from the listing)
+          () =>
+            new Response(
+              '<?xml version="1.0"?><ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>test-bucket</Name><KeyCount>1</KeyCount><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated><Contents><Key>data/discovered.yaml</Key><Size>6</Size><ETag>&quot;abc123&quot;</ETag><LastModified>2026-05-04T12:00:00.000Z</LastModified></Contents></ListBucketResult>',
+              {
+                status: 200,
+                headers: { "Content-Type": "application/xml" },
+              },
+            ),
+          // 3. PUT .datastore-index.json (synthesized index writeback)
+          () =>
+            new Response(null, {
+              status: 200,
+              headers: { ETag: '"index-etag"' },
+            }),
+        ],
+        async (s3, state) => {
+          const service = new S3CacheSyncService(s3, cachePath);
+          // Call pullIndex directly to scope the test to the discovery
+          // path — pullChanged would also work but adds concurrent
+          // file GETs whose ordering against the programmable server
+          // is non-deterministic.
+          const fingerprint = await (service as unknown as {
+            pullIndex: (
+              opts: { forceRemote: boolean },
+            ) => Promise<string | null>;
+          }).pullIndex({ forceRemote: true });
+          assertEquals(
+            state.requestCount,
+            3,
+            "discovery must produce exactly 3 SDK requests: GET index (404), ListObjectsV2, PUT index",
+          );
+          // The SDK surfaces the PUT response ETag with its surrounding
+          // double-quotes — `normalizeETag()` is what the sidecar
+          // bookkeeping uses for comparisons. The discovery path
+          // returns the raw form, matching the post-fetch path's
+          // contract.
+          assertEquals(
+            fingerprint,
+            '"index-etag"',
+            "discovery must return the synthesized index's ETag from the real PUT response",
+          );
+        },
+      );
+    } finally {
+      await Deno.remove(cachePath, { recursive: true });
+    }
+  },
 });

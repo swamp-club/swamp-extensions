@@ -62,8 +62,15 @@ export interface S3ClientConfig {
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 
+export interface S3ListEntry {
+  key: string;
+  size: number;
+  etag?: string;
+  lastModified?: Date;
+}
+
 export interface S3ListResult {
-  keys: string[];
+  entries: S3ListEntry[];
   truncated: boolean;
   continuationToken?: string;
 }
@@ -661,12 +668,15 @@ export class S3Client {
     );
 
     const prefixLen = this.prefix ? this.prefix.length + 1 : 0;
-    const keys = (response.Contents ?? [])
-      .map((obj) => obj.Key!)
-      .map((key) => key.slice(prefixLen));
+    const entries: S3ListEntry[] = (response.Contents ?? []).map((obj) => ({
+      key: obj.Key!.slice(prefixLen),
+      size: obj.Size ?? 0,
+      etag: obj.ETag,
+      lastModified: obj.LastModified,
+    }));
 
     return {
-      keys,
+      entries,
       truncated: response.IsTruncated ?? false,
       continuationToken: response.NextContinuationToken,
     };
@@ -676,8 +686,8 @@ export class S3Client {
   async listAllObjects(
     subPrefix?: string,
     signal?: AbortSignal,
-  ): Promise<string[]> {
-    const allKeys: string[] = [];
+  ): Promise<S3ListEntry[]> {
+    const all: S3ListEntry[] = [];
     let continuationToken: string | undefined;
 
     do {
@@ -686,12 +696,12 @@ export class S3Client {
         continuationToken,
         signal,
       );
-      allKeys.push(...result.keys);
+      all.push(...result.entries);
       continuationToken = result.truncated
         ? result.continuationToken
         : undefined;
     } while (continuationToken);
 
-    return allKeys;
+    return all;
   }
 }

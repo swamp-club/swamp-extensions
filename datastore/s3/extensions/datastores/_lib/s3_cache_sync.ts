@@ -677,13 +677,22 @@ export class S3CacheSyncService implements DatastoreSyncService {
         err instanceof Error && "name" in err &&
         (err.name === "NotFound" || err.name === "NoSuchKey")
       ) {
-        this.index = {
-          version: 1,
-          lastPulled: new Date().toISOString(),
-          entries: {},
-        };
-        // No remote object yet → no fingerprint to return.
-        return null;
+        // Bucket has no index file. Two sub-cases:
+        //   (1) Brand-new empty bucket — fall back to an empty
+        //       in-memory index, return null. Existing behaviour.
+        //   (2) Bucket pre-dates the indexed-sync model and holds data
+        //       under standard prefixes (data/, workflow-runs/, …) but
+        //       was never written by a swamp version that publishes
+        //       `.datastore-index.json`. Without discovery, hydrate
+        //       reports `Hydrated: 0 pulled` and silently leaves the
+        //       cache empty (swamp-club#225, residual from #220).
+        // Discovery: list the bucket, filter via isInternalCacheFile,
+        // build an index from the listing, publish it, and continue.
+        // Functionally idempotent across racing peers (entry keys and
+        // sizes match; only metadata timestamps like `lastPulled` and
+        // the `lastModified` fallback differ), so the unconditional
+        // PutObject is benign — see inline notes i, ii, iii below.
+        return await this.discoverIndexFromBucket(signal);
       }
       throw err;
     }
@@ -705,6 +714,106 @@ export class S3CacheSyncService implements DatastoreSyncService {
       await atomicWriteTextFile(this.indexPath, text);
     }
     return etag ?? null;
+  }
+
+  /**
+   * Self-healing fallback for `pullIndex` when the remote
+   * `.datastore-index.json` is absent. Lists the bucket, filters
+   * internal cache files, builds an index from the listing, publishes
+   * it, and writes the local copy — leaving the caller's slow-path
+   * bookkeeping behaving identically to a normal index fetch.
+   *
+   * Inline-comment requirements (a future reader must not "fix" any of
+   * these without understanding the trade-off):
+   *
+   *   i. The PutObject is unconditional. Discovery is functionally
+   *      idempotent across racing peers — entry keys and sizes match
+   *      (same listing in, same fields populated out), but metadata
+   *      timestamps (`lastPulled`, and the `lastModified` fallback
+   *      when the SDK didn't surface one) are evaluated per peer so
+   *      the JSON bodies are NOT byte-identical. That's still safe:
+   *      sync behaviour depends on keys + sizes, not timestamps. Do
+   *      NOT add a content-fingerprint optimization here on the
+   *      assumption of byte-equality. Matches the existing
+   *      pushChanged writeback (see line ~1029); `If-None-Match: *`
+   *      is not portable across all S3-compatible backends this
+   *      extension supports (older MinIO/Spaces/R2 implement it
+   *      inconsistently).
+   *
+   *  ii. `this.index` is set in-memory BEFORE the PutObject attempt,
+   *      mirroring the existing post-fetch path's order. If PutObject
+   *      throws, this.index reflects an unpublished state but no local
+   *      file is written (atomicWriteTextFile happens after put), and
+   *      the next forceRemote call re-triggers discovery — idempotent
+   *      with no orphaned state. Do not reorder this — flipping it
+   *      would diverge from the post-fetch path and complicate the
+   *      mental model.
+   *
+   * iii. All callers of pullIndex (both pullChanged and pushChanged)
+   *      inherit this fallback automatically — no separate change to
+   *      pushChanged is needed. Side benefit: previously, pushChanged
+   *      against an unindexed populated bucket would write an index
+   *      reflecting only LOCAL files, dropping the existing remote
+   *      entries from the index even though the storage still held
+   *      them. With discovery here, push first builds a complete
+   *      merged view, then walks local against it.
+   */
+  private async discoverIndexFromBucket(
+    signal?: AbortSignal,
+  ): Promise<string | null> {
+    const discoverStart = Date.now();
+    const listing = await this.s3.listAllObjects(undefined, signal);
+    const filtered = listing.filter((entry) => !isInternalCacheFile(entry.key));
+
+    // Sub-case (1): genuinely empty bucket. Preserve existing
+    // brand-new-bucket semantics — empty in-memory index, no put,
+    // null fingerprint.
+    if (filtered.length === 0) {
+      this.index = {
+        version: 1,
+        lastPulled: new Date().toISOString(),
+        entries: {},
+      };
+      tracePhase("pullIndex.discover", discoverStart, "n=0");
+      return null;
+    }
+
+    // Sub-case (2): bucket holds data but no index. Build entries from
+    // the listing — no localMtime since nothing has been pulled yet;
+    // pullChanged will reconcile mtimes as it downloads each file.
+    const entries: Record<string, IndexEntry> = {};
+    for (const entry of filtered) {
+      entries[entry.key] = {
+        key: entry.key,
+        size: entry.size,
+        lastModified: (entry.lastModified ?? new Date()).toISOString(),
+      };
+    }
+    this.index = {
+      version: 1,
+      lastPulled: new Date().toISOString(),
+      entries,
+    };
+    const indexJson = JSON.stringify(this.index, null, 2);
+    const indexData = new TextEncoder().encode(indexJson);
+    const putResult = await retryWithBackoff(
+      () => this.s3.putObject(".datastore-index.json", indexData, signal),
+      { signal },
+    );
+    await ensureDir(this.cachePath);
+    await atomicWriteTextFile(this.indexPath, indexJson);
+    tracePhase(
+      "pullIndex.discover",
+      discoverStart,
+      `n=${filtered.length}`,
+    );
+    // The returned ETag is the raw form from the PUT response, with
+    // S3's surrounding double-quotes intact (e.g. `"abc123"`). This
+    // matches the post-fetch path's contract — `normalizeETag()` is
+    // what callers apply for byte-level comparison against sidecar
+    // values. Don't strip them here; doing so would diverge from the
+    // existing fingerprint convention.
+    return putResult?.etag ?? null;
   }
 
   /** Fetches a single file from S3 to the local cache. */
