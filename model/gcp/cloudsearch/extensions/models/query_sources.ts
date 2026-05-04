@@ -32,6 +32,9 @@ const LIST_CONFIG = {
     "pageToken": {
       "location": "query",
     },
+    "requestOptions.clientDisplayLanguageCode": {
+      "location": "query",
+    },
     "requestOptions.debugOptions.enableDebugging": {
       "location": "query",
     },
@@ -85,7 +88,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Search Query.Sources. Registered at `@swamp/gcp/cloudsearch/query-sources`. */
 export const model = {
   type: "@swamp/gcp/cloudsearch/query-sources",
-  version: "2026.04.23.1",
+  version: "2026.05.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -114,6 +117,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
