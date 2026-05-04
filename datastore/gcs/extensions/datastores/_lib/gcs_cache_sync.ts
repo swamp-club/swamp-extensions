@@ -84,6 +84,16 @@ const SYNC_STATE_FILE = ".datastore-sync-state.json";
  *   without it, `swamp datastore sync --push` would walk `_catalog.db*`
  *   into `toPush`, SQLite would rewrite the WAL mid-upload, and the
  *   push would fail on `_catalog.db-wal`.
+ * - basename `.lock` at any depth — per-target FileLock files written
+ *   by the data tier's lock subsystem (e.g.
+ *   `data/<kind>/<type>/<id>/.lock`). The lock subsystem creates and
+ *   deletes these directly via GCS Insert/Delete; they must not flow
+ *   through cache sync because (a) the bucket listing in
+ *   `discoverIndexFromBucket` would otherwise capture transient
+ *   `.lock` files into the synthesized index, leaving the index
+ *   referencing objects the lock subsystem deletes on release, and
+ *   (b) a fresh reader hydrating from that stale index would 404 on
+ *   the missing `.lock` and abort `datastore setup`.
  *
  * Exported for unit tests; not part of the public extension API.
  */
@@ -95,6 +105,7 @@ export function isInternalCacheFile(rel: string): boolean {
     return true;
   }
   const base = rel.split("/").pop() ?? "";
+  if (base === ".lock") return true;
   return base === "_catalog.db" || base.startsWith("_catalog.db-");
 }
 
