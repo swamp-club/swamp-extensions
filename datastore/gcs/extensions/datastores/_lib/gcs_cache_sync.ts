@@ -768,6 +768,10 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       discoverStart,
       `n=${filtered.length}`,
     );
+    // The returned `generation` is the raw form from the PUT response
+    // (a numeric string). Matches the post-fetch path's contract —
+    // callers compare it byte-for-byte against the sidecar's recorded
+    // generation. No normalization needed (unlike S3's quoted ETag).
     return putResult?.generation ?? null;
   }
 

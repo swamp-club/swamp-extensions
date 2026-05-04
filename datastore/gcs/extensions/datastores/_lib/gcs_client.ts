@@ -1010,7 +1010,11 @@ export class GcsClient {
         updated?: string;
       }) => ({
         key: obj.name.slice(prefixLen),
-        size: obj.size ? parseInt(obj.size, 10) : 0,
+        // GCS JSON API returns `size` as a numeric string. Number("…")
+        // handles undefined and empty-string cleanly via `|| 0`; the
+        // S3 sibling gets a native number from the SDK and avoids
+        // parsing altogether.
+        size: Number(obj.size) || 0,
         generation: obj.generation,
         updated: obj.updated ? new Date(obj.updated) : undefined,
       }),

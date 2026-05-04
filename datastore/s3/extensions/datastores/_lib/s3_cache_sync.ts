@@ -807,6 +807,12 @@ export class S3CacheSyncService implements DatastoreSyncService {
       discoverStart,
       `n=${filtered.length}`,
     );
+    // The returned ETag is the raw form from the PUT response, with
+    // S3's surrounding double-quotes intact (e.g. `"abc123"`). This
+    // matches the post-fetch path's contract — `normalizeETag()` is
+    // what callers apply for byte-level comparison against sidecar
+    // values. Don't strip them here; doing so would diverge from the
+    // existing fingerprint convention.
     return putResult?.etag ?? null;
   }
 
