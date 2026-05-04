@@ -450,7 +450,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     maxSurge: z.object({
       calculated: z.number().int().describe(
-        "Output only. Absolute value of VM instances calculated based on the specific mode. - If the value is fixed, then the calculated value is equal to the fixed value. - If the value is a percent, then the calculated value is percent/100 * targetSize. For example, the calculated value of a 80% of a managed instance group with 150 instances would be (80/100 * 150) = 120 VM instances. If there is a remainder, the number is rounded.",
+        "Output only. [Output Only] Absolute value of VM instances calculated based on the specific mode. - If the value is fixed, then the calculated value is equal to the fixed value. - If the value is a percent, then the calculated value is percent/100 * targetSize. For example, the calculated value of a 80% of a managed instance group with 150 instances would be (80/100 * 150) = 120 VM instances. If there is a remainder, the number is rounded.",
       ).optional(),
       fixed: z.number().int().describe(
         "Specifies a fixed number of VM instances. This must be a positive integer.",
@@ -463,7 +463,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     maxUnavailable: z.object({
       calculated: z.number().int().describe(
-        "Output only. Absolute value of VM instances calculated based on the specific mode. - If the value is fixed, then the calculated value is equal to the fixed value. - If the value is a percent, then the calculated value is percent/100 * targetSize. For example, the calculated value of a 80% of a managed instance group with 150 instances would be (80/100 * 150) = 120 VM instances. If there is a remainder, the number is rounded.",
+        "Output only. [Output Only] Absolute value of VM instances calculated based on the specific mode. - If the value is fixed, then the calculated value is equal to the fixed value. - If the value is a percent, then the calculated value is percent/100 * targetSize. For example, the calculated value of a 80% of a managed instance group with 150 instances would be (80/100 * 150) = 120 VM instances. If there is a remainder, the number is rounded.",
       ).optional(),
       fixed: z.number().int().describe(
         "Specifies a fixed number of VM instances. This must be a positive integer.",
@@ -501,7 +501,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     targetSize: z.object({
       calculated: z.number().int().describe(
-        "Output only. Absolute value of VM instances calculated based on the specific mode. - If the value is fixed, then the calculated value is equal to the fixed value. - If the value is a percent, then the calculated value is percent/100 * targetSize. For example, the calculated value of a 80% of a managed instance group with 150 instances would be (80/100 * 150) = 120 VM instances. If there is a remainder, the number is rounded.",
+        "Output only. [Output Only] Absolute value of VM instances calculated based on the specific mode. - If the value is fixed, then the calculated value is equal to the fixed value. - If the value is a percent, then the calculated value is percent/100 * targetSize. For example, the calculated value of a 80% of a managed instance group with 150 instances would be (80/100 * 150) = 120 VM instances. If there is a remainder, the number is rounded.",
       ).optional(),
       fixed: z.number().int().describe(
         "Specifies a fixed number of VM instances. This must be a positive integer.",
@@ -998,7 +998,7 @@ const InputsSchema = z.object({
     ).optional(),
     maxSurge: z.object({
       calculated: z.number().int().describe(
-        "Output only. Absolute value of VM instances calculated based on the specific mode. - If the value is fixed, then the calculated value is equal to the fixed value. - If the value is a percent, then the calculated value is percent/100 * targetSize. For example, the calculated value of a 80% of a managed instance group with 150 instances would be (80/100 * 150) = 120 VM instances. If there is a remainder, the number is rounded.",
+        "Output only. [Output Only] Absolute value of VM instances calculated based on the specific mode. - If the value is fixed, then the calculated value is equal to the fixed value. - If the value is a percent, then the calculated value is percent/100 * targetSize. For example, the calculated value of a 80% of a managed instance group with 150 instances would be (80/100 * 150) = 120 VM instances. If there is a remainder, the number is rounded.",
       ).optional(),
       fixed: z.number().int().describe(
         "Specifies a fixed number of VM instances. This must be a positive integer.",
@@ -1011,7 +1011,7 @@ const InputsSchema = z.object({
     ).optional(),
     maxUnavailable: z.object({
       calculated: z.number().int().describe(
-        "Output only. Absolute value of VM instances calculated based on the specific mode. - If the value is fixed, then the calculated value is equal to the fixed value. - If the value is a percent, then the calculated value is percent/100 * targetSize. For example, the calculated value of a 80% of a managed instance group with 150 instances would be (80/100 * 150) = 120 VM instances. If there is a remainder, the number is rounded.",
+        "Output only. [Output Only] Absolute value of VM instances calculated based on the specific mode. - If the value is fixed, then the calculated value is equal to the fixed value. - If the value is a percent, then the calculated value is percent/100 * targetSize. For example, the calculated value of a 80% of a managed instance group with 150 instances would be (80/100 * 150) = 120 VM instances. If there is a remainder, the number is rounded.",
       ).optional(),
       fixed: z.number().int().describe(
         "Specifies a fixed number of VM instances. This must be a positive integer.",
@@ -1049,7 +1049,7 @@ const InputsSchema = z.object({
     ).optional(),
     targetSize: z.object({
       calculated: z.number().int().describe(
-        "Output only. Absolute value of VM instances calculated based on the specific mode. - If the value is fixed, then the calculated value is equal to the fixed value. - If the value is a percent, then the calculated value is percent/100 * targetSize. For example, the calculated value of a 80% of a managed instance group with 150 instances would be (80/100 * 150) = 120 VM instances. If there is a remainder, the number is rounded.",
+        "Output only. [Output Only] Absolute value of VM instances calculated based on the specific mode. - If the value is fixed, then the calculated value is equal to the fixed value. - If the value is a percent, then the calculated value is percent/100 * targetSize. For example, the calculated value of a 80% of a managed instance group with 150 instances would be (80/100 * 150) = 120 VM instances. If there is a remainder, the number is rounded.",
       ).optional(),
       fixed: z.number().int().describe(
         "Specifies a fixed number of VM instances. This must be a positive integer.",
@@ -1071,7 +1071,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine RegionInstanceGroupManagers. Registered at `@swamp/gcp/compute/regioninstancegroupmanagers`. */
 export const model = {
   type: "@swamp/gcp/compute/regioninstancegroupmanagers",
-  version: "2026.05.01.1",
+  version: "2026.05.04.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1130,6 +1130,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

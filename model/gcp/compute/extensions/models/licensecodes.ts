@@ -50,31 +50,18 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  allowedReplacementLicenses: z.array(z.string()).optional(),
-  appendableToDisk: z.boolean().optional(),
   creationTimestamp: z.string().optional(),
   description: z.string().optional(),
   id: z.string().optional(),
-  incompatibleLicenses: z.array(z.string()).optional(),
   kind: z.string().optional(),
   licenseAlias: z.array(z.object({
     description: z.string(),
     selfLink: z.string(),
   })).optional(),
-  minimumRetention: z.object({
-    nanos: z.number(),
-    seconds: z.string(),
-  }).optional(),
-  multiTenantOnly: z.boolean().optional(),
   name: z.string(),
-  osLicense: z.boolean().optional(),
-  removableFromDisk: z.boolean().optional(),
-  requiredCoattachedLicenses: z.array(z.string()).optional(),
   selfLink: z.string().optional(),
-  soleTenantOnly: z.boolean().optional(),
   state: z.string().optional(),
   transferable: z.boolean().optional(),
-  updateTimestamp: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -86,7 +73,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine LicenseCodes. Registered at `@swamp/gcp/compute/licensecodes`. */
 export const model = {
   type: "@swamp/gcp/compute/licensecodes",
-  version: "2026.05.01.1",
+  version: "2026.05.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -120,6 +107,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
