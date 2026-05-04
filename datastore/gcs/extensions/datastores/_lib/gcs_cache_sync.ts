@@ -804,18 +804,43 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       throw new Error(formatBatchFailure("pull", failures));
     }
 
-    // Verified zero-diff: local cache matches the remote index whose
-    // generation we captured from the `pullIndex` GET response.
-    // Persist THAT generation — the one we walked against — so the
-    // next `pullChanged` can take the fast path. We deliberately do
-    // NOT re-`getMetadata` here: a post-walk metadata call could
-    // observe a generation from a concurrent writer's push landing
-    // during our walk, and recording that generation would mask their
-    // data on the next fast-path sync (swamp-club #168). If
-    // generation is null (cache-hit pullIndex or NotFound brand-new
-    // bucket), the sidecar is skipped — next sync self-heals.
-    if (pulled === 0 && indexGeneration) {
+    // Local cache matches the remote index whose generation we captured
+    // from the `pullIndex` GET response — either the walk found zero
+    // diff (`pulled === 0`) or we just downloaded the missing files
+    // (`pulled > 0`). Persist THAT generation — the one we walked
+    // against — so the next `pullChanged` / `pushChanged` can take the
+    // fast path. We deliberately do NOT re-`getMetadata`: a post-walk
+    // metadata call could observe a generation from a concurrent
+    // writer's push landing during our walk, and recording that
+    // generation would mask their data on the next fast-path sync
+    // (swamp-club #168). If generation is null (cache-hit pullIndex or
+    // NotFound brand-new bucket), the sidecar is skipped — next sync
+    // self-heals on the slow path.
+    //
+    // When `pulled > 0`, also rewrite the on-disk index with the
+    // in-memory state so it carries the localMtime values we just
+    // recorded for each downloaded file. Pre-fix, the on-disk file was
+    // last written by `pullIndex` from the raw remote payload (carrying
+    // the original pusher's local mtimes), so a subsequent fresh-process
+    // `pushChanged` slow-path walk saw `existing.localMtime` (pusher's)
+    // ≠ `stat.mtime` (local mtime from `Deno.writeFile`) and pushed
+    // every file with byte-identical content (swamp-club #222).
+    //
+    // Ordering invariant — DO NOT REVERSE: `atomicWriteTextFile` MUST
+    // run before `markSynced`. `markSynced` derives `lastVerifiedAt`
+    // from `Deno.stat(this.indexPath).mtime + 1ms`. Reversing the order
+    // captures `lastVerifiedAt` against the pre-write mtime; the
+    // subsequent rewrite then bumps the index mtime forward, and the
+    // next `tryFastPullChanged` probe spuriously bails on
+    // `indexMtime >= verifiedAt`.
+    if (indexGeneration) {
       try {
+        if (pulled > 0 && this.index) {
+          await atomicWriteTextFile(
+            this.indexPath,
+            JSON.stringify(this.index, null, 2),
+          );
+        }
         await this.markSynced(indexGeneration);
       } catch {
         // Non-fatal: sidecar update is opportunistic. Disk-full /

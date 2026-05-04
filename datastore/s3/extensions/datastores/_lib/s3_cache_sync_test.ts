@@ -2111,3 +2111,127 @@ Deno.test("pushChanged writeback: does NOT mark sidecar clean when local is miss
     await Deno.remove(cachePath, { recursive: true });
   }
 });
+
+// swamp-club #222: pushChanged in a fresh process after a fresh-cache
+// pullChanged must not redundantly re-upload the just-downloaded files.
+// Pre-fix, pullChanged left the on-disk index carrying the original
+// pusher's localMtime values (the remote payload), and skipped markSynced
+// because pulled > 0. The next process's pushChanged then took the slow
+// path (no sidecar), pullIndex(forceRemote) reloaded the pusher's mtimes
+// into this.index, and the walk pushed every file — size matched but
+// mtime didn't. The fix persists the in-memory index (with the puller's
+// stat-derived localMtimes) AND marksSynced so the next pushChanged hits
+// the fast path. Two positive assertions pin the persistence machinery
+// (sidecar contents + on-disk index mtimes) so a future refactor can't
+// silently drop them while still satisfying the symptom assertion.
+Deno.test("pullChanged + pushChanged: fresh-process push after pull against populated remote does not redundantly upload (swamp-club #222)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-issue-222-" });
+  try {
+    const mock = createMockS3Client();
+    // Pin a known ETag for the remote index so the sidecar assertion
+    // doesn't have to recompute fakeETag from byte stitching.
+    mock.etagOverrides.set(".datastore-index.json", '"index-pre-pull"');
+
+    // Seed 5 files with varied sizes (5, 11, 27, 64, 128 bytes), each
+    // index entry carrying machine-A's localMtime (epoch — guaranteed
+    // distinct from any local stat.mtime that Deno.writeFile will set
+    // on this machine during pullChanged's downloads).
+    const aMtime = new Date(0).toISOString();
+    const SIZES = [5, 11, 27, 64, 128];
+    const seeded = SIZES.map((size, i) => ({
+      rel: `data/@m/file-${i}.yaml`,
+      body: "x".repeat(size),
+    }));
+    const indexEntries: Record<string, {
+      key: string;
+      size: number;
+      lastModified: string;
+      localMtime: string;
+    }> = {};
+    for (const { rel, body } of seeded) {
+      mock.storage.set(rel, new TextEncoder().encode(body));
+      indexEntries[rel] = {
+        key: rel,
+        size: body.length,
+        lastModified: aMtime,
+        localMtime: aMtime,
+      };
+    }
+    mock.storage.set(".datastore-index.json", encodeIndex(indexEntries));
+
+    // Process A: fresh service, fresh cache. Pulls all 5 files.
+    const serviceA = new S3CacheSyncService(mock, cachePath);
+    const pulled = await serviceA.pullChanged();
+    assertEquals(pulled, SIZES.length, "must pull all 5 seeded files");
+
+    // Positive: sidecar must be written with the GET'd ETag and clean
+    // state. Pre-fix, pulled > 0 skipped markSynced and this returned
+    // null. Post-fix, this is the load-bearing piece that lets the next
+    // pushChanged take the fast path.
+    const sidecar = await readSidecar(cachePath);
+    assertExists(sidecar, "pullChanged with pulled > 0 must write the sidecar");
+    assertEquals(
+      sidecar!.localDirty,
+      false,
+      "sidecar must be clean — local cache matches the freshly-pulled remote",
+    );
+    assertEquals(
+      sidecar!.remoteIndexETag,
+      "index-pre-pull",
+      "sidecar must record the ETag from pullIndex's GET response",
+    );
+
+    // Positive: on-disk index must reflect the local mtimes pullChanged
+    // recorded for each downloaded file — NOT the seeded epoch value.
+    // Pre-fix, the on-disk file was last written by pullIndex from the
+    // raw remote payload and still carried machine-A's epoch mtimes.
+    const indexText = await Deno.readTextFile(
+      join(cachePath, ".datastore-index.json"),
+    );
+    const onDiskIndex = JSON.parse(indexText) as {
+      entries: Record<string, { size: number; localMtime?: string }>;
+    };
+    for (const { rel } of seeded) {
+      const entry = onDiskIndex.entries[rel];
+      assertExists(entry, `entry ${rel} must persist on disk`);
+      assertExists(
+        entry.localMtime,
+        `entry ${rel} must carry a localMtime on disk`,
+      );
+      assert(
+        entry.localMtime !== aMtime,
+        `entry ${rel} on-disk localMtime must NOT be the seeded machine-A epoch — pre-fix the on-disk index still carried it`,
+      );
+      const parsed = Date.parse(entry.localMtime!);
+      assert(
+        !Number.isNaN(parsed),
+        `entry ${rel} localMtime must be a parseable ISO timestamp`,
+      );
+    }
+
+    // Symptom: fresh service C against the same cache dir simulates the
+    // cross-process scenario from the issue (`swamp datastore sync
+    // --push` run as a separate command). Snapshot mock.puts BEFORE so
+    // any writeback PUT from pullChanged doesn't pollute the count.
+    const putsBefore = mock.puts.length;
+    const serviceC = new S3CacheSyncService(mock, cachePath);
+    const pushed = await serviceC.pushChanged();
+    assertEquals(
+      pushed,
+      0,
+      `pushChanged after a fresh-process pullChanged must not redundantly upload — saw ${pushed} pushes against ${SIZES.length} unchanged files`,
+    );
+    const dataPuts = mock.puts.slice(putsBefore).filter((p) =>
+      p.key !== ".datastore-index.json"
+    );
+    assertEquals(
+      dataPuts.length,
+      0,
+      `expected zero data PUTs against an unchanged cache, saw ${dataPuts.length}: ${
+        dataPuts.map((p) => p.key).join(", ")
+      }`,
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
