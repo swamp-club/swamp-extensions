@@ -123,7 +123,7 @@ const GlobalArgsSchema = z.object({
     "PESSIMISTIC",
     "OPTIMISTIC_WITH_ENTITY_GROUPS",
   ]).describe(
-    "The concurrency control mode to use for this database. If unspecified in a CreateDatabase request, this will default based on the database edition: Optimistic for Enterprise and Pessimistic for all other databases.",
+    "The default concurrency control mode to use for this database. If unspecified in a CreateDatabase request, this will default based on the database edition: Optimistic for Enterprise and Pessimistic for all other databases. While transactions can explicitly specify their own concurrency mode, this setting defines the default behavior when left unspecified. Important: This database-level setting is not respected for Firestore with MongoDB compatibility. All transactions through the MongoDB compatibility layer will use optimistic concurrency control, regardless of this setting.",
   ).optional(),
   databaseEdition: z.enum([
     "DATABASE_EDITION_UNSPECIFIED",
@@ -258,7 +258,7 @@ const InputsSchema = z.object({
     "PESSIMISTIC",
     "OPTIMISTIC_WITH_ENTITY_GROUPS",
   ]).describe(
-    "The concurrency control mode to use for this database. If unspecified in a CreateDatabase request, this will default based on the database edition: Optimistic for Enterprise and Pessimistic for all other databases.",
+    "The default concurrency control mode to use for this database. If unspecified in a CreateDatabase request, this will default based on the database edition: Optimistic for Enterprise and Pessimistic for all other databases. While transactions can explicitly specify their own concurrency mode, this setting defines the default behavior when left unspecified. Important: This database-level setting is not respected for Firestore with MongoDB compatibility. All transactions through the MongoDB compatibility layer will use optimistic concurrency control, regardless of this setting.",
   ).optional(),
   databaseEdition: z.enum([
     "DATABASE_EDITION_UNSPECIFIED",
@@ -336,7 +336,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Firestore Databases. Registered at `@swamp/gcp/firestore/databases`. */
 export const model = {
   type: "@swamp/gcp/firestore/databases",
-  version: "2026.05.04.1",
+  version: "2026.05.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -375,6 +375,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.04.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

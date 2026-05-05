@@ -137,8 +137,8 @@ const GlobalArgsSchema = z.object({
       }).optional(),
       cors: z.object({
         allow_origins: z.array(z.object({
-          exact: z.string().min(1).max(256).optional(),
-          prefix: z.string().min(1).max(256).optional(),
+          exact: z.string().max(256).optional(),
+          prefix: z.string().max(256).optional(),
           regex: z.string().min(1).max(256).optional(),
         })).optional(),
         allow_methods: z.array(z.string()).optional(),
@@ -255,8 +255,8 @@ const GlobalArgsSchema = z.object({
       output_dir: z.string().optional(),
       cors: z.object({
         allow_origins: z.array(z.object({
-          exact: z.string().min(1).max(256).optional(),
-          prefix: z.string().min(1).max(256).optional(),
+          exact: z.string().max(256).optional(),
+          prefix: z.string().max(256).optional(),
           regex: z.string().min(1).max(256).optional(),
         })).optional(),
         allow_methods: z.array(z.string()).optional(),
@@ -453,8 +453,8 @@ const GlobalArgsSchema = z.object({
     functions: z.array(z.object({
       cors: z.object({
         allow_origins: z.array(z.object({
-          exact: z.string().min(1).max(256).optional(),
-          prefix: z.string().min(1).max(256).optional(),
+          exact: z.string().max(256).optional(),
+          prefix: z.string().max(256).optional(),
           regex: z.string().min(1).max(256).optional(),
         })).optional(),
         allow_methods: z.array(z.string()).optional(),
@@ -589,8 +589,8 @@ const GlobalArgsSchema = z.object({
         }).optional(),
         cors: z.object({
           allow_origins: z.array(z.object({
-            exact: z.string().min(1).max(256).optional(),
-            prefix: z.string().min(1).max(256).optional(),
+            exact: z.string().max(256).optional(),
+            prefix: z.string().max(256).optional(),
             regex: z.string().min(1).max(256).optional(),
           })).optional(),
           allow_methods: z.array(z.string()).optional(),
@@ -3641,8 +3641,8 @@ const InputsSchema = z.object({
       }).optional(),
       cors: z.object({
         allow_origins: z.array(z.object({
-          exact: z.string().min(1).max(256).optional(),
-          prefix: z.string().min(1).max(256).optional(),
+          exact: z.string().max(256).optional(),
+          prefix: z.string().max(256).optional(),
           regex: z.string().min(1).max(256).optional(),
         })).optional(),
         allow_methods: z.array(z.string()).optional(),
@@ -3759,8 +3759,8 @@ const InputsSchema = z.object({
       output_dir: z.string().optional(),
       cors: z.object({
         allow_origins: z.array(z.object({
-          exact: z.string().min(1).max(256).optional(),
-          prefix: z.string().min(1).max(256).optional(),
+          exact: z.string().max(256).optional(),
+          prefix: z.string().max(256).optional(),
           regex: z.string().min(1).max(256).optional(),
         })).optional(),
         allow_methods: z.array(z.string()).optional(),
@@ -3957,8 +3957,8 @@ const InputsSchema = z.object({
     functions: z.array(z.object({
       cors: z.object({
         allow_origins: z.array(z.object({
-          exact: z.string().min(1).max(256).optional(),
-          prefix: z.string().min(1).max(256).optional(),
+          exact: z.string().max(256).optional(),
+          prefix: z.string().max(256).optional(),
           regex: z.string().min(1).max(256).optional(),
         })).optional(),
         allow_methods: z.array(z.string()).optional(),
@@ -4093,8 +4093,8 @@ const InputsSchema = z.object({
         }).optional(),
         cors: z.object({
           allow_origins: z.array(z.object({
-            exact: z.string().min(1).max(256).optional(),
-            prefix: z.string().min(1).max(256).optional(),
+            exact: z.string().max(256).optional(),
+            prefix: z.string().max(256).optional(),
             regex: z.string().min(1).max(256).optional(),
           })).optional(),
           allow_methods: z.array(z.string()).optional(),
@@ -4139,7 +4139,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean app platform. Registered at `@swamp/digitalocean/app-platform`. */
 export const model = {
   type: "@swamp/digitalocean/app-platform",
-  version: "2026.05.01.1",
+  version: "2026.05.05.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -4168,6 +4168,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

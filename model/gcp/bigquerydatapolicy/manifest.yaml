@@ -10,8 +10,6 @@ labels:
   - bigquerydatapolicy
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: datapolicies
 models:
   - datapolicies.ts
 additionalFiles:

@@ -40,6 +40,16 @@ const ResourceTagSchema = z.object({
   Value: z.string().min(0).max(256).regex(new RegExp("^[\\w \\.:/=+@-]*$")),
 });
 
+const MemberSchema = z.object({
+  UserIdentifier: z.string().optional(),
+  GroupIdentifier: z.string().optional(),
+});
+
+const ProjectMembershipAssignmentSchema = z.object({
+  Member: MemberSchema.describe("The member of the project."),
+  Designation: z.enum(["PROJECT_OWNER", "PROJECT_CONTRIBUTOR"]),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -72,6 +82,13 @@ const GlobalArgsSchema = z.object({
   ResourceTags: z.array(ResourceTagSchema).describe(
     "The resource tags of the project.",
   ).optional(),
+  MembershipAssignments: z.array(ProjectMembershipAssignmentSchema).describe(
+    "The project membership assignments.",
+  ).optional(),
+  ProjectCategory: z.string().describe("The project category.").optional(),
+  ProjectExecutionRole: z.string().regex(
+    new RegExp("^arn:aws[^:]*:iam::\\d{12}:role/[\\w+=,.@/-]+$"),
+  ).describe("The project execution role ARN.").optional(),
 });
 
 const StateSchema = z.object({
@@ -91,6 +108,9 @@ const StateSchema = z.object({
   UserParameters: z.array(EnvironmentConfigurationUserParameterSchema)
     .optional(),
   ResourceTags: z.array(ResourceTagSchema).optional(),
+  MembershipAssignments: z.array(ProjectMembershipAssignmentSchema).optional(),
+  ProjectCategory: z.string().optional(),
+  ProjectExecutionRole: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -125,12 +145,19 @@ const InputsSchema = z.object({
   ResourceTags: z.array(ResourceTagSchema).describe(
     "The resource tags of the project.",
   ).optional(),
+  MembershipAssignments: z.array(ProjectMembershipAssignmentSchema).describe(
+    "The project membership assignments.",
+  ).optional(),
+  ProjectCategory: z.string().describe("The project category.").optional(),
+  ProjectExecutionRole: z.string().regex(
+    new RegExp("^arn:aws[^:]*:iam::\\d{12}:role/[\\w+=,.@/-]+$"),
+  ).describe("The project execution role ARN.").optional(),
 });
 
 /** Swamp extension model for DataZone Project. Registered at `@swamp/aws/datazone/project`. */
 export const model = {
   type: "@swamp/aws/datazone/project",
-  version: "2026.04.23.2",
+  version: "2026.05.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -165,6 +192,12 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.05.1",
+      description:
+        "Added: MembershipAssignments, ProjectCategory, ProjectExecutionRole",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -272,7 +305,13 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["ProjectProfileId", "DomainIdentifier"],
+          [
+            "ProjectProfileId",
+            "DomainIdentifier",
+            "MembershipAssignments",
+            "ProjectCategory",
+            "ProjectExecutionRole",
+          ],
         );
         const handle = await context.writeResource(
           "state",

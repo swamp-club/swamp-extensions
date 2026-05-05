@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/chime/app_instance` to see the full
-list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/chime/app_instance_bot` to see the
+full list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -47,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new app_instance model
-swamp model create @swamp/aws/chime/app_instance my-app_instance
+# Create a new app_instance_bot model
+swamp model create @swamp/aws/chime/app_instance_bot my-app_instance_bot
 
 # Edit the model to configure its properties
-swamp model edit my-app_instance
+swamp model edit my-app_instance_bot
 
 # Create the resource in AWS
-swamp model method run my-app_instance create
+swamp model method run my-app_instance_bot create
 
 # Sync current state from AWS
-swamp model method run my-app_instance sync
+swamp model method run my-app_instance_bot sync
 ```
 
 ## License

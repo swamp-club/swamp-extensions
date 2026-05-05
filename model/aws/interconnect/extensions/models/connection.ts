@@ -54,7 +54,13 @@ const GlobalArgsSchema = z.object({
   RemoteOwnerAccount: z.string().max(255).regex(
     new RegExp("^[-a-zA-Z0-9_@\\.]+$"),
   ).describe(
-    "The account ID of the remote owner. Required when creating a connection through AWS.",
+    "Deprecated. Use RemoteAccount instead. The account ID of the remote owner. Required when creating a connection through AWS.",
+  ).optional(),
+  RemoteAccount: z.object({
+    Identifier: z.string().max(255).regex(new RegExp("^[-a-zA-Z0-9_@\\.]+$"))
+      .describe("The identifier of the remote account."),
+  }).describe(
+    "The remote account identifier for the connection. Required when creating a connection through AWS. Replaces RemoteOwnerAccount.",
   ).optional(),
   ActivationKey: z.string().describe(
     "The activation key for accepting a connection proposal from a partner CSP. Mutually exclusive with EnvironmentId.",
@@ -83,6 +89,9 @@ const StateSchema = z.object({
   }).optional(),
   EnvironmentId: z.string().optional(),
   RemoteOwnerAccount: z.string().optional(),
+  RemoteAccount: z.object({
+    Identifier: z.string(),
+  }).optional(),
   ActivationKey: z.string().optional(),
   Provider: z.object({
     CloudServiceProvider: z.string(),
@@ -120,7 +129,13 @@ const InputsSchema = z.object({
   RemoteOwnerAccount: z.string().max(255).regex(
     new RegExp("^[-a-zA-Z0-9_@\\.]+$"),
   ).describe(
-    "The account ID of the remote owner. Required when creating a connection through AWS.",
+    "Deprecated. Use RemoteAccount instead. The account ID of the remote owner. Required when creating a connection through AWS.",
+  ).optional(),
+  RemoteAccount: z.object({
+    Identifier: z.string().max(255).regex(new RegExp("^[-a-zA-Z0-9_@\\.]+$"))
+      .describe("The identifier of the remote account.").optional(),
+  }).describe(
+    "The remote account identifier for the connection. Required when creating a connection through AWS. Replaces RemoteOwnerAccount.",
   ).optional(),
   ActivationKey: z.string().describe(
     "The activation key for accepting a connection proposal from a partner CSP. Mutually exclusive with EnvironmentId.",
@@ -141,7 +156,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Interconnect Connection. Registered at `@swamp/aws/interconnect/connection`. */
 export const model = {
   type: "@swamp/aws/interconnect/connection",
-  version: "2026.04.23.2",
+  version: "2026.05.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -166,6 +181,11 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.05.1",
+      description: "Added: RemoteAccount",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -267,7 +287,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["AttachPoint", "EnvironmentId", "ActivationKey"],
+          ["AttachPoint", "EnvironmentId", "ActivationKey", "RemoteAccount"],
         );
         const handle = await context.writeResource(
           "state",

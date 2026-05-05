@@ -1,10 +1,10 @@
-// Auto-generated extension model for @swamp/aws/vpclattice/resource-gateway
+// Auto-generated extension model for @swamp/aws/chime/app-instance-bot
 // Do not edit manually. Re-generate with: deno task generate:aws
 
-// deno-lint-ignore-file no-explicit-any
+// deno-lint-ignore-file no-explicit-any no-control-regex
 
 /**
- * Swamp extension model for VpcLattice ResourceGateway (AWS::VpcLattice::ResourceGateway).
+ * Swamp extension model for Chime AppInstanceBot (AWS::Chime::AppInstanceBot).
  *
  * Wraps the CloudFormation resource type as a swamp model so create,
  * get, update, delete, and sync can be driven through `swamp model`.
@@ -21,109 +21,115 @@ import {
   updateResource,
 } from "./_lib/aws.ts";
 
+const InvokedBySchema = z.object({
+  StandardMessages: z.enum(["AUTO", "ALL", "MENTIONS", "NONE"]).describe(
+    "Sets standard messages as the bot trigger.",
+  ),
+  TargetedMessages: z.enum(["ALL", "NONE"]).describe(
+    "Sets targeted messages as the bot trigger.",
+  ),
+});
+
+const LexConfigurationSchema = z.object({
+  RespondsTo: z.enum(["STANDARD_MESSAGES"]).describe(
+    "Determines whether the Amazon Lex V2 bot responds to all standard messages. Control messages are not supported.",
+  ).optional(),
+  InvokedBy: InvokedBySchema.describe(
+    "Specifies the type of message that triggers a bot.",
+  ).optional(),
+  LexBotAliasArn: z.string().min(15).max(2048).regex(
+    new RegExp(
+      "^arn:aws:lex:[a-z]{2}-[a-z]+-\\d{1}:\\d{12}:bot-alias/[A-Z0-9]{10}/[A-Z0-9]{10}$",
+    ),
+  ).describe("The ARN of the Amazon Lex V2 bot's alias."),
+  LocaleId: z.string().describe(
+    "Identifies the Amazon Lex V2 bot's language and locale.",
+  ),
+  WelcomeIntent: z.string().min(1).max(100).regex(new RegExp("^([A-Za-z]_?)+$"))
+    .describe(
+      "The name of the welcome intent configured in the Amazon Lex V2 bot.",
+    ).optional(),
+});
+
 const TagSchema = z.object({
-  Value: z.string().min(1).max(256).optional(),
-  Key: z.string().min(1).max(128),
+  Key: z.string().min(1).max(128).describe("The key in a tag."),
+  Value: z.string().min(1).max(256).describe("The value in a tag."),
 });
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  IpAddressType: z.enum(["IPV4", "IPV6", "DUALSTACK"]).optional(),
-  VpcIdentifier: z.string().min(5).max(50),
-  Ipv4AddressesPerEni: z.number().int().describe(
-    "The number of IPv4 addresses to allocate per ENI for the resource gateway",
+  AppInstanceArn: z.string().min(5).max(1600).regex(
+    new RegExp(
+      "^arn:[a-z0-9-\\.]{1,63}:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[^/].{0,1023}$",
+    ),
+  ).describe("The ARN of the AppInstance."),
+  Name: z.string().min(0).max(256).regex(
+    new RegExp(
+      "^[\\u0009\\u000A\\u000D\\u0020-\\u007E\\u0085\\u00A0-\\uD7FF\\uE000-\\uFFFD\\u10000-\\u10FFFF]*$",
+    ),
+  ).describe("The name of the AppInstanceBot.").optional(),
+  Metadata: z.string().min(0).max(1024).regex(new RegExp(".*")).describe(
+    "The metadata of the AppInstanceBot.",
   ).optional(),
-  ResourceConfigDnsResolution: z.enum(["IN_VPC", "PUBLIC"]).optional(),
-  SubnetIds: z.array(z.string()).describe(
-    "The ID of one or more subnets in which to create an endpoint network interface.",
-  ),
-  SecurityGroupIds: z.array(z.string()).describe(
-    "The ID of one or more security groups to associate with the endpoint network interface.",
-  ).optional(),
-  Tags: z.array(TagSchema).optional(),
-  Name: z.string().min(3).max(40).regex(
-    new RegExp("^(?!rgw-)(?![-])(?!.*[-]$)(?!.*[-]{2})[a-z0-9-]+$"),
-  ),
+  Configuration: z.object({
+    Lex: LexConfigurationSchema.describe(
+      "The configuration for an Amazon Lex V2 bot.",
+    ),
+  }).describe("A structure that contains configuration data."),
+  Tags: z.array(TagSchema).describe("The tags assigned to the AppInstanceBot.")
+    .optional(),
 });
 
 const StateSchema = z.object({
-  IpAddressType: z.string().optional(),
-  VpcIdentifier: z.string().optional(),
-  Ipv4AddressesPerEni: z.number().optional(),
-  Id: z.string().optional(),
-  ResourceConfigDnsResolution: z.string().optional(),
-  Arn: z.string(),
-  SubnetIds: z.array(z.string()).optional(),
-  SecurityGroupIds: z.array(z.string()).optional(),
-  Tags: z.array(TagSchema).optional(),
+  AppInstanceArn: z.string().optional(),
+  AppInstanceBotArn: z.string(),
   Name: z.string().optional(),
+  Metadata: z.string().optional(),
+  Configuration: z.object({
+    Lex: LexConfigurationSchema,
+  }).optional(),
+  CreatedTimestamp: z.number().optional(),
+  LastUpdatedTimestamp: z.number().optional(),
+  Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
-  IpAddressType: z.enum(["IPV4", "IPV6", "DUALSTACK"]).optional(),
-  VpcIdentifier: z.string().min(5).max(50).optional(),
-  Ipv4AddressesPerEni: z.number().int().describe(
-    "The number of IPv4 addresses to allocate per ENI for the resource gateway",
+  AppInstanceArn: z.string().min(5).max(1600).regex(
+    new RegExp(
+      "^arn:[a-z0-9-\\.]{1,63}:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[^/].{0,1023}$",
+    ),
+  ).describe("The ARN of the AppInstance.").optional(),
+  Name: z.string().min(0).max(256).regex(
+    new RegExp(
+      "^[\\u0009\\u000A\\u000D\\u0020-\\u007E\\u0085\\u00A0-\\uD7FF\\uE000-\\uFFFD\\u10000-\\u10FFFF]*$",
+    ),
+  ).describe("The name of the AppInstanceBot.").optional(),
+  Metadata: z.string().min(0).max(1024).regex(new RegExp(".*")).describe(
+    "The metadata of the AppInstanceBot.",
   ).optional(),
-  ResourceConfigDnsResolution: z.enum(["IN_VPC", "PUBLIC"]).optional(),
-  SubnetIds: z.array(z.string()).describe(
-    "The ID of one or more subnets in which to create an endpoint network interface.",
-  ).optional(),
-  SecurityGroupIds: z.array(z.string()).describe(
-    "The ID of one or more security groups to associate with the endpoint network interface.",
-  ).optional(),
-  Tags: z.array(TagSchema).optional(),
-  Name: z.string().min(3).max(40).regex(
-    new RegExp("^(?!rgw-)(?![-])(?!.*[-]$)(?!.*[-]{2})[a-z0-9-]+$"),
-  ).optional(),
+  Configuration: z.object({
+    Lex: LexConfigurationSchema.describe(
+      "The configuration for an Amazon Lex V2 bot.",
+    ).optional(),
+  }).describe("A structure that contains configuration data.").optional(),
+  Tags: z.array(TagSchema).describe("The tags assigned to the AppInstanceBot.")
+    .optional(),
 });
 
-/** Swamp extension model for VpcLattice ResourceGateway. Registered at `@swamp/aws/vpclattice/resource-gateway`. */
+/** Swamp extension model for Chime AppInstanceBot. Registered at `@swamp/aws/chime/app-instance-bot`. */
 export const model = {
-  type: "@swamp/aws/vpclattice/resource-gateway",
+  type: "@swamp/aws/chime/app-instance-bot",
   version: "2026.05.05.1",
-  upgrades: [
-    {
-      toVersion: "2026.04.01.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.05.1",
-      description: "Added: ResourceConfigDnsResolution",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "VpcLattice ResourceGateway resource state",
+      description: "Chime AppInstanceBot resource state",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -131,7 +137,7 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a VpcLattice ResourceGateway",
+      description: "Create a Chime AppInstanceBot",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -141,7 +147,7 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await createResource(
-          "AWS::VpcLattice::ResourceGateway",
+          "AWS::Chime::AppInstanceBot",
           desiredState,
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
@@ -157,15 +163,15 @@ export const model = {
       },
     },
     get: {
-      description: "Get a VpcLattice ResourceGateway",
+      description: "Get a Chime AppInstanceBot",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the VpcLattice ResourceGateway",
+          "The primary identifier of the Chime AppInstanceBot",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const result = await readResource(
-          "AWS::VpcLattice::ResourceGateway",
+          "AWS::Chime::AppInstanceBot",
           args.identifier,
         ) as StateData;
         const instanceName =
@@ -182,7 +188,7 @@ export const model = {
       },
     },
     update: {
-      description: "Update a VpcLattice ResourceGateway",
+      description: "Update a Chime AppInstanceBot",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -199,12 +205,12 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.Arn?.toString();
+        const identifier = existing.AppInstanceBotArn?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         const currentState = await readResource(
-          "AWS::VpcLattice::ResourceGateway",
+          "AWS::Chime::AppInstanceBot",
           identifier,
         ) as StateData;
         const desiredState: Record<string, unknown> = { ...currentState };
@@ -213,17 +219,11 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await updateResource(
-          "AWS::VpcLattice::ResourceGateway",
+          "AWS::Chime::AppInstanceBot",
           identifier,
           currentState,
           desiredState,
-          [
-            "VpcIdentifier",
-            "SubnetIds",
-            "IpAddressType",
-            "Name",
-            "ResourceConfigDnsResolution",
-          ],
+          ["AppInstanceArn"],
         );
         const handle = await context.writeResource(
           "state",
@@ -234,15 +234,15 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete a VpcLattice ResourceGateway",
+      description: "Delete a Chime AppInstanceBot",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the VpcLattice ResourceGateway",
+          "The primary identifier of the Chime AppInstanceBot",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const { existed } = await deleteResource(
-          "AWS::VpcLattice::ResourceGateway",
+          "AWS::Chime::AppInstanceBot",
           args.identifier,
         );
         const instanceName =
@@ -260,7 +260,7 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync VpcLattice ResourceGateway state from AWS",
+      description: "Sync Chime AppInstanceBot state from AWS",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -277,13 +277,13 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.Arn?.toString();
+        const identifier = existing.AppInstanceBotArn?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         try {
           const result = await readResource(
-            "AWS::VpcLattice::ResourceGateway",
+            "AWS::Chime::AppInstanceBot",
             identifier,
           ) as StateData;
           const handle = await context.writeResource(
