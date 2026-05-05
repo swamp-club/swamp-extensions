@@ -928,6 +928,24 @@ Deno.test("isInternalCacheFile: excludes the sync-state sidecar", () => {
   assertEquals(isInternalCacheFile("regular/file.yaml"), false);
 });
 
+Deno.test("isInternalCacheFile: excludes per-target FileLock files at any depth", () => {
+  // Data tier writes per-target locks at `data/<kind>/<type>/<id>/.lock`.
+  // Without this exclusion, `discoverIndexFromBucket` captures transient
+  // `.lock` files into the synthesized index, the lock subsystem deletes
+  // them on release, and a fresh reader 404s on the missing object during
+  // setup hydration.
+  assertEquals(
+    isInternalCacheFile(
+      "data/command/shell/c19f88eb-de4f-4227-ade7-8162aec3d6a6/.lock",
+    ),
+    true,
+  );
+  assertEquals(isInternalCacheFile("data/@m/.lock"), true);
+  assertEquals(isInternalCacheFile(".datastore.lock"), true);
+  assertEquals(isInternalCacheFile("data/@m/.locked.yaml"), false);
+  assertEquals(isInternalCacheFile("data/@m/lock"), false);
+});
+
 // -- (2) post-verified pullChanged short-circuits with zero index GETs ----
 
 Deno.test("pullChanged: post-verified second call hits fast path with zero index GETs", async () => {

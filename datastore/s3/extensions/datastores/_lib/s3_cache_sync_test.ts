@@ -1466,6 +1466,30 @@ Deno.test("isInternalCacheFile: excludes the sync-state sidecar", () => {
   assertEquals(isInternalCacheFile(".datastore-sync-state.json"), true);
 });
 
+Deno.test("isInternalCacheFile: excludes per-target FileLock files at any depth", () => {
+  // The data tier writes per-target locks at `data/<kind>/<type>/<id>/.lock`
+  // via the lock subsystem (PUT/DELETE direct to the bucket). Without this
+  // exclusion, `discoverIndexFromBucket` captures transient `.lock` files
+  // from the listing into the synthesized index, the lock subsystem then
+  // deletes them on release, and a fresh reader hydrating from that stale
+  // index 404s on the missing object — surfacing as `datastore setup`
+  // failing to persist `.swamp.yaml` and the next `datastore sync --pull`
+  // reporting "Current datastore type: filesystem".
+  assertEquals(
+    isInternalCacheFile(
+      "data/command/shell/c19f88eb-de4f-4227-ade7-8162aec3d6a6/.lock",
+    ),
+    true,
+  );
+  assertEquals(isInternalCacheFile("data/@m/.lock"), true);
+  // The top-level distributed lock stays excluded (already covered by the
+  // exact-match branch, but the basename branch catches it too).
+  assertEquals(isInternalCacheFile(".datastore.lock"), true);
+  // Non-`.lock` data files are not affected.
+  assertEquals(isInternalCacheFile("data/@m/.locked.yaml"), false);
+  assertEquals(isInternalCacheFile("data/@m/lock"), false);
+});
+
 // -- (2) post-verified pullChanged short-circuits with zero index GETs ----
 
 Deno.test("pullChanged: post-verified second call hits fast path with zero index GETs", async () => {
