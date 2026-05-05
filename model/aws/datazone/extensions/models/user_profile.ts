@@ -36,8 +36,10 @@ const GlobalArgsSchema = z.object({
       "(^([0-9a-f]{10}-|)[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$|^[a-zA-Z_0-9+=,.@-]+$|^arn:aws:iam::\\d{12}:.+$)",
     ),
   ).describe("The ID of the user."),
-  UserType: z.enum(["IAM_USER", "IAM_ROLE", "SSO_USER"]).describe(
-    "The type of the user.",
+  UserType: z.enum(["IAM_USER", "IAM_ROLE", "SSO_USER", "IAM_ROLE_SESSION"])
+    .describe("The type of the user.").optional(),
+  SessionName: z.string().min(2).max(64).describe(
+    "The session name of the user profile.",
   ).optional(),
 });
 
@@ -45,6 +47,8 @@ const StateSchema = z.object({
   Details: z.object({
     Iam: z.object({
       Arn: z.string(),
+      SessionName: z.string(),
+      GroupProfileId: z.string(),
     }),
     Sso: z.object({
       Username: z.string(),
@@ -59,6 +63,7 @@ const StateSchema = z.object({
   Type: z.string().optional(),
   UserIdentifier: z.string().optional(),
   UserType: z.string().optional(),
+  SessionName: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -76,15 +81,17 @@ const InputsSchema = z.object({
       "(^([0-9a-f]{10}-|)[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$|^[a-zA-Z_0-9+=,.@-]+$|^arn:aws:iam::\\d{12}:.+$)",
     ),
   ).describe("The ID of the user.").optional(),
-  UserType: z.enum(["IAM_USER", "IAM_ROLE", "SSO_USER"]).describe(
-    "The type of the user.",
+  UserType: z.enum(["IAM_USER", "IAM_ROLE", "SSO_USER", "IAM_ROLE_SESSION"])
+    .describe("The type of the user.").optional(),
+  SessionName: z.string().min(2).max(64).describe(
+    "The session name of the user profile.",
   ).optional(),
 });
 
 /** Swamp extension model for DataZone UserProfile. Registered at `@swamp/aws/datazone/user-profile`. */
 export const model = {
   type: "@swamp/aws/datazone/user-profile",
-  version: "2026.04.23.2",
+  version: "2026.05.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -109,6 +116,11 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.05.1",
+      description: "Added: SessionName",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -39,7 +39,7 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The domain execution role that is created when an Amazon DataZone domain is created. The domain execution role is created in the AWS account that houses the Amazon DataZone domain.",
-  ),
+  ).optional(),
   ServiceRole: z.string().regex(
     new RegExp(
       "^arn:aws[^:]*:iam::\\d{12}:role(/[a-zA-Z0-9+=,.@_-]+)*/[a-zA-Z0-9+=,.@_-]+$",
@@ -149,7 +149,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DataZone Domain. Registered at `@swamp/aws/datazone/domain`. */
 export const model = {
   type: "@swamp/aws/datazone/domain",
-  version: "2026.04.23.2",
+  version: "2026.05.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -173,6 +173,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

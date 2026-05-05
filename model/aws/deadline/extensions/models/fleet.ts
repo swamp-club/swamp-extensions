@@ -102,7 +102,7 @@ const Ec2EbsVolumeSchema = z.object({
 });
 
 const AcceleratorSelectionSchema = z.object({
-  Name: z.enum(["t4", "a10g", "l4", "l40s"]),
+  Name: z.enum(["t4", "a10g", "l4", "l40s", "rtx-pro-server-6000"]),
   Runtime: z.string().min(1).max(100).optional(),
 });
 
@@ -249,7 +249,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Deadline Fleet. Registered at `@swamp/aws/deadline/fleet`. */
 export const model = {
   type: "@swamp/aws/deadline/fleet",
-  version: "2026.04.23.2",
+  version: "2026.05.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -278,6 +278,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

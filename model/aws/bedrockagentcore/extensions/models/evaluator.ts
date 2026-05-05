@@ -131,6 +131,12 @@ const GlobalArgsSchema = z.object({
   Level: z.enum(["TOOL_CALL", "TRACE", "SESSION"]).describe(
     "The evaluation level that determines the scope of evaluation.",
   ),
+  KmsKeyArn: z.string().min(1).max(2048).regex(
+    new RegExp(
+      "^arn:aws(|-cn|-us-gov):kms:[a-zA-Z0-9-]+:[0-9]{12}:key/[a-zA-Z0-9-]{36}$",
+    ),
+  ).describe("The ARN of the KMS key used to encrypt evaluator data.")
+    .optional(),
   Tags: z.array(TagSchema).describe(
     "A list of tags to assign to the evaluator.",
   ).optional(),
@@ -149,6 +155,7 @@ const StateSchema = z.object({
   Status: z.string().optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
+  KmsKeyArn: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -173,6 +180,12 @@ const InputsSchema = z.object({
   Level: z.enum(["TOOL_CALL", "TRACE", "SESSION"]).describe(
     "The evaluation level that determines the scope of evaluation.",
   ).optional(),
+  KmsKeyArn: z.string().min(1).max(2048).regex(
+    new RegExp(
+      "^arn:aws(|-cn|-us-gov):kms:[a-zA-Z0-9-]+:[0-9]{12}:key/[a-zA-Z0-9-]{36}$",
+    ),
+  ).describe("The ARN of the KMS key used to encrypt evaluator data.")
+    .optional(),
   Tags: z.array(TagSchema).describe(
     "A list of tags to assign to the evaluator.",
   ).optional(),
@@ -181,7 +194,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for BedrockAgentCore Evaluator. Registered at `@swamp/aws/bedrockagentcore/evaluator`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/evaluator",
-  version: "2026.04.23.2",
+  version: "2026.05.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -211,6 +224,11 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.05.1",
+      description: "Added: KmsKeyArn",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

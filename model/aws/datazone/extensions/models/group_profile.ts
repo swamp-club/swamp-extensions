@@ -34,9 +34,15 @@ const GlobalArgsSchema = z.object({
       "(^([0-9a-f]{10}-|)[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$|[\\p{L}\\p{M}\\p{S}\\p{N}\\p{P}\\t\\n\\r  ]+)",
       "u",
     ),
-  ).describe("The ID of the group."),
+  ).describe("The ID of the group.").optional(),
+  GroupType: z.enum(["DATAZONE_SSO_GROUP", "IAM_ROLE_SESSION_GROUP"]).describe(
+    "The type of the group.",
+  ).optional(),
   Status: z.enum(["ASSIGNED", "NOT_ASSIGNED"]).describe(
     "The status of the group profile.",
+  ).optional(),
+  RolePrincipalArn: z.string().describe(
+    "The ARN of the role principal for the group profile.",
   ).optional(),
 });
 
@@ -45,8 +51,11 @@ const StateSchema = z.object({
   DomainIdentifier: z.string().optional(),
   GroupIdentifier: z.string().optional(),
   GroupName: z.string().optional(),
+  GroupType: z.string().optional(),
   Id: z.string(),
   Status: z.string().optional(),
+  RolePrincipalArn: z.string().optional(),
+  RolePrincipalId: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -63,15 +72,21 @@ const InputsSchema = z.object({
       "u",
     ),
   ).describe("The ID of the group.").optional(),
+  GroupType: z.enum(["DATAZONE_SSO_GROUP", "IAM_ROLE_SESSION_GROUP"]).describe(
+    "The type of the group.",
+  ).optional(),
   Status: z.enum(["ASSIGNED", "NOT_ASSIGNED"]).describe(
     "The status of the group profile.",
+  ).optional(),
+  RolePrincipalArn: z.string().describe(
+    "The ARN of the role principal for the group profile.",
   ).optional(),
 });
 
 /** Swamp extension model for DataZone GroupProfile. Registered at `@swamp/aws/datazone/group-profile`. */
 export const model = {
   type: "@swamp/aws/datazone/group-profile",
-  version: "2026.04.23.2",
+  version: "2026.05.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -96,6 +111,11 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.05.1",
+      description: "Added: GroupType, RolePrincipalArn",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -203,7 +223,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["DomainIdentifier", "GroupIdentifier"],
+          ["DomainIdentifier", "GroupIdentifier", "RolePrincipalArn"],
         );
         const handle = await context.writeResource(
           "state",
