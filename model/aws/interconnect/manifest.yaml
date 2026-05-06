@@ -9,8 +9,6 @@ labels:
   - interconnect
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: connection
 models:
   - connection.ts
 additionalFiles:

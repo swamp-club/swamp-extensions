@@ -9,8 +9,6 @@ labels:
   - chime
   - cloud
   - infrastructure
-releaseNotes: |
-  - Added: app_instance_bot
 models:
   - app_instance.ts
   - app_instance_bot.ts

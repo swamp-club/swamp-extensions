@@ -9,8 +9,6 @@ labels:
   - deadline
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: fleet
 models:
   - farm.ts
   - fleet.ts

@@ -330,7 +330,9 @@ const GlobalArgsSchema = z.object({
   TargetGroupARNs: z.array(z.string()).describe(
     "The Amazon Resource Names (ARN) of the Elastic Load Balancing target groups to associate with the Auto Scaling group. Instances are registered as targets with the target groups. The target groups receive incoming traffic and route requests to one or more registered targets. For more information, see [Use Elastic Load Balancing to distribute traffic across the instances in your Auto Scaling group](https://docs.aws.amazon.com/autoscaling/ec2/userguide/autoscaling-load-balancer.html) in the *Amazon EC2 Auto Scaling User Guide*.",
   ).optional(),
-  AvailabilityZoneIds: z.array(z.string()).optional(),
+  AvailabilityZoneIds: z.array(z.string()).describe(
+    "The Availability Zone IDs where the Auto Scaling group can launch instances.",
+  ).optional(),
   Cooldown: z.string().describe(
     "*Only needed if you use simple scaling policies.* The amount of time, in seconds, between one scaling activity ending and another one starting due to simple scaling policies. For more information, see [Scaling cooldowns for Amazon EC2 Auto Scaling](https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-scaling-cooldowns.html) in the *Amazon EC2 Auto Scaling User Guide*. Default: 300 seconds",
   ).optional(),
@@ -562,7 +564,9 @@ const InputsSchema = z.object({
   TargetGroupARNs: z.array(z.string()).describe(
     "The Amazon Resource Names (ARN) of the Elastic Load Balancing target groups to associate with the Auto Scaling group. Instances are registered as targets with the target groups. The target groups receive incoming traffic and route requests to one or more registered targets. For more information, see [Use Elastic Load Balancing to distribute traffic across the instances in your Auto Scaling group](https://docs.aws.amazon.com/autoscaling/ec2/userguide/autoscaling-load-balancer.html) in the *Amazon EC2 Auto Scaling User Guide*.",
   ).optional(),
-  AvailabilityZoneIds: z.array(z.string()).optional(),
+  AvailabilityZoneIds: z.array(z.string()).describe(
+    "The Availability Zone IDs where the Auto Scaling group can launch instances.",
+  ).optional(),
   Cooldown: z.string().describe(
     "*Only needed if you use simple scaling policies.* The amount of time, in seconds, between one scaling activity ending and another one starting due to simple scaling policies. For more information, see [Scaling cooldowns for Amazon EC2 Auto Scaling](https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-scaling-cooldowns.html) in the *Amazon EC2 Auto Scaling User Guide*. Default: 300 seconds",
   ).optional(),
@@ -705,7 +709,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for AutoScaling AutoScalingGroup. Registered at `@swamp/aws/autoscaling/auto-scaling-group`. */
 export const model = {
   type: "@swamp/aws/autoscaling/auto-scaling-group",
-  version: "2026.04.23.2",
+  version: "2026.05.06.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -739,6 +743,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

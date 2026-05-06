@@ -364,6 +364,9 @@ const GlobalArgsSchema = z.object({
   })).describe(
     "Required. Holds the single container that defines the unit of execution for this Instance.",
   ).optional(),
+  defaultUriDisabled: z.boolean().describe(
+    "Optional. Disables public resolution of the default URI of this Instance.",
+  ).optional(),
   description: z.string().describe(
     "User-provided description of the Instance. This field currently has a 512-character limit.",
   ).optional(),
@@ -709,6 +712,7 @@ const StateSchema = z.object({
   })).optional(),
   createTime: z.string().optional(),
   creator: z.string().optional(),
+  defaultUriDisabled: z.boolean().optional(),
   deleteTime: z.string().optional(),
   description: z.string().optional(),
   encryptionKey: z.string().optional(),
@@ -1041,6 +1045,9 @@ const InputsSchema = z.object({
   })).describe(
     "Required. Holds the single container that defines the unit of execution for this Instance.",
   ).optional(),
+  defaultUriDisabled: z.boolean().describe(
+    "Optional. Disables public resolution of the default URI of this Instance.",
+  ).optional(),
   description: z.string().describe(
     "User-provided description of the Instance. This field currently has a 512-character limit.",
   ).optional(),
@@ -1266,7 +1273,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Run Admin Instances. Registered at `@swamp/gcp/run/instances`. */
 export const model = {
   type: "@swamp/gcp/run/instances",
-  version: "2026.04.23.1",
+  version: "2026.05.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1308,6 +1315,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.06.1",
+      description: "Added: defaultUriDisabled",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1341,6 +1353,9 @@ export const model = {
           body["clientVersion"] = g["clientVersion"];
         }
         if (g["containers"] !== undefined) body["containers"] = g["containers"];
+        if (g["defaultUriDisabled"] !== undefined) {
+          body["defaultUriDisabled"] = g["defaultUriDisabled"];
+        }
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
         }
@@ -1471,6 +1486,9 @@ export const model = {
           body["clientVersion"] = g["clientVersion"];
         }
         if (g["containers"] !== undefined) body["containers"] = g["containers"];
+        if (g["defaultUriDisabled"] !== undefined) {
+          body["defaultUriDisabled"] = g["defaultUriDisabled"];
+        }
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
         }
