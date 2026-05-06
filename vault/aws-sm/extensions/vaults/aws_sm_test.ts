@@ -18,6 +18,7 @@
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
 import {
+  assert,
   assertEquals,
   assertRejects,
   assertThrows,
@@ -27,6 +28,7 @@ import {
   assertVaultExportConformance,
 } from "@systeminit/swamp-testing";
 import { vault } from "./aws_sm.ts";
+import { AwsSmOperationError } from "./aws_sm_errors.ts";
 
 Deno.test("vault export conforms to VaultProvider contract", () => {
   assertVaultExportConformance(vault, {
@@ -50,8 +52,37 @@ Deno.test("createProvider throws on invalid config", () => {
 
 // --- Behavioral tests using a local mock AWS server ---
 
+/**
+ * Per-target override response for the mock AWS server. When set for a
+ * given operation (GetSecretValue, PutSecretValue, etc.), the override
+ * takes precedence over the default secrets-Map behaviour. Tests use
+ * this to inject error bodies — including malformed bodies without the
+ * expected `__type` field — without rebuilding the mock server.
+ */
+interface MockResponse {
+  status: number;
+  body: BodyInit | null;
+  contentType?: string;
+}
+
+interface MockOverrides {
+  GetSecretValue?: MockResponse;
+  PutSecretValue?: MockResponse;
+  CreateSecret?: MockResponse;
+  ListSecrets?: MockResponse;
+}
+
+function mockResponse(r: MockResponse): Response {
+  return new Response(r.body, {
+    status: r.status,
+    headers: {
+      "content-type": r.contentType ?? "application/x-amz-json-1.1",
+    },
+  });
+}
+
 /** Start a local HTTP server that simulates AWS Secrets Manager. */
-function startMockAwsServer(): {
+function startMockAwsServer(overrides: MockOverrides = {}): {
   url: string;
   server: Deno.HttpServer;
   secrets: Map<string, string>;
@@ -63,6 +94,9 @@ function startMockAwsServer(): {
     const body = await req.json();
 
     if (target.includes("GetSecretValue")) {
+      if (overrides.GetSecretValue) {
+        return mockResponse(overrides.GetSecretValue);
+      }
       const val = secrets.get(body.SecretId);
       if (!val) {
         return Response.json({
@@ -74,16 +108,21 @@ function startMockAwsServer(): {
     }
 
     if (target.includes("PutSecretValue")) {
+      if (overrides.PutSecretValue) {
+        return mockResponse(overrides.PutSecretValue);
+      }
       secrets.set(body.SecretId, body.SecretString);
       return Response.json({});
     }
 
     if (target.includes("CreateSecret")) {
+      if (overrides.CreateSecret) return mockResponse(overrides.CreateSecret);
       secrets.set(body.Name, body.SecretString);
       return Response.json({ Name: body.Name });
     }
 
     if (target.includes("ListSecrets")) {
+      if (overrides.ListSecrets) return mockResponse(overrides.ListSecrets);
       return Response.json({
         SecretList: [...secrets.keys()].map((n) => ({ Name: n })),
       });
@@ -98,19 +137,27 @@ function startMockAwsServer(): {
   return { url: `http://localhost:${addr.port}`, server, secrets };
 }
 
-/** Run a test with a mock AWS server, setting AWS_ENDPOINT_URL. */
+/**
+ * Run a test with a mock AWS server, setting AWS_ENDPOINT_URL and fake
+ * credentials. AWS_PROFILE is scrubbed for the duration of the test so
+ * a developer's shell env doesn't poison hint assertions (which read
+ * AWS_PROFILE at wrap time and embed it in the suggested SSO command).
+ */
 async function withMockAws<T>(
   fn: (secrets: Map<string, string>) => Promise<T>,
+  overrides: MockOverrides = {},
 ): Promise<T> {
-  const { url, server, secrets } = startMockAwsServer();
+  const { url, server, secrets } = startMockAwsServer(overrides);
   const originalEndpoint = Deno.env.get("AWS_ENDPOINT_URL");
   const originalKey = Deno.env.get("AWS_ACCESS_KEY_ID");
   const originalSecret = Deno.env.get("AWS_SECRET_ACCESS_KEY");
+  const originalProfile = Deno.env.get("AWS_PROFILE");
 
   Deno.env.set("AWS_ENDPOINT_URL", url);
   // SDK needs credentials even for a mock endpoint
   Deno.env.set("AWS_ACCESS_KEY_ID", "test");
   Deno.env.set("AWS_SECRET_ACCESS_KEY", "test");
+  Deno.env.delete("AWS_PROFILE");
 
   try {
     return await fn(secrets);
@@ -129,6 +176,11 @@ async function withMockAws<T>(
       Deno.env.set("AWS_SECRET_ACCESS_KEY", originalSecret);
     } else {
       Deno.env.delete("AWS_SECRET_ACCESS_KEY");
+    }
+    if (originalProfile !== undefined) {
+      Deno.env.set("AWS_PROFILE", originalProfile);
+    } else {
+      Deno.env.delete("AWS_PROFILE");
     }
     await server.shutdown();
   }
@@ -202,6 +254,168 @@ Deno.test({
     await withMockAws(async () => {
       const provider = vault.createProvider("test", { region: "us-east-1" });
       await assertVaultConformance(provider);
+    });
+  },
+});
+
+// --- Error-wrapping behavioural tests ---
+
+Deno.test({
+  name:
+    "aws-sm vault: get on ExpiredTokenException → 'Vault session expired:' prefix",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      const err = await assertRejects(() => provider.get("anything"));
+      assert(err instanceof AwsSmOperationError);
+      assertEquals(err.name, "ExpiredTokenException");
+      assert(
+        err.message.startsWith("Vault session expired:"),
+        `expected "Vault session expired:" prefix, got: ${err.message}`,
+      );
+    }, {
+      GetSecretValue: {
+        status: 400,
+        body: JSON.stringify({
+          __type: "ExpiredTokenException",
+          Message: "The security token included in the request is expired",
+        }),
+      },
+    });
+  },
+});
+
+Deno.test({
+  name:
+    "aws-sm vault: get on 403 AccessDenied → 'Vault credentials rejected by AWS:' prefix",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      const err = await assertRejects(() => provider.get("anything"));
+      assert(err instanceof AwsSmOperationError);
+      assertEquals(err.httpStatusCode, 403);
+      assert(
+        err.message.startsWith("Vault credentials rejected by AWS:"),
+        `expected "Vault credentials rejected by AWS:" prefix, got: ${err.message}`,
+      );
+    }, {
+      GetSecretValue: {
+        status: 403,
+        body: JSON.stringify({
+          __type: "AccessDenied",
+          Message: "Access denied",
+        }),
+      },
+    });
+  },
+});
+
+Deno.test({
+  name:
+    "aws-sm vault: list propagates the wrapper on credential error (covers all four ops)",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      const err = await assertRejects(() => provider.list());
+      assert(err instanceof AwsSmOperationError);
+      assertEquals(err.name, "ExpiredTokenException");
+      assert(err.message.startsWith("Vault session expired:"));
+    }, {
+      ListSecrets: {
+        status: 400,
+        body: JSON.stringify({
+          __type: "ExpiredTokenException",
+          Message: "The security token included in the request is expired",
+        }),
+      },
+    });
+  },
+});
+
+Deno.test({
+  name:
+    "aws-sm vault: put initial PutSecretValue propagates the wrapper on credential error",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      const err = await assertRejects(() => provider.put("k", "v"));
+      assert(err instanceof AwsSmOperationError);
+      assertEquals(err.name, "ExpiredTokenException");
+      assert(err.message.startsWith("Vault session expired:"));
+    }, {
+      PutSecretValue: {
+        status: 400,
+        body: JSON.stringify({
+          __type: "ExpiredTokenException",
+          Message: "The security token included in the request is expired",
+        }),
+      },
+    });
+  },
+});
+
+// Regression guard for the instanceof → name migration in put(): the
+// previous implementation used `error instanceof ResourceNotFoundException`
+// against the raw SDK error class. After wrapping, the thrown error is
+// AwsSmOperationError, so the check became `error.name === ...`. If that
+// migration regresses, this test fails because the secret never gets
+// created (PutSecretValue rethrows AwsSmOperationError instead of falling
+// through to CreateSecret).
+Deno.test({
+  name:
+    "aws-sm vault: put fallback to CreateSecret still works after wrapper migration",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async (secrets) => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      // No override on CreateSecret → mock writes to secrets Map.
+      await provider.put("brand-new-key", "the-value");
+      assertEquals(secrets.get("brand-new-key"), "the-value");
+    }, {
+      PutSecretValue: {
+        status: 400,
+        body: JSON.stringify({
+          __type: "ResourceNotFoundException",
+          Message: "Secret not found",
+        }),
+      },
+    });
+  },
+});
+
+// SDK Wrap Defense: a malformed error response (no __type, no Message)
+// must still surface as an AwsSmOperationError with HTTP status, and
+// the wrapper's noise filters must strip the SDK's "Unknown" /
+// "UnknownError" defaults. Empirically verified at
+// @aws-sdk/client-secrets-manager@3.1024.0 (probe 2026-05-06): an HTTP
+// 400 with body "{}" produces err.name="Unknown" and
+// err.message="UnknownError".
+Deno.test({
+  name:
+    "aws-sm vault: malformed error body without __type still surfaces a clean message",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      const err = await assertRejects(() => provider.get("anything"));
+      assert(err instanceof AwsSmOperationError);
+      assertEquals(err.httpStatusCode, 400);
+      assert(err.message.includes("AWS Secrets Manager GetSecretValue failed"));
+      assert(err.message.includes("HTTP 400"));
+      assert(
+        !err.message.includes("Unknown"),
+        `expected wrapped message to NOT contain "Unknown", got: ${err.message}`,
+      );
+      assert(
+        !err.message.includes("UnknownError"),
+        `expected wrapped message to NOT contain "UnknownError", got: ${err.message}`,
+      );
+    }, {
+      GetSecretValue: { status: 400, body: "{}" },
     });
   },
 });

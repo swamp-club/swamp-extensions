@@ -33,9 +33,9 @@ import {
   GetSecretValueCommand,
   ListSecretsCommand,
   PutSecretValueCommand,
-  ResourceNotFoundException,
   SecretsManagerClient,
-} from "npm:@aws-sdk/client-secrets-manager@3.1010.0";
+} from "npm:@aws-sdk/client-secrets-manager@3.1024.0";
+import { AwsSmOperationError, wrapAwsSmError } from "./aws_sm_errors.ts";
 
 /**
  * Minimal contract implemented by swamp vault providers. Exported so that
@@ -64,7 +64,12 @@ class AwsSmVaultProvider implements VaultProvider {
 
   async get(secretKey: string): Promise<string> {
     const command = new GetSecretValueCommand({ SecretId: secretKey });
-    const response = await this.client.send(command);
+    let response;
+    try {
+      response = await this.client.send(command);
+    } catch (error) {
+      throw wrapAwsSmError("GetSecretValue", error);
+    }
 
     const secretValue = response.SecretString ||
       (response.SecretBinary
@@ -86,14 +91,25 @@ class AwsSmVaultProvider implements VaultProvider {
       });
       await this.client.send(putCommand);
     } catch (error) {
-      if (error instanceof ResourceNotFoundException) {
-        const createCommand = new CreateSecretCommand({
-          Name: secretKey,
-          SecretString: secretValue,
-        });
-        await this.client.send(createCommand);
+      const wrapped = wrapAwsSmError("PutSecretValue", error);
+      // The wrapper preserves the SDK error's `name`, so name-matching
+      // keeps the create-on-missing fallback working without importing
+      // ResourceNotFoundException from the SDK.
+      if (
+        wrapped instanceof AwsSmOperationError &&
+        wrapped.name === "ResourceNotFoundException"
+      ) {
+        try {
+          const createCommand = new CreateSecretCommand({
+            Name: secretKey,
+            SecretString: secretValue,
+          });
+          await this.client.send(createCommand);
+        } catch (createError) {
+          throw wrapAwsSmError("CreateSecret", createError);
+        }
       } else {
-        throw error;
+        throw wrapped;
       }
     }
   }
@@ -104,7 +120,12 @@ class AwsSmVaultProvider implements VaultProvider {
 
     do {
       const command = new ListSecretsCommand({ NextToken: nextToken });
-      const response = await this.client.send(command);
+      let response;
+      try {
+        response = await this.client.send(command);
+      } catch (error) {
+        throw wrapAwsSmError("ListSecrets", error);
+      }
 
       if (response.SecretList) {
         for (const secret of response.SecretList) {
