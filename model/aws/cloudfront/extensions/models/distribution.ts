@@ -454,8 +454,9 @@ const TrustStoreConfigSchema = z.object({
 });
 
 const ViewerMtlsConfigSchema = z.object({
-  Mode: z.enum(["required", "optional"]).describe("The viewer mTLS mode.")
-    .optional(),
+  Mode: z.enum(["required", "optional", "passthrough"]).describe(
+    "The viewer mTLS mode.",
+  ).optional(),
   TrustStoreConfig: TrustStoreConfigSchema.describe(
     "The trust store configuration associated with the viewer mTLS configuration.",
   ).optional(),
@@ -708,7 +709,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for CloudFront Distribution. Registered at `@swamp/aws/cloudfront/distribution`. */
 export const model = {
   type: "@swamp/aws/cloudfront/distribution",
-  version: "2026.05.01.1",
+  version: "2026.05.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -737,6 +738,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

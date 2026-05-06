@@ -9,8 +9,6 @@ labels:
   - datazone
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: domain, group_profile, project, user_profile
 models:
   - connection.ts
   - data_source.ts

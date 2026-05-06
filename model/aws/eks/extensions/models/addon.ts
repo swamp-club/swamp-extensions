@@ -26,7 +26,7 @@ const PodIdentityAssociationSchema = z.object({
     "The Kubernetes service account that the pod identity association is created for.",
   ),
   RoleArn: z.string().regex(
-    new RegExp("^arn:aws(-cn|-us-gov|-iso(-[a-z])?)?:iam::\\d{12}:(role)\\/*"),
+    new RegExp("^arn:aws[a-zA-Z-]*:iam::\\d{12}:(role)\\/*"),
   ).describe(
     "The IAM role ARN that the pod identity association is created for.",
   ),
@@ -124,7 +124,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for EKS Addon. Registered at `@swamp/aws/eks/addon`. */
 export const model = {
   type: "@swamp/aws/eks/addon",
-  version: "2026.04.23.2",
+  version: "2026.05.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -148,6 +148,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

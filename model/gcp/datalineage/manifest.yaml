@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/datalineage"
-version: "2026.04.23.1"
+version: "2026.05.06.1"
 description: "Google Cloud datalineage infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,6 +10,8 @@ labels:
   - datalineage
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: processes_runs
 models:
   - config.ts
   - processes.ts

@@ -226,7 +226,7 @@ const GlobalArgsSchema = z.object({
       loginNodes: z.object({
         bootDisk: z.object({
           sizeGb: z.string().describe(
-            "Required. Immutable. Size of the disk in gigabytes. Must be at least 10GB.",
+            "Required. Immutable. Size of the disk in gigabytes. Must be at least 40GB.",
           ).optional(),
           type: z.string().describe(
             "Required. Immutable. [Persistent disk type](https://cloud.google.com/compute/docs/disks#disk-types), in the format `projects/{project}/zones/{zone}/diskTypes/{disk_type}`.",
@@ -638,7 +638,7 @@ const InputsSchema = z.object({
       loginNodes: z.object({
         bootDisk: z.object({
           sizeGb: z.string().describe(
-            "Required. Immutable. Size of the disk in gigabytes. Must be at least 10GB.",
+            "Required. Immutable. Size of the disk in gigabytes. Must be at least 40GB.",
           ).optional(),
           type: z.string().describe(
             "Required. Immutable. [Persistent disk type](https://cloud.google.com/compute/docs/disks#disk-types), in the format `projects/{project}/zones/{zone}/diskTypes/{disk_type}`.",
@@ -876,7 +876,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Cluster Director Clusters. Registered at `@swamp/gcp/hypercomputecluster/clusters`. */
 export const model = {
   type: "@swamp/gcp/hypercomputecluster/clusters",
-  version: "2026.05.01.1",
+  version: "2026.05.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -920,6 +920,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

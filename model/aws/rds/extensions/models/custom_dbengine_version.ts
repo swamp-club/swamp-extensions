@@ -66,6 +66,7 @@ const GlobalArgsSchema = z.object({
   Status: z.enum(["available", "inactive", "inactive-except-restore"]).describe(
     "A value that indicates the status of a custom engine version (CEV).",
   ).optional(),
+  DatabaseInstallationFiles: z.array(z.string()).optional(),
   Tags: z.array(TagSchema).describe(
     "A list of tags. For more information, see [Tagging Amazon RDS Resources](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Tagging.html) in the *Amazon RDS User Guide.*",
   ).optional(),
@@ -84,6 +85,7 @@ const StateSchema = z.object({
   UseAwsProvidedLatestImage: z.boolean().optional(),
   ImageId: z.string().optional(),
   Status: z.string().optional(),
+  DatabaseInstallationFiles: z.array(z.string()).optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -123,6 +125,7 @@ const InputsSchema = z.object({
   Status: z.enum(["available", "inactive", "inactive-except-restore"]).describe(
     "A value that indicates the status of a custom engine version (CEV).",
   ).optional(),
+  DatabaseInstallationFiles: z.array(z.string()).optional(),
   Tags: z.array(TagSchema).describe(
     "A list of tags. For more information, see [Tagging Amazon RDS Resources](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Tagging.html) in the *Amazon RDS User Guide.*",
   ).optional(),
@@ -131,7 +134,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for RDS CustomDBEngineVersion. Registered at `@swamp/aws/rds/custom-dbengine-version`. */
 export const model = {
   type: "@swamp/aws/rds/custom-dbengine-version",
-  version: "2026.04.23.2",
+  version: "2026.05.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -156,6 +159,11 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.06.1",
+      description: "Added: DatabaseInstallationFiles",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -268,6 +276,7 @@ export const model = {
             "EngineVersion",
             "DatabaseInstallationFilesS3BucketName",
             "DatabaseInstallationFilesS3Prefix",
+            "DatabaseInstallationFiles",
             "ImageId",
             "KMSKeyId",
             "Manifest",

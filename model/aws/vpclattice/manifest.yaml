@@ -9,8 +9,6 @@ labels:
   - vpclattice
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: resource_gateway
 models:
   - access_log_subscription.ts
   - auth_policy.ts
