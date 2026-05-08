@@ -28,6 +28,12 @@ Workflow extensions bundle a workflow YAML with one or more helper models so
 a multi-step operation (like bootstrapping another extension) can be executed
 end-to-end with a single `swamp workflow run`.
 
+## CVE Extensions
+
+| Extension                                        | Description                                                                                              | Dependencies |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | ------------ |
+| [`@swamp/cve/dirtyfrag`](cve/dirtyfrag/) | Detects and mitigates the Dirty Frag Linux privilege escalation (CVE-2026-43284 + CVE-2026-43500) | None (POSIX utilities + procfs/sysfs) |
+
 ## Model Extensions (Auto-Generated)
 
 | Extension                                      | Description                         |
@@ -60,6 +66,9 @@ swamp extension pull @swamp/gcs-datastore
 # Workflow extensions
 swamp extension pull @swamp/s3-datastore-bootstrap
 swamp extension pull @swamp/gcs-datastore-bootstrap
+
+# CVE extensions
+swamp extension pull @swamp/cve/dirtyfrag
 
 # Model extensions
 swamp extension pull @swamp/hetzner-cloud

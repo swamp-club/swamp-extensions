@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/cve/dirtyfrag"
-version: "2026.05.08.4"
+version: "2026.05.08.5"
 description: |
   Detects and mitigates the Dirty Frag Linux local privilege escalation
   vulnerability class (CVE-2026-43284 + CVE-2026-43500), which chains two
@@ -11,13 +11,13 @@ description: |
 
   - `scan` — scan a single host (local, SSH, or Docker container)
   - `scanFleet` — scan multiple hosts in parallel with shared SSH credentials
-  - `mitigate` — scan-then-fix: checks vulnerability first, blacklists
+  - `mitigate` — scan-then-fix: checks vulnerability first, blocklists
     modules, unloads them, and flushes page cache on affected hosts only
 
   ## What It Detects
 
   Kernel module availability (esp4/esp6/rxrpc), patch status, user namespace
-  exposure, module blacklisting, page cache corruption of /usr/bin/su and
+  exposure, module blocklisting, page cache corruption of /usr/bin/su and
   /etc/passwd, XFRM SA exploit patterns, and RxRPC key artifacts.
 
   No packages required on target hosts — all checks use POSIX utilities and

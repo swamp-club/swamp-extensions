@@ -18,12 +18,11 @@
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Swamp datastore backend that stores repository state in Google Cloud Storage.
+ * Report extension for Dirty Frag vulnerability scan and mitigation results.
  *
- * Provides distributed locking via GCS generation-based preconditions and
- * bidirectional sync between a local cache directory and a GCS bucket. Use
- * this entrypoint when a swamp deployment should share state between multiple
- * processes or machines through GCS rather than a local directory.
+ * Renders scan output as a markdown summary table with risk levels, IOCs,
+ * and actionable next-step commands. Handles both scan/scanFleet and
+ * mitigate method output.
  *
  * @module
  */
@@ -117,7 +116,7 @@ export const report = {
       md += `| Step | Command | Purpose |\n`;
       md += `| ---- | ------- | ------- |\n`;
       md +=
-        `| 1 | \`printf 'install esp4 /bin/false\\n...' > /etc/modprobe.d/dirtyfrag.conf\` | Blacklist esp4/esp6/rxrpc modules |\n`;
+        `| 1 | \`printf 'install esp4 /bin/false\\n...' > /etc/modprobe.d/dirtyfrag.conf\` | Blocklist esp4/esp6/rxrpc modules |\n`;
       md +=
         `| 2 | \`rmmod esp4; rmmod esp6; rmmod rxrpc\` | Unload modules from running kernel |\n`;
       md +=
@@ -125,7 +124,7 @@ export const report = {
 
       const allHosts = allResults.map((r) => r.hostname);
       const isLocal = allHosts.every((h) =>
-        h === "localhost" || h === "127.0.0.1"
+        h === "localhost" || h === "127.0.0.1" || h === "::1"
       );
 
       if (isDryRun) {
@@ -177,13 +176,13 @@ export const report = {
       let esp = "N/A";
       if (r.cve202643284.affected) {
         if (r.cve202643284.patched) esp = "Patched";
-        else if (r.mitigations.espModulesBlacklisted) esp = "Mitigated";
+        else if (r.mitigations.espModulesBlocklisted) esp = "Mitigated";
         else esp = "Vulnerable";
       }
       let rxrpc = "N/A";
       if (r.cve202643500.affected) {
         if (r.cve202643500.patched) rxrpc = "Patched";
-        else if (r.mitigations.rxrpcModuleBlacklisted) rxrpc = "Mitigated";
+        else if (r.mitigations.rxrpcModuleBlocklisted) rxrpc = "Mitigated";
         else rxrpc = "Vulnerable";
       }
       const iocs = [];
@@ -218,7 +217,7 @@ export const report = {
         r.hostname
       );
       const vulnLocal = vulnHosts.every((h) =>
-        h === "localhost" || h === "127.0.0.1"
+        h === "localhost" || h === "127.0.0.1" || h === "::1"
       );
       md += vulnLocal
         ? "```\nswamp model method run dirtyfrag-scanner mitigate\n```\n"
