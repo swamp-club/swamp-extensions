@@ -124,17 +124,22 @@ export const report = {
         `| 3 | \`echo 3 > /proc/sys/vm/drop_caches\` | Flush page cache (clears corrupted entries) |\n\n`;
 
       const allHosts = allResults.map((r) => r.hostname);
+      const isLocal = allHosts.every((h) =>
+        h === "localhost" || h === "127.0.0.1"
+      );
 
       if (isDryRun) {
         md += "To apply:\n\n";
-        md +=
-          "```\nswamp model method run dirtyfrag-scanner mitigate --input hosts=" +
-          allHosts.join(",") + " --input dryRun=false\n```\n";
+        md += isLocal
+          ? "```\nswamp model method run dirtyfrag-scanner mitigate --input dryRun=false\n```\n"
+          : "```\nswamp model method run dirtyfrag-scanner mitigate --input hosts=" +
+            allHosts.join(",") + " --input dryRun=false\n```\n";
       } else {
         md += "Verify with:\n\n";
-        md +=
-          "```\nswamp model method run dirtyfrag-scanner scanFleet --input hosts=" +
-          allHosts.join(",") + "\n```\n";
+        md += isLocal
+          ? "```\nswamp model method run dirtyfrag-scanner scan\n```\n"
+          : "```\nswamp model method run dirtyfrag-scanner scanFleet --input hosts=" +
+            allHosts.join(",") + "\n```\n";
       }
 
       return {
@@ -212,9 +217,13 @@ export const report = {
       const vulnHosts = allResults.filter((r) => r.vulnerable).map((r) =>
         r.hostname
       );
-      md +=
-        "```\nswamp model method run dirtyfrag-scanner mitigate --input hosts=" +
-        vulnHosts.join(",") + "\n```\n";
+      const vulnLocal = vulnHosts.every((h) =>
+        h === "localhost" || h === "127.0.0.1"
+      );
+      md += vulnLocal
+        ? "```\nswamp model method run dirtyfrag-scanner mitigate\n```\n"
+        : "```\nswamp model method run dirtyfrag-scanner mitigate --input hosts=" +
+          vulnHosts.join(",") + "\n```\n";
     }
 
     return {
