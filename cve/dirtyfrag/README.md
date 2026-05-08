@@ -29,7 +29,7 @@ Or clone this repo and the model is discovered automatically from
 | Built-in rxrpc | `modules.builtin` grep (common on Ubuntu) |
 | Patch status (CVE-2026-43284) | Heuristic: `skb_has_shared_frag` symbol in `/proc/kallsyms` |
 | User namespace availability | `unprivileged_userns_clone` sysctl + AppArmor restriction check |
-| Module blacklisting | `/etc/modprobe.d/` scan for esp4/esp6/rxrpc install/blacklist rules |
+| Module blocklisting | `/etc/modprobe.d/` scan for esp4/esp6/rxrpc install/blocklist rules |
 | Page cache corruption (`/usr/bin/su`) | `od` hex dump of first 192 bytes, checks for shellcode signature `31ff31f631c0b06a` |
 | Page cache corruption (`/etc/passwd`) | Checks if root entry has empty password field (`root::`) |
 | XFRM SA exploit pattern | Looks for sequential SPIs matching `0xDEADBE1x` |
@@ -159,7 +159,7 @@ are skipped. Add `--input dryRun=false` to apply.
 
 | Step | Command | Purpose |
 |------|---------|---------|
-| 1 | `printf 'install esp4 /bin/false\n...' > /etc/modprobe.d/dirtyfrag.conf` | Blacklist esp4/esp6/rxrpc modules |
+| 1 | `printf 'install esp4 /bin/false\n...' > /etc/modprobe.d/dirtyfrag.conf` | Blocklist esp4/esp6/rxrpc modules |
 | 2 | `rmmod esp4; rmmod esp6; rmmod rxrpc` | Unload modules from running kernel |
 | 3 | `echo 3 > /proc/sys/vm/drop_caches` | Flush page cache (clears corrupted entries) |
 
@@ -172,7 +172,7 @@ Auto-detects whether `sudo` is needed based on the connected user.
 | `critical` | Active compromise detected, or both variants exploitable with no mitigations |
 | `high` | ESP variant exploitable but user namespaces restricted |
 | `medium` | Modules available, partially mitigated |
-| `low` | Modules exist on disk but all blacklisted or patched (mitigated) |
+| `low` | Modules exist on disk but all blocklisted or patched (mitigated) |
 | `none` | No vulnerable modules present |
 
 Hosts at `low` or `none` are reported as **CLEAN** and will not be mitigated.

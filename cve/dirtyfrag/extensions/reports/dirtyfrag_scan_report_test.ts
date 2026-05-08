@@ -38,10 +38,10 @@ function makeScanResult(overrides: Record<string, unknown> = {}) {
       modulesAvailable: [],
     },
     mitigations: {
-      espModulesBlacklisted: false,
-      rxrpcModuleBlacklisted: false,
+      espModulesBlocklisted: false,
+      rxrpcModuleBlocklisted: false,
       userNamespacesRestricted: false,
-      modprobeBlacklist: [],
+      modprobeBlocklist: [],
     },
     indicators: {
       suPageCacheCorrupted: false,
@@ -185,6 +185,34 @@ Deno.test("scan report: next step omits --input hosts for 127.0.0.1", async () =
   );
 });
 
+Deno.test("scan report: next step omits --input hosts for ::1", async () => {
+  const ctx = makeContext("scan", [
+    makeScanResult({ hostname: "::1", vulnerable: true }),
+  ]);
+  const result = await report.execute(ctx);
+  assertStringIncludes(result.markdown, "## Next Step");
+  assertStringIncludes(
+    result.markdown,
+    "swamp model method run dirtyfrag-scanner mitigate\n",
+  );
+  assert(
+    !result.markdown.includes("--input hosts=::1"),
+    "should not include --input hosts=::1",
+  );
+});
+
+Deno.test("scan report: mixed localhost + remote hosts includes --input hosts", async () => {
+  const ctx = makeContext("scanFleet", [
+    makeScanResult({ hostname: "localhost", vulnerable: true }),
+    makeScanResult({ hostname: "10.0.0.5", vulnerable: true }),
+  ]);
+  const result = await report.execute(ctx);
+  assertStringIncludes(
+    result.markdown,
+    "mitigate --input hosts=localhost,10.0.0.5",
+  );
+});
+
 Deno.test("scan report: no next step when all hosts clean", async () => {
   const ctx = makeContext("scan", [
     makeScanResult({
@@ -246,7 +274,7 @@ Deno.test("mitigate applied report: includes APPLIED header", async () => {
   const ctx = makeContext("mitigate", [
     makeScanResult({
       hostname: "10.0.0.1",
-      summary: "Mitigations applied: modules blacklisted",
+      summary: "Mitigations applied: modules blocklisted",
     }),
   ]);
   const result = await report.execute(ctx);
@@ -304,11 +332,43 @@ Deno.test("mitigate dry run: omits --input hosts for 127.0.0.1", async () => {
   );
 });
 
+Deno.test("mitigate dry run: omits --input hosts for ::1", async () => {
+  const ctx = makeContext("mitigate", [
+    makeScanResult({
+      hostname: "::1",
+      summary: "Dry run complete. Review commands",
+    }),
+  ]);
+  const result = await report.execute(ctx);
+  assert(
+    !result.markdown.includes("--input hosts=::1"),
+    "should not include --input hosts=::1 in dry run apply command",
+  );
+});
+
+Deno.test("mitigate dry run: mixed localhost + remote includes --input hosts", async () => {
+  const ctx = makeContext("mitigate", [
+    makeScanResult({
+      hostname: "localhost",
+      summary: "Dry run complete. Review commands",
+    }),
+    makeScanResult({
+      hostname: "10.0.0.5",
+      summary: "Dry run complete. Review commands",
+    }),
+  ]);
+  const result = await report.execute(ctx);
+  assertStringIncludes(
+    result.markdown,
+    "mitigate --input hosts=localhost,10.0.0.5 --input dryRun=false",
+  );
+});
+
 Deno.test("mitigate applied: verify command uses scan for localhost", async () => {
   const ctx = makeContext("mitigate", [
     makeScanResult({
       hostname: "localhost",
-      summary: "Mitigations applied: modules blacklisted",
+      summary: "Mitigations applied: modules blocklisted",
     }),
   ]);
   const result = await report.execute(ctx);
@@ -327,11 +387,11 @@ Deno.test("mitigate applied: verify command uses scanFleet for remote hosts", as
   const ctx = makeContext("mitigate", [
     makeScanResult({
       hostname: "10.0.0.1",
-      summary: "Mitigations applied: modules blacklisted",
+      summary: "Mitigations applied: modules blocklisted",
     }),
     makeScanResult({
       hostname: "10.0.0.2",
-      summary: "Mitigations applied: modules blacklisted",
+      summary: "Mitigations applied: modules blocklisted",
     }),
   ]);
   const result = await report.execute(ctx);

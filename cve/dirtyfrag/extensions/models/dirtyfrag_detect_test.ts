@@ -93,10 +93,10 @@ Deno.test("status resource schema validates a complete scan result", () => {
       modulesAvailable: [],
     },
     mitigations: {
-      espModulesBlacklisted: false,
-      rxrpcModuleBlacklisted: false,
+      espModulesBlocklisted: false,
+      rxrpcModuleBlocklisted: false,
       userNamespacesRestricted: false,
-      modprobeBlacklist: [],
+      modprobeBlocklist: [],
     },
     indicators: {
       suPageCacheCorrupted: false,
@@ -140,10 +140,10 @@ Deno.test("status resource schema rejects invalid riskLevel", () => {
         modulesAvailable: [],
       },
       mitigations: {
-        espModulesBlacklisted: false,
-        rxrpcModuleBlacklisted: false,
+        espModulesBlocklisted: false,
+        rxrpcModuleBlocklisted: false,
         userNamespacesRestricted: false,
-        modprobeBlacklist: [],
+        modprobeBlocklist: [],
       },
       indicators: {
         suPageCacheCorrupted: false,

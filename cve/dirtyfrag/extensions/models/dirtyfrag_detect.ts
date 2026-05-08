@@ -18,12 +18,9 @@
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Swamp datastore backend that stores repository state in Google Cloud Storage.
- *
- * Provides distributed locking via GCS generation-based preconditions and
- * bidirectional sync between a local cache directory and a GCS bucket. Use
- * this entrypoint when a swamp deployment should share state between multiple
- * processes or machines through GCS rather than a local directory.
+ * Dirty Frag vulnerability scanner — detects and mitigates CVE-2026-43284
+ * (xfrm/ESP page-cache corruption) and CVE-2026-43500 (RxRPC/RXKAD variant)
+ * on Linux hosts via local, SSH, or Docker transports.
  *
  * @module
  */
@@ -111,10 +108,10 @@ const VulnStatusSchema = z.object({
     modulesAvailable: z.array(z.string()),
   }),
   mitigations: z.object({
-    espModulesBlacklisted: z.boolean(),
-    rxrpcModuleBlacklisted: z.boolean(),
+    espModulesBlocklisted: z.boolean(),
+    rxrpcModuleBlocklisted: z.boolean(),
     userNamespacesRestricted: z.boolean(),
-    modprobeBlacklist: z.array(z.string()),
+    modprobeBlocklist: z.array(z.string()),
   }),
   indicators: z.object({
     suPageCacheCorrupted: z.boolean(),
@@ -145,7 +142,10 @@ function buildTransport(g: {
   if (container) {
     return { kind: "docker", container };
   }
-  if (g.targetHost === "localhost" || g.targetHost === "127.0.0.1") {
+  if (
+    g.targetHost === "localhost" || g.targetHost === "127.0.0.1" ||
+    g.targetHost === "::1"
+  ) {
     return { kind: "local" };
   }
   const args = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"];
@@ -384,21 +384,21 @@ async function scanHost(
 
   // Mitigation check
   await log.writeLine("\n=== Mitigation Check ===\n");
-  const blacklistResult = await runCmd(
+  const blocklistResult = await runCmd(
     transport,
     "grep -rh 'install.*esp4\\|install.*esp6\\|install.*rxrpc\\|blacklist.*esp4\\|blacklist.*esp6\\|blacklist.*rxrpc' /etc/modprobe.d/ 2>/dev/null || echo ''",
     logger,
   );
-  const blacklistLines = blacklistResult.stdout
+  const blocklistLines = blocklistResult.stdout
     .split("\n")
     .filter((l) => l.length > 0);
 
-  const espBlacklisted = blacklistLines.some((l) => /esp4/.test(l)) &&
-    blacklistLines.some((l) => /esp6/.test(l));
-  const rxrpcBlacklisted = blacklistLines.some((l) => /rxrpc/.test(l));
+  const espBlocklisted = blocklistLines.some((l) => /esp4/.test(l)) &&
+    blocklistLines.some((l) => /esp6/.test(l));
+  const rxrpcBlocklisted = blocklistLines.some((l) => /rxrpc/.test(l));
 
-  await log.writeLine(`ESP modules blacklisted: ${espBlacklisted}\n`);
-  await log.writeLine(`RxRPC module blacklisted: ${rxrpcBlacklisted}\n`);
+  await log.writeLine(`ESP modules blocklisted: ${espBlocklisted}\n`);
+  await log.writeLine(`RxRPC module blocklisted: ${rxrpcBlocklisted}\n`);
 
   // Patch detection
   await log.writeLine("\n=== Patch Detection ===\n");
@@ -488,18 +488,18 @@ async function scanHost(
 
   const activeCompromise = suCorrupted || passwdCorrupted;
 
-  const espMitigated = !espAffected || espBlacklisted || espPatched;
-  const rxrpcMitigated = !rxrpcAffected || rxrpcBlacklisted || rxrpcPatched;
+  const espMitigated = !espAffected || espBlocklisted || espPatched;
+  const rxrpcMitigated = !rxrpcAffected || rxrpcBlocklisted || rxrpcPatched;
 
   let riskLevel: "critical" | "high" | "medium" | "low" | "none";
   if (activeCompromise) {
     riskLevel = "critical";
   } else if (
-    (espAffected && userNamespacesEnabled && !espBlacklisted) ||
-    (rxrpcAffected && !rxrpcBlacklisted)
+    (espAffected && userNamespacesEnabled && !espBlocklisted) ||
+    (rxrpcAffected && !rxrpcBlocklisted)
   ) {
     riskLevel = "critical";
-  } else if (espAffected && !espBlacklisted) {
+  } else if (espAffected && !espBlocklisted) {
     riskLevel = "high";
   } else if ((espAffected || rxrpcAffected) && espMitigated && rxrpcMitigated) {
     riskLevel = "low";
@@ -522,14 +522,14 @@ async function scanHost(
       "Run 'echo 3 > /proc/sys/vm/drop_caches' to flush corrupted page cache (after forensic collection).",
     );
   }
-  if (espAffected && !espBlacklisted) {
+  if (espAffected && !espBlocklisted) {
     recommendations.push(
-      "Apply kernel patch for CVE-2026-43284 (commit f4c50a4034e6) or blacklist esp4/esp6 modules: printf 'install esp4 /bin/false\\ninstall esp6 /bin/false\\n' > /etc/modprobe.d/dirtyfrag-esp.conf",
+      "Apply kernel patch for CVE-2026-43284 (commit f4c50a4034e6) or blocklist esp4/esp6 modules: printf 'install esp4 /bin/false\\ninstall esp6 /bin/false\\n' > /etc/modprobe.d/dirtyfrag-esp.conf",
     );
   }
-  if (rxrpcAffected && !rxrpcBlacklisted) {
+  if (rxrpcAffected && !rxrpcBlocklisted) {
     recommendations.push(
-      "No upstream patch for CVE-2026-43500 yet. Blacklist rxrpc if AFS is not needed: echo 'install rxrpc /bin/false' > /etc/modprobe.d/dirtyfrag-rxrpc.conf",
+      "No upstream patch for CVE-2026-43500 yet. Blocklist rxrpc if AFS is not needed: echo 'install rxrpc /bin/false' > /etc/modprobe.d/dirtyfrag-rxrpc.conf",
     );
   }
   if (userNamespacesEnabled && espAffected) {
@@ -586,10 +586,10 @@ async function scanHost(
       modulesAvailable: rxrpcModulesAvailable,
     },
     mitigations: {
-      espModulesBlacklisted: espBlacklisted,
-      rxrpcModuleBlacklisted: rxrpcBlacklisted,
+      espModulesBlocklisted: espBlocklisted,
+      rxrpcModuleBlocklisted: rxrpcBlocklisted,
       userNamespacesRestricted: !userNamespacesEnabled,
-      modprobeBlacklist: blacklistLines,
+      modprobeBlocklist: blocklistLines,
     },
     indicators: {
       suPageCacheCorrupted: suCorrupted,
@@ -604,12 +604,38 @@ async function scanHost(
 
 export const model = {
   type: "@swamp/cve/dirtyfrag",
-  version: "2026.05.08.4",
+  version: "2026.05.08.5",
   upgrades: [
     {
       toVersion: "2026.05.08.4",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.08.5",
+      description: "Rename blacklist fields to blocklist",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const mitigations = old.mitigations as
+          | Record<string, unknown>
+          | undefined;
+        if (mitigations) {
+          if ("espModulesBlacklisted" in mitigations) {
+            mitigations.espModulesBlocklisted =
+              mitigations.espModulesBlacklisted;
+            delete mitigations.espModulesBlacklisted;
+          }
+          if ("rxrpcModuleBlacklisted" in mitigations) {
+            mitigations.rxrpcModuleBlocklisted =
+              mitigations.rxrpcModuleBlacklisted;
+            delete mitigations.rxrpcModuleBlacklisted;
+          }
+          if ("modprobeBlacklist" in mitigations) {
+            mitigations.modprobeBlocklist = mitigations.modprobeBlacklist;
+            delete mitigations.modprobeBlacklist;
+          }
+        }
+        return old;
+      },
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -774,7 +800,7 @@ export const model = {
 
     mitigate: {
       description:
-        "Apply mitigations for Dirty Frag: blacklist vulnerable modules and restrict user namespaces. Accepts a single host or comma-separated list.",
+        "Apply mitigations for Dirty Frag: blocklist vulnerable modules and restrict user namespaces. Accepts a single host or comma-separated list.",
       arguments: z.object({
         dryRun: z
           .boolean()
@@ -916,7 +942,7 @@ export const model = {
             vulnerable = true;
           } else {
             summary =
-              "Mitigations applied: vulnerable modules blacklisted, page cache flushed.";
+              "Mitigations applied: vulnerable modules blocklisted, page cache flushed.";
             riskLevel = "medium";
             vulnerable = true;
           }
@@ -948,10 +974,10 @@ export const model = {
               modulesAvailable: [],
             },
             mitigations: {
-              espModulesBlacklisted: mitigated,
-              rxrpcModuleBlacklisted: mitigated,
+              espModulesBlocklisted: mitigated,
+              rxrpcModuleBlocklisted: mitigated,
               userNamespacesRestricted: false,
-              modprobeBlacklist: mitigated
+              modprobeBlocklist: mitigated
                 ? [
                   "install esp4 /bin/false",
                   "install esp6 /bin/false",
