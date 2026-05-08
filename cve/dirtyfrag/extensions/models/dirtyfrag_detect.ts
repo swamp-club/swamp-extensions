@@ -604,7 +604,14 @@ async function scanHost(
 
 export const model = {
   type: "@swamp/cve/dirtyfrag",
-  version: "2026.05.08.3",
+  version: "2026.05.08.4",
+  upgrades: [
+    {
+      toVersion: "2026.05.08.4",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   reports: [
