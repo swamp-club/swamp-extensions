@@ -19,6 +19,7 @@ jobs:
       models: ${{ steps.filter.outputs.models }}
       issue-lifecycle: ${{ steps.filter.outputs['issue-lifecycle'] }}
       workflows: ${{ steps.filter.outputs.workflows }}
+      cve: ${{ steps.filter.outputs.cve }}
       ci: ${{ steps.filter.outputs.ci }}
     steps:
       - name: Checkout code
@@ -41,6 +42,8 @@ jobs:
               - 'issue-lifecycle/**'
             workflows:
               - 'workflows/**'
+            cve:
+              - 'cve/**'
             ci:
               - '.github/workflows/**'
               - 'scripts/**'
@@ -248,6 +251,60 @@ jobs:
     defaults:
       run:
         working-directory: workflows/${{ matrix.workflow }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Verify lockfile is up to date
+        run: deno install --frozen
+
+  cve-check:
+    name: cve/${{ matrix.cve }} - ${{ matrix.task }}
+    needs: [changes]
+    if: needs.changes.outputs.cve == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        cve: [dirtyfrag]
+        task: [check, lint, fmt, test]
+    defaults:
+      run:
+        working-directory: cve/${{ matrix.cve }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: deno ${{ matrix.task }}
+        run: |
+          if [ "${{ matrix.task }}" = "fmt" ]; then
+            deno fmt --check extensions/models/ extensions/reports/
+          elif [ "${{ matrix.task }}" = "lint" ]; then
+            deno lint extensions/models/ extensions/reports/
+          elif [ "${{ matrix.task }}" = "test" ]; then
+            deno test --allow-read --allow-write --allow-env --allow-net --allow-sys extensions/models/ extensions/reports/
+          else
+            deno check extensions/models/*.ts extensions/reports/*.ts
+          fi
+
+  cve-lockfile:
+    name: cve/${{ matrix.cve }} - lockfile up to date
+    needs: [changes]
+    if: needs.changes.outputs.cve == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        cve: [dirtyfrag]
+    defaults:
+      run:
+        working-directory: cve/${{ matrix.cve }}
     steps:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
@@ -476,7 +533,7 @@ jobs:
       - name: Check for outdated dependencies
         run: |
           has_outdated=false
-          for lockdir in $(find vault datastore model codegen issue-lifecycle workflows -name "deno.lock" -exec dirname {} \;); do
+          for lockdir in $(find vault datastore model codegen issue-lifecycle workflows cve -name "deno.lock" -exec dirname {} \;); do
             output=$(cd "$lockdir" && deno outdated 2>&1) || true
             if [ -n "$output" ]; then
               echo "::warning::Outdated dependencies in $lockdir"
@@ -514,6 +571,8 @@ jobs:
         issue-lifecycle-lockfile,
         workflows-check,
         workflows-lockfile,
+        cve-check,
+        cve-lockfile,
         model-check,
         model-lockfile,
         aws-check,
@@ -560,7 +619,7 @@ jobs:
 
             IMPORTANT: Files under `model/` are auto-generated — do NOT review their content.
             Skip reading files in `model/`. Focus your review on `vault/`, `datastore/`,
-            `issue-lifecycle/`, `workflows/`, `codegen/`, and `scripts/`.
+            `issue-lifecycle/`, `workflows/`, `cve/`, `codegen/`, and `scripts/`.
 
             Model files may change without codegen changes in two legitimate cases:
             1. Codegen regeneration (codegen/ also changes)
@@ -658,6 +717,8 @@ jobs:
         issue-lifecycle-lockfile,
         workflows-check,
         workflows-lockfile,
+        cve-check,
+        cve-lockfile,
         aws-check,
         aws-lockfile,
         gcp-check,
@@ -674,7 +735,7 @@ jobs:
       !failure() && !cancelled() &&
       github.event_name == 'pull_request' &&
       github.event.pull_request.draft == false &&
-      (needs.changes.outputs.vaults == 'true' || needs.changes.outputs.datastores == 'true' || needs.changes.outputs['issue-lifecycle'] == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.codegen == 'true')
+      (needs.changes.outputs.vaults == 'true' || needs.changes.outputs.datastores == 'true' || needs.changes.outputs['issue-lifecycle'] == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.cve == 'true' || needs.changes.outputs.codegen == 'true')
     concurrency:
       group: claude-adversarial-review-${{ github.event.pull_request.number }}
       cancel-in-progress: true
@@ -708,7 +769,7 @@ jobs:
 
             IMPORTANT: Files under `model/` are auto-generated — do NOT review their content.
             Skip reading files in `model/`. Focus your review on `vault/`, `datastore/`,
-            `issue-lifecycle/`, `workflows/`, `codegen/`, and `scripts/`.
+            `issue-lifecycle/`, `workflows/`, `cve/`, `codegen/`, and `scripts/`.
 
             Your review MUST systematically attempt to break the code across these dimensions:
 

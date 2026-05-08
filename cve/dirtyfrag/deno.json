@@ -1,0 +1,20 @@
+{
+  "tasks": {
+    "check": "deno check extensions/models/dirtyfrag_detect.ts extensions/reports/dirtyfrag_scan_report.ts",
+    "lint": "deno lint extensions/models/ extensions/reports/",
+    "fmt": "deno fmt extensions/models/ extensions/reports/",
+    "fmt:check": "deno fmt --check extensions/models/ extensions/reports/",
+    "test": "deno test --allow-read --allow-write --allow-env --allow-net --allow-sys extensions/models/ extensions/reports/"
+  },
+  "lint": {
+    "rules": {
+      "exclude": ["no-import-prefix"]
+    }
+  },
+  "imports": {
+    "zod": "npm:zod@4.3.6",
+    "@std/path": "jsr:@std/path@1",
+    "@std/fs": "jsr:@std/fs@1",
+    "@systeminit/swamp-testing": "jsr:@systeminit/swamp-testing@0.20260331.5"
+  }
+}
