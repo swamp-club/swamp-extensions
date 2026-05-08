@@ -368,7 +368,7 @@ Deno.test("mitigate applied: verify command uses scan for localhost", async () =
   const ctx = makeContext("mitigate", [
     makeScanResult({
       hostname: "localhost",
-      summary: "Mitigations applied: modules Block",
+      summary: "Mitigations applied: modules blocklisted",
     }),
   ]);
   const result = await report.execute(ctx);

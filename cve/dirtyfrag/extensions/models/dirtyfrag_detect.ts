@@ -386,7 +386,7 @@ async function scanHost(
   await log.writeLine("\n=== Mitigation Check ===\n");
   const blocklistResult = await runCmd(
     transport,
-    "grep -rh 'install.*esp4\\|install.*esp6\\|install.*rxrpc\\|blocklist.*esp4\\|blocklist.*esp6\\|blocklist.*rxrpc' /etc/modprobe.d/ 2>/dev/null || echo ''",
+    "grep -rh 'install.*esp4\\|install.*esp6\\|install.*rxrpc\\|blacklist.*esp4\\|blacklist.*esp6\\|blacklist.*rxrpc' /etc/modprobe.d/ 2>/dev/null || echo ''",
     logger,
   );
   const blocklistLines = blocklistResult.stdout
@@ -613,8 +613,29 @@ export const model = {
     },
     {
       toVersion: "2026.05.08.5",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
+      description: "Rename blacklist fields to blocklist",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const mitigations = old.mitigations as
+          | Record<string, unknown>
+          | undefined;
+        if (mitigations) {
+          if ("espModulesBlacklisted" in mitigations) {
+            mitigations.espModulesBlocklisted =
+              mitigations.espModulesBlacklisted;
+            delete mitigations.espModulesBlacklisted;
+          }
+          if ("rxrpcModuleBlacklisted" in mitigations) {
+            mitigations.rxrpcModuleBlocklisted =
+              mitigations.rxrpcModuleBlacklisted;
+            delete mitigations.rxrpcModuleBlacklisted;
+          }
+          if ("modprobeBlacklist" in mitigations) {
+            mitigations.modprobeBlocklist = mitigations.modprobeBlacklist;
+            delete mitigations.modprobeBlacklist;
+          }
+        }
+        return old;
+      },
     },
   ],
   globalArguments: GlobalArgsSchema,
