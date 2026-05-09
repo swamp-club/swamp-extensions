@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/privateca"
-version: "2026.04.23.1"
+version: "2026.05.09.1"
 description: "Google Cloud privateca infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,6 +10,8 @@ labels:
   - privateca
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: capools, capools_certificates
 models:
   - capools.ts
   - capools_certificateauthorities.ts

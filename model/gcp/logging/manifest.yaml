@@ -10,8 +10,6 @@ labels:
   - logging
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: savedqueries
 models:
   - buckets.ts
   - buckets_links.ts

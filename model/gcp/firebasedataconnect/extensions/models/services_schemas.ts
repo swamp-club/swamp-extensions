@@ -159,7 +159,7 @@ const GlobalArgsSchema = z.object({
         "SQL_SCHEMA_MIGRATION_UNSPECIFIED",
         "MIGRATE_COMPATIBLE",
       ]).describe(
-        "Optional. Configure how to perform Postgresql schema migration.",
+        "Optional. Configure how to perform automatic PostgreSQL schema migration before deploying the FDC schema. This is an additive-only operation.",
       ).optional(),
       schemaValidation: z.enum([
         "SQL_SCHEMA_VALIDATION_UNSPECIFIED",
@@ -167,7 +167,7 @@ const GlobalArgsSchema = z.object({
         "STRICT",
         "COMPATIBLE",
       ]).describe(
-        "Optional. Configure how much Postgresql schema validation to perform.",
+        "Optional. Configure how much PostgreSQL schema validation to perform against the live database before deploying the FDC schema.",
       ).optional(),
       unlinked: z.boolean().describe(
         "No Postgres data source is linked. If set, don't allow `database` and `schema_validation` to be configured.",
@@ -273,7 +273,7 @@ const InputsSchema = z.object({
         "SQL_SCHEMA_MIGRATION_UNSPECIFIED",
         "MIGRATE_COMPATIBLE",
       ]).describe(
-        "Optional. Configure how to perform Postgresql schema migration.",
+        "Optional. Configure how to perform automatic PostgreSQL schema migration before deploying the FDC schema. This is an additive-only operation.",
       ).optional(),
       schemaValidation: z.enum([
         "SQL_SCHEMA_VALIDATION_UNSPECIFIED",
@@ -281,7 +281,7 @@ const InputsSchema = z.object({
         "STRICT",
         "COMPATIBLE",
       ]).describe(
-        "Optional. Configure how much Postgresql schema validation to perform.",
+        "Optional. Configure how much PostgreSQL schema validation to perform against the live database before deploying the FDC schema.",
       ).optional(),
       unlinked: z.boolean().describe(
         "No Postgres data source is linked. If set, don't allow `database` and `schema_validation` to be configured.",
@@ -321,7 +321,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Firebase Data Connect Services.Schemas. Registered at `@swamp/gcp/firebasedataconnect/services-schemas`. */
 export const model = {
   type: "@swamp/gcp/firebasedataconnect/services-schemas",
-  version: "2026.05.01.1",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -355,6 +355,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -10,8 +10,6 @@ labels:
   - datamigration
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: migrationjobs
 models:
   - connectionprofiles.ts
   - conversionworkspaces.ts

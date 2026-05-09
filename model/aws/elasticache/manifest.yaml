@@ -9,8 +9,6 @@ labels:
   - elasticache
   - cloud
   - infrastructure
-releaseNotes: |
-  - Added: cache_cluster
 models:
   - cache_cluster.ts
   - global_replication_group.ts

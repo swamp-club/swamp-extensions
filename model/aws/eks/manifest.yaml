@@ -9,8 +9,6 @@ labels:
   - eks
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: addon
 models:
   - access_entry.ts
   - addon.ts

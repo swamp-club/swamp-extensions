@@ -9,8 +9,6 @@ labels:
   - rds
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: custom_dbengine_version
 models:
   - custom_dbengine_version.ts
   - dbcluster.ts

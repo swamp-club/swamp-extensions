@@ -525,6 +525,11 @@ const GlobalArgsSchema = z.object({
     }).describe("Represents a select subset of an OpenAPI 3.0 schema object.")
       .optional(),
   })).describe("Optional. The declarations of the variables.").optional(),
+  vpcScSettings: z.object({
+    allowedOrigins: z.array(z.string()).describe(
+      'Optional. The allowed HTTP(s) origins that OpenAPI tools in the App are able to directly call when VPC Service Controls are enabled. These strings must match the origin exactly, including the port if specified. For example, "https://example.com" or "https://example.com:443". This list does not yet apply to Python tools that may make direct HTTP calls.',
+    ).optional(),
+  }).describe("VPC-SC settings for the app.").optional(),
   appId: z.string().describe(
     "Optional. The ID to use for the app, which will become the final component of the app's resource name. If not provided, a unique ID will be automatically assigned for the app.",
   ).optional(),
@@ -694,6 +699,7 @@ const StateSchema = z.object({
   }).optional(),
   toolExecutionMode: z.string().optional(),
   updateTime: z.string().optional(),
+  validationErrors: z.array(z.string()).optional(),
   variableDeclarations: z.array(z.object({
     description: z.string(),
     name: z.string(),
@@ -719,6 +725,9 @@ const StateSchema = z.object({
       uniqueItems: z.boolean(),
     }),
   })).optional(),
+  vpcScSettings: z.object({
+    allowedOrigins: z.array(z.string()),
+  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1148,6 +1157,11 @@ const InputsSchema = z.object({
     }).describe("Represents a select subset of an OpenAPI 3.0 schema object.")
       .optional(),
   })).describe("Optional. The declarations of the variables.").optional(),
+  vpcScSettings: z.object({
+    allowedOrigins: z.array(z.string()).describe(
+      'Optional. The allowed HTTP(s) origins that OpenAPI tools in the App are able to directly call when VPC Service Controls are enabled. These strings must match the origin exactly, including the port if specified. For example, "https://example.com" or "https://example.com:443". This list does not yet apply to Python tools that may make direct HTTP calls.',
+    ).optional(),
+  }).describe("VPC-SC settings for the app.").optional(),
   appId: z.string().describe(
     "Optional. The ID to use for the app, which will become the final component of the app's resource name. If not provided, a unique ID will be automatically assigned for the app.",
   ).optional(),
@@ -1159,7 +1173,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps. Registered at `@swamp/gcp/ces/apps`. */
 export const model = {
   type: "@swamp/gcp/ces/apps",
-  version: "2026.04.23.2",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1209,6 +1223,11 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
+      description: "Added: vpcScSettings",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1284,6 +1303,9 @@ export const model = {
         }
         if (g["variableDeclarations"] !== undefined) {
           body["variableDeclarations"] = g["variableDeclarations"];
+        }
+        if (g["vpcScSettings"] !== undefined) {
+          body["vpcScSettings"] = g["vpcScSettings"];
         }
         if (g["appId"] !== undefined) body["appId"] = g["appId"];
         if (g["parent"] !== undefined && g["name"] !== undefined) {
@@ -1415,6 +1437,9 @@ export const model = {
         }
         if (g["variableDeclarations"] !== undefined) {
           body["variableDeclarations"] = g["variableDeclarations"];
+        }
+        if (g["vpcScSettings"] !== undefined) {
+          body["vpcScSettings"] = g["vpcScSettings"];
         }
         for (const key of Object.keys(existing)) {
           if (

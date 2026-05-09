@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/route53resolver"
-version: "2026.04.23.3"
+version: "2026.05.09.1"
 description: "AWS ROUTE53RESOLVER infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - route53resolver
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: resolver_endpoint
 models:
   - firewall_domain_list.ts
   - firewall_rule_group.ts

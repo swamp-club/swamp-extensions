@@ -570,6 +570,9 @@ const GlobalArgsSchema = z.object({
   pemCsr: z.string().describe(
     "Immutable. A pem-encoded X.509 certificate signing request (CSR).",
   ).optional(),
+  requestedNotBeforeTime: z.string().describe(
+    "Optional. The requested not_before_time of this Certificate. This field may only be set if the CaPool.IssuancePolicy.allow_requester_specified_not_before_time field is set to true for the issuing CaPool. If this field is specified, the certificate will be issued with this 'not_before_time'. If this is not specified, the 'not_before_time' will be set to the issuance time or issuance time minus backdate_duration depending on the CaPool configuration.",
+  ).optional(),
   revocationDetails: z.object({
     revocationState: z.enum([
       "REVOCATION_REASON_UNSPECIFIED",
@@ -807,6 +810,7 @@ const StateSchema = z.object({
   pemCertificate: z.string().optional(),
   pemCertificateChain: z.array(z.string()).optional(),
   pemCsr: z.string().optional(),
+  requestedNotBeforeTime: z.string().optional(),
   revocationDetails: z.object({
     revocationState: z.string(),
     revocationTime: z.string(),
@@ -1294,6 +1298,9 @@ const InputsSchema = z.object({
   pemCsr: z.string().describe(
     "Immutable. A pem-encoded X.509 certificate signing request (CSR).",
   ).optional(),
+  requestedNotBeforeTime: z.string().describe(
+    "Optional. The requested not_before_time of this Certificate. This field may only be set if the CaPool.IssuancePolicy.allow_requester_specified_not_before_time field is set to true for the issuing CaPool. If this field is specified, the certificate will be issued with this 'not_before_time'. If this is not specified, the 'not_before_time' will be set to the issuance time or issuance time minus backdate_duration depending on the CaPool configuration.",
+  ).optional(),
   revocationDetails: z.object({
     revocationState: z.enum([
       "REVOCATION_REASON_UNSPECIFIED",
@@ -1337,7 +1344,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Certificate Authority CaPools.Certificates. Registered at `@swamp/gcp/privateca/capools-certificates`. */
 export const model = {
   type: "@swamp/gcp/privateca/capools-certificates",
-  version: "2026.04.23.1",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1374,6 +1381,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.09.1",
+      description: "Added: requestedNotBeforeTime",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1407,6 +1419,9 @@ export const model = {
         if (g["lifetime"] !== undefined) body["lifetime"] = g["lifetime"];
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["pemCsr"] !== undefined) body["pemCsr"] = g["pemCsr"];
+        if (g["requestedNotBeforeTime"] !== undefined) {
+          body["requestedNotBeforeTime"] = g["requestedNotBeforeTime"];
+        }
         if (g["revocationDetails"] !== undefined) {
           body["revocationDetails"] = g["revocationDetails"];
         }
@@ -1505,6 +1520,9 @@ export const model = {
         }
         if (g["config"] !== undefined) body["config"] = g["config"];
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        if (g["requestedNotBeforeTime"] !== undefined) {
+          body["requestedNotBeforeTime"] = g["requestedNotBeforeTime"];
+        }
         if (g["revocationDetails"] !== undefined) {
           body["revocationDetails"] = g["revocationDetails"];
         }

@@ -310,7 +310,7 @@ const GlobalArgsSchema = z.object({
         "Optional. The Cloud Storage URI of the pickled python object.",
       ).optional(),
       pythonVersion: z.string().describe(
-        "Optional. The Python version. Supported values are 3.9, 3.10, 3.11, 3.12, 3.13, 3.14. If not specified, the default value is 3.10.",
+        "Optional. The Python version. Supported values are 3.10, 3.11, 3.12, 3.13, 3.14. If not specified, the default value is 3.10.",
       ).optional(),
       requirementsGcsUri: z.string().describe(
         "Optional. The Cloud Storage URI of the `requirements.txt` file",
@@ -378,7 +378,7 @@ const GlobalArgsSchema = z.object({
           'Optional. The path to the requirements file, relative to the source root. If not specified, defaults to "requirements.txt".',
         ).optional(),
         version: z.string().describe(
-          "Optional. The version of Python to use. Support version includes 3.9, 3.10, 3.11, 3.12, 3.13, 3.14. If not specified, default value is 3.10.",
+          "Optional. The version of Python to use. Supported versions include 3.10, 3.11, 3.12, 3.13, 3.14. If not specified, default value is 3.10.",
         ).optional(),
       }).describe("Specification for running a Python application from source.")
         .optional(),
@@ -731,7 +731,7 @@ const InputsSchema = z.object({
         "Optional. The Cloud Storage URI of the pickled python object.",
       ).optional(),
       pythonVersion: z.string().describe(
-        "Optional. The Python version. Supported values are 3.9, 3.10, 3.11, 3.12, 3.13, 3.14. If not specified, the default value is 3.10.",
+        "Optional. The Python version. Supported values are 3.10, 3.11, 3.12, 3.13, 3.14. If not specified, the default value is 3.10.",
       ).optional(),
       requirementsGcsUri: z.string().describe(
         "Optional. The Cloud Storage URI of the `requirements.txt` file",
@@ -799,7 +799,7 @@ const InputsSchema = z.object({
           'Optional. The path to the requirements file, relative to the source root. If not specified, defaults to "requirements.txt".',
         ).optional(),
         version: z.string().describe(
-          "Optional. The version of Python to use. Support version includes 3.9, 3.10, 3.11, 3.12, 3.13, 3.14. If not specified, default value is 3.10.",
+          "Optional. The version of Python to use. Supported versions include 3.10, 3.11, 3.12, 3.13, 3.14. If not specified, default value is 3.10.",
         ).optional(),
       }).describe("Specification for running a Python application from source.")
         .optional(),
@@ -813,7 +813,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Agent Platform ReasoningEngines. Registered at `@swamp/gcp/aiplatform/reasoningengines`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines",
-  version: "2026.05.02.1",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -862,6 +862,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1133,6 +1138,38 @@ export const model = {
           },
           params,
           body,
+        );
+        return { result };
+      },
+    },
+    cancel_async_query: {
+      description: "cancel async query",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id":
+              "aiplatform.projects.locations.reasoningEngines.cancelAsyncQuery",
+            "path": "v1/{+name}:cancelAsyncQuery",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": {
+              "name": { "location": "path", "required": true },
+              "operationName": { "location": "query" },
+            },
+          },
+          params,
+          {},
         );
         return { result };
       },

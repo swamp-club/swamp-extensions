@@ -812,6 +812,66 @@ const GlobalArgsSchema = z.object({
       "Optional. The Python code to execute for the tool.",
     ).optional(),
   }).describe("A Python function tool.").optional(),
+  remoteAgentTool: z.object({
+    agentCard: z.object({
+      description: z.string().describe(
+        "Required. A description of the agent's domain of action/solution space.",
+      ).optional(),
+      name: z.string().describe(
+        "Required. A human-readable name for the agent.",
+      ).optional(),
+      skills: z.array(z.object({
+        description: z.string().describe(
+          "Required. A detailed description of the skill.",
+        ).optional(),
+        examples: z.array(z.unknown()).describe(
+          "Example prompts or scenarios that this skill can handle.",
+        ).optional(),
+        id: z.string().describe(
+          "Required. A unique identifier for the agent's skill.",
+        ).optional(),
+        inputModes: z.array(z.unknown()).describe(
+          "The set of supported input media types for this skill, overriding the agent's defaults.",
+        ).optional(),
+        name: z.string().describe(
+          "Required. A human-readable name for the skill.",
+        ).optional(),
+        outputModes: z.array(z.unknown()).describe(
+          "The set of supported output media types for this skill, overriding the agent's defaults.",
+        ).optional(),
+        tags: z.array(z.unknown()).describe(
+          "Required. A set of keywords describing the skill's capabilities.",
+        ).optional(),
+      })).describe(
+        "Required. Skills represent a unit of ability an agent can perform. This may somewhat abstract but represents a more focused set of actions that the agent is highly likely to succeed at.",
+      ).optional(),
+      supportedInterfaces: z.array(z.object({
+        protocolBinding: z.string().describe(
+          "Required. The protocol binding supported at this URL. This is an open form string, to be easily extended for other protocol bindings. The core ones officially supported are `JSONRPC`, `GRPC` and `HTTP+JSON`.",
+        ).optional(),
+        protocolVersion: z.string().describe(
+          'Required. The version of the A2A protocol this interface exposes. Use the latest supported minor version per major version. Examples: "0.3", "1.0"',
+        ).optional(),
+        tenant: z.string().describe(
+          "Tenant ID to be used in the request when calling the agent.",
+        ).optional(),
+        url: z.string().describe(
+          'Required. The URL where this interface is available. Must be a valid absolute HTTPS URL in production. Example: "https://api.example.com/a2a/v1", "https://grpc.example.com/a2a"',
+        ).optional(),
+      })).describe(
+        "Required. Ordered list of supported interfaces. The first entry is preferred.",
+      ).optional(),
+      version: z.string().describe("Required. The version of the agent.")
+        .optional(),
+    }).describe(
+      "AgentCard conveys key information about a remote agent. It is a trimmed version of the AgentCard defined in the A2A protocol https://a2a-protocol.org/dev/specification/#441-agentcard",
+    ).optional(),
+    description: z.string().describe("Required. The description of the tool.")
+      .optional(),
+    name: z.string().describe("Required. The name of the tool.").optional(),
+  }).describe(
+    "Represents a tool that allows the agent to call another remote agent.",
+  ).optional(),
   systemTool: z.object({
     description: z.string().describe(
       "Output only. The description of the system tool.",
@@ -819,6 +879,9 @@ const GlobalArgsSchema = z.object({
     name: z.string().describe("Required. The name of the system tool.")
       .optional(),
   }).describe("Pre-defined system tool.").optional(),
+  timeout: z.string().describe(
+    "Optional. The timeout for the tool execution. If not set, the default timeout is 30 seconds for `SYNCHRONOUS` tools and 60 seconds for `ASYNCHRONOUS` tools.",
+  ).optional(),
   toolFakeConfig: z.object({
     codeBlock: z.object({
       pythonCode: z.string().describe(
@@ -1251,10 +1314,35 @@ const StateSchema = z.object({
     name: z.string(),
     pythonCode: z.string(),
   }).optional(),
+  remoteAgentTool: z.object({
+    agentCard: z.object({
+      description: z.string(),
+      name: z.string(),
+      skills: z.array(z.object({
+        description: z.string(),
+        examples: z.array(z.unknown()),
+        id: z.string(),
+        inputModes: z.array(z.unknown()),
+        name: z.string(),
+        outputModes: z.array(z.unknown()),
+        tags: z.array(z.unknown()),
+      })),
+      supportedInterfaces: z.array(z.object({
+        protocolBinding: z.string(),
+        protocolVersion: z.string(),
+        tenant: z.string(),
+        url: z.string(),
+      })),
+      version: z.string(),
+    }),
+    description: z.string(),
+    name: z.string(),
+  }).optional(),
   systemTool: z.object({
     description: z.string(),
     name: z.string(),
   }).optional(),
+  timeout: z.string().optional(),
   toolFakeConfig: z.object({
     codeBlock: z.object({
       pythonCode: z.string(),
@@ -2018,6 +2106,66 @@ const InputsSchema = z.object({
       "Optional. The Python code to execute for the tool.",
     ).optional(),
   }).describe("A Python function tool.").optional(),
+  remoteAgentTool: z.object({
+    agentCard: z.object({
+      description: z.string().describe(
+        "Required. A description of the agent's domain of action/solution space.",
+      ).optional(),
+      name: z.string().describe(
+        "Required. A human-readable name for the agent.",
+      ).optional(),
+      skills: z.array(z.object({
+        description: z.string().describe(
+          "Required. A detailed description of the skill.",
+        ).optional(),
+        examples: z.array(z.unknown()).describe(
+          "Example prompts or scenarios that this skill can handle.",
+        ).optional(),
+        id: z.string().describe(
+          "Required. A unique identifier for the agent's skill.",
+        ).optional(),
+        inputModes: z.array(z.unknown()).describe(
+          "The set of supported input media types for this skill, overriding the agent's defaults.",
+        ).optional(),
+        name: z.string().describe(
+          "Required. A human-readable name for the skill.",
+        ).optional(),
+        outputModes: z.array(z.unknown()).describe(
+          "The set of supported output media types for this skill, overriding the agent's defaults.",
+        ).optional(),
+        tags: z.array(z.unknown()).describe(
+          "Required. A set of keywords describing the skill's capabilities.",
+        ).optional(),
+      })).describe(
+        "Required. Skills represent a unit of ability an agent can perform. This may somewhat abstract but represents a more focused set of actions that the agent is highly likely to succeed at.",
+      ).optional(),
+      supportedInterfaces: z.array(z.object({
+        protocolBinding: z.string().describe(
+          "Required. The protocol binding supported at this URL. This is an open form string, to be easily extended for other protocol bindings. The core ones officially supported are `JSONRPC`, `GRPC` and `HTTP+JSON`.",
+        ).optional(),
+        protocolVersion: z.string().describe(
+          'Required. The version of the A2A protocol this interface exposes. Use the latest supported minor version per major version. Examples: "0.3", "1.0"',
+        ).optional(),
+        tenant: z.string().describe(
+          "Tenant ID to be used in the request when calling the agent.",
+        ).optional(),
+        url: z.string().describe(
+          'Required. The URL where this interface is available. Must be a valid absolute HTTPS URL in production. Example: "https://api.example.com/a2a/v1", "https://grpc.example.com/a2a"',
+        ).optional(),
+      })).describe(
+        "Required. Ordered list of supported interfaces. The first entry is preferred.",
+      ).optional(),
+      version: z.string().describe("Required. The version of the agent.")
+        .optional(),
+    }).describe(
+      "AgentCard conveys key information about a remote agent. It is a trimmed version of the AgentCard defined in the A2A protocol https://a2a-protocol.org/dev/specification/#441-agentcard",
+    ).optional(),
+    description: z.string().describe("Required. The description of the tool.")
+      .optional(),
+    name: z.string().describe("Required. The name of the tool.").optional(),
+  }).describe(
+    "Represents a tool that allows the agent to call another remote agent.",
+  ).optional(),
   systemTool: z.object({
     description: z.string().describe(
       "Output only. The description of the system tool.",
@@ -2025,6 +2173,9 @@ const InputsSchema = z.object({
     name: z.string().describe("Required. The name of the system tool.")
       .optional(),
   }).describe("Pre-defined system tool.").optional(),
+  timeout: z.string().describe(
+    "Optional. The timeout for the tool execution. If not set, the default timeout is 30 seconds for `SYNCHRONOUS` tools and 60 seconds for `ASYNCHRONOUS` tools.",
+  ).optional(),
   toolFakeConfig: z.object({
     codeBlock: z.object({
       pythonCode: z.string().describe(
@@ -2174,7 +2325,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Tools. Registered at `@swamp/gcp/ces/apps-tools`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-tools",
-  version: "2026.04.23.2",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -2219,6 +2370,11 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
+      description: "Added: remoteAgentTool, timeout",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -2270,7 +2426,11 @@ export const model = {
         if (g["pythonFunction"] !== undefined) {
           body["pythonFunction"] = g["pythonFunction"];
         }
+        if (g["remoteAgentTool"] !== undefined) {
+          body["remoteAgentTool"] = g["remoteAgentTool"];
+        }
         if (g["systemTool"] !== undefined) body["systemTool"] = g["systemTool"];
+        if (g["timeout"] !== undefined) body["timeout"] = g["timeout"];
         if (g["toolFakeConfig"] !== undefined) {
           body["toolFakeConfig"] = g["toolFakeConfig"];
         }
@@ -2381,7 +2541,11 @@ export const model = {
         if (g["pythonFunction"] !== undefined) {
           body["pythonFunction"] = g["pythonFunction"];
         }
+        if (g["remoteAgentTool"] !== undefined) {
+          body["remoteAgentTool"] = g["remoteAgentTool"];
+        }
         if (g["systemTool"] !== undefined) body["systemTool"] = g["systemTool"];
+        if (g["timeout"] !== undefined) body["timeout"] = g["timeout"];
         if (g["toolFakeConfig"] !== undefined) {
           body["toolFakeConfig"] = g["toolFakeConfig"];
         }

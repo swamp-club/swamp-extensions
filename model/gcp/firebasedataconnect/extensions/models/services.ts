@@ -192,7 +192,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Firebase Data Connect Services. Registered at `@swamp/gcp/firebasedataconnect/services`. */
 export const model = {
   type: "@swamp/gcp/firebasedataconnect/services",
-  version: "2026.05.01.1",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -226,6 +226,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -530,6 +535,74 @@ export const model = {
             "id":
               "firebasedataconnect.projects.locations.services.executeGraphqlRead",
             "path": "v1/{+name}:executeGraphqlRead",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
+        );
+        return { result };
+      },
+    },
+    generate_query: {
+      description: "generate query",
+      arguments: z.object({
+        prompt: z.any().optional(),
+        schemas: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (args["prompt"] !== undefined) body["prompt"] = args["prompt"];
+        if (args["schemas"] !== undefined) body["schemas"] = args["schemas"];
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id":
+              "firebasedataconnect.projects.locations.services.generateQuery",
+            "path": "v1/{+name}:generateQuery",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
+        );
+        return { result };
+      },
+    },
+    generate_schema: {
+      description: "generate schema",
+      arguments: z.object({
+        prompt: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (args["prompt"] !== undefined) body["prompt"] = args["prompt"];
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id":
+              "firebasedataconnect.projects.locations.services.generateSchema",
+            "path": "v1/{+name}:generateSchema",
             "httpMethod": "POST",
             "parameterOrder": ["name"],
             "parameters": { "name": { "location": "path", "required": true } },

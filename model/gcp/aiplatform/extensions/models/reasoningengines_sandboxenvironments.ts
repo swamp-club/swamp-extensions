@@ -89,9 +89,6 @@ const GlobalArgsSchema = z.object({
     routingToken: z.string().describe(
       "Output only. The routing token for the SandboxEnvironment.",
     ).optional(),
-    sandboxHostname: z.string().describe(
-      "Output only. The hostname of the SandboxEnvironment.",
-    ).optional(),
     sandboxInternalIp: z.string().describe(
       "Output only. The internal IP address of the SandboxEnvironment.",
     ).optional(),
@@ -143,7 +140,6 @@ const StateSchema = z.object({
     loadBalancerHostname: z.string(),
     loadBalancerIp: z.string(),
     routingToken: z.string(),
-    sandboxHostname: z.string(),
     sandboxInternalIp: z.string(),
   }).optional(),
   createTime: z.string().optional(),
@@ -177,9 +173,6 @@ const InputsSchema = z.object({
     ).optional(),
     routingToken: z.string().describe(
       "Output only. The routing token for the SandboxEnvironment.",
-    ).optional(),
-    sandboxHostname: z.string().describe(
-      "Output only. The hostname of the SandboxEnvironment.",
     ).optional(),
     sandboxInternalIp: z.string().describe(
       "Output only. The internal IP address of the SandboxEnvironment.",
@@ -230,7 +223,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Agent Platform ReasoningEngines.SandboxEnvironments. Registered at `@swamp/gcp/aiplatform/reasoningengines-sandboxenvironments`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines-sandboxenvironments",
-  version: "2026.05.02.1",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -275,6 +268,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
