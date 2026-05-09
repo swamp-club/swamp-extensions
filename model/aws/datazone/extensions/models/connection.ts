@@ -21,6 +21,17 @@ import {
   updateResource,
 } from "./_lib/aws.ts";
 
+const ConnectionConfigurationSchema = z.object({
+  Classification: z.string().max(64).regex(new RegExp("^[\\w][\\w\\.\\-\\_]*$"))
+    .describe("The classification of the connection configuration.").optional(),
+  Properties: z.record(
+    z.string(),
+    z.string().min(1).max(2048).regex(
+      new RegExp("^[\\u0020-\\uD7FF\\uE000-\\uFFFF\\t]*$"),
+    ),
+  ).describe("Property Map").optional(),
+});
+
 const AthenaPropertiesInputSchema = z.object({
   WorkgroupName: z.string().max(128).regex(new RegExp("^[a-zA-Z0-9._-]+$")),
 });
@@ -278,6 +289,9 @@ const S3PropertiesInputSchema = z.object({
   ).describe(
     "The Amazon S3 Access Grant location ID that's part of the Amazon S3 properties of a connection.",
   ).optional(),
+  RegisterS3AccessGrantLocation: z.boolean().describe(
+    "Specifies whether to register the S3 Access Grant location.",
+  ).optional(),
 });
 
 const MlflowPropertiesInputSchema = z.object({
@@ -289,6 +303,12 @@ const MlflowPropertiesInputSchema = z.object({
 const WorkflowsMwaaPropertiesInputSchema = z.object({
   MwaaEnvironmentName: z.string().describe("The name of the MWAA environment.")
     .optional(),
+});
+
+const LakehousePropertiesInputSchema = z.object({
+  GlueLineageSyncEnabled: z.boolean().describe(
+    "Specifies whether Glue lineage sync is enabled for the lakehouse connection.",
+  ).optional(),
 });
 
 const GlobalArgsSchema = z.object({
@@ -307,6 +327,9 @@ const GlobalArgsSchema = z.object({
     IamConnectionId: z.string().max(128).regex(new RegExp("^[a-zA-Z0-9]+$"))
       .optional(),
   }).describe("AWS Location of project").optional(),
+  Configurations: z.array(ConnectionConfigurationSchema).describe(
+    "The configurations of the connection.",
+  ).optional(),
   Description: z.string().max(128).regex(new RegExp("^[\\S\\s]*$")).describe(
     "The description of the connection.",
   ).optional(),
@@ -360,6 +383,9 @@ const GlobalArgsSchema = z.object({
     WorkflowsServerlessProperties: z.string().describe(
       "Workflows Serverless Properties Input",
     ).optional(),
+    LakehouseProperties: LakehousePropertiesInputSchema.describe(
+      "Lakehouse Properties Input",
+    ).optional(),
   }).optional(),
   Scope: z.enum(["DOMAIN", "PROJECT"]).describe("The scope of the connection.")
     .optional(),
@@ -372,6 +398,7 @@ const StateSchema = z.object({
     AwsRegion: z.string(),
     IamConnectionId: z.string(),
   }).optional(),
+  Configurations: z.array(ConnectionConfigurationSchema).optional(),
   ConnectionId: z.string(),
   Description: z.string().optional(),
   DomainId: z.string(),
@@ -397,6 +424,7 @@ const StateSchema = z.object({
     MlflowProperties: MlflowPropertiesInputSchema,
     WorkflowsMwaaProperties: WorkflowsMwaaPropertiesInputSchema,
     WorkflowsServerlessProperties: z.string(),
+    LakehouseProperties: LakehousePropertiesInputSchema,
   }).optional(),
   Type: z.string().optional(),
   Scope: z.string().optional(),
@@ -418,6 +446,9 @@ const InputsSchema = z.object({
     IamConnectionId: z.string().max(128).regex(new RegExp("^[a-zA-Z0-9]+$"))
       .optional(),
   }).describe("AWS Location of project").optional(),
+  Configurations: z.array(ConnectionConfigurationSchema).describe(
+    "The configurations of the connection.",
+  ).optional(),
   Description: z.string().max(128).regex(new RegExp("^[\\S\\s]*$")).describe(
     "The description of the connection.",
   ).optional(),
@@ -471,6 +502,9 @@ const InputsSchema = z.object({
     WorkflowsServerlessProperties: z.string().describe(
       "Workflows Serverless Properties Input",
     ).optional(),
+    LakehouseProperties: LakehousePropertiesInputSchema.describe(
+      "Lakehouse Properties Input",
+    ).optional(),
   }).optional(),
   Scope: z.enum(["DOMAIN", "PROJECT"]).describe("The scope of the connection.")
     .optional(),
@@ -479,7 +513,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DataZone Connection. Registered at `@swamp/aws/datazone/connection`. */
 export const model = {
   type: "@swamp/aws/datazone/connection",
-  version: "2026.04.23.2",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -514,6 +548,11 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
+      description: "Added: Configurations",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -10,8 +10,6 @@ labels:
   - dataproc
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: workflowtemplates, clusters, clusters_nodegroups
 models:
   - autoscalingpolicies.ts
   - batches.ts

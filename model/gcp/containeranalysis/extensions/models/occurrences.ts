@@ -104,19 +104,22 @@ const GlobalArgsSchema = z.object({
   aiSkillAnalysis: z.object({
     findings: z.array(z.object({
       category: z.string().describe("Category of the finding.").optional(),
-      description: z.string().describe("Detailed description of the finding.")
+      location: z.object({
+        filePath: z.string().describe(
+          "Relative path of the file containing the finding.",
+        ).optional(),
+        lineNumber: z.string().describe(
+          "Line number (1-based), or 0 if whole File / unknown.",
+        ).optional(),
+      }).describe("Location details with file path and line number.")
         .optional(),
-      filePath: z.string().describe(
-        "Path to the file where the finding was detected.",
-      ).optional(),
-      ruleId: z.string().describe(
-        "Unique identifier of the rule that produced this finding.",
+      scanner: z.string().describe(
+        "Scanner determines which engine (e.g. static, llm) emitted the finding.",
       ).optional(),
       severity: z.string().describe("Severity of the finding.").optional(),
-      snippet: z.string().describe("Code snippet relevant to the finding.")
-        .optional(),
-      title: z.string().describe("Title of the finding.").optional(),
     })).describe("Findings produced by the analysis.").optional(),
+    maxSeverity: z.string().describe("Maximum severity found among findings.")
+      .optional(),
     skillName: z.string().describe(
       "Name of the skill that produced this analysis.",
     ).optional(),
@@ -1534,13 +1537,14 @@ const StateSchema = z.object({
   aiSkillAnalysis: z.object({
     findings: z.array(z.object({
       category: z.string(),
-      description: z.string(),
-      filePath: z.string(),
-      ruleId: z.string(),
+      location: z.object({
+        filePath: z.string(),
+        lineNumber: z.string(),
+      }),
+      scanner: z.string(),
       severity: z.string(),
-      snippet: z.string(),
-      title: z.string(),
     })),
+    maxSeverity: z.string(),
     skillName: z.string(),
   }).optional(),
   attestation: z.object({
@@ -2152,19 +2156,22 @@ const InputsSchema = z.object({
   aiSkillAnalysis: z.object({
     findings: z.array(z.object({
       category: z.string().describe("Category of the finding.").optional(),
-      description: z.string().describe("Detailed description of the finding.")
+      location: z.object({
+        filePath: z.string().describe(
+          "Relative path of the file containing the finding.",
+        ).optional(),
+        lineNumber: z.string().describe(
+          "Line number (1-based), or 0 if whole File / unknown.",
+        ).optional(),
+      }).describe("Location details with file path and line number.")
         .optional(),
-      filePath: z.string().describe(
-        "Path to the file where the finding was detected.",
-      ).optional(),
-      ruleId: z.string().describe(
-        "Unique identifier of the rule that produced this finding.",
+      scanner: z.string().describe(
+        "Scanner determines which engine (e.g. static, llm) emitted the finding.",
       ).optional(),
       severity: z.string().describe("Severity of the finding.").optional(),
-      snippet: z.string().describe("Code snippet relevant to the finding.")
-        .optional(),
-      title: z.string().describe("Title of the finding.").optional(),
     })).describe("Findings produced by the analysis.").optional(),
+    maxSeverity: z.string().describe("Maximum severity found among findings.")
+      .optional(),
     skillName: z.string().describe(
       "Name of the skill that produced this analysis.",
     ).optional(),
@@ -3580,7 +3587,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Container Analysis Occurrences. Registered at `@swamp/gcp/containeranalysis/occurrences`. */
 export const model = {
   type: "@swamp/gcp/containeranalysis/occurrences",
-  version: "2026.05.02.1",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3620,6 +3627,11 @@ export const model = {
     {
       toVersion: "2026.05.02.1",
       description: "Added: aiSkillAnalysis",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

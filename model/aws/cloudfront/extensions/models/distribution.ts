@@ -440,7 +440,9 @@ const ParameterDefinitionSchema = z.object({
 });
 
 const CacheTagConfigSchema = z.object({
-  HeaderName: z.string(),
+  HeaderName: z.string().describe(
+    "The name of the HTTP header that your origin includes in responses. CloudFront uses this header to extract cache tags. The header value must contain comma-separated tag values (for example, product:electronics, category:tv, brand:example).",
+  ),
 });
 
 const TrustStoreConfigSchema = z.object({
@@ -562,7 +564,9 @@ const GlobalArgsSchema = z.object({
     }).describe(
       "This field only supports multi-tenant distributions. You can't specify this field for standard distributions. For more information, see [Unsupported features for SaaS Manager for Amazon CloudFront](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-config-options.html#unsupported-saas) in the *Amazon CloudFront Developer Guide*. A distribution tenant configuration.",
     ).optional(),
-    CacheTagConfig: CacheTagConfigSchema.optional(),
+    CacheTagConfig: CacheTagConfigSchema.describe(
+      "Configuration for cache tag extraction from origin responses. When specified, CloudFront reads the header named in HeaderName from origin responses and stores the comma-separated values as cache tags on the object. Distributions without CacheTagConfig do not extract tags. When CacheTagConfig is removed from a distribution via UpdateDistribution, CloudFront stops extracting tags from origin responses. Changing the HeaderName on an existing distribution does not retroactively affect previously cached objects. Tag-based invalidations will not apply to objects already cached using a previous header. To ensure tag invalidations function after updating the header name, use path-based invalidations to recache all objects that use cache tags.",
+    ).optional(),
     ViewerMtlsConfig: ViewerMtlsConfigSchema.describe(
       "The distribution's viewer mTLS configuration.",
     ).optional(),
@@ -690,7 +694,9 @@ const InputsSchema = z.object({
     }).describe(
       "This field only supports multi-tenant distributions. You can't specify this field for standard distributions. For more information, see [Unsupported features for SaaS Manager for Amazon CloudFront](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-config-options.html#unsupported-saas) in the *Amazon CloudFront Developer Guide*. A distribution tenant configuration.",
     ).optional(),
-    CacheTagConfig: CacheTagConfigSchema.optional(),
+    CacheTagConfig: CacheTagConfigSchema.describe(
+      "Configuration for cache tag extraction from origin responses. When specified, CloudFront reads the header named in HeaderName from origin responses and stores the comma-separated values as cache tags on the object. Distributions without CacheTagConfig do not extract tags. When CacheTagConfig is removed from a distribution via UpdateDistribution, CloudFront stops extracting tags from origin responses. Changing the HeaderName on an existing distribution does not retroactively affect previously cached objects. Tag-based invalidations will not apply to objects already cached using a previous header. To ensure tag invalidations function after updating the header name, use path-based invalidations to recache all objects that use cache tags.",
+    ).optional(),
     ViewerMtlsConfig: ViewerMtlsConfigSchema.describe(
       "The distribution's viewer mTLS configuration.",
     ).optional(),
@@ -709,7 +715,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for CloudFront Distribution. Registered at `@swamp/aws/cloudfront/distribution`. */
 export const model = {
   type: "@swamp/aws/cloudfront/distribution",
-  version: "2026.05.06.1",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -743,6 +749,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

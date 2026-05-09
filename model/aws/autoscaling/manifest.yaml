@@ -9,8 +9,6 @@ labels:
   - autoscaling
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: auto_scaling_group
 models:
   - auto_scaling_group.ts
   - launch_configuration.ts

@@ -30,9 +30,13 @@ const KeyValueStoreAssociationSchema = z.object({
 const TagSchema = z.object({
   Key: z.string().min(1).max(128).regex(
     new RegExp("^([\\p{L}\\p{Z}\\p{N}_.:/=+\\-@]*)$", "u"),
+  ).describe(
+    "A string that contains Tag key. The string length should be between 1 and 128 characters. Valid characters include a-z, A-Z, 0-9, space, and the special characters _ -.: / = + @.",
   ),
   Value: z.string().min(0).max(256).regex(
     new RegExp("^([\\p{L}\\p{Z}\\p{N}_.:/=+\\-@]*)$", "u"),
+  ).describe(
+    "A string that contains an optional Tag value. The string length should be between 0 and 256 characters. Valid characters include a-z, A-Z, 0-9, space, and the special characters _ -.: / = + @.",
   ),
 });
 
@@ -56,7 +60,9 @@ const GlobalArgsSchema = z.object({
     "Contains configuration information about a CloudFront function.",
   ),
   Name: z.string().describe("A name to identify the function."),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagSchema).describe(
+    "A complex type that contains zero or more Tag elements.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -97,13 +103,15 @@ const InputsSchema = z.object({
   }).describe("Contains configuration information about a CloudFront function.")
     .optional(),
   Name: z.string().describe("A name to identify the function.").optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagSchema).describe(
+    "A complex type that contains zero or more Tag elements.",
+  ).optional(),
 });
 
 /** Swamp extension model for CloudFront Function. Registered at `@swamp/aws/cloudfront/function`. */
 export const model = {
   type: "@swamp/aws/cloudfront/function",
-  version: "2026.05.01.1",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -133,6 +141,11 @@ export const model = {
     {
       toVersion: "2026.05.01.1",
       description: "Added: Tags",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

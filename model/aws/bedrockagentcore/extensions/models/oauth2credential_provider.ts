@@ -40,16 +40,37 @@ const Oauth2DiscoverySchema = z.object({
   ).optional(),
 });
 
+const TokenExchangeGrantTypeConfigSchema = z.object({
+  ActorTokenContent: z.enum(["NONE", "M2M", "AWS_IAM_ID_TOKEN_JWT"]).describe(
+    "The actor token content type",
+  ),
+  ActorTokenScopes: z.array(z.string()).describe(
+    "The actor token scopes. Only valid when ActorTokenContent is M2M.",
+  ).optional(),
+});
+
+const OnBehalfOfTokenExchangeConfigSchema = z.object({
+  GrantType: z.enum(["TOKEN_EXCHANGE", "JWT_AUTHORIZATION_GRANT"]).describe(
+    "The grant type for on-behalf-of token exchange",
+  ),
+  TokenExchangeGrantTypeConfig: TokenExchangeGrantTypeConfigSchema.describe(
+    "Configuration for RFC 8693 Token Exchange",
+  ).optional(),
+});
+
 const CustomOauth2ProviderConfigInputSchema = z.object({
   OauthDiscovery: Oauth2DiscoverySchema.describe(
     "Discovery information for an OAuth2 provider",
   ),
   ClientId: z.string().min(1).max(256).describe(
     "The client ID for the custom OAuth2 provider",
-  ),
+  ).optional(),
   ClientSecret: z.string().min(1).max(2048).describe(
     "The client secret for the custom OAuth2 provider",
-  ),
+  ).optional(),
+  OnBehalfOfTokenExchangeConfig: OnBehalfOfTokenExchangeConfigSchema.describe(
+    "Configuration for on-behalf-of token exchange",
+  ).optional(),
 });
 
 const GoogleOauth2ProviderConfigInputSchema = z.object({
@@ -188,6 +209,9 @@ const GlobalArgsSchema = z.object({
       "Discovery information for an OAuth2 provider",
     ).optional(),
     ClientId: z.string().min(1).max(256).optional(),
+    OnBehalfOfTokenExchangeConfig: OnBehalfOfTokenExchangeConfigSchema.describe(
+      "Configuration for on-behalf-of token exchange",
+    ).optional(),
   }).describe("The output configuration for the OAuth2 provider").optional(),
   Tags: z.array(TagSchema).describe(
     "Tags to assign to the OAuth2 credential provider",
@@ -216,6 +240,7 @@ const StateSchema = z.object({
   Oauth2ProviderConfigOutput: z.object({
     OauthDiscovery: Oauth2DiscoverySchema,
     ClientId: z.string(),
+    OnBehalfOfTokenExchangeConfig: OnBehalfOfTokenExchangeConfigSchema,
   }).optional(),
   CreatedTime: z.string().optional(),
   LastUpdatedTime: z.string().optional(),
@@ -297,6 +322,9 @@ const InputsSchema = z.object({
       "Discovery information for an OAuth2 provider",
     ).optional(),
     ClientId: z.string().min(1).max(256).optional(),
+    OnBehalfOfTokenExchangeConfig: OnBehalfOfTokenExchangeConfigSchema.describe(
+      "Configuration for on-behalf-of token exchange",
+    ).optional(),
   }).describe("The output configuration for the OAuth2 provider").optional(),
   Tags: z.array(TagSchema).describe(
     "Tags to assign to the OAuth2 credential provider",
@@ -306,7 +334,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for BedrockAgentCore OAuth2CredentialProvider. Registered at `@swamp/aws/bedrockagentcore/oauth2credential-provider`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/oauth2credential-provider",
-  version: "2026.04.23.2",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
@@ -315,6 +343,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

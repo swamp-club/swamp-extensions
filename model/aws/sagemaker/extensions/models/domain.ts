@@ -186,6 +186,8 @@ const ResourceSpecSchema = z.object({
     "ml.r6id.16xlarge",
     "ml.r6id.24xlarge",
     "ml.r6id.32xlarge",
+    "ml.p5.4xlarge",
+    "ml.p6-b200.48xlarge",
   ]).describe("The instance type that the image version runs on.").optional(),
   SageMakerImageArn: z.string().max(256).regex(
     new RegExp(
@@ -582,6 +584,8 @@ const StudioWebPortalSettingsSchema = z.object({
       "ml.r6id.16xlarge",
       "ml.r6id.24xlarge",
       "ml.r6id.32xlarge",
+      "ml.p5.4xlarge",
+      "ml.p6-b200.48xlarge",
     ]),
   ).describe(
     "The instance types you are hiding from the Studio user interface.",
@@ -1021,7 +1025,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SageMaker Domain. Registered at `@swamp/aws/sagemaker/domain`. */
 export const model = {
   type: "@swamp/aws/sagemaker/domain",
-  version: "2026.04.24.1",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -1050,6 +1054,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

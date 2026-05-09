@@ -280,6 +280,9 @@ const GlobalArgsSchema = z.object({
       updateTime: z.string().describe(
         "Output only. Timestamp when the agent was last updated.",
       ).optional(),
+      validationErrors: z.array(z.string()).describe(
+        "Output only. Misconfigurations or errors in the agent that may affect agent quality.",
+      ).optional(),
     })).describe("Optional. List of agents in the app.").optional(),
     app: z.object({
       audioProcessingConfig: z.object({
@@ -711,6 +714,9 @@ const GlobalArgsSchema = z.object({
       updateTime: z.string().describe(
         "Output only. Timestamp when the app was last updated.",
       ).optional(),
+      validationErrors: z.array(z.string()).describe(
+        "Output only. Misconfigurations or warnings in the app.",
+      ).optional(),
       variableDeclarations: z.array(z.object({
         description: z.string().describe(
           "Required. The description of the variable.",
@@ -776,6 +782,11 @@ const GlobalArgsSchema = z.object({
           "Represents a select subset of an OpenAPI 3.0 schema object.",
         ).optional(),
       })).describe("Optional. The declarations of the variables.").optional(),
+      vpcScSettings: z.object({
+        allowedOrigins: z.array(z.string()).describe(
+          'Optional. The allowed HTTP(s) origins that OpenAPI tools in the App are able to directly call when VPC Service Controls are enabled. These strings must match the origin exactly, including the port if specified. For example, "https://example.com" or "https://example.com:443". This list does not yet apply to Python tools that may make direct HTTP calls.',
+        ).optional(),
+      }).describe("VPC-SC settings for the app.").optional(),
     }).describe(
       "An app serves as a top-level container for a group of agents, including the root agent and its sub-agents, along with their associated configurations. These agents work together to achieve specific goals within the app's context.",
     ).optional(),
@@ -1522,6 +1533,32 @@ const GlobalArgsSchema = z.object({
           "Optional. The Python code to execute for the tool.",
         ).optional(),
       }).describe("A Python function tool.").optional(),
+      remoteAgentTool: z.object({
+        agentCard: z.object({
+          description: z.unknown().describe(
+            "Required. A description of the agent's domain of action/solution space.",
+          ).optional(),
+          name: z.unknown().describe(
+            "Required. A human-readable name for the agent.",
+          ).optional(),
+          skills: z.unknown().describe(
+            "Required. Skills represent a unit of ability an agent can perform. This may somewhat abstract but represents a more focused set of actions that the agent is highly likely to succeed at.",
+          ).optional(),
+          supportedInterfaces: z.unknown().describe(
+            "Required. Ordered list of supported interfaces. The first entry is preferred.",
+          ).optional(),
+          version: z.unknown().describe("Required. The version of the agent.")
+            .optional(),
+        }).describe(
+          "AgentCard conveys key information about a remote agent. It is a trimmed version of the AgentCard defined in the A2A protocol https://a2a-protocol.org/dev/specification/#441-agentcard",
+        ).optional(),
+        description: z.string().describe(
+          "Required. The description of the tool.",
+        ).optional(),
+        name: z.string().describe("Required. The name of the tool.").optional(),
+      }).describe(
+        "Represents a tool that allows the agent to call another remote agent.",
+      ).optional(),
       systemTool: z.object({
         description: z.string().describe(
           "Output only. The description of the system tool.",
@@ -1529,6 +1566,9 @@ const GlobalArgsSchema = z.object({
         name: z.string().describe("Required. The name of the system tool.")
           .optional(),
       }).describe("Pre-defined system tool.").optional(),
+      timeout: z.string().describe(
+        "Optional. The timeout for the tool execution. If not set, the default timeout is 30 seconds for `SYNCHRONOUS` tools and 60 seconds for `ASYNCHRONOUS` tools.",
+      ).optional(),
       toolFakeConfig: z.object({
         codeBlock: z.object({
           pythonCode: z.unknown().describe(
@@ -1887,6 +1927,7 @@ const StateSchema = z.object({
         disablePlannerTransfer: z.unknown(),
       })),
       updateTime: z.string(),
+      validationErrors: z.array(z.string()),
     })),
     app: z.object({
       audioProcessingConfig: z.object({
@@ -2049,6 +2090,7 @@ const StateSchema = z.object({
       }),
       toolExecutionMode: z.string(),
       updateTime: z.string(),
+      validationErrors: z.array(z.string()),
       variableDeclarations: z.array(z.object({
         description: z.string(),
         name: z.string(),
@@ -2074,6 +2116,9 @@ const StateSchema = z.object({
           uniqueItems: z.unknown(),
         }),
       })),
+      vpcScSettings: z.object({
+        allowedOrigins: z.array(z.string()),
+      }),
     }),
     examples: z.array(z.object({
       createTime: z.string(),
@@ -2364,10 +2409,22 @@ const StateSchema = z.object({
         name: z.string(),
         pythonCode: z.string(),
       }),
+      remoteAgentTool: z.object({
+        agentCard: z.object({
+          description: z.unknown(),
+          name: z.unknown(),
+          skills: z.unknown(),
+          supportedInterfaces: z.unknown(),
+          version: z.unknown(),
+        }),
+        description: z.string(),
+        name: z.string(),
+      }),
       systemTool: z.object({
         description: z.string(),
         name: z.string(),
       }),
+      timeout: z.string(),
       toolFakeConfig: z.object({
         codeBlock: z.object({
           pythonCode: z.unknown(),
@@ -2676,6 +2733,9 @@ const InputsSchema = z.object({
       ).optional(),
       updateTime: z.string().describe(
         "Output only. Timestamp when the agent was last updated.",
+      ).optional(),
+      validationErrors: z.array(z.string()).describe(
+        "Output only. Misconfigurations or errors in the agent that may affect agent quality.",
       ).optional(),
     })).describe("Optional. List of agents in the app.").optional(),
     app: z.object({
@@ -3108,6 +3168,9 @@ const InputsSchema = z.object({
       updateTime: z.string().describe(
         "Output only. Timestamp when the app was last updated.",
       ).optional(),
+      validationErrors: z.array(z.string()).describe(
+        "Output only. Misconfigurations or warnings in the app.",
+      ).optional(),
       variableDeclarations: z.array(z.object({
         description: z.string().describe(
           "Required. The description of the variable.",
@@ -3173,6 +3236,11 @@ const InputsSchema = z.object({
           "Represents a select subset of an OpenAPI 3.0 schema object.",
         ).optional(),
       })).describe("Optional. The declarations of the variables.").optional(),
+      vpcScSettings: z.object({
+        allowedOrigins: z.array(z.string()).describe(
+          'Optional. The allowed HTTP(s) origins that OpenAPI tools in the App are able to directly call when VPC Service Controls are enabled. These strings must match the origin exactly, including the port if specified. For example, "https://example.com" or "https://example.com:443". This list does not yet apply to Python tools that may make direct HTTP calls.',
+        ).optional(),
+      }).describe("VPC-SC settings for the app.").optional(),
     }).describe(
       "An app serves as a top-level container for a group of agents, including the root agent and its sub-agents, along with their associated configurations. These agents work together to achieve specific goals within the app's context.",
     ).optional(),
@@ -3919,6 +3987,32 @@ const InputsSchema = z.object({
           "Optional. The Python code to execute for the tool.",
         ).optional(),
       }).describe("A Python function tool.").optional(),
+      remoteAgentTool: z.object({
+        agentCard: z.object({
+          description: z.unknown().describe(
+            "Required. A description of the agent's domain of action/solution space.",
+          ).optional(),
+          name: z.unknown().describe(
+            "Required. A human-readable name for the agent.",
+          ).optional(),
+          skills: z.unknown().describe(
+            "Required. Skills represent a unit of ability an agent can perform. This may somewhat abstract but represents a more focused set of actions that the agent is highly likely to succeed at.",
+          ).optional(),
+          supportedInterfaces: z.unknown().describe(
+            "Required. Ordered list of supported interfaces. The first entry is preferred.",
+          ).optional(),
+          version: z.unknown().describe("Required. The version of the agent.")
+            .optional(),
+        }).describe(
+          "AgentCard conveys key information about a remote agent. It is a trimmed version of the AgentCard defined in the A2A protocol https://a2a-protocol.org/dev/specification/#441-agentcard",
+        ).optional(),
+        description: z.string().describe(
+          "Required. The description of the tool.",
+        ).optional(),
+        name: z.string().describe("Required. The name of the tool.").optional(),
+      }).describe(
+        "Represents a tool that allows the agent to call another remote agent.",
+      ).optional(),
       systemTool: z.object({
         description: z.string().describe(
           "Output only. The description of the system tool.",
@@ -3926,6 +4020,9 @@ const InputsSchema = z.object({
         name: z.string().describe("Required. The name of the system tool.")
           .optional(),
       }).describe("Pre-defined system tool.").optional(),
+      timeout: z.string().describe(
+        "Optional. The timeout for the tool execution. If not set, the default timeout is 30 seconds for `SYNCHRONOUS` tools and 60 seconds for `ASYNCHRONOUS` tools.",
+      ).optional(),
       toolFakeConfig: z.object({
         codeBlock: z.object({
           pythonCode: z.unknown().describe(
@@ -4208,7 +4305,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Versions. Registered at `@swamp/gcp/ces/apps-versions`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-versions",
-  version: "2026.04.23.2",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -4262,6 +4359,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

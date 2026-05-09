@@ -46,6 +46,11 @@ const GlobalArgsSchema = z.object({
   KmsKeyArn: z.string().min(1).max(2048).describe(
     "The ARN of the KMS key to use for encryption.",
   ).optional(),
+  Locale: z.string().min(2).max(35).regex(
+    new RegExp("^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$"),
+  ).describe(
+    "The locale for the AgentSpace, which determines the language used in agent responses.",
+  ).optional(),
   OperatorApp: z.object({
     Iam: IamAuthConfigurationSchema.optional(),
     Idc: IdcAuthConfigurationSchema.optional(),
@@ -60,6 +65,7 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   Description: z.string().optional(),
   KmsKeyArn: z.string().optional(),
+  Locale: z.string().optional(),
   OperatorApp: z.object({
     Iam: IamAuthConfigurationSchema,
     Idc: IdcAuthConfigurationSchema,
@@ -82,6 +88,11 @@ const InputsSchema = z.object({
   KmsKeyArn: z.string().min(1).max(2048).describe(
     "The ARN of the KMS key to use for encryption.",
   ).optional(),
+  Locale: z.string().min(2).max(35).regex(
+    new RegExp("^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$"),
+  ).describe(
+    "The locale for the AgentSpace, which determines the language used in agent responses.",
+  ).optional(),
   OperatorApp: z.object({
     Iam: IamAuthConfigurationSchema.optional(),
     Idc: IdcAuthConfigurationSchema.optional(),
@@ -94,7 +105,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DevOpsAgent AgentSpace. Registered at `@swamp/aws/devopsagent/agent-space`. */
 export const model = {
   type: "@swamp/aws/devopsagent/agent-space",
-  version: "2026.04.23.2",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -129,6 +140,11 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
+      description: "Added: Locale",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

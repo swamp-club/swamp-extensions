@@ -738,6 +738,7 @@ const GlobalArgsSchema = z.object({
       "GEO_REGION_TYPE_COMMUNE",
       "GEO_REGION_TYPE_COLLOQUIAL_AREA",
       "GEO_REGION_TYPE_POST_TOWN",
+      "GEO_REGION_TYPE_WARD",
     ]).describe("Output only. The type of geographic region targeting.")
       .optional(),
     negative: z.boolean().describe(
@@ -2404,6 +2405,7 @@ const InputsSchema = z.object({
       "GEO_REGION_TYPE_COMMUNE",
       "GEO_REGION_TYPE_COLLOQUIAL_AREA",
       "GEO_REGION_TYPE_POST_TOWN",
+      "GEO_REGION_TYPE_WARD",
     ]).describe("Output only. The type of geographic region targeting.")
       .optional(),
     negative: z.boolean().describe(
@@ -3152,7 +3154,7 @@ const InputsSchema = z.object({
 export const model = {
   type:
     "@swamp/gcp/displayvideo/advertisers-adgroups-targetingtypes-assignedtargetingoptions",
-  version: "2026.04.23.1",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3191,6 +3193,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

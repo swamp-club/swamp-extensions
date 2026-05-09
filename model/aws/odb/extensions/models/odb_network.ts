@@ -189,6 +189,7 @@ const StateSchema = z.object({
   DefaultDnsPrefix: z.string().optional(),
   DeleteAssociatedResources: z.boolean().optional(),
   DisplayName: z.string().optional(),
+  Ec2PlacementGroupIds: z.array(z.string()).optional(),
   OciNetworkAnchorId: z.string().optional(),
   OciResourceAnchorName: z.string().optional(),
   OciVcnUrl: z.string().optional(),
@@ -384,7 +385,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ODB OdbNetwork. Registered at `@swamp/aws/odb/odb-network`. */
 export const model = {
   type: "@swamp/aws/odb/odb-network",
-  version: "2026.04.23.2",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -408,6 +409,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

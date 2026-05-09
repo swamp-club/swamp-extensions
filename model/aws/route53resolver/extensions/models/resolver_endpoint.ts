@@ -66,6 +66,12 @@ const GlobalArgsSchema = z.object({
   RniEnhancedMetricsEnabled: z.boolean().describe(
     "Specifies whether RNI enhanced metrics are enabled for the Resolver Endpoints. When set to true, one-minute granular metrics are published in CloudWatch for each RNI associated with this endpoint. When set to false, metrics are not published. Default is false.",
   ).optional(),
+  Dns64Enabled: z.boolean().describe(
+    "Specifies whether DNS64 is enabled for the Inbound Resolver Endpoint. When set to true, if a DNS AAAA query is made for a domain that has only an A (IPv4) record, the resolver automatically synthesizes an AAAA (IPv6) response by embedding the IPv4 address into the well-known prefix 64:ff9b::/96. Default is false.",
+  ).optional(),
+  Ipv6InternetAccessEnabled: z.boolean().describe(
+    "Specifies whether IPv6 Internet Gateway access is enabled through the Outbound Resolver Endpoint. When set to true, this property allows your Endpoint ENIs to reach public IPv6 target nameservers through an internet gateway. Default is false.",
+  ).optional(),
   Protocols: z.array(z.string()).describe(
     "Protocols used for the endpoint. DoH-FIPS is applicable for inbound endpoints only.",
   ).optional(),
@@ -91,6 +97,8 @@ const StateSchema = z.object({
   PreferredInstanceType: z.string().optional(),
   TargetNameServerMetricsEnabled: z.boolean().optional(),
   RniEnhancedMetricsEnabled: z.boolean().optional(),
+  Dns64Enabled: z.boolean().optional(),
+  Ipv6InternetAccessEnabled: z.boolean().optional(),
   Protocols: z.array(z.string()).optional(),
   ResolverEndpointId: z.string(),
   ResolverEndpointType: z.string().optional(),
@@ -122,6 +130,12 @@ const InputsSchema = z.object({
   RniEnhancedMetricsEnabled: z.boolean().describe(
     "Specifies whether RNI enhanced metrics are enabled for the Resolver Endpoints. When set to true, one-minute granular metrics are published in CloudWatch for each RNI associated with this endpoint. When set to false, metrics are not published. Default is false.",
   ).optional(),
+  Dns64Enabled: z.boolean().describe(
+    "Specifies whether DNS64 is enabled for the Inbound Resolver Endpoint. When set to true, if a DNS AAAA query is made for a domain that has only an A (IPv4) record, the resolver automatically synthesizes an AAAA (IPv6) response by embedding the IPv4 address into the well-known prefix 64:ff9b::/96. Default is false.",
+  ).optional(),
+  Ipv6InternetAccessEnabled: z.boolean().describe(
+    "Specifies whether IPv6 Internet Gateway access is enabled through the Outbound Resolver Endpoint. When set to true, this property allows your Endpoint ENIs to reach public IPv6 target nameservers through an internet gateway. Default is false.",
+  ).optional(),
   Protocols: z.array(z.string()).describe(
     "Protocols used for the endpoint. DoH-FIPS is applicable for inbound endpoints only.",
   ).optional(),
@@ -139,7 +153,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Route53Resolver ResolverEndpoint. Registered at `@swamp/aws/route53resolver/resolver-endpoint`. */
 export const model = {
   type: "@swamp/aws/route53resolver/resolver-endpoint",
-  version: "2026.04.23.2",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -164,6 +178,11 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
+      description: "Added: Dns64Enabled, Ipv6InternetAccessEnabled",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

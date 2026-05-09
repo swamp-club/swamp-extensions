@@ -303,6 +303,13 @@ const GlobalArgsSchema = z.object({
         ).optional(),
       }).describe("Reporting settings for connector configs.").optional(),
     }).describe("Google SecOps connector config.").optional(),
+    mipLabelConfig: z.object({
+      domains: z.array(z.string()).describe(
+        "Optional. Domain can be used optionally for the corner case where one Dasher customer ID maps to multiple Microsoft tenant ID. Each domain can be verified with at most one Microsoft tenant.",
+      ).optional(),
+      microsoftTenantId: z.string().describe("Required. Microsoft tenant ID.")
+        .optional(),
+    }).describe("MIP label connector config.").optional(),
     paloAltoNetworksConfig: z.object({
       apiKey: z.string().describe(
         "Required. Input only. API key to use on the ingestion API.",
@@ -507,6 +514,7 @@ const GlobalArgsSchema = z.object({
     "IDENTITY_BASED_ENROLLMENT",
     "CERTIFICATE_AUTHORITY",
     "ROOT_STORE",
+    "CONTENT_ANALYSIS",
   ]).describe("Required. The type of the connector.").optional(),
   connectorConfigId: z.string().describe(
     "Optional. ID to use for the connector config, which becomes the final component of the connector config's resource name. If provided, the ID must be 1-63 characters long, and contain only lowercase letters, digits, and hyphens. It must start with a letter, and end with a letter or number. If not provided, the connector config will be assigned a random UUID.",
@@ -557,6 +565,10 @@ const StateSchema = z.object({
         enabledDeviceEvents: z.array(z.string()),
         enabledOptInEvents: z.array(z.string()),
       }),
+    }),
+    mipLabelConfig: z.object({
+      domains: z.array(z.string()),
+      microsoftTenantId: z.string(),
     }),
     paloAltoNetworksConfig: z.object({
       apiKey: z.string(),
@@ -812,6 +824,13 @@ const InputsSchema = z.object({
         ).optional(),
       }).describe("Reporting settings for connector configs.").optional(),
     }).describe("Google SecOps connector config.").optional(),
+    mipLabelConfig: z.object({
+      domains: z.array(z.string()).describe(
+        "Optional. Domain can be used optionally for the corner case where one Dasher customer ID maps to multiple Microsoft tenant ID. Each domain can be verified with at most one Microsoft tenant.",
+      ).optional(),
+      microsoftTenantId: z.string().describe("Required. Microsoft tenant ID.")
+        .optional(),
+    }).describe("MIP label connector config.").optional(),
     paloAltoNetworksConfig: z.object({
       apiKey: z.string().describe(
         "Required. Input only. API key to use on the ingestion API.",
@@ -1016,6 +1035,7 @@ const InputsSchema = z.object({
     "IDENTITY_BASED_ENROLLMENT",
     "CERTIFICATE_AUTHORITY",
     "ROOT_STORE",
+    "CONTENT_ANALYSIS",
   ]).describe("Required. The type of the connector.").optional(),
   connectorConfigId: z.string().describe(
     "Optional. ID to use for the connector config, which becomes the final component of the connector config's resource name. If provided, the ID must be 1-63 characters long, and contain only lowercase letters, digits, and hyphens. It must start with a letter, and end with a letter or number. If not provided, the connector config will be assigned a random UUID.",
@@ -1028,7 +1048,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Chrome Management Customers.ConnectorConfigs. Registered at `@swamp/gcp/chromemanagement/customers-connectorconfigs`. */
 export const model = {
   type: "@swamp/gcp/chromemanagement/customers-connectorconfigs",
-  version: "2026.04.24.1",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
@@ -1037,6 +1057,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

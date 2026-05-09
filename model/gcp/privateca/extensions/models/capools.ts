@@ -116,6 +116,9 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe("The configuration used for encrypting data at rest.").optional(),
   issuancePolicy: z.object({
+    allowRequesterSpecifiedNotBeforeTime: z.boolean().describe(
+      "Optional. If set to true, allows requesters to specify the requested_not_before_time field when creating a Certificate. Certificates requested with this option enabled will have a 'not_before_time' equal to the value specified in the request. The 'not_after_time' will be adjusted to preserve the requested lifetime. The maximum time that a certificate can be backdated with these options is 48 hours in the past. This option cannot be set if backdate_duration is set.",
+    ).optional(),
     allowedIssuanceModes: z.object({
       allowConfigBasedIssuance: z.boolean().describe(
         "Optional. When true, allows callers to create Certificates by specifying a CertificateConfig.",
@@ -383,6 +386,7 @@ const StateSchema = z.object({
     cloudKmsKey: z.string(),
   }).optional(),
   issuancePolicy: z.object({
+    allowRequesterSpecifiedNotBeforeTime: z.boolean(),
     allowedIssuanceModes: z.object({
       allowConfigBasedIssuance: z.boolean(),
       allowCsrBasedIssuance: z.boolean(),
@@ -486,6 +490,9 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe("The configuration used for encrypting data at rest.").optional(),
   issuancePolicy: z.object({
+    allowRequesterSpecifiedNotBeforeTime: z.boolean().describe(
+      "Optional. If set to true, allows requesters to specify the requested_not_before_time field when creating a Certificate. Certificates requested with this option enabled will have a 'not_before_time' equal to the value specified in the request. The 'not_after_time' will be adjusted to preserve the requested lifetime. The maximum time that a certificate can be backdated with these options is 48 hours in the past. This option cannot be set if backdate_duration is set.",
+    ).optional(),
     allowedIssuanceModes: z.object({
       allowConfigBasedIssuance: z.boolean().describe(
         "Optional. When true, allows callers to create Certificates by specifying a CertificateConfig.",
@@ -751,7 +758,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Certificate Authority CaPools. Registered at `@swamp/gcp/privateca/capools`. */
 export const model = {
   type: "@swamp/gcp/privateca/capools",
-  version: "2026.04.23.1",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -785,6 +792,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

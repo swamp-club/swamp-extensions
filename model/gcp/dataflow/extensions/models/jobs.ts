@@ -287,6 +287,9 @@ const GlobalArgsSchema = z.object({
           "The resource to read the package from. The supported resource type is: Google Cloud Storage: storage.googleapis.com/{bucket} bucket.storage.googleapis.com/",
         ).optional(),
         name: z.unknown().describe("The name of the package.").optional(),
+        sha256: z.unknown().describe(
+          "Optional. The hex-encoded SHA256 checksum of the package. If the checksum is provided, the worker will verify the checksum of the package before using it. If the checksum does not match, the worker will fail to start.",
+        ).optional(),
       })).describe("Packages to be installed on workers.").optional(),
       poolArgs: z.record(z.string(), z.string()).describe(
         "Extra arguments for this worker pool.",
@@ -872,6 +875,7 @@ const StateSchema = z.object({
       packages: z.array(z.object({
         location: z.unknown(),
         name: z.unknown(),
+        sha256: z.unknown(),
       })),
       poolArgs: z.record(z.string(), z.unknown()),
       sdkHarnessContainerImages: z.array(z.object({
@@ -1252,6 +1256,9 @@ const InputsSchema = z.object({
           "The resource to read the package from. The supported resource type is: Google Cloud Storage: storage.googleapis.com/{bucket} bucket.storage.googleapis.com/",
         ).optional(),
         name: z.unknown().describe("The name of the package.").optional(),
+        sha256: z.unknown().describe(
+          "Optional. The hex-encoded SHA256 checksum of the package. If the checksum is provided, the worker will verify the checksum of the package before using it. If the checksum does not match, the worker will fail to start.",
+        ).optional(),
       })).describe("Packages to be installed on workers.").optional(),
       poolArgs: z.record(z.string(), z.string()).describe(
         "Extra arguments for this worker pool.",
@@ -1784,7 +1791,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dataflow Jobs. Registered at `@swamp/gcp/dataflow/jobs`. */
 export const model = {
   type: "@swamp/gcp/dataflow/jobs",
-  version: "2026.04.23.1",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1823,6 +1830,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

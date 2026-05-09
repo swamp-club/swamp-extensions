@@ -344,9 +344,11 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Configures the processing job to run a specified Docker container image.",
   ),
-  Environment: z.record(z.string(), z.string().max(256)).describe(
-    "Sets the environment variables in the Docker container",
-  ).optional(),
+  Environment: z.record(
+    z.string(),
+    z.string().max(256).regex(new RegExp("[\\S\\s]*")),
+  ).describe("Sets the environment variables in the Docker container")
+    .optional(),
   ExperimentConfig: z.object({
     ExperimentName: z.string().max(120).regex(
       new RegExp("[a-zA-Z0-9](-*[a-zA-Z0-9]){0,119}"),
@@ -491,9 +493,11 @@ const InputsSchema = z.object({
   }).describe(
     "Configures the processing job to run a specified Docker container image.",
   ).optional(),
-  Environment: z.record(z.string(), z.string().max(256)).describe(
-    "Sets the environment variables in the Docker container",
-  ).optional(),
+  Environment: z.record(
+    z.string(),
+    z.string().max(256).regex(new RegExp("[\\S\\s]*")),
+  ).describe("Sets the environment variables in the Docker container")
+    .optional(),
   ExperimentConfig: z.object({
     ExperimentName: z.string().max(120).regex(
       new RegExp("[a-zA-Z0-9](-*[a-zA-Z0-9]){0,119}"),
@@ -577,7 +581,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SageMaker ProcessingJob. Registered at `@swamp/aws/sagemaker/processing-job`. */
 export const model = {
   type: "@swamp/aws/sagemaker/processing-job",
-  version: "2026.04.23.2",
+  version: "2026.05.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -601,6 +605,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
