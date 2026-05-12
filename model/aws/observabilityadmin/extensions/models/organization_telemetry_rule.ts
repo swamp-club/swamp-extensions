@@ -224,6 +224,15 @@ const GlobalArgsSchema = z.object({
     SelectionCriteria: z.string().describe(
       "Selection Criteria on resource level for rule application",
     ).optional(),
+    AllowFieldUpdates: z.boolean().describe(
+      "When true, configuration drift in managed telemetry resources will be detected and remediated for resource-level fields.",
+    ).optional(),
+    Regions: z.array(z.string()).describe(
+      "List of AWS region codes where the rule should be replicated",
+    ).optional(),
+    AllRegions: z.boolean().describe(
+      "When true, the rule is replicated to all supported regions",
+    ).optional(),
   }).describe("The telemetry rule"),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource",
@@ -239,9 +248,17 @@ const StateSchema = z.object({
     DestinationConfiguration: TelemetryDestinationConfigurationSchema,
     Scope: z.string(),
     SelectionCriteria: z.string(),
+    AllowFieldUpdates: z.boolean(),
+    Regions: z.array(z.string()),
+    AllRegions: z.boolean(),
   }).optional(),
   RuleArn: z.string(),
   Tags: z.array(TagSchema).optional(),
+  RegionStatuses: z.array(z.object({
+    Region: z.string(),
+    Status: z.string(),
+    RuleArn: z.string(),
+  })).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -283,6 +300,15 @@ const InputsSchema = z.object({
     SelectionCriteria: z.string().describe(
       "Selection Criteria on resource level for rule application",
     ).optional(),
+    AllowFieldUpdates: z.boolean().describe(
+      "When true, configuration drift in managed telemetry resources will be detected and remediated for resource-level fields.",
+    ).optional(),
+    Regions: z.array(z.string()).describe(
+      "List of AWS region codes where the rule should be replicated",
+    ).optional(),
+    AllRegions: z.boolean().describe(
+      "When true, the rule is replicated to all supported regions",
+    ).optional(),
   }).describe("The telemetry rule").optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource",
@@ -292,7 +318,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ObservabilityAdmin OrganizationTelemetryRule. Registered at `@swamp/aws/observabilityadmin/organization-telemetry-rule`. */
 export const model = {
   type: "@swamp/aws/observabilityadmin/organization-telemetry-rule",
-  version: "2026.04.23.2",
+  version: "2026.05.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -321,6 +347,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -424,7 +455,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["RuleName"],
+          ["RuleName", "AllRegions"],
         );
         const handle = await context.writeResource(
           "state",

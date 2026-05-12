@@ -953,6 +953,7 @@ const GlobalArgsSchema = z.object({
       "SHOPPING",
       "GEO",
       "GENERATIVE_AI",
+      "HEALTH",
     ]).describe("For whom the client library is being published.").optional(),
     protoReferenceDocumentationUri: z.string().describe(
       "Optional link to proto reference documentation. Example: https://cloud.google.com/pubsub/lite/docs/reference/rpc",
@@ -2556,6 +2557,7 @@ const InputsSchema = z.object({
       "SHOPPING",
       "GEO",
       "GENERATIVE_AI",
+      "HEALTH",
     ]).describe("For whom the client library is being published.").optional(),
     protoReferenceDocumentationUri: z.string().describe(
       "Optional link to proto reference documentation. Example: https://cloud.google.com/pubsub/lite/docs/reference/rpc",
@@ -2821,7 +2823,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Service Management Services.Configs. Registered at `@swamp/gcp/servicemanagement/services-configs`. */
 export const model = {
   type: "@swamp/gcp/servicemanagement/services-configs",
-  version: "2026.04.23.1",
+  version: "2026.05.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2860,6 +2862,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

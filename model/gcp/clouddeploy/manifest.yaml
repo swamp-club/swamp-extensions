@@ -10,8 +10,6 @@ labels:
   - clouddeploy
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: customtargettypes, deliverypipelines_releases, deliverypipelines_releases_rollouts_jobruns
 models:
   - customtargettypes.ts
   - deliverypipelines.ts

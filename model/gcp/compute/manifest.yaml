@@ -10,9 +10,6 @@ labels:
   - compute
   - cloud
   - infrastructure
-releaseNotes: |
-  - Added: globalvmextensionpolicies, rolloutplans, rollouts
-  - Updated: autoscalers, disks, firewallpolicies, images, instancegroupmanagers, instancetemplates, instances, licensecodes, licenses, machineimages, networkfirewallpolicies, networks, regionautoscalers, regioncommitments, regiondisks, regioninstancegroupmanagers, regioninstancetemplates, regionnetworkfirewallpolicies, regionsnapshots, regionsslpolicies, snapshots, sslpolicies, storagepools
 models:
   - acceleratortypes.ts
   - addresses.ts

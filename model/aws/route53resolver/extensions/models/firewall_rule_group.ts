@@ -21,6 +21,23 @@ import {
   updateResource,
 } from "./_lib/aws.ts";
 
+const FirewallAdvancedContentCategoryConfigSchema = z.object({
+  Category: z.string().min(1).max(128).describe("The content category value."),
+});
+
+const FirewallAdvancedThreatCategoryConfigSchema = z.object({
+  Category: z.string().min(1).max(128).describe("The threat category value."),
+});
+
+const FirewallRuleTypeSchema = z.object({
+  FirewallAdvancedContentCategory: FirewallAdvancedContentCategoryConfigSchema
+    .describe("Configuration for an advanced content category rule type.")
+    .optional(),
+  FirewallAdvancedThreatCategory: FirewallAdvancedThreatCategoryConfigSchema
+    .describe("Configuration for an advanced threat category rule type.")
+    .optional(),
+});
+
 const FirewallRuleSchema = z.object({
   FirewallDomainListId: z.string().min(1).max(64).describe("ResourceId")
     .optional(),
@@ -41,14 +58,17 @@ const FirewallRuleSchema = z.object({
   ).optional(),
   Qtype: z.string().min(1).max(16).describe("Qtype").optional(),
   ConfidenceThreshold: z.enum(["LOW", "MEDIUM", "HIGH"]).describe(
-    "FirewallDomainRedirectionAction",
+    "ConfidenceThreshold",
   ).optional(),
   DnsThreatProtection: z.enum(["DGA", "DNS_TUNNELING", "DICTIONARY_DGA"])
-    .describe("FirewallDomainRedirectionAction").optional(),
+    .describe("DnsThreatProtection").optional(),
   FirewallDomainRedirectionAction: z.enum([
     "INSPECT_REDIRECTION_DOMAIN",
     "TRUST_REDIRECTION_DOMAIN",
   ]).describe("FirewallDomainRedirectionAction").optional(),
+  FirewallRuleType: FirewallRuleTypeSchema.describe(
+    "Advanced firewall rule type. Mutually exclusive with FirewallDomainListId and DnsThreatProtection/ConfidenceThreshold.",
+  ).optional(),
 });
 
 const TagSchema = z.object({
@@ -103,7 +123,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Route53Resolver FirewallRuleGroup. Registered at `@swamp/aws/route53resolver/firewall-rule-group`. */
 export const model = {
   type: "@swamp/aws/route53resolver/firewall-rule-group",
-  version: "2026.04.23.2",
+  version: "2026.05.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -127,6 +147,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

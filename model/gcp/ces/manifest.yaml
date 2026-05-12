@@ -10,8 +10,6 @@ labels:
   - ces
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: apps, apps_agents, apps_tools, apps_versions
 models:
   - apps.ts
   - apps_agents.ts

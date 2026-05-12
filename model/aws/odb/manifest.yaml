@@ -9,8 +9,6 @@ labels:
   - odb
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: odb_network
 models:
   - cloud_autonomous_vm_cluster.ts
   - cloud_exadata_infrastructure.ts

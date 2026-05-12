@@ -100,6 +100,9 @@ const DELETE_CONFIG = {
 const GlobalArgsSchema = z.object({
   action: z.object({
     redirectAction: z.object({
+      queryParams: z.record(z.string(), z.string()).describe(
+        "The query params to be added to the redirect path.",
+      ).optional(),
       relativePath: z.string().describe("The relative path to redirect to.")
         .optional(),
     }).describe("The redirect action to be taken when the chart is clicked.")
@@ -202,6 +205,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   action: z.object({
     redirectAction: z.object({
+      queryParams: z.record(z.string(), z.unknown()),
       relativePath: z.string(),
     }),
   }).optional(),
@@ -253,6 +257,9 @@ type StateData = z.infer<typeof StateSchema>;
 const InputsSchema = z.object({
   action: z.object({
     redirectAction: z.object({
+      queryParams: z.record(z.string(), z.string()).describe(
+        "The query params to be added to the redirect path.",
+      ).optional(),
       relativePath: z.string().describe("The relative path to redirect to.")
         .optional(),
     }).describe("The redirect action to be taken when the chart is clicked.")
@@ -355,7 +362,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Contact Center AI Insights Dashboards.Charts. Registered at `@swamp/gcp/contactcenterinsights/dashboards-charts`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/dashboards-charts",
-  version: "2026.04.23.1",
+  version: "2026.05.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -394,6 +401,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

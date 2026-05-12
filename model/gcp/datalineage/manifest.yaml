@@ -10,8 +10,6 @@ labels:
   - datalineage
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: processes_runs_lineageevents
 models:
   - config.ts
   - processes.ts
