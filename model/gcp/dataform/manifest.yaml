@@ -10,8 +10,6 @@ labels:
   - dataform
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: repositories_releaseconfigs
 models:
   - folders.ts
   - locations.ts

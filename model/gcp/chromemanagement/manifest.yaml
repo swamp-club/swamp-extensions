@@ -10,8 +10,6 @@ labels:
   - chromemanagement
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: customers_connectorconfigs
 models:
   - customers_apps_android.ts
   - customers_apps_chrome.ts

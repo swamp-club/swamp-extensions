@@ -9,8 +9,6 @@ labels:
   - iot
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: topic_rule
 models:
   - account_audit_configuration.ts
   - authorizer.ts

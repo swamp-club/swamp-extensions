@@ -10,8 +10,6 @@ labels:
   - classroom
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: courses
 models:
   - courses.ts
   - courses_aliases.ts

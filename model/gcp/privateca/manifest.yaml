@@ -10,8 +10,6 @@ labels:
   - privateca
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: capools, capools_certificates
 models:
   - capools.ts
   - capools_certificateauthorities.ts

@@ -10,8 +10,6 @@ labels:
   - aiplatform
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: reasoningengines, reasoningengines_sandboxenvironments
 models:
   - batchpredictionjobs.ts
   - cachedcontents.ts

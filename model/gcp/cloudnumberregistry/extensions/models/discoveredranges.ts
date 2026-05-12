@@ -1,12 +1,12 @@
-// Auto-generated extension model for @swamp/gcp/contactcenterinsights/diagnostics
+// Auto-generated extension model for @swamp/gcp/cloudnumberregistry/discoveredranges
 // Do not edit manually. Re-generate with: deno task generate:gcp
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Contact Center AI Insights Diagnostics.
+ * Swamp extension model for Google Cloud Number Registry DiscoveredRanges.
  *
- * The diagnostic resource.
+ * Message describing DiscoveredRange object
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -16,7 +16,7 @@
 
 import { z } from "npm:zod@4.3.6";
 import {
-  deleteResource,
+  createResource,
   getProjectId,
   isResourceNotFoundError,
   readResource,
@@ -24,30 +24,15 @@ import {
 
 /** Construct the fully-qualified resource name from parent and short name. */
 function buildResourceName(parent: string, shortName: string): string {
-  return `${parent}/diagnostics/${shortName}`;
+  return `${parent}/discoveredRanges/${shortName}`;
 }
 
-const BASE_URL = "https://contactcenterinsights.googleapis.com/";
+const BASE_URL = "https://cloudnumberregistry.googleapis.com/";
 
 const GET_CONFIG = {
-  "id": "contactcenterinsights.projects.locations.diagnostics.get",
-  "path": "v1/{+name}",
+  "id": "cloudnumberregistry.projects.locations.discoveredRanges.get",
+  "path": "v1alpha/{+name}",
   "httpMethod": "GET",
-  "parameterOrder": [
-    "name",
-  ],
-  "parameters": {
-    "name": {
-      "location": "path",
-      "required": true,
-    },
-  },
-} as const;
-
-const DELETE_CONFIG = {
-  "id": "contactcenterinsights.projects.locations.diagnostics.delete",
-  "path": "v1/{+name}",
-  "httpMethod": "DELETE",
   "parameterOrder": [
     "name",
   ],
@@ -69,48 +54,31 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  analysisSummary: z.string().optional(),
-  conversationFilter: z.string().optional(),
+  attributes: z.array(z.object({
+    key: z.string(),
+    value: z.string(),
+  })).optional(),
+  childCidrOverlapAllowed: z.boolean().optional(),
   createTime: z.string().optional(),
-  name: z.string(),
-  report: z.object({
-    conversationSlices: z.record(z.string(), z.unknown()),
-    intentStats: z.array(z.object({
-      conversationCount: z.number(),
-      intentDisplayName: z.string(),
-      intentId: z.string(),
-      lossPatterns: z.array(z.object({
-        conversationIds: z.unknown(),
-        description: z.unknown(),
-        displayName: z.unknown(),
-        examples: z.unknown(),
-        id: z.unknown(),
-        links: z.unknown(),
-        percentage: z.unknown(),
-        suggestedFixes: z.unknown(),
-      })),
-      metrics: z.record(z.string(), z.unknown()),
-    })),
-    lossPatterns: z.array(z.object({
-      conversationIds: z.array(z.string()),
-      description: z.string(),
-      displayName: z.string(),
-      examples: z.string(),
-      id: z.string(),
-      links: z.array(z.object({
-        botInstructionLink: z.unknown(),
-        conversationLink: z.unknown(),
-        endByteIndex: z.unknown(),
-        highlightedText: z.unknown(),
-        locationType: z.unknown(),
-        startByteIndex: z.unknown(),
-      })),
-      percentage: z.number(),
-      suggestedFixes: z.string(),
-    })),
-    metrics: z.record(z.string(), z.unknown()),
-    report: z.string(),
+  description: z.string().optional(),
+  discoveryMetadata: z.object({
+    createTime: z.string(),
+    eventTime: z.string(),
+    resource: z.string(),
+    resourceUri: z.string(),
+    sourceId: z.string(),
+    sourceSubId: z.string(),
+    state: z.string(),
+    updateTime: z.string(),
   }).optional(),
+  ipv4CidrRange: z.string().optional(),
+  ipv6CidrRange: z.string().optional(),
+  labels: z.record(z.string(), z.unknown()).optional(),
+  name: z.string(),
+  parentRange: z.string().optional(),
+  realm: z.string().optional(),
+  registryBook: z.string().optional(),
+  updateTime: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -122,27 +90,15 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Contact Center AI Insights Diagnostics. Registered at `@swamp/gcp/contactcenterinsights/diagnostics`. */
+/** Swamp extension model for Google Cloud Number Registry DiscoveredRanges. Registered at `@swamp/gcp/cloudnumberregistry/discoveredranges`. */
 export const model = {
-  type: "@swamp/gcp/contactcenterinsights/diagnostics",
+  type: "@swamp/gcp/cloudnumberregistry/discoveredranges",
   version: "2026.05.12.1",
-  upgrades: [
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.12.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "The diagnostic resource.",
+      description: "Message describing DiscoveredRange object",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -150,9 +106,9 @@ export const model = {
   },
   methods: {
     get: {
-      description: "Get a diagnostics",
+      description: "Get a discoveredRanges",
       arguments: z.object({
-        identifier: z.string().describe("The name of the diagnostics"),
+        identifier: z.string().describe("The name of the discoveredRanges"),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const projectId = await getProjectId();
@@ -179,39 +135,8 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
-    delete: {
-      description: "Delete the diagnostics",
-      arguments: z.object({
-        identifier: z.string().describe("The name of the diagnostics"),
-      }),
-      execute: async (args: { identifier: string }, context: any) => {
-        const g = context.globalArgs;
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
-        params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
-          args.identifier,
-        );
-        const { existed } = await deleteResource(
-          BASE_URL,
-          DELETE_CONFIG,
-          params,
-        );
-        const instanceName = (g.name?.toString() ?? args.identifier).replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
-        const handle = await context.writeResource("state", instanceName, {
-          identifier: args.identifier,
-          existed,
-          status: existed ? "deleted" : "not_found",
-          deletedAt: new Date().toISOString(),
-        });
-        return { dataHandles: [handle] };
-      },
-    },
     sync: {
-      description: "Sync diagnostics state from GCP",
+      description: "Sync discoveredRanges state from GCP",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -258,6 +183,69 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    find_free_ip_ranges: {
+      description: "find free ip ranges",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id":
+              "cloudnumberregistry.projects.locations.discoveredRanges.findFreeIpRanges",
+            "path": "v1alpha/{+name}:findFreeIpRanges",
+            "httpMethod": "GET",
+            "parameterOrder": ["name"],
+            "parameters": {
+              "cidrPrefixLength": { "location": "query" },
+              "name": { "location": "path", "required": true },
+              "rangeCount": { "location": "query" },
+              "requestId": { "location": "query" },
+            },
+          },
+          params,
+          {},
+        );
+        return { result };
+      },
+    },
+    show_utilization: {
+      description: "show utilization",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id":
+              "cloudnumberregistry.projects.locations.discoveredRanges.showUtilization",
+            "path": "v1alpha/{+name}:showUtilization",
+            "httpMethod": "GET",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          {},
+        );
+        return { result };
       },
     },
   },

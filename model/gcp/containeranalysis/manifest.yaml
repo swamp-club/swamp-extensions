@@ -10,8 +10,6 @@ labels:
   - containeranalysis
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: notes_occurrences, occurrences
 models:
   - notes.ts
   - notes_occurrences.ts
