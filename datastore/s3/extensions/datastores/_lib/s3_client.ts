@@ -40,7 +40,7 @@ import {
   PutObjectCommand,
   type PutObjectCommandOutput,
   S3Client as AwsS3Client,
-} from "npm:@aws-sdk/client-s3@3.1024.0";
+} from "npm:@aws-sdk/client-s3@3.1046.0";
 import { Readable } from "node:stream";
 
 export interface S3ClientConfig {

@@ -34,7 +34,7 @@ import {
   ListSecretsCommand,
   PutSecretValueCommand,
   SecretsManagerClient,
-} from "npm:@aws-sdk/client-secrets-manager@3.1024.0";
+} from "npm:@aws-sdk/client-secrets-manager@3.1046.0";
 import { AwsSmOperationError, wrapAwsSmError } from "./aws_sm_errors.ts";
 
 /**
