@@ -94,6 +94,8 @@ export interface DatastoreSyncOptions {
    * in-flight work instead of leaking it past the deadline.
    */
   signal?: AbortSignal;
+  /** Relative path of the file that changed; undefined means bulk invalidation. */
+  relPath?: string;
 }
 
 /** Moves data between the local cache directory and the remote datastore. */
@@ -110,7 +112,7 @@ export interface DatastoreSyncService {
    * `pushChanged` performs a full walk + upload. No-op on
    * implementations without a fast-path optimization.
    */
-  markDirty(): Promise<void>;
+  markDirty(options?: DatastoreSyncOptions): Promise<void>;
 }
 
 /** Factory that produces the datastore's lock, verifier, and sync service. */
