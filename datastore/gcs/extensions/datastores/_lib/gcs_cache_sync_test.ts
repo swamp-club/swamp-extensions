@@ -2494,3 +2494,81 @@ Deno.test("markDirty(relPath): push clears dirty state, next push returns 0", as
     await Deno.remove(cachePath, { recursive: true });
   }
 });
+
+Deno.test("markDirty(relPath): deleted file removed from index during scoped push", async () => {
+  const cachePath = await Deno.makeTempDir({
+    prefix: "gcssync-deleted-dirty-",
+  });
+  try {
+    const mock = createMockGcsClient();
+    await mock.putObject(".datastore-index.json", encodeIndex({}));
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    // Prime and push a file so it's in the remote index
+    await service.pullChanged();
+    await seedFile(cachePath, "data/ephemeral.yaml", "will-be-deleted\n");
+    await service.markDirty({ relPath: "data/ephemeral.yaml" });
+    await service.pushChanged();
+
+    // Now mark it dirty again, then delete it from disk before push
+    const svc2 = new GcsCacheSyncService(mock, cachePath);
+    await svc2.markDirty({ relPath: "data/ephemeral.yaml" });
+    await Deno.remove(join(cachePath, "data/ephemeral.yaml"));
+
+    mock.puts.length = 0;
+    await svc2.pushChanged();
+
+    // File should be removed from the index (rule 2), triggering writeback
+    assert(
+      mock.puts.some((p) => p.key === ".datastore-index.json"),
+      "index writeback must fire when a dirty path is deleted from disk",
+    );
+    const writtenIndex = mock.puts.find(
+      (p) => p.key === ".datastore-index.json",
+    );
+    assertExists(writtenIndex);
+    const parsed = decodeIndex(writtenIndex.body);
+    assertEquals(
+      parsed.entries["data/ephemeral.yaml"],
+      undefined,
+      "deleted file must be removed from the index",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("markDirty: rejects empty, absolute, and traversal relPaths", async () => {
+  const cachePath = await Deno.makeTempDir({
+    prefix: "gcssync-bad-relpath-",
+  });
+  try {
+    const mock = createMockGcsClient();
+    await mock.putObject(".datastore-index.json", encodeIndex({}));
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    await service.pullChanged();
+
+    // All of these should be silently rejected (no sidecar write)
+    await service.markDirty({ relPath: "" });
+    await service.markDirty({ relPath: "/etc/passwd" });
+    await service.markDirty({ relPath: "../../etc/passwd" });
+    await service.markDirty({ relPath: "data/../../../etc/shadow" });
+
+    const sidecar = JSON.parse(
+      await Deno.readTextFile(join(cachePath, ".datastore-sync-state.json")),
+    );
+    assertEquals(
+      sidecar.localDirty,
+      false,
+      "bad relPaths must not flip localDirty",
+    );
+    assertEquals(
+      sidecar.dirtyPaths,
+      [],
+      "bad relPaths must not be added to dirtyPaths",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});

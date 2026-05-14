@@ -326,6 +326,9 @@ const INDEX_CACHE_TTL_MS = 60_000;
 /** Maximum number of concurrent GCS downloads/uploads. */
 const MAX_CONCURRENCY = 10;
 
+/** Auto-promote to bulkInvalidated when dirtyPaths exceeds this count. */
+const DIRTY_PATHS_CAP = 500;
+
 /**
  * Fast-path sidecar persisted alongside the cache. Records the last
  * remote `.datastore-index.json` generation we verified our local cache
@@ -464,26 +467,28 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     const alreadyBulk = current?.bulkInvalidated ?? false;
 
     if (relPath !== undefined) {
-      // Per-path: if already bulk-invalidated, nothing more to do
-      if (alreadyBulk && current?.localDirty === true) return;
-      // Dedup
+      if (!relPath || relPath.startsWith("/") || relPath.includes("..")) {
+        return;
+      }
+      if (alreadyBulk) return;
       if (existingPaths.includes(relPath) && current?.localDirty === true) {
         return;
       }
       const paths = existingPaths.includes(relPath)
         ? existingPaths
         : [...existingPaths, relPath];
+      // Auto-promote to bulk when dirty set exceeds threshold
+      const promote = paths.length > DIRTY_PATHS_CAP;
       await this.writeSyncState({
         version: 2,
         remoteIndexGeneration: generation,
         lastVerifiedAt: verifiedAt,
         localDirty: true,
-        dirtyPaths: paths,
-        bulkInvalidated: alreadyBulk,
+        dirtyPaths: promote ? [] : paths,
+        bulkInvalidated: promote ? true : alreadyBulk,
       });
     } else {
-      // Bulk invalidation
-      if (current?.localDirty === true && alreadyBulk) return;
+      if (alreadyBulk && current?.localDirty === true) return;
       await this.writeSyncState({
         version: 2,
         remoteIndexGeneration: generation,
@@ -1087,7 +1092,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       // Scoped push: only stat/compare files in the dirty set
       for (const rel of sidecar.dirtyPaths) {
         if (isInternalCacheFile(rel)) continue;
-        const localPath = join(this.cachePath, rel);
+        const localPath = assertSafePath(this.cachePath, rel);
         try {
           const stat = await Deno.stat(localPath);
           const existing = this.index?.entries[rel];
@@ -1103,7 +1108,8 @@ export class GcsCacheSyncService implements DatastoreSyncService {
             }
           }
           toPush.push(rel);
-        } catch {
+        } catch (err) {
+          if (!(err instanceof Deno.errors.NotFound)) throw err;
           // File no longer exists — delete from index (rule 2)
           if (this.index?.entries[rel]) {
             delete this.index.entries[rel];
