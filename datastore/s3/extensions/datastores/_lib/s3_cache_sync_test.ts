@@ -1963,7 +1963,7 @@ Deno.test("pushChanged: direct Deno.writeFile bypasses localDirty tracking (cont
 // "with markDirty" recovery path.
 // ============================================================================
 
-Deno.test("markDirty: flips sidecar localDirty and forces slow-path on next pushChanged", async () => {
+Deno.test("markDirty: no-arg flips sidecar to bulk-invalidated v2 and forces slow-path on next pushChanged", async () => {
   const cachePath = await Deno.makeTempDir({ prefix: "s3sync-markdirty-" });
   try {
     const mock = createMockS3Client();
@@ -1978,6 +1978,15 @@ Deno.test("markDirty: flips sidecar localDirty and forces slow-path on next push
     // the new contract by calling markDirty afterwards.
     await seedFile(cachePath, "data/external-writer.yaml", "external\n");
     await service.markDirty();
+
+    // Verify v2 sidecar shape
+    const sidecar = JSON.parse(
+      await Deno.readTextFile(join(cachePath, ".datastore-sync-state.json")),
+    );
+    assertEquals(sidecar.version, 2);
+    assertEquals(sidecar.localDirty, true);
+    assertEquals(sidecar.bulkInvalidated, true);
+    assertEquals(sidecar.dirtyPaths, []);
 
     // Reset ledgers — next pushChanged must slow-path and walk.
     mock.puts.length = 0;
@@ -1998,7 +2007,7 @@ Deno.test("markDirty: flips sidecar localDirty and forces slow-path on next push
   }
 });
 
-Deno.test("markDirty: is idempotent — repeated calls don't thrash the sidecar", async () => {
+Deno.test("markDirty: is idempotent — repeated no-arg calls don't thrash the sidecar", async () => {
   const cachePath = await Deno.makeTempDir({
     prefix: "s3sync-markdirty-idem-",
   });
@@ -2014,6 +2023,11 @@ Deno.test("markDirty: is idempotent — repeated calls don't thrash the sidecar"
     const sidecarPath = join(cachePath, ".datastore-sync-state.json");
     const mtimeAfterFirst = (await Deno.stat(sidecarPath)).mtime;
     assertExists(mtimeAfterFirst);
+
+    // Verify v2 sidecar after first markDirty
+    const sidecar = JSON.parse(await Deno.readTextFile(sidecarPath));
+    assertEquals(sidecar.version, 2);
+    assertEquals(sidecar.bulkInvalidated, true);
 
     await new Promise((r) => setTimeout(r, 20));
     await service.markDirty();
@@ -2606,4 +2620,236 @@ Deno.test({
       await Deno.remove(cachePath, { recursive: true });
     }
   },
+});
+
+// ============================================================================
+// Per-path dirty tracking (Phase 2)
+// ============================================================================
+
+Deno.test("markDirty(relPath): scoped push only uploads dirty paths, skips non-dirty files", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-scoped-push-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+    const service = new S3CacheSyncService(mock, cachePath);
+
+    // Prime clean baseline
+    await service.pullChanged();
+
+    // Seed 3 files but only mark 2 dirty
+    await seedFile(cachePath, "data/a.yaml", "aaa\n");
+    await seedFile(cachePath, "data/b.yaml", "bbb\n");
+    await seedFile(cachePath, "data/c.yaml", "ccc\n");
+    await service.markDirty({ relPath: "data/a.yaml" });
+    await service.markDirty({ relPath: "data/b.yaml" });
+
+    mock.puts.length = 0;
+    await service.pushChanged();
+
+    const pushedKeys = mock.puts
+      .filter((p) => p.key !== ".datastore-index.json")
+      .map((p) => p.key)
+      .sort();
+    assertEquals(
+      pushedKeys,
+      ["data/a.yaml", "data/b.yaml"],
+      "scoped push must only upload the 2 dirty files",
+    );
+    assert(
+      !mock.puts.some((p) => p.key === "data/c.yaml"),
+      "non-dirty file c.yaml must NOT be uploaded",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("markDirty(): no relPath triggers full walk (bulk invalidation)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-bulk-dirty-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+    const service = new S3CacheSyncService(mock, cachePath);
+
+    await service.pullChanged();
+
+    await seedFile(cachePath, "data/a.yaml", "aaa\n");
+    await seedFile(cachePath, "data/b.yaml", "bbb\n");
+    // Bulk invalidation — no relPath
+    await service.markDirty();
+
+    mock.puts.length = 0;
+    await service.pushChanged();
+
+    const pushedKeys = mock.puts
+      .filter((p) => p.key !== ".datastore-index.json")
+      .map((p) => p.key)
+      .sort();
+    assertEquals(
+      pushedKeys,
+      ["data/a.yaml", "data/b.yaml"],
+      "bulk invalidation must walk and upload all changed files",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged: cold start (no sidecar) triggers full walk", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-cold-start-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+
+    await seedFile(cachePath, "data/a.yaml", "aaa\n");
+
+    // No priming, no sidecar — fresh service
+    const service = new S3CacheSyncService(mock, cachePath);
+    mock.puts.length = 0;
+    await service.pushChanged();
+
+    assert(
+      mock.puts.some((p) => p.key === "data/a.yaml"),
+      "cold start with no sidecar must fall through to full walk",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged: v1 sidecar treated as bulkInvalidated → full walk", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-v1-migrate-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+
+    // Write a v1 sidecar manually
+    await Deno.mkdir(cachePath, { recursive: true });
+    await Deno.writeTextFile(
+      join(cachePath, ".datastore-sync-state.json"),
+      JSON.stringify({
+        version: 1,
+        remoteIndexETag: '"old-etag"',
+        lastVerifiedAt: "2026-01-01T00:00:00.000Z",
+        localDirty: true,
+      }),
+    );
+    await seedFile(cachePath, "data/a.yaml", "aaa\n");
+    await seedFile(cachePath, "data/b.yaml", "bbb\n");
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    mock.puts.length = 0;
+    await service.pushChanged();
+
+    const pushedKeys = mock.puts
+      .filter((p) => p.key !== ".datastore-index.json")
+      .map((p) => p.key)
+      .sort();
+    assertEquals(
+      pushedKeys,
+      ["data/a.yaml", "data/b.yaml"],
+      "v1 sidecar with localDirty=true must trigger full walk (bulkInvalidated)",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("markDirty: per-path then bulk in same session → bulk wins (rule 8)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-rule8-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+    const service = new S3CacheSyncService(mock, cachePath);
+
+    await service.pullChanged();
+
+    await seedFile(cachePath, "data/a.yaml", "aaa\n");
+    await seedFile(cachePath, "data/b.yaml", "bbb\n");
+
+    // Per-path first, then bulk
+    await service.markDirty({ relPath: "data/a.yaml" });
+    await service.markDirty(); // bulk — overrides per-path
+
+    // Verify sidecar shows bulkInvalidated
+    const sidecar = JSON.parse(
+      await Deno.readTextFile(join(cachePath, ".datastore-sync-state.json")),
+    );
+    assertEquals(sidecar.bulkInvalidated, true, "bulk must override per-path");
+    assertEquals(
+      sidecar.dirtyPaths,
+      ["data/a.yaml"],
+      "dirtyPaths preserved but bulk wins",
+    );
+
+    mock.puts.length = 0;
+    await service.pushChanged();
+
+    // Both files uploaded (full walk due to bulk)
+    const pushedKeys = mock.puts
+      .filter((p) => p.key !== ".datastore-index.json")
+      .map((p) => p.key)
+      .sort();
+    assertEquals(
+      pushedKeys,
+      ["data/a.yaml", "data/b.yaml"],
+      "bulk invalidation must cause full walk even with dirtyPaths set",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("markDirty(relPath): push clears dirty state, next push returns 0", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-clear-dirty-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+    const service = new S3CacheSyncService(mock, cachePath);
+
+    await service.pullChanged();
+
+    await seedFile(cachePath, "data/a.yaml", "aaa\n");
+    await service.markDirty({ relPath: "data/a.yaml" });
+
+    // First push uploads the dirty file
+    await service.pushChanged();
+    assert(
+      mock.puts.some((p) => p.key === "data/a.yaml"),
+      "first push must upload the dirty file",
+    );
+
+    // Verify sidecar is clean after push
+    const sidecar = JSON.parse(
+      await Deno.readTextFile(join(cachePath, ".datastore-sync-state.json")),
+    );
+    assertEquals(sidecar.localDirty, false, "sidecar must be clean after push");
+    assertEquals(
+      sidecar.dirtyPaths,
+      [],
+      "dirtyPaths must be cleared after push",
+    );
+    assertEquals(
+      sidecar.bulkInvalidated,
+      false,
+      "bulkInvalidated must be cleared after push",
+    );
+
+    // Second push with no new dirty paths — fast path returns 0
+    mock.puts.length = 0;
+    mock.gets.length = 0;
+    const result = await service.pushChanged();
+    assertEquals(
+      result,
+      0,
+      "second push with no dirty paths must fast-path to 0",
+    );
+    assertEquals(
+      mock.puts.length,
+      0,
+      "no uploads on second push",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
 });

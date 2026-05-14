@@ -380,21 +380,22 @@ function formatBatchFailure(
  * falls through to the slow path and rewrites the sidecar).
  */
 interface DatastoreSyncState {
-  version: 1;
+  version: 2;
   /** Remote `.datastore-index.json` ETag at last successful verification. */
   remoteIndexETag: string;
   /** ISO-8601 timestamp of the last successful verification. */
   lastVerifiedAt: string;
   /**
    * `true` when a writer has touched the local cache since the last
-   * verified-clean snapshot. Set pessimistically by `pushFile` BEFORE
-   * any upload work so a crash mid-batch leaves the flag dirty (safe
-   * default: re-walk on next push). Cleared only after a successful
-   * index writeback completes, or after a verified-clean
-   * `pullChanged`. See the guardrail test for the contract: cache
-   * writes that bypass `pushFile` won't update this flag.
+   * verified-clean snapshot. Umbrella flag: true whenever dirtyPaths is
+   * non-empty OR bulkInvalidated is true. Drives the fast-path
+   * short-circuit in tryFastPushChanged/tryFastPullChanged.
    */
   localDirty: boolean;
+  /** Relative paths marked dirty since last successful push. */
+  dirtyPaths: string[];
+  /** When true, forces a full cache walk on the next pushChanged. */
+  bulkInvalidated: boolean;
 }
 
 /** S3 cache sync service. */
@@ -436,14 +437,29 @@ export class S3CacheSyncService implements DatastoreSyncService {
     this.syncStateLoaded = true;
     try {
       const text = await Deno.readTextFile(this.syncStatePath);
-      const parsed = JSON.parse(text) as Partial<DatastoreSyncState>;
+      const parsed = JSON.parse(text) as Record<string, unknown>;
       if (
-        parsed.version === 1 &&
         typeof parsed.remoteIndexETag === "string" &&
         typeof parsed.lastVerifiedAt === "string" &&
         typeof parsed.localDirty === "boolean"
       ) {
-        this.syncState = parsed as DatastoreSyncState;
+        if (
+          parsed.version === 2 &&
+          Array.isArray(parsed.dirtyPaths) &&
+          typeof parsed.bulkInvalidated === "boolean"
+        ) {
+          this.syncState = parsed as unknown as DatastoreSyncState;
+        } else if (parsed.version === 1) {
+          // v1 → v2 migration: treat as bulk-invalidated (safe full walk)
+          this.syncState = {
+            version: 2,
+            remoteIndexETag: parsed.remoteIndexETag,
+            lastVerifiedAt: parsed.lastVerifiedAt,
+            localDirty: parsed.localDirty,
+            dirtyPaths: [],
+            bulkInvalidated: parsed.localDirty,
+          };
+        }
       }
     } catch {
       // Missing/corrupt/unreadable — treat as no sidecar (safe default).
@@ -463,25 +479,55 @@ export class S3CacheSyncService implements DatastoreSyncService {
   }
 
   /**
-   * Pessimistically mark the local cache as dirty. Called by `pushFile`
-   * before its upload work so a crash mid-batch leaves the flag set
-   * (safe: forces a full walk next time). Also the public
-   * `DatastoreSyncService.markDirty` entry point — swamp-core's
-   * repository layer calls this before writing to the cache directly
-   * (any write that bypasses `pushFile`). Without this hook, the
-   * fast-path short-circuit silently skips core's writes on the next
-   * `pushChanged`. Idempotent — if the sidecar already records
-   * `localDirty: true`, no write is issued.
+   * Mark the local cache as dirty. When `options.relPath` is provided,
+   * records that specific path in the dirty set (per-path tracking).
+   * When relPath is absent, sets bulkInvalidated which forces a full
+   * walk on the next pushChanged. Once bulkInvalidated, subsequent
+   * per-path signals are ignored (bulk overrides per-path).
+   *
+   * Also the public `DatastoreSyncService.markDirty` entry point —
+   * swamp-core calls this before writing to the cache directly.
+   * pushFile's internal call passes no options (crash-safety: bulk
+   * invalidation is the safe default for mid-batch crashes).
    */
-  async markDirty(): Promise<void> {
+  async markDirty(options?: DatastoreSyncOptions): Promise<void> {
     const current = await this.loadSyncState();
-    if (current?.localDirty === true) return;
-    await this.writeSyncState({
-      version: 1,
-      remoteIndexETag: current?.remoteIndexETag ?? "",
-      lastVerifiedAt: current?.lastVerifiedAt ?? "",
-      localDirty: true,
-    });
+    const relPath = options?.relPath;
+    const etag = current?.remoteIndexETag ?? "";
+    const verifiedAt = current?.lastVerifiedAt ?? "";
+    const existingPaths = current?.dirtyPaths ?? [];
+    const alreadyBulk = current?.bulkInvalidated ?? false;
+
+    if (relPath !== undefined) {
+      // Per-path: if already bulk-invalidated, nothing more to do
+      if (alreadyBulk && current?.localDirty === true) return;
+      // Dedup
+      if (existingPaths.includes(relPath) && current?.localDirty === true) {
+        return;
+      }
+      const paths = existingPaths.includes(relPath)
+        ? existingPaths
+        : [...existingPaths, relPath];
+      await this.writeSyncState({
+        version: 2,
+        remoteIndexETag: etag,
+        lastVerifiedAt: verifiedAt,
+        localDirty: true,
+        dirtyPaths: paths,
+        bulkInvalidated: alreadyBulk,
+      });
+    } else {
+      // Bulk invalidation
+      if (current?.localDirty === true && alreadyBulk) return;
+      await this.writeSyncState({
+        version: 2,
+        remoteIndexETag: etag,
+        lastVerifiedAt: verifiedAt,
+        localDirty: true,
+        dirtyPaths: existingPaths,
+        bulkInvalidated: true,
+      });
+    }
   }
 
   /**
@@ -520,10 +566,12 @@ export class S3CacheSyncService implements DatastoreSyncService {
       // wall-clock baseline is fine.
     }
     await this.writeSyncState({
-      version: 1,
+      version: 2,
       remoteIndexETag: normalized,
       lastVerifiedAt: new Date(baselineMs).toISOString(),
       localDirty: false,
+      dirtyPaths: [],
+      bulkInvalidated: false,
     });
   }
 
@@ -1069,44 +1117,83 @@ export class S3CacheSyncService implements DatastoreSyncService {
     const indexETag = await this.pullIndex({ forceRemote: true, signal });
     tracePhase("pushChanged.pullIndex", indexStart);
 
-    // Build list of files that need pushing
+    // Build list of files that need pushing.
+    // Dispatch: if per-path dirty tracking is available and not
+    // bulk-invalidated, only check the dirty set. Otherwise full walk.
     const walkStart = Date.now();
     const toPush: string[] = [];
-    try {
-      for await (
-        const entry of walk(this.cachePath, {
-          includeDirs: false,
-        })
-      ) {
-        const rel = relative(this.cachePath, entry.path);
-        // Skip internal metadata files (see isInternalCacheFile)
-        if (isInternalCacheFile(rel)) {
-          continue;
-        }
+    const sidecar = await this.loadSyncState();
+    const useScopedPush = sidecar &&
+      !sidecar.bulkInvalidated &&
+      sidecar.dirtyPaths.length > 0;
 
-        // Check if file is new or has changed (size + mtime comparison)
-        const stat = await Deno.stat(entry.path);
-        const existing = this.index?.entries[rel];
-        if (existing && existing.size === stat.size) {
-          // Size matches — also check mtime if available
-          if (
-            existing.localMtime && stat.mtime &&
-            existing.localMtime === stat.mtime.toISOString()
-          ) {
-            continue; // Both size and mtime match — unchanged
+    if (useScopedPush) {
+      // Scoped push: only stat/compare files in the dirty set
+      for (const rel of sidecar.dirtyPaths) {
+        if (isInternalCacheFile(rel)) continue;
+        const localPath = join(this.cachePath, rel);
+        try {
+          const stat = await Deno.stat(localPath);
+          const existing = this.index?.entries[rel];
+          if (existing && existing.size === stat.size) {
+            if (
+              existing.localMtime && stat.mtime &&
+              existing.localMtime === stat.mtime.toISOString()
+            ) {
+              continue;
+            }
+            if (!stat.mtime || existing.localMtime === undefined) {
+              continue;
+            }
           }
-          // If no localMtime recorded (old index format), fall back to size-only
-          if (!stat.mtime || existing.localMtime === undefined) {
+          toPush.push(rel);
+        } catch {
+          // File no longer exists — delete from index (rule 2)
+          if (this.index?.entries[rel]) {
+            delete this.index.entries[rel];
+            this.indexMutated = true;
+          }
+        }
+      }
+      tracePhase(
+        "pushChanged.scopedCheck",
+        walkStart,
+        `toPush=${toPush.length}`,
+      );
+    } else {
+      // Full walk: bulk-invalidated, no sidecar, or no dirty paths
+      try {
+        for await (
+          const entry of walk(this.cachePath, {
+            includeDirs: false,
+          })
+        ) {
+          const rel = relative(this.cachePath, entry.path);
+          if (isInternalCacheFile(rel)) {
             continue;
           }
-        }
 
-        toPush.push(rel);
+          const stat = await Deno.stat(entry.path);
+          const existing = this.index?.entries[rel];
+          if (existing && existing.size === stat.size) {
+            if (
+              existing.localMtime && stat.mtime &&
+              existing.localMtime === stat.mtime.toISOString()
+            ) {
+              continue;
+            }
+            if (!stat.mtime || existing.localMtime === undefined) {
+              continue;
+            }
+          }
+
+          toPush.push(rel);
+        }
+      } catch {
+        // Cache directory may not exist yet
       }
-    } catch {
-      // Cache directory may not exist yet
+      tracePhase("pushChanged.walk", walkStart, `toPush=${toPush.length}`);
     }
-    tracePhase("pushChanged.walk", walkStart, `toPush=${toPush.length}`);
 
     // Upload concurrently in batches
     const uploadStart = Date.now();
