@@ -22,13 +22,13 @@ import {
 } from "./_lib/aws.ts";
 
 const TagSchema = z.object({
-  Key: z.string().min(1).max(128),
   Value: z.string().min(0).max(256),
+  Key: z.string().min(1).max(128),
 });
 
 const LambdaCodeHookSchema = z.object({
-  CodeHookInterfaceVersion: z.string().min(1).max(5),
   LambdaArn: z.string().min(20).max(2048),
+  CodeHookInterfaceVersion: z.string().min(1).max(5),
 });
 
 const CodeHookSpecificationSchema = z.object({
@@ -45,27 +45,6 @@ const BotAliasLocaleSettingsItemSchema = z.object({
   BotAliasLocaleSetting: BotAliasLocaleSettingsSchema,
 });
 
-const S3BucketLogDestinationSchema = z.object({
-  S3BucketArn: z.string().min(1).max(2048).regex(
-    new RegExp("^arn:[\\w\\-]+:s3:::[a-z0-9][\\.\\-a-z0-9]{1,61}[a-z0-9]$"),
-  ),
-  LogPrefix: z.string().min(0).max(1024),
-  KmsKeyArn: z.string().min(20).max(2048).regex(
-    new RegExp(
-      "^arn:[\\w\\-]+:kms:[\\w\\-]+:[\\d]{12}:(?:key\\/[\\w\\-]+|alias\\/[a-zA-Z0-9:\\/_\\-]{1,256})$",
-    ),
-  ).optional(),
-});
-
-const AudioLogDestinationSchema = z.object({
-  S3Bucket: S3BucketLogDestinationSchema,
-});
-
-const AudioLogSettingSchema = z.object({
-  Destination: AudioLogDestinationSchema,
-  Enabled: z.boolean(),
-});
-
 const CloudWatchLogGroupLogDestinationSchema = z.object({
   CloudWatchLogGroupArn: z.string().min(1).max(2048),
   LogPrefix: z.string().min(0).max(1024),
@@ -80,30 +59,52 @@ const TextLogSettingSchema = z.object({
   Enabled: z.boolean(),
 });
 
+const S3BucketLogDestinationSchema = z.object({
+  KmsKeyArn: z.string().min(20).max(2048).regex(
+    new RegExp(
+      "^arn:[\\w\\-]+:kms:[\\w\\-]+:[\\d]{12}:(?:key\\/[\\w\\-]+|alias\\/[a-zA-Z0-9:\\/_\\-]{1,256})$",
+    ),
+  ).optional(),
+  LogPrefix: z.string().min(0).max(1024),
+  S3BucketArn: z.string().min(1).max(2048).regex(
+    new RegExp("^arn:[\\w\\-]+:s3:::[a-z0-9][\\.\\-a-z0-9]{1,61}[a-z0-9]$"),
+  ),
+});
+
+const AudioLogDestinationSchema = z.object({
+  S3Bucket: S3BucketLogDestinationSchema,
+});
+
+const AudioLogSettingSchema = z.object({
+  Destination: AudioLogDestinationSchema,
+  Enabled: z.boolean(),
+});
+
 const ConversationLogSettingsSchema = z.object({
-  AudioLogSettings: z.array(AudioLogSettingSchema).optional(),
   TextLogSettings: z.array(TextLogSettingSchema).optional(),
+  AudioLogSettings: z.array(AudioLogSettingSchema).optional(),
 });
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  Name: z.string().min(1).max(100).regex(new RegExp("^([0-9a-zA-Z][_-]?)+$")),
   Description: z.string().max(2000).describe("A description of the resource")
     .optional(),
-  RoleArn: z.string().min(32).max(2048).regex(
-    new RegExp("^arn:aws[a-zA-Z-]*:iam::[0-9]{12}:role/.*$"),
-  ),
-  DataPrivacy: z.object({
-    ChildDirected: z.boolean(),
-  }),
   ErrorLogSettings: z.object({
     Enabled: z.boolean(),
   }).optional(),
-  IdleSessionTTLInSeconds: z.number().int().min(60).max(86400),
+  RoleArn: z.string().min(32).max(2048).regex(
+    new RegExp("^arn:aws[a-zA-Z-]*:iam::[0-9]{12}:role/.*$"),
+  ),
+  Name: z.string().min(1).max(100).regex(new RegExp("^([0-9a-zA-Z][_-]?)+$")),
+  BotTags: z.array(TagSchema).optional(),
+  TestBotAliasTags: z.array(TagSchema).optional(),
+  AutoBuildBotLocales: z.boolean().optional(),
   BotLocales: z.array(z.string()).optional(),
+  IdleSessionTTLInSeconds: z.number().int().min(60).max(86400),
   BotFileS3Location: z.object({
+    S3ObjectVersion: z.string().min(1).max(1024).optional(),
     S3Bucket: z.string().min(3).max(63).regex(
       new RegExp("^[a-z0-9][\\.\\-a-z0-9]{1,61}[a-z0-9]$"),
     ),
@@ -112,58 +113,57 @@ const GlobalArgsSchema = z.object({
         "[\\.\\-\\!\\*\\_\\'\\(\\)a-zA-Z0-9][\\.\\-\\!\\*\\_\\'\\(\\)\\/a-zA-Z0-9]*$",
       ),
     ),
-    S3ObjectVersion: z.string().min(1).max(1024).optional(),
-  }).optional(),
-  BotTags: z.array(TagSchema).optional(),
-  TestBotAliasTags: z.array(TagSchema).optional(),
-  AutoBuildBotLocales: z.boolean().optional(),
-  TestBotAliasSettings: z.object({
-    BotAliasLocaleSettings: z.array(BotAliasLocaleSettingsItemSchema)
-      .optional(),
-    ConversationLogSettings: ConversationLogSettingsSchema.optional(),
-    Description: z.string().max(2000).describe("A description of the resource")
-      .optional(),
-    SentimentAnalysisSettings: z.object({
-      DetectSentiment: z.boolean(),
-    }).optional(),
   }).optional(),
   Replication: z.object({
     ReplicaRegions: z.array(z.string().min(2).max(25)),
   }).optional(),
+  TestBotAliasSettings: z.object({
+    Description: z.string().max(2000).describe("A description of the resource")
+      .optional(),
+    BotAliasLocaleSettings: z.array(BotAliasLocaleSettingsItemSchema)
+      .optional(),
+    ConversationLogSettings: ConversationLogSettingsSchema.optional(),
+    SentimentAnalysisSettings: z.object({
+      DetectSentiment: z.boolean(),
+    }).optional(),
+  }).optional(),
+  DataPrivacy: z.object({
+    ChildDirected: z.boolean(),
+  }),
 });
 
 const StateSchema = z.object({
-  Id: z.string(),
-  Arn: z.string().optional(),
-  Name: z.string().optional(),
   Description: z.string().optional(),
-  RoleArn: z.string().optional(),
-  DataPrivacy: z.object({
-    ChildDirected: z.boolean(),
-  }).optional(),
   ErrorLogSettings: z.object({
     Enabled: z.boolean(),
   }).optional(),
-  IdleSessionTTLInSeconds: z.number().optional(),
-  BotLocales: z.array(z.string()).optional(),
-  BotFileS3Location: z.object({
-    S3Bucket: z.string(),
-    S3ObjectKey: z.string(),
-    S3ObjectVersion: z.string(),
-  }).optional(),
+  RoleArn: z.string().optional(),
+  Name: z.string().optional(),
   BotTags: z.array(TagSchema).optional(),
   TestBotAliasTags: z.array(TagSchema).optional(),
   AutoBuildBotLocales: z.boolean().optional(),
+  BotLocales: z.array(z.string()).optional(),
+  IdleSessionTTLInSeconds: z.number().optional(),
+  BotFileS3Location: z.object({
+    S3ObjectVersion: z.string(),
+    S3Bucket: z.string(),
+    S3ObjectKey: z.string(),
+  }).optional(),
+  Replication: z.object({
+    ReplicaRegions: z.array(z.string()),
+  }).optional(),
   TestBotAliasSettings: z.object({
+    Description: z.string(),
     BotAliasLocaleSettings: z.array(BotAliasLocaleSettingsItemSchema),
     ConversationLogSettings: ConversationLogSettingsSchema,
-    Description: z.string(),
     SentimentAnalysisSettings: z.object({
       DetectSentiment: z.boolean(),
     }),
   }).optional(),
-  Replication: z.object({
-    ReplicaRegions: z.array(z.string()),
+  Id: z.string(),
+  Arn: z.string().optional(),
+  DataPrivacy: z.object({
+    ChildDirected: z.boolean(),
   }).optional(),
 }).passthrough();
 
@@ -171,22 +171,23 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
-  Name: z.string().min(1).max(100).regex(new RegExp("^([0-9a-zA-Z][_-]?)+$"))
-    .optional(),
   Description: z.string().max(2000).describe("A description of the resource")
     .optional(),
-  RoleArn: z.string().min(32).max(2048).regex(
-    new RegExp("^arn:aws[a-zA-Z-]*:iam::[0-9]{12}:role/.*$"),
-  ).optional(),
-  DataPrivacy: z.object({
-    ChildDirected: z.boolean().optional(),
-  }).optional(),
   ErrorLogSettings: z.object({
     Enabled: z.boolean().optional(),
   }).optional(),
-  IdleSessionTTLInSeconds: z.number().int().min(60).max(86400).optional(),
+  RoleArn: z.string().min(32).max(2048).regex(
+    new RegExp("^arn:aws[a-zA-Z-]*:iam::[0-9]{12}:role/.*$"),
+  ).optional(),
+  Name: z.string().min(1).max(100).regex(new RegExp("^([0-9a-zA-Z][_-]?)+$"))
+    .optional(),
+  BotTags: z.array(TagSchema).optional(),
+  TestBotAliasTags: z.array(TagSchema).optional(),
+  AutoBuildBotLocales: z.boolean().optional(),
   BotLocales: z.array(z.string()).optional(),
+  IdleSessionTTLInSeconds: z.number().int().min(60).max(86400).optional(),
   BotFileS3Location: z.object({
+    S3ObjectVersion: z.string().min(1).max(1024).optional(),
     S3Bucket: z.string().min(3).max(63).regex(
       new RegExp("^[a-z0-9][\\.\\-a-z0-9]{1,61}[a-z0-9]$"),
     ).optional(),
@@ -195,30 +196,29 @@ const InputsSchema = z.object({
         "[\\.\\-\\!\\*\\_\\'\\(\\)a-zA-Z0-9][\\.\\-\\!\\*\\_\\'\\(\\)\\/a-zA-Z0-9]*$",
       ),
     ).optional(),
-    S3ObjectVersion: z.string().min(1).max(1024).optional(),
   }).optional(),
-  BotTags: z.array(TagSchema).optional(),
-  TestBotAliasTags: z.array(TagSchema).optional(),
-  AutoBuildBotLocales: z.boolean().optional(),
+  Replication: z.object({
+    ReplicaRegions: z.array(z.string().min(2).max(25)).optional(),
+  }).optional(),
   TestBotAliasSettings: z.object({
+    Description: z.string().max(2000).describe("A description of the resource")
+      .optional(),
     BotAliasLocaleSettings: z.array(BotAliasLocaleSettingsItemSchema)
       .optional(),
     ConversationLogSettings: ConversationLogSettingsSchema.optional(),
-    Description: z.string().max(2000).describe("A description of the resource")
-      .optional(),
     SentimentAnalysisSettings: z.object({
       DetectSentiment: z.boolean().optional(),
     }).optional(),
   }).optional(),
-  Replication: z.object({
-    ReplicaRegions: z.array(z.string().min(2).max(25)).optional(),
+  DataPrivacy: z.object({
+    ChildDirected: z.boolean().optional(),
   }).optional(),
 });
 
 /** Swamp extension model for Lex Bot. Registered at `@swamp/aws/lex/bot`. */
 export const model = {
   type: "@swamp/aws/lex/bot",
-  version: "2026.04.23.2",
+  version: "2026.05.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -242,6 +242,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -22,11 +22,9 @@ import {
 } from "./_lib/aws.ts";
 
 const IpRuleSchema = z.object({
-  IpRange: z.string().regex(
-    new RegExp(
-      "^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?:/([0-9]|[12][0-9]|3[0-2])|)$",
-    ),
-  ).describe("A single IP address or an IP address range in CIDR notation"),
+  IpRange: z.string().describe(
+    "A single IP address or an IP address range in CIDR notation",
+  ),
   Description: z.string().min(1).max(256).regex(new RegExp("^.+$")).optional(),
 });
 
@@ -92,7 +90,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for WorkSpacesWeb IpAccessSettings. Registered at `@swamp/aws/workspacesweb/ip-access-settings`. */
 export const model = {
   type: "@swamp/aws/workspacesweb/ip-access-settings",
-  version: "2026.04.23.2",
+  version: "2026.05.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -116,6 +114,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

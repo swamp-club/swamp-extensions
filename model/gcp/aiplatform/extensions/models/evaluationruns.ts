@@ -619,7 +619,7 @@ const GlobalArgsSchema = z.object({
       }).describe("Specification for a metric that is based on rubrics.")
         .optional(),
     })).describe(
-      "Required. The metrics to be calculated in the evaluation run.",
+      "Optional. The metrics to be calculated in the evaluation run. Required when analysis_configs is not set.",
     ).optional(),
     outputConfig: z.object({
       bigqueryDestination: z.object({
@@ -1875,7 +1875,7 @@ const InputsSchema = z.object({
       }).describe("Specification for a metric that is based on rubrics.")
         .optional(),
     })).describe(
-      "Required. The metrics to be calculated in the evaluation run.",
+      "Optional. The metrics to be calculated in the evaluation run. Required when analysis_configs is not set.",
     ).optional(),
     outputConfig: z.object({
       bigqueryDestination: z.object({
@@ -2327,7 +2327,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Agent Platform EvaluationRuns. Registered at `@swamp/gcp/aiplatform/evaluationruns`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/evaluationruns",
-  version: "2026.05.02.1",
+  version: "2026.05.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2376,6 +2376,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

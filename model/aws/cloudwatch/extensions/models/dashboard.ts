@@ -21,6 +21,15 @@ import {
   updateResource,
 } from "./_lib/aws.ts";
 
+const TagSchema = z.object({
+  Key: z.string().min(1).max(128).describe(
+    "A unique identifier for the tag. The combination of tag keys and values can help you organize and categorize your resources.",
+  ),
+  Value: z.string().min(1).max(256).describe(
+    "The value for the specified tag key.",
+  ),
+});
+
 const GlobalArgsSchema = z.object({
   DashboardName: z.string().describe(
     "The name of the dashboard. The name must be between 1 and 255 characters. If you do not specify a name, one will be generated automatically.",
@@ -28,11 +37,15 @@ const GlobalArgsSchema = z.object({
   DashboardBody: z.string().describe(
     "The detailed information about the dashboard in JSON format, including the widgets to include and their location on the dashboard",
   ),
+  Tags: z.array(TagSchema).describe(
+    "A list of key-value pairs to associate with the cloudwatch dashboard. You can associate up to 50 tags with a dashboard",
+  ).optional(),
 });
 
 const StateSchema = z.object({
   DashboardName: z.string(),
   DashboardBody: z.string().optional(),
+  Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -44,12 +57,15 @@ const InputsSchema = z.object({
   DashboardBody: z.string().describe(
     "The detailed information about the dashboard in JSON format, including the widgets to include and their location on the dashboard",
   ).optional(),
+  Tags: z.array(TagSchema).describe(
+    "A list of key-value pairs to associate with the cloudwatch dashboard. You can associate up to 50 tags with a dashboard",
+  ).optional(),
 });
 
 /** Swamp extension model for CloudWatch Dashboard. Registered at `@swamp/aws/cloudwatch/dashboard`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/dashboard",
-  version: "2026.04.23.2",
+  version: "2026.05.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -74,6 +90,11 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.14.1",
+      description: "Added: Tags",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

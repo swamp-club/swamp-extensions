@@ -10,8 +10,6 @@ labels:
   - spanner
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: instances_backups, instances_databases_backupschedules
 models:
   - instanceconfigs.ts
   - instances.ts

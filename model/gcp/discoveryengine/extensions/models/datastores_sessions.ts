@@ -262,6 +262,7 @@ const GlobalArgsSchema = z.object({
         "FAILED",
         "SUCCEEDED",
         "SKIPPED",
+        "CANCELLED",
       ]).describe("State of the answer generation.").optional(),
     }).describe("AssistAnswer resource, main part of AssistResponse.")
       .optional(),
@@ -293,6 +294,7 @@ const StateSchema = z.object({
   isPinned: z.boolean().optional(),
   labels: z.array(z.string()).optional(),
   name: z.string(),
+  pendingAsyncAssistOperationId: z.string().optional(),
   startTime: z.string().optional(),
   state: z.string().optional(),
   turns: z.array(z.object({
@@ -528,6 +530,7 @@ const InputsSchema = z.object({
         "FAILED",
         "SUCCEEDED",
         "SKIPPED",
+        "CANCELLED",
       ]).describe("State of the answer generation.").optional(),
     }).describe("AssistAnswer resource, main part of AssistResponse.")
       .optional(),
@@ -556,7 +559,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Discovery Engine DataStores.Sessions. Registered at `@swamp/gcp/discoveryengine/datastores-sessions`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/datastores-sessions",
-  version: "2026.05.01.1",
+  version: "2026.05.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -600,6 +603,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

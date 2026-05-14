@@ -24,15 +24,21 @@ import {
 const TagSchema = z.object({
   Key: z.string().min(1).max(128).regex(
     new RegExp("^([\\p{L}\\p{Z}\\p{N}_.:/=+\\-@]*)$", "u"),
+  ).describe(
+    "A string that contains Tag key. The string length should be between 1 and 128 characters. Valid characters include a-z, A-Z, 0-9, space, and the special characters _ -.: / = + @.",
   ),
   Value: z.string().min(0).max(256).regex(
     new RegExp("^([\\p{L}\\p{Z}\\p{N}_.:/=+\\-@]*)$", "u"),
+  ).describe(
+    "A string that contains an optional Tag value. The string length should be between 0 and 256 characters. Valid characters include a-z, A-Z, 0-9, space, and the special characters _ -.: / = + @.",
   ),
 });
 
 const GlobalArgsSchema = z.object({
   Name: z.string().describe("The name of the key value store."),
-  Comment: z.string().describe("A comment for the key value store.").optional(),
+  Comment: z.string().describe(
+    "A comment to describe the Key Value Store. Omitting Comment from the template during updates will clear the existing comment (set to empty string). To preserve an existing comment, you must explicitly include it in the template.",
+  ).optional(),
   ImportSource: z.object({
     SourceType: z.string().describe(
       "The source type of the import source for the key value store.",
@@ -41,7 +47,9 @@ const GlobalArgsSchema = z.object({
       "The Amazon Resource Name (ARN) of the import source for the key value store.",
     ),
   }).describe("The import source for the key value store.").optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagSchema).describe(
+    "A complex type that contains zero or more Tag elements.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -61,7 +69,9 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   Name: z.string().describe("The name of the key value store.").optional(),
-  Comment: z.string().describe("A comment for the key value store.").optional(),
+  Comment: z.string().describe(
+    "A comment to describe the Key Value Store. Omitting Comment from the template during updates will clear the existing comment (set to empty string). To preserve an existing comment, you must explicitly include it in the template.",
+  ).optional(),
   ImportSource: z.object({
     SourceType: z.string().describe(
       "The source type of the import source for the key value store.",
@@ -70,13 +80,15 @@ const InputsSchema = z.object({
       "The Amazon Resource Name (ARN) of the import source for the key value store.",
     ).optional(),
   }).describe("The import source for the key value store.").optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.array(TagSchema).describe(
+    "A complex type that contains zero or more Tag elements.",
+  ).optional(),
 });
 
 /** Swamp extension model for CloudFront KeyValueStore. Registered at `@swamp/aws/cloudfront/key-value-store`. */
 export const model = {
   type: "@swamp/aws/cloudfront/key-value-store",
-  version: "2026.04.23.2",
+  version: "2026.05.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -100,6 +112,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

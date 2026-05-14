@@ -52,7 +52,7 @@ const GlobalArgsSchema = z.object({
     "A boolean value indicating whether surge upgrade is enabled/disabled for the cluster. Surge upgrade makes cluster upgrades fast and reliable by bringing up new nodes before destroying the outdated nodes.",
   ).optional(),
   ha: z.boolean().describe(
-    "A boolean value indicating whether the control plane is run in a highly available configuration in the cluster. Highly available control planes incur less downtime. The property cannot be disabled.",
+    "A boolean value indicating whether the control plane is run in a highly available configuration in the cluster. Highly available control planes incur less downtime. The property cannot be disabled. When omitted on create, the default is version-dependent; for DOKS 1.36.0 and later, the default is true; for earlier versions, the default is false.",
   ).optional(),
   control_plane_firewall: z.object({
     enabled: z.boolean().optional(),
@@ -335,7 +335,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean kubernetes cluster. Registered at `@swamp/digitalocean/kubernetes-cluster`. */
 export const model = {
   type: "@swamp/digitalocean/kubernetes-cluster",
-  version: "2026.04.23.2",
+  version: "2026.05.14.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -369,6 +369,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

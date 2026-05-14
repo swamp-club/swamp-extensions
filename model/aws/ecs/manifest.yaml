@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/ecs"
-version: "2026.04.23.3"
+version: "2026.05.14.1"
 description: "AWS ECS infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - ecs
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: daemon_task_definition, service
 models:
   - capacity_provider.ts
   - cluster.ts

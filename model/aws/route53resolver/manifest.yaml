@@ -9,8 +9,6 @@ labels:
   - route53resolver
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: firewall_rule_group
 models:
   - firewall_domain_list.ts
   - firewall_rule_group.ts

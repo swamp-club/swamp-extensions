@@ -927,7 +927,7 @@ const GlobalArgsSchema = z.object({
     "Optional. User-defined labels for the scan.",
   ).optional(),
   dataScanId: z.string().describe(
-    "Required. DataScan identifier. Must contain only lowercase letters, numbers and hyphens. Must start with a letter. Must end with a number or a letter. Must be between 1-63 characters. Must be unique within the customer project / location.",
+    'Optional. DataScan identifier. If not provided, a unique ID will be generated with the prefix "data-scan-". Must contain only lowercase letters, numbers and hyphens. Must start with a letter. Must end with a number or a letter. Must be between 1-63 characters. Must be unique within the customer project / location.',
   ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
@@ -2114,7 +2114,7 @@ const InputsSchema = z.object({
     "Optional. User-defined labels for the scan.",
   ).optional(),
   dataScanId: z.string().describe(
-    "Required. DataScan identifier. Must contain only lowercase letters, numbers and hyphens. Must start with a letter. Must end with a number or a letter. Must be between 1-63 characters. Must be unique within the customer project / location.",
+    'Optional. DataScan identifier. If not provided, a unique ID will be generated with the prefix "data-scan-". Must contain only lowercase letters, numbers and hyphens. Must start with a letter. Must end with a number or a letter. Must be between 1-63 characters. Must be unique within the customer project / location.',
   ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
@@ -2124,7 +2124,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dataplex DataScans. Registered at `@swamp/gcp/dataplex/datascans`. */
 export const model = {
   type: "@swamp/gcp/dataplex/datascans",
-  version: "2026.04.23.1",
+  version: "2026.05.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2178,6 +2178,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -50,7 +50,9 @@ const GlobalArgsSchema = z.object({
     CaCertificatesBundleS3Location: CaCertificatesBundleS3LocationSchema
       .describe("The CA certificates bundle location in Amazon S3."),
   }).describe("A CA certificates bundle source.").optional(),
-  UseClientCertificateOCSPEndpoint: z.boolean().optional(),
+  UseClientCertificateOCSPEndpoint: z.boolean().describe(
+    "A boolean. When true, performs real-time certificate revocation checks by querying the OCSP endpoint specified within the client certificate.",
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "A complex type that contains zero or more Tag elements.",
   ).optional(),
@@ -80,7 +82,9 @@ const InputsSchema = z.object({
     CaCertificatesBundleS3Location: CaCertificatesBundleS3LocationSchema
       .describe("The CA certificates bundle location in Amazon S3.").optional(),
   }).describe("A CA certificates bundle source.").optional(),
-  UseClientCertificateOCSPEndpoint: z.boolean().optional(),
+  UseClientCertificateOCSPEndpoint: z.boolean().describe(
+    "A boolean. When true, performs real-time certificate revocation checks by querying the OCSP endpoint specified within the client certificate.",
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "A complex type that contains zero or more Tag elements.",
   ).optional(),
@@ -89,7 +93,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for CloudFront TrustStore. Registered at `@swamp/aws/cloudfront/trust-store`. */
 export const model = {
   type: "@swamp/aws/cloudfront/trust-store",
-  version: "2026.05.06.1",
+  version: "2026.05.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -119,6 +123,11 @@ export const model = {
     {
       toVersion: "2026.05.06.1",
       description: "Added: UseClientCertificateOCSPEndpoint",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.14.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -109,7 +109,7 @@ const GlobalArgsSchema = z.object({
     "Optional. The resource name of the SandboxEnvironmentSnapshot to use for creating this SandboxEnvironment. Format: `projects/{project}/locations/{location}/reasoningEngines/{reasoning_engine}/sandboxEnvironmentSnapshots/{sandbox_environment_snapshot}`",
   ).optional(),
   sandboxEnvironmentTemplate: z.string().describe(
-    "Optional. The name of the SandboxEnvironmentTemplate specified in the parent Agent Engine resource that this SandboxEnvironment is created from. Only one of `sandbox_environment_template` and `spec` should be set.",
+    "Optional. The name of the SandboxEnvironmentTemplate specified in the parent Agent Engine resource that this SandboxEnvironment is created from.",
   ).optional(),
   spec: z.object({
     codeExecutionEnvironment: z.object({
@@ -194,7 +194,7 @@ const InputsSchema = z.object({
     "Optional. The resource name of the SandboxEnvironmentSnapshot to use for creating this SandboxEnvironment. Format: `projects/{project}/locations/{location}/reasoningEngines/{reasoning_engine}/sandboxEnvironmentSnapshots/{sandbox_environment_snapshot}`",
   ).optional(),
   sandboxEnvironmentTemplate: z.string().describe(
-    "Optional. The name of the SandboxEnvironmentTemplate specified in the parent Agent Engine resource that this SandboxEnvironment is created from. Only one of `sandbox_environment_template` and `spec` should be set.",
+    "Optional. The name of the SandboxEnvironmentTemplate specified in the parent Agent Engine resource that this SandboxEnvironment is created from.",
   ).optional(),
   spec: z.object({
     codeExecutionEnvironment: z.object({
@@ -223,7 +223,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Agent Platform ReasoningEngines.SandboxEnvironments. Registered at `@swamp/gcp/aiplatform/reasoningengines-sandboxenvironments`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines-sandboxenvironments",
-  version: "2026.05.09.1",
+  version: "2026.05.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -273,6 +273,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.09.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

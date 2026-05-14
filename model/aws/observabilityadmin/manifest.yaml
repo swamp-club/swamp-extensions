@@ -9,8 +9,6 @@ labels:
   - observabilityadmin
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: organization_telemetry_rule, telemetry_rule
 models:
   - organization_centralization_rule.ts
   - organization_telemetry_rule.ts

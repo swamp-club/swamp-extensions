@@ -10,8 +10,6 @@ labels:
   - sqladmin
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: instances
 models:
   - backupruns.ts
   - connect.ts
