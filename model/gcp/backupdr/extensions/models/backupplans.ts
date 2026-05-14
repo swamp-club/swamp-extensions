@@ -212,7 +212,7 @@ const GlobalArgsSchema = z.object({
     guestFlush: z.boolean().describe(
       "Optional. Indicates whether to perform a guest flush operation before taking a compute backup. When set to false, the system will create crash-consistent backups. Default value is false.",
     ).optional(),
-  }).describe("--- ComputeInstanceBackupPlanProperties Message ---").optional(),
+  }).describe("Properties for a compute instance backup plan.").optional(),
   description: z.string().describe(
     'Optional. The description of the `BackupPlan` resource. The description allows for additional details about `BackupPlan` and its use cases to be provided. An example description is the following: "This is a backup plan that performs a daily backup at 6pm and retains data for 3 months". The description must be at most 2048 characters.',
   ).optional(),
@@ -220,7 +220,7 @@ const GlobalArgsSchema = z.object({
     guestFlush: z.boolean().describe(
       "Optional. Indicates whether to perform a guest flush operation before taking a disk backup. When set to false, the system will create crash-consistent backups. Default value is false.",
     ).optional(),
-  }).describe("--- DiskBackupPlanProperties Message ---").optional(),
+  }).describe("Properties for a disk backup plan.").optional(),
   labels: z.record(z.string(), z.string()).describe(
     'Optional. This collection of key/value pairs allows for custom labels to be supplied by the user. Example, {"tag": "Weekly"}.',
   ).optional(),
@@ -394,7 +394,7 @@ const InputsSchema = z.object({
     guestFlush: z.boolean().describe(
       "Optional. Indicates whether to perform a guest flush operation before taking a compute backup. When set to false, the system will create crash-consistent backups. Default value is false.",
     ).optional(),
-  }).describe("--- ComputeInstanceBackupPlanProperties Message ---").optional(),
+  }).describe("Properties for a compute instance backup plan.").optional(),
   description: z.string().describe(
     'Optional. The description of the `BackupPlan` resource. The description allows for additional details about `BackupPlan` and its use cases to be provided. An example description is the following: "This is a backup plan that performs a daily backup at 6pm and retains data for 3 months". The description must be at most 2048 characters.',
   ).optional(),
@@ -402,7 +402,7 @@ const InputsSchema = z.object({
     guestFlush: z.boolean().describe(
       "Optional. Indicates whether to perform a guest flush operation before taking a disk backup. When set to false, the system will create crash-consistent backups. Default value is false.",
     ).optional(),
-  }).describe("--- DiskBackupPlanProperties Message ---").optional(),
+  }).describe("Properties for a disk backup plan.").optional(),
   labels: z.record(z.string(), z.string()).describe(
     'Optional. This collection of key/value pairs allows for custom labels to be supplied by the user. Example, {"tag": "Weekly"}.',
   ).optional(),
@@ -429,7 +429,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Backup and DR Service BackupPlans. Registered at `@swamp/gcp/backupdr/backupplans`. */
 export const model = {
   type: "@swamp/gcp/backupdr/backupplans",
-  version: "2026.05.12.1",
+  version: "2026.05.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -473,6 +473,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.12.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

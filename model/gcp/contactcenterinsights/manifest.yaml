@@ -10,8 +10,6 @@ labels:
   - contactcenterinsights
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: dashboards_charts, diagnostics
 models:
   - analysisrules.ts
   - assessmentrules.ts

@@ -813,7 +813,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Agent Platform ReasoningEngines. Registered at `@swamp/gcp/aiplatform/reasoningengines`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines",
-  version: "2026.05.09.1",
+  version: "2026.05.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -867,6 +867,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.09.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1144,8 +1149,10 @@ export const model = {
     },
     cancel_async_query: {
       description: "cancel async query",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, unknown>, context: any) => {
+      arguments: z.object({
+        operationName: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
@@ -1155,6 +1162,10 @@ export const model = {
             String(g["name"]),
           );
         }
+        const body: Record<string, unknown> = {};
+        if (args["operationName"] !== undefined) {
+          body["operationName"] = args["operationName"];
+        }
         const result = await createResource(
           BASE_URL,
           {
@@ -1163,13 +1174,10 @@ export const model = {
             "path": "v1/{+name}:cancelAsyncQuery",
             "httpMethod": "POST",
             "parameterOrder": ["name"],
-            "parameters": {
-              "name": { "location": "path", "required": true },
-              "operationName": { "location": "query" },
-            },
+            "parameters": { "name": { "location": "path", "required": true } },
           },
           params,
-          {},
+          body,
         );
         return { result };
       },

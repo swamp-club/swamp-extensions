@@ -96,7 +96,7 @@ const GlobalArgsSchema = z.object({
     searchConfig: z.object({
       geoSpec: z.object({
         geoJsonIndexingDisabled: z.boolean().describe(
-          "Optional. Disables geoJSON indexing for the field. By default, geoJSON points are indexed.",
+          "Optional. Disables geoJSON indexing for the field. By default, geoJSON points are indexed. Firestore GeoPoints are indexed regardless of this value.",
         ).optional(),
       }).describe(
         "The specification for how to build a geo search index for a field.",
@@ -138,7 +138,7 @@ const GlobalArgsSchema = z.object({
       "Optional. The language to use for text search indexes. Used as the default language if not overridden at the document level by specifying the `text_language_override_field`. The language is specified as a BCP 47 language code. For indexes with MONGODB_COMPATIBLE_API ApiScope: If unspecified, the default language is English. For indexes with `ANY_API` ApiScope: If unspecified, the default behavior is autodetect.",
     ).optional(),
     textLanguageOverrideFieldPath: z.string().describe(
-      'Optional. The field in the document that specifies which language to use for that specific document. For indexes with MONGODB_COMPATIBLE_API ApiScope: if unspecified, the language is taken from the "language" field if it exists or from `text_language` if it does not.',
+      'Optional. The field in the document that specifies which language to use for that specific document. If unspecified, the language is taken from the "language" field if it exists or from `text_language` if it does not.',
     ).optional(),
   }).describe("Options for search indexes at the definition level.").optional(),
   shardCount: z.number().int().describe(
@@ -205,7 +205,7 @@ const InputsSchema = z.object({
     searchConfig: z.object({
       geoSpec: z.object({
         geoJsonIndexingDisabled: z.boolean().describe(
-          "Optional. Disables geoJSON indexing for the field. By default, geoJSON points are indexed.",
+          "Optional. Disables geoJSON indexing for the field. By default, geoJSON points are indexed. Firestore GeoPoints are indexed regardless of this value.",
         ).optional(),
       }).describe(
         "The specification for how to build a geo search index for a field.",
@@ -247,7 +247,7 @@ const InputsSchema = z.object({
       "Optional. The language to use for text search indexes. Used as the default language if not overridden at the document level by specifying the `text_language_override_field`. The language is specified as a BCP 47 language code. For indexes with MONGODB_COMPATIBLE_API ApiScope: If unspecified, the default language is English. For indexes with `ANY_API` ApiScope: If unspecified, the default behavior is autodetect.",
     ).optional(),
     textLanguageOverrideFieldPath: z.string().describe(
-      'Optional. The field in the document that specifies which language to use for that specific document. For indexes with MONGODB_COMPATIBLE_API ApiScope: if unspecified, the language is taken from the "language" field if it exists or from `text_language` if it does not.',
+      'Optional. The field in the document that specifies which language to use for that specific document. If unspecified, the language is taken from the "language" field if it exists or from `text_language` if it does not.',
     ).optional(),
   }).describe("Options for search indexes at the definition level.").optional(),
   shardCount: z.number().int().describe(
@@ -264,7 +264,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Firestore Databases.CollectionGroups.Indexes. Registered at `@swamp/gcp/firestore/databases-collectiongroups-indexes`. */
 export const model = {
   type: "@swamp/gcp/firestore/databases-collectiongroups-indexes",
-  version: "2026.04.23.1",
+  version: "2026.05.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -303,6 +303,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

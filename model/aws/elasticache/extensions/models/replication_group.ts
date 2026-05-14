@@ -115,7 +115,7 @@ const GlobalArgsSchema = z.object({
     "Specifies whether a read-only replica is automatically promoted to read/write primary if the existing primary fails. AutomaticFailoverEnabled must be enabled for Redis (cluster mode enabled) replication groups.",
   ).optional(),
   ReplicasPerNodeGroup: z.number().int().describe(
-    "An optional parameter that specifies the number of replica nodes in each node group (shard). Valid values are 0 to 5.",
+    "An optional parameter that specifies the number of replica nodes in each node group (shard). Valid values are 0 to 5. **Note:** Using ReplicasPerNodeGroup with NodeGroupConfiguration results in resource replacement. For online scaling, use ReplicasPerNodeGroup alone.",
   ).optional(),
   ReplicationGroupDescription: z.string().describe(
     "A user-created description for the replication group.",
@@ -295,7 +295,7 @@ const InputsSchema = z.object({
     "Specifies whether a read-only replica is automatically promoted to read/write primary if the existing primary fails. AutomaticFailoverEnabled must be enabled for Redis (cluster mode enabled) replication groups.",
   ).optional(),
   ReplicasPerNodeGroup: z.number().int().describe(
-    "An optional parameter that specifies the number of replica nodes in each node group (shard). Valid values are 0 to 5.",
+    "An optional parameter that specifies the number of replica nodes in each node group (shard). Valid values are 0 to 5. **Note:** Using ReplicasPerNodeGroup with NodeGroupConfiguration results in resource replacement. For online scaling, use ReplicasPerNodeGroup alone.",
   ).optional(),
   ReplicationGroupDescription: z.string().describe(
     "A user-created description for the replication group.",
@@ -380,7 +380,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ElastiCache ReplicationGroup. Registered at `@swamp/aws/elasticache/replication-group`. */
 export const model = {
   type: "@swamp/aws/elasticache/replication-group",
-  version: "2026.04.23.2",
+  version: "2026.05.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -404,6 +404,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -514,7 +519,6 @@ export const model = {
             "NetworkType",
             "Port",
             "PreferredCacheClusterAZs",
-            "ReplicasPerNodeGroup",
             "ReplicationGroupId",
             "SnapshotArns",
             "SnapshotName",

@@ -322,18 +322,18 @@ const GlobalArgsSchema = z.object({
       "Optional. The number of internal constituents (e.g., FlexVols) for this large volume. The minimum number of constituents is 2.",
     ).optional(),
   }).describe(
-    "Configuration for a Large Capacity Volume. A Large Capacity Volume supports sizes ranging from 4.8 TiB to 20 PiB, it is composed of multiple internal constituents, and must be created in a large capacity pool.",
+    "Configuration for a Large Capacity Volume. A Large Capacity Volume supports sizes ranging from 4.8 TiB to 20 PiB; it is composed of multiple internal constituents, and must be created in a large capacity pool.",
   ).optional(),
   multipleEndpoints: z.boolean().describe(
     "Optional. Flag indicating if the volume will have an IP address per node for volumes supporting multiple IP endpoints. Only the volume with large_capacity will be allowed to have multiple endpoints.",
   ).optional(),
   name: z.string().describe("Identifier. Name of the volume").optional(),
   protocols: z.array(
-    z.enum(["PROTOCOLS_UNSPECIFIED", "NFSV3", "NFSV4", "SMB", "ISCSI"]),
+    z.enum(["PROTOCOLS_UNSPECIFIED", "NFSV3", "NFSV4", "SMB", "ISCSI", "NVME"]),
   ).describe("Required. Protocols required for the volume").optional(),
   restoreParameters: z.object({
     sourceBackup: z.string().describe(
-      "Full name of the backup resource. Format for standard backup: projects/{project}/locations/{location}/backupVaults/{backup_vault_id}/backups/{backup_id} Format for BackupDR backup: projects/{project}/locations/{location}/backupVaults/{backup_vault}/dataSources/{data_source}/backups/{backup}",
+      "Full name of the backup resource. Format for standard backup: projects/{project}/locations/{location}/backupVaults/{backup_vault_id}/backups/{backup_id}. Format for BackupDR backup: projects/{project}/locations/{location}/backupVaults/{backup_vault}/dataSources/{data_source}/backups/{backup}",
     ).optional(),
     sourceSnapshot: z.string().describe(
       "Full name of the snapshot resource. Format: projects/{project}/locations/{location}/volumes/{volume}/snapshots/{snapshot}",
@@ -828,18 +828,18 @@ const InputsSchema = z.object({
       "Optional. The number of internal constituents (e.g., FlexVols) for this large volume. The minimum number of constituents is 2.",
     ).optional(),
   }).describe(
-    "Configuration for a Large Capacity Volume. A Large Capacity Volume supports sizes ranging from 4.8 TiB to 20 PiB, it is composed of multiple internal constituents, and must be created in a large capacity pool.",
+    "Configuration for a Large Capacity Volume. A Large Capacity Volume supports sizes ranging from 4.8 TiB to 20 PiB; it is composed of multiple internal constituents, and must be created in a large capacity pool.",
   ).optional(),
   multipleEndpoints: z.boolean().describe(
     "Optional. Flag indicating if the volume will have an IP address per node for volumes supporting multiple IP endpoints. Only the volume with large_capacity will be allowed to have multiple endpoints.",
   ).optional(),
   name: z.string().describe("Identifier. Name of the volume").optional(),
   protocols: z.array(
-    z.enum(["PROTOCOLS_UNSPECIFIED", "NFSV3", "NFSV4", "SMB", "ISCSI"]),
+    z.enum(["PROTOCOLS_UNSPECIFIED", "NFSV3", "NFSV4", "SMB", "ISCSI", "NVME"]),
   ).describe("Required. Protocols required for the volume").optional(),
   restoreParameters: z.object({
     sourceBackup: z.string().describe(
-      "Full name of the backup resource. Format for standard backup: projects/{project}/locations/{location}/backupVaults/{backup_vault_id}/backups/{backup_id} Format for BackupDR backup: projects/{project}/locations/{location}/backupVaults/{backup_vault}/dataSources/{data_source}/backups/{backup}",
+      "Full name of the backup resource. Format for standard backup: projects/{project}/locations/{location}/backupVaults/{backup_vault_id}/backups/{backup_id}. Format for BackupDR backup: projects/{project}/locations/{location}/backupVaults/{backup_vault}/dataSources/{data_source}/backups/{backup}",
     ).optional(),
     sourceSnapshot: z.string().describe(
       "Full name of the snapshot resource. Format: projects/{project}/locations/{location}/volumes/{volume}/snapshots/{snapshot}",
@@ -964,7 +964,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud NetApp Volumes. Registered at `@swamp/gcp/netapp/volumes`. */
 export const model = {
   type: "@swamp/gcp/netapp/volumes",
-  version: "2026.04.23.1",
+  version: "2026.05.14.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1011,6 +1011,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

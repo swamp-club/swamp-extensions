@@ -10,8 +10,6 @@ labels:
   - servicemanagement
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: services_configs
 models:
   - services.ts
   - services_configs.ts

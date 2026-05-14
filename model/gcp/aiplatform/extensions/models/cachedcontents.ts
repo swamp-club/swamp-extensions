@@ -415,6 +415,9 @@ const GlobalArgsSchema = z.object({
       "Tool to search public web data, powered by Vertex AI Search and Sec4 compliance.",
     ).optional(),
     functionDeclarations: z.array(z.object({
+      behavior: z.enum(["UNSPECIFIED", "BLOCKING", "NON_BLOCKING"]).describe(
+        "Optional. Specifies the function Behavior. If not specified, the system keeps the current function call behavior. This field is currently only supported by the BidiGenerateContent method.",
+      ).optional(),
       description: z.string().describe(
         "Optional. Description and purpose of the function. Model uses it to decide how and whether to call the function.",
       ).optional(),
@@ -888,6 +891,7 @@ const StateSchema = z.object({
       excludeDomains: z.array(z.string()),
     }),
     functionDeclarations: z.array(z.object({
+      behavior: z.string(),
       description: z.string(),
       name: z.string(),
       parameters: z.object({
@@ -1345,6 +1349,9 @@ const InputsSchema = z.object({
       "Tool to search public web data, powered by Vertex AI Search and Sec4 compliance.",
     ).optional(),
     functionDeclarations: z.array(z.object({
+      behavior: z.enum(["UNSPECIFIED", "BLOCKING", "NON_BLOCKING"]).describe(
+        "Optional. Specifies the function Behavior. If not specified, the system keeps the current function call behavior. This field is currently only supported by the BidiGenerateContent method.",
+      ).optional(),
       description: z.string().describe(
         "Optional. Description and purpose of the function. Model uses it to decide how and whether to call the function.",
       ).optional(),
@@ -1695,7 +1702,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Agent Platform CachedContents. Registered at `@swamp/gcp/aiplatform/cachedcontents`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/cachedcontents",
-  version: "2026.05.02.1",
+  version: "2026.05.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1734,6 +1741,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

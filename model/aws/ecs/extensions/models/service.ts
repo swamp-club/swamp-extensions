@@ -297,6 +297,7 @@ const CanaryConfigurationSchema = z.object({
 });
 
 const DeploymentLifecycleHookSchema = z.object({
+  TimeoutConfiguration: z.unknown().optional(),
   LifecycleStages: z.array(
     z.enum([
       "RECONCILE_SERVICE",
@@ -304,6 +305,7 @@ const DeploymentLifecycleHookSchema = z.object({
       "POST_SCALE_UP",
       "TEST_TRAFFIC_SHIFT",
       "POST_TEST_TRAFFIC_SHIFT",
+      "PRE_PRODUCTION_TRAFFIC_SHIFT",
       "PRODUCTION_TRAFFIC_SHIFT",
       "POST_PRODUCTION_TRAFFIC_SHIFT",
     ]),
@@ -312,13 +314,13 @@ const DeploymentLifecycleHookSchema = z.object({
   ),
   HookTargetArn: z.string().describe(
     "The Amazon Resource Name (ARN) of the hook target. Currently, only Lambda function ARNs are supported. You must provide this parameter when configuring a deployment lifecycle hook.",
-  ),
+  ).optional(),
   HookDetails: z.string().describe(
     "Use this field to specify custom parameters that ECS passes to your hook target invocations (such as a Lambda function). This field must be a JSON object as a string.",
   ).optional(),
   RoleArn: z.string().describe(
     "The Amazon Resource Name (ARN) of the IAM role that grants Amazon ECS permission to call Lambda functions on your behalf. For more information, see [Permissions required for Lambda functions in Amazon ECS blue/green deployments](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/blue-green-permissions.html) in the *Amazon Elastic Container Service Developer Guide*.",
-  ),
+  ).optional(),
 });
 
 const DeploymentAlarmsSchema = z.object({
@@ -693,7 +695,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ECS Service. Registered at `@swamp/aws/ecs/service`. */
 export const model = {
   type: "@swamp/aws/ecs/service",
-  version: "2026.04.23.2",
+  version: "2026.05.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -722,6 +724,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

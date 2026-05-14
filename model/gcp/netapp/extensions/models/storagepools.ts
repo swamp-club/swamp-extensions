@@ -127,7 +127,7 @@ const GlobalArgsSchema = z.object({
     "Optional. Flag indicating if the pool is NFS LDAP enabled or not.",
   ).optional(),
   mode: z.enum(["MODE_UNSPECIFIED", "DEFAULT", "ONTAP"]).describe(
-    "Optional. Mode of the storage pool. This field is used to control whether the user can perform the ONTAP operations on the storage pool using the GCNV ONTAP Mode APIs. If not specified during creation, it defaults to `DEFAULT`.",
+    "Optional. Mode of the storage pool. This field is used to control whether the user can perform ONTAP operations on the storage pool using the GCNV ONTAP Mode APIs. If not specified during creation, it defaults to `DEFAULT`.",
   ).optional(),
   name: z.string().describe("Identifier. Name of the storage pool").optional(),
   network: z.string().describe(
@@ -242,7 +242,7 @@ const InputsSchema = z.object({
     "Optional. Flag indicating if the pool is NFS LDAP enabled or not.",
   ).optional(),
   mode: z.enum(["MODE_UNSPECIFIED", "DEFAULT", "ONTAP"]).describe(
-    "Optional. Mode of the storage pool. This field is used to control whether the user can perform the ONTAP operations on the storage pool using the GCNV ONTAP Mode APIs. If not specified during creation, it defaults to `DEFAULT`.",
+    "Optional. Mode of the storage pool. This field is used to control whether the user can perform ONTAP operations on the storage pool using the GCNV ONTAP Mode APIs. If not specified during creation, it defaults to `DEFAULT`.",
   ).optional(),
   name: z.string().describe("Identifier. Name of the storage pool").optional(),
   network: z.string().describe(
@@ -291,7 +291,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud NetApp StoragePools. Registered at `@swamp/gcp/netapp/storagepools`. */
 export const model = {
   type: "@swamp/gcp/netapp/storagepools",
-  version: "2026.04.23.1",
+  version: "2026.05.14.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -338,6 +338,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

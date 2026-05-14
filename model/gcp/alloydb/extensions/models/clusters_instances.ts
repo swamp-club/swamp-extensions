@@ -163,6 +163,9 @@ const GlobalArgsSchema = z.object({
     }).describe("SSL configuration.").optional(),
   }).describe("Client connection configuration").optional(),
   connectionPoolConfig: z.object({
+    authproxyPoolerCount: z.number().int().describe(
+      "Output only. The number of running AuthProxy poolers per instance.",
+    ).optional(),
     enabled: z.boolean().describe(
       "Optional. Whether to enable Managed Connection Pool (MCP).",
     ).optional(),
@@ -354,6 +357,7 @@ const StateSchema = z.object({
     }),
   }).optional(),
   connectionPoolConfig: z.object({
+    authproxyPoolerCount: z.number(),
     enabled: z.boolean(),
     flags: z.record(z.string(), z.unknown()),
     poolerCount: z.number(),
@@ -479,6 +483,9 @@ const InputsSchema = z.object({
     }).describe("SSL configuration.").optional(),
   }).describe("Client connection configuration").optional(),
   connectionPoolConfig: z.object({
+    authproxyPoolerCount: z.number().int().describe(
+      "Output only. The number of running AuthProxy poolers per instance.",
+    ).optional(),
     enabled: z.boolean().describe(
       "Optional. Whether to enable Managed Connection Pool (MCP).",
     ).optional(),
@@ -661,7 +668,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud AlloyDB Clusters.Instances. Registered at `@swamp/gcp/alloydb/clusters-instances`. */
 export const model = {
   type: "@swamp/gcp/alloydb/clusters-instances",
-  version: "2026.04.23.1",
+  version: "2026.05.14.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -695,6 +702,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.14.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
