@@ -1133,12 +1133,38 @@ export class S3CacheSyncService implements DatastoreSyncService {
       sidecar.dirtyPaths.length > 0;
 
     if (useScopedPush) {
-      // Scoped push: only stat/compare files in the dirty set
+      // Scoped push: only stat/compare files in the dirty set.
+      // Core emits directory paths via notifyDirty(getDataNameDir(...)),
+      // so a dirty path may be a directory — walk into it to find the
+      // actual files, mirroring the full-walk path's includeDirs:false.
       for (const rel of sidecar.dirtyPaths) {
         if (isInternalCacheFile(rel)) continue;
         const localPath = assertSafePath(this.cachePath, rel);
         try {
           const stat = await Deno.stat(localPath);
+          if (stat.isDirectory) {
+            for await (
+              const entry of walk(localPath, { includeDirs: false })
+            ) {
+              const fileRel = relative(this.cachePath, entry.path);
+              if (isInternalCacheFile(fileRel)) continue;
+              const fileStat = await Deno.stat(entry.path);
+              const existing = this.index?.entries[fileRel];
+              if (existing && existing.size === fileStat.size) {
+                if (
+                  existing.localMtime && fileStat.mtime &&
+                  existing.localMtime === fileStat.mtime.toISOString()
+                ) {
+                  continue;
+                }
+                if (!fileStat.mtime || existing.localMtime === undefined) {
+                  continue;
+                }
+              }
+              toPush.push(fileRel);
+            }
+            continue;
+          }
           const existing = this.index?.entries[rel];
           if (existing && existing.size === stat.size) {
             if (
@@ -1154,10 +1180,17 @@ export class S3CacheSyncService implements DatastoreSyncService {
           toPush.push(rel);
         } catch (err) {
           if (!(err instanceof Deno.errors.NotFound)) throw err;
-          // File no longer exists — delete from index (rule 2)
-          if (this.index?.entries[rel]) {
-            delete this.index.entries[rel];
-            this.indexMutated = true;
+          // Path no longer exists — delete from index (rule 2).
+          // If the dirty path was a directory, remove all entries under
+          // that prefix; if a file, remove the single entry.
+          if (this.index) {
+            const prefix = rel + "/";
+            for (const key of Object.keys(this.index.entries)) {
+              if (key === rel || key.startsWith(prefix)) {
+                delete this.index.entries[key];
+                this.indexMutated = true;
+              }
+            }
           }
         }
       }

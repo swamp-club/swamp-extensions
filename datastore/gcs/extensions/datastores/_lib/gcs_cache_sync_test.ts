@@ -2538,6 +2538,91 @@ Deno.test("markDirty(relPath): deleted file removed from index during scoped pus
   }
 });
 
+Deno.test("markDirty(relPath): directory dirty path walks into files and pushes them", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-dir-dirty-" });
+  try {
+    const mock = createMockGcsClient();
+    await mock.putObject(".datastore-index.json", encodeIndex({}));
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    await service.pullChanged();
+
+    // Seed files under a directory, then mark the directory dirty
+    await seedFile(cachePath, "data/model-a/run1/raw", "raw-data\n");
+    await seedFile(cachePath, "data/model-a/run1/meta.json", '{"ok":true}\n');
+    await seedFile(cachePath, "data/unrelated/x.yaml", "untouched\n");
+    await service.markDirty({ relPath: "data/model-a" });
+
+    mock.puts.length = 0;
+    await service.pushChanged();
+
+    const pushedKeys = mock.puts
+      .filter((p) => p.key !== ".datastore-index.json")
+      .map((p) => p.key)
+      .sort();
+    assertEquals(
+      pushedKeys,
+      ["data/model-a/run1/meta.json", "data/model-a/run1/raw"],
+      "scoped push must walk into directory and upload all files within it",
+    );
+    assert(
+      !mock.puts.some((p) => p.key === "data/unrelated/x.yaml"),
+      "files outside the dirty directory must NOT be uploaded",
+    );
+    // Index writeback must include the walked files
+    const indexPut = mock.puts.find((p) => p.key === ".datastore-index.json");
+    assertExists(indexPut, "index writeback must fire after directory push");
+    const parsed = decodeIndex(indexPut.body);
+    assertExists(
+      parsed.entries["data/model-a/run1/raw"],
+      "index must contain walked file entries",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("markDirty(relPath): deleted directory removes all entries under prefix from index", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-dir-deleted-" });
+  try {
+    const mock = createMockGcsClient();
+    await mock.putObject(".datastore-index.json", encodeIndex({}));
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    // Push files under a directory so they're in the index
+    await service.pullChanged();
+    await seedFile(cachePath, "data/model-b/1/raw", "data1\n");
+    await seedFile(cachePath, "data/model-b/1/meta.json", "{}\n");
+    await service.markDirty({ relPath: "data/model-b" });
+    await service.pushChanged();
+
+    // Now mark the directory dirty again, then delete it
+    const svc2 = new GcsCacheSyncService(mock, cachePath);
+    await svc2.markDirty({ relPath: "data/model-b" });
+    await Deno.remove(join(cachePath, "data/model-b"), { recursive: true });
+
+    mock.puts.length = 0;
+    await svc2.pushChanged();
+
+    // All entries under the directory prefix must be removed from index
+    const indexPut = mock.puts.find((p) => p.key === ".datastore-index.json");
+    assertExists(indexPut, "index writeback must fire when directory is deleted");
+    const parsed = decodeIndex(indexPut.body);
+    assertEquals(
+      parsed.entries["data/model-b/1/raw"],
+      undefined,
+      "entries under deleted directory must be removed from index",
+    );
+    assertEquals(
+      parsed.entries["data/model-b/1/meta.json"],
+      undefined,
+      "all entries under deleted directory must be removed from index",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
 Deno.test("markDirty: rejects empty, absolute, and traversal relPaths", async () => {
   const cachePath = await Deno.makeTempDir({
     prefix: "gcssync-bad-relpath-",
