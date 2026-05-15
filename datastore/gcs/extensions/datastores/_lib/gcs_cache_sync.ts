@@ -326,9 +326,6 @@ const INDEX_CACHE_TTL_MS = 60_000;
 /** Maximum number of concurrent GCS downloads/uploads. */
 const MAX_CONCURRENCY = 10;
 
-/** Auto-promote to bulkInvalidated when dirtyPaths exceeds this count. */
-const DIRTY_PATHS_CAP = 500;
-
 /**
  * Fast-path sidecar persisted alongside the cache. Records the last
  * remote `.datastore-index.json` generation we verified our local cache
@@ -350,22 +347,21 @@ const DIRTY_PATHS_CAP = 500;
  * strings; parsing to number would overflow JS number precision.
  */
 interface DatastoreSyncState {
-  version: 2;
+  version: 1;
   /** Remote `.datastore-index.json` GCS generation at last verification. */
   remoteIndexGeneration: string;
   /** ISO-8601 timestamp of the last successful verification. */
   lastVerifiedAt: string;
   /**
    * `true` when a writer has touched the local cache since the last
-   * verified-clean snapshot. Umbrella flag: true whenever dirtyPaths is
-   * non-empty OR bulkInvalidated is true. Drives the fast-path
-   * short-circuit in tryFastPushChanged/tryFastPullChanged.
+   * verified-clean snapshot. Set pessimistically by `pushFile` BEFORE
+   * any upload work so a crash mid-batch leaves the flag dirty (safe
+   * default: re-walk on next push). Cleared only after a successful
+   * index writeback completes, or after a verified-clean
+   * `pullChanged`. The guardrail test pins the contract: cache writes
+   * that bypass `pushFile` won't update this flag.
    */
   localDirty: boolean;
-  /** Relative paths marked dirty since last successful push. */
-  dirtyPaths: string[];
-  /** When true, forces a full cache walk on the next pushChanged. */
-  bulkInvalidated: boolean;
 }
 
 /** GCS cache sync service. */
@@ -405,29 +401,14 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     this.syncStateLoaded = true;
     try {
       const text = await Deno.readTextFile(this.syncStatePath);
-      const parsed = JSON.parse(text) as Record<string, unknown>;
+      const parsed = JSON.parse(text) as Partial<DatastoreSyncState>;
       if (
+        parsed.version === 1 &&
         typeof parsed.remoteIndexGeneration === "string" &&
         typeof parsed.lastVerifiedAt === "string" &&
         typeof parsed.localDirty === "boolean"
       ) {
-        if (
-          parsed.version === 2 &&
-          Array.isArray(parsed.dirtyPaths) &&
-          typeof parsed.bulkInvalidated === "boolean"
-        ) {
-          this.syncState = parsed as unknown as DatastoreSyncState;
-        } else if (parsed.version === 1) {
-          // v1 → v2 migration: treat as bulk-invalidated (safe full walk)
-          this.syncState = {
-            version: 2,
-            remoteIndexGeneration: parsed.remoteIndexGeneration,
-            lastVerifiedAt: parsed.lastVerifiedAt,
-            localDirty: parsed.localDirty,
-            dirtyPaths: [],
-            bulkInvalidated: parsed.localDirty,
-          };
-        }
+        this.syncState = parsed as DatastoreSyncState;
       }
     } catch {
       // Missing/corrupt/unreadable — treat as no sidecar (safe default).
@@ -447,57 +428,25 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   }
 
   /**
-   * Mark the local cache as dirty. When `options.relPath` is provided,
-   * records that specific path in the dirty set (per-path tracking).
-   * When relPath is absent, sets bulkInvalidated which forces a full
-   * walk on the next pushChanged. Once bulkInvalidated, subsequent
-   * per-path signals are ignored (bulk overrides per-path).
-   *
-   * Also the public `DatastoreSyncService.markDirty` entry point —
-   * swamp-core calls this before writing to the cache directly.
-   * pushFile's internal call passes no options (crash-safety: bulk
-   * invalidation is the safe default for mid-batch crashes).
+   * Pessimistically mark the local cache as dirty. Called by `pushFile`
+   * before its upload work so a crash mid-batch leaves the flag set
+   * (safe: forces a full walk next time). Also the public
+   * `DatastoreSyncService.markDirty` entry point — swamp-core's
+   * repository layer calls this before writing to the cache directly
+   * (any write that bypasses `pushFile`). Without this hook, the
+   * fast-path short-circuit silently skips core's writes on the next
+   * `pushChanged`. Idempotent — if the sidecar already records
+   * `localDirty: true`, no write is issued.
    */
-  async markDirty(options?: DatastoreSyncOptions): Promise<void> {
+  async markDirty(): Promise<void> {
     const current = await this.loadSyncState();
-    const relPath = options?.relPath;
-    const generation = current?.remoteIndexGeneration ?? "";
-    const verifiedAt = current?.lastVerifiedAt ?? "";
-    const existingPaths = current?.dirtyPaths ?? [];
-    const alreadyBulk = current?.bulkInvalidated ?? false;
-
-    if (relPath !== undefined) {
-      if (!relPath || relPath.startsWith("/") || relPath.includes("..")) {
-        return;
-      }
-      if (alreadyBulk) return;
-      if (existingPaths.includes(relPath) && current?.localDirty === true) {
-        return;
-      }
-      const paths = existingPaths.includes(relPath)
-        ? existingPaths
-        : [...existingPaths, relPath];
-      // Auto-promote to bulk when dirty set exceeds threshold
-      const promote = paths.length > DIRTY_PATHS_CAP;
-      await this.writeSyncState({
-        version: 2,
-        remoteIndexGeneration: generation,
-        lastVerifiedAt: verifiedAt,
-        localDirty: true,
-        dirtyPaths: promote ? [] : paths,
-        bulkInvalidated: promote ? true : alreadyBulk,
-      });
-    } else {
-      if (alreadyBulk && current?.localDirty === true) return;
-      await this.writeSyncState({
-        version: 2,
-        remoteIndexGeneration: generation,
-        lastVerifiedAt: verifiedAt,
-        localDirty: true,
-        dirtyPaths: existingPaths,
-        bulkInvalidated: true,
-      });
-    }
+    if (current?.localDirty === true) return;
+    await this.writeSyncState({
+      version: 1,
+      remoteIndexGeneration: current?.remoteIndexGeneration ?? "",
+      lastVerifiedAt: current?.lastVerifiedAt ?? "",
+      localDirty: true,
+    });
   }
 
   /**
@@ -538,12 +487,10 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       // wall-clock baseline is fine.
     }
     await this.writeSyncState({
-      version: 2,
+      version: 1,
       remoteIndexGeneration,
       lastVerifiedAt: new Date(baselineMs).toISOString(),
       localDirty: false,
-      dirtyPaths: [],
-      bulkInvalidated: false,
     });
   }
 
@@ -1078,154 +1025,39 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     });
     tracePhase("pushChanged.pullIndex", indexStart);
 
-    // Build list of files that need pushing.
-    // Dispatch: if per-path dirty tracking is available and not
-    // bulk-invalidated, only check the dirty set. Otherwise full walk.
     const walkStart = Date.now();
     const toPush: string[] = [];
-    const sidecar = await this.loadSyncState();
-    const useScopedPush = sidecar &&
-      !sidecar.bulkInvalidated &&
-      sidecar.dirtyPaths.length > 0;
-
-    if (useScopedPush) {
-      // Scoped push: only stat/compare files in the dirty set.
-      // Core emits directory paths via notifyDirty(getDataNameDir(...)),
-      // so a dirty path may be a directory — walk into it to find the
-      // actual files, mirroring the full-walk path's includeDirs:false.
-      for (const rel of sidecar.dirtyPaths) {
-        if (isInternalCacheFile(rel)) continue;
-        const localPath = assertSafePath(this.cachePath, rel);
-        try {
-          const stat = await Deno.stat(localPath);
-          if (stat.isDirectory) {
-            for await (
-              const entry of walk(localPath, { includeDirs: false })
-            ) {
-              const fileRel = relative(this.cachePath, entry.path);
-              if (isInternalCacheFile(fileRel)) continue;
-              const fileStat = await Deno.stat(entry.path);
-              const existing = this.index?.entries[fileRel];
-              if (existing && existing.size === fileStat.size) {
-                if (
-                  existing.localMtime && fileStat.mtime &&
-                  existing.localMtime === fileStat.mtime.toISOString()
-                ) {
-                  continue;
-                }
-                if (!fileStat.mtime || existing.localMtime === undefined) {
-                  continue;
-                }
-              }
-              toPush.push(fileRel);
-            }
-            continue;
-          }
-          const existing = this.index?.entries[rel];
-          if (existing && existing.size === stat.size) {
-            if (
-              existing.localMtime && stat.mtime &&
-              existing.localMtime === stat.mtime.toISOString()
-            ) {
-              continue;
-            }
-            if (!stat.mtime || existing.localMtime === undefined) {
-              continue;
-            }
-          }
-          toPush.push(rel);
-        } catch (err) {
-          if (!(err instanceof Deno.errors.NotFound)) throw err;
-          // Path no longer exists — delete from index (rule 2).
-          // If the dirty path was a directory, remove all entries under
-          // that prefix; if a file, remove the single entry.
-          if (this.index) {
-            const prefix = rel + "/";
-            for (const key of Object.keys(this.index.entries)) {
-              if (key === rel || key.startsWith(prefix)) {
-                delete this.index.entries[key];
-                this.indexMutated = true;
-              }
-            }
-          }
+    try {
+      for await (
+        const entry of walk(this.cachePath, {
+          includeDirs: false,
+        })
+      ) {
+        const rel = relative(this.cachePath, entry.path);
+        if (isInternalCacheFile(rel)) {
+          continue;
         }
-      }
-      tracePhase(
-        "pushChanged.scopedCheck",
-        walkStart,
-        `toPush=${toPush.length}`,
-      );
-      // Safety net: if the scoped check found nothing to push despite the
-      // sidecar being dirty, the dirty paths may not resolve against
-      // cachePath (path-level mismatch between core's notification and
-      // the cache layout). Fall back to the full walk so data is never
-      // silently lost.
-      if (toPush.length === 0 && !this.indexMutated) {
-        tracePhase("pushChanged.scopedFallback", walkStart, "fallback");
-        try {
-          for await (
-            const entry of walk(this.cachePath, { includeDirs: false })
+
+        const stat = await Deno.stat(entry.path);
+        const existing = this.index?.entries[rel];
+        if (existing && existing.size === stat.size) {
+          if (
+            existing.localMtime && stat.mtime &&
+            existing.localMtime === stat.mtime.toISOString()
           ) {
-            const rel = relative(this.cachePath, entry.path);
-            if (isInternalCacheFile(rel)) continue;
-            const stat = await Deno.stat(entry.path);
-            const existing = this.index?.entries[rel];
-            if (existing && existing.size === stat.size) {
-              if (
-                existing.localMtime && stat.mtime &&
-                existing.localMtime === stat.mtime.toISOString()
-              ) {
-                continue;
-              }
-              if (!stat.mtime || existing.localMtime === undefined) {
-                continue;
-              }
-            }
-            toPush.push(rel);
-          }
-        } catch {
-          // Cache directory may not exist yet
-        }
-        tracePhase(
-          "pushChanged.fallbackWalk",
-          walkStart,
-          `toPush=${toPush.length}`,
-        );
-      }
-    } else {
-      // Full walk: bulk-invalidated, no sidecar, or no dirty paths
-      try {
-        for await (
-          const entry of walk(this.cachePath, {
-            includeDirs: false,
-          })
-        ) {
-          const rel = relative(this.cachePath, entry.path);
-          if (isInternalCacheFile(rel)) {
             continue;
           }
-
-          const stat = await Deno.stat(entry.path);
-          const existing = this.index?.entries[rel];
-          if (existing && existing.size === stat.size) {
-            if (
-              existing.localMtime && stat.mtime &&
-              existing.localMtime === stat.mtime.toISOString()
-            ) {
-              continue;
-            }
-            if (!stat.mtime || existing.localMtime === undefined) {
-              continue;
-            }
+          if (!stat.mtime || existing.localMtime === undefined) {
+            continue;
           }
-
-          toPush.push(rel);
         }
-      } catch {
-        // Cache directory may not exist yet
+
+        toPush.push(rel);
       }
-      tracePhase("pushChanged.walk", walkStart, `toPush=${toPush.length}`);
+    } catch {
+      // Cache directory may not exist yet
     }
+    tracePhase("pushChanged.walk", walkStart, `toPush=${toPush.length}`);
 
     const uploadStart = Date.now();
     let pushed = 0;
