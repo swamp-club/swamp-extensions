@@ -178,6 +178,62 @@ export const model = {
   assertEquals(result!.includes("1.0.0"), true);
 });
 
+Deno.test("computeUpgradesBlock - unchanged with version/upgrade mismatch adds corrective entry", () => {
+  const existingContent = `const GlobalArgsSchema = z.object({
+  name: z.string(),
+});
+
+export const model = {
+  version: "2026.04.23.2",
+  upgrades: [
+    {
+      toVersion: "2026.04.23.1",
+      description: "Added: name",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
+};`;
+  const result = computeUpgradesBlock(
+    "unchanged",
+    "2026.04.23.2",
+    existingContent,
+    ["name"],
+  );
+  assertEquals(result !== undefined, true);
+  assertEquals(result!.includes('"2026.04.23.2"'), true);
+  assertEquals(result!.includes('"2026.04.23.1"'), true);
+  // Should have both the original entry and the corrective entry
+  const entryCount = (result!.match(/toVersion:/g) || []).length;
+  assertEquals(entryCount, 2);
+});
+
+Deno.test("computeUpgradesBlock - unchanged with matching version carries forward as-is", () => {
+  const existingContent = `const GlobalArgsSchema = z.object({
+  name: z.string(),
+});
+
+export const model = {
+  version: "2026.04.23.1",
+  upgrades: [
+    {
+      toVersion: "2026.04.23.1",
+      description: "Added: name",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
+};`;
+  const result = computeUpgradesBlock(
+    "unchanged",
+    "2026.04.23.1",
+    existingContent,
+    ["name"],
+  );
+  assertEquals(result !== undefined, true);
+  // Should only have the original entry, no corrective entry added
+  const entryCount = (result!.match(/toVersion:/g) || []).length;
+  assertEquals(entryCount, 1);
+});
+
 Deno.test("computeUpgradesBlock - changed generates new entry for removed field", async (t) => {
   const existingContent = `const GlobalArgsSchema = z.object({
   name: z.string(),

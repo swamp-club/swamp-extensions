@@ -238,10 +238,18 @@ export function computeUpgradesBlock(
   }
 
   if (status === "unchanged") {
-    // Carry forward existing upgrades as-is
     if (!existingContent) return undefined;
     const existingEntries = extractExistingUpgrades(existingContent);
     if (existingEntries.length === 0) return undefined;
+
+    // Detect version/upgrade mismatch (e.g. manual version bump without pipeline)
+    const lastEntry = existingEntries[existingEntries.length - 1];
+    const toVersionMatch = lastEntry.match(/toVersion:\s*"([^"]+)"/);
+    if (toVersionMatch && toVersionMatch[1] !== version) {
+      const newEntry = generateUpgradeEntry(version, [], []);
+      return buildUpgradesBlock(existingEntries, newEntry);
+    }
+
     return buildUpgradesBlock(existingEntries, null);
   }
 
