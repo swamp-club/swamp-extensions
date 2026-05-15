@@ -150,6 +150,7 @@ const GlobalArgsSchema = z.object({
   guestOsFeatures: z.array(z.object({
     type: z.enum([
       "BARE_METAL_LINUX_COMPATIBLE",
+      "CCA_CAPABLE",
       "FEATURE_TYPE_UNSPECIFIED",
       "GVNIC",
       "IDPF",
@@ -454,6 +455,7 @@ const InputsSchema = z.object({
   guestOsFeatures: z.array(z.object({
     type: z.enum([
       "BARE_METAL_LINUX_COMPATIBLE",
+      "CCA_CAPABLE",
       "FEATURE_TYPE_UNSPECIFIED",
       "GVNIC",
       "IDPF",
@@ -629,7 +631,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine Images. Registered at `@swamp/gcp/compute/images`. */
 export const model = {
   type: "@swamp/gcp/compute/images",
-  version: "2026.05.09.1",
+  version: "2026.05.15.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -698,6 +700,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.09.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

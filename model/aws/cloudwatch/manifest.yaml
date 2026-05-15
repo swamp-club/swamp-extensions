@@ -9,8 +9,6 @@ labels:
   - cloudwatch
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: dashboard
 models:
   - alarm.ts
   - alarm_mute_rule.ts

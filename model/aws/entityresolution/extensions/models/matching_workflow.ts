@@ -43,11 +43,13 @@ const CustomerProfilesIntegrationConfigSchema = z.object({
     new RegExp(
       "^arn:(aws|aws-us-gov|aws-cn):profile:[a-z]{2}-[a-z]{1,10}-[0-9]:[0-9]{12}:(domains/[a-zA-Z_0-9-]{1,255})$",
     ),
-  ),
+  ).describe("The Amazon Resource Name (ARN) of the Customer Profiles domain"),
   ObjectTypeArn: z.string().regex(
     new RegExp(
       "^arn:(aws|aws-us-gov|aws-cn):profile:[a-z]{2}-[a-z]{1,10}-[0-9]:[0-9]{12}:(domains/[a-zA-Z_0-9-]{1,255}/object-types/[a-zA-Z_0-9-]{1,255})$",
     ),
+  ).describe(
+    "The Amazon Resource Name (ARN) of the Customer Profiles object type",
   ),
 });
 
@@ -62,7 +64,9 @@ const OutputSourceSchema = z.object({
   ).optional(),
   ApplyNormalization: z.boolean().optional(),
   CustomerProfilesIntegrationConfig: CustomerProfilesIntegrationConfigSchema
-    .optional(),
+    .describe(
+      "The Customer Profiles integration configuration for the output source",
+    ).optional(),
 });
 
 const RuleSchema = z.object({
@@ -86,8 +90,17 @@ const RuleConditionSchema = z.object({
   Condition: z.string().optional(),
 });
 
+const MatchingConfigSchema = z.object({
+  EnableTransitiveMatching: z.boolean().describe(
+    "Enables transitive matching to process records across all rule levels and connect unmatched records to existing match groups",
+  ).optional(),
+});
+
 const RuleConditionPropertiesSchema = z.object({
   Rules: z.array(RuleConditionSchema),
+  MatchingConfig: MatchingConfigSchema.describe(
+    "Configuration for matching behavior within rule condition properties",
+  ).optional(),
 });
 
 const IntermediateSourceConfigurationSchema = z.object({
@@ -194,7 +207,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for EntityResolution MatchingWorkflow. Registered at `@swamp/aws/entityresolution/matching-workflow`. */
 export const model = {
   type: "@swamp/aws/entityresolution/matching-workflow",
-  version: "2026.04.23.2",
+  version: "2026.05.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -218,6 +231,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

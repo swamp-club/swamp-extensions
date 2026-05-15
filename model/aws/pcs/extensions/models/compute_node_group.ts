@@ -77,8 +77,13 @@ const GlobalArgsSchema = z.object({
   InstanceConfigs: z.array(InstanceConfigSchema).describe(
     "A list of EC2 instance configurations that AWS PCS can provision in the compute node group.",
   ),
-  PurchaseOption: z.enum(["ONDEMAND", "SPOT", "CAPACITY_BLOCK"]).describe(
-    "Specifies how EC2 instances are purchased on your behalf. AWS PCS supports On-Demand, Spot and Capacity Block instances. For more information, see Instance purchasing options in the Amazon Elastic Compute Cloud User Guide. If you don't provide this option, it defaults to On-Demand.",
+  PurchaseOption: z.enum([
+    "ONDEMAND",
+    "SPOT",
+    "CAPACITY_BLOCK",
+    "INTERRUPTIBLE_CAPACITY_RESERVATION",
+  ]).describe(
+    "Specifies how EC2 instances are purchased on your behalf. AWS PCS supports On-Demand, Spot, Capacity Block, and Interruptible Capacity Reservation instances. For more information, see Instance purchasing options in the Amazon Elastic Compute Cloud User Guide. If you don't provide this option, it defaults to On-Demand.",
   ).optional(),
   CustomLaunchTemplate: z.object({
     Version: z.string().describe(
@@ -174,8 +179,13 @@ const InputsSchema = z.object({
   InstanceConfigs: z.array(InstanceConfigSchema).describe(
     "A list of EC2 instance configurations that AWS PCS can provision in the compute node group.",
   ).optional(),
-  PurchaseOption: z.enum(["ONDEMAND", "SPOT", "CAPACITY_BLOCK"]).describe(
-    "Specifies how EC2 instances are purchased on your behalf. AWS PCS supports On-Demand, Spot and Capacity Block instances. For more information, see Instance purchasing options in the Amazon Elastic Compute Cloud User Guide. If you don't provide this option, it defaults to On-Demand.",
+  PurchaseOption: z.enum([
+    "ONDEMAND",
+    "SPOT",
+    "CAPACITY_BLOCK",
+    "INTERRUPTIBLE_CAPACITY_RESERVATION",
+  ]).describe(
+    "Specifies how EC2 instances are purchased on your behalf. AWS PCS supports On-Demand, Spot, Capacity Block, and Interruptible Capacity Reservation instances. For more information, see Instance purchasing options in the Amazon Elastic Compute Cloud User Guide. If you don't provide this option, it defaults to On-Demand.",
   ).optional(),
   CustomLaunchTemplate: z.object({
     Version: z.string().describe(
@@ -202,7 +212,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for PCS ComputeNodeGroup. Registered at `@swamp/aws/pcs/compute-node-group`. */
 export const model = {
   type: "@swamp/aws/pcs/compute-node-group",
-  version: "2026.04.23.2",
+  version: "2026.05.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -226,6 +236,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -66,8 +66,7 @@ const TagSchema = z.object({
 });
 
 const MetricsConfigurationSchema = z.object({
-  Id: z.string().describe("The ID used to identify the metrics configuration.")
-    .optional(),
+  Id: z.string().describe("The ID used to identify the metrics configuration."),
   Prefix: z.string().describe(
     "The prefix used when evaluating a metrics filter.",
   ).optional(),
@@ -220,7 +219,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for S3Express DirectoryBucket. Registered at `@swamp/aws/s3express/directory-bucket`. */
 export const model = {
   type: "@swamp/aws/s3express/directory-bucket",
-  version: "2026.04.24.1",
+  version: "2026.05.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -255,6 +254,11 @@ export const model = {
     {
       toVersion: "2026.04.24.1",
       description: "Added: InventoryConfigurations",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.15.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

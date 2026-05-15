@@ -432,6 +432,7 @@ const GlobalArgsSchema = z.object({
     "DB2_AS400",
     "EXASOL",
     "FILE",
+    "FULLY_MANAGED_KNOWLEDGE_BASE",
     "GITHUB",
     "INTERNATIONAL_DATA_CORPORATION",
     "JIRA",
@@ -470,6 +471,7 @@ const GlobalArgsSchema = z.object({
     "ONE_DRIVE",
     "WEB_CRAWLER",
     "BOX",
+    "GOOGLESHEETS",
   ]),
   VpcConnectionProperties: z.object({
     VpcConnectionArn: z.string().describe(
@@ -643,6 +645,7 @@ const InputsSchema = z.object({
     "DB2_AS400",
     "EXASOL",
     "FILE",
+    "FULLY_MANAGED_KNOWLEDGE_BASE",
     "GITHUB",
     "INTERNATIONAL_DATA_CORPORATION",
     "JIRA",
@@ -681,6 +684,7 @@ const InputsSchema = z.object({
     "ONE_DRIVE",
     "WEB_CRAWLER",
     "BOX",
+    "GOOGLESHEETS",
   ]).optional(),
   VpcConnectionProperties: z.object({
     VpcConnectionArn: z.string().describe(
@@ -729,7 +733,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for QuickSight DataSource. Registered at `@swamp/aws/quicksight/data-source`. */
 export const model = {
   type: "@swamp/aws/quicksight/data-source",
-  version: "2026.04.23.2",
+  version: "2026.05.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -763,6 +767,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

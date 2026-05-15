@@ -8,8 +8,6 @@ labels:
   - digitalocean
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: kubernetes_cluster
 models:
   - app_platform.ts
   - byoip_prefix.ts

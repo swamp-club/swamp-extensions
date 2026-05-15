@@ -9,8 +9,6 @@ labels:
   - ecs
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: daemon_task_definition, service
 models:
   - capacity_provider.ts
   - cluster.ts

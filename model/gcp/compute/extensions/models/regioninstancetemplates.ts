@@ -143,6 +143,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     confidentialInstanceConfig: z.object({
       confidentialInstanceType: z.enum([
+        "CCA",
         "CONFIDENTIAL_INSTANCE_TYPE_UNSPECIFIED",
         "SEV",
         "SEV_SNP",
@@ -216,9 +217,7 @@ const GlobalArgsSchema = z.object({
         diskSizeGb: z.string().describe(
           "Specifies the size of the disk in base-2 GB. The size must be at least 10 GB. If you specify a sourceImage, which is required for boot disks, the default size is the size of the sourceImage. If you do not specify a sourceImage, the default disk size is 500 GB.",
         ).optional(),
-        diskType: z.string().describe(
-          "Specifies the disk type to use to create the instance. If not specified, the default is pd-standard, specified using the full URL. For example: https://www.googleapis.com/compute/v1/projects/project/zones/zone/diskTypes/pd-standard For a full list of acceptable values, seePersistent disk types. If you specify this field when creating a VM, you can provide either the full or partial URL. For example, the following values are valid: - https://www.googleapis.com/compute/v1/projects/project/zones/zone/diskTypes/diskType - projects/project/zones/zone/diskTypes/diskType - zones/zone/diskTypes/diskType If you specify this field when creating or updating an instance template or all-instances configuration, specify the type of the disk, not the URL. For example: pd-standard.",
-        ).optional(),
+        diskType: z.string().optional(),
         enableConfidentialCompute: z.boolean().describe(
           "Whether this disk is using confidential compute mode.",
         ).optional(),
@@ -978,6 +977,7 @@ const InputsSchema = z.object({
     ).optional(),
     confidentialInstanceConfig: z.object({
       confidentialInstanceType: z.enum([
+        "CCA",
         "CONFIDENTIAL_INSTANCE_TYPE_UNSPECIFIED",
         "SEV",
         "SEV_SNP",
@@ -1051,9 +1051,7 @@ const InputsSchema = z.object({
         diskSizeGb: z.string().describe(
           "Specifies the size of the disk in base-2 GB. The size must be at least 10 GB. If you specify a sourceImage, which is required for boot disks, the default size is the size of the sourceImage. If you do not specify a sourceImage, the default disk size is 500 GB.",
         ).optional(),
-        diskType: z.string().describe(
-          "Specifies the disk type to use to create the instance. If not specified, the default is pd-standard, specified using the full URL. For example: https://www.googleapis.com/compute/v1/projects/project/zones/zone/diskTypes/pd-standard For a full list of acceptable values, seePersistent disk types. If you specify this field when creating a VM, you can provide either the full or partial URL. For example, the following values are valid: - https://www.googleapis.com/compute/v1/projects/project/zones/zone/diskTypes/diskType - projects/project/zones/zone/diskTypes/diskType - zones/zone/diskTypes/diskType If you specify this field when creating or updating an instance template or all-instances configuration, specify the type of the disk, not the URL. For example: pd-standard.",
-        ).optional(),
+        diskType: z.string().optional(),
         enableConfidentialCompute: z.boolean().describe(
           "Whether this disk is using confidential compute mode.",
         ).optional(),
@@ -1550,7 +1548,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine RegionInstanceTemplates. Registered at `@swamp/gcp/compute/regioninstancetemplates`. */
 export const model = {
   type: "@swamp/gcp/compute/regioninstancetemplates",
-  version: "2026.05.09.1",
+  version: "2026.05.15.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1619,6 +1617,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.09.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

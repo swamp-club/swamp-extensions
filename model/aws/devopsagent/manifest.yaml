@@ -9,8 +9,6 @@ labels:
   - devopsagent
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: service
 models:
   - agent_space.ts
   - association.ts
