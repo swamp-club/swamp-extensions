@@ -2965,7 +2965,10 @@ Deno.test("markDirty(relPath): deleted directory removes all entries under prefi
 
     // All entries under the directory prefix must be removed from index
     const indexPut = mock.puts.find((p) => p.key === ".datastore-index.json");
-    assertExists(indexPut, "index writeback must fire when directory is deleted");
+    assertExists(
+      indexPut,
+      "index writeback must fire when directory is deleted",
+    );
     const parsed = decodeIndex(indexPut.body);
     assertEquals(
       parsed.entries["data/model-b/1/raw"],
