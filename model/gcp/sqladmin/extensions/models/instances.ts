@@ -631,8 +631,13 @@ const GlobalArgsSchema = z.object({
         'Time in UTC when the "deny maintenance period" starts on start_date and ends on end_date. The time is in format: HH:mm:SS, i.e., 00:00:00',
       ).optional(),
     })).describe("Deny maintenance periods").optional(),
-    edition: z.enum(["EDITION_UNSPECIFIED", "ENTERPRISE", "ENTERPRISE_PLUS"])
-      .describe("Optional. The edition of the instance.").optional(),
+    edition: z.enum([
+      "EDITION_UNSPECIFIED",
+      "ENTERPRISE",
+      "ENTERPRISE_PLUS",
+      "DEVELOPER",
+    ]).describe("Optional. The edition type of the Cloud SQL instance.")
+      .optional(),
     enableDataplexIntegration: z.boolean().describe(
       "Optional. By default, Cloud SQL instances have schema extraction disabled for Dataplex. When this parameter is set to true, schema extraction for Dataplex on Cloud SQL instances is activated.",
     ).optional(),
@@ -1827,8 +1832,13 @@ const InputsSchema = z.object({
         'Time in UTC when the "deny maintenance period" starts on start_date and ends on end_date. The time is in format: HH:mm:SS, i.e., 00:00:00',
       ).optional(),
     })).describe("Deny maintenance periods").optional(),
-    edition: z.enum(["EDITION_UNSPECIFIED", "ENTERPRISE", "ENTERPRISE_PLUS"])
-      .describe("Optional. The edition of the instance.").optional(),
+    edition: z.enum([
+      "EDITION_UNSPECIFIED",
+      "ENTERPRISE",
+      "ENTERPRISE_PLUS",
+      "DEVELOPER",
+    ]).describe("Optional. The edition type of the Cloud SQL instance.")
+      .optional(),
     enableDataplexIntegration: z.boolean().describe(
       "Optional. By default, Cloud SQL instances have schema extraction disabled for Dataplex. When this parameter is set to true, schema extraction for Dataplex on Cloud SQL instances is activated.",
     ).optional(),
@@ -2169,7 +2179,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud SQL Admin Instances. Registered at `@swamp/gcp/sqladmin/instances`. */
 export const model = {
   type: "@swamp/gcp/sqladmin/instances",
-  version: "2026.05.12.1",
+  version: "2026.05.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2228,6 +2238,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.12.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

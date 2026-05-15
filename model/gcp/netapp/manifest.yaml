@@ -10,8 +10,6 @@ labels:
   - netapp
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: backupvaults_backups, kmsconfigs, storagepools, volumes
 models:
   - activedirectories.ts
   - backuppolicies.ts

@@ -9,8 +9,6 @@ labels:
   - workspacesweb
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: ip_access_settings
 models:
   - browser_settings.ts
   - data_protection_settings.ts

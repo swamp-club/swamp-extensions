@@ -9,8 +9,6 @@ labels:
   - lex
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: bot
 models:
   - bot.ts
   - bot_alias.ts

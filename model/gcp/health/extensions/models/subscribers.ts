@@ -116,7 +116,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   subscriberConfigs: z.array(z.object({
     dataTypes: z.array(z.string()).describe(
-      'Required. Supported data types are: "altitude", "distance", "floors", "sleep", "steps", "weight". Values should be in kebab-case.',
+      "Required. See [Google Health API data types](https://developers.google.com/health/data-types) for the list of supported data types. Values should be in kebab-case.",
     ).optional(),
     subscriptionCreatePolicy: z.enum([
       "SUBSCRIPTION_CREATE_POLICY_UNSPECIFIED",
@@ -176,7 +176,7 @@ const InputsSchema = z.object({
   ).optional(),
   subscriberConfigs: z.array(z.object({
     dataTypes: z.array(z.string()).describe(
-      'Required. Supported data types are: "altitude", "distance", "floors", "sleep", "steps", "weight". Values should be in kebab-case.',
+      "Required. See [Google Health API data types](https://developers.google.com/health/data-types) for the list of supported data types. Values should be in kebab-case.",
     ).optional(),
     subscriptionCreatePolicy: z.enum([
       "SUBSCRIPTION_CREATE_POLICY_UNSPECIFIED",
@@ -206,10 +206,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Health Subscribers. Registered at `@swamp/gcp/health/subscribers`. */
 export const model = {
   type: "@swamp/gcp/health/subscribers",
-  version: "2026.04.23.1",
+  version: "2026.05.15.1",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -10,8 +10,6 @@ labels:
   - workspaceevents
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: subscriptions
 models:
   - subscriptions.ts
   - tasks.ts

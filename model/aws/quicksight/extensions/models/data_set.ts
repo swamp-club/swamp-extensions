@@ -55,7 +55,7 @@ const InputColumnSchema = z.object({
     "SEMISTRUCT",
   ]),
   SubType: z.enum(["FLOAT", "FIXED"]).optional(),
-  Id: z.string().min(1).max(64).optional(),
+  Id: z.string().min(1).max(256).optional(),
   Name: z.string().min(1).max(127).describe(
     "The name of this column in the underlying data source.",
   ),
@@ -151,6 +151,71 @@ const FieldFolderSchema = z.object({
   ).optional(),
 });
 
+const UploadedDocumentMetadataSchema = z.object({
+  Name: z.string().min(1).max(127).optional(),
+});
+
+const InlineCustomInstructionSchema = z.object({
+  InstructionText: z.string().min(0).max(50000),
+  UploadedDocumentMetadata: UploadedDocumentMetadataSchema.optional(),
+});
+
+const CustomInstructionSchema = z.object({
+  InlineCustomInstruction: InlineCustomInstructionSchema.optional(),
+});
+
+const DataSetSemanticDescriptionSchema = z.object({
+  Text: z.string().min(1).max(500),
+});
+
+const DataSetSemanticMetadataSchema = z.object({
+  CustomInstructions: z.array(CustomInstructionSchema).optional(),
+  Description: DataSetSemanticDescriptionSchema.optional(),
+});
+
+const ColumnSemanticTypeSchema = z.object({
+  GeographicalRole: z.enum([
+    "COUNTRY",
+    "STATE",
+    "COUNTY",
+    "CITY",
+    "POSTCODE",
+    "LONGITUDE",
+    "LATITUDE",
+    "POLITICAL1",
+    "CENSUS_TRACT",
+    "CENSUS_BLOCK_GROUP",
+    "CENSUS_BLOCK",
+  ]).optional(),
+});
+
+const ColumnDescriptionSchema = z.object({
+  Text: z.string().min(0).max(500).describe(
+    "The text of a description for a column.",
+  ).optional(),
+});
+
+const AdditionalNotesSchema = z.object({
+  Text: z.string().min(0).max(2000).optional(),
+});
+
+const ColumnSemanticPropertySchema = z.object({
+  SemanticType: ColumnSemanticTypeSchema.optional(),
+  Description: ColumnDescriptionSchema.describe(
+    "Metadata that contains a description for a column.",
+  ).optional(),
+  AdditionalNotes: AdditionalNotesSchema.optional(),
+});
+
+const SharedColumnSemanticMetadataSchema = z.object({
+  ColumnNames: z.array(z.string()).optional(),
+  ColumnProperties: z.array(ColumnSemanticPropertySchema),
+});
+
+const TableSemanticMetadataSchema = z.object({
+  ColumnMetadata: z.array(SharedColumnSemanticMetadataSchema).optional(),
+});
+
 const RowLevelPermissionTagRuleSchema = z.object({
   ColumnName: z.string().describe(
     "The column name that a tag key is assigned to.",
@@ -197,6 +262,7 @@ const RowLevelPermissionConfigurationSchema = z.object({
 });
 
 const SemanticTableSchema = z.object({
+  SemanticMetadata: TableSemanticMetadataSchema.optional(),
   Alias: z.string().min(1).max(64),
   DestinationTableId: z.string().min(1).max(64).regex(
     new RegExp("^[0-9a-zA-Z-]*$"),
@@ -352,12 +418,6 @@ const DatasetParameterSchema = z.object({
   ).optional(),
   StringDatasetParameter: StringDatasetParameterSchema.describe(
     "A string parameter for a dataset.",
-  ).optional(),
-});
-
-const ColumnDescriptionSchema = z.object({
-  Text: z.string().min(0).max(500).describe(
-    "The text of a description for a column.",
   ).optional(),
 });
 
@@ -544,7 +604,7 @@ const CalculatedColumnSchema = z.object({
 });
 
 const DataSetColumnIdMappingSchema = z.object({
-  SourceColumnId: z.string().min(1).max(64),
+  SourceColumnId: z.string().min(1).max(256),
   TargetColumnId: z.string().min(1).max(64),
 });
 
@@ -880,6 +940,7 @@ const GlobalArgsSchema = z.object({
   PhysicalTableMap: z.record(z.string(), PhysicalTableSchema).optional(),
   FieldFolders: z.record(z.string(), FieldFolderSchema).optional(),
   SemanticModelConfiguration: z.object({
+    SemanticMetadata: z.array(DataSetSemanticMetadataSchema).optional(),
     TableMap: z.record(z.string(), SemanticTableSchema).optional(),
   }).optional(),
   DataSetId: z.string().optional(),
@@ -950,6 +1011,7 @@ const StateSchema = z.object({
   FieldFolders: z.record(z.string(), z.unknown()).optional(),
   LastUpdatedTime: z.string().optional(),
   SemanticModelConfiguration: z.object({
+    SemanticMetadata: z.array(DataSetSemanticMetadataSchema),
     TableMap: z.record(z.string(), z.unknown()),
   }).optional(),
   DataSetId: z.string(),
@@ -1029,6 +1091,7 @@ const InputsSchema = z.object({
   PhysicalTableMap: z.record(z.string(), PhysicalTableSchema).optional(),
   FieldFolders: z.record(z.string(), FieldFolderSchema).optional(),
   SemanticModelConfiguration: z.object({
+    SemanticMetadata: z.array(DataSetSemanticMetadataSchema).optional(),
     TableMap: z.record(z.string(), SemanticTableSchema).optional(),
   }).optional(),
   DataSetId: z.string().optional(),
@@ -1084,7 +1147,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for QuickSight DataSet. Registered at `@swamp/aws/quicksight/data-set`. */
 export const model = {
   type: "@swamp/aws/quicksight/data-set",
-  version: "2026.04.23.2",
+  version: "2026.05.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1118,6 +1181,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

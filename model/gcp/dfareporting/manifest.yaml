@@ -10,8 +10,6 @@ labels:
   - dfareporting
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: creatives
 models:
   - accountactiveadsummaries.ts
   - accountpermissiongroups.ts

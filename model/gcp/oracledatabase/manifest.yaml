@@ -10,8 +10,6 @@ labels:
   - oracledatabase
   - cloud
   - infrastructure
-releaseNotes: |
-  - Added: goldengateconnectionassignments, goldengateconnectiontypes, goldengateconnections, goldengatedeploymentenvironments, goldengatedeploymenttypes, goldengatedeploymentversions, goldengatedeployments
 models:
   - autonomousdatabasebackups.ts
   - autonomousdatabasecharactersets.ts
