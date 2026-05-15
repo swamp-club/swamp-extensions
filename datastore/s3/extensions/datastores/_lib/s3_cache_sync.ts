@@ -1199,6 +1199,43 @@ export class S3CacheSyncService implements DatastoreSyncService {
         walkStart,
         `toPush=${toPush.length}`,
       );
+      // Safety net: if the scoped check found nothing to push despite the
+      // sidecar being dirty, the dirty paths may not resolve against
+      // cachePath (path-level mismatch between core's notification and
+      // the cache layout). Fall back to the full walk so data is never
+      // silently lost.
+      if (toPush.length === 0 && !this.indexMutated) {
+        tracePhase("pushChanged.scopedFallback", walkStart, "fallback");
+        try {
+          for await (
+            const entry of walk(this.cachePath, { includeDirs: false })
+          ) {
+            const rel = relative(this.cachePath, entry.path);
+            if (isInternalCacheFile(rel)) continue;
+            const stat = await Deno.stat(entry.path);
+            const existing = this.index?.entries[rel];
+            if (existing && existing.size === stat.size) {
+              if (
+                existing.localMtime && stat.mtime &&
+                existing.localMtime === stat.mtime.toISOString()
+              ) {
+                continue;
+              }
+              if (!stat.mtime || existing.localMtime === undefined) {
+                continue;
+              }
+            }
+            toPush.push(rel);
+          }
+        } catch {
+          // Cache directory may not exist yet
+        }
+        tracePhase(
+          "pushChanged.fallbackWalk",
+          walkStart,
+          `toPush=${toPush.length}`,
+        );
+      }
     } else {
       // Full walk: bulk-invalidated, no sidecar, or no dirty paths
       try {

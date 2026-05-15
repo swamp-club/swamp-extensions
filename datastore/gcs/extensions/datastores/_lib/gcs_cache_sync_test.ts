@@ -2626,6 +2626,51 @@ Deno.test("markDirty(relPath): deleted directory removes all entries under prefi
   }
 });
 
+Deno.test("markDirty(relPath): scoped push falls back to full walk when dirty paths resolve to nothing", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-fallback-" });
+  try {
+    const mock = createMockGcsClient();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    await service.pullChanged();
+
+    // Seed files at a path that does NOT match the dirty path.
+    // Simulates core marking a path dirty that doesn't resolve against
+    // cachePath (path-level mismatch between core's notification and
+    // the cache layout).
+    await seedFile(
+      cachePath,
+      "data/shell-echo/result/output.json",
+      '{"ok":true}\n',
+    );
+    await seedFile(cachePath, "data/shell-echo/result/meta.json", '{"ts":1}\n');
+    // Mark a non-existent path as dirty — the file is under data/ but
+    // the dirty path omits it.
+    await service.markDirty({ relPath: "shell-echo/result" });
+
+    mock.puts.length = 0;
+    await service.pushChanged();
+
+    // The scoped check should find nothing at "shell-echo/result", then
+    // fall back to a full walk that discovers the actual files.
+    const pushedKeys = mock.puts
+      .filter((p) => p.key !== ".datastore-index.json")
+      .map((p) => p.key)
+      .sort();
+    assertEquals(
+      pushedKeys,
+      [
+        "data/shell-echo/result/meta.json",
+        "data/shell-echo/result/output.json",
+      ],
+      "fallback full walk must push all files when scoped check finds nothing",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
 Deno.test("markDirty: rejects empty, absolute, and traversal relPaths", async () => {
   const cachePath = await Deno.makeTempDir({
     prefix: "gcssync-bad-relpath-",
