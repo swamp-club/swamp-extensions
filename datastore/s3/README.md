@@ -59,23 +59,13 @@ DigitalOcean Spaces, Cloudflare R2, or other providers.
 ## Cache-write contract
 
 The fast-path sync optimization maintains a `.datastore-sync-state.json`
-sidecar (version 2) in the cache directory. Any write into the cache
-that does not route through the sync service's internal path MUST be
-accompanied by a call to `DatastoreSyncService.markDirty(options?)`;
-otherwise the next `pushChanged` fast-paths past the write and the
-upload is silently skipped.
-
-`markDirty` supports per-path dirty tracking via `options.relPath`:
-
-- `markDirty({ relPath: "data/foo.yaml" })` — records that specific
-  path as dirty. The next `pushChanged` only stats and uploads files
-  in the dirty set, skipping the full cache walk.
-- `markDirty()` (no options / no relPath) — bulk invalidation. The
-  next `pushChanged` performs a full cache walk (legacy behavior).
-
-The sidecar tracks `dirtyPaths` (per-path set) and `bulkInvalidated`
-(full-walk flag). Old version 1 sidecars are silently upgraded to
-version 2 on first read, treated as bulk-invalidated for safety.
+sidecar in the cache directory. Any write into the cache that does not
+route through the sync service's internal path MUST be accompanied by a
+call to `DatastoreSyncService.markDirty()`; otherwise the next
+`pushChanged` fast-paths past the write and the upload is silently
+skipped. swamp-core calls `markDirty()` from its repository layer for
+this reason. Downstream tooling that writes into the cache directory
+directly must follow the same contract.
 
 ## License
 

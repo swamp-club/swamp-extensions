@@ -184,22 +184,17 @@ The cache sync service maintains a local cache directory and syncs with GCS:
 - **Index** — a `.datastore-index.json` file in GCS tracks file sizes and
   timestamps. The local copy has a 60-second TTL to avoid redundant fetches
   during rapid command sequences.
-- **Fast path** — a `.datastore-sync-state.json` sidecar (version 2)
-  records the remote index's GCS `generation` from the last
-  verified-clean sync. The next `pullChanged` / `pushChanged` HEADs
-  the remote index first; on generation match, it short-circuits
-  without the full index GET or the cache walk. Self-healing: any
-  remote mutation changes the generation and falls through to the slow
-  path. External writers into the cache (e.g. swamp-core's repository
-  layer using `atomicWriteFile`) MUST call
-  `DatastoreSyncService.markDirty(options?)` so the fast-path
-  short-circuit knows to run on the next `pushChanged`. Without
-  `markDirty`, the external write is silently skipped on the next sync.
-- **Per-path dirty tracking** — `markDirty({ relPath: "..." })` records
-  individual dirty paths so `pushChanged` only stats and uploads those
-  files instead of walking the entire cache. `markDirty()` with no
-  relPath sets bulk invalidation (full walk). Old version 1 sidecars
-  are silently upgraded to version 2 on first read.
+- **Fast path** — a `.datastore-sync-state.json` sidecar records the
+  remote index's GCS `generation` from the last verified-clean sync.
+  The next `pullChanged` / `pushChanged` HEADs the remote index first;
+  on generation match, it short-circuits without the full index GET or
+  the cache walk. Self-healing: any remote mutation changes the
+  generation and falls through to the slow path. External writers
+  into the cache (e.g. swamp-core's repository layer using
+  `atomicWriteFile`) MUST call `DatastoreSyncService.markDirty()` so
+  the fast-path short-circuit knows to run a full walk on the next
+  `pushChanged`. Without `markDirty`, the external write is silently
+  skipped on the next sync.
 - **Tracing** — set `SWAMP_GCS_SYNC_TRACE=1` to emit coarse per-phase
   timing lines (`[gcs-sync] pullChanged.fastpath <ms> hit`,
   `[gcs-sync] pushChanged.walk <ms> toPush=<n>`, etc.). Off by default;
