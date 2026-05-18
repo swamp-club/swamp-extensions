@@ -9,8 +9,6 @@ labels:
   - quicksight
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: data_set, data_source
 models:
   - action_connector.ts
   - analysis.ts

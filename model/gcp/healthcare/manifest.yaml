@@ -10,8 +10,6 @@ labels:
   - healthcare
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: datasets_fhirstores
 models:
   - datasets.ts
   - datasets_consentstores.ts

@@ -10,8 +10,6 @@ labels:
   - compute
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: disks, firewallpolicies, globalnetworkendpointgroups, images, instancetemplates, instances, machineimages, networkendpointgroups, networkfirewallpolicies, regiondisks, regioninstancetemplates, regionnetworkendpointgroups, regionnetworkfirewallpolicies
 models:
   - acceleratortypes.ts
   - addresses.ts

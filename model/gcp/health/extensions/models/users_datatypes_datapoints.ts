@@ -1453,7 +1453,7 @@ const GlobalArgsSchema = z.object({
   }).describe("A heart rate measurement.").optional(),
   heartRateVariability: z.object({
     rootMeanSquareOfSuccessiveDifferencesMilliseconds: z.number().describe(
-      "Optional. The root mean square of successive differences between normal heartbeats. This is a measure of heart rate variability used by Fitbit.",
+      "Optional. The root mean square of successive differences between normal heartbeats. This is a measure of heart rate variability used by Google Health.",
     ).optional(),
     sampleTime: z.object({
       civilTime: z.object({
@@ -1565,8 +1565,9 @@ const GlobalArgsSchema = z.object({
         "MILLILITER",
         "PINT_IMPERIAL",
         "PINT_US",
-      ]).describe("Optional. Value representing the user provided unit.")
-        .optional(),
+      ]).describe(
+        "Optional. Value representing the user provided unit, used only for user-facing input and display purposes. In the API format, all volume quantities are converted to milliliters.",
+      ).optional(),
     }).describe("Represents the volume quantity.").optional(),
     interval: z.object({
       civilEndTime: z.object({
@@ -4825,7 +4826,7 @@ const InputsSchema = z.object({
   }).describe("A heart rate measurement.").optional(),
   heartRateVariability: z.object({
     rootMeanSquareOfSuccessiveDifferencesMilliseconds: z.number().describe(
-      "Optional. The root mean square of successive differences between normal heartbeats. This is a measure of heart rate variability used by Fitbit.",
+      "Optional. The root mean square of successive differences between normal heartbeats. This is a measure of heart rate variability used by Google Health.",
     ).optional(),
     sampleTime: z.object({
       civilTime: z.object({
@@ -4937,8 +4938,9 @@ const InputsSchema = z.object({
         "MILLILITER",
         "PINT_IMPERIAL",
         "PINT_US",
-      ]).describe("Optional. Value representing the user provided unit.")
-        .optional(),
+      ]).describe(
+        "Optional. Value representing the user provided unit, used only for user-facing input and display purposes. In the API format, all volume quantities are converted to milliliters.",
+      ).optional(),
     }).describe("Represents the volume quantity.").optional(),
     interval: z.object({
       civilEndTime: z.object({
@@ -5884,7 +5886,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Health Users.DataTypes.DataPoints. Registered at `@swamp/gcp/health/users-datatypes-datapoints`. */
 export const model = {
   type: "@swamp/gcp/health/users-datatypes-datapoints",
-  version: "2026.05.02.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -5934,6 +5936,11 @@ export const model = {
     {
       toVersion: "2026.05.02.1",
       description: "Added: basalEnergyBurned",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
