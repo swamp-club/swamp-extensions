@@ -35,7 +35,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   ChannelGroupName: z.string(),
   ChannelName: z.string(),
-  Policy: z.string().optional(),
+  Policy: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -53,7 +53,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for MediaPackageV2 ChannelPolicy. Registered at `@swamp/aws/mediapackagev2/channel-policy`. */
 export const model = {
   type: "@swamp/aws/mediapackagev2/channel-policy",
-  version: "2026.04.23.2",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -77,6 +77,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

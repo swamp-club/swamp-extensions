@@ -86,7 +86,8 @@ const StateSchema = z.object({
   SessionDuration: z.string().optional(),
   RelayStateType: z.string().optional(),
   ManagedPolicies: z.array(z.string()).optional(),
-  InlinePolicy: z.string().optional(),
+  InlinePolicy: z.union([z.string(), z.record(z.string(), z.unknown())])
+    .optional(),
   Tags: z.array(TagSchema).optional(),
   CustomerManagedPolicyReferences: z.array(CustomerManagedPolicyReferenceSchema)
     .optional(),
@@ -145,7 +146,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SSO PermissionSet. Registered at `@swamp/aws/sso/permission-set`. */
 export const model = {
   type: "@swamp/aws/sso/permission-set",
-  version: "2026.04.23.2",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -174,6 +175,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

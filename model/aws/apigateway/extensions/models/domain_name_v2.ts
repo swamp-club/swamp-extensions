@@ -58,7 +58,7 @@ const StateSchema = z.object({
   }).optional(),
   SecurityPolicy: z.string().optional(),
   EndpointAccessMode: z.string().optional(),
-  Policy: z.string().optional(),
+  Policy: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
   DomainNameId: z.string().optional(),
   DomainNameArn: z.string(),
   RoutingMode: z.string().optional(),
@@ -91,7 +91,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ApiGateway DomainNameV2. Registered at `@swamp/aws/apigateway/domain-name-v2`. */
 export const model = {
   type: "@swamp/aws/apigateway/domain-name-v2",
-  version: "2026.04.23.2",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -115,6 +115,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

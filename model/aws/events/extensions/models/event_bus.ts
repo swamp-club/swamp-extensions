@@ -57,7 +57,7 @@ const StateSchema = z.object({
   Tags: z.array(TagSchema).optional(),
   Description: z.string().optional(),
   KmsKeyIdentifier: z.string().optional(),
-  Policy: z.string().optional(),
+  Policy: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
   Arn: z.string().optional(),
   DeadLetterConfig: z.object({
     Arn: z.string(),
@@ -98,7 +98,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Events EventBus. Registered at `@swamp/aws/events/event-bus`. */
 export const model = {
   type: "@swamp/aws/events/event-bus",
-  version: "2026.04.23.2",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -122,6 +122,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

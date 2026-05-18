@@ -38,7 +38,8 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Id: z.string(),
   Arn: z.string().optional(),
-  PolicyDocument: z.string().optional(),
+  PolicyDocument: z.union([z.string(), z.record(z.string(), z.unknown())])
+    .optional(),
   PolicyName: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
@@ -55,7 +56,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for IoT Policy. Registered at `@swamp/aws/iot/policy`. */
 export const model = {
   type: "@swamp/aws/iot/policy",
-  version: "2026.04.23.2",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -79,6 +80,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

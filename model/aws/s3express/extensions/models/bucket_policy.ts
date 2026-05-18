@@ -32,7 +32,8 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Bucket: z.string(),
-  PolicyDocument: z.string().optional(),
+  PolicyDocument: z.union([z.string(), z.record(z.string(), z.unknown())])
+    .optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -49,7 +50,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for S3Express BucketPolicy. Registered at `@swamp/aws/s3express/bucket-policy`. */
 export const model = {
   type: "@swamp/aws/s3express/bucket-policy",
-  version: "2026.04.23.2",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -73,6 +74,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

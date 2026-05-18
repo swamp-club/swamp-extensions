@@ -39,7 +39,7 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   Name: z.string(),
   RestApiId: z.string(),
-  Schema: z.string().optional(),
+  Schema: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -58,7 +58,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ApiGateway Model. Registered at `@swamp/aws/apigateway/model`. */
 export const model = {
   type: "@swamp/aws/apigateway/model",
-  version: "2026.04.23.2",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -82,6 +82,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -81,7 +81,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  Policy: z.string().optional(),
+  Policy: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
   BodyS3Location: z.object({
     Bucket: z.string(),
     ETag: z.string(),
@@ -90,7 +90,8 @@ const StateSchema = z.object({
   }).optional(),
   Description: z.string().optional(),
   MinimumCompressionSize: z.number().optional(),
-  Parameters: z.string().optional(),
+  Parameters: z.union([z.string(), z.record(z.string(), z.unknown())])
+    .optional(),
   CloneFrom: z.string().optional(),
   Mode: z.string().optional(),
   RestApiId: z.string(),
@@ -106,7 +107,7 @@ const StateSchema = z.object({
     Types: z.array(z.string()),
     VpcEndpointIds: z.array(z.string()),
   }).optional(),
-  Body: z.string().optional(),
+  Body: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
   Tags: z.array(TagSchema).optional(),
   EndpointAccessMode: z.string().optional(),
 }).passthrough();
@@ -166,7 +167,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ApiGateway RestApi. Registered at `@swamp/aws/apigateway/rest-api`. */
 export const model = {
   type: "@swamp/aws/apigateway/rest-api",
-  version: "2026.04.23.2",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -190,6 +191,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

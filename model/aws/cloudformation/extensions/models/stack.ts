@@ -77,7 +77,8 @@ const StateSchema = z.object({
   StackStatus: z.string().optional(),
   StackStatusReason: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
-  TemplateBody: z.string().optional(),
+  TemplateBody: z.union([z.string(), z.record(z.string(), z.unknown())])
+    .optional(),
   TemplateURL: z.string().optional(),
   TimeoutInMinutes: z.number().optional(),
   LastUpdateTime: z.string().optional(),
@@ -114,7 +115,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for CloudFormation Stack. Registered at `@swamp/aws/cloudformation/stack`. */
 export const model = {
   type: "@swamp/aws/cloudformation/stack",
-  version: "2026.04.23.2",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -138,6 +139,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

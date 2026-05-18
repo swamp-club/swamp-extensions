@@ -36,7 +36,8 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  AccessPolicy: z.string().optional(),
+  AccessPolicy: z.union([z.string(), z.record(z.string(), z.unknown())])
+    .optional(),
   BackupVaultName: z.string(),
   MinRetentionDays: z.number().optional(),
   MaxRetentionDays: z.number().optional(),
@@ -72,7 +73,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Backup LogicallyAirGappedBackupVault. Registered at `@swamp/aws/backup/logically-air-gapped-backup-vault`. */
 export const model = {
   type: "@swamp/aws/backup/logically-air-gapped-backup-vault",
-  version: "2026.04.23.2",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -96,6 +97,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
