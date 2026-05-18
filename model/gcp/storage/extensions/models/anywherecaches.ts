@@ -173,7 +173,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Storage JSON AnywhereCaches. Registered at `@swamp/gcp/storage/anywherecaches`. */
 export const model = {
   type: "@swamp/gcp/storage/anywherecaches",
-  version: "2026.04.23.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -208,6 +208,19 @@ export const model = {
     {
       toVersion: "2026.04.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Removed: ingestOnWrite",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { ingestOnWrite: _ingestOnWrite, ...rest } = old;
+        return rest;
+      },
+    },
+    {
+      toVersion: "2026.05.18.2",
+      description: "Added: ingestOnWrite",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

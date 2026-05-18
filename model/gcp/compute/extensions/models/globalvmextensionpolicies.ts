@@ -389,7 +389,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine GlobalVmExtensionPolicies. Registered at `@swamp/gcp/compute/globalvmextensionpolicies`. */
 export const model = {
   type: "@swamp/gcp/compute/globalvmextensionpolicies",
-  version: "2026.05.09.1",
+  version: "2026.05.18.1",
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

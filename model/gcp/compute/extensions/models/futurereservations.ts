@@ -673,7 +673,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine FutureReservations. Registered at `@swamp/gcp/compute/futurereservations`. */
 export const model = {
   type: "@swamp/gcp/compute/futurereservations",
-  version: "2026.04.23.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -742,6 +742,23 @@ export const model = {
     {
       toVersion: "2026.04.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Removed: confidentialComputeType, params",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          confidentialComputeType: _confidentialComputeType,
+          params: _params,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
+    {
+      toVersion: "2026.05.18.2",
+      description: "Added: confidentialComputeType, params",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

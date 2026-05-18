@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/searchads360"
-version: "2026.04.23.1"
+version: "2026.05.18.2"
 description: "Google Cloud searchads360 infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:

@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud Google Play Android Developer Purchases.Subscriptions.
  *
- * A SubscriptionPurchase resource indicates the status of a user's subscription purchase.
+ * Deprecated: Use SubscriptionPurchaseV2 instead. A SubscriptionPurchase resource indicates the status of a user's subscription purchase.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -111,7 +111,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Play Android Developer Purchases.Subscriptions. Registered at `@swamp/gcp/androidpublisher/purchases-subscriptions`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/purchases-subscriptions",
-  version: "2026.04.23.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -143,13 +143,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
       description:
-        "A SubscriptionPurchase resource indicates the status of a user's subscription...",
+        "Deprecated: Use SubscriptionPurchaseV2 instead. A SubscriptionPurchase resour...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,

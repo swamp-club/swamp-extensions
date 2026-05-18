@@ -207,7 +207,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine SslPolicies. Registered at `@swamp/gcp/compute/sslpolicies`. */
 export const model = {
   type: "@swamp/gcp/compute/sslpolicies",
-  version: "2026.05.09.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -255,6 +255,20 @@ export const model = {
     },
     {
       toVersion: "2026.05.09.1",
+      description: "Added: postQuantumKeyExchange",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Removed: postQuantumKeyExchange",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { postQuantumKeyExchange: _postQuantumKeyExchange, ...rest } =
+          old;
+        return rest;
+      },
+    },
+    {
+      toVersion: "2026.05.18.2",
       description: "Added: postQuantumKeyExchange",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

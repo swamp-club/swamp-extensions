@@ -62,7 +62,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Agent Platform Locations. Registered at `@swamp/gcp/aiplatform/locations`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/locations",
-  version: "2026.05.02.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -96,6 +96,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -199,7 +209,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (args["query"] !== undefined) body["query"] = args["query"];
         if (args["tools"] !== undefined) body["tools"] = args["tools"];
@@ -230,7 +242,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (args["query"] !== undefined) body["query"] = args["query"];
         if (args["tools"] !== undefined) body["tools"] = args["tools"];
@@ -262,7 +276,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (args["contents"] !== undefined) body["contents"] = args["contents"];
         if (args["model"] !== undefined) body["model"] = args["model"];
@@ -297,7 +313,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (args["content"] !== undefined) body["content"] = args["content"];
         if (args["facts"] !== undefined) body["facts"] = args["facts"];
@@ -776,7 +794,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (args["query"] !== undefined) body["query"] = args["query"];
         if (args["vertexRagStore"] !== undefined) {

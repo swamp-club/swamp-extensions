@@ -1103,7 +1103,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Real-time Bidding Buyers.Creatives. Registered at `@swamp/gcp/realtimebidding/buyers-creatives`. */
 export const model = {
   type: "@swamp/gcp/realtimebidding/buyers-creatives",
-  version: "2026.05.01.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1142,6 +1142,19 @@ export const model = {
     },
     {
       toVersion: "2026.05.01.1",
+      description: "Removed: renderUrl",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { renderUrl: _renderUrl, ...rest } = old;
+        return rest;
+      },
+    },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Added: renderUrl",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.2",
       description: "Removed: renderUrl",
       upgradeAttributes: (old: Record<string, unknown>) => {
         const { renderUrl: _renderUrl, ...rest } = old;

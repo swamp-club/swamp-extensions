@@ -9,8 +9,6 @@ labels:
   - pcs
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: compute_node_group
 models:
   - cluster.ts
   - compute_node_group.ts

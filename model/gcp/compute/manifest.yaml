@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/compute"
-version: "2026.05.15.1"
+version: "2026.05.18.2"
 description: "Google Cloud compute infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,8 +10,6 @@ labels:
   - compute
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: disks, firewallpolicies, globalnetworkendpointgroups, images, instancetemplates, instances, machineimages, networkendpointgroups, networkfirewallpolicies, regiondisks, regioninstancetemplates, regionnetworkendpointgroups, regionnetworkfirewallpolicies
 models:
   - acceleratortypes.ts
   - addresses.ts

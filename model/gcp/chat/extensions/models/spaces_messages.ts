@@ -2117,7 +2117,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Chat Spaces.Messages. Registered at `@swamp/gcp/chat/spaces-messages`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces-messages",
-  version: "2026.05.09.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2166,6 +2166,23 @@ export const model = {
     },
     {
       toVersion: "2026.05.09.1",
+      description: "Added: createMessageNotificationOptions_notificationType",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Removed: createMessageNotificationOptions_notificationType",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          createMessageNotificationOptions_notificationType:
+            _createMessageNotificationOptions_notificationType,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
+    {
+      toVersion: "2026.05.18.2",
       description: "Added: createMessageNotificationOptions_notificationType",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -113,6 +113,28 @@ const GlobalArgsSchema = z.object({
   fieldPathsPendingUpdate: z.array(z.string()).describe(
     "Optional. The list of fields waiting for hub administrator's approval.",
   ).optional(),
+  gateway: z.object({
+    capacity: z.enum([
+      "GATEWAY_CAPACITY_UNSPECIFIED",
+      "CAPACITY_1_GBPS",
+      "CAPACITY_10_GBPS",
+    ]).describe("Optional. The aggregate processing capacity of this gateway.")
+      .optional(),
+    cloudRouters: z.array(z.string()).describe(
+      "Output only. The list of Cloud Routers that are connected to this gateway. Should be in the form: https://www.googleapis.com/compute/v1/projects/{project}/regions/{region}/routers/{router}",
+    ).optional(),
+    ipRangeReservations: z.array(z.object({
+      ipRange: z.string().describe(
+        'Required. A block of IP addresses used to allocate supporting infrastructure for this gateway. This block must not overlap with subnets in any spokes or peer VPC networks that the gateway can communicate with. Example: "10.1.2.0/24"',
+      ).optional(),
+    })).describe(
+      "Optional. A list of IP ranges that are reserved for this gateway's internal intfrastructure.",
+    ).optional(),
+    sacAttachment: z.string().describe(
+      "Output only. The URI of the connected SACAttachment. Should be in the form: projects/{project}/locations/{location}/sacAttachments/{sac_attachment}",
+    ).optional(),
+  }).describe("A gateway that can apply specialized traffic processing.")
+    .optional(),
   group: z.string().describe(
     "Optional. The name of the group that this spoke is associated with.",
   ).optional(),
@@ -263,6 +285,14 @@ const StateSchema = z.object({
   description: z.string().optional(),
   etag: z.string().optional(),
   fieldPathsPendingUpdate: z.array(z.string()).optional(),
+  gateway: z.object({
+    capacity: z.string(),
+    cloudRouters: z.array(z.string()),
+    ipRangeReservations: z.array(z.object({
+      ipRange: z.string(),
+    })),
+    sacAttachment: z.string(),
+  }).optional(),
   group: z.string().optional(),
   hub: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
@@ -335,6 +365,28 @@ const InputsSchema = z.object({
   fieldPathsPendingUpdate: z.array(z.string()).describe(
     "Optional. The list of fields waiting for hub administrator's approval.",
   ).optional(),
+  gateway: z.object({
+    capacity: z.enum([
+      "GATEWAY_CAPACITY_UNSPECIFIED",
+      "CAPACITY_1_GBPS",
+      "CAPACITY_10_GBPS",
+    ]).describe("Optional. The aggregate processing capacity of this gateway.")
+      .optional(),
+    cloudRouters: z.array(z.string()).describe(
+      "Output only. The list of Cloud Routers that are connected to this gateway. Should be in the form: https://www.googleapis.com/compute/v1/projects/{project}/regions/{region}/routers/{router}",
+    ).optional(),
+    ipRangeReservations: z.array(z.object({
+      ipRange: z.string().describe(
+        'Required. A block of IP addresses used to allocate supporting infrastructure for this gateway. This block must not overlap with subnets in any spokes or peer VPC networks that the gateway can communicate with. Example: "10.1.2.0/24"',
+      ).optional(),
+    })).describe(
+      "Optional. A list of IP ranges that are reserved for this gateway's internal intfrastructure.",
+    ).optional(),
+    sacAttachment: z.string().describe(
+      "Output only. The URI of the connected SACAttachment. Should be in the form: projects/{project}/locations/{location}/sacAttachments/{sac_attachment}",
+    ).optional(),
+  }).describe("A gateway that can apply specialized traffic processing.")
+    .optional(),
   group: z.string().describe(
     "Optional. The name of the group that this spoke is associated with.",
   ).optional(),
@@ -483,7 +535,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Network Connectivity Spokes. Registered at `@swamp/gcp/networkconnectivity/spokes`. */
 export const model = {
   type: "@swamp/gcp/networkconnectivity/spokes",
-  version: "2026.04.23.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -515,6 +567,16 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.2",
+      description: "Added: gateway",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -539,7 +601,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
@@ -547,6 +611,7 @@ export const model = {
         if (g["fieldPathsPendingUpdate"] !== undefined) {
           body["fieldPathsPendingUpdate"] = g["fieldPathsPendingUpdate"];
         }
+        if (g["gateway"] !== undefined) body["gateway"] = g["gateway"];
         if (g["group"] !== undefined) body["group"] = g["group"];
         if (g["hub"] !== undefined) body["hub"] = g["hub"];
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
@@ -570,9 +635,9 @@ export const model = {
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["requestId"] !== undefined) body["requestId"] = g["requestId"];
         if (g["spokeId"] !== undefined) body["spokeId"] = g["spokeId"];
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -610,7 +675,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const result = await readResource(
@@ -656,7 +721,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
@@ -666,6 +731,7 @@ export const model = {
         if (g["fieldPathsPendingUpdate"] !== undefined) {
           body["fieldPathsPendingUpdate"] = g["fieldPathsPendingUpdate"];
         }
+        if (g["gateway"] !== undefined) body["gateway"] = g["gateway"];
         if (g["group"] !== undefined) body["group"] = g["group"];
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["linkedInterconnectAttachments"] !== undefined) {
@@ -725,7 +791,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -770,7 +836,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             shortName,
           );
           const result = await readResource(

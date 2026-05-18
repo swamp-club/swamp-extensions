@@ -322,8 +322,23 @@ function buildResourceName(parent: string, shortName: string): string {
 ```
 
 This is used by create (for post-LRO read-back), get, update, delete, sync, and
-action methods to construct the fully-qualified name from `globalArgs.parent`
-and `globalArgs.name`.
+action methods to construct the fully-qualified name.
+
+### Parent resolution: project-only vs multi-scope
+
+The `parent` argument to `buildResourceName` is resolved differently depending
+on whether the resource is project-only or multi-scope:
+
+- **Project-only resources** (`availableScopes: ["projects"]`): the parent is
+  constructed from `projectId` and `location` globalArgs:
+  `` `projects/${projectId}/locations/${g["location"]}` ``. The `parent` field
+  is not exposed in `GlobalArgsSchema` — users set `location` instead, and the
+  generated code derives the parent path.
+
+- **Multi-scope resources** (organizations, folders, billing accounts): the
+  parent is read directly from `globalArgs.parent`, which is declared in
+  `GlobalArgsSchema`. Users provide the full parent path (e.g.,
+  `organizations/123/locations/us-central1`).
 
 ---
 

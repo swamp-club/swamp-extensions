@@ -112,10 +112,10 @@ export function generateAwsExtensionModel(
   lines.push(`import { z } from "npm:zod@4.3.6";`);
 
   const helperImports: string[] = [
-    "createResource",
     "isResourceNotFoundError",
     "readResource",
   ];
+  if (handlers.create) helperImports.push("createResource");
   if (handlers.update) helperImports.push("updateResource");
   if (handlers.delete) helperImports.push("deleteResource");
   lines.push(

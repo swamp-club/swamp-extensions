@@ -9,8 +9,6 @@ labels:
   - securityhub
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: automation_rule
 models:
   - aggregator_v2.ts
   - automation_rule.ts

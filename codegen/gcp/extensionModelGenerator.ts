@@ -149,6 +149,14 @@ export function generateGcpExtensionModel(
   const { field: namingField, synthetic: isSyntheticName } =
     resolveGcpNamingField(resource);
 
+  const isProjectOnly = resource.availableScopes?.length === 1 &&
+    resource.availableScopes[0] === "projects";
+  const shouldConstructParent = isProjectOnly &&
+    !resource.domainProperties["parent"];
+  const parentExpr = shouldConstructParent
+    ? '`projects/${projectId}/locations/${String(g["location"] ?? "")}`'
+    : 'String(g["parent"] ?? "")';
+
   // Method configs as constants
   lines.push(`const BASE_URL = ${JSON.stringify(resource.baseUrl)};`);
   lines.push("");
@@ -312,16 +320,31 @@ export function generateGcpExtensionModel(
     );
 
     // Add path parameters from globalArgs
+    const parentLikeParams = new Set(["parent", "ownerName"]);
     const insertConfig = resource.methodConfigs.insert;
     for (const paramName of insertConfig.parameterOrder) {
       if (paramName === "project" || paramName === "projectId") continue;
-      lines.push(
-        `        if (g[${
-          JSON.stringify(safeIdent(paramName))
-        }] !== undefined) params[${JSON.stringify(paramName)}] = String(g[${
-          JSON.stringify(safeIdent(paramName))
-        }]);`,
-      );
+      if (parentLikeParams.has(paramName) && shouldConstructParent) {
+        lines.push(
+          `        params[${JSON.stringify(paramName)}] = ${parentExpr};`,
+        );
+      } else if (
+        parentLikeParams.has(paramName) && resource.domainProperties["parent"]
+      ) {
+        lines.push(
+          `        if (g["parent"] !== undefined) params[${
+            JSON.stringify(paramName)
+          }] = String(g["parent"]);`,
+        );
+      } else {
+        lines.push(
+          `        if (g[${
+            JSON.stringify(safeIdent(paramName))
+          }] !== undefined) params[${JSON.stringify(paramName)}] = String(g[${
+            JSON.stringify(safeIdent(paramName))
+          }]);`,
+        );
+      }
     }
 
     // Build request body from insert properties only (not the full domain union).
@@ -362,13 +385,23 @@ export function generateGcpExtensionModel(
             paramName === "name" && resource.usesFullResourceName &&
             resource.resourceSegment
           ) {
-            lines.push(
-              `        if (g["parent"] !== undefined && g["name"] !== undefined) {`,
-            );
-            lines.push(
-              `          params["name"] = buildResourceName(String(g["parent"]), String(g["name"]));`,
-            );
-            lines.push(`        }`);
+            if (shouldConstructParent) {
+              lines.push(
+                `        if (g["name"] !== undefined) {`,
+              );
+              lines.push(
+                `          params["name"] = buildResourceName(${parentExpr}, String(g["name"]));`,
+              );
+              lines.push(`        }`);
+            } else {
+              lines.push(
+                `        if (g["parent"] !== undefined && g["name"] !== undefined) {`,
+              );
+              lines.push(
+                `          params["name"] = buildResourceName(String(g["parent"]), String(g["name"]));`,
+              );
+              lines.push(`        }`);
+            }
           } else {
             lines.push(
               `        if (g[${
@@ -481,7 +514,7 @@ export function generateGcpExtensionModel(
           ) {
             // Construct full resource name from parent + identifier
             lines.push(
-              `        params["name"] = buildResourceName(String(g["parent"] ?? ""), args.identifier);`,
+              `        params["name"] = buildResourceName(${parentExpr}, args.identifier);`,
             );
           } else {
             lines.push(
@@ -602,7 +635,7 @@ export function generateGcpExtensionModel(
           resource.resourceSegment
         ) {
           lines.push(
-            `        params["name"] = buildResourceName(String(g["parent"] ?? ""), ${
+            `        params["name"] = buildResourceName(${parentExpr}, ${
               updateNeedsExisting
                 ? `existing[${
                   JSON.stringify(idField)
@@ -726,7 +759,7 @@ export function generateGcpExtensionModel(
           resource.resourceSegment
         ) {
           lines.push(
-            `        params["name"] = buildResourceName(String(g["parent"] ?? ""), args.identifier);`,
+            `        params["name"] = buildResourceName(${parentExpr}, args.identifier);`,
           );
         } else {
           lines.push(
@@ -897,7 +930,7 @@ export function generateGcpExtensionModel(
               `          if (!shortName) throw new Error("No identifier found");`,
             );
             lines.push(
-              `          params["name"] = buildResourceName(String(g["parent"] ?? ""), shortName);`,
+              `          params["name"] = buildResourceName(${parentExpr}, shortName);`,
             );
           } else {
             lines.push(
@@ -1005,10 +1038,12 @@ export function generateGcpExtensionModel(
     );
     const paramsFromGlobalArgs: string[] = [];
     const paramsNeedingState: string[] = [];
+    const actionParentLikeParams = new Set(["parent", "ownerName"]);
     for (const paramName of nonProjectParams) {
       const safeName = safeIdent(paramName);
       if (
-        resource.domainProperties[safeName] || paramName === "parent" ||
+        resource.domainProperties[safeName] ||
+        actionParentLikeParams.has(paramName) ||
         paramName === "name"
       ) {
         paramsFromGlobalArgs.push(paramName);
@@ -1041,13 +1076,38 @@ export function generateGcpExtensionModel(
         resource.resourceSegment
       ) {
         // Construct the fully-qualified resource name from parent + short name
+        if (shouldConstructParent) {
+          lines.push(
+            `        if (g["name"] !== undefined) {`,
+          );
+          lines.push(
+            `          params["name"] = buildResourceName(${parentExpr}, String(g["name"]));`,
+          );
+          lines.push(`        }`);
+        } else {
+          lines.push(
+            `        if (g["parent"] !== undefined && g["name"] !== undefined) {`,
+          );
+          lines.push(
+            `          params["name"] = buildResourceName(String(g["parent"]), String(g["name"]));`,
+          );
+          lines.push(`        }`);
+        }
+      } else if (
+        actionParentLikeParams.has(paramName) && shouldConstructParent
+      ) {
         lines.push(
-          `        if (g["parent"] !== undefined && g["name"] !== undefined) {`,
+          `        params[${JSON.stringify(paramName)}] = ${parentExpr};`,
         );
+      } else if (
+        actionParentLikeParams.has(paramName) &&
+        resource.domainProperties["parent"]
+      ) {
         lines.push(
-          `          params["name"] = buildResourceName(String(g["parent"]), String(g["name"]));`,
+          `        if (g["parent"] !== undefined) params[${
+            JSON.stringify(paramName)
+          }] = String(g["parent"]);`,
         );
-        lines.push(`        }`);
       } else {
         lines.push(
           `        if (g[${

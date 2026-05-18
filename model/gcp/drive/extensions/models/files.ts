@@ -1024,7 +1024,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Drive Files. Registered at `@swamp/gcp/drive/files`. */
 export const model = {
   type: "@swamp/gcp/drive/files",
-  version: "2026.05.01.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1064,6 +1064,23 @@ export const model = {
     {
       toVersion: "2026.05.01.1",
       description: "Added: labelInfo",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Removed: clientEncryptionDetails, labelInfo",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          clientEncryptionDetails: _clientEncryptionDetails,
+          labelInfo: _labelInfo,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
+    {
+      toVersion: "2026.05.18.2",
+      description: "Added: clientEncryptionDetails, labelInfo",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

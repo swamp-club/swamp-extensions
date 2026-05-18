@@ -205,7 +205,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Workspace Events Subscriptions. Registered at `@swamp/gcp/workspaceevents/subscriptions`. */
 export const model = {
   type: "@swamp/gcp/workspaceevents/subscriptions",
-  version: "2026.05.14.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -249,6 +249,19 @@ export const model = {
     },
     {
       toVersion: "2026.05.14.1",
+      description: "Added: driveOptions",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Removed: driveOptions",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { driveOptions: _driveOptions, ...rest } = old;
+        return rest;
+      },
+    },
+    {
+      toVersion: "2026.05.18.2",
       description: "Added: driveOptions",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

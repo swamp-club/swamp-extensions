@@ -61,7 +61,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Number Registry Locations. Registered at `@swamp/gcp/cloudnumberregistry/locations`. */
 export const model = {
   type: "@swamp/gcp/cloudnumberregistry/locations",
-  version: "2026.05.12.1",
+  version: "2026.05.18.1",
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

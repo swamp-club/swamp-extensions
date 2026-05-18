@@ -158,7 +158,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Identity Policies. Registered at `@swamp/gcp/cloudidentity/policies`. */
 export const model = {
   type: "@swamp/gcp/cloudidentity/policies",
-  version: "2026.05.15.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -192,6 +192,24 @@ export const model = {
     },
     {
       toVersion: "2026.05.15.1",
+      description: "Added: customer, policyQuery, setting",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Removed: customer, policyQuery, setting",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          customer: _customer,
+          policyQuery: _policyQuery,
+          setting: _setting,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
+    {
+      toVersion: "2026.05.18.2",
       description: "Added: customer, policyQuery, setting",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
