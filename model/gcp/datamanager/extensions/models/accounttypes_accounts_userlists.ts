@@ -233,8 +233,14 @@ const GlobalArgsSchema = z.object({
     displayNetworkMembersCount: z.string().describe(
       "Output only. Estimated number of members in this user list, on the Google Display Network.",
     ).optional(),
+    gmailMembersCount: z.string().describe(
+      "Output only. Estimated number of members in this user list on Gmail.",
+    ).optional(),
     searchNetworkMembersCount: z.string().describe(
       "Output only. Estimated number of members in this user list in the google.com domain. These are the members available for targeting in Search campaigns.",
+    ).optional(),
+    youtubeMembersCount: z.string().describe(
+      "Output only. Estimated number of members in this user list on YouTube.",
     ).optional(),
   }).describe(
     "Estimated number of members in this user list in different target networks.",
@@ -297,7 +303,9 @@ const StateSchema = z.object({
   readOnly: z.boolean().optional(),
   sizeInfo: z.object({
     displayNetworkMembersCount: z.string(),
+    gmailMembersCount: z.string(),
     searchNetworkMembersCount: z.string(),
+    youtubeMembersCount: z.string(),
   }).optional(),
   targetNetworkInfo: z.object({
     eligibleForDisplay: z.boolean(),
@@ -437,8 +445,14 @@ const InputsSchema = z.object({
     displayNetworkMembersCount: z.string().describe(
       "Output only. Estimated number of members in this user list, on the Google Display Network.",
     ).optional(),
+    gmailMembersCount: z.string().describe(
+      "Output only. Estimated number of members in this user list on Gmail.",
+    ).optional(),
     searchNetworkMembersCount: z.string().describe(
       "Output only. Estimated number of members in this user list in the google.com domain. These are the members available for targeting in Search campaigns.",
+    ).optional(),
+    youtubeMembersCount: z.string().describe(
+      "Output only. Estimated number of members in this user list on YouTube.",
     ).optional(),
   }).describe(
     "Estimated number of members in this user list in different target networks.",
@@ -460,7 +474,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Data Manager AccountTypes.Accounts.UserLists. Registered at `@swamp/gcp/datamanager/accounttypes-accounts-userlists`. */
 export const model = {
   type: "@swamp/gcp/datamanager/accounttypes-accounts-userlists",
-  version: "2026.05.18.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -499,6 +513,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

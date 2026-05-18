@@ -79,9 +79,6 @@ const PATCH_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe(
-    "Instance name for this resource (used as the unique identifier in the factory pattern)",
-  ),
   description: z.string().describe(
     "Optional. Description for this custom dimension. Max length of 150 characters.",
   ).optional(),
@@ -101,6 +98,9 @@ const GlobalArgsSchema = z.object({
     "MINUTES",
     "HOURS",
   ]).describe("Required. The type for the custom metric's value.").optional(),
+  name: z.string().describe(
+    "Identifier. Resource name for this CustomMetric resource. Format: properties/{property}/customMetrics/{customMetric}",
+  ).optional(),
   parameterName: z.string().describe(
     "Required. Immutable. Tagging name for this custom metric. If this is an event-scoped metric, then this is the event parameter name. May only contain alphanumeric and underscore charactes, starting with a letter. Max length of 40 characters for event-scoped metrics.",
   ).optional(),
@@ -130,7 +130,6 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().optional(),
   description: z.string().describe(
     "Optional. Description for this custom dimension. Max length of 150 characters.",
   ).optional(),
@@ -150,6 +149,9 @@ const InputsSchema = z.object({
     "MINUTES",
     "HOURS",
   ]).describe("Required. The type for the custom metric's value.").optional(),
+  name: z.string().describe(
+    "Identifier. Resource name for this CustomMetric resource. Format: properties/{property}/customMetrics/{customMetric}",
+  ).optional(),
   parameterName: z.string().describe(
     "Required. Immutable. Tagging name for this custom metric. If this is an event-scoped metric, then this is the event parameter name. May only contain alphanumeric and underscore charactes, starting with a letter. Max length of 40 characters for event-scoped metrics.",
   ).optional(),
@@ -169,7 +171,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Analytics Admin Properties.CustomMetrics. Registered at `@swamp/gcp/analyticsadmin/properties-custommetrics`. */
 export const model = {
   type: "@swamp/gcp/analyticsadmin/properties-custommetrics",
-  version: "2026.05.18.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -206,6 +208,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -236,6 +243,7 @@ export const model = {
         if (g["measurementUnit"] !== undefined) {
           body["measurementUnit"] = g["measurementUnit"];
         }
+        if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["parameterName"] !== undefined) {
           body["parameterName"] = g["parameterName"];
         }
@@ -256,10 +264,8 @@ export const model = {
           body,
           GET_CONFIG,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
+          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -286,10 +292,11 @@ export const model = {
           GET_CONFIG,
           params,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? args.identifier).replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName =
+          ((result.name ?? g.name)?.toString() ?? args.identifier).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,

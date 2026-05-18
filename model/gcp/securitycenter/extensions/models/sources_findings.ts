@@ -630,8 +630,14 @@ const GlobalArgsSchema = z.object({
     "Exfiltration represents a data exfiltration attempt from one or more sources to one or more targets. The `sources` attribute lists the sources of the exfiltrated data. The `targets` attribute lists the destinations the data was copied to.",
   ).optional(),
   externalExposure: z.object({
+    backendBucket: z.string().describe(
+      'The full resource name of the load balancer backend bucket, for example, "//compute.googleapis.com/projects/{project-id}/global/backendBuckets/{name}"',
+    ).optional(),
     backendService: z.string().describe(
       'The full resource name of load balancer backend service, for example, "//compute.googleapis.com/projects/{project-id}/global/backendServices/{name}".',
+    ).optional(),
+    exposedApplication: z.string().describe(
+      'The name and version of the exposed web application, for example, "Jenkins 2.184".',
     ).optional(),
     exposedEndpoint: z.string().describe(
       'The resource which is running the exposed service, for example, "//compute.googleapis.com/projects/{project-id}/zones/{zone}/instances/{instance}.”',
@@ -642,8 +648,23 @@ const GlobalArgsSchema = z.object({
     forwardingRule: z.string().describe(
       'The full resource name of the forwarding rule, for example, "//compute.googleapis.com/projects/{project-id}/global/forwardingRules/{forwarding-rule-name}".',
     ).optional(),
+    hostnameUri: z.string().describe(
+      'Hostname of the exposed application, for example, "https://test-app.a.run.app/"',
+    ).optional(),
+    httpResponse: z.array(z.object({
+      path: z.string().describe(
+        'The http path for which response code was returned by web application, for example, "https://test-app.a.run.app/test".',
+      ).optional(),
+      statusCode: z.string().describe(
+        "The http response code returned by the web application, for example, 200.",
+      ).optional(),
+    })).describe("The http response returned by the web application.")
+      .optional(),
     instanceGroup: z.string().describe(
       'The full resource name of the instance group, for example, "//compute.googleapis.com/projects/{project-id}/global/instanceGroups/{name}".',
+    ).optional(),
+    internalBackendService: z.string().describe(
+      'The full resource name of load balancer backend service in the internal project having resource exposed via PSC, for example, "//compute.googleapis.com/projects/{project-id}/global/backendServices/{name}".',
     ).optional(),
     loadBalancerFirewallPolicy: z.string().describe(
       'The full resource name of the load balancer firewall policy, for example, "//compute.googleapis.com/projects/{project-id}/global/firewallPolicies/{policy-name}".',
@@ -651,11 +672,20 @@ const GlobalArgsSchema = z.object({
     networkEndpointGroup: z.string().describe(
       'The full resource name of the network endpoint group, for example, "//compute.googleapis.com/projects/{project-id}/global/networkEndpointGroups/{name}".',
     ).optional(),
+    networkIngressFirewallPolicy: z.string().describe(
+      'The full resource name of the network ingress firewall policy, for example, "//compute.googleapis.com/projects/{project-id}/global/firewallPolicies/{name}".',
+    ).optional(),
     privateIpAddress: z.string().describe(
       "Private IP address of the exposed endpoint.",
     ).optional(),
     privatePort: z.string().describe(
       "Port number associated with private IP address.",
+    ).optional(),
+    pscNetworkAttachment: z.string().describe(
+      'The full resource name of the PSC (Private Service Connect) network attachment that network interface controller is attached to, for example, "//compute.googleapis.com/projects/{project-id}/regions/{region}/networkAttachments/{name}"',
+    ).optional(),
+    pscServiceAttachment: z.string().describe(
+      'The full resource name of the PSC (Private Service Connect) service attachment that the load balancer network endpoint group targets, for example, "//compute.googleapis.com/projects/{project-id}/regions/{region}/serviceAttachments/{name}"',
     ).optional(),
     publicIpAddress: z.string().describe(
       "Public IP address of the exposed endpoint.",
@@ -785,6 +815,7 @@ const GlobalArgsSchema = z.object({
     "SENSITIVE_DATA_RISK",
     "CHOKEPOINT",
     "EXTERNAL_EXPOSURE",
+    "SECRET",
   ]).describe("The class of the finding.").optional(),
   groupMemberships: z.array(z.object({
     groupId: z.string().describe("ID of the group.").optional(),
@@ -2158,15 +2189,26 @@ const StateSchema = z.object({
       totalExfiltratedBytes: z.string(),
     }),
     externalExposure: z.object({
+      backendBucket: z.string(),
       backendService: z.string(),
+      exposedApplication: z.string(),
       exposedEndpoint: z.string(),
       exposedService: z.string(),
       forwardingRule: z.string(),
+      hostnameUri: z.string(),
+      httpResponse: z.array(z.object({
+        path: z.string(),
+        statusCode: z.string(),
+      })),
       instanceGroup: z.string(),
+      internalBackendService: z.string(),
       loadBalancerFirewallPolicy: z.string(),
       networkEndpointGroup: z.string(),
+      networkIngressFirewallPolicy: z.string(),
       privateIpAddress: z.string(),
       privatePort: z.string(),
+      pscNetworkAttachment: z.string(),
+      pscServiceAttachment: z.string(),
       publicIpAddress: z.string(),
       publicPort: z.string(),
       serviceFirewallPolicy: z.string(),
@@ -3161,8 +3203,14 @@ const InputsSchema = z.object({
     "Exfiltration represents a data exfiltration attempt from one or more sources to one or more targets. The `sources` attribute lists the sources of the exfiltrated data. The `targets` attribute lists the destinations the data was copied to.",
   ).optional(),
   externalExposure: z.object({
+    backendBucket: z.string().describe(
+      'The full resource name of the load balancer backend bucket, for example, "//compute.googleapis.com/projects/{project-id}/global/backendBuckets/{name}"',
+    ).optional(),
     backendService: z.string().describe(
       'The full resource name of load balancer backend service, for example, "//compute.googleapis.com/projects/{project-id}/global/backendServices/{name}".',
+    ).optional(),
+    exposedApplication: z.string().describe(
+      'The name and version of the exposed web application, for example, "Jenkins 2.184".',
     ).optional(),
     exposedEndpoint: z.string().describe(
       'The resource which is running the exposed service, for example, "//compute.googleapis.com/projects/{project-id}/zones/{zone}/instances/{instance}.”',
@@ -3173,8 +3221,23 @@ const InputsSchema = z.object({
     forwardingRule: z.string().describe(
       'The full resource name of the forwarding rule, for example, "//compute.googleapis.com/projects/{project-id}/global/forwardingRules/{forwarding-rule-name}".',
     ).optional(),
+    hostnameUri: z.string().describe(
+      'Hostname of the exposed application, for example, "https://test-app.a.run.app/"',
+    ).optional(),
+    httpResponse: z.array(z.object({
+      path: z.string().describe(
+        'The http path for which response code was returned by web application, for example, "https://test-app.a.run.app/test".',
+      ).optional(),
+      statusCode: z.string().describe(
+        "The http response code returned by the web application, for example, 200.",
+      ).optional(),
+    })).describe("The http response returned by the web application.")
+      .optional(),
     instanceGroup: z.string().describe(
       'The full resource name of the instance group, for example, "//compute.googleapis.com/projects/{project-id}/global/instanceGroups/{name}".',
+    ).optional(),
+    internalBackendService: z.string().describe(
+      'The full resource name of load balancer backend service in the internal project having resource exposed via PSC, for example, "//compute.googleapis.com/projects/{project-id}/global/backendServices/{name}".',
     ).optional(),
     loadBalancerFirewallPolicy: z.string().describe(
       'The full resource name of the load balancer firewall policy, for example, "//compute.googleapis.com/projects/{project-id}/global/firewallPolicies/{policy-name}".',
@@ -3182,11 +3245,20 @@ const InputsSchema = z.object({
     networkEndpointGroup: z.string().describe(
       'The full resource name of the network endpoint group, for example, "//compute.googleapis.com/projects/{project-id}/global/networkEndpointGroups/{name}".',
     ).optional(),
+    networkIngressFirewallPolicy: z.string().describe(
+      'The full resource name of the network ingress firewall policy, for example, "//compute.googleapis.com/projects/{project-id}/global/firewallPolicies/{name}".',
+    ).optional(),
     privateIpAddress: z.string().describe(
       "Private IP address of the exposed endpoint.",
     ).optional(),
     privatePort: z.string().describe(
       "Port number associated with private IP address.",
+    ).optional(),
+    pscNetworkAttachment: z.string().describe(
+      'The full resource name of the PSC (Private Service Connect) network attachment that network interface controller is attached to, for example, "//compute.googleapis.com/projects/{project-id}/regions/{region}/networkAttachments/{name}"',
+    ).optional(),
+    pscServiceAttachment: z.string().describe(
+      'The full resource name of the PSC (Private Service Connect) service attachment that the load balancer network endpoint group targets, for example, "//compute.googleapis.com/projects/{project-id}/regions/{region}/serviceAttachments/{name}"',
     ).optional(),
     publicIpAddress: z.string().describe(
       "Public IP address of the exposed endpoint.",
@@ -3316,6 +3388,7 @@ const InputsSchema = z.object({
     "SENSITIVE_DATA_RISK",
     "CHOKEPOINT",
     "EXTERNAL_EXPOSURE",
+    "SECRET",
   ]).describe("The class of the finding.").optional(),
   groupMemberships: z.array(z.object({
     groupId: z.string().describe("ID of the group.").optional(),
@@ -4481,7 +4554,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Security Command Center Sources.Findings. Registered at `@swamp/gcp/securitycenter/sources-findings`. */
 export const model = {
   type: "@swamp/gcp/securitycenter/sources-findings",
-  version: "2026.05.18.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -4543,6 +4616,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

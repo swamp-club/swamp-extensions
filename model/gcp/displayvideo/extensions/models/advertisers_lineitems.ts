@@ -114,7 +114,7 @@ const GlobalArgsSchema = z.object({
   bidStrategy: z.object({
     demandGenBid: z.object({
       effectiveBiddingValue: z.string().describe(
-        "Output only. If AG doesn't set value for tCPA or tROAS, line item bidding value will be the effective_bidding_value, if the bidding strategy type is not tCPA or tROAS, effective_bidding_value is always 0. For line item, it will be the same as the value field.",
+        "Output only. The value effectively used by the bidding strategy. This field will be the same as value if set. If value is not set and the strategy is assigned to an ad group, this field will be inherited from the line item's bidding strategy. If type is not `DEMAND_GEN_BIDDING_STRATEGY_TYPE_TARGET_CPA` or `DEMAND_GEN_BIDDING_STRATEGY_TYPE_TARGET_ROAS`, this field will be 0.",
       ).optional(),
       effectiveBiddingValueSource: z.enum([
         "BIDDING_SOURCE_UNSPECIFIED",
@@ -129,11 +129,12 @@ const GlobalArgsSchema = z.object({
         "DEMAND_GEN_BIDDING_STRATEGY_TYPE_MAXIMIZE_CONVERSIONS",
         "DEMAND_GEN_BIDDING_STRATEGY_TYPE_MAXIMIZE_CONVERSION_VALUE",
         "DEMAND_GEN_BIDDING_STRATEGY_TYPE_MAXIMIZE_CLICKS",
+        "DEMAND_GEN_BIDDING_STRATEGY_TYPE_TARGET_CPC",
       ]).describe(
-        "Optional. The type of the bidding strategy. This can only be set at the line item level.",
+        "Optional. The type of the bidding strategy. This can only be set when assigned to a line item. Ad groups will inherit this value from their line item.",
       ).optional(),
       value: z.string().describe(
-        "Optional. The value used by the bidding strategy. This can be set at the line item and ad group level. This field is only applicable for the following strategy types: * `DEMAND_GEN_BIDDING_STRATEGY_TYPE_TARGET_CPA` * `DEMAND_GEN_BIDDING_STRATEGY_TYPE_TARGET_ROAS` Value of this field is in micros of the advertiser's currency or ROAS value. For example, 1000000 represents 1.0 standard units of the currency or 100% ROAS value. If not using an applicable strategy, the value of this field will be 0.",
+        "Optional. The value used by the bidding strategy. This can be set when assigned to line items or ad groups. This field is only applicable for the following strategy types: * `DEMAND_GEN_BIDDING_STRATEGY_TYPE_TARGET_CPA` * `DEMAND_GEN_BIDDING_STRATEGY_TYPE_TARGET_CPC` * `DEMAND_GEN_BIDDING_STRATEGY_TYPE_TARGET_ROAS` Value of this field is in micros of the advertiser's currency or ROAS value. For example, 1000000 represents 1.0 standard units of the currency or 100% ROAS value. If not using an applicable strategy, the value of this field will be 0.",
       ).optional(),
     }).describe(
       "Settings that control the bid strategy for Demand Gen resources.",
@@ -220,7 +221,7 @@ const GlobalArgsSchema = z.object({
         "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MAXIMIZE_CONVERSION_VALUE",
       ]).describe("The type of the bidding strategy.").optional(),
       value: z.string().describe(
-        "The value used by the bidding strategy. When the bidding strategy is assigned at the line item level, this field is only applicable for the following strategy types: * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPA` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_ROAS` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_RESERVE_SHARE_OF_VOICE` When the bidding strategy is assigned at the ad group level, this field is only applicable for the following strategy types: * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MANUAL_CPM` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MANUAL_CPV` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPA` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPM` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_RESERVE_CPM` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_ROAS` If not using an applicable strategy, the value of this field will be 0.",
+        "The value used by the bidding strategy. When the bidding strategy is assigned at the line item level, this field is only applicable for the following strategy types: * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPA` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_ROAS` When the bidding strategy is assigned at the ad group level, this field is only applicable for the following strategy types: * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MANUAL_CPM` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MANUAL_CPV` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPA` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPM` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_RESERVE_CPM` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_ROAS` If not using an applicable strategy, the value of this field will be 0.",
       ).optional(),
     }).describe(
       "Settings that control the bid strategy for YouTube and Partners resources.",
@@ -235,7 +236,7 @@ const GlobalArgsSchema = z.object({
       "LINE_ITEM_BUDGET_ALLOCATION_TYPE_FIXED",
       "LINE_ITEM_BUDGET_ALLOCATION_TYPE_UNLIMITED",
     ]).describe(
-      "Required. The type of the budget allocation. `LINE_ITEM_BUDGET_ALLOCATION_TYPE_AUTOMATIC` is only applicable when automatic budget allocation is enabled for the parent insertion order. For demand gen line items, budget allocation type must be `LINE_ITEM_BUDGET_ALLOCATION_TYPE_FIXED`. Demand Gen line items do not support other budget allocation types.",
+      "Required. The type of the budget allocation. `LINE_ITEM_BUDGET_ALLOCATION_TYPE_AUTOMATIC` is only applicable when automatic budget allocation is enabled for the parent insertion order. This field must be set to `LINE_ITEM_BUDGET_ALLOCATION_TYPE_FIXED` for Demand Gen line items.",
     ).optional(),
     budgetUnit: z.enum([
       "BUDGET_UNIT_UNSPECIFIED",
@@ -273,7 +274,7 @@ const GlobalArgsSchema = z.object({
       "The percentage of post-view conversions to count, in millis (1/1000 of a percent). Must be between 0 and 100000 inclusive. For example, to track 50% of the post-click conversions, set a value of 50000.",
     ).optional(),
     primaryAttributionModelId: z.string().describe(
-      "Optional. The attribution model to use for conversion measurement. This attribution model will determine how conversions are counted. The Primary model can be set by you for a floodlight config or group. More details [here](https://support.google.com/displayvideo/answer/7409983). Only applicable to Demand Gen line items.",
+      "Optional. The attribution model to use for conversion measurement. This attribution model will determine how conversions are counted. The Primary model can be set by you for a floodlight config or group. More details [here](https://support.google.com/displayvideo/answer/7409983). Only applicable to Demand Gen line items. Retrieval and management of Demand Gen resources is currently in beta. This field is only available to allowlisted users.",
     ).optional(),
   }).describe(
     "Settings that control how conversions are counted. All post-click conversions will be counted. A percentage value can be set for post-view conversions counting.",
@@ -283,10 +284,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   demandGenSettings: z.object({
     geoLanguageTargetingEnabled: z.boolean().describe(
-      "Optional. Immutable. Whether location and language targeting can be set at the line item level. Otherwise, relevant targeting types must be assigned directly to the ad groups.",
+      "Optional. Immutable. Whether location and language targeting can be set at the line item level. Otherwise, relevant targeting types must be assigned directly to ad groups.",
     ).optional(),
     linkedMerchantId: z.string().describe(
-      "Optional. The ID of the merchant which is linked to the line item for product feed.",
+      "Optional. The ID of the Merchant Center account used to provide a product feed. This Merchant Center account must already be linked to the advertiser.",
     ).optional(),
     thirdPartyMeasurementConfigs: z.object({
       brandLiftVendorConfigs: z.array(z.object({
@@ -347,7 +348,7 @@ const GlobalArgsSchema = z.object({
           "THIRD_PARTY_VENDOR_VIDEO_RESEARCH",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
-        "Optional. The third-party vendors measuring brand safety. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE` * `THIRD_PARTY_VENDOR_ZEFR`",
+        "Optional. The third-party vendors measuring brand safety. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_ZEFR` * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE`",
       ).optional(),
       reachVendorConfigs: z.array(z.object({
         placementId: z.string().describe(
@@ -541,6 +542,9 @@ const GlobalArgsSchema = z.object({
       .optional(),
   }).describe("A mobile app promoted by a mobile app install line item.")
     .optional(),
+  optimizeFixedBidding: z.boolean().describe(
+    "Optional. Whether to enable DV360's bid optimization for fixed bid line items. By default, DV360 optimizes your fixed bid by automatically lowering bids for impressions that are less likely to perform well. This optimization is enabled by default (value is true). When this field is set to `false`, this optimization is disabled, and the bid will not be lowered for any reason. This setting only applies to line items with a `bidding_strategy` of type `FIXED_BID`.",
+  ).optional(),
   pacing: z.object({
     dailyMaxImpressions: z.string().describe(
       "Maximum number of impressions to serve every day. Applicable when the budget is impression based. Must be greater than 0.",
@@ -629,7 +633,7 @@ const GlobalArgsSchema = z.object({
       "PARTNER_REVENUE_MODEL_MARKUP_TYPE_MEDIA_COST_MARKUP",
       "PARTNER_REVENUE_MODEL_MARKUP_TYPE_TOTAL_MEDIA_COST_MARKUP",
     ]).describe(
-      "Required. The markup type of the partner revenue model. Demand Gen line items only support `PARTNER_REVENUE_MODEL_MARKUP_TYPE_TOTAL_MEDIA_COST_MARKUP`.",
+      "Required. The markup type of the partner revenue model. This field must be set to `PARTNER_REVENUE_MODEL_MARKUP_TYPE_TOTAL_MEDIA_COST_MARKUP` for Demand Gen line items.",
     ).optional(),
   }).describe("Settings that control how partner revenue is calculated.")
     .optional(),
@@ -650,7 +654,7 @@ const GlobalArgsSchema = z.object({
       "Required. Whether to enable Optimized Targeting for the line item. Optimized targeting is not compatible with all bid strategies. Attempting to set this field to `true` for a line item using the BiddingStrategy field fixed_bid or one of the following combinations of BiddingStrategy fields and BiddingStrategyPerformanceGoalType will result in an error: maximize_auto_spend_bid: * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED` performance_goal_auto_bid: * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` This also applies if the line item inherits one of the above bid strategies from the parent insertion order. Bid strategies set at the insertion order-level will be inherited by their line items if the `InsertionOrder` budget field automationType is set to `INSERTION_ORDER_AUTOMATION_TYPE_BUDGET` or `INSERTION_ORDER_AUTOMATION_TYPE_BID_BUDGET`.",
     ).optional(),
     excludeDemographicExpansion: z.boolean().describe(
-      "Optional. Whether to exclude demographic expansion for Optimized Targeting. This field only applies to Demand Gen ad groups.",
+      "Optional. Whether to exclude demographic expansion for Optimized Targeting. This field can only be set for Demand Gen ad groups. Retrieval and management of Demand Gen resources is currently in beta. This field is only available to allowlisted users.",
     ).optional(),
   }).describe(
     "Settings that control the [optimized targeting](//support.google.com/displayvideo/answer/12060859) settings of the line item.",
@@ -689,7 +693,7 @@ const GlobalArgsSchema = z.object({
       "Optional. The ID of the form to generate leads.",
     ).optional(),
     linkedMerchantId: z.string().describe(
-      "Optional. The ID of the merchant which is linked to the line item for product feed.",
+      "Optional. The ID of the Merchant Center account used to provide a product feed. This Merchant Center account must already be linked to the advertiser.",
     ).optional(),
     relatedVideoIds: z.array(z.string()).describe(
       "Optional. The IDs of the videos appear below the primary video ad when the ad is playing in the YouTube app on mobile devices.",
@@ -774,7 +778,7 @@ const GlobalArgsSchema = z.object({
           "THIRD_PARTY_VENDOR_VIDEO_RESEARCH",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
-        "Optional. The third-party vendors measuring brand safety. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE` * `THIRD_PARTY_VENDOR_ZEFR`",
+        "Optional. The third-party vendors measuring brand safety. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_ZEFR` * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE`",
       ).optional(),
       reachVendorConfigs: z.array(z.object({
         placementId: z.string().describe(
@@ -845,6 +849,9 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       allowInStream: z.boolean().describe(
         "Optional. Whether ads can serve as in-stream format.",
+      ).optional(),
+      allowNonSkippableInStream: z.boolean().describe(
+        "Optional. Indicates whether ads can serve as non-skippable in-stream format.",
       ).optional(),
       allowShorts: z.boolean().describe(
         "Optional. Whether ads can serve as shorts format.",
@@ -1018,6 +1025,7 @@ const StateSchema = z.object({
     publisher: z.string(),
   }).optional(),
   name: z.string(),
+  optimizeFixedBidding: z.boolean().optional(),
   pacing: z.object({
     dailyMaxImpressions: z.string(),
     dailyMaxMicros: z.string(),
@@ -1081,6 +1089,7 @@ const StateSchema = z.object({
     videoAdInventoryControl: z.object({
       allowInFeed: z.boolean(),
       allowInStream: z.boolean(),
+      allowNonSkippableInStream: z.boolean(),
       allowShorts: z.boolean(),
     }),
     videoAdSequenceSettings: z.object({
@@ -1112,7 +1121,7 @@ const InputsSchema = z.object({
   bidStrategy: z.object({
     demandGenBid: z.object({
       effectiveBiddingValue: z.string().describe(
-        "Output only. If AG doesn't set value for tCPA or tROAS, line item bidding value will be the effective_bidding_value, if the bidding strategy type is not tCPA or tROAS, effective_bidding_value is always 0. For line item, it will be the same as the value field.",
+        "Output only. The value effectively used by the bidding strategy. This field will be the same as value if set. If value is not set and the strategy is assigned to an ad group, this field will be inherited from the line item's bidding strategy. If type is not `DEMAND_GEN_BIDDING_STRATEGY_TYPE_TARGET_CPA` or `DEMAND_GEN_BIDDING_STRATEGY_TYPE_TARGET_ROAS`, this field will be 0.",
       ).optional(),
       effectiveBiddingValueSource: z.enum([
         "BIDDING_SOURCE_UNSPECIFIED",
@@ -1127,11 +1136,12 @@ const InputsSchema = z.object({
         "DEMAND_GEN_BIDDING_STRATEGY_TYPE_MAXIMIZE_CONVERSIONS",
         "DEMAND_GEN_BIDDING_STRATEGY_TYPE_MAXIMIZE_CONVERSION_VALUE",
         "DEMAND_GEN_BIDDING_STRATEGY_TYPE_MAXIMIZE_CLICKS",
+        "DEMAND_GEN_BIDDING_STRATEGY_TYPE_TARGET_CPC",
       ]).describe(
-        "Optional. The type of the bidding strategy. This can only be set at the line item level.",
+        "Optional. The type of the bidding strategy. This can only be set when assigned to a line item. Ad groups will inherit this value from their line item.",
       ).optional(),
       value: z.string().describe(
-        "Optional. The value used by the bidding strategy. This can be set at the line item and ad group level. This field is only applicable for the following strategy types: * `DEMAND_GEN_BIDDING_STRATEGY_TYPE_TARGET_CPA` * `DEMAND_GEN_BIDDING_STRATEGY_TYPE_TARGET_ROAS` Value of this field is in micros of the advertiser's currency or ROAS value. For example, 1000000 represents 1.0 standard units of the currency or 100% ROAS value. If not using an applicable strategy, the value of this field will be 0.",
+        "Optional. The value used by the bidding strategy. This can be set when assigned to line items or ad groups. This field is only applicable for the following strategy types: * `DEMAND_GEN_BIDDING_STRATEGY_TYPE_TARGET_CPA` * `DEMAND_GEN_BIDDING_STRATEGY_TYPE_TARGET_CPC` * `DEMAND_GEN_BIDDING_STRATEGY_TYPE_TARGET_ROAS` Value of this field is in micros of the advertiser's currency or ROAS value. For example, 1000000 represents 1.0 standard units of the currency or 100% ROAS value. If not using an applicable strategy, the value of this field will be 0.",
       ).optional(),
     }).describe(
       "Settings that control the bid strategy for Demand Gen resources.",
@@ -1218,7 +1228,7 @@ const InputsSchema = z.object({
         "YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MAXIMIZE_CONVERSION_VALUE",
       ]).describe("The type of the bidding strategy.").optional(),
       value: z.string().describe(
-        "The value used by the bidding strategy. When the bidding strategy is assigned at the line item level, this field is only applicable for the following strategy types: * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPA` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_ROAS` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_RESERVE_SHARE_OF_VOICE` When the bidding strategy is assigned at the ad group level, this field is only applicable for the following strategy types: * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MANUAL_CPM` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MANUAL_CPV` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPA` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPM` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_RESERVE_CPM` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_ROAS` If not using an applicable strategy, the value of this field will be 0.",
+        "The value used by the bidding strategy. When the bidding strategy is assigned at the line item level, this field is only applicable for the following strategy types: * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPA` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_ROAS` When the bidding strategy is assigned at the ad group level, this field is only applicable for the following strategy types: * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MANUAL_CPM` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_MANUAL_CPV` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPA` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_CPM` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_RESERVE_CPM` * `YOUTUBE_AND_PARTNERS_BIDDING_STRATEGY_TYPE_TARGET_ROAS` If not using an applicable strategy, the value of this field will be 0.",
       ).optional(),
     }).describe(
       "Settings that control the bid strategy for YouTube and Partners resources.",
@@ -1233,7 +1243,7 @@ const InputsSchema = z.object({
       "LINE_ITEM_BUDGET_ALLOCATION_TYPE_FIXED",
       "LINE_ITEM_BUDGET_ALLOCATION_TYPE_UNLIMITED",
     ]).describe(
-      "Required. The type of the budget allocation. `LINE_ITEM_BUDGET_ALLOCATION_TYPE_AUTOMATIC` is only applicable when automatic budget allocation is enabled for the parent insertion order. For demand gen line items, budget allocation type must be `LINE_ITEM_BUDGET_ALLOCATION_TYPE_FIXED`. Demand Gen line items do not support other budget allocation types.",
+      "Required. The type of the budget allocation. `LINE_ITEM_BUDGET_ALLOCATION_TYPE_AUTOMATIC` is only applicable when automatic budget allocation is enabled for the parent insertion order. This field must be set to `LINE_ITEM_BUDGET_ALLOCATION_TYPE_FIXED` for Demand Gen line items.",
     ).optional(),
     budgetUnit: z.enum([
       "BUDGET_UNIT_UNSPECIFIED",
@@ -1271,7 +1281,7 @@ const InputsSchema = z.object({
       "The percentage of post-view conversions to count, in millis (1/1000 of a percent). Must be between 0 and 100000 inclusive. For example, to track 50% of the post-click conversions, set a value of 50000.",
     ).optional(),
     primaryAttributionModelId: z.string().describe(
-      "Optional. The attribution model to use for conversion measurement. This attribution model will determine how conversions are counted. The Primary model can be set by you for a floodlight config or group. More details [here](https://support.google.com/displayvideo/answer/7409983). Only applicable to Demand Gen line items.",
+      "Optional. The attribution model to use for conversion measurement. This attribution model will determine how conversions are counted. The Primary model can be set by you for a floodlight config or group. More details [here](https://support.google.com/displayvideo/answer/7409983). Only applicable to Demand Gen line items. Retrieval and management of Demand Gen resources is currently in beta. This field is only available to allowlisted users.",
     ).optional(),
   }).describe(
     "Settings that control how conversions are counted. All post-click conversions will be counted. A percentage value can be set for post-view conversions counting.",
@@ -1281,10 +1291,10 @@ const InputsSchema = z.object({
   ).optional(),
   demandGenSettings: z.object({
     geoLanguageTargetingEnabled: z.boolean().describe(
-      "Optional. Immutable. Whether location and language targeting can be set at the line item level. Otherwise, relevant targeting types must be assigned directly to the ad groups.",
+      "Optional. Immutable. Whether location and language targeting can be set at the line item level. Otherwise, relevant targeting types must be assigned directly to ad groups.",
     ).optional(),
     linkedMerchantId: z.string().describe(
-      "Optional. The ID of the merchant which is linked to the line item for product feed.",
+      "Optional. The ID of the Merchant Center account used to provide a product feed. This Merchant Center account must already be linked to the advertiser.",
     ).optional(),
     thirdPartyMeasurementConfigs: z.object({
       brandLiftVendorConfigs: z.array(z.object({
@@ -1345,7 +1355,7 @@ const InputsSchema = z.object({
           "THIRD_PARTY_VENDOR_VIDEO_RESEARCH",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
-        "Optional. The third-party vendors measuring brand safety. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE` * `THIRD_PARTY_VENDOR_ZEFR`",
+        "Optional. The third-party vendors measuring brand safety. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_ZEFR` * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE`",
       ).optional(),
       reachVendorConfigs: z.array(z.object({
         placementId: z.string().describe(
@@ -1539,6 +1549,9 @@ const InputsSchema = z.object({
       .optional(),
   }).describe("A mobile app promoted by a mobile app install line item.")
     .optional(),
+  optimizeFixedBidding: z.boolean().describe(
+    "Optional. Whether to enable DV360's bid optimization for fixed bid line items. By default, DV360 optimizes your fixed bid by automatically lowering bids for impressions that are less likely to perform well. This optimization is enabled by default (value is true). When this field is set to `false`, this optimization is disabled, and the bid will not be lowered for any reason. This setting only applies to line items with a `bidding_strategy` of type `FIXED_BID`.",
+  ).optional(),
   pacing: z.object({
     dailyMaxImpressions: z.string().describe(
       "Maximum number of impressions to serve every day. Applicable when the budget is impression based. Must be greater than 0.",
@@ -1627,7 +1640,7 @@ const InputsSchema = z.object({
       "PARTNER_REVENUE_MODEL_MARKUP_TYPE_MEDIA_COST_MARKUP",
       "PARTNER_REVENUE_MODEL_MARKUP_TYPE_TOTAL_MEDIA_COST_MARKUP",
     ]).describe(
-      "Required. The markup type of the partner revenue model. Demand Gen line items only support `PARTNER_REVENUE_MODEL_MARKUP_TYPE_TOTAL_MEDIA_COST_MARKUP`.",
+      "Required. The markup type of the partner revenue model. This field must be set to `PARTNER_REVENUE_MODEL_MARKUP_TYPE_TOTAL_MEDIA_COST_MARKUP` for Demand Gen line items.",
     ).optional(),
   }).describe("Settings that control how partner revenue is calculated.")
     .optional(),
@@ -1648,7 +1661,7 @@ const InputsSchema = z.object({
       "Required. Whether to enable Optimized Targeting for the line item. Optimized targeting is not compatible with all bid strategies. Attempting to set this field to `true` for a line item using the BiddingStrategy field fixed_bid or one of the following combinations of BiddingStrategy fields and BiddingStrategyPerformanceGoalType will result in an error: maximize_auto_spend_bid: * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CIVA` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_IVO_TEN` * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED` performance_goal_auto_bid: * `BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM` This also applies if the line item inherits one of the above bid strategies from the parent insertion order. Bid strategies set at the insertion order-level will be inherited by their line items if the `InsertionOrder` budget field automationType is set to `INSERTION_ORDER_AUTOMATION_TYPE_BUDGET` or `INSERTION_ORDER_AUTOMATION_TYPE_BID_BUDGET`.",
     ).optional(),
     excludeDemographicExpansion: z.boolean().describe(
-      "Optional. Whether to exclude demographic expansion for Optimized Targeting. This field only applies to Demand Gen ad groups.",
+      "Optional. Whether to exclude demographic expansion for Optimized Targeting. This field can only be set for Demand Gen ad groups. Retrieval and management of Demand Gen resources is currently in beta. This field is only available to allowlisted users.",
     ).optional(),
   }).describe(
     "Settings that control the [optimized targeting](//support.google.com/displayvideo/answer/12060859) settings of the line item.",
@@ -1687,7 +1700,7 @@ const InputsSchema = z.object({
       "Optional. The ID of the form to generate leads.",
     ).optional(),
     linkedMerchantId: z.string().describe(
-      "Optional. The ID of the merchant which is linked to the line item for product feed.",
+      "Optional. The ID of the Merchant Center account used to provide a product feed. This Merchant Center account must already be linked to the advertiser.",
     ).optional(),
     relatedVideoIds: z.array(z.string()).describe(
       "Optional. The IDs of the videos appear below the primary video ad when the ad is playing in the YouTube app on mobile devices.",
@@ -1772,7 +1785,7 @@ const InputsSchema = z.object({
           "THIRD_PARTY_VENDOR_VIDEO_RESEARCH",
         ]).describe("The third-party measurement vendor.").optional(),
       })).describe(
-        "Optional. The third-party vendors measuring brand safety. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE` * `THIRD_PARTY_VENDOR_ZEFR`",
+        "Optional. The third-party vendors measuring brand safety. The following third-party vendors are applicable: * `THIRD_PARTY_VENDOR_ZEFR` * `THIRD_PARTY_VENDOR_DOUBLE_VERIFY` * `THIRD_PARTY_VENDOR_INTEGRAL_AD_SCIENCE`",
       ).optional(),
       reachVendorConfigs: z.array(z.object({
         placementId: z.string().describe(
@@ -1844,6 +1857,9 @@ const InputsSchema = z.object({
       allowInStream: z.boolean().describe(
         "Optional. Whether ads can serve as in-stream format.",
       ).optional(),
+      allowNonSkippableInStream: z.boolean().describe(
+        "Optional. Indicates whether ads can serve as non-skippable in-stream format.",
+      ).optional(),
       allowShorts: z.boolean().describe(
         "Optional. Whether ads can serve as shorts format.",
       ).optional(),
@@ -1910,7 +1926,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.LineItems. Registered at `@swamp/gcp/displayvideo/advertisers-lineitems`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-lineitems",
-  version: "2026.05.18.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1969,6 +1985,11 @@ export const model = {
         const { optimizeFixedBidding: _optimizeFixedBidding, ...rest } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.05.18.2",
+      description: "Added: optimizeFixedBidding",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -2032,6 +2053,9 @@ export const model = {
           body["lineItemType"] = g["lineItemType"];
         }
         if (g["mobileApp"] !== undefined) body["mobileApp"] = g["mobileApp"];
+        if (g["optimizeFixedBidding"] !== undefined) {
+          body["optimizeFixedBidding"] = g["optimizeFixedBidding"];
+        }
         if (g["pacing"] !== undefined) body["pacing"] = g["pacing"];
         if (g["partnerCosts"] !== undefined) {
           body["partnerCosts"] = g["partnerCosts"];
@@ -2152,6 +2176,9 @@ export const model = {
           body["integrationDetails"] = g["integrationDetails"];
         }
         if (g["mobileApp"] !== undefined) body["mobileApp"] = g["mobileApp"];
+        if (g["optimizeFixedBidding"] !== undefined) {
+          body["optimizeFixedBidding"] = g["optimizeFixedBidding"];
+        }
         if (g["pacing"] !== undefined) body["pacing"] = g["pacing"];
         if (g["partnerCosts"] !== undefined) {
           body["partnerCosts"] = g["partnerCosts"];

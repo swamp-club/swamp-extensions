@@ -9,8 +9,6 @@ labels:
   - entityresolution
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: matching_workflow
 models:
   - id_mapping_workflow.ts
   - id_namespace.ts

@@ -54,6 +54,9 @@ const INSERT_CONFIG = {
     "parent",
   ],
   "parameters": {
+    "createMessageNotificationOptions.notificationType": {
+      "location": "query",
+    },
     "messageId": {
       "location": "query",
     },
@@ -888,6 +891,9 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "A thread in a Google Chat space. For example usage, see [Start or reply to a message thread](https://developers.google.com/workspace/chat/create-messages#create-message-thread). If you specify a thread when creating a message, you can set the [`messageReplyOption`](https://developers.google.com/workspace/chat/api/reference/rest/v1/spaces.messages/create#messagereplyoption) field to determine what happens if no matching thread is found.",
   ).optional(),
+  createMessageNotificationOptions_notificationType: z.string().describe(
+    "The notification type for the message.",
+  ).optional(),
   messageId: z.string().describe(
     "Optional. A custom ID for a message. Lets Chat apps get, update, or delete a message without needing to store the system-assigned ID in the message's resource name (represented in the message `name` field). The value for this field must meet the following requirements: * Begins with `client-`. For example, `client-custom-name` is a valid custom ID, but `custom-name` is not. * Contains up to 63 characters and only lowercase letters, numbers, and hyphens. * Is unique within a space. A Chat app can't use the same custom ID for different messages. For details, see [Name a message](https://developers.google.com/workspace/chat/create-messages#name_a_created_message).",
   ).optional(),
@@ -1228,6 +1234,7 @@ const StateSchema = z.object({
     name: z.string(),
     type: z.string(),
   }).optional(),
+  silent: z.boolean().optional(),
   slashCommand: z.object({
     commandId: z.string(),
   }).optional(),
@@ -2090,6 +2097,9 @@ const InputsSchema = z.object({
   }).describe(
     "A thread in a Google Chat space. For example usage, see [Start or reply to a message thread](https://developers.google.com/workspace/chat/create-messages#create-message-thread). If you specify a thread when creating a message, you can set the [`messageReplyOption`](https://developers.google.com/workspace/chat/api/reference/rest/v1/spaces.messages/create#messagereplyoption) field to determine what happens if no matching thread is found.",
   ).optional(),
+  createMessageNotificationOptions_notificationType: z.string().describe(
+    "The notification type for the message.",
+  ).optional(),
   messageId: z.string().describe(
     "Optional. A custom ID for a message. Lets Chat apps get, update, or delete a message without needing to store the system-assigned ID in the message's resource name (represented in the message `name` field). The value for this field must meet the following requirements: * Begins with `client-`. For example, `client-custom-name` is a valid custom ID, but `custom-name` is not. * Contains up to 63 characters and only lowercase letters, numbers, and hyphens. * Is unique within a space. A Chat app can't use the same custom ID for different messages. For details, see [Name a message](https://developers.google.com/workspace/chat/create-messages#name_a_created_message).",
   ).optional(),
@@ -2107,7 +2117,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Chat Spaces.Messages. Registered at `@swamp/gcp/chat/spaces-messages`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces-messages",
-  version: "2026.05.18.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2171,6 +2181,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.05.18.2",
+      description: "Added: createMessageNotificationOptions_notificationType",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -2224,6 +2239,12 @@ export const model = {
         if (g["space"] !== undefined) body["space"] = g["space"];
         if (g["text"] !== undefined) body["text"] = g["text"];
         if (g["thread"] !== undefined) body["thread"] = g["thread"];
+        if (
+          g["createMessageNotificationOptions_notificationType"] !== undefined
+        ) {
+          body["createMessageNotificationOptions_notificationType"] =
+            g["createMessageNotificationOptions_notificationType"];
+        }
         if (g["messageId"] !== undefined) body["messageId"] = g["messageId"];
         if (g["messageReplyOption"] !== undefined) {
           body["messageReplyOption"] = g["messageReplyOption"];

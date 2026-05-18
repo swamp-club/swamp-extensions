@@ -327,7 +327,7 @@ const GlobalArgsSchema = z.object({
   }).describe("Settings for validating messages published against a schema.")
     .optional(),
   tags: z.record(z.string(), z.string()).describe(
-    'Optional. Input only. Immutable. Tag keys/values directly bound to this resource. For example: "123/environment": "production", "123/costCenter": "marketing"',
+    'Optional. Input only. Immutable. Tag keys/values directly bound to this resource. For example: "123/environment": "production", "123/costCenter": "marketing" See https://{$universe.dns_names.final_documentation_domain}/pubsub/docs/tags for more information on using tags with Pub/Sub resources.',
   ).optional(),
   topic: z.object({
     ingestionDataSourceSettings: z.object({
@@ -574,7 +574,7 @@ const GlobalArgsSchema = z.object({
         "Output only. An output-only field indicating the state of the topic.",
       ).optional(),
     tags: z.record(z.string(), z.string()).describe(
-      'Optional. Input only. Immutable. Tag keys/values directly bound to this resource. For example: "123/environment": "production", "123/costCenter": "marketing"',
+      'Optional. Input only. Immutable. Tag keys/values directly bound to this resource. For example: "123/environment": "production", "123/costCenter": "marketing" See https://{$universe.dns_names.final_documentation_domain}/pubsub/docs/tags for more information on using tags with Pub/Sub resources.',
     ).optional(),
   }).describe("A topic resource.").optional(),
   updateMask: z.string().describe(
@@ -908,7 +908,7 @@ const InputsSchema = z.object({
   }).describe("Settings for validating messages published against a schema.")
     .optional(),
   tags: z.record(z.string(), z.string()).describe(
-    'Optional. Input only. Immutable. Tag keys/values directly bound to this resource. For example: "123/environment": "production", "123/costCenter": "marketing"',
+    'Optional. Input only. Immutable. Tag keys/values directly bound to this resource. For example: "123/environment": "production", "123/costCenter": "marketing" See https://{$universe.dns_names.final_documentation_domain}/pubsub/docs/tags for more information on using tags with Pub/Sub resources.',
   ).optional(),
   topic: z.object({
     ingestionDataSourceSettings: z.object({
@@ -1155,7 +1155,7 @@ const InputsSchema = z.object({
         "Output only. An output-only field indicating the state of the topic.",
       ).optional(),
     tags: z.record(z.string(), z.string()).describe(
-      'Optional. Input only. Immutable. Tag keys/values directly bound to this resource. For example: "123/environment": "production", "123/costCenter": "marketing"',
+      'Optional. Input only. Immutable. Tag keys/values directly bound to this resource. For example: "123/environment": "production", "123/costCenter": "marketing" See https://{$universe.dns_names.final_documentation_domain}/pubsub/docs/tags for more information on using tags with Pub/Sub resources.',
     ).optional(),
   }).describe("A topic resource.").optional(),
   updateMask: z.string().describe(
@@ -1166,7 +1166,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Pub/Sub Topics. Registered at `@swamp/gcp/pubsub/topics`. */
 export const model = {
   type: "@swamp/gcp/pubsub/topics",
-  version: "2026.05.18.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1220,6 +1220,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

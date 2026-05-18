@@ -32,7 +32,7 @@ const GlobalArgsSchema = z.object({
   ),
   GraphIdentifier: z.string().regex(new RegExp("^g-[a-z0-9]{10}$")).describe(
     "The unique identifier of the Neptune Analytics graph to create the snapshot from.",
-  ).optional(),
+  ),
   SnapshotName: z.string().min(1).max(63).regex(
     new RegExp("^(?!gs-)[a-z][a-z0-9]*(-[a-z0-9]+)*$"),
   ).describe("The snapshot name."),
@@ -70,7 +70,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for NeptuneGraph GraphSnapshot. Registered at `@swamp/aws/neptunegraph/graph-snapshot`. */
 export const model = {
   type: "@swamp/aws/neptunegraph/graph-snapshot",
-  version: "2026.04.23.2",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
@@ -79,6 +79,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

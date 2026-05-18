@@ -67,8 +67,17 @@ const GlobalArgsSchema = z.object({
   enforcementMode: z.enum(["OFF", "UNENFORCED", "ENFORCED"]).describe(
     "Required. The App Check enforcement mode for this service.",
   ).optional(),
+  etag: z.string().describe(
+    "Optional. This checksum is computed by the server based on the value of other fields, and may be sent on update and delete requests to ensure the client has an up-to-date value before proceeding. This etag is strongly validated as defined by RFC 7232.",
+  ).optional(),
   name: z.string().describe(
     "Required. The relative resource name of the service configuration object, in the format: ` projects/{project_number}/services/{service_id} ` Note that the `service_id` element must be a supported service ID. Currently, the following service IDs are supported: * `firebasestorage.googleapis.com` (Cloud Storage for Firebase) * `firebasedatabase.googleapis.com` (Firebase Realtime Database) * `firestore.googleapis.com` (Cloud Firestore) * `oauth2.googleapis.com` (Google Identity for iOS)",
+  ).optional(),
+  replayProtection: z.enum(["OFF", "UNENFORCED", "ENFORCED"]).describe(
+    "Optional. The replay protection enforcement mode for this service. Note that this field cannot be set to a level higher than the overall App Check enforcement mode. For example, if the overall App Check enforcement mode is set to `UNENFORCED`, this field cannot be set to `ENFORCED`. In order to enforce replay protection, you must first enforce App Check. An HTTP 400 error will be returned in this case. By default, this field is set to `OFF`. Setting this field to `UNENFORCED` or `ENFORCED` is considered opting into replay protection. Once opted in, requests to your protected services may experience higher latency. To opt out of replay protection after opting in, set this field to `OFF`.",
+  ).optional(),
+  updateTime: z.string().describe(
+    "Output only. Timestamp when this service configuration object was most recently updated.",
   ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
@@ -77,7 +86,10 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   enforcementMode: z.string().optional(),
+  etag: z.string().optional(),
   name: z.string(),
+  replayProtection: z.string().optional(),
+  updateTime: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -86,8 +98,17 @@ const InputsSchema = z.object({
   enforcementMode: z.enum(["OFF", "UNENFORCED", "ENFORCED"]).describe(
     "Required. The App Check enforcement mode for this service.",
   ).optional(),
+  etag: z.string().describe(
+    "Optional. This checksum is computed by the server based on the value of other fields, and may be sent on update and delete requests to ensure the client has an up-to-date value before proceeding. This etag is strongly validated as defined by RFC 7232.",
+  ).optional(),
   name: z.string().describe(
     "Required. The relative resource name of the service configuration object, in the format: ` projects/{project_number}/services/{service_id} ` Note that the `service_id` element must be a supported service ID. Currently, the following service IDs are supported: * `firebasestorage.googleapis.com` (Cloud Storage for Firebase) * `firebasedatabase.googleapis.com` (Firebase Realtime Database) * `firestore.googleapis.com` (Cloud Firestore) * `oauth2.googleapis.com` (Google Identity for iOS)",
+  ).optional(),
+  replayProtection: z.enum(["OFF", "UNENFORCED", "ENFORCED"]).describe(
+    "Optional. The replay protection enforcement mode for this service. Note that this field cannot be set to a level higher than the overall App Check enforcement mode. For example, if the overall App Check enforcement mode is set to `UNENFORCED`, this field cannot be set to `ENFORCED`. In order to enforce replay protection, you must first enforce App Check. An HTTP 400 error will be returned in this case. By default, this field is set to `OFF`. Setting this field to `UNENFORCED` or `ENFORCED` is considered opting into replay protection. Once opted in, requests to your protected services may experience higher latency. To opt out of replay protection after opting in, set this field to `OFF`.",
+  ).optional(),
+  updateTime: z.string().describe(
+    "Output only. Timestamp when this service configuration object was most recently updated.",
   ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
@@ -97,7 +118,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Firebase App Check Services. Registered at `@swamp/gcp/firebaseappcheck/services`. */
 export const model = {
   type: "@swamp/gcp/firebaseappcheck/services",
-  version: "2026.05.18.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -146,6 +167,11 @@ export const model = {
         } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.05.18.2",
+      description: "Added: etag, replayProtection, updateTime",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -219,6 +245,11 @@ export const model = {
         if (g["enforcementMode"] !== undefined) {
           body["enforcementMode"] = g["enforcementMode"];
         }
+        if (g["etag"] !== undefined) body["etag"] = g["etag"];
+        if (g["replayProtection"] !== undefined) {
+          body["replayProtection"] = g["replayProtection"];
+        }
+        if (g["updateTime"] !== undefined) body["updateTime"] = g["updateTime"];
         for (const key of Object.keys(existing)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||

@@ -111,7 +111,7 @@ const GlobalArgsSchema = z.object({
     ),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.string()).describe(
-      "Input only. Resource manager tags to be bound to the snapshot. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/456` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
+      "Input only. Resource manager tags to be bound to the snapshot. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/{tag_value_id}` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
     ).optional(),
   }).describe("Additional snapshot params.").optional(),
   snapshotEncryptionKey: z.object({
@@ -210,6 +210,7 @@ const StateSchema = z.object({
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
   }).optional(),
+  region: z.string().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   selfLink: z.string().optional(),
@@ -220,6 +221,8 @@ const StateSchema = z.object({
     rsaEncryptedKey: z.string(),
     sha256: z.string(),
   }).optional(),
+  snapshotGroupId: z.string().optional(),
+  snapshotGroupName: z.string().optional(),
   snapshotType: z.string().optional(),
   sourceDisk: z.string().optional(),
   sourceDiskEncryptionKey: z.object({
@@ -275,7 +278,7 @@ const InputsSchema = z.object({
     ).optional(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.string()).describe(
-      "Input only. Resource manager tags to be bound to the snapshot. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/456` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
+      "Input only. Resource manager tags to be bound to the snapshot. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/{tag_value_id}` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
     ).optional(),
   }).describe("Additional snapshot params.").optional(),
   snapshotEncryptionKey: z.object({
@@ -352,7 +355,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine Snapshots. Registered at `@swamp/gcp/compute/snapshots`. */
 export const model = {
   type: "@swamp/gcp/compute/snapshots",
-  version: "2026.05.18.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -426,6 +429,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -664,6 +672,53 @@ export const model = {
             "parameters": {
               "project": { "location": "path", "required": true },
               "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+        );
+        return { result };
+      },
+    },
+    update_kms_key: {
+      description: "update kms key",
+      arguments: z.object({
+        kmsKeyName: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["snapshot"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["kmsKeyName"] !== undefined) {
+          body["kmsKeyName"] = args["kmsKeyName"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "compute.snapshots.updateKmsKey",
+            "path":
+              "projects/{project}/global/snapshots/{snapshot}/updateKmsKey",
+            "httpMethod": "POST",
+            "parameterOrder": ["project", "snapshot"],
+            "parameters": {
+              "project": { "location": "path", "required": true },
+              "requestId": { "location": "query" },
+              "snapshot": { "location": "path", "required": true },
             },
           },
           params,

@@ -16,6 +16,7 @@
 
 import { z } from "npm:zod@4.3.6";
 import {
+  createResource,
   getProjectId,
   isResourceNotFoundError,
   readResource,
@@ -89,7 +90,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Agent Registry McpServers. Registered at `@swamp/gcp/agentregistry/mcpservers`. */
 export const model = {
   type: "@swamp/gcp/agentregistry/mcpservers",
-  version: "2026.05.18.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -128,6 +129,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -221,6 +227,45 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    search: {
+      description: "search",
+      arguments: z.object({
+        pageSize: z.any().optional(),
+        pageToken: z.any().optional(),
+        searchString: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        const body: Record<string, unknown> = {};
+        if (args["pageSize"] !== undefined) body["pageSize"] = args["pageSize"];
+        if (args["pageToken"] !== undefined) {
+          body["pageToken"] = args["pageToken"];
+        }
+        if (args["searchString"] !== undefined) {
+          body["searchString"] = args["searchString"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "agentregistry.projects.locations.mcpServers.search",
+            "path": "v1alpha/{+parent}/mcpServers:search",
+            "httpMethod": "POST",
+            "parameterOrder": ["parent"],
+            "parameters": {
+              "parent": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+        );
+        return { result };
       },
     },
   },

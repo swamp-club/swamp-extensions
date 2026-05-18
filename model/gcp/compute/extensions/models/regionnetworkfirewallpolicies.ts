@@ -283,6 +283,9 @@ const GlobalArgsSchema = z.object({
     securityProfileGroup: z.string().describe(
       "A fully-qualified URL of a SecurityProfile resource instance. Example: https://networksecurity.googleapis.com/v1/projects/{project}/locations/{location}/securityProfileGroups/my-security-profile-group Must be specified if action is one of 'apply_security_profile_group' or 'mirror'. Cannot be specified for other actions.",
     ).optional(),
+    targetForwardingRules: z.array(z.string()).describe(
+      "A list of forwarding rules to which this rule applies. This field allows you to control which load balancers get this rule. For example, the following are valid values: - https://www.googleapis.com/compute/v1/projects/project/global/forwardingRules/forwardingRule - https://www.googleapis.com/compute/v1/projects/project/regions/region/forwardingRules/forwardingRule - projects/project/global/ forwardingRules/forwardingRule - projects/project/regions/region/forwardingRules/ forwardingRule",
+    ).optional(),
     targetResources: z.array(z.string()).describe(
       "A list of network resource URLs to which this rule applies. This field allows you to control which network's VMs get this rule. If this field is left blank, all VMs within the organization will receive the rule.",
     ).optional(),
@@ -299,13 +302,16 @@ const GlobalArgsSchema = z.object({
     targetServiceAccounts: z.array(z.string()).describe(
       "A list of service accounts indicating the sets of instances that are applied with this rule.",
     ).optional(),
+    targetType: z.enum(["INSTANCES", "INTERNAL_MANAGED_LB"]).describe(
+      "Target types of the firewall policy rule. Default value is INSTANCES.",
+    ).optional(),
     tlsInspect: z.boolean().describe(
       "Boolean flag indicating if the traffic should be TLS decrypted. Can be set only if action = 'apply_security_profile_group' and cannot be set for other actions.",
     ).optional(),
   })).describe("A list of packet mirroring rules that belong to this policy.")
     .optional(),
-  policyType: z.enum(["RDMA_ROCE_POLICY", "VPC_POLICY"]).describe(
-    "The type of the firewall policy. This field can be eitherVPC_POLICY or RDMA_ROCE_POLICY. Note: if not specified then VPC_POLICY will be used.",
+  policyType: z.enum(["RDMA_ROCE_POLICY", "ULL_POLICY", "VPC_POLICY"]).describe(
+    "The type of the firewall policy. This field can be one of VPC_POLICY, RDMA_ROCE_POLICY or ULL_POLICY. Note: if not specified then VPC_POLICY will be used.",
   ).optional(),
   region: z.string().describe(
     "Output only. [Output Only] URL of the region where the regional firewall policy resides. This field is not applicable to global firewall policies. You must specify this field as part of the HTTP request URL. It is not settable as a field in the request body.",
@@ -434,6 +440,9 @@ const GlobalArgsSchema = z.object({
     securityProfileGroup: z.string().describe(
       "A fully-qualified URL of a SecurityProfile resource instance. Example: https://networksecurity.googleapis.com/v1/projects/{project}/locations/{location}/securityProfileGroups/my-security-profile-group Must be specified if action is one of 'apply_security_profile_group' or 'mirror'. Cannot be specified for other actions.",
     ).optional(),
+    targetForwardingRules: z.array(z.string()).describe(
+      "A list of forwarding rules to which this rule applies. This field allows you to control which load balancers get this rule. For example, the following are valid values: - https://www.googleapis.com/compute/v1/projects/project/global/forwardingRules/forwardingRule - https://www.googleapis.com/compute/v1/projects/project/regions/region/forwardingRules/forwardingRule - projects/project/global/ forwardingRules/forwardingRule - projects/project/regions/region/forwardingRules/ forwardingRule",
+    ).optional(),
     targetResources: z.array(z.string()).describe(
       "A list of network resource URLs to which this rule applies. This field allows you to control which network's VMs get this rule. If this field is left blank, all VMs within the organization will receive the rule.",
     ).optional(),
@@ -449,6 +458,9 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     targetServiceAccounts: z.array(z.string()).describe(
       "A list of service accounts indicating the sets of instances that are applied with this rule.",
+    ).optional(),
+    targetType: z.enum(["INSTANCES", "INTERNAL_MANAGED_LB"]).describe(
+      "Target types of the firewall policy rule. Default value is INSTANCES.",
     ).optional(),
     tlsInspect: z.boolean().describe(
       "Boolean flag indicating if the traffic should be TLS decrypted. Can be set only if action = 'apply_security_profile_group' and cannot be set for other actions.",
@@ -516,12 +528,14 @@ const StateSchema = z.object({
     ruleName: z.string(),
     ruleTupleCount: z.number(),
     securityProfileGroup: z.string(),
+    targetForwardingRules: z.array(z.string()),
     targetResources: z.array(z.string()),
     targetSecureTags: z.array(z.object({
       name: z.string(),
       state: z.string(),
     })),
     targetServiceAccounts: z.array(z.string()),
+    targetType: z.string(),
     tlsInspect: z.boolean(),
   })).optional(),
   parent: z.string().optional(),
@@ -564,12 +578,14 @@ const StateSchema = z.object({
     ruleName: z.string(),
     ruleTupleCount: z.number(),
     securityProfileGroup: z.string(),
+    targetForwardingRules: z.array(z.string()),
     targetResources: z.array(z.string()),
     targetSecureTags: z.array(z.object({
       name: z.string(),
       state: z.string(),
     })),
     targetServiceAccounts: z.array(z.string()),
+    targetType: z.string(),
     tlsInspect: z.boolean(),
   })).optional(),
   selfLink: z.string().optional(),
@@ -727,6 +743,9 @@ const InputsSchema = z.object({
     securityProfileGroup: z.string().describe(
       "A fully-qualified URL of a SecurityProfile resource instance. Example: https://networksecurity.googleapis.com/v1/projects/{project}/locations/{location}/securityProfileGroups/my-security-profile-group Must be specified if action is one of 'apply_security_profile_group' or 'mirror'. Cannot be specified for other actions.",
     ).optional(),
+    targetForwardingRules: z.array(z.string()).describe(
+      "A list of forwarding rules to which this rule applies. This field allows you to control which load balancers get this rule. For example, the following are valid values: - https://www.googleapis.com/compute/v1/projects/project/global/forwardingRules/forwardingRule - https://www.googleapis.com/compute/v1/projects/project/regions/region/forwardingRules/forwardingRule - projects/project/global/ forwardingRules/forwardingRule - projects/project/regions/region/forwardingRules/ forwardingRule",
+    ).optional(),
     targetResources: z.array(z.string()).describe(
       "A list of network resource URLs to which this rule applies. This field allows you to control which network's VMs get this rule. If this field is left blank, all VMs within the organization will receive the rule.",
     ).optional(),
@@ -743,13 +762,16 @@ const InputsSchema = z.object({
     targetServiceAccounts: z.array(z.string()).describe(
       "A list of service accounts indicating the sets of instances that are applied with this rule.",
     ).optional(),
+    targetType: z.enum(["INSTANCES", "INTERNAL_MANAGED_LB"]).describe(
+      "Target types of the firewall policy rule. Default value is INSTANCES.",
+    ).optional(),
     tlsInspect: z.boolean().describe(
       "Boolean flag indicating if the traffic should be TLS decrypted. Can be set only if action = 'apply_security_profile_group' and cannot be set for other actions.",
     ).optional(),
   })).describe("A list of packet mirroring rules that belong to this policy.")
     .optional(),
-  policyType: z.enum(["RDMA_ROCE_POLICY", "VPC_POLICY"]).describe(
-    "The type of the firewall policy. This field can be eitherVPC_POLICY or RDMA_ROCE_POLICY. Note: if not specified then VPC_POLICY will be used.",
+  policyType: z.enum(["RDMA_ROCE_POLICY", "ULL_POLICY", "VPC_POLICY"]).describe(
+    "The type of the firewall policy. This field can be one of VPC_POLICY, RDMA_ROCE_POLICY or ULL_POLICY. Note: if not specified then VPC_POLICY will be used.",
   ).optional(),
   region: z.string().describe(
     "Output only. [Output Only] URL of the region where the regional firewall policy resides. This field is not applicable to global firewall policies. You must specify this field as part of the HTTP request URL. It is not settable as a field in the request body.",
@@ -878,6 +900,9 @@ const InputsSchema = z.object({
     securityProfileGroup: z.string().describe(
       "A fully-qualified URL of a SecurityProfile resource instance. Example: https://networksecurity.googleapis.com/v1/projects/{project}/locations/{location}/securityProfileGroups/my-security-profile-group Must be specified if action is one of 'apply_security_profile_group' or 'mirror'. Cannot be specified for other actions.",
     ).optional(),
+    targetForwardingRules: z.array(z.string()).describe(
+      "A list of forwarding rules to which this rule applies. This field allows you to control which load balancers get this rule. For example, the following are valid values: - https://www.googleapis.com/compute/v1/projects/project/global/forwardingRules/forwardingRule - https://www.googleapis.com/compute/v1/projects/project/regions/region/forwardingRules/forwardingRule - projects/project/global/ forwardingRules/forwardingRule - projects/project/regions/region/forwardingRules/ forwardingRule",
+    ).optional(),
     targetResources: z.array(z.string()).describe(
       "A list of network resource URLs to which this rule applies. This field allows you to control which network's VMs get this rule. If this field is left blank, all VMs within the organization will receive the rule.",
     ).optional(),
@@ -893,6 +918,9 @@ const InputsSchema = z.object({
     ).optional(),
     targetServiceAccounts: z.array(z.string()).describe(
       "A list of service accounts indicating the sets of instances that are applied with this rule.",
+    ).optional(),
+    targetType: z.enum(["INSTANCES", "INTERNAL_MANAGED_LB"]).describe(
+      "Target types of the firewall policy rule. Default value is INSTANCES.",
     ).optional(),
     tlsInspect: z.boolean().describe(
       "Boolean flag indicating if the traffic should be TLS decrypted. Can be set only if action = 'apply_security_profile_group' and cannot be set for other actions.",
@@ -912,7 +940,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine RegionNetworkFirewallPolicies. Registered at `@swamp/gcp/compute/regionnetworkfirewallpolicies`. */
 export const model = {
   type: "@swamp/gcp/compute/regionnetworkfirewallpolicies",
-  version: "2026.05.18.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -971,6 +999,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1290,9 +1323,11 @@ export const model = {
         ruleName: z.any().optional(),
         ruleTupleCount: z.any().optional(),
         securityProfileGroup: z.any().optional(),
+        targetForwardingRules: z.any().optional(),
         targetResources: z.any().optional(),
         targetSecureTags: z.any().optional(),
         targetServiceAccounts: z.any().optional(),
+        targetType: z.any().optional(),
         tlsInspect: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
@@ -1336,6 +1371,9 @@ export const model = {
         if (args["securityProfileGroup"] !== undefined) {
           body["securityProfileGroup"] = args["securityProfileGroup"];
         }
+        if (args["targetForwardingRules"] !== undefined) {
+          body["targetForwardingRules"] = args["targetForwardingRules"];
+        }
         if (args["targetResources"] !== undefined) {
           body["targetResources"] = args["targetResources"];
         }
@@ -1344,6 +1382,9 @@ export const model = {
         }
         if (args["targetServiceAccounts"] !== undefined) {
           body["targetServiceAccounts"] = args["targetServiceAccounts"];
+        }
+        if (args["targetType"] !== undefined) {
+          body["targetType"] = args["targetType"];
         }
         if (args["tlsInspect"] !== undefined) {
           body["tlsInspect"] = args["tlsInspect"];
@@ -1557,9 +1598,11 @@ export const model = {
         ruleName: z.any().optional(),
         ruleTupleCount: z.any().optional(),
         securityProfileGroup: z.any().optional(),
+        targetForwardingRules: z.any().optional(),
         targetResources: z.any().optional(),
         targetSecureTags: z.any().optional(),
         targetServiceAccounts: z.any().optional(),
+        targetType: z.any().optional(),
         tlsInspect: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
@@ -1603,6 +1646,9 @@ export const model = {
         if (args["securityProfileGroup"] !== undefined) {
           body["securityProfileGroup"] = args["securityProfileGroup"];
         }
+        if (args["targetForwardingRules"] !== undefined) {
+          body["targetForwardingRules"] = args["targetForwardingRules"];
+        }
         if (args["targetResources"] !== undefined) {
           body["targetResources"] = args["targetResources"];
         }
@@ -1611,6 +1657,9 @@ export const model = {
         }
         if (args["targetServiceAccounts"] !== undefined) {
           body["targetServiceAccounts"] = args["targetServiceAccounts"];
+        }
+        if (args["targetType"] !== undefined) {
+          body["targetType"] = args["targetType"];
         }
         if (args["tlsInspect"] !== undefined) {
           body["tlsInspect"] = args["tlsInspect"];

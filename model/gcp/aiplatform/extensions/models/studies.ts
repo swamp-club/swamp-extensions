@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI Studies.
+ * Swamp extension model for Google Cloud Agent Platform Studies.
  *
  * A message representing a Study.
  *
@@ -525,10 +525,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI Studies. Registered at `@swamp/gcp/aiplatform/studies`. */
+/** Swamp extension model for Google Cloud Agent Platform Studies. Registered at `@swamp/gcp/aiplatform/studies`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/studies",
-  version: "2026.05.18.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -572,6 +572,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

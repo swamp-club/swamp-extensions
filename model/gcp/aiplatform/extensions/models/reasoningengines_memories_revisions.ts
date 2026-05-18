@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI ReasoningEngines.Memories.Revisions.
+ * Swamp extension model for Google Cloud Agent Platform ReasoningEngines.Memories.Revisions.
  *
  * A revision of a Memory.
  *
@@ -56,11 +56,14 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   expireTime: z.string().optional(),
   extractedMemories: z.array(z.object({
+    context: z.string(),
     fact: z.string(),
+    structuredData: z.record(z.string(), z.unknown()),
   })).optional(),
   fact: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
+  structuredData: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -72,10 +75,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI ReasoningEngines.Memories.Revisions. Registered at `@swamp/gcp/aiplatform/reasoningengines-memories-revisions`. */
+/** Swamp extension model for Google Cloud Agent Platform ReasoningEngines.Memories.Revisions. Registered at `@swamp/gcp/aiplatform/reasoningengines-memories-revisions`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines-memories-revisions",
-  version: "2026.05.18.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -119,6 +122,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

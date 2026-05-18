@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI FeatureOnlineStores.FeatureViews.FeatureViewSyncs.
+ * Swamp extension model for Google Cloud Agent Platform FeatureOnlineStores.FeatureViews.FeatureViewSyncs.
  *
  * FeatureViewSync is a representation of sync operation which copies data from data source to Feature View in Online Store.
  *
@@ -83,11 +83,11 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI FeatureOnlineStores.FeatureViews.FeatureViewSyncs. Registered at `@swamp/gcp/aiplatform/featureonlinestores-featureviews-featureviewsyncs`. */
+/** Swamp extension model for Google Cloud Agent Platform FeatureOnlineStores.FeatureViews.FeatureViewSyncs. Registered at `@swamp/gcp/aiplatform/featureonlinestores-featureviews-featureviewsyncs`. */
 export const model = {
   type:
     "@swamp/gcp/aiplatform/featureonlinestores-featureviews-featureviewsyncs",
-  version: "2026.05.18.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -126,6 +126,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

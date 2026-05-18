@@ -590,7 +590,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Discovery Engine Collections.Engines.ServingConfigs. Registered at `@swamp/gcp/discoveryengine/collections-engines-servingconfigs`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-engines-servingconfigs",
-  version: "2026.05.18.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -629,6 +629,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1090,8 +1095,10 @@ export const model = {
         canonicalFilter: z.any().optional(),
         contentSearchSpec: z.any().optional(),
         crowdingSpecs: z.any().optional(),
+        customRankingParams: z.any().optional(),
         dataStoreSpecs: z.any().optional(),
         displaySpec: z.any().optional(),
+        entity: z.any().optional(),
         facetSpecs: z.any().optional(),
         filter: z.any().optional(),
         imageQuery: z.any().optional(),
@@ -1152,12 +1159,16 @@ export const model = {
         if (args["crowdingSpecs"] !== undefined) {
           body["crowdingSpecs"] = args["crowdingSpecs"];
         }
+        if (args["customRankingParams"] !== undefined) {
+          body["customRankingParams"] = args["customRankingParams"];
+        }
         if (args["dataStoreSpecs"] !== undefined) {
           body["dataStoreSpecs"] = args["dataStoreSpecs"];
         }
         if (args["displaySpec"] !== undefined) {
           body["displaySpec"] = args["displaySpec"];
         }
+        if (args["entity"] !== undefined) body["entity"] = args["entity"];
         if (args["facetSpecs"] !== undefined) {
           body["facetSpecs"] = args["facetSpecs"];
         }
@@ -1250,8 +1261,10 @@ export const model = {
         canonicalFilter: z.any().optional(),
         contentSearchSpec: z.any().optional(),
         crowdingSpecs: z.any().optional(),
+        customRankingParams: z.any().optional(),
         dataStoreSpecs: z.any().optional(),
         displaySpec: z.any().optional(),
+        entity: z.any().optional(),
         facetSpecs: z.any().optional(),
         filter: z.any().optional(),
         imageQuery: z.any().optional(),
@@ -1312,12 +1325,16 @@ export const model = {
         if (args["crowdingSpecs"] !== undefined) {
           body["crowdingSpecs"] = args["crowdingSpecs"];
         }
+        if (args["customRankingParams"] !== undefined) {
+          body["customRankingParams"] = args["customRankingParams"];
+        }
         if (args["dataStoreSpecs"] !== undefined) {
           body["dataStoreSpecs"] = args["dataStoreSpecs"];
         }
         if (args["displaySpec"] !== undefined) {
           body["displaySpec"] = args["displaySpec"];
         }
+        if (args["entity"] !== undefined) body["entity"] = args["entity"];
         if (args["facetSpecs"] !== undefined) {
           body["facetSpecs"] = args["facetSpecs"];
         }

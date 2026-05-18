@@ -51,6 +51,7 @@ const StateSchema = z.object({
     })),
   }).optional(),
   appId: z.string().optional(),
+  categoryIds: z.array(z.string()).optional(),
   chromeAppInfo: z.object({
     googleOwned: z.boolean(),
     isCwsHosted: z.boolean(),
@@ -102,7 +103,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Chrome Management Customers.Apps.Android. Registered at `@swamp/gcp/chromemanagement/customers-apps-android`. */
 export const model = {
   type: "@swamp/gcp/chromemanagement/customers-apps-android",
-  version: "2026.05.18.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -141,6 +142,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
