@@ -100,12 +100,6 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  courseWorkSubmissionId: z.string().describe(
-    "Output only. Identifier of the course work submission under which this attachment submission was made.",
-  ).optional(),
-  id: z.string().describe(
-    "Output only. Classroom-assigned identifier for this student submission. This is unique among submissions for the relevant course work and add-on attachment combination.",
-  ).optional(),
   pointsEarned: z.number().describe(
     "Student grade on this attachment. If unset, no grade was set.",
   ).optional(),
@@ -125,8 +119,6 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  courseWorkSubmissionId: z.string().optional(),
-  id: z.string().optional(),
   pointsEarned: z.number().optional(),
   postSubmissionState: z.string().optional(),
   userId: z.string().optional(),
@@ -136,12 +128,6 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
-  courseWorkSubmissionId: z.string().describe(
-    "Output only. Identifier of the course work submission under which this attachment submission was made.",
-  ).optional(),
-  id: z.string().describe(
-    "Output only. Classroom-assigned identifier for this student submission. This is unique among submissions for the relevant course work and add-on attachment combination.",
-  ).optional(),
   pointsEarned: z.number().describe(
     "Student grade on this attachment. If unset, no grade was set.",
   ).optional(),
@@ -164,7 +150,7 @@ const InputsSchema = z.object({
 export const model = {
   type:
     "@swamp/gcp/classroom/courses-coursework-addonattachments-studentsubmissions",
-  version: "2026.05.14.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -200,6 +186,18 @@ export const model = {
       toVersion: "2026.05.14.1",
       description: "Added: courseWorkSubmissionId, id",
       upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Removed: courseWorkSubmissionId, id",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          courseWorkSubmissionId: _courseWorkSubmissionId,
+          id: _id,
+          ...rest
+        } = old;
+        return rest;
+      },
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -283,10 +281,6 @@ export const model = {
         }
         params["submissionId"] = existing["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
-        if (g["courseWorkSubmissionId"] !== undefined) {
-          body["courseWorkSubmissionId"] = g["courseWorkSubmissionId"];
-        }
-        if (g["id"] !== undefined) body["id"] = g["id"];
         if (g["pointsEarned"] !== undefined) {
           body["pointsEarned"] = g["pointsEarned"];
         }

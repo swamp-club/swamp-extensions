@@ -101,31 +101,6 @@ const GlobalArgsSchema = z.object({
   advisoryPublishTime: z.string().describe(
     "The time this advisory was published by the source.",
   ).optional(),
-  aiSkillAnalysis: z.object({
-    findings: z.array(z.object({
-      category: z.string().describe("Category of the finding.").optional(),
-      location: z.object({
-        filePath: z.string().describe(
-          "Relative path of the file containing the finding.",
-        ).optional(),
-        lineNumber: z.string().describe(
-          "Line number (1-based), or 0 if whole File / unknown.",
-        ).optional(),
-      }).describe("Location details with file path and line number.")
-        .optional(),
-      scanner: z.string().describe(
-        "Scanner determines which engine (e.g. static, llm) emitted the finding.",
-      ).optional(),
-      severity: z.string().describe("Severity of the finding.").optional(),
-    })).describe("Findings produced by the analysis.").optional(),
-    maxSeverity: z.string().describe("Maximum severity found among findings.")
-      .optional(),
-    skillName: z.string().describe(
-      "Name of the skill that produced this analysis.",
-    ).optional(),
-  }).describe(
-    "AISkillAnalysisOccurrence provides the results of an AI-based skill analysis.",
-  ).optional(),
   attestation: z.object({
     jwts: z.array(z.object({
       compactJwt: z.string().describe(
@@ -1534,19 +1509,6 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   advisoryPublishTime: z.string().optional(),
-  aiSkillAnalysis: z.object({
-    findings: z.array(z.object({
-      category: z.string(),
-      location: z.object({
-        filePath: z.string(),
-        lineNumber: z.string(),
-      }),
-      scanner: z.string(),
-      severity: z.string(),
-    })),
-    maxSeverity: z.string(),
-    skillName: z.string(),
-  }).optional(),
   attestation: z.object({
     jwts: z.array(z.object({
       compactJwt: z.string(),
@@ -2152,31 +2114,6 @@ const InputsSchema = z.object({
   name: z.string().optional(),
   advisoryPublishTime: z.string().describe(
     "The time this advisory was published by the source.",
-  ).optional(),
-  aiSkillAnalysis: z.object({
-    findings: z.array(z.object({
-      category: z.string().describe("Category of the finding.").optional(),
-      location: z.object({
-        filePath: z.string().describe(
-          "Relative path of the file containing the finding.",
-        ).optional(),
-        lineNumber: z.string().describe(
-          "Line number (1-based), or 0 if whole File / unknown.",
-        ).optional(),
-      }).describe("Location details with file path and line number.")
-        .optional(),
-      scanner: z.string().describe(
-        "Scanner determines which engine (e.g. static, llm) emitted the finding.",
-      ).optional(),
-      severity: z.string().describe("Severity of the finding.").optional(),
-    })).describe("Findings produced by the analysis.").optional(),
-    maxSeverity: z.string().describe("Maximum severity found among findings.")
-      .optional(),
-    skillName: z.string().describe(
-      "Name of the skill that produced this analysis.",
-    ).optional(),
-  }).describe(
-    "AISkillAnalysisOccurrence provides the results of an AI-based skill analysis.",
   ).optional(),
   attestation: z.object({
     jwts: z.array(z.object({
@@ -3587,7 +3524,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Container Analysis Occurrences. Registered at `@swamp/gcp/containeranalysis/occurrences`. */
 export const model = {
   type: "@swamp/gcp/containeranalysis/occurrences",
-  version: "2026.05.09.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3634,6 +3571,14 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Removed: aiSkillAnalysis",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { aiSkillAnalysis: _aiSkillAnalysis, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -3654,13 +3599,12 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (g["advisoryPublishTime"] !== undefined) {
           body["advisoryPublishTime"] = g["advisoryPublishTime"];
-        }
-        if (g["aiSkillAnalysis"] !== undefined) {
-          body["aiSkillAnalysis"] = g["aiSkillAnalysis"];
         }
         if (g["attestation"] !== undefined) {
           body["attestation"] = g["attestation"];
@@ -3690,9 +3634,9 @@ export const model = {
         if (g["vulnerability"] !== undefined) {
           body["vulnerability"] = g["vulnerability"];
         }
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -3725,7 +3669,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const result = await readResource(
@@ -3766,15 +3710,12 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
         if (g["advisoryPublishTime"] !== undefined) {
           body["advisoryPublishTime"] = g["advisoryPublishTime"];
-        }
-        if (g["aiSkillAnalysis"] !== undefined) {
-          body["aiSkillAnalysis"] = g["aiSkillAnalysis"];
         }
         if (g["attestation"] !== undefined) {
           body["attestation"] = g["attestation"];
@@ -3833,7 +3774,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -3878,7 +3819,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             shortName,
           );
           const result = await readResource(
@@ -3913,7 +3854,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (args["occurrences"] !== undefined) {
           body["occurrences"] = args["occurrences"];
@@ -3943,9 +3886,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -3971,7 +3914,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const result = await createResource(
           BASE_URL,
           {

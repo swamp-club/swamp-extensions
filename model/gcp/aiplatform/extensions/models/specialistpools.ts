@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Agent Platform SpecialistPools.
+ * Swamp extension model for Google Cloud Vertex AI SpecialistPools.
  *
  * SpecialistPool represents customers' own workforce to work on their data labeling jobs. It includes a group of specialist managers and workers. Managers are responsible for managing the workers in this pool as well as customers' data labeling jobs associated with this pool. Customers create specialist pool as well as start data labeling jobs on Cloud, managers and workers handle the jobs using CrowdCompute console.
  *
@@ -144,10 +144,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Agent Platform SpecialistPools. Registered at `@swamp/gcp/aiplatform/specialistpools`. */
+/** Swamp extension model for Google Cloud Vertex AI SpecialistPools. Registered at `@swamp/gcp/aiplatform/specialistpools`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/specialistpools",
-  version: "2026.05.02.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -184,6 +184,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -204,7 +209,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
@@ -216,9 +223,9 @@ export const model = {
         if (g["specialistWorkerEmails"] !== undefined) {
           body["specialistWorkerEmails"] = g["specialistWorkerEmails"];
         }
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -249,7 +256,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const result = await readResource(
@@ -291,7 +298,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
@@ -337,7 +344,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -382,7 +389,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             shortName,
           );
           const result = await readResource(

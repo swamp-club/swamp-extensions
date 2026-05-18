@@ -203,7 +203,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Cloud Data Catalog EntryGroups.Tags. Registered at `@swamp/gcp/datacatalog/entrygroups-tags`. */
 export const model = {
   type: "@swamp/gcp/datacatalog/entrygroups-tags",
-  version: "2026.04.23.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -235,6 +235,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -255,7 +260,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (g["column"] !== undefined) body["column"] = g["column"];
         if (g["fields"] !== undefined) body["fields"] = g["fields"];

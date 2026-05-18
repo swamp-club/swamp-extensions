@@ -227,7 +227,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Network Services ServiceLbPolicies. Registered at `@swamp/gcp/networkservices/servicelbpolicies`. */
 export const model = {
   type: "@swamp/gcp/networkservices/servicelbpolicies",
-  version: "2026.04.23.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -259,6 +259,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -279,7 +284,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (g["autoCapacityDrain"] !== undefined) {
           body["autoCapacityDrain"] = g["autoCapacityDrain"];
@@ -301,9 +308,9 @@ export const model = {
         if (g["serviceLbPolicyId"] !== undefined) {
           body["serviceLbPolicyId"] = g["serviceLbPolicyId"];
         }
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -334,7 +341,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const result = await readResource(
@@ -376,7 +383,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
@@ -429,7 +436,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -474,7 +481,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             shortName,
           );
           const result = await readResource(

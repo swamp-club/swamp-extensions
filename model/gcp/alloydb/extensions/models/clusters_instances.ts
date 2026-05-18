@@ -163,9 +163,6 @@ const GlobalArgsSchema = z.object({
     }).describe("SSL configuration.").optional(),
   }).describe("Client connection configuration").optional(),
   connectionPoolConfig: z.object({
-    authproxyPoolerCount: z.number().int().describe(
-      "Output only. The number of running AuthProxy poolers per instance.",
-    ).optional(),
     enabled: z.boolean().describe(
       "Optional. Whether to enable Managed Connection Pool (MCP).",
     ).optional(),
@@ -323,9 +320,6 @@ const GlobalArgsSchema = z.object({
     ip: z.string().describe(
       'Output only. The private IP address of the VM e.g. "10.57.0.34".',
     ).optional(),
-    isHotStandby: z.boolean().describe(
-      "Output only. Indicates whether the node set up to be configured as a hot standby.",
-    ).optional(),
     state: z.string().describe(
       "Output only. Determined by state of the compute VM and postgres-service health. Compute VM state can have values listed in https://cloud.google.com/compute/docs/instances/instance-life-cycle and postgres-service health can have values: HEALTHY and UNHEALTHY.",
     ).optional(),
@@ -357,7 +351,6 @@ const StateSchema = z.object({
     }),
   }).optional(),
   connectionPoolConfig: z.object({
-    authproxyPoolerCount: z.number(),
     enabled: z.boolean(),
     flags: z.record(z.string(), z.unknown()),
     poolerCount: z.number(),
@@ -390,7 +383,6 @@ const StateSchema = z.object({
   nodes: z.array(z.object({
     id: z.string(),
     ip: z.string(),
-    isHotStandby: z.boolean(),
     state: z.string(),
     zoneId: z.string(),
   })).optional(),
@@ -438,7 +430,6 @@ const StateSchema = z.object({
   writableNode: z.object({
     id: z.string(),
     ip: z.string(),
-    isHotStandby: z.boolean(),
     state: z.string(),
     zoneId: z.string(),
   }).optional(),
@@ -483,9 +474,6 @@ const InputsSchema = z.object({
     }).describe("SSL configuration.").optional(),
   }).describe("Client connection configuration").optional(),
   connectionPoolConfig: z.object({
-    authproxyPoolerCount: z.number().int().describe(
-      "Output only. The number of running AuthProxy poolers per instance.",
-    ).optional(),
     enabled: z.boolean().describe(
       "Optional. Whether to enable Managed Connection Pool (MCP).",
     ).optional(),
@@ -643,9 +631,6 @@ const InputsSchema = z.object({
     ip: z.string().describe(
       'Output only. The private IP address of the VM e.g. "10.57.0.34".',
     ).optional(),
-    isHotStandby: z.boolean().describe(
-      "Output only. Indicates whether the node set up to be configured as a hot standby.",
-    ).optional(),
     state: z.string().describe(
       "Output only. Determined by state of the compute VM and postgres-service health. Compute VM state can have values listed in https://cloud.google.com/compute/docs/instances/instance-life-cycle and postgres-service health can have values: HEALTHY and UNHEALTHY.",
     ).optional(),
@@ -668,7 +653,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud AlloyDB Clusters.Instances. Registered at `@swamp/gcp/alloydb/clusters-instances`. */
 export const model = {
   type: "@swamp/gcp/alloydb/clusters-instances",
-  version: "2026.05.14.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -710,6 +695,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -734,7 +724,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (g["activationPolicy"] !== undefined) {
           body["activationPolicy"] = g["activationPolicy"];
@@ -788,9 +780,9 @@ export const model = {
         }
         if (g["instanceId"] !== undefined) body["instanceId"] = g["instanceId"];
         if (g["requestId"] !== undefined) body["requestId"] = g["requestId"];
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -830,7 +822,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const result = await readResource(
@@ -875,7 +867,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
@@ -963,7 +955,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -1008,7 +1000,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             shortName,
           );
           const result = await readResource(
@@ -1074,7 +1066,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (args["activationPolicy"] !== undefined) {
           body["activationPolicy"] = args["activationPolicy"];
@@ -1189,9 +1183,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1224,7 +1218,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const result = await createResource(
           BASE_URL,
           {
@@ -1255,9 +1251,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1297,9 +1293,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }

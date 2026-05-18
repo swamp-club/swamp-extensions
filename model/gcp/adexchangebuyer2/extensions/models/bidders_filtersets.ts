@@ -169,11 +169,11 @@ const GlobalArgsSchema = z.object({
   ]).describe(
     "The granularity of time intervals if a time series breakdown is preferred; optional.",
   ).optional(),
-  ownerName: z.string().describe(
-    "Name of the owner (bidder or account) of the filter set to be created. For example: - For a bidder-level filter set for bidder 123: `bidders/123` - For an account-level filter set for the buyer account representing bidder 123: `bidders/123/accounts/123` - For an account-level filter set for the child seat buyer account 456 whose bidder is 123: `bidders/123/accounts/456`",
-  ),
   isTransient: z.string().describe(
     "Whether the filter set is transient, or should be persisted indefinitely. By default, filter sets are not transient. If transient, it will be available for at least 1 hour after creation.",
+  ).optional(),
+  parent: z.string().describe(
+    "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
   ).optional(),
 });
 
@@ -303,18 +303,18 @@ const InputsSchema = z.object({
   ]).describe(
     "The granularity of time intervals if a time series breakdown is preferred; optional.",
   ).optional(),
-  ownerName: z.string().describe(
-    "Name of the owner (bidder or account) of the filter set to be created. For example: - For a bidder-level filter set for bidder 123: `bidders/123` - For an account-level filter set for the buyer account representing bidder 123: `bidders/123/accounts/123` - For an account-level filter set for the child seat buyer account 456 whose bidder is 123: `bidders/123/accounts/456`",
-  ).optional(),
   isTransient: z.string().describe(
     "Whether the filter set is transient, or should be persisted indefinitely. By default, filter sets are not transient. If transient, it will be available for at least 1 hour after creation.",
+  ).optional(),
+  parent: z.string().describe(
+    "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
   ).optional(),
 });
 
 /** Swamp extension model for Google Cloud Ad Exchange Buyer Bidders.FilterSets. Registered at `@swamp/gcp/adexchangebuyer2/bidders-filtersets`. */
 export const model = {
   type: "@swamp/gcp/adexchangebuyer2/bidders-filtersets",
-  version: "2026.04.23.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -346,6 +346,14 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Added: parent. Removed: ownerName",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { ownerName: _ownerName, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -366,8 +374,8 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["ownerName"] !== undefined) {
-          params["ownerName"] = String(g["ownerName"]);
+        if (g["parent"] !== undefined) {
+          params["ownerName"] = String(g["parent"]);
         }
         const body: Record<string, unknown> = {};
         if (g["absoluteDateRange"] !== undefined) {

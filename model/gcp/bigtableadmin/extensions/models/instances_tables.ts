@@ -112,9 +112,6 @@ const GlobalArgsSchema = z.object({
       frequency: z.string().describe(
         "How frequently automated backups should occur. The only supported value at this time is 24 hours. An undefined frequency is treated as 24 hours.",
       ).optional(),
-      locations: z.array(z.string()).describe(
-        "Optional. A list of Cloud Bigtable zones where automated backups are allowed to be created. If empty, automated backups will be created in all zones of the instance. Locations are in the format `projects/{project}/locations/{zone}`. This field can only set for tables in Enterprise Plus instances.",
-      ).optional(),
       retentionPeriod: z.string().describe(
         "Required. How long the automated backups should be retained. Values must be at least 3 days and at most 90 days.",
       ).optional(),
@@ -257,13 +254,6 @@ const GlobalArgsSchema = z.object({
           geographyType: z.object({}).describe(
             "A geography type, representing a point or region on Earth. The value is stored in `Value.bytes_value` as Well-Known Binary (WKB) bytes.",
           ).optional(),
-          int32Type: z.object({
-            encoding: z.unknown().describe(
-              "Rules used to convert to or from lower level types.",
-            ).optional(),
-          }).describe(
-            "Int32 Values of type `Int32` are stored in `Value.int_value`.",
-          ).optional(),
           int64Type: z.object({
             encoding: z.unknown().describe(
               "Rules used to convert to or from lower level types.",
@@ -399,9 +389,6 @@ const GlobalArgsSchema = z.object({
           geographyType: z.unknown().describe(
             "A geography type, representing a point or region on Earth. The value is stored in `Value.bytes_value` as Well-Known Binary (WKB) bytes.",
           ).optional(),
-          int32Type: z.unknown().describe(
-            "Int32 Values of type `Int32` are stored in `Value.int_value`.",
-          ).optional(),
           int64Type: z.unknown().describe(
             "Int64 Values of type `Int64` are stored in `Value.int_value`.",
           ).optional(),
@@ -462,9 +449,6 @@ const GlobalArgsSchema = z.object({
   automatedBackupPolicy: z.object({
     frequency: z.string().describe(
       "How frequently automated backups should occur. The only supported value at this time is 24 hours. An undefined frequency is treated as 24 hours.",
-    ).optional(),
-    locations: z.array(z.string()).describe(
-      "Optional. A list of Cloud Bigtable zones where automated backups are allowed to be created. If empty, automated backups will be created in all zones of the instance. Locations are in the format `projects/{project}/locations/{zone}`. This field can only set for tables in Enterprise Plus instances.",
     ).optional(),
     retentionPeriod: z.string().describe(
       "Required. How long the automated backups should be retained. Values must be at least 3 days and at most 90 days.",
@@ -624,19 +608,6 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         geographyType: z.object({}).describe(
           "A geography type, representing a point or region on Earth. The value is stored in `Value.bytes_value` as Well-Known Binary (WKB) bytes.",
-        ).optional(),
-        int32Type: z.object({
-          encoding: z.object({
-            bigEndianBytes: z.unknown().describe(
-              "Encodes the value as a 4-byte big-endian two's complement value. Sorted mode: non-negative values are supported. Distinct mode: all values are supported. Compatible with: - BigQuery `BINARY` encoding - HBase `Bytes.toBytes` - Java `ByteBuffer.putInt()` with `ByteOrder.BIG_ENDIAN`",
-            ).optional(),
-            orderedCodeBytes: z.unknown().describe(
-              "Encodes the value in a variable length binary format of up to 5 bytes. Values that are closer to zero use fewer bytes. Sorted mode: all values are supported. Distinct mode: all values are supported.",
-            ).optional(),
-          }).describe("Rules used to convert to or from lower level types.")
-            .optional(),
-        }).describe(
-          "Int32 Values of type `Int32` are stored in `Value.int_value`.",
         ).optional(),
         int64Type: z.object({
           encoding: z.object({
@@ -830,13 +801,6 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         geographyType: z.object({}).describe(
           "A geography type, representing a point or region on Earth. The value is stored in `Value.bytes_value` as Well-Known Binary (WKB) bytes.",
-        ).optional(),
-        int32Type: z.object({
-          encoding: z.unknown().describe(
-            "Rules used to convert to or from lower level types.",
-          ).optional(),
-        }).describe(
-          "Int32 Values of type `Int32` are stored in `Value.int_value`.",
         ).optional(),
         int64Type: z.object({
           encoding: z.unknown().describe(
@@ -920,7 +884,6 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   automatedBackupPolicy: z.object({
     frequency: z.string(),
-    locations: z.array(z.string()),
     retentionPeriod: z.string(),
   }).optional(),
   changeStreamConfig: z.object({
@@ -977,9 +940,6 @@ const StateSchema = z.object({
         float32Type: z.object({}),
         float64Type: z.object({}),
         geographyType: z.object({}),
-        int32Type: z.object({
-          encoding: z.unknown(),
-        }),
         int64Type: z.object({
           encoding: z.unknown(),
         }),
@@ -1027,9 +987,6 @@ const InputsSchema = z.object({
     automatedBackupPolicy: z.object({
       frequency: z.string().describe(
         "How frequently automated backups should occur. The only supported value at this time is 24 hours. An undefined frequency is treated as 24 hours.",
-      ).optional(),
-      locations: z.array(z.string()).describe(
-        "Optional. A list of Cloud Bigtable zones where automated backups are allowed to be created. If empty, automated backups will be created in all zones of the instance. Locations are in the format `projects/{project}/locations/{zone}`. This field can only set for tables in Enterprise Plus instances.",
       ).optional(),
       retentionPeriod: z.string().describe(
         "Required. How long the automated backups should be retained. Values must be at least 3 days and at most 90 days.",
@@ -1173,13 +1130,6 @@ const InputsSchema = z.object({
           geographyType: z.object({}).describe(
             "A geography type, representing a point or region on Earth. The value is stored in `Value.bytes_value` as Well-Known Binary (WKB) bytes.",
           ).optional(),
-          int32Type: z.object({
-            encoding: z.unknown().describe(
-              "Rules used to convert to or from lower level types.",
-            ).optional(),
-          }).describe(
-            "Int32 Values of type `Int32` are stored in `Value.int_value`.",
-          ).optional(),
           int64Type: z.object({
             encoding: z.unknown().describe(
               "Rules used to convert to or from lower level types.",
@@ -1315,9 +1265,6 @@ const InputsSchema = z.object({
           geographyType: z.unknown().describe(
             "A geography type, representing a point or region on Earth. The value is stored in `Value.bytes_value` as Well-Known Binary (WKB) bytes.",
           ).optional(),
-          int32Type: z.unknown().describe(
-            "Int32 Values of type `Int32` are stored in `Value.int_value`.",
-          ).optional(),
           int64Type: z.unknown().describe(
             "Int64 Values of type `Int64` are stored in `Value.int_value`.",
           ).optional(),
@@ -1378,9 +1325,6 @@ const InputsSchema = z.object({
   automatedBackupPolicy: z.object({
     frequency: z.string().describe(
       "How frequently automated backups should occur. The only supported value at this time is 24 hours. An undefined frequency is treated as 24 hours.",
-    ).optional(),
-    locations: z.array(z.string()).describe(
-      "Optional. A list of Cloud Bigtable zones where automated backups are allowed to be created. If empty, automated backups will be created in all zones of the instance. Locations are in the format `projects/{project}/locations/{zone}`. This field can only set for tables in Enterprise Plus instances.",
     ).optional(),
     retentionPeriod: z.string().describe(
       "Required. How long the automated backups should be retained. Values must be at least 3 days and at most 90 days.",
@@ -1540,19 +1484,6 @@ const InputsSchema = z.object({
         ).optional(),
         geographyType: z.object({}).describe(
           "A geography type, representing a point or region on Earth. The value is stored in `Value.bytes_value` as Well-Known Binary (WKB) bytes.",
-        ).optional(),
-        int32Type: z.object({
-          encoding: z.object({
-            bigEndianBytes: z.unknown().describe(
-              "Encodes the value as a 4-byte big-endian two's complement value. Sorted mode: non-negative values are supported. Distinct mode: all values are supported. Compatible with: - BigQuery `BINARY` encoding - HBase `Bytes.toBytes` - Java `ByteBuffer.putInt()` with `ByteOrder.BIG_ENDIAN`",
-            ).optional(),
-            orderedCodeBytes: z.unknown().describe(
-              "Encodes the value in a variable length binary format of up to 5 bytes. Values that are closer to zero use fewer bytes. Sorted mode: all values are supported. Distinct mode: all values are supported.",
-            ).optional(),
-          }).describe("Rules used to convert to or from lower level types.")
-            .optional(),
-        }).describe(
-          "Int32 Values of type `Int32` are stored in `Value.int_value`.",
         ).optional(),
         int64Type: z.object({
           encoding: z.object({
@@ -1747,13 +1678,6 @@ const InputsSchema = z.object({
         geographyType: z.object({}).describe(
           "A geography type, representing a point or region on Earth. The value is stored in `Value.bytes_value` as Well-Known Binary (WKB) bytes.",
         ).optional(),
-        int32Type: z.object({
-          encoding: z.unknown().describe(
-            "Rules used to convert to or from lower level types.",
-          ).optional(),
-        }).describe(
-          "Int32 Values of type `Int32` are stored in `Value.int_value`.",
-        ).optional(),
         int64Type: z.object({
           encoding: z.unknown().describe(
             "Rules used to convert to or from lower level types.",
@@ -1836,7 +1760,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Bigtable Admin Instances.Tables. Registered at `@swamp/gcp/bigtableadmin/instances-tables`. */
 export const model = {
   type: "@swamp/gcp/bigtableadmin/instances-tables",
-  version: "2026.04.23.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1878,6 +1802,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1898,16 +1827,18 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (g["initialSplits"] !== undefined) {
           body["initialSplits"] = g["initialSplits"];
         }
         if (g["table"] !== undefined) body["table"] = g["table"];
         if (g["tableId"] !== undefined) body["tableId"] = g["tableId"];
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1938,7 +1869,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const result = await readResource(
@@ -1980,7 +1911,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
@@ -2045,7 +1976,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -2090,7 +2021,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             shortName,
           );
           const result = await readResource(
@@ -2127,9 +2058,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -2168,9 +2099,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -2203,9 +2134,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -2235,9 +2166,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -2274,7 +2205,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (args["backup"] !== undefined) body["backup"] = args["backup"];
         if (args["tableId"] !== undefined) body["tableId"] = args["tableId"];
@@ -2302,9 +2235,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }

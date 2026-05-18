@@ -48,7 +48,6 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  achievementLifecycleState: z.string().optional(),
   achievementType: z.string().optional(),
   description: z.string().optional(),
   experiencePoints: z.string().optional(),
@@ -73,7 +72,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Play Games Services AchievementDefinitions. Registered at `@swamp/gcp/games/achievementdefinitions`. */
 export const model = {
   type: "@swamp/gcp/games/achievementdefinitions",
-  version: "2026.04.23.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -102,6 +101,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

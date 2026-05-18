@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Agent Platform CachedContents.
+ * Swamp extension model for Google Cloud Vertex AI CachedContents.
  *
  * A resource used in LLM queries for users to explicitly specify what to cache and how to cache.
  *
@@ -415,9 +415,6 @@ const GlobalArgsSchema = z.object({
       "Tool to search public web data, powered by Vertex AI Search and Sec4 compliance.",
     ).optional(),
     functionDeclarations: z.array(z.object({
-      behavior: z.enum(["UNSPECIFIED", "BLOCKING", "NON_BLOCKING"]).describe(
-        "Optional. Specifies the function Behavior. If not specified, the system keeps the current function call behavior. This field is currently only supported by the BidiGenerateContent method.",
-      ).optional(),
       description: z.string().describe(
         "Optional. Description and purpose of the function. Model uses it to decide how and whether to call the function.",
       ).optional(),
@@ -891,7 +888,6 @@ const StateSchema = z.object({
       excludeDomains: z.array(z.string()),
     }),
     functionDeclarations: z.array(z.object({
-      behavior: z.string(),
       description: z.string(),
       name: z.string(),
       parameters: z.object({
@@ -1349,9 +1345,6 @@ const InputsSchema = z.object({
       "Tool to search public web data, powered by Vertex AI Search and Sec4 compliance.",
     ).optional(),
     functionDeclarations: z.array(z.object({
-      behavior: z.enum(["UNSPECIFIED", "BLOCKING", "NON_BLOCKING"]).describe(
-        "Optional. Specifies the function Behavior. If not specified, the system keeps the current function call behavior. This field is currently only supported by the BidiGenerateContent method.",
-      ).optional(),
       description: z.string().describe(
         "Optional. Description and purpose of the function. Model uses it to decide how and whether to call the function.",
       ).optional(),
@@ -1699,10 +1692,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Agent Platform CachedContents. Registered at `@swamp/gcp/aiplatform/cachedcontents`. */
+/** Swamp extension model for Google Cloud Vertex AI CachedContents. Registered at `@swamp/gcp/aiplatform/cachedcontents`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/cachedcontents",
-  version: "2026.05.14.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1749,6 +1742,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1769,7 +1767,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (g["contents"] !== undefined) body["contents"] = g["contents"];
         if (g["displayName"] !== undefined) {
@@ -1790,9 +1790,9 @@ export const model = {
         if (g["usageMetadata"] !== undefined) {
           body["usageMetadata"] = g["usageMetadata"];
         }
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1823,7 +1823,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const result = await readResource(
@@ -1865,7 +1865,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
@@ -1914,7 +1914,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -1959,7 +1959,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             shortName,
           );
           const result = await readResource(

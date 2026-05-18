@@ -101,9 +101,6 @@ const GlobalArgsSchema = z.object({
   addresses: z.array(z.string()).describe(
     "Optional. Zero or one IPv4 or IPv6 address on which the Gateway will receive the traffic. When no address is provided, an IP from the subnetwork is allocated This field only applies to gateways of type 'SECURE_WEB_GATEWAY'. Gateways of type 'OPEN_MESH' listen on 0.0.0.0 for IPv4 and:: for IPv6.",
   ).optional(),
-  allPorts: z.boolean().describe(
-    "Optional. If true, the Gateway will listen on all ports. This is mutually exclusive with the `ports` field. This field only applies to gateways of type 'SECURE_WEB_GATEWAY'.",
-  ).optional(),
   allowGlobalAccess: z.boolean().describe(
     "Optional. If true, the gateway will allow traffic from clients outside of the region where the gateway is located. This field is configurable only for gateways of type SECURE_WEB_GATEWAY.",
   ).optional(),
@@ -162,7 +159,6 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   addresses: z.array(z.string()).optional(),
-  allPorts: z.boolean().optional(),
   allowGlobalAccess: z.boolean().optional(),
   certificateUrls: z.array(z.string()).optional(),
   createTime: z.string().optional(),
@@ -188,9 +184,6 @@ type StateData = z.infer<typeof StateSchema>;
 const InputsSchema = z.object({
   addresses: z.array(z.string()).describe(
     "Optional. Zero or one IPv4 or IPv6 address on which the Gateway will receive the traffic. When no address is provided, an IP from the subnetwork is allocated This field only applies to gateways of type 'SECURE_WEB_GATEWAY'. Gateways of type 'OPEN_MESH' listen on 0.0.0.0 for IPv4 and:: for IPv6.",
-  ).optional(),
-  allPorts: z.boolean().describe(
-    "Optional. If true, the Gateway will listen on all ports. This is mutually exclusive with the `ports` field. This field only applies to gateways of type 'SECURE_WEB_GATEWAY'.",
   ).optional(),
   allowGlobalAccess: z.boolean().describe(
     "Optional. If true, the gateway will allow traffic from clients outside of the region where the gateway is located. This field is configurable only for gateways of type SECURE_WEB_GATEWAY.",
@@ -251,7 +244,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Network Services Gateways. Registered at `@swamp/gcp/networkservices/gateways`. */
 export const model = {
   type: "@swamp/gcp/networkservices/gateways",
-  version: "2026.04.23.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -283,6 +276,14 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Removed: allPorts",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { allPorts: _allPorts, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -303,10 +304,11 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (g["addresses"] !== undefined) body["addresses"] = g["addresses"];
-        if (g["allPorts"] !== undefined) body["allPorts"] = g["allPorts"];
         if (g["allowGlobalAccess"] !== undefined) {
           body["allowGlobalAccess"] = g["allowGlobalAccess"];
         }
@@ -337,9 +339,9 @@ export const model = {
         if (g["subnetwork"] !== undefined) body["subnetwork"] = g["subnetwork"];
         if (g["type"] !== undefined) body["type"] = g["type"];
         if (g["gatewayId"] !== undefined) body["gatewayId"] = g["gatewayId"];
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -370,7 +372,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const result = await readResource(
@@ -412,12 +414,11 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
         if (g["addresses"] !== undefined) body["addresses"] = g["addresses"];
-        if (g["allPorts"] !== undefined) body["allPorts"] = g["allPorts"];
         if (g["allowGlobalAccess"] !== undefined) {
           body["allowGlobalAccess"] = g["allowGlobalAccess"];
         }
@@ -478,7 +479,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -523,7 +524,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             shortName,
           );
           const result = await readResource(

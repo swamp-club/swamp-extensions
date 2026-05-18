@@ -55,19 +55,6 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   advisoryPublishTime: z.string().optional(),
-  aiSkillAnalysis: z.object({
-    findings: z.array(z.object({
-      category: z.string(),
-      location: z.object({
-        filePath: z.string(),
-        lineNumber: z.string(),
-      }),
-      scanner: z.string(),
-      severity: z.string(),
-    })),
-    maxSeverity: z.string(),
-    skillName: z.string(),
-  }).optional(),
   attestation: z.object({
     jwts: z.array(z.object({
       compactJwt: z.string(),
@@ -676,7 +663,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Container Analysis Notes.Occurrences. Registered at `@swamp/gcp/containeranalysis/notes-occurrences`. */
 export const model = {
   type: "@swamp/gcp/containeranalysis/notes-occurrences",
-  version: "2026.05.09.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -720,6 +707,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.09.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

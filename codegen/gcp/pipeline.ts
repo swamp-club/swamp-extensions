@@ -1181,7 +1181,12 @@ function buildGcpParsedResource(
   }
 
   // Add path parameters from insert.parameterOrder
-  const skipPathParams = new Set(["project", "projectId", "parent"]);
+  const skipPathParams = new Set([
+    "project",
+    "projectId",
+    "parent",
+    "ownerName",
+  ]);
   const addedPathOnlyParams: string[] = [];
 
   for (const paramName of insert?.parameterOrder || []) {
@@ -1249,11 +1254,13 @@ function buildGcpParsedResource(
     }
   }
 
-  // Handle parent property
+  // Handle parent property (including ownerName as a parent-like alias)
   const insertParams = insert?.parameterOrder || [];
   const listParams = list?.parameterOrder || [];
+  const hasParentParam = (params: string[]) =>
+    params.includes("parent") || params.includes("ownerName");
   const apiNeedsParent =
-    (insertParams.includes("parent") || listParams.includes("parent")) &&
+    (hasParentParam(insertParams) || hasParentParam(listParams)) &&
     !domainProperties["parent"];
   const isProjectOnly = availableScopes?.length === 1 &&
     availableScopes[0] === "projects";
@@ -1278,13 +1285,19 @@ function buildGcpParsedResource(
     };
   }
 
+  // For {+name} resources, zone/region in domainProperties are body fields, not
+  // path parameters — location is still needed to construct the parent path.
+  const getPath = getMethod?.path || "";
+  const getParams = getMethod?.parameterOrder || [];
+  const usesFullName = getPath.includes("{+name}") &&
+    getParams.length === 1 && getParams[0] === "name";
+
   if (
     isProjectOnly &&
     apiNeedsParent &&
     !isGlobalOnly &&
     !domainProperties["location"] &&
-    !domainProperties["region"] &&
-    !domainProperties["zone"]
+    (usesFullName || (!domainProperties["region"] && !domainProperties["zone"]))
   ) {
     domainProperties["location"] = {
       type: "string",

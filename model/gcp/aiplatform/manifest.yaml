@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/aiplatform"
-version: "2026.05.14.1"
+version: "2026.05.18.1"
 description: "Google Cloud aiplatform infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -61,8 +61,6 @@ models:
   - reasoningengines_memories.ts
   - reasoningengines_memories_revisions.ts
   - reasoningengines_sandboxenvironments.ts
-  - reasoningengines_sandboxenvironmentsnapshots.ts
-  - reasoningengines_sandboxenvironmenttemplates.ts
   - reasoningengines_sessions.ts
   - reasoningengines_sessions_events.ts
   - schedules.ts

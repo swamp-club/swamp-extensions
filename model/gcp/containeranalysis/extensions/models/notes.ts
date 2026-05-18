@@ -101,9 +101,6 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  aiSkillAnalysis: z.object({}).describe(
-    "AISkillAnalysisNote provides the metadata of an AI-based skill analysis.",
-  ).optional(),
   attestation: z.object({
     hint: z.object({
       humanReadableName: z.string().describe(
@@ -184,7 +181,6 @@ const GlobalArgsSchema = z.object({
       "VULNERABILITY_ASSESSMENT",
       "SBOM_REFERENCE",
       "SECRET",
-      "AI_SKILL_ANALYSIS",
     ]).describe(
       "Required. Immutable. The kind of analysis that is handled by this discovery.",
     ).optional(),
@@ -830,7 +826,6 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  aiSkillAnalysis: z.object({}).optional(),
   attestation: z.object({
     hint: z.object({
       humanReadableName: z.string(),
@@ -1090,9 +1085,6 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
-  aiSkillAnalysis: z.object({}).describe(
-    "AISkillAnalysisNote provides the metadata of an AI-based skill analysis.",
-  ).optional(),
   attestation: z.object({
     hint: z.object({
       humanReadableName: z.string().describe(
@@ -1173,7 +1165,6 @@ const InputsSchema = z.object({
       "VULNERABILITY_ASSESSMENT",
       "SBOM_REFERENCE",
       "SECRET",
-      "AI_SKILL_ANALYSIS",
     ]).describe(
       "Required. Immutable. The kind of analysis that is handled by this discovery.",
     ).optional(),
@@ -1821,7 +1812,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Container Analysis Notes. Registered at `@swamp/gcp/containeranalysis/notes`. */
 export const model = {
   type: "@swamp/gcp/containeranalysis/notes",
-  version: "2026.05.02.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1863,6 +1854,14 @@ export const model = {
       description: "Added: aiSkillAnalysis",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Removed: aiSkillAnalysis",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { aiSkillAnalysis: _aiSkillAnalysis, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1882,11 +1881,10 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
-        if (g["aiSkillAnalysis"] !== undefined) {
-          body["aiSkillAnalysis"] = g["aiSkillAnalysis"];
-        }
         if (g["attestation"] !== undefined) {
           body["attestation"] = g["attestation"];
         }
@@ -1924,9 +1922,9 @@ export const model = {
           body["vulnerabilityAssessment"] = g["vulnerabilityAssessment"];
         }
         if (g["noteId"] !== undefined) body["noteId"] = g["noteId"];
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1959,7 +1957,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const result = await readResource(
@@ -2000,13 +1998,10 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
-        if (g["aiSkillAnalysis"] !== undefined) {
-          body["aiSkillAnalysis"] = g["aiSkillAnalysis"];
-        }
         if (g["attestation"] !== undefined) {
           body["attestation"] = g["attestation"];
         }
@@ -2076,7 +2071,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -2121,7 +2116,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             shortName,
           );
           const result = await readResource(
@@ -2156,7 +2151,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (args["notes"] !== undefined) body["notes"] = args["notes"];
         const result = await createResource(

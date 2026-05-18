@@ -458,6 +458,9 @@ const GlobalArgsSchema = z.object({
       "The contents of a VAST document for a native video ad.",
     ).optional(),
   }).describe("Native content for a creative.").optional(),
+  renderUrl: z.string().describe(
+    'Experimental field that can be used during the [FLEDGE Origin Trial](/authorized-buyers/rtb/fledge-origin-trial). The URL to fetch an interest group ad used in [TURTLEDOVE on-device auction](https://github.com/WICG/turtledove/blob/main/FLEDGE.md#1-browsers-record-interest-groups"). This should be unique among all creatives for a given `accountId`. This URL should be the same as the URL returned by [generateBid()](https://github.com/WICG/turtledove/blob/main/FLEDGE.md#32-on-device-bidding).',
+  ).optional(),
   video: z.object({
     videoMetadata: z.object({
       duration: z.string().describe(
@@ -1035,6 +1038,9 @@ const InputsSchema = z.object({
       "The contents of a VAST document for a native video ad.",
     ).optional(),
   }).describe("Native content for a creative.").optional(),
+  renderUrl: z.string().describe(
+    'Experimental field that can be used during the [FLEDGE Origin Trial](/authorized-buyers/rtb/fledge-origin-trial). The URL to fetch an interest group ad used in [TURTLEDOVE on-device auction](https://github.com/WICG/turtledove/blob/main/FLEDGE.md#1-browsers-record-interest-groups"). This should be unique among all creatives for a given `accountId`. This URL should be the same as the URL returned by [generateBid()](https://github.com/WICG/turtledove/blob/main/FLEDGE.md#32-on-device-bidding).',
+  ).optional(),
   video: z.object({
     videoMetadata: z.object({
       duration: z.string().describe(
@@ -1103,7 +1109,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Real-time Bidding Buyers.Creatives. Registered at `@swamp/gcp/realtimebidding/buyers-creatives`. */
 export const model = {
   type: "@swamp/gcp/realtimebidding/buyers-creatives",
-  version: "2026.05.01.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1147,6 +1153,11 @@ export const model = {
         const { renderUrl: _renderUrl, ...rest } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Added: renderUrl",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -1194,6 +1205,7 @@ export const model = {
           body["impressionTrackingUrls"] = g["impressionTrackingUrls"];
         }
         if (g["native"] !== undefined) body["native"] = g["native"];
+        if (g["renderUrl"] !== undefined) body["renderUrl"] = g["renderUrl"];
         if (g["video"] !== undefined) body["video"] = g["video"];
         if (g["parent"] !== undefined && g["name"] !== undefined) {
           params["name"] = buildResourceName(
@@ -1300,6 +1312,7 @@ export const model = {
           body["impressionTrackingUrls"] = g["impressionTrackingUrls"];
         }
         if (g["native"] !== undefined) body["native"] = g["native"];
+        if (g["renderUrl"] !== undefined) body["renderUrl"] = g["renderUrl"];
         if (g["video"] !== undefined) body["video"] = g["video"];
         for (const key of Object.keys(existing)) {
           if (

@@ -62,9 +62,6 @@ const INSERT_CONFIG = {
       "location": "path",
       "required": true,
     },
-    "sessionId": {
-      "location": "query",
-    },
   },
 } as const;
 
@@ -252,8 +249,6 @@ const GlobalArgsSchema = z.object({
         "Immutable. Identifier. Resource name of the `AssistAnswer`. Format: `projects/{project}/locations/{location}/collections/{collection}/engines/{engine}/sessions/{session}/assistAnswers/{assist_answer}` This field must be a UTF-8 encoded string with a length limit of 1024 characters.",
       ).optional(),
       replies: z.array(z.object({
-        createTime: z.unknown().describe("The time when the reply was created.")
-          .optional(),
         groundedContent: z.unknown().describe(
           'A piece of content and possibly its grounding information. Not all content needs grounding. Phrases like "Of course, I will gladly search it for you." do not need grounding.',
         ).optional(),
@@ -264,13 +259,9 @@ const GlobalArgsSchema = z.object({
         "FAILED",
         "SUCCEEDED",
         "SKIPPED",
-        "CANCELLED",
       ]).describe("State of the answer generation.").optional(),
     }).describe("AssistAnswer resource, main part of AssistResponse.")
       .optional(),
-    live: z.boolean().describe(
-      "Optional. Indicates whether this turn is a live turn.",
-    ).optional(),
     query: z.object({
       queryId: z.string().describe("Output only. Unique Id for the query.")
         .optional(),
@@ -282,9 +273,6 @@ const GlobalArgsSchema = z.object({
   })).describe("Turns.").optional(),
   userPseudoId: z.string().describe("A unique identifier for tracking users.")
     .optional(),
-  sessionId: z.string().describe(
-    "Optional. The ID to use for the session, which will become the final component of the session's resource name. This value should be 1-63 characters, and valid characters are /a-z0-9{0,61}[a-z0-9]/. If not specified, a unique ID will be generated.",
-  ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
@@ -296,7 +284,6 @@ const StateSchema = z.object({
   isPinned: z.boolean().optional(),
   labels: z.array(z.string()).optional(),
   name: z.string(),
-  pendingAsyncAssistOperationId: z.string().optional(),
   startTime: z.string().optional(),
   state: z.string().optional(),
   turns: z.array(z.object({
@@ -353,12 +340,10 @@ const StateSchema = z.object({
       }),
       name: z.string(),
       replies: z.array(z.object({
-        createTime: z.unknown(),
         groundedContent: z.unknown(),
       })),
       state: z.string(),
     }),
-    live: z.boolean(),
     query: z.object({
       queryId: z.string(),
       text: z.string(),
@@ -520,8 +505,6 @@ const InputsSchema = z.object({
         "Immutable. Identifier. Resource name of the `AssistAnswer`. Format: `projects/{project}/locations/{location}/collections/{collection}/engines/{engine}/sessions/{session}/assistAnswers/{assist_answer}` This field must be a UTF-8 encoded string with a length limit of 1024 characters.",
       ).optional(),
       replies: z.array(z.object({
-        createTime: z.unknown().describe("The time when the reply was created.")
-          .optional(),
         groundedContent: z.unknown().describe(
           'A piece of content and possibly its grounding information. Not all content needs grounding. Phrases like "Of course, I will gladly search it for you." do not need grounding.',
         ).optional(),
@@ -532,13 +515,9 @@ const InputsSchema = z.object({
         "FAILED",
         "SUCCEEDED",
         "SKIPPED",
-        "CANCELLED",
       ]).describe("State of the answer generation.").optional(),
     }).describe("AssistAnswer resource, main part of AssistResponse.")
       .optional(),
-    live: z.boolean().describe(
-      "Optional. Indicates whether this turn is a live turn.",
-    ).optional(),
     query: z.object({
       queryId: z.string().describe("Output only. Unique Id for the query.")
         .optional(),
@@ -550,9 +529,6 @@ const InputsSchema = z.object({
   })).describe("Turns.").optional(),
   userPseudoId: z.string().describe("A unique identifier for tracking users.")
     .optional(),
-  sessionId: z.string().describe(
-    "Optional. The ID to use for the session, which will become the final component of the session's resource name. This value should be 1-63 characters, and valid characters are /a-z0-9{0,61}[a-z0-9]/. If not specified, a unique ID will be generated.",
-  ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
@@ -561,7 +537,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Discovery Engine Collections.Engines.Sessions. Registered at `@swamp/gcp/discoveryengine/collections-engines-sessions`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-engines-sessions",
-  version: "2026.05.14.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -613,6 +589,14 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Removed: sessionId",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { sessionId: _sessionId, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -632,7 +616,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
@@ -645,10 +631,9 @@ export const model = {
         if (g["userPseudoId"] !== undefined) {
           body["userPseudoId"] = g["userPseudoId"];
         }
-        if (g["sessionId"] !== undefined) body["sessionId"] = g["sessionId"];
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -679,7 +664,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const result = await readResource(
@@ -721,7 +706,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
@@ -768,7 +753,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -813,7 +798,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             shortName,
           );
           const result = await readResource(

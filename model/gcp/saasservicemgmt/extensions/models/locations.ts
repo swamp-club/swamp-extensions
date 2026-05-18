@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud App Lifecycle Manager Locations.
+ * Swamp extension model for Google Cloud SaaS Runtime Locations.
  *
  * A resource that represents a Google Cloud location.
  *
@@ -58,10 +58,10 @@ const InputsSchema = z.object({
   name: z.string().optional(),
 });
 
-/** Swamp extension model for Google Cloud App Lifecycle Manager Locations. Registered at `@swamp/gcp/saasservicemgmt/locations`. */
+/** Swamp extension model for Google Cloud SaaS Runtime Locations. Registered at `@swamp/gcp/saasservicemgmt/locations`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/locations",
-  version: "2026.04.23.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -90,6 +90,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

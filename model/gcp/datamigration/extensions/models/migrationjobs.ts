@@ -263,15 +263,6 @@ const GlobalArgsSchema = z.object({
       "MAX",
     ]).describe("Initial dump parallelism level.").optional(),
   }).describe("Performance configuration definition.").optional(),
-  postgresHomogeneousConfig: z.object({
-    isNativeLogical: z.boolean().describe(
-      "Required. Whether the migration is native logical.",
-    ).optional(),
-    maxAdditionalSubscriptions: z.number().int().describe(
-      "Optional. Maximum number of additional subscriptions to use for the migration job.",
-    ).optional(),
-  }).describe("Configuration for PostgreSQL to PostgreSQL migrations.")
-    .optional(),
   postgresToSqlserverConfig: z.object({
     postgresSourceConfig: z.object({
       skipFullDump: z.boolean().describe(
@@ -508,10 +499,6 @@ const StateSchema = z.object({
     dumpParallelLevel: z.string(),
   }).optional(),
   phase: z.string().optional(),
-  postgresHomogeneousConfig: z.object({
-    isNativeLogical: z.boolean(),
-    maxAdditionalSubscriptions: z.number(),
-  }).optional(),
   postgresToSqlserverConfig: z.object({
     postgresSourceConfig: z.object({
       skipFullDump: z.boolean(),
@@ -729,15 +716,6 @@ const InputsSchema = z.object({
       "MAX",
     ]).describe("Initial dump parallelism level.").optional(),
   }).describe("Performance configuration definition.").optional(),
-  postgresHomogeneousConfig: z.object({
-    isNativeLogical: z.boolean().describe(
-      "Required. Whether the migration is native logical.",
-    ).optional(),
-    maxAdditionalSubscriptions: z.number().int().describe(
-      "Optional. Maximum number of additional subscriptions to use for the migration job.",
-    ).optional(),
-  }).describe("Configuration for PostgreSQL to PostgreSQL migrations.")
-    .optional(),
   postgresToSqlserverConfig: z.object({
     postgresSourceConfig: z.object({
       skipFullDump: z.boolean().describe(
@@ -908,7 +886,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Database Migration MigrationJobs. Registered at `@swamp/gcp/datamigration/migrationjobs`. */
 export const model = {
   type: "@swamp/gcp/datamigration/migrationjobs",
-  version: "2026.05.06.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -950,6 +928,17 @@ export const model = {
       description: "Added: postgresHomogeneousConfig",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Removed: postgresHomogeneousConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          postgresHomogeneousConfig: _postgresHomogeneousConfig,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -974,7 +963,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (g["cmekKeyName"] !== undefined) {
           body["cmekKeyName"] = g["cmekKeyName"];
@@ -1010,9 +1001,6 @@ export const model = {
         if (g["performanceConfig"] !== undefined) {
           body["performanceConfig"] = g["performanceConfig"];
         }
-        if (g["postgresHomogeneousConfig"] !== undefined) {
-          body["postgresHomogeneousConfig"] = g["postgresHomogeneousConfig"];
-        }
         if (g["postgresToSqlserverConfig"] !== undefined) {
           body["postgresToSqlserverConfig"] = g["postgresToSqlserverConfig"];
         }
@@ -1042,9 +1030,9 @@ export const model = {
           body["migrationJobId"] = g["migrationJobId"];
         }
         if (g["requestId"] !== undefined) body["requestId"] = g["requestId"];
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1082,7 +1070,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const result = await readResource(
@@ -1128,7 +1116,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
@@ -1164,9 +1152,6 @@ export const model = {
         }
         if (g["performanceConfig"] !== undefined) {
           body["performanceConfig"] = g["performanceConfig"];
-        }
-        if (g["postgresHomogeneousConfig"] !== undefined) {
-          body["postgresHomogeneousConfig"] = g["postgresHomogeneousConfig"];
         }
         if (g["postgresToSqlserverConfig"] !== undefined) {
           body["postgresToSqlserverConfig"] = g["postgresToSqlserverConfig"];
@@ -1233,7 +1218,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -1278,7 +1263,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             shortName,
           );
           const result = await readResource(
@@ -1311,9 +1296,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1340,9 +1325,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1475,9 +1460,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1511,9 +1496,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1551,9 +1536,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1585,9 +1570,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1617,9 +1602,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1648,9 +1633,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }

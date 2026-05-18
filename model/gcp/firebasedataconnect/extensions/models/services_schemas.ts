@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud Firebase Data Connect Services.Schemas.
  *
- * The application schema of a Firebase SQL Connect service.
+ * The application schema of a Firebase Data Connect service.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -150,7 +150,7 @@ const GlobalArgsSchema = z.object({
         "Required. Name of the PostgreSQL database.",
       ).optional(),
       ephemeral: z.boolean().describe(
-        "Output only. Ephemeral is true if this SQL Connect service is served from temporary in-memory emulation of Postgres. While Cloud SQL is being provisioned, the SQL Connect service provides the ephemeral service to help developers get started. Once the Cloud SQL is provisioned, SQL Connect service will transfer its data on a best-effort basis to the Cloud SQL instance. WARNING: Ephemeral data sources will expire after 24 hour. The data will be lost if they aren't transferred to the Cloud SQL instance. WARNING: When `ephemeral=true`, mutations to the database are not guaranteed to be durably persisted, even if an OK status code is returned. All or parts of the data may be lost or reverted to earlier versions.",
+        "Output only. Ephemeral is true if this data connect service is served from temporary in-memory emulation of Postgres. While Cloud SQL is being provisioned, the data connect service provides the ephemeral service to help developers get started. Once the Cloud SQL is provisioned, Data Connect service will transfer its data on a best-effort basis to the Cloud SQL instance. WARNING: Ephemeral data sources will expire after 24 hour. The data will be lost if they aren't transferred to the Cloud SQL instance. WARNING: When `ephemeral=true`, mutations to the database are not guaranteed to be durably persisted, even if an OK status code is returned. All or parts of the data may be lost or reverted to earlier versions.",
       ).optional(),
       schema: z.string().describe(
         'Optional. User-configured PostgreSQL schema. Defaults to "public" if not specified.',
@@ -159,7 +159,7 @@ const GlobalArgsSchema = z.object({
         "SQL_SCHEMA_MIGRATION_UNSPECIFIED",
         "MIGRATE_COMPATIBLE",
       ]).describe(
-        "Optional. Configure how to perform automatic PostgreSQL schema migration before deploying the FDC schema. This is an additive-only operation.",
+        "Optional. Configure how to perform Postgresql schema migration.",
       ).optional(),
       schemaValidation: z.enum([
         "SQL_SCHEMA_VALIDATION_UNSPECIFIED",
@@ -167,7 +167,7 @@ const GlobalArgsSchema = z.object({
         "STRICT",
         "COMPATIBLE",
       ]).describe(
-        "Optional. Configure how much PostgreSQL schema validation to perform against the live database before deploying the FDC schema.",
+        "Optional. Configure how much Postgresql schema validation to perform.",
       ).optional(),
       unlinked: z.boolean().describe(
         "No Postgres data source is linked. If set, don't allow `database` and `schema_validation` to be configured.",
@@ -264,7 +264,7 @@ const InputsSchema = z.object({
         "Required. Name of the PostgreSQL database.",
       ).optional(),
       ephemeral: z.boolean().describe(
-        "Output only. Ephemeral is true if this SQL Connect service is served from temporary in-memory emulation of Postgres. While Cloud SQL is being provisioned, the SQL Connect service provides the ephemeral service to help developers get started. Once the Cloud SQL is provisioned, SQL Connect service will transfer its data on a best-effort basis to the Cloud SQL instance. WARNING: Ephemeral data sources will expire after 24 hour. The data will be lost if they aren't transferred to the Cloud SQL instance. WARNING: When `ephemeral=true`, mutations to the database are not guaranteed to be durably persisted, even if an OK status code is returned. All or parts of the data may be lost or reverted to earlier versions.",
+        "Output only. Ephemeral is true if this data connect service is served from temporary in-memory emulation of Postgres. While Cloud SQL is being provisioned, the data connect service provides the ephemeral service to help developers get started. Once the Cloud SQL is provisioned, Data Connect service will transfer its data on a best-effort basis to the Cloud SQL instance. WARNING: Ephemeral data sources will expire after 24 hour. The data will be lost if they aren't transferred to the Cloud SQL instance. WARNING: When `ephemeral=true`, mutations to the database are not guaranteed to be durably persisted, even if an OK status code is returned. All or parts of the data may be lost or reverted to earlier versions.",
       ).optional(),
       schema: z.string().describe(
         'Optional. User-configured PostgreSQL schema. Defaults to "public" if not specified.',
@@ -273,7 +273,7 @@ const InputsSchema = z.object({
         "SQL_SCHEMA_MIGRATION_UNSPECIFIED",
         "MIGRATE_COMPATIBLE",
       ]).describe(
-        "Optional. Configure how to perform automatic PostgreSQL schema migration before deploying the FDC schema. This is an additive-only operation.",
+        "Optional. Configure how to perform Postgresql schema migration.",
       ).optional(),
       schemaValidation: z.enum([
         "SQL_SCHEMA_VALIDATION_UNSPECIFIED",
@@ -281,7 +281,7 @@ const InputsSchema = z.object({
         "STRICT",
         "COMPATIBLE",
       ]).describe(
-        "Optional. Configure how much PostgreSQL schema validation to perform against the live database before deploying the FDC schema.",
+        "Optional. Configure how much Postgresql schema validation to perform.",
       ).optional(),
       unlinked: z.boolean().describe(
         "No Postgres data source is linked. If set, don't allow `database` and `schema_validation` to be configured.",
@@ -321,7 +321,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Firebase Data Connect Services.Schemas. Registered at `@swamp/gcp/firebasedataconnect/services-schemas`. */
 export const model = {
   type: "@swamp/gcp/firebasedataconnect/services-schemas",
-  version: "2026.05.09.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -363,12 +363,17 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "The application schema of a Firebase SQL Connect service.",
+      description: "The application schema of a Firebase Data Connect service.",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -382,7 +387,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (g["annotations"] !== undefined) {
           body["annotations"] = g["annotations"];
@@ -398,9 +405,9 @@ export const model = {
         if (g["source"] !== undefined) body["source"] = g["source"];
         if (g["requestId"] !== undefined) body["requestId"] = g["requestId"];
         if (g["schemaId"] !== undefined) body["schemaId"] = g["schemaId"];
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -431,7 +438,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const result = await readResource(
@@ -473,7 +480,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
@@ -521,7 +528,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -566,7 +573,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             shortName,
           );
           const result = await readResource(

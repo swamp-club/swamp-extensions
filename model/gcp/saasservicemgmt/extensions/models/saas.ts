@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud App Lifecycle Manager Saas.
+ * Swamp extension model for Google Cloud SaaS Runtime Saas.
  *
  * Saas is a representation of a SaaS service managed by the Producer.
  *
@@ -122,19 +122,6 @@ const GlobalArgsSchema = z.object({
   annotations: z.record(z.string(), z.string()).describe(
     "Optional. Annotations is an unstructured key-value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/user-guide/annotations",
   ).optional(),
-  error: z.object({
-    code: z.number().int().describe(
-      "The status code, which should be an enum value of google.rpc.Code.",
-    ).optional(),
-    details: z.array(z.record(z.string(), z.string())).describe(
-      "A list of messages that carry the error details. There is a common set of message types for APIs to use.",
-    ).optional(),
-    message: z.string().describe(
-      "A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the google.rpc.Status.details field, or localized by the client.",
-    ).optional(),
-  }).describe(
-    "The `Status` type defines a logical error model that is suitable for different programming environments, including REST APIs and RPC APIs. It is used by [gRPC](https://github.com/grpc). Each `Status` message contains three pieces of data: error code, error message, and error details. You can find out more about this error model and how to work with it in the [API Design Guide](https://cloud.google.com/apis/design/errors).",
-  ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. The labels on the resource, which can be used for categorization. similar to Kubernetes resource labels.",
   ).optional(),
@@ -158,26 +145,13 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   annotations: z.record(z.string(), z.unknown()).optional(),
-  conditions: z.array(z.object({
-    lastTransitionTime: z.string(),
-    message: z.string(),
-    reason: z.string(),
-    status: z.string(),
-    type: z.string(),
-  })).optional(),
   createTime: z.string().optional(),
-  error: z.object({
-    code: z.number(),
-    details: z.array(z.record(z.string(), z.unknown())),
-    message: z.string(),
-  }).optional(),
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   locations: z.array(z.object({
     name: z.string(),
   })).optional(),
   name: z.string(),
-  state: z.string().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -187,19 +161,6 @@ type StateData = z.infer<typeof StateSchema>;
 const InputsSchema = z.object({
   annotations: z.record(z.string(), z.string()).describe(
     "Optional. Annotations is an unstructured key-value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/user-guide/annotations",
-  ).optional(),
-  error: z.object({
-    code: z.number().int().describe(
-      "The status code, which should be an enum value of google.rpc.Code.",
-    ).optional(),
-    details: z.array(z.record(z.string(), z.string())).describe(
-      "A list of messages that carry the error details. There is a common set of message types for APIs to use.",
-    ).optional(),
-    message: z.string().describe(
-      "A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the google.rpc.Status.details field, or localized by the client.",
-    ).optional(),
-  }).describe(
-    "The `Status` type defines a logical error model that is suitable for different programming environments, including REST APIs and RPC APIs. It is used by [gRPC](https://github.com/grpc). Each `Status` message contains three pieces of data: error code, error message, and error details. You can find out more about this error model and how to work with it in the [API Design Guide](https://cloud.google.com/apis/design/errors).",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. The labels on the resource, which can be used for categorization. similar to Kubernetes resource labels.",
@@ -222,10 +183,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud App Lifecycle Manager Saas. Registered at `@swamp/gcp/saasservicemgmt/saas`. */
+/** Swamp extension model for Google Cloud SaaS Runtime Saas. Registered at `@swamp/gcp/saasservicemgmt/saas`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/saas",
-  version: "2026.04.23.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -257,6 +218,14 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Removed: error",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { error: _error, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -272,29 +241,26 @@ export const model = {
   methods: {
     create: {
       description: "Create a saas",
-      arguments: z.object({
-        waitForReady: z.boolean().describe(
-          "Wait for the resource to reach a ready state after creation (default: true)",
-        ).optional(),
-      }),
-      execute: async (args: { waitForReady?: boolean }, context: any) => {
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (g["annotations"] !== undefined) {
           body["annotations"] = g["annotations"];
         }
-        if (g["error"] !== undefined) body["error"] = g["error"];
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["locations"] !== undefined) body["locations"] = g["locations"];
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["requestId"] !== undefined) body["requestId"] = g["requestId"];
         if (g["saasId"] !== undefined) body["saasId"] = g["saasId"];
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -304,13 +270,6 @@ export const model = {
           params,
           body,
           GET_CONFIG,
-          (args.waitForReady ?? true)
-            ? {
-              "statusField": "state",
-              "readyValues": ["ACTIVE", "RUNNING"],
-              "failedValues": ["FAILED"],
-            }
-            : undefined,
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
@@ -332,7 +291,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const result = await readResource(
@@ -355,12 +314,8 @@ export const model = {
     },
     update: {
       description: "Update saas attributes",
-      arguments: z.object({
-        waitForReady: z.boolean().describe(
-          "Wait for the resource to reach a ready state after update (default: true)",
-        ).optional(),
-      }),
-      execute: async (args: { waitForReady?: boolean }, context: any) => {
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const instanceName = (g.name?.toString() ?? "current").replace(
@@ -378,14 +333,13 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
         if (g["annotations"] !== undefined) {
           body["annotations"] = g["annotations"];
         }
-        if (g["error"] !== undefined) body["error"] = g["error"];
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["locations"] !== undefined) body["locations"] = g["locations"];
         for (const key of Object.keys(existing)) {
@@ -402,13 +356,6 @@ export const model = {
           params,
           body,
           GET_CONFIG,
-          (args.waitForReady ?? true)
-            ? {
-              "statusField": "state",
-              "readyValues": ["ACTIVE", "RUNNING"],
-              "failedValues": ["FAILED"],
-            }
-            : undefined,
         ) as StateData;
         const handle = await context.writeResource(
           "state",
@@ -428,7 +375,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -473,7 +420,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             shortName,
           );
           const result = await readResource(

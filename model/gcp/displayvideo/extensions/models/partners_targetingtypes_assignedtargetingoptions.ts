@@ -513,7 +513,7 @@ const GlobalArgsSchema = z.object({
       "TIME_ZONE_RESOLUTION_END_USER",
       "TIME_ZONE_RESOLUTION_ADVERTISER",
     ]).describe(
-      "Required. The mechanism used to determine which timezone to use for this day and time targeting setting. For Demand Gen line items, this field is always `TIME_ZONE_RESOLUTION_ADVERTISER`.",
+      "Required. The mechanism used to determine which timezone to use for this day and time targeting setting. For demand gen line items, this field is always TIME_ZONE_RESOLUTION_ADVERTISER.",
     ).optional(),
   }).describe(
     "Representation of a segment of time defined on a specific day of the week and with a start and end time. The time represented by `start_hour` must be before the time represented by `end_hour`.",
@@ -720,7 +720,6 @@ const GlobalArgsSchema = z.object({
       "GEO_REGION_TYPE_COMMUNE",
       "GEO_REGION_TYPE_COLLOQUIAL_AREA",
       "GEO_REGION_TYPE_POST_TOWN",
-      "GEO_REGION_TYPE_WARD",
     ]).describe("Output only. The type of geographic region targeting.")
       .optional(),
     negative: z.boolean().describe(
@@ -762,7 +761,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   keywordDetails: z.object({
     exemptedPolicyNames: z.array(z.string()).describe(
-      "Optional. The policy names to exempt the keyword from. When attempting to target a keyword that violates a policy, the error returned will include the name of the relevant policy. Use that name in this field to exempt the targeted keyword from the policy. This field is only applicable for positively-targeted keywords assigned to Demand Gen resources. Retrieval and management of Demand Gen resources is currently in beta. This field is only available to allowlisted users.",
+      "Optional. The policy names to exempt the keyword from. This field is only applicable for Demand Gen keywords, which are positively targeted.",
     ).optional(),
     keyword: z.string().describe(
       "Required. The keyword, for example `car insurance`. Positive keyword cannot be offensive word. Must be UTF-8 encoded with a maximum size of 255 bytes. Maximum number of characters is 80. Maximum number of words is 10.",
@@ -2175,7 +2174,7 @@ const InputsSchema = z.object({
       "TIME_ZONE_RESOLUTION_END_USER",
       "TIME_ZONE_RESOLUTION_ADVERTISER",
     ]).describe(
-      "Required. The mechanism used to determine which timezone to use for this day and time targeting setting. For Demand Gen line items, this field is always `TIME_ZONE_RESOLUTION_ADVERTISER`.",
+      "Required. The mechanism used to determine which timezone to use for this day and time targeting setting. For demand gen line items, this field is always TIME_ZONE_RESOLUTION_ADVERTISER.",
     ).optional(),
   }).describe(
     "Representation of a segment of time defined on a specific day of the week and with a start and end time. The time represented by `start_hour` must be before the time represented by `end_hour`.",
@@ -2382,7 +2381,6 @@ const InputsSchema = z.object({
       "GEO_REGION_TYPE_COMMUNE",
       "GEO_REGION_TYPE_COLLOQUIAL_AREA",
       "GEO_REGION_TYPE_POST_TOWN",
-      "GEO_REGION_TYPE_WARD",
     ]).describe("Output only. The type of geographic region targeting.")
       .optional(),
     negative: z.boolean().describe(
@@ -2424,7 +2422,7 @@ const InputsSchema = z.object({
   ).optional(),
   keywordDetails: z.object({
     exemptedPolicyNames: z.array(z.string()).describe(
-      "Optional. The policy names to exempt the keyword from. When attempting to target a keyword that violates a policy, the error returned will include the name of the relevant policy. Use that name in this field to exempt the targeted keyword from the policy. This field is only applicable for positively-targeted keywords assigned to Demand Gen resources. Retrieval and management of Demand Gen resources is currently in beta. This field is only available to allowlisted users.",
+      "Optional. The policy names to exempt the keyword from. This field is only applicable for Demand Gen keywords, which are positively targeted.",
     ).optional(),
     keyword: z.string().describe(
       "Required. The keyword, for example `car insurance`. Positive keyword cannot be offensive word. Must be UTF-8 encoded with a maximum size of 255 bytes. Maximum number of characters is 80. Maximum number of words is 10.",
@@ -3126,7 +3124,7 @@ const InputsSchema = z.object({
 export const model = {
   type:
     "@swamp/gcp/displayvideo/partners-targetingtypes-assignedtargetingoptions",
-  version: "2026.05.09.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3170,6 +3168,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.09.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

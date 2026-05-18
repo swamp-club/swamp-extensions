@@ -21,7 +21,6 @@ import {
   getProjectId,
   isResourceNotFoundError,
   readResource,
-  updateResource,
 } from "./_lib/gcp.ts";
 
 /** Construct the fully-qualified resource name from parent and short name. */
@@ -60,30 +59,6 @@ const INSERT_CONFIG = {
     "parent": {
       "location": "path",
       "required": true,
-    },
-    "validateOnly": {
-      "location": "query",
-    },
-  },
-} as const;
-
-const PATCH_CONFIG = {
-  "id": "run.projects.locations.instances.patch",
-  "path": "v2/{+name}",
-  "httpMethod": "PATCH",
-  "parameterOrder": [
-    "name",
-  ],
-  "parameters": {
-    "allowMissing": {
-      "location": "query",
-    },
-    "name": {
-      "location": "path",
-      "required": true,
-    },
-    "updateMask": {
-      "location": "query",
     },
     "validateOnly": {
       "location": "query",
@@ -355,7 +330,7 @@ const GlobalArgsSchema = z.object({
         "Required. This must match the Name of a Volume.",
       ).optional(),
       subPath: z.string().describe(
-        "Optional. Path within the volume from which the container's volume should be mounted. Defaults to \"\" (volume's root). This field is currently rejected in Secret volume mounts.",
+        "Optional. Path within the volume from which the container's volume should be mounted. Defaults to \"\" (volume's root). This field is currently ignored for Secret volumes.",
       ).optional(),
     })).describe("Volume to mount into the container's filesystem.").optional(),
     workingDir: z.string().describe(
@@ -363,9 +338,6 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   })).describe(
     "Required. Holds the single container that defines the unit of execution for this Instance.",
-  ).optional(),
-  defaultUriDisabled: z.boolean().describe(
-    "Optional. Disables public resolution of the default URI of this Instance.",
   ).optional(),
   description: z.string().describe(
     "User-provided description of the Instance. This field currently has a 512-character limit.",
@@ -712,7 +684,6 @@ const StateSchema = z.object({
   })).optional(),
   createTime: z.string().optional(),
   creator: z.string().optional(),
-  defaultUriDisabled: z.boolean().optional(),
   deleteTime: z.string().optional(),
   description: z.string().optional(),
   encryptionKey: z.string().optional(),
@@ -1036,7 +1007,7 @@ const InputsSchema = z.object({
         "Required. This must match the Name of a Volume.",
       ).optional(),
       subPath: z.string().describe(
-        "Optional. Path within the volume from which the container's volume should be mounted. Defaults to \"\" (volume's root). This field is currently rejected in Secret volume mounts.",
+        "Optional. Path within the volume from which the container's volume should be mounted. Defaults to \"\" (volume's root). This field is currently ignored for Secret volumes.",
       ).optional(),
     })).describe("Volume to mount into the container's filesystem.").optional(),
     workingDir: z.string().describe(
@@ -1044,9 +1015,6 @@ const InputsSchema = z.object({
     ).optional(),
   })).describe(
     "Required. Holds the single container that defines the unit of execution for this Instance.",
-  ).optional(),
-  defaultUriDisabled: z.boolean().describe(
-    "Optional. Disables public resolution of the default URI of this Instance.",
   ).optional(),
   description: z.string().describe(
     "User-provided description of the Instance. This field currently has a 512-character limit.",
@@ -1273,7 +1241,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Run Admin Instances. Registered at `@swamp/gcp/run/instances`. */
 export const model = {
   type: "@swamp/gcp/run/instances",
-  version: "2026.05.06.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1320,6 +1288,14 @@ export const model = {
       description: "Added: defaultUriDisabled",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Removed: defaultUriDisabled",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { defaultUriDisabled: _defaultUriDisabled, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1340,7 +1316,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (g["annotations"] !== undefined) {
           body["annotations"] = g["annotations"];
@@ -1353,9 +1331,6 @@ export const model = {
           body["clientVersion"] = g["clientVersion"];
         }
         if (g["containers"] !== undefined) body["containers"] = g["containers"];
-        if (g["defaultUriDisabled"] !== undefined) {
-          body["defaultUriDisabled"] = g["defaultUriDisabled"];
-        }
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
         }
@@ -1396,9 +1371,9 @@ export const model = {
         if (g["volumes"] !== undefined) body["volumes"] = g["volumes"];
         if (g["vpcAccess"] !== undefined) body["vpcAccess"] = g["vpcAccess"];
         if (g["instanceId"] !== undefined) body["instanceId"] = g["instanceId"];
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1429,7 +1404,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const result = await readResource(
@@ -1450,106 +1425,6 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
-    update: {
-      description: "Update instances attributes",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
-        const g = context.globalArgs;
-        const projectId = await getProjectId();
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          instanceName,
-        );
-        if (!content) {
-          throw new Error("No existing state found - run create or get first");
-        }
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        const params: Record<string, string> = { project: projectId };
-        params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
-          existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
-        );
-        const body: Record<string, unknown> = {};
-        if (g["annotations"] !== undefined) {
-          body["annotations"] = g["annotations"];
-        }
-        if (g["binaryAuthorization"] !== undefined) {
-          body["binaryAuthorization"] = g["binaryAuthorization"];
-        }
-        if (g["client"] !== undefined) body["client"] = g["client"];
-        if (g["clientVersion"] !== undefined) {
-          body["clientVersion"] = g["clientVersion"];
-        }
-        if (g["containers"] !== undefined) body["containers"] = g["containers"];
-        if (g["defaultUriDisabled"] !== undefined) {
-          body["defaultUriDisabled"] = g["defaultUriDisabled"];
-        }
-        if (g["description"] !== undefined) {
-          body["description"] = g["description"];
-        }
-        if (g["encryptionKey"] !== undefined) {
-          body["encryptionKey"] = g["encryptionKey"];
-        }
-        if (g["encryptionKeyRevocationAction"] !== undefined) {
-          body["encryptionKeyRevocationAction"] =
-            g["encryptionKeyRevocationAction"];
-        }
-        if (g["encryptionKeyShutdownDuration"] !== undefined) {
-          body["encryptionKeyShutdownDuration"] =
-            g["encryptionKeyShutdownDuration"];
-        }
-        if (g["gpuZonalRedundancyDisabled"] !== undefined) {
-          body["gpuZonalRedundancyDisabled"] = g["gpuZonalRedundancyDisabled"];
-        }
-        if (g["iapEnabled"] !== undefined) body["iapEnabled"] = g["iapEnabled"];
-        if (g["ingress"] !== undefined) body["ingress"] = g["ingress"];
-        if (g["invokerIamDisabled"] !== undefined) {
-          body["invokerIamDisabled"] = g["invokerIamDisabled"];
-        }
-        if (g["labels"] !== undefined) body["labels"] = g["labels"];
-        if (g["launchStage"] !== undefined) {
-          body["launchStage"] = g["launchStage"];
-        }
-        if (g["nodeSelector"] !== undefined) {
-          body["nodeSelector"] = g["nodeSelector"];
-        }
-        if (g["serviceAccount"] !== undefined) {
-          body["serviceAccount"] = g["serviceAccount"];
-        }
-        if (g["terminalCondition"] !== undefined) {
-          body["terminalCondition"] = g["terminalCondition"];
-        }
-        if (g["timeout"] !== undefined) body["timeout"] = g["timeout"];
-        if (g["volumes"] !== undefined) body["volumes"] = g["volumes"];
-        if (g["vpcAccess"] !== undefined) body["vpcAccess"] = g["vpcAccess"];
-        for (const key of Object.keys(existing)) {
-          if (
-            key === "fingerprint" || key === "labelFingerprint" ||
-            key === "etag" || key.endsWith("Fingerprint")
-          ) {
-            body[key] = existing[key];
-          }
-        }
-        const result = await updateResource(
-          BASE_URL,
-          PATCH_CONFIG,
-          params,
-          body,
-          GET_CONFIG,
-        ) as StateData;
-        const handle = await context.writeResource(
-          "state",
-          instanceName,
-          result,
-        );
-        return { dataHandles: [handle] };
-      },
-    },
     delete: {
       description: "Delete the instances",
       arguments: z.object({
@@ -1560,7 +1435,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -1605,7 +1480,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             shortName,
           );
           const result = await readResource(
@@ -1641,9 +1516,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1677,9 +1552,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }

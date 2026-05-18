@@ -315,25 +315,25 @@ const GlobalArgsSchema = z.object({
     "Optional. Labels as key value pairs",
   ).optional(),
   largeCapacity: z.boolean().describe(
-    "Optional. Flag indicating if the volume will be a large capacity volume or a regular volume. This field is used for legacy FILE pools. For Unified pools, use the `large_capacity_config` field instead. This field and `large_capacity_config` are mutually exclusive.",
+    "Optional. Flag indicating if the volume will be a large capacity volume or a regular volume.",
   ).optional(),
   largeCapacityConfig: z.object({
     constituentCount: z.number().int().describe(
       "Optional. The number of internal constituents (e.g., FlexVols) for this large volume. The minimum number of constituents is 2.",
     ).optional(),
   }).describe(
-    "Configuration for a Large Capacity Volume. A Large Capacity Volume supports sizes ranging from 4.8 TiB to 20 PiB; it is composed of multiple internal constituents, and must be created in a large capacity pool.",
+    "Configuration for a Large Capacity Volume. A Large Capacity Volume supports sizes ranging from 4.8 TiB to 20 PiB, it is composed of multiple internal constituents, and must be created in a large capacity pool.",
   ).optional(),
   multipleEndpoints: z.boolean().describe(
     "Optional. Flag indicating if the volume will have an IP address per node for volumes supporting multiple IP endpoints. Only the volume with large_capacity will be allowed to have multiple endpoints.",
   ).optional(),
   name: z.string().describe("Identifier. Name of the volume").optional(),
   protocols: z.array(
-    z.enum(["PROTOCOLS_UNSPECIFIED", "NFSV3", "NFSV4", "SMB", "ISCSI", "NVME"]),
+    z.enum(["PROTOCOLS_UNSPECIFIED", "NFSV3", "NFSV4", "SMB", "ISCSI"]),
   ).describe("Required. Protocols required for the volume").optional(),
   restoreParameters: z.object({
     sourceBackup: z.string().describe(
-      "Full name of the backup resource. Format for standard backup: projects/{project}/locations/{location}/backupVaults/{backup_vault_id}/backups/{backup_id}. Format for BackupDR backup: projects/{project}/locations/{location}/backupVaults/{backup_vault}/dataSources/{data_source}/backups/{backup}",
+      "Full name of the backup resource. Format for standard backup: projects/{project}/locations/{location}/backupVaults/{backup_vault_id}/backups/{backup_id} Format for BackupDR backup: projects/{project}/locations/{location}/backupVaults/{backup_vault}/dataSources/{data_source}/backups/{backup}",
     ).optional(),
     sourceSnapshot: z.string().describe(
       "Full name of the snapshot resource. Format: projects/{project}/locations/{location}/volumes/{volume}/snapshots/{snapshot}",
@@ -821,25 +821,25 @@ const InputsSchema = z.object({
     "Optional. Labels as key value pairs",
   ).optional(),
   largeCapacity: z.boolean().describe(
-    "Optional. Flag indicating if the volume will be a large capacity volume or a regular volume. This field is used for legacy FILE pools. For Unified pools, use the `large_capacity_config` field instead. This field and `large_capacity_config` are mutually exclusive.",
+    "Optional. Flag indicating if the volume will be a large capacity volume or a regular volume.",
   ).optional(),
   largeCapacityConfig: z.object({
     constituentCount: z.number().int().describe(
       "Optional. The number of internal constituents (e.g., FlexVols) for this large volume. The minimum number of constituents is 2.",
     ).optional(),
   }).describe(
-    "Configuration for a Large Capacity Volume. A Large Capacity Volume supports sizes ranging from 4.8 TiB to 20 PiB; it is composed of multiple internal constituents, and must be created in a large capacity pool.",
+    "Configuration for a Large Capacity Volume. A Large Capacity Volume supports sizes ranging from 4.8 TiB to 20 PiB, it is composed of multiple internal constituents, and must be created in a large capacity pool.",
   ).optional(),
   multipleEndpoints: z.boolean().describe(
     "Optional. Flag indicating if the volume will have an IP address per node for volumes supporting multiple IP endpoints. Only the volume with large_capacity will be allowed to have multiple endpoints.",
   ).optional(),
   name: z.string().describe("Identifier. Name of the volume").optional(),
   protocols: z.array(
-    z.enum(["PROTOCOLS_UNSPECIFIED", "NFSV3", "NFSV4", "SMB", "ISCSI", "NVME"]),
+    z.enum(["PROTOCOLS_UNSPECIFIED", "NFSV3", "NFSV4", "SMB", "ISCSI"]),
   ).describe("Required. Protocols required for the volume").optional(),
   restoreParameters: z.object({
     sourceBackup: z.string().describe(
-      "Full name of the backup resource. Format for standard backup: projects/{project}/locations/{location}/backupVaults/{backup_vault_id}/backups/{backup_id}. Format for BackupDR backup: projects/{project}/locations/{location}/backupVaults/{backup_vault}/dataSources/{data_source}/backups/{backup}",
+      "Full name of the backup resource. Format for standard backup: projects/{project}/locations/{location}/backupVaults/{backup_vault_id}/backups/{backup_id} Format for BackupDR backup: projects/{project}/locations/{location}/backupVaults/{backup_vault}/dataSources/{data_source}/backups/{backup}",
     ).optional(),
     sourceSnapshot: z.string().describe(
       "Full name of the snapshot resource. Format: projects/{project}/locations/{location}/volumes/{volume}/snapshots/{snapshot}",
@@ -964,7 +964,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud NetApp Volumes. Registered at `@swamp/gcp/netapp/volumes`. */
 export const model = {
   type: "@swamp/gcp/netapp/volumes",
-  version: "2026.05.14.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1019,6 +1019,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1042,7 +1047,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (g["backupConfig"] !== undefined) {
           body["backupConfig"] = g["backupConfig"];
@@ -1119,9 +1126,9 @@ export const model = {
           body["unixPermissions"] = g["unixPermissions"];
         }
         if (g["volumeId"] !== undefined) body["volumeId"] = g["volumeId"];
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1159,7 +1166,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const result = await readResource(
@@ -1205,7 +1212,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
@@ -1322,7 +1329,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -1367,7 +1374,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             shortName,
           );
           const result = await readResource(
@@ -1405,9 +1412,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1450,9 +1457,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1486,9 +1493,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }

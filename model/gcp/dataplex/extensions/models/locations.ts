@@ -62,7 +62,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dataplex Locations. Registered at `@swamp/gcp/dataplex/locations`. */
 export const model = {
   type: "@swamp/gcp/dataplex/locations",
-  version: "2026.05.14.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -101,6 +101,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -197,7 +202,6 @@ export const model = {
     lookup_context: {
       description: "lookup context",
       arguments: z.object({
-        context: z.any().optional(),
         options: z.any().optional(),
         resources: z.any().optional(),
       }),
@@ -207,7 +211,6 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         if (g["name"] !== undefined) params["name"] = String(g["name"]);
         const body: Record<string, unknown> = {};
-        if (args["context"] !== undefined) body["context"] = args["context"];
         if (args["options"] !== undefined) body["options"] = args["options"];
         if (args["resources"] !== undefined) {
           body["resources"] = args["resources"];
@@ -282,45 +285,6 @@ export const model = {
           },
           params,
           {},
-        );
-        return { result };
-      },
-    },
-    modify_entry: {
-      description: "modify entry",
-      arguments: z.object({
-        aspectKeys: z.any().optional(),
-        deleteMissingAspects: z.any().optional(),
-        entry: z.any().optional(),
-        updateMask: z.any().optional(),
-      }),
-      execute: async (args: Record<string, unknown>, context: any) => {
-        const g = context.globalArgs;
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
-        if (g["name"] !== undefined) params["name"] = String(g["name"]);
-        const body: Record<string, unknown> = {};
-        if (args["aspectKeys"] !== undefined) {
-          body["aspectKeys"] = args["aspectKeys"];
-        }
-        if (args["deleteMissingAspects"] !== undefined) {
-          body["deleteMissingAspects"] = args["deleteMissingAspects"];
-        }
-        if (args["entry"] !== undefined) body["entry"] = args["entry"];
-        if (args["updateMask"] !== undefined) {
-          body["updateMask"] = args["updateMask"];
-        }
-        const result = await createResource(
-          BASE_URL,
-          {
-            "id": "dataplex.projects.locations.modifyEntry",
-            "path": "v1/{+name}:modifyEntry",
-            "httpMethod": "POST",
-            "parameterOrder": ["name"],
-            "parameters": { "name": { "location": "path", "required": true } },
-          },
-          params,
-          body,
         );
         return { result };
       },

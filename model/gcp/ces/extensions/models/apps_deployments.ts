@@ -166,29 +166,6 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   displayName: z.string().describe("Required. Display name of the deployment.")
     .optional(),
-  experimentConfig: z.object({
-    versionRelease: z.object({
-      state: z.enum([
-        "STATE_UNSPECIFIED",
-        "PENDING",
-        "RUNNING",
-        "DONE",
-        "EXPIRED",
-      ]).describe("Optional. State of the version release.").optional(),
-      trafficAllocations: z.array(z.object({
-        appVersion: z.string().describe(
-          "Optional. App version of the traffic allocation. Format: `projects/{project}/locations/{location}/apps/{app}/versions/{version}`",
-        ).optional(),
-        id: z.string().describe(
-          "Optional. Id of the traffic allocation. Free format string, up to 128 characters.",
-        ).optional(),
-        trafficPercentage: z.number().int().describe(
-          "Optional. Traffic percentage of the traffic allocation. Must be between 0 and 100.",
-        ).optional(),
-      })).describe("Optional. Traffic allocations for the version release.")
-        .optional(),
-    }).describe("Version release for the experiment.").optional(),
-  }).describe("Experiment for the deployment.").optional(),
   name: z.string().describe(
     "Identifier. The resource name of the deployment. Format: `projects/{project}/locations/{location}/apps/{app}/deployments/{deployment}`",
   ).optional(),
@@ -226,16 +203,6 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   displayName: z.string().optional(),
   etag: z.string().optional(),
-  experimentConfig: z.object({
-    versionRelease: z.object({
-      state: z.string(),
-      trafficAllocations: z.array(z.object({
-        appVersion: z.string(),
-        id: z.string(),
-        trafficPercentage: z.number(),
-      })),
-    }),
-  }).optional(),
   name: z.string(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -308,29 +275,6 @@ const InputsSchema = z.object({
   ).optional(),
   displayName: z.string().describe("Required. Display name of the deployment.")
     .optional(),
-  experimentConfig: z.object({
-    versionRelease: z.object({
-      state: z.enum([
-        "STATE_UNSPECIFIED",
-        "PENDING",
-        "RUNNING",
-        "DONE",
-        "EXPIRED",
-      ]).describe("Optional. State of the version release.").optional(),
-      trafficAllocations: z.array(z.object({
-        appVersion: z.string().describe(
-          "Optional. App version of the traffic allocation. Format: `projects/{project}/locations/{location}/apps/{app}/versions/{version}`",
-        ).optional(),
-        id: z.string().describe(
-          "Optional. Id of the traffic allocation. Free format string, up to 128 characters.",
-        ).optional(),
-        trafficPercentage: z.number().int().describe(
-          "Optional. Traffic percentage of the traffic allocation. Must be between 0 and 100.",
-        ).optional(),
-      })).describe("Optional. Traffic allocations for the version release.")
-        .optional(),
-    }).describe("Version release for the experiment.").optional(),
-  }).describe("Experiment for the deployment.").optional(),
   name: z.string().describe(
     "Identifier. The resource name of the deployment. Format: `projects/{project}/locations/{location}/apps/{app}/deployments/{deployment}`",
   ).optional(),
@@ -345,7 +289,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Deployments. Registered at `@swamp/gcp/ces/apps-deployments`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-deployments",
-  version: "2026.04.23.2",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -382,6 +326,14 @@ export const model = {
       description: "Added: experimentConfig",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Removed: experimentConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { experimentConfig: _experimentConfig, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -402,7 +354,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (g["appVersion"] !== undefined) body["appVersion"] = g["appVersion"];
         if (g["channelProfile"] !== undefined) {
@@ -411,16 +365,13 @@ export const model = {
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
         }
-        if (g["experimentConfig"] !== undefined) {
-          body["experimentConfig"] = g["experimentConfig"];
-        }
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["deploymentId"] !== undefined) {
           body["deploymentId"] = g["deploymentId"];
         }
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -451,7 +402,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const result = await readResource(
@@ -493,7 +444,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
@@ -503,9 +454,6 @@ export const model = {
         }
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
-        }
-        if (g["experimentConfig"] !== undefined) {
-          body["experimentConfig"] = g["experimentConfig"];
         }
         for (const key of Object.keys(existing)) {
           if (
@@ -540,7 +488,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -585,7 +533,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             shortName,
           );
           const result = await readResource(

@@ -128,9 +128,6 @@ const GlobalArgsSchema = z.object({
     totalBytesFound: z.string().describe(
       "Output only. Number of bytes found from source. This field is only populated for jobs with a prefix list object configuration.",
     ).optional(),
-    totalBytesTransformed: z.string().describe(
-      "Output only. The total number of bytes affected by the transformation. For example, this counts bytes deleted for `DeleteObject` operations and bytes rewritten for `RewriteObject` operations.",
-    ).optional(),
     totalObjectCount: z.string().describe(
       "Output only. Number of objects listed.",
     ).optional(),
@@ -257,7 +254,6 @@ const StateSchema = z.object({
     objectCustomContextsUpdated: z.string(),
     succeededObjectCount: z.string(),
     totalBytesFound: z.string(),
-    totalBytesTransformed: z.string(),
     totalObjectCount: z.string(),
   }).optional(),
   createTime: z.string().optional(),
@@ -353,9 +349,6 @@ const InputsSchema = z.object({
     ).optional(),
     totalBytesFound: z.string().describe(
       "Output only. Number of bytes found from source. This field is only populated for jobs with a prefix list object configuration.",
-    ).optional(),
-    totalBytesTransformed: z.string().describe(
-      "Output only. The total number of bytes affected by the transformation. For example, this counts bytes deleted for `DeleteObject` operations and bytes rewritten for `RewriteObject` operations.",
     ).optional(),
     totalObjectCount: z.string().describe(
       "Output only. Number of objects listed.",
@@ -466,7 +459,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Storage Batch Operations Jobs. Registered at `@swamp/gcp/storagebatchoperations/jobs`. */
 export const model = {
   type: "@swamp/gcp/storagebatchoperations/jobs",
-  version: "2026.05.05.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -518,6 +511,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -541,7 +539,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (g["bucketList"] !== undefined) body["bucketList"] = g["bucketList"];
         if (g["counters"] !== undefined) body["counters"] = g["counters"];
@@ -570,9 +570,9 @@ export const model = {
         }
         if (g["jobId"] !== undefined) body["jobId"] = g["jobId"];
         if (g["requestId"] !== undefined) body["requestId"] = g["requestId"];
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -610,7 +610,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const result = await readResource(
@@ -641,7 +641,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -686,7 +686,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             shortName,
           );
           const result = await readResource(
@@ -721,9 +721,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }

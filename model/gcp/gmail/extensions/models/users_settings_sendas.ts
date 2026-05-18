@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud Gmail Users.Settings.SendAs.
  *
- * Settings associated with a send-as alias, which can be either the primary login address associated with the account or a custom "from" address. Send-as aliases correspond to the "Send Mail As" feature in the web interface. The send-as alias must be a valid email address.
+ * Settings associated with a send-as alias, which can be either the primary login address associated with the account or a custom "from" address. Send-as aliases correspond to the "Send Mail As" feature in the web interface.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -230,7 +230,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gmail Users.Settings.SendAs. Registered at `@swamp/gcp/gmail/users-settings-sendas`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-settings-sendas",
-  version: "2026.05.01.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -264,6 +264,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

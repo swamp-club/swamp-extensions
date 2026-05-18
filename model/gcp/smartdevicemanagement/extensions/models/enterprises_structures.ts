@@ -53,6 +53,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  ghpName: z.string().optional(),
   name: z.string(),
   traits: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
@@ -69,7 +70,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Smart Device Management Enterprises.Structures. Registered at `@swamp/gcp/smartdevicemanagement/enterprises-structures`. */
 export const model = {
   type: "@swamp/gcp/smartdevicemanagement/enterprises-structures",
-  version: "2026.05.01.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -103,6 +104,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

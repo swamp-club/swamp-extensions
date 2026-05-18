@@ -127,7 +127,7 @@ const GlobalArgsSchema = z.object({
     "Optional. Flag indicating if the pool is NFS LDAP enabled or not.",
   ).optional(),
   mode: z.enum(["MODE_UNSPECIFIED", "DEFAULT", "ONTAP"]).describe(
-    "Optional. Mode of the storage pool. This field is used to control whether the user can perform ONTAP operations on the storage pool using the GCNV ONTAP Mode APIs. If not specified during creation, it defaults to `DEFAULT`.",
+    "Optional. Mode of the storage pool. This field is used to control whether the user can perform the ONTAP operations on the storage pool using the GCNV ONTAP Mode APIs. If not specified during creation, it defaults to `DEFAULT`.",
   ).optional(),
   name: z.string().describe("Identifier. Name of the storage pool").optional(),
   network: z.string().describe(
@@ -170,6 +170,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   storagePoolId: z.string().describe(
     "Required. Id of the requesting storage pool. Must be unique within the parent resource. Must contain only letters, numbers and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum.",
+  ).optional(),
+  location: z.string().describe(
+    "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
 });
 
@@ -242,7 +245,7 @@ const InputsSchema = z.object({
     "Optional. Flag indicating if the pool is NFS LDAP enabled or not.",
   ).optional(),
   mode: z.enum(["MODE_UNSPECIFIED", "DEFAULT", "ONTAP"]).describe(
-    "Optional. Mode of the storage pool. This field is used to control whether the user can perform ONTAP operations on the storage pool using the GCNV ONTAP Mode APIs. If not specified during creation, it defaults to `DEFAULT`.",
+    "Optional. Mode of the storage pool. This field is used to control whether the user can perform the ONTAP operations on the storage pool using the GCNV ONTAP Mode APIs. If not specified during creation, it defaults to `DEFAULT`.",
   ).optional(),
   name: z.string().describe("Identifier. Name of the storage pool").optional(),
   network: z.string().describe(
@@ -286,12 +289,15 @@ const InputsSchema = z.object({
   storagePoolId: z.string().describe(
     "Required. Id of the requesting storage pool. Must be unique within the parent resource. Must contain only letters, numbers and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum.",
   ).optional(),
+  location: z.string().describe(
+    "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
+  ).optional(),
 });
 
 /** Swamp extension model for Google Cloud NetApp StoragePools. Registered at `@swamp/gcp/netapp/storagepools`. */
 export const model = {
   type: "@swamp/gcp/netapp/storagepools",
-  version: "2026.05.14.1",
+  version: "2026.05.18.2",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -346,6 +352,16 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.2",
+      description: "Added: location",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -370,7 +386,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (g["activeDirectory"] !== undefined) {
           body["activeDirectory"] = g["activeDirectory"];
@@ -419,9 +437,9 @@ export const model = {
         if (g["storagePoolId"] !== undefined) {
           body["storagePoolId"] = g["storagePoolId"];
         }
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -459,7 +477,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const result = await readResource(
@@ -505,7 +523,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
@@ -590,7 +608,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -635,7 +653,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             shortName,
           );
           const result = await readResource(
@@ -668,9 +686,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -698,9 +716,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }

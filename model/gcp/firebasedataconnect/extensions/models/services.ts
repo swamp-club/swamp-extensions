@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud Firebase Data Connect Services.
  *
- * A Firebase SQL Connect service.
+ * A Firebase Data Connect service.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -138,7 +138,7 @@ const GlobalArgsSchema = z.object({
     "Optional. Labels as key value pairs.",
   ).optional(),
   name: z.string().describe(
-    "Identifier. The relative resource name of the Firebase SQL Connect service, in the format: ` projects/{project}/locations/{location}/services/{service} ` Note that the service ID is specific to Firebase SQL Connect and does not correspond to any of the instance IDs of the underlying data source connections.",
+    "Identifier. The relative resource name of the Firebase Data Connect service, in the format: ` projects/{project}/locations/{location}/services/{service} ` Note that the service ID is specific to Firebase Data Connect and does not correspond to any of the instance IDs of the underlying data source connections.",
   ).optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -176,7 +176,7 @@ const InputsSchema = z.object({
     "Optional. Labels as key value pairs.",
   ).optional(),
   name: z.string().describe(
-    "Identifier. The relative resource name of the Firebase SQL Connect service, in the format: ` projects/{project}/locations/{location}/services/{service} ` Note that the service ID is specific to Firebase SQL Connect and does not correspond to any of the instance IDs of the underlying data source connections.",
+    "Identifier. The relative resource name of the Firebase Data Connect service, in the format: ` projects/{project}/locations/{location}/services/{service} ` Note that the service ID is specific to Firebase Data Connect and does not correspond to any of the instance IDs of the underlying data source connections.",
   ).optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -192,7 +192,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Firebase Data Connect Services. Registered at `@swamp/gcp/firebasedataconnect/services`. */
 export const model = {
   type: "@swamp/gcp/firebasedataconnect/services",
-  version: "2026.05.09.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -234,12 +234,17 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "A Firebase SQL Connect service.",
+      description: "A Firebase Data Connect service.",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -253,7 +258,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (g["annotations"] !== undefined) {
           body["annotations"] = g["annotations"];
@@ -265,9 +272,9 @@ export const model = {
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["requestId"] !== undefined) body["requestId"] = g["requestId"];
         if (g["serviceId"] !== undefined) body["serviceId"] = g["serviceId"];
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -298,7 +305,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const result = await readResource(
@@ -340,7 +347,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
@@ -384,7 +391,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -429,7 +436,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             shortName,
           );
           const result = await readResource(
@@ -467,9 +474,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -512,9 +519,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -545,74 +552,6 @@ export const model = {
         return { result };
       },
     },
-    generate_query: {
-      description: "generate query",
-      arguments: z.object({
-        prompt: z.any().optional(),
-        schemas: z.any().optional(),
-      }),
-      execute: async (args: Record<string, unknown>, context: any) => {
-        const g = context.globalArgs;
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
-          params["name"] = buildResourceName(
-            String(g["parent"]),
-            String(g["name"]),
-          );
-        }
-        const body: Record<string, unknown> = {};
-        if (args["prompt"] !== undefined) body["prompt"] = args["prompt"];
-        if (args["schemas"] !== undefined) body["schemas"] = args["schemas"];
-        const result = await createResource(
-          BASE_URL,
-          {
-            "id":
-              "firebasedataconnect.projects.locations.services.generateQuery",
-            "path": "v1/{+name}:generateQuery",
-            "httpMethod": "POST",
-            "parameterOrder": ["name"],
-            "parameters": { "name": { "location": "path", "required": true } },
-          },
-          params,
-          body,
-        );
-        return { result };
-      },
-    },
-    generate_schema: {
-      description: "generate schema",
-      arguments: z.object({
-        prompt: z.any().optional(),
-      }),
-      execute: async (args: Record<string, unknown>, context: any) => {
-        const g = context.globalArgs;
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
-          params["name"] = buildResourceName(
-            String(g["parent"]),
-            String(g["name"]),
-          );
-        }
-        const body: Record<string, unknown> = {};
-        if (args["prompt"] !== undefined) body["prompt"] = args["prompt"];
-        const result = await createResource(
-          BASE_URL,
-          {
-            "id":
-              "firebasedataconnect.projects.locations.services.generateSchema",
-            "path": "v1/{+name}:generateSchema",
-            "httpMethod": "POST",
-            "parameterOrder": ["name"],
-            "parameters": { "name": { "location": "path", "required": true } },
-          },
-          params,
-          body,
-        );
-        return { result };
-      },
-    },
     introspect_graphql: {
       description: "introspect graphql",
       arguments: z.object({
@@ -625,9 +564,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }

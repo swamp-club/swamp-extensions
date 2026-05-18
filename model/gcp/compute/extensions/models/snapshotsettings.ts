@@ -64,19 +64,6 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  accessLocation: z.object({
-    locations: z.record(
-      z.string(),
-      z.object({
-        region: z.string().describe("Accessible region name").optional(),
-      }),
-    ).describe(
-      "List of regions that can restore a regional snapshot from the current region",
-    ).optional(),
-    policy: z.enum(["ALL_REGIONS", "POLICY_UNSPECIFIED", "SPECIFIC_REGIONS"])
-      .describe("Policy of which location is allowed to access snapshot.")
-      .optional(),
-  }).optional(),
   storageLocation: z.object({
     locations: z.record(
       z.string(),
@@ -98,10 +85,6 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  accessLocation: z.object({
-    locations: z.record(z.string(), z.unknown()),
-    policy: z.string(),
-  }).optional(),
   storageLocation: z.object({
     locations: z.record(z.string(), z.unknown()),
     policy: z.string(),
@@ -112,19 +95,6 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
-  accessLocation: z.object({
-    locations: z.record(
-      z.string(),
-      z.object({
-        region: z.string().describe("Accessible region name").optional(),
-      }),
-    ).describe(
-      "List of regions that can restore a regional snapshot from the current region",
-    ).optional(),
-    policy: z.enum(["ALL_REGIONS", "POLICY_UNSPECIFIED", "SPECIFIC_REGIONS"])
-      .describe("Policy of which location is allowed to access snapshot.")
-      .optional(),
-  }).optional(),
   storageLocation: z.object({
     locations: z.record(
       z.string(),
@@ -148,7 +118,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine SnapshotSettings. Registered at `@swamp/gcp/compute/snapshotsettings`. */
 export const model = {
   type: "@swamp/gcp/compute/snapshotsettings",
-  version: "2026.04.23.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -197,6 +167,14 @@ export const model = {
       toVersion: "2026.04.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Removed: accessLocation",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { accessLocation: _accessLocation, ...rest } = old;
+        return rest;
+      },
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -248,9 +226,6 @@ export const model = {
         ).replace(/\.\./g, "_").replace(/\0/g, "");
         const params: Record<string, string> = { project: projectId };
         const body: Record<string, unknown> = {};
-        if (g["accessLocation"] !== undefined) {
-          body["accessLocation"] = g["accessLocation"];
-        }
         if (g["storageLocation"] !== undefined) {
           body["storageLocation"] = g["storageLocation"];
         }

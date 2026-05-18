@@ -108,10 +108,7 @@ const DELETE_CONFIG = {
 
 const GlobalArgsSchema = z.object({
   adminPassword: z.string().describe(
-    "Optional. Immutable. The password for the default ADMIN user. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
-  ).optional(),
-  adminPasswordSecretVersion: z.string().describe(
-    "Optional. Immutable. The resource name of a secret version in Secret Manager which contains the database admin user's password. Format: projects/{project}/secrets/{secret}/versions/{version}. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
+    "Optional. Immutable. The password for the default ADMIN user.",
   ).optional(),
   cidr: z.string().describe(
     "Optional. Immutable. The subnet CIDR range for the Autonomous Database.",
@@ -397,7 +394,6 @@ const GlobalArgsSchema = z.object({
       "LOCAL_DISASTER_RECOVERY_TYPE_UNSPECIFIED",
       "ADG",
       "BACKUP_BASED",
-      "NOT_AVAILABLE",
     ]).describe(
       "Output only. This field indicates the local disaster recovery (DR) type of an Autonomous Database.",
     ).optional(),
@@ -647,7 +643,6 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   adminPassword: z.string().optional(),
-  adminPasswordSecretVersion: z.string().optional(),
   cidr: z.string().optional(),
   createTime: z.string().optional(),
   database: z.string().optional(),
@@ -801,10 +796,7 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   adminPassword: z.string().describe(
-    "Optional. Immutable. The password for the default ADMIN user. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
-  ).optional(),
-  adminPasswordSecretVersion: z.string().describe(
-    "Optional. Immutable. The resource name of a secret version in Secret Manager which contains the database admin user's password. Format: projects/{project}/secrets/{secret}/versions/{version}. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
+    "Optional. Immutable. The password for the default ADMIN user.",
   ).optional(),
   cidr: z.string().describe(
     "Optional. Immutable. The subnet CIDR range for the Autonomous Database.",
@@ -1090,7 +1082,6 @@ const InputsSchema = z.object({
       "LOCAL_DISASTER_RECOVERY_TYPE_UNSPECIFIED",
       "ADG",
       "BACKUP_BASED",
-      "NOT_AVAILABLE",
     ]).describe(
       "Output only. This field indicates the local disaster recovery (DR) type of an Autonomous Database.",
     ).optional(),
@@ -1341,7 +1332,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud AutonomousDatabases. Registered at `@swamp/gcp/oracledatabase/autonomousdatabases`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/autonomousdatabases",
-  version: "2026.04.23.1",
+  version: "2026.05.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1383,6 +1374,17 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.18.1",
+      description: "Removed: adminPasswordSecretVersion",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          adminPasswordSecretVersion: _adminPasswordSecretVersion,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1403,13 +1405,12 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         const body: Record<string, unknown> = {};
         if (g["adminPassword"] !== undefined) {
           body["adminPassword"] = g["adminPassword"];
-        }
-        if (g["adminPasswordSecretVersion"] !== undefined) {
-          body["adminPasswordSecretVersion"] = g["adminPasswordSecretVersion"];
         }
         if (g["cidr"] !== undefined) body["cidr"] = g["cidr"];
         if (g["database"] !== undefined) body["database"] = g["database"];
@@ -1429,9 +1430,9 @@ export const model = {
           body["autonomousDatabaseId"] = g["autonomousDatabaseId"];
         }
         if (g["requestId"] !== undefined) body["requestId"] = g["requestId"];
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1462,7 +1463,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const result = await readResource(
@@ -1504,7 +1505,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
@@ -1546,7 +1547,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -1591,7 +1592,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             shortName,
           );
           const result = await readResource(
@@ -1626,9 +1627,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1663,9 +1664,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1698,9 +1699,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1729,9 +1730,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1762,9 +1763,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1790,9 +1791,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
@@ -1820,9 +1821,9 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined && g["name"] !== undefined) {
+        if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            String(g["parent"]),
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
         }
