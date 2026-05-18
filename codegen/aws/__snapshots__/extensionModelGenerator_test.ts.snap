@@ -16,7 +16,7 @@ snapshot[`generateAwsExtensionModel - all handlers, natural name 1`] = `
  */
 
 import { z } from "npm:zod@4.3.6";
-import { createResource, isResourceNotFoundError, readResource, updateResource, deleteResource } from "./_lib/aws.ts";
+import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from "./_lib/aws.ts";
 
 const GlobalArgsSchema = z.object({
   BucketName: z.string().describe("The name of the S3 bucket"),
@@ -162,7 +162,7 @@ snapshot[`generateAwsExtensionModel - synthetic name 1`] = `
  */
 
 import { z } from "npm:zod@4.3.6";
-import { createResource, isResourceNotFoundError, readResource, updateResource, deleteResource } from "./_lib/aws.ts";
+import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from "./_lib/aws.ts";
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),
@@ -315,7 +315,7 @@ snapshot[`generateAwsExtensionModel - composite primary identifier 1`] = `
  */
 
 import { z } from "npm:zod@4.3.6";
-import { createResource, isResourceNotFoundError, readResource, updateResource, deleteResource } from "./_lib/aws.ts";
+import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from "./_lib/aws.ts";
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),
@@ -470,7 +470,7 @@ snapshot[`generateAwsExtensionModel - createOnly properties filtered in update 1
  */
 
 import { z } from "npm:zod@4.3.6";
-import { createResource, isResourceNotFoundError, readResource, updateResource, deleteResource } from "./_lib/aws.ts";
+import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from "./_lib/aws.ts";
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),
@@ -623,7 +623,7 @@ snapshot[`generateAwsExtensionModel - read-only resource (no update, no delete) 
  */
 
 import { z } from "npm:zod@4.3.6";
-import { createResource, isResourceNotFoundError, readResource } from "./_lib/aws.ts";
+import { isResourceNotFoundError, readResource, createResource } from "./_lib/aws.ts";
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),
@@ -734,7 +734,7 @@ snapshot[`generateAwsExtensionModel - extracted schemas and StateSchema collisio
  */
 
 import { z } from "npm:zod@4.3.6";
-import { createResource, isResourceNotFoundError, readResource, deleteResource } from "./_lib/aws.ts";
+import { isResourceNotFoundError, readResource, createResource, deleteResource } from "./_lib/aws.ts";
 
 const StateSchema = z.object({
   Memory: z.string().optional(),
@@ -864,7 +864,7 @@ snapshot[`generateAwsExtensionModel - with upgrades block 1`] = `
  */
 
 import { z } from "npm:zod@4.3.6";
-import { createResource, isResourceNotFoundError, readResource, updateResource, deleteResource } from "./_lib/aws.ts";
+import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from "./_lib/aws.ts";
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),

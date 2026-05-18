@@ -119,7 +119,8 @@ const StateSchema = z.object({
   VpcId: z.string().optional(),
   RouteTableIds: z.array(z.string()).optional(),
   ServiceName: z.string().optional(),
-  PolicyDocument: z.string().optional(),
+  PolicyDocument: z.union([z.string(), z.record(z.string(), z.unknown())])
+    .optional(),
   VpcEndpointType: z.string().optional(),
   Id: z.string(),
   Tags: z.array(TagSchema).optional(),
@@ -197,7 +198,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for EC2 VPCEndpoint. Registered at `@swamp/aws/ec2/vpcendpoint`. */
 export const model = {
   type: "@swamp/aws/ec2/vpcendpoint",
-  version: "2026.04.23.2",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -221,6 +222,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

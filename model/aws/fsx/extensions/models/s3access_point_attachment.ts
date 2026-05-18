@@ -134,7 +134,7 @@ const StateSchema = z.object({
     ResourceARN: z.string(),
     Alias: z.string(),
     VpcConfiguration: S3AccessPointVpcConfigurationSchema,
-    Policy: z.string(),
+    Policy: z.union([z.string(), z.record(z.string(), z.unknown())]),
   }).optional(),
   Lifecycle: z.string().optional(),
 }).passthrough();
@@ -185,7 +185,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for FSx S3AccessPointAttachment. Registered at `@swamp/aws/fsx/s3access-point-attachment`. */
 export const model = {
   type: "@swamp/aws/fsx/s3access-point-attachment",
-  version: "2026.04.23.2",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -214,6 +214,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

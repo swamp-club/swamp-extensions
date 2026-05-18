@@ -53,7 +53,8 @@ const StateSchema = z.object({
   Groups: z.array(z.string()).optional(),
   ManagedPolicyName: z.string().optional(),
   Path: z.string().optional(),
-  PolicyDocument: z.string().optional(),
+  PolicyDocument: z.union([z.string(), z.record(z.string(), z.unknown())])
+    .optional(),
   Roles: z.array(z.string()).optional(),
   Users: z.array(z.string()).optional(),
   PolicyArn: z.string(),
@@ -96,7 +97,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for IAM ManagedPolicy. Registered at `@swamp/aws/iam/managed-policy`. */
 export const model = {
   type: "@swamp/aws/iam/managed-policy",
-  version: "2026.04.23.2",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -120,6 +121,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

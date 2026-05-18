@@ -99,7 +99,8 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   Enabled: z.boolean().optional(),
   EnableKeyRotation: z.boolean().optional(),
-  KeyPolicy: z.string().optional(),
+  KeyPolicy: z.union([z.string(), z.record(z.string(), z.unknown())])
+    .optional(),
   KeyUsage: z.string().optional(),
   Origin: z.string().optional(),
   KeySpec: z.string().optional(),
@@ -180,7 +181,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for KMS Key. Registered at `@swamp/aws/kms/key`. */
 export const model = {
   type: "@swamp/aws/kms/key",
-  version: "2026.04.23.2",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -204,6 +205,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

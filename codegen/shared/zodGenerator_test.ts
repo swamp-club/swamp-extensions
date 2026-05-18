@@ -398,10 +398,10 @@ Deno.test("generateZodSchemas - maxDepth truncates at specified depth", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 14. Unit test: JSON type coerced to string
+// 14. Unit test: JSON type — string for inputs, union for resource state
 // ---------------------------------------------------------------------------
 
-Deno.test("generateZodSchemas - json type coerced to string", () => {
+Deno.test("generateZodSchemas - json type: string for inputs, union for resource state", () => {
   const props: Record<string, CfProperty> = {
     PolicyDocument: { type: "json" } as unknown as CfProperty,
   };
@@ -416,13 +416,17 @@ Deno.test("generateZodSchemas - json type coerced to string", () => {
     makeOnlyProperties(),
   );
 
-  // Both input and resource schemas should produce z.string() for "json" type
+  // Input schema keeps z.string() — users supply JSON as a string
   assertEquals(result.inputSchemaBody.includes("z.string()"), true);
-  assertEquals(result.resourceSchemaBody.includes("z.string()"), true);
+  assertEquals(result.inputSchemaBody.includes("z.record"), false);
 
-  // Should not contain z.object or z.record for a json property
-  assertEquals(result.inputSchemaBody.includes("z.object"), false);
-  assertEquals(result.resourceSchemaBody.includes("z.object"), false);
+  // Resource schema uses a union — AWS CloudControl returns parsed objects
+  assertEquals(
+    result.resourceSchemaBody.includes(
+      "z.union([z.string(), z.record(z.string(), z.unknown())])",
+    ),
+    true,
+  );
 
   // No extracted schemas for a simple json property
   assertEquals(result.extractedSchemas.length, 0);

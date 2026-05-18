@@ -104,7 +104,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   DocumentFormat: z.string().optional(),
   Requires: z.array(DocumentRequiresSchema).optional(),
-  Content: z.string().optional(),
+  Content: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
   TargetType: z.string().optional(),
   DocumentType: z.string().optional(),
   VersionName: z.string().optional(),
@@ -167,7 +167,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SSM Document. Registered at `@swamp/aws/ssm/document`. */
 export const model = {
   type: "@swamp/aws/ssm/document",
-  version: "2026.04.23.2",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -191,6 +191,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

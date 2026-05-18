@@ -58,13 +58,17 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Arn: z.string(),
-  ReplayPolicy: z.string().optional(),
+  ReplayPolicy: z.union([z.string(), z.record(z.string(), z.unknown())])
+    .optional(),
   RawMessageDelivery: z.boolean().optional(),
   Endpoint: z.string().optional(),
-  FilterPolicy: z.string().optional(),
+  FilterPolicy: z.union([z.string(), z.record(z.string(), z.unknown())])
+    .optional(),
   TopicArn: z.string().optional(),
-  RedrivePolicy: z.string().optional(),
-  DeliveryPolicy: z.string().optional(),
+  RedrivePolicy: z.union([z.string(), z.record(z.string(), z.unknown())])
+    .optional(),
+  DeliveryPolicy: z.union([z.string(), z.record(z.string(), z.unknown())])
+    .optional(),
   Region: z.string().optional(),
   SubscriptionRoleArn: z.string().optional(),
   FilterPolicyScope: z.string().optional(),
@@ -110,7 +114,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SNS Subscription. Registered at `@swamp/aws/sns/subscription`. */
 export const model = {
   type: "@swamp/aws/sns/subscription",
-  version: "2026.04.23.2",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -134,6 +138,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

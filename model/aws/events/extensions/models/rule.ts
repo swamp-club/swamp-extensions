@@ -197,7 +197,8 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   EventBusName: z.string().optional(),
-  EventPattern: z.string().optional(),
+  EventPattern: z.union([z.string(), z.record(z.string(), z.unknown())])
+    .optional(),
   ScheduleExpression: z.string().optional(),
   Description: z.string().optional(),
   State: z.string().optional(),
@@ -241,7 +242,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Events Rule. Registered at `@swamp/aws/events/rule`. */
 export const model = {
   type: "@swamp/aws/events/rule",
-  version: "2026.04.23.2",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -265,6 +266,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

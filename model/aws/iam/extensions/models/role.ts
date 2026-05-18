@@ -71,7 +71,10 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Arn: z.string().optional(),
-  AssumeRolePolicyDocument: z.string().optional(),
+  AssumeRolePolicyDocument: z.union([
+    z.string(),
+    z.record(z.string(), z.unknown()),
+  ]).optional(),
   Description: z.string().optional(),
   ManagedPolicyArns: z.array(z.string()).optional(),
   MaxSessionDuration: z.number().optional(),
@@ -118,7 +121,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for IAM Role. Registered at `@swamp/aws/iam/role`. */
 export const model = {
   type: "@swamp/aws/iam/role",
-  version: "2026.04.23.2",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -142,6 +145,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

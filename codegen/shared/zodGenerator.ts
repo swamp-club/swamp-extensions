@@ -318,8 +318,11 @@ function generateSimplifiedZodForProperty(
       return { expression: "z.boolean()" };
 
     case "string":
-    case "json":
       return { expression: "z.string()" };
+    case "json":
+      return {
+        expression: "z.union([z.string(), z.record(z.string(), z.unknown())])",
+      };
 
     case "number":
     case "integer":

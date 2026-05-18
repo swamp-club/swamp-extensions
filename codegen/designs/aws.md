@@ -533,6 +533,31 @@ file-level lint ignore directive. Detection strips `.describe()` strings first
 to avoid false positives from documentation text that mentions control character
 ranges.
 
+### Property normalization: multi-type arrays (`json` type)
+
+CloudFormation schemas sometimes declare properties with multiple types, e.g.
+`type: ["string", "object"]` for policy documents that accept JSON strings on
+write but are returned as parsed objects on read. The normalizer
+(`codegen/shared/schema/normalize.ts`) collapses these to a single internal
+type:
+
+- `["string", "object"]` → `json`
+- `["string", "boolean"]` → `boolean`
+- `["string", "integer"]` → `integer`
+- `["string", "number"]` → `number`
+- `["string", "array"]` → `array`
+
+The `json` type is then emitted differently depending on the schema context:
+
+- **InputsSchema / GlobalArgsSchema** (write side): `z.string()` — users supply
+  JSON as a string when creating or updating resources.
+- **StateSchema** (read side):
+  `z.union([z.string(), z.record(z.string(), z.unknown())])` — AWS CloudControl
+  returns these properties as already-deserialized objects.
+
+This affects services like S3 (BucketPolicy), IAM (Role), SQS (Queue), SNS
+(Subscription), KMS, SSM, and others with JSON policy document fields.
+
 ### Property normalization: `oneOf`/`anyOf` handling
 
 CloudFormation schemas use `oneOf` and `anyOf` for polymorphic properties. The
@@ -541,7 +566,8 @@ normalizer handles these by:
 1. **`oneOf` with objects**: Merge all branch properties into a single object
    (union of fields)
 2. **`oneOf` with arrays**: Extract the array variant
-3. **`oneOf` with empty objects**: Fall back to `z.string()` (JSON type)
+3. **`oneOf` with empty objects**: Fall back to `z.string()` (normalized as
+   `json` type)
 4. **`anyOf` with titled objects**: Create named properties from each branch
 5. **`anyOf` with non-objects**: Fall back to `z.string()`
 
