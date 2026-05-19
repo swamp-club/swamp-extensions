@@ -509,6 +509,59 @@ const StateSchema = z.object({
     id: z.string(),
     version: z.string(),
   }).optional(),
+  transitStation: z.object({
+    agencies: z.array(z.object({
+      displayName: z.object({
+        languageCode: z.string(),
+        text: z.string(),
+      }),
+      fareUrl: z.string(),
+      icon: z.object({
+        nameIncluded: z.boolean(),
+        url: z.string(),
+      }),
+      lines: z.array(z.object({
+        backgroundColor: z.unknown(),
+        displayName: z.unknown(),
+        icon: z.unknown(),
+        id: z.unknown(),
+        shortDisplayName: z.unknown(),
+        textColor: z.unknown(),
+        url: z.unknown(),
+        vehicleIcon: z.unknown(),
+        vehicleType: z.unknown(),
+      })),
+      url: z.string(),
+    })),
+    displayName: z.object({
+      languageCode: z.string(),
+      text: z.string(),
+    }),
+    stops: z.array(z.object({
+      displayName: z.object({
+        languageCode: z.string(),
+        text: z.string(),
+      }),
+      id: z.string(),
+      location: z.object({
+        latitude: z.number(),
+        longitude: z.number(),
+      }),
+      platformCode: z.object({
+        languageCode: z.string(),
+        text: z.string(),
+      }),
+      signageText: z.object({
+        languageCode: z.string(),
+        text: z.string(),
+      }),
+      stopCode: z.object({
+        languageCode: z.string(),
+        text: z.string(),
+      }),
+      wheelchairAccessibleEntrance: z.boolean(),
+    })),
+  }).optional(),
   types: z.array(z.string()).optional(),
   userRatingCount: z.number().optional(),
   utcOffsetMinutes: z.number().optional(),
@@ -534,7 +587,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Places (New) Places. Registered at `@swamp/gcp/places/places`. */
 export const model = {
   type: "@swamp/gcp/places/places",
-  version: "2026.04.23.1",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -568,6 +621,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

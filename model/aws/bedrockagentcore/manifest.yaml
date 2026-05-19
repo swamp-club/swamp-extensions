@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/bedrockagentcore"
-version: "2026.05.18.2"
+version: "2026.05.19.1"
 description: "AWS BEDROCKAGENTCORE infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,9 @@ labels:
   - bedrockagentcore
   - cloud
   - infrastructure
+releaseNotes: |
+  - Added: payment_credential_provider
+  - Updated: runtime
 models:
   - api_key_credential_provider.ts
   - browser.ts
@@ -21,6 +24,7 @@ models:
   - memory.ts
   - oauth2credential_provider.ts
   - online_evaluation_config.ts
+  - payment_credential_provider.ts
   - policy.ts
   - policy_engine.ts
   - runtime.ts

@@ -33,7 +33,7 @@ const DataQuerySchema = z.object({
 });
 
 const S3OutputConfigurationsSchema = z.object({
-  OutputType: z.enum(["CUSTOM"]),
+  OutputType: z.enum(["CUSTOM", "ATHENA", "REDSHIFT"]),
   Format: z.enum(["TEXT_OR_CSV", "PARQUET"]),
   Compression: z.enum(["GZIP", "PARQUET"]),
   Overwrite: z.enum(["CREATE_NEW_REPORT", "OVERWRITE_REPORT"]),
@@ -108,7 +108,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for BCMDataExports Export. Registered at `@swamp/aws/bcmdataexports/export`. */
 export const model = {
   type: "@swamp/aws/bcmdataexports/export",
-  version: "2026.04.23.2",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -137,6 +137,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -239,7 +244,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["Name", "TableConfigurations", "RefreshCadence"],
+          ["Name", "RefreshCadence"],
         );
         const handle = await context.writeResource(
           "state",
