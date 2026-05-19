@@ -117,6 +117,27 @@ Deno.test("parsePackageLock v2 extracts from packages field", () => {
   assertEquals(g2?.version, "5.5.8");
 });
 
+Deno.test("parsePackageLock v2 extracts nested node_modules correctly", () => {
+  const lock = JSON.stringify({
+    lockfileVersion: 2,
+    packages: {
+      "": { version: "1.0.0" },
+      "node_modules/some-lib": { version: "2.0.0" },
+      "node_modules/some-lib/node_modules/size-sensor": { version: "1.0.4" },
+      "node_modules/foo/node_modules/@antv/g2": { version: "5.5.8" },
+    },
+  });
+
+  const entries = parsePackageLock(lock);
+  assertEquals(entries.length, 3);
+
+  const sensor = entries.find((e) => e.name === "size-sensor");
+  assertEquals(sensor?.version, "1.0.4");
+
+  const g2 = entries.find((e) => e.name === "@antv/g2");
+  assertEquals(g2?.version, "5.5.8");
+});
+
 Deno.test("parsePackageLock v1 extracts from dependencies field", () => {
   const lock = JSON.stringify({
     lockfileVersion: 1,

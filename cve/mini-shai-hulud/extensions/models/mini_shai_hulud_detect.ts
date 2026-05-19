@@ -426,7 +426,7 @@ function parsePackageLock(raw: string): PackageEntry[] {
   if (lock.packages) {
     for (const [key, val] of Object.entries(lock.packages)) {
       if (!key || !val.version) continue;
-      const name = key.replace(/^node_modules\//, "");
+      const name = key.replace(/^.*node_modules\//, "");
       const id = `${name}@${val.version}`;
       if (!seen.has(id)) {
         seen.add(id);
