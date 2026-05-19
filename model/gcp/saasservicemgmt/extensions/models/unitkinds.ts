@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud App Lifecycle Manager UnitKinds.
+ * Swamp extension model for Google Cloud SaaS Runtime UnitKinds.
  *
  * Definition of a Unit. Units belonging to the same UnitKind are managed together; for example they follow the same release model (blueprints, versions etc.) and are typically rolled out together.
  *
@@ -122,9 +122,6 @@ const GlobalArgsSchema = z.object({
   annotations: z.record(z.string(), z.string()).describe(
     "Optional. Annotations is an unstructured key-value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/user-guide/annotations",
   ).optional(),
-  defaultFlagRevisions: z.array(z.string()).describe(
-    "Optional. Default revisions of flags for this UnitKind. Newly created units will use the flag default_flag_revisions present at the time of creation.",
-  ).optional(),
   defaultRelease: z.string().describe(
     "Optional. A reference to the Release object to use as default for creating new units of this UnitKind (optional). If not specified, a new unit must explicitly reference which release to use for its creation.",
   ).optional(),
@@ -154,7 +151,7 @@ const GlobalArgsSchema = z.object({
         "Required. Alias of the dependency that the inputVariable will pass its value to",
       ).optional(),
       ignoreForLookup: z.boolean().describe(
-        "Optional. Tells App Lifecycle Manager if this mapping should be used during lookup or not",
+        "Optional. Tells SaaS Runtime if this mapping should be used during lookup or not",
       ).optional(),
       inputVariable: z.string().describe(
         "Required. Name of the inputVariable on the dependency",
@@ -188,7 +185,7 @@ const GlobalArgsSchema = z.object({
         "Required. Alias of the dependency that the inputVariable will pass its value to",
       ).optional(),
       ignoreForLookup: z.boolean().describe(
-        "Optional. Tells App Lifecycle Manager if this mapping should be used during lookup or not",
+        "Optional. Tells SaaS Runtime if this mapping should be used during lookup or not",
       ).optional(),
       inputVariable: z.string().describe(
         "Required. Name of the inputVariable on the dependency",
@@ -201,7 +198,7 @@ const GlobalArgsSchema = z.object({
     "Optional. List of outputVariables for this unit kind will be passed to this unit's outputVariables. Maximum 100.",
   ).optional(),
   saas: z.string().describe(
-    "Required. Immutable. A reference to the Saas that defines the product (managed service) that the producer wants to manage with App Lifecycle Manager. Part of the App Lifecycle Manager common data model. Immutable once set.",
+    "Required. Immutable. A reference to the Saas that defines the product (managed service) that the producer wants to manage with SaaS Runtime. Part of the SaaS Runtime common data model. Immutable once set.",
   ).optional(),
   requestId: z.string().describe(
     "An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -217,7 +214,6 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   annotations: z.record(z.string(), z.unknown()).optional(),
   createTime: z.string().optional(),
-  defaultFlagRevisions: z.array(z.string()).optional(),
   defaultRelease: z.string().optional(),
   dependencies: z.array(z.object({
     alias: z.string(),
@@ -261,9 +257,6 @@ const InputsSchema = z.object({
   annotations: z.record(z.string(), z.string()).describe(
     "Optional. Annotations is an unstructured key-value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/user-guide/annotations",
   ).optional(),
-  defaultFlagRevisions: z.array(z.string()).describe(
-    "Optional. Default revisions of flags for this UnitKind. Newly created units will use the flag default_flag_revisions present at the time of creation.",
-  ).optional(),
   defaultRelease: z.string().describe(
     "Optional. A reference to the Release object to use as default for creating new units of this UnitKind (optional). If not specified, a new unit must explicitly reference which release to use for its creation.",
   ).optional(),
@@ -293,7 +286,7 @@ const InputsSchema = z.object({
         "Required. Alias of the dependency that the inputVariable will pass its value to",
       ).optional(),
       ignoreForLookup: z.boolean().describe(
-        "Optional. Tells App Lifecycle Manager if this mapping should be used during lookup or not",
+        "Optional. Tells SaaS Runtime if this mapping should be used during lookup or not",
       ).optional(),
       inputVariable: z.string().describe(
         "Required. Name of the inputVariable on the dependency",
@@ -327,7 +320,7 @@ const InputsSchema = z.object({
         "Required. Alias of the dependency that the inputVariable will pass its value to",
       ).optional(),
       ignoreForLookup: z.boolean().describe(
-        "Optional. Tells App Lifecycle Manager if this mapping should be used during lookup or not",
+        "Optional. Tells SaaS Runtime if this mapping should be used during lookup or not",
       ).optional(),
       inputVariable: z.string().describe(
         "Required. Name of the inputVariable on the dependency",
@@ -340,7 +333,7 @@ const InputsSchema = z.object({
     "Optional. List of outputVariables for this unit kind will be passed to this unit's outputVariables. Maximum 100.",
   ).optional(),
   saas: z.string().describe(
-    "Required. Immutable. A reference to the Saas that defines the product (managed service) that the producer wants to manage with App Lifecycle Manager. Part of the App Lifecycle Manager common data model. Immutable once set.",
+    "Required. Immutable. A reference to the Saas that defines the product (managed service) that the producer wants to manage with SaaS Runtime. Part of the SaaS Runtime common data model. Immutable once set.",
   ).optional(),
   requestId: z.string().describe(
     "An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -353,10 +346,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud App Lifecycle Manager UnitKinds. Registered at `@swamp/gcp/saasservicemgmt/unitkinds`. */
+/** Swamp extension model for Google Cloud SaaS Runtime UnitKinds. Registered at `@swamp/gcp/saasservicemgmt/unitkinds`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/unitkinds",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -411,6 +404,14 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.19.2",
+      description: "Removed: defaultFlagRevisions",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { defaultFlagRevisions: _defaultFlagRevisions, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -437,9 +438,6 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["annotations"] !== undefined) {
           body["annotations"] = g["annotations"];
-        }
-        if (g["defaultFlagRevisions"] !== undefined) {
-          body["defaultFlagRevisions"] = g["defaultFlagRevisions"];
         }
         if (g["defaultRelease"] !== undefined) {
           body["defaultRelease"] = g["defaultRelease"];
@@ -539,9 +537,6 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["annotations"] !== undefined) {
           body["annotations"] = g["annotations"];
-        }
-        if (g["defaultFlagRevisions"] !== undefined) {
-          body["defaultFlagRevisions"] = g["defaultFlagRevisions"];
         }
         if (g["defaultRelease"] !== undefined) {
           body["defaultRelease"] = g["defaultRelease"];

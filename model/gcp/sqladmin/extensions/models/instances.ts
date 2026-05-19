@@ -169,7 +169,6 @@ const GlobalArgsSchema = z.object({
     "POSTGRES_16",
     "POSTGRES_17",
     "POSTGRES_18",
-    "POSTGRES_19",
     "SQLSERVER_2019_STANDARD",
     "SQLSERVER_2019_ENTERPRISE",
     "SQLSERVER_2019_EXPRESS",
@@ -631,13 +630,8 @@ const GlobalArgsSchema = z.object({
         'Time in UTC when the "deny maintenance period" starts on start_date and ends on end_date. The time is in format: HH:mm:SS, i.e., 00:00:00',
       ).optional(),
     })).describe("Deny maintenance periods").optional(),
-    edition: z.enum([
-      "EDITION_UNSPECIFIED",
-      "ENTERPRISE",
-      "ENTERPRISE_PLUS",
-      "DEVELOPER",
-    ]).describe("Optional. The edition type of the Cloud SQL instance.")
-      .optional(),
+    edition: z.enum(["EDITION_UNSPECIFIED", "ENTERPRISE", "ENTERPRISE_PLUS"])
+      .describe("Optional. The edition of the instance.").optional(),
     enableDataplexIntegration: z.boolean().describe(
       "Optional. By default, Cloud SQL instances have schema extraction disabled for Dataplex. When this parameter is set to true, schema extraction for Dataplex on Cloud SQL instances is activated.",
     ).optional(),
@@ -843,24 +837,24 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     performanceCaptureConfig: z.object({
       enabled: z.boolean().describe(
-        "Optional. Enables or disables the performance capture feature.",
+        "Optional. Enable or disable the Performance Capture feature.",
       ).optional(),
       probeThreshold: z.number().int().describe(
-        "Optional. Specifies the minimum number of consecutive probe threshold that triggers performance capture.",
+        "Optional. The minimum number of consecutive readings above threshold that triggers instance state capture.",
       ).optional(),
       probingIntervalSeconds: z.number().int().describe(
-        "Optional. Specifies the interval in seconds between consecutive probes that check if any trigger condition thresholds have been reached.",
+        "Optional. The time interval in seconds between any two probes.",
       ).optional(),
       runningThreadsThreshold: z.number().int().describe(
-        "Optional. Specifies the minimum number of MySQL `Threads_running` to trigger the performance capture on the primary instance.",
+        "Optional. The minimum number of server threads running to trigger the capture on primary.",
       ).optional(),
       secondsBehindSourceThreshold: z.number().int().describe(
-        "Optional. Specifies the minimum number of seconds replica must be lagging behind primary instance to trigger the performance capture on replica.",
+        "Optional. The minimum number of seconds replica must be lagging behind primary to trigger capture on replica.",
       ).optional(),
       transactionDurationThreshold: z.number().int().describe(
-        "Optional. Specifies the amount of time in seconds that a transaction needs to have been open before the watcher starts recording it.",
+        "Optional. The amount of time in seconds that a transaction needs to have been open before the watcher starts recording it.",
       ).optional(),
-    }).describe("Performance capture configuration.").optional(),
+    }).describe("Performance Capture configuration.").optional(),
     pricingPlan: z.enum(["SQL_PRICING_PLAN_UNSPECIFIED", "PACKAGE", "PER_USE"])
       .describe(
         "The pricing plan for this instance. This can be either `PER_USE` or `PACKAGE`. Only `PER_USE` is supported for Second Generation instances.",
@@ -962,7 +956,6 @@ const GlobalArgsSchema = z.object({
       "LEGAL_ISSUE",
       "OPERATIONAL_ISSUE",
       "KMS_KEY_ISSUE",
-      "PROJECT_ABUSE",
     ]),
   ).describe(
     "If the instance state is SUSPENDED, the reason for the suspension.",
@@ -1370,7 +1363,6 @@ const InputsSchema = z.object({
     "POSTGRES_16",
     "POSTGRES_17",
     "POSTGRES_18",
-    "POSTGRES_19",
     "SQLSERVER_2019_STANDARD",
     "SQLSERVER_2019_ENTERPRISE",
     "SQLSERVER_2019_EXPRESS",
@@ -1832,13 +1824,8 @@ const InputsSchema = z.object({
         'Time in UTC when the "deny maintenance period" starts on start_date and ends on end_date. The time is in format: HH:mm:SS, i.e., 00:00:00',
       ).optional(),
     })).describe("Deny maintenance periods").optional(),
-    edition: z.enum([
-      "EDITION_UNSPECIFIED",
-      "ENTERPRISE",
-      "ENTERPRISE_PLUS",
-      "DEVELOPER",
-    ]).describe("Optional. The edition type of the Cloud SQL instance.")
-      .optional(),
+    edition: z.enum(["EDITION_UNSPECIFIED", "ENTERPRISE", "ENTERPRISE_PLUS"])
+      .describe("Optional. The edition of the instance.").optional(),
     enableDataplexIntegration: z.boolean().describe(
       "Optional. By default, Cloud SQL instances have schema extraction disabled for Dataplex. When this parameter is set to true, schema extraction for Dataplex on Cloud SQL instances is activated.",
     ).optional(),
@@ -2044,24 +2031,24 @@ const InputsSchema = z.object({
     ).optional(),
     performanceCaptureConfig: z.object({
       enabled: z.boolean().describe(
-        "Optional. Enables or disables the performance capture feature.",
+        "Optional. Enable or disable the Performance Capture feature.",
       ).optional(),
       probeThreshold: z.number().int().describe(
-        "Optional. Specifies the minimum number of consecutive probe threshold that triggers performance capture.",
+        "Optional. The minimum number of consecutive readings above threshold that triggers instance state capture.",
       ).optional(),
       probingIntervalSeconds: z.number().int().describe(
-        "Optional. Specifies the interval in seconds between consecutive probes that check if any trigger condition thresholds have been reached.",
+        "Optional. The time interval in seconds between any two probes.",
       ).optional(),
       runningThreadsThreshold: z.number().int().describe(
-        "Optional. Specifies the minimum number of MySQL `Threads_running` to trigger the performance capture on the primary instance.",
+        "Optional. The minimum number of server threads running to trigger the capture on primary.",
       ).optional(),
       secondsBehindSourceThreshold: z.number().int().describe(
-        "Optional. Specifies the minimum number of seconds replica must be lagging behind primary instance to trigger the performance capture on replica.",
+        "Optional. The minimum number of seconds replica must be lagging behind primary to trigger capture on replica.",
       ).optional(),
       transactionDurationThreshold: z.number().int().describe(
-        "Optional. Specifies the amount of time in seconds that a transaction needs to have been open before the watcher starts recording it.",
+        "Optional. The amount of time in seconds that a transaction needs to have been open before the watcher starts recording it.",
       ).optional(),
-    }).describe("Performance capture configuration.").optional(),
+    }).describe("Performance Capture configuration.").optional(),
     pricingPlan: z.enum(["SQL_PRICING_PLAN_UNSPECIFIED", "PACKAGE", "PER_USE"])
       .describe(
         "The pricing plan for this instance. This can be either `PER_USE` or `PACKAGE`. Only `PER_USE` is supported for Second Generation instances.",
@@ -2163,7 +2150,6 @@ const InputsSchema = z.object({
       "LEGAL_ISSUE",
       "OPERATIONAL_ISSUE",
       "KMS_KEY_ISSUE",
-      "PROJECT_ABUSE",
     ]),
   ).describe(
     "If the instance state is SUSPENDED, the reason for the suspension.",
@@ -2179,7 +2165,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud SQL Admin Instances. Registered at `@swamp/gcp/sqladmin/instances`. */
 export const model = {
   type: "@swamp/gcp/sqladmin/instances",
-  version: "2026.05.19.2",
+  version: "2026.05.19.3",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2263,6 +2249,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.3",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

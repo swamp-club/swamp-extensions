@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/oracledatabase"
-version: "2026.05.19.1"
+version: "2026.05.19.2"
 description: "Google Cloud oracledatabase infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -31,13 +31,6 @@ models:
   - exascaledbstoragevaults.ts
   - giversions.ts
   - giversions_minorversions.ts
-  - goldengateconnectionassignments.ts
-  - goldengateconnections.ts
-  - goldengateconnectiontypes.ts
-  - goldengatedeploymentenvironments.ts
-  - goldengatedeployments.ts
-  - goldengatedeploymenttypes.ts
-  - goldengatedeploymentversions.ts
   - locations.ts
   - odbnetworks.ts
   - odbnetworks_odbsubnets.ts

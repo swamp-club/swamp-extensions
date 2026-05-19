@@ -301,6 +301,19 @@ function buildUrl(
 }
 
 /**
+ * Appends fields=* to a URL if it doesn't already have a fields= parameter.
+ * GCP Discovery APIs define "fields" as a global query parameter that controls
+ * partial responses. Without it, many APIs (Drive, Gmail, Calendar, Sheets, etc.)
+ * return only a minimal set of fields. Sending fields=* ensures the response
+ * matches the full StateSchema declared by the generated model.
+ */
+function appendFieldsParam(url: string): string {
+  if (url.includes("fields=")) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}fields=*`;
+}
+
+/**
  * Makes an authenticated HTTP request to the GCP API.
  */
 async function request(
@@ -499,14 +512,17 @@ export async function createResource(
 
     // After operation completes, read the resource for final state
     if (readConfig) {
-      const readUrl = buildUrl(baseUrl, readConfig, params);
+      const readUrl = appendFieldsParam(buildUrl(baseUrl, readConfig, params));
       const readResp = await request("GET", readUrl);
       if (readResp.ok) {
         result = await readResp.json();
       } else {
         // If we can't read, use the operation's targetLink
         if (operation.targetLink) {
-          const targetResp = await request("GET", operation.targetLink);
+          const targetResp = await request(
+            "GET",
+            appendFieldsParam(operation.targetLink),
+          );
           if (targetResp.ok) {
             result = await targetResp.json();
           }
@@ -532,7 +548,7 @@ export async function createResource(
       }
       await new Promise((resolve) => setTimeout(resolve, pollDelay));
       // Re-read the resource to check status
-      const readUrl = buildUrl(baseUrl, readConfig, params);
+      const readUrl = appendFieldsParam(buildUrl(baseUrl, readConfig, params));
       const readResp = await request("GET", readUrl);
       if (readResp.ok) {
         result = await readResp.json();
@@ -553,7 +569,7 @@ export async function readResource(
   config: GcpMethodConfig,
   params: Record<string, string>,
 ): Promise<any> {
-  const url = buildUrl(baseUrl, config, params);
+  const url = appendFieldsParam(buildUrl(baseUrl, config, params));
   const resp = await request("GET", url);
 
   if (!resp.ok) {
@@ -574,7 +590,7 @@ export async function readViaList(
   filterField: string,
   filterValue: string,
 ): Promise<any> {
-  const baseUrlBuilt = buildUrl(baseUrl, config, params);
+  const baseUrlBuilt = appendFieldsParam(buildUrl(baseUrl, config, params));
   const maxPages = 100;
   let url = baseUrlBuilt;
 
@@ -617,7 +633,7 @@ export async function tryReadResource(
   config: GcpMethodConfig,
   params: Record<string, string>,
 ): Promise<any | null> {
-  const url = buildUrl(baseUrl, config, params);
+  const url = appendFieldsParam(buildUrl(baseUrl, config, params));
   const resp = await request("GET", url);
 
   if (resp.status === 404) {
@@ -674,7 +690,7 @@ export async function updateResource(
 
     // Read the resource for final state
     if (readConfig) {
-      const readUrl = buildUrl(baseUrl, readConfig, params);
+      const readUrl = appendFieldsParam(buildUrl(baseUrl, readConfig, params));
       const readResp = await request("GET", readUrl);
       if (readResp.ok) {
         result = await readResp.json();
@@ -697,7 +713,7 @@ export async function updateResource(
         throw new Error(`Resource entered failed state: ${currentStatus}`);
       }
       await new Promise((resolve) => setTimeout(resolve, pollDelay));
-      const readUrl = buildUrl(baseUrl, readConfig, params);
+      const readUrl = appendFieldsParam(buildUrl(baseUrl, readConfig, params));
       const readResp = await request("GET", readUrl);
       if (readResp.ok) {
         result = await readResp.json();

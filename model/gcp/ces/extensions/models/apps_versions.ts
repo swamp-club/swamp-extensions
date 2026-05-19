@@ -280,9 +280,6 @@ const GlobalArgsSchema = z.object({
       updateTime: z.string().describe(
         "Output only. Timestamp when the agent was last updated.",
       ).optional(),
-      validationErrors: z.array(z.string()).describe(
-        "Output only. Misconfigurations or errors in the agent that may affect agent quality.",
-      ).optional(),
     })).describe("Optional. List of agents in the app.").optional(),
     app: z.object({
       audioProcessingConfig: z.object({
@@ -428,28 +425,12 @@ const GlobalArgsSchema = z.object({
       displayName: z.string().describe("Required. Display name of the app.")
         .optional(),
       errorHandlingSettings: z.object({
-        endSessionConfig: z.object({
-          escalateSession: z.boolean().describe(
-            "Optional. Whether to escalate the session in EndSession. If session is escalated, metadata in EndSession will contain `session_escalated = true`. See https://docs.cloud.google.com/customer-engagement-ai/conversational-agents/ps/deploy/google-telephony-platform#transfer_a_call_to_a_human_agent for details.",
-          ).optional(),
-        }).describe(
-          "Configuration for ending the session in case of system errors (e.g. LLM errors).",
-        ).optional(),
         errorHandlingStrategy: z.enum([
           "ERROR_HANDLING_STRATEGY_UNSPECIFIED",
           "NONE",
           "FALLBACK_RESPONSE",
           "END_SESSION",
         ]).describe("Optional. The strategy to use for error handling.")
-          .optional(),
-        fallbackResponseConfig: z.object({
-          customFallbackMessages: z.record(z.string(), z.unknown()).describe(
-            "Optional. The fallback messages in case of system errors (e.g. LLM errors), mapped by [supported language code](https://docs.cloud.google.com/customer-engagement-ai/conversational-agents/ps/reference/language).",
-          ).optional(),
-          maxFallbackAttempts: z.number().int().describe(
-            "Optional. The maximum number of fallback attempts to make before the agent emitting EndSession Signal.",
-          ).optional(),
-        }).describe("Configuration for handling fallback responses.")
           .optional(),
       }).describe(
         "Settings to describe how errors should be handled in the app.",
@@ -562,9 +543,6 @@ const GlobalArgsSchema = z.object({
           disableConversationLogging: z.boolean().describe(
             "Optional. Whether to disable conversation logging for the sessions.",
           ).optional(),
-          retentionWindow: z.string().describe(
-            "Optional. Controls the retention window for the conversation. If not set, the conversation will be retained for 365 days.",
-          ).optional(),
         }).describe(
           "Settings to describe the conversation logging behaviors for the app.",
         ).optional(),
@@ -597,16 +575,6 @@ const GlobalArgsSchema = z.object({
           ).optional(),
         }).describe(
           "Configuration to instruct how sensitive data should be handled.",
-        ).optional(),
-        unredactedAudioRecordingConfig: z.object({
-          gcsBucket: z.string().describe(
-            'Optional. The [Cloud Storage](https://cloud.google.com/storage) bucket to store the session audio recordings. The URI must start with "gs://". Please choose a bucket location that meets your data residency requirements. Note: If the Cloud Storage bucket is in a different project from the app, you should grant `storage.objects.create` permission to the CES service agent `service-@gcp-sa-ces.iam.gserviceaccount.com`.',
-          ).optional(),
-          gcsPathPrefix: z.string().describe(
-            "Optional. The Cloud Storage path prefix for audio recordings. This prefix can include the following placeholders, which will be dynamically substituted at serving time: - $project: project ID - $location: app location - $app: app ID - $date: session date in YYYY-MM-DD format - $session: session ID If the path prefix is not specified, the default prefix `$project/$location/$app/$date/$session/` will be used.",
-          ).optional(),
-        }).describe(
-          "Configuration for how the audio interactions should be recorded.",
         ).optional(),
       }).describe("Settings to describe the logging behaviors for the app.")
         .optional(),
@@ -714,9 +682,6 @@ const GlobalArgsSchema = z.object({
       updateTime: z.string().describe(
         "Output only. Timestamp when the app was last updated.",
       ).optional(),
-      validationErrors: z.array(z.string()).describe(
-        "Output only. Misconfigurations or warnings in the app.",
-      ).optional(),
       variableDeclarations: z.array(z.object({
         description: z.string().describe(
           "Required. The description of the variable.",
@@ -782,11 +747,6 @@ const GlobalArgsSchema = z.object({
           "Represents a select subset of an OpenAPI 3.0 schema object.",
         ).optional(),
       })).describe("Optional. The declarations of the variables.").optional(),
-      vpcScSettings: z.object({
-        allowedOrigins: z.array(z.string()).describe(
-          'Optional. The allowed HTTP(s) origins that OpenAPI tools in the App are able to directly call when VPC Service Controls are enabled. These strings must match the origin exactly, including the port if specified. For example, "https://example.com" or "https://example.com:443". This list does not yet apply to Python tools that may make direct HTTP calls.',
-        ).optional(),
-      }).describe("VPC-SC settings for the app.").optional(),
     }).describe(
       "An app serves as a top-level container for a group of agents, including the root agent and its sub-agents, along with their associated configurations. These agents work together to achieve specific goals within the app's context.",
     ).optional(),
@@ -1039,16 +999,13 @@ const GlobalArgsSchema = z.object({
     })).describe("Optional. List of guardrails in the app.").optional(),
     tools: z.array(z.object({
       agentTool: z.object({
-        agent: z.string().describe(
-          "Optional. The resource name of the agent that is the entry point of the tool. Format: `projects/{project}/locations/{location}/agents/{agent}`",
-        ).optional(),
         description: z.string().describe(
           "Optional. Description of the tool's purpose.",
         ).optional(),
         name: z.string().describe("Required. The name of the agent tool.")
           .optional(),
         rootAgent: z.string().describe(
-          "Optional. Deprecated: Use `agent` instead. The resource name of the root agent that is the entry point of the tool. Format: `projects/{project}/locations/{location}/agents/{agent}`",
+          "Optional. The resource name of the root agent that is the entry point of the tool. Format: `projects/{project}/locations/{location}/agents/{agent}`",
         ).optional(),
       }).describe(
         "Represents a tool that allows the agent to call another agent.",
@@ -1533,32 +1490,6 @@ const GlobalArgsSchema = z.object({
           "Optional. The Python code to execute for the tool.",
         ).optional(),
       }).describe("A Python function tool.").optional(),
-      remoteAgentTool: z.object({
-        agentCard: z.object({
-          description: z.unknown().describe(
-            "Required. A description of the agent's domain of action/solution space.",
-          ).optional(),
-          name: z.unknown().describe(
-            "Required. A human-readable name for the agent.",
-          ).optional(),
-          skills: z.unknown().describe(
-            "Required. Skills represent a unit of ability an agent can perform. This may somewhat abstract but represents a more focused set of actions that the agent is highly likely to succeed at.",
-          ).optional(),
-          supportedInterfaces: z.unknown().describe(
-            "Required. Ordered list of supported interfaces. The first entry is preferred.",
-          ).optional(),
-          version: z.unknown().describe("Required. The version of the agent.")
-            .optional(),
-        }).describe(
-          "AgentCard conveys key information about a remote agent. It is a trimmed version of the AgentCard defined in the A2A protocol https://a2a-protocol.org/dev/specification/#441-agentcard",
-        ).optional(),
-        description: z.string().describe(
-          "Required. The description of the tool.",
-        ).optional(),
-        name: z.string().describe("Required. The name of the tool.").optional(),
-      }).describe(
-        "Represents a tool that allows the agent to call another remote agent.",
-      ).optional(),
       systemTool: z.object({
         description: z.string().describe(
           "Output only. The description of the system tool.",
@@ -1566,9 +1497,6 @@ const GlobalArgsSchema = z.object({
         name: z.string().describe("Required. The name of the system tool.")
           .optional(),
       }).describe("Pre-defined system tool.").optional(),
-      timeout: z.string().describe(
-        "Optional. The timeout for the tool execution. If not set, the default timeout is 30 seconds for `SYNCHRONOUS` tools and 60 seconds for `ASYNCHRONOUS` tools.",
-      ).optional(),
       toolFakeConfig: z.object({
         codeBlock: z.object({
           pythonCode: z.unknown().describe(
@@ -1663,19 +1591,6 @@ const GlobalArgsSchema = z.object({
           ).optional(),
         }).describe(
           "Represents a select subset of an OpenAPI 3.0 schema object.",
-        ).optional(),
-        textResponseConfig: z.object({
-          staticText: z.unknown().describe(
-            "Optional. The static text response to return when type is STATIC.",
-          ).optional(),
-          textResponseInstruction: z.unknown().describe(
-            "Optional. Instruction for the LLM on how to generate the text response. Used as the description for the text response parameter if type is LLM_GENERATED.",
-          ).optional(),
-          type: z.unknown().describe(
-            "Optional. The strategy for providing the text response.",
-          ).optional(),
-        }).describe(
-          "Configuration for the text response returned with the widget.",
         ).optional(),
         uiConfig: z.record(z.string(), z.unknown()).describe(
           "Optional. Configuration for rendering the widget.",
@@ -1927,7 +1842,6 @@ const StateSchema = z.object({
         disablePlannerTransfer: z.unknown(),
       })),
       updateTime: z.string(),
-      validationErrors: z.array(z.string()),
     })),
     app: z.object({
       audioProcessingConfig: z.object({
@@ -1981,14 +1895,7 @@ const StateSchema = z.object({
       description: z.string(),
       displayName: z.string(),
       errorHandlingSettings: z.object({
-        endSessionConfig: z.object({
-          escalateSession: z.boolean(),
-        }),
         errorHandlingStrategy: z.string(),
-        fallbackResponseConfig: z.object({
-          customFallbackMessages: z.record(z.string(), z.unknown()),
-          maxFallbackAttempts: z.number(),
-        }),
       }),
       etag: z.string(),
       evaluationMetricsThresholds: z.object({
@@ -2033,7 +1940,6 @@ const StateSchema = z.object({
         }),
         conversationLoggingSettings: z.object({
           disableConversationLogging: z.boolean(),
-          retentionWindow: z.string(),
         }),
         evaluationAudioRecordingConfig: z.object({
           gcsBucket: z.string(),
@@ -2046,10 +1952,6 @@ const StateSchema = z.object({
           deidentifyTemplate: z.string(),
           enableRedaction: z.boolean(),
           inspectTemplate: z.string(),
-        }),
-        unredactedAudioRecordingConfig: z.object({
-          gcsBucket: z.string(),
-          gcsPathPrefix: z.string(),
         }),
       }),
       metadata: z.record(z.string(), z.unknown()),
@@ -2090,7 +1992,6 @@ const StateSchema = z.object({
       }),
       toolExecutionMode: z.string(),
       updateTime: z.string(),
-      validationErrors: z.array(z.string()),
       variableDeclarations: z.array(z.object({
         description: z.string(),
         name: z.string(),
@@ -2116,9 +2017,6 @@ const StateSchema = z.object({
           uniqueItems: z.unknown(),
         }),
       })),
-      vpcScSettings: z.object({
-        allowedOrigins: z.array(z.string()),
-      }),
     }),
     examples: z.array(z.object({
       createTime: z.string(),
@@ -2218,7 +2116,6 @@ const StateSchema = z.object({
     })),
     tools: z.array(z.object({
       agentTool: z.object({
-        agent: z.string(),
         description: z.string(),
         name: z.string(),
         rootAgent: z.string(),
@@ -2409,22 +2306,10 @@ const StateSchema = z.object({
         name: z.string(),
         pythonCode: z.string(),
       }),
-      remoteAgentTool: z.object({
-        agentCard: z.object({
-          description: z.unknown(),
-          name: z.unknown(),
-          skills: z.unknown(),
-          supportedInterfaces: z.unknown(),
-          version: z.unknown(),
-        }),
-        description: z.string(),
-        name: z.string(),
-      }),
       systemTool: z.object({
         description: z.string(),
         name: z.string(),
       }),
-      timeout: z.string(),
       toolFakeConfig: z.object({
         codeBlock: z.object({
           pythonCode: z.unknown(),
@@ -2462,11 +2347,6 @@ const StateSchema = z.object({
           title: z.unknown(),
           type: z.unknown(),
           uniqueItems: z.unknown(),
-        }),
-        textResponseConfig: z.object({
-          staticText: z.unknown(),
-          textResponseInstruction: z.unknown(),
-          type: z.unknown(),
         }),
         uiConfig: z.record(z.string(), z.unknown()),
         widgetType: z.string(),
@@ -2734,9 +2614,6 @@ const InputsSchema = z.object({
       updateTime: z.string().describe(
         "Output only. Timestamp when the agent was last updated.",
       ).optional(),
-      validationErrors: z.array(z.string()).describe(
-        "Output only. Misconfigurations or errors in the agent that may affect agent quality.",
-      ).optional(),
     })).describe("Optional. List of agents in the app.").optional(),
     app: z.object({
       audioProcessingConfig: z.object({
@@ -2882,28 +2759,12 @@ const InputsSchema = z.object({
       displayName: z.string().describe("Required. Display name of the app.")
         .optional(),
       errorHandlingSettings: z.object({
-        endSessionConfig: z.object({
-          escalateSession: z.boolean().describe(
-            "Optional. Whether to escalate the session in EndSession. If session is escalated, metadata in EndSession will contain `session_escalated = true`. See https://docs.cloud.google.com/customer-engagement-ai/conversational-agents/ps/deploy/google-telephony-platform#transfer_a_call_to_a_human_agent for details.",
-          ).optional(),
-        }).describe(
-          "Configuration for ending the session in case of system errors (e.g. LLM errors).",
-        ).optional(),
         errorHandlingStrategy: z.enum([
           "ERROR_HANDLING_STRATEGY_UNSPECIFIED",
           "NONE",
           "FALLBACK_RESPONSE",
           "END_SESSION",
         ]).describe("Optional. The strategy to use for error handling.")
-          .optional(),
-        fallbackResponseConfig: z.object({
-          customFallbackMessages: z.record(z.string(), z.unknown()).describe(
-            "Optional. The fallback messages in case of system errors (e.g. LLM errors), mapped by [supported language code](https://docs.cloud.google.com/customer-engagement-ai/conversational-agents/ps/reference/language).",
-          ).optional(),
-          maxFallbackAttempts: z.number().int().describe(
-            "Optional. The maximum number of fallback attempts to make before the agent emitting EndSession Signal.",
-          ).optional(),
-        }).describe("Configuration for handling fallback responses.")
           .optional(),
       }).describe(
         "Settings to describe how errors should be handled in the app.",
@@ -3016,9 +2877,6 @@ const InputsSchema = z.object({
           disableConversationLogging: z.boolean().describe(
             "Optional. Whether to disable conversation logging for the sessions.",
           ).optional(),
-          retentionWindow: z.string().describe(
-            "Optional. Controls the retention window for the conversation. If not set, the conversation will be retained for 365 days.",
-          ).optional(),
         }).describe(
           "Settings to describe the conversation logging behaviors for the app.",
         ).optional(),
@@ -3051,16 +2909,6 @@ const InputsSchema = z.object({
           ).optional(),
         }).describe(
           "Configuration to instruct how sensitive data should be handled.",
-        ).optional(),
-        unredactedAudioRecordingConfig: z.object({
-          gcsBucket: z.string().describe(
-            'Optional. The [Cloud Storage](https://cloud.google.com/storage) bucket to store the session audio recordings. The URI must start with "gs://". Please choose a bucket location that meets your data residency requirements. Note: If the Cloud Storage bucket is in a different project from the app, you should grant `storage.objects.create` permission to the CES service agent `service-@gcp-sa-ces.iam.gserviceaccount.com`.',
-          ).optional(),
-          gcsPathPrefix: z.string().describe(
-            "Optional. The Cloud Storage path prefix for audio recordings. This prefix can include the following placeholders, which will be dynamically substituted at serving time: - $project: project ID - $location: app location - $app: app ID - $date: session date in YYYY-MM-DD format - $session: session ID If the path prefix is not specified, the default prefix `$project/$location/$app/$date/$session/` will be used.",
-          ).optional(),
-        }).describe(
-          "Configuration for how the audio interactions should be recorded.",
         ).optional(),
       }).describe("Settings to describe the logging behaviors for the app.")
         .optional(),
@@ -3168,9 +3016,6 @@ const InputsSchema = z.object({
       updateTime: z.string().describe(
         "Output only. Timestamp when the app was last updated.",
       ).optional(),
-      validationErrors: z.array(z.string()).describe(
-        "Output only. Misconfigurations or warnings in the app.",
-      ).optional(),
       variableDeclarations: z.array(z.object({
         description: z.string().describe(
           "Required. The description of the variable.",
@@ -3236,11 +3081,6 @@ const InputsSchema = z.object({
           "Represents a select subset of an OpenAPI 3.0 schema object.",
         ).optional(),
       })).describe("Optional. The declarations of the variables.").optional(),
-      vpcScSettings: z.object({
-        allowedOrigins: z.array(z.string()).describe(
-          'Optional. The allowed HTTP(s) origins that OpenAPI tools in the App are able to directly call when VPC Service Controls are enabled. These strings must match the origin exactly, including the port if specified. For example, "https://example.com" or "https://example.com:443". This list does not yet apply to Python tools that may make direct HTTP calls.',
-        ).optional(),
-      }).describe("VPC-SC settings for the app.").optional(),
     }).describe(
       "An app serves as a top-level container for a group of agents, including the root agent and its sub-agents, along with their associated configurations. These agents work together to achieve specific goals within the app's context.",
     ).optional(),
@@ -3493,16 +3333,13 @@ const InputsSchema = z.object({
     })).describe("Optional. List of guardrails in the app.").optional(),
     tools: z.array(z.object({
       agentTool: z.object({
-        agent: z.string().describe(
-          "Optional. The resource name of the agent that is the entry point of the tool. Format: `projects/{project}/locations/{location}/agents/{agent}`",
-        ).optional(),
         description: z.string().describe(
           "Optional. Description of the tool's purpose.",
         ).optional(),
         name: z.string().describe("Required. The name of the agent tool.")
           .optional(),
         rootAgent: z.string().describe(
-          "Optional. Deprecated: Use `agent` instead. The resource name of the root agent that is the entry point of the tool. Format: `projects/{project}/locations/{location}/agents/{agent}`",
+          "Optional. The resource name of the root agent that is the entry point of the tool. Format: `projects/{project}/locations/{location}/agents/{agent}`",
         ).optional(),
       }).describe(
         "Represents a tool that allows the agent to call another agent.",
@@ -3987,32 +3824,6 @@ const InputsSchema = z.object({
           "Optional. The Python code to execute for the tool.",
         ).optional(),
       }).describe("A Python function tool.").optional(),
-      remoteAgentTool: z.object({
-        agentCard: z.object({
-          description: z.unknown().describe(
-            "Required. A description of the agent's domain of action/solution space.",
-          ).optional(),
-          name: z.unknown().describe(
-            "Required. A human-readable name for the agent.",
-          ).optional(),
-          skills: z.unknown().describe(
-            "Required. Skills represent a unit of ability an agent can perform. This may somewhat abstract but represents a more focused set of actions that the agent is highly likely to succeed at.",
-          ).optional(),
-          supportedInterfaces: z.unknown().describe(
-            "Required. Ordered list of supported interfaces. The first entry is preferred.",
-          ).optional(),
-          version: z.unknown().describe("Required. The version of the agent.")
-            .optional(),
-        }).describe(
-          "AgentCard conveys key information about a remote agent. It is a trimmed version of the AgentCard defined in the A2A protocol https://a2a-protocol.org/dev/specification/#441-agentcard",
-        ).optional(),
-        description: z.string().describe(
-          "Required. The description of the tool.",
-        ).optional(),
-        name: z.string().describe("Required. The name of the tool.").optional(),
-      }).describe(
-        "Represents a tool that allows the agent to call another remote agent.",
-      ).optional(),
       systemTool: z.object({
         description: z.string().describe(
           "Output only. The description of the system tool.",
@@ -4020,9 +3831,6 @@ const InputsSchema = z.object({
         name: z.string().describe("Required. The name of the system tool.")
           .optional(),
       }).describe("Pre-defined system tool.").optional(),
-      timeout: z.string().describe(
-        "Optional. The timeout for the tool execution. If not set, the default timeout is 30 seconds for `SYNCHRONOUS` tools and 60 seconds for `ASYNCHRONOUS` tools.",
-      ).optional(),
       toolFakeConfig: z.object({
         codeBlock: z.object({
           pythonCode: z.unknown().describe(
@@ -4117,19 +3925,6 @@ const InputsSchema = z.object({
           ).optional(),
         }).describe(
           "Represents a select subset of an OpenAPI 3.0 schema object.",
-        ).optional(),
-        textResponseConfig: z.object({
-          staticText: z.unknown().describe(
-            "Optional. The static text response to return when type is STATIC.",
-          ).optional(),
-          textResponseInstruction: z.unknown().describe(
-            "Optional. Instruction for the LLM on how to generate the text response. Used as the description for the text response parameter if type is LLM_GENERATED.",
-          ).optional(),
-          type: z.unknown().describe(
-            "Optional. The strategy for providing the text response.",
-          ).optional(),
-        }).describe(
-          "Configuration for the text response returned with the widget.",
         ).optional(),
         uiConfig: z.record(z.string(), z.unknown()).describe(
           "Optional. Configuration for rendering the widget.",
@@ -4305,7 +4100,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Versions. Registered at `@swamp/gcp/ces/apps-versions`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-versions",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -4379,6 +4174,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Agent Platform NotebookRuntimes.
+ * Swamp extension model for Google Cloud Vertex AI NotebookRuntimes.
  *
  * A runtime is a virtual machine allocated to a particular user for a particular Notebook file on temporary basis with lifetime. Default runtimes have a lifetime of 18 hours, while custom runtimes last for 6 months from their creation or last upgrade.
  *
@@ -157,10 +157,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Agent Platform NotebookRuntimes. Registered at `@swamp/gcp/aiplatform/notebookruntimes`. */
+/** Swamp extension model for Google Cloud Vertex AI NotebookRuntimes. Registered at `@swamp/gcp/aiplatform/notebookruntimes`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/notebookruntimes",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -209,6 +209,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

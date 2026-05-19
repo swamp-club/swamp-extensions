@@ -146,7 +146,7 @@ const GlobalArgsSchema = z.object({
         "Optional. Specifies days of week like, MONDAY or TUESDAY, on which jobs will run. This is required for `recurrence_type`, `WEEKLY` and is not applicable otherwise. A validation error will occur if a value is supplied and `recurrence_type` is not `WEEKLY`.",
       ).optional(),
       hourlyFrequency: z.number().int().describe(
-        "Optional. Specifies frequency for hourly backups. A hourly frequency of 1 means jobs will run every 1 hour from start time till end time defined. This is required for `recurrence_type`, `HOURLY` and is not applicable otherwise. A validation error will occur if a value is supplied and `recurrence_type` is not `HOURLY`. The supported values for each resource type are as follows: * `compute.googleapis.com/Instance`: 4-23 * `compute.googleapis.com/Disk`: 1-23 * `sqladmin.googleapis.com/Instance`: 6-23 * `alloydb.googleapis.com/Cluster`: 1-23 * `file.googleapis.com/Instance`: 1-23 Refer to link https://cloud.google.com/backup-disaster-recovery/docs/concepts/cloud_best_practices for more details.",
+        "Optional. Specifies frequency for hourly backups. A hourly frequency of 2 means jobs will run every 2 hours from start time till end time defined. This is required for `recurrence_type`, `HOURLY` and is not applicable otherwise. A validation error will occur if a value is supplied and `recurrence_type` is not `HOURLY`. Value of hourly frequency should be between 4 and 23. Reason for limit: We found that there is bandwidth limitation of 3GB/S for GMI while taking a backup and 5GB/S while doing a restore. Given the amount of parallel backups and restore we are targeting, this will potentially take the backup time to mins and hours (in worst case scenario).",
       ).optional(),
       months: z.array(
         z.enum([
@@ -212,7 +212,7 @@ const GlobalArgsSchema = z.object({
     guestFlush: z.boolean().describe(
       "Optional. Indicates whether to perform a guest flush operation before taking a compute backup. When set to false, the system will create crash-consistent backups. Default value is false.",
     ).optional(),
-  }).describe("Properties for a compute instance backup plan.").optional(),
+  }).describe("--- ComputeInstanceBackupPlanProperties Message ---").optional(),
   description: z.string().describe(
     'Optional. The description of the `BackupPlan` resource. The description allows for additional details about `BackupPlan` and its use cases to be provided. An example description is the following: "This is a backup plan that performs a daily backup at 6pm and retains data for 3 months". The description must be at most 2048 characters.',
   ).optional(),
@@ -220,7 +220,7 @@ const GlobalArgsSchema = z.object({
     guestFlush: z.boolean().describe(
       "Optional. Indicates whether to perform a guest flush operation before taking a disk backup. When set to false, the system will create crash-consistent backups. Default value is false.",
     ).optional(),
-  }).describe("Properties for a disk backup plan.").optional(),
+  }).describe("--- DiskBackupPlanProperties Message ---").optional(),
   labels: z.record(z.string(), z.string()).describe(
     'Optional. This collection of key/value pairs allows for custom labels to be supplied by the user. Example, {"tag": "Weekly"}.',
   ).optional(),
@@ -328,7 +328,7 @@ const InputsSchema = z.object({
         "Optional. Specifies days of week like, MONDAY or TUESDAY, on which jobs will run. This is required for `recurrence_type`, `WEEKLY` and is not applicable otherwise. A validation error will occur if a value is supplied and `recurrence_type` is not `WEEKLY`.",
       ).optional(),
       hourlyFrequency: z.number().int().describe(
-        "Optional. Specifies frequency for hourly backups. A hourly frequency of 1 means jobs will run every 1 hour from start time till end time defined. This is required for `recurrence_type`, `HOURLY` and is not applicable otherwise. A validation error will occur if a value is supplied and `recurrence_type` is not `HOURLY`. The supported values for each resource type are as follows: * `compute.googleapis.com/Instance`: 4-23 * `compute.googleapis.com/Disk`: 1-23 * `sqladmin.googleapis.com/Instance`: 6-23 * `alloydb.googleapis.com/Cluster`: 1-23 * `file.googleapis.com/Instance`: 1-23 Refer to link https://cloud.google.com/backup-disaster-recovery/docs/concepts/cloud_best_practices for more details.",
+        "Optional. Specifies frequency for hourly backups. A hourly frequency of 2 means jobs will run every 2 hours from start time till end time defined. This is required for `recurrence_type`, `HOURLY` and is not applicable otherwise. A validation error will occur if a value is supplied and `recurrence_type` is not `HOURLY`. Value of hourly frequency should be between 4 and 23. Reason for limit: We found that there is bandwidth limitation of 3GB/S for GMI while taking a backup and 5GB/S while doing a restore. Given the amount of parallel backups and restore we are targeting, this will potentially take the backup time to mins and hours (in worst case scenario).",
       ).optional(),
       months: z.array(
         z.enum([
@@ -394,7 +394,7 @@ const InputsSchema = z.object({
     guestFlush: z.boolean().describe(
       "Optional. Indicates whether to perform a guest flush operation before taking a compute backup. When set to false, the system will create crash-consistent backups. Default value is false.",
     ).optional(),
-  }).describe("Properties for a compute instance backup plan.").optional(),
+  }).describe("--- ComputeInstanceBackupPlanProperties Message ---").optional(),
   description: z.string().describe(
     'Optional. The description of the `BackupPlan` resource. The description allows for additional details about `BackupPlan` and its use cases to be provided. An example description is the following: "This is a backup plan that performs a daily backup at 6pm and retains data for 3 months". The description must be at most 2048 characters.',
   ).optional(),
@@ -402,7 +402,7 @@ const InputsSchema = z.object({
     guestFlush: z.boolean().describe(
       "Optional. Indicates whether to perform a guest flush operation before taking a disk backup. When set to false, the system will create crash-consistent backups. Default value is false.",
     ).optional(),
-  }).describe("Properties for a disk backup plan.").optional(),
+  }).describe("--- DiskBackupPlanProperties Message ---").optional(),
   labels: z.record(z.string(), z.string()).describe(
     'Optional. This collection of key/value pairs allows for custom labels to be supplied by the user. Example, {"tag": "Weekly"}.',
   ).optional(),
@@ -429,7 +429,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Backup and DR Service BackupPlans. Registered at `@swamp/gcp/backupdr/backupplans`. */
 export const model = {
   type: "@swamp/gcp/backupdr/backupplans",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -493,6 +493,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

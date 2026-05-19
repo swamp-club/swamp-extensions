@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Agent Platform RagCorpora.
+ * Swamp extension model for Google Cloud Vertex AI RagCorpora.
  *
  * A RagCorpus is a RagFile container and a project can have multiple RagCorpora.
  *
@@ -323,10 +323,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Agent Platform RagCorpora. Registered at `@swamp/gcp/aiplatform/ragcorpora`. */
+/** Swamp extension model for Google Cloud Vertex AI RagCorpora. Registered at `@swamp/gcp/aiplatform/ragcorpora`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/ragcorpora",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -375,6 +375,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

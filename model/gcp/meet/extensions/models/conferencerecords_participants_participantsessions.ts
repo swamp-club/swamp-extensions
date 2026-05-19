@@ -70,7 +70,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Meet ConferenceRecords.Participants.ParticipantSessions. Registered at `@swamp/gcp/meet/conferencerecords-participants-participantsessions`. */
 export const model = {
   type: "@swamp/gcp/meet/conferencerecords-participants-participantsessions",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -104,6 +104,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

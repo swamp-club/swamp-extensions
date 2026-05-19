@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Agent Platform TuningJobs.
+ * Swamp extension model for Google Cloud Vertex AI TuningJobs.
  *
  * Represents a TuningJob that runs with Google owned models.
  *
@@ -427,7 +427,7 @@ const GlobalArgsSchema = z.object({
           "Optional. The IANA standard MIME type of the response. The model will generate output that conforms to this MIME type. Supported values include 'text/plain' (default) and 'application/json'. The model needs to be prompted to output the appropriate response type, otherwise the behavior is undefined.",
         ).optional(),
         responseModalities: z.array(
-          z.enum(["MODALITY_UNSPECIFIED", "TEXT", "IMAGE", "AUDIO", "VIDEO"]),
+          z.enum(["MODALITY_UNSPECIFIED", "TEXT", "IMAGE", "AUDIO"]),
         ).describe(
           "Optional. The modalities of the response. The model will generate a response that includes all the specified modalities. For example, if this is set to `[TEXT, IMAGE]`, the response will include both text and an image.",
         ).optional(),
@@ -632,9 +632,6 @@ const GlobalArgsSchema = z.object({
           ).optional(),
           predefinedRubricGenerationSpec: z.unknown().describe(
             "The spec for a pre-defined metric.",
-          ).optional(),
-          resultParserConfig: z.unknown().describe(
-            "Config for parsing LLM responses. It can be used to parse the LLM response to be evaluated, or the LLM response from LLM-based metrics/Autoraters.",
           ).optional(),
           rubricGenerationSpec: z.unknown().describe(
             "Specification for how rubrics should be generated.",
@@ -1306,7 +1303,6 @@ const StateSchema = z.object({
           judgeAutoraterConfig: z.unknown(),
           metricPromptTemplate: z.unknown(),
           predefinedRubricGenerationSpec: z.unknown(),
-          resultParserConfig: z.unknown(),
           rubricGenerationSpec: z.unknown(),
           rubricGroupKey: z.unknown(),
           systemInstruction: z.unknown(),
@@ -1863,7 +1859,7 @@ const InputsSchema = z.object({
           "Optional. The IANA standard MIME type of the response. The model will generate output that conforms to this MIME type. Supported values include 'text/plain' (default) and 'application/json'. The model needs to be prompted to output the appropriate response type, otherwise the behavior is undefined.",
         ).optional(),
         responseModalities: z.array(
-          z.enum(["MODALITY_UNSPECIFIED", "TEXT", "IMAGE", "AUDIO", "VIDEO"]),
+          z.enum(["MODALITY_UNSPECIFIED", "TEXT", "IMAGE", "AUDIO"]),
         ).describe(
           "Optional. The modalities of the response. The model will generate a response that includes all the specified modalities. For example, if this is set to `[TEXT, IMAGE]`, the response will include both text and an image.",
         ).optional(),
@@ -2068,9 +2064,6 @@ const InputsSchema = z.object({
           ).optional(),
           predefinedRubricGenerationSpec: z.unknown().describe(
             "The spec for a pre-defined metric.",
-          ).optional(),
-          resultParserConfig: z.unknown().describe(
-            "Config for parsing LLM responses. It can be used to parse the LLM response to be evaluated, or the LLM response from LLM-based metrics/Autoraters.",
           ).optional(),
           rubricGenerationSpec: z.unknown().describe(
             "Specification for how rubrics should be generated.",
@@ -2510,10 +2503,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Agent Platform TuningJobs. Registered at `@swamp/gcp/aiplatform/tuningjobs`. */
+/** Swamp extension model for Google Cloud Vertex AI TuningJobs. Registered at `@swamp/gcp/aiplatform/tuningjobs`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/tuningjobs",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2577,6 +2570,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

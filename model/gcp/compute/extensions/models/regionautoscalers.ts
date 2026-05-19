@@ -183,7 +183,7 @@ const GlobalArgsSchema = z.object({
     scaleInControl: z.object({
       maxScaledInReplicas: z.object({
         calculated: z.number().int().describe(
-          "Output only. Absolute value of VM instances calculated based on the specific mode. - If the value is fixed, then the calculated value is equal to the fixed value. - If the value is a percent, then the calculated value is percent/100 * targetSize. For example, the calculated value of a 80% of a managed instance group with 150 instances would be (80/100 * 150) = 120 VM instances. If there is a remainder, the number is rounded.",
+          "Output only. [Output Only] Absolute value of VM instances calculated based on the specific mode. - If the value is fixed, then the calculated value is equal to the fixed value. - If the value is a percent, then the calculated value is percent/100 * targetSize. For example, the calculated value of a 80% of a managed instance group with 150 instances would be (80/100 * 150) = 120 VM instances. If there is a remainder, the number is rounded.",
         ).optional(),
         fixed: z.number().int().describe(
           "Specifies a fixed number of VM instances. This must be a positive integer.",
@@ -223,9 +223,6 @@ const GlobalArgsSchema = z.object({
       }),
     ).describe(
       "Scaling schedules defined for an autoscaler. Multiple schedules can be set on an autoscaler, and they can overlap. During overlapping periods the greatest min_required_replicas of all scaling schedules is applied. Up to 128 scaling schedules are allowed.",
-    ).optional(),
-    stabilizationPeriodSec: z.number().int().describe(
-      "The number of seconds that autoscaler waits for load stabilization before making scale-in decisions. This is referred to as the [stabilization period](/compute/docs/autoscaler#stabilization_period). This might appear as a delay in scaling in but it is an important mechanism for your application to not have fluctuating size due to short term load fluctuations. The default stabilization period is 600 seconds.",
     ).optional(),
   }).describe("Cloud Autoscaler policy.").optional(),
   description: z.string().describe(
@@ -275,7 +272,6 @@ const StateSchema = z.object({
       timeWindowSec: z.number(),
     }),
     scalingSchedules: z.record(z.string(), z.unknown()),
-    stabilizationPeriodSec: z.number(),
   }).optional(),
   creationTimestamp: z.string().optional(),
   description: z.string().optional(),
@@ -352,7 +348,7 @@ const InputsSchema = z.object({
     scaleInControl: z.object({
       maxScaledInReplicas: z.object({
         calculated: z.number().int().describe(
-          "Output only. Absolute value of VM instances calculated based on the specific mode. - If the value is fixed, then the calculated value is equal to the fixed value. - If the value is a percent, then the calculated value is percent/100 * targetSize. For example, the calculated value of a 80% of a managed instance group with 150 instances would be (80/100 * 150) = 120 VM instances. If there is a remainder, the number is rounded.",
+          "Output only. [Output Only] Absolute value of VM instances calculated based on the specific mode. - If the value is fixed, then the calculated value is equal to the fixed value. - If the value is a percent, then the calculated value is percent/100 * targetSize. For example, the calculated value of a 80% of a managed instance group with 150 instances would be (80/100 * 150) = 120 VM instances. If there is a remainder, the number is rounded.",
         ).optional(),
         fixed: z.number().int().describe(
           "Specifies a fixed number of VM instances. This must be a positive integer.",
@@ -393,9 +389,6 @@ const InputsSchema = z.object({
     ).describe(
       "Scaling schedules defined for an autoscaler. Multiple schedules can be set on an autoscaler, and they can overlap. During overlapping periods the greatest min_required_replicas of all scaling schedules is applied. Up to 128 scaling schedules are allowed.",
     ).optional(),
-    stabilizationPeriodSec: z.number().int().describe(
-      "The number of seconds that autoscaler waits for load stabilization before making scale-in decisions. This is referred to as the [stabilization period](/compute/docs/autoscaler#stabilization_period). This might appear as a delay in scaling in but it is an important mechanism for your application to not have fluctuating size due to short term load fluctuations. The default stabilization period is 600 seconds.",
-    ).optional(),
   }).describe("Cloud Autoscaler policy.").optional(),
   description: z.string().describe(
     "An optional description of this resource. Provide this property when you create the resource.",
@@ -418,7 +411,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine RegionAutoscalers. Registered at `@swamp/gcp/compute/regionautoscalers`. */
 export const model = {
   type: "@swamp/gcp/compute/regionautoscalers",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -477,6 +470,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

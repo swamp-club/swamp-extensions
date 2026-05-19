@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Agent Platform RagCorpora.RagFiles.
+ * Swamp extension model for Google Cloud Vertex AI RagCorpora.RagFiles.
  *
  * A RagFile contains user data for chunking, embedding and indexing.
  *
@@ -145,10 +145,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Agent Platform RagCorpora.RagFiles. Registered at `@swamp/gcp/aiplatform/ragcorpora-ragfiles`. */
+/** Swamp extension model for Google Cloud Vertex AI RagCorpora.RagFiles. Registered at `@swamp/gcp/aiplatform/ragcorpora-ragfiles`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/ragcorpora-ragfiles",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -202,6 +202,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

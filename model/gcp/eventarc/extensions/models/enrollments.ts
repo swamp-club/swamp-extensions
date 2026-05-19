@@ -192,7 +192,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Eventarc Enrollments. Registered at `@swamp/gcp/eventarc/enrollments`. */
 export const model = {
   type: "@swamp/gcp/eventarc/enrollments",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -316,6 +316,28 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description:
+        "Removed: createTime, etag, uid, updateTime, type, version, upgrades, globalArguments, inputsSchema, resources, methods",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          createTime: _createTime,
+          etag: _etag,
+          uid: _uid,
+          updateTime: _updateTime,
+          type: _type,
+          version: _version,
+          upgrades: _upgrades,
+          globalArguments: _globalArguments,
+          inputsSchema: _inputsSchema,
+          resources: _resources,
+          methods: _methods,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
+    {
+      toVersion: "2026.05.19.2",
       description:
         "Removed: createTime, etag, uid, updateTime, type, version, upgrades, globalArguments, inputsSchema, resources, methods",
       upgradeAttributes: (old: Record<string, unknown>) => {

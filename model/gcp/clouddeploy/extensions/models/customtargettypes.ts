@@ -202,9 +202,6 @@ const GlobalArgsSchema = z.object({
         image: z.string().describe(
           "Required. Image is the container image to use.",
         ).optional(),
-        script: z.string().describe(
-          "Optional. Shell script to execute. If provided then command and args cannot be specified.",
-        ).optional(),
       }).describe(
         "This task is represented by a container that is executed in the Cloud Build execution environment.",
       ).optional(),
@@ -224,9 +221,6 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         image: z.string().describe(
           "Required. Image is the container image to use.",
-        ).optional(),
-        script: z.string().describe(
-          "Optional. Shell script to execute. If provided then command and args cannot be specified.",
         ).optional(),
       }).describe(
         "This task is represented by a container that is executed in the Cloud Build execution environment.",
@@ -281,7 +275,6 @@ const StateSchema = z.object({
         command: z.array(z.string()),
         env: z.record(z.string(), z.unknown()),
         image: z.string(),
-        script: z.string(),
       }),
     }),
     render: z.object({
@@ -290,7 +283,6 @@ const StateSchema = z.object({
         command: z.array(z.string()),
         env: z.record(z.string(), z.unknown()),
         image: z.string(),
-        script: z.string(),
       }),
     }),
   }).optional(),
@@ -378,9 +370,6 @@ const InputsSchema = z.object({
         image: z.string().describe(
           "Required. Image is the container image to use.",
         ).optional(),
-        script: z.string().describe(
-          "Optional. Shell script to execute. If provided then command and args cannot be specified.",
-        ).optional(),
       }).describe(
         "This task is represented by a container that is executed in the Cloud Build execution environment.",
       ).optional(),
@@ -400,9 +389,6 @@ const InputsSchema = z.object({
         ).optional(),
         image: z.string().describe(
           "Required. Image is the container image to use.",
-        ).optional(),
-        script: z.string().describe(
-          "Optional. Shell script to execute. If provided then command and args cannot be specified.",
         ).optional(),
       }).describe(
         "This task is represented by a container that is executed in the Cloud Build execution environment.",
@@ -424,7 +410,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Deploy CustomTargetTypes. Registered at `@swamp/gcp/clouddeploy/customtargettypes`. */
 export const model = {
   type: "@swamp/gcp/clouddeploy/customtargettypes",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -473,6 +459,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

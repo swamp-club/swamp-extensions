@@ -382,9 +382,6 @@ const GlobalArgsSchema = z.object({
         cloudSqlInstance: z.unknown().describe(
           "For display only. Metadata associated with a Cloud SQL instance.",
         ).optional(),
-        datastreamPrivateConnection: z.unknown().describe(
-          "For display only. Metadata associated with a Private Connection.",
-        ).optional(),
         deliver: z.unknown().describe(
           'Details of the final state "deliver" and associated resource.',
         ).optional(),
@@ -393,9 +390,6 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         directVpcEgressConnection: z.unknown().describe(
           "For display only. Metadata associated with a serverless direct VPC egress connection.",
-        ).optional(),
-        dmsPrivateConnection: z.unknown().describe(
-          "For display only. Metadata associated with a Private Connection.",
         ).optional(),
         drop: z.unknown().describe(
           'Details of the final state "drop" and associated resource.',
@@ -574,9 +568,6 @@ const GlobalArgsSchema = z.object({
         cloudSqlInstance: z.unknown().describe(
           "For display only. Metadata associated with a Cloud SQL instance.",
         ).optional(),
-        datastreamPrivateConnection: z.unknown().describe(
-          "For display only. Metadata associated with a Private Connection.",
-        ).optional(),
         deliver: z.unknown().describe(
           'Details of the final state "deliver" and associated resource.',
         ).optional(),
@@ -585,9 +576,6 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         directVpcEgressConnection: z.unknown().describe(
           "For display only. Metadata associated with a serverless direct VPC egress connection.",
-        ).optional(),
-        dmsPrivateConnection: z.unknown().describe(
-          "For display only. Metadata associated with a Private Connection.",
         ).optional(),
         drop: z.unknown().describe(
           'Details of the final state "drop" and associated resource.',
@@ -900,11 +888,9 @@ const StateSchema = z.object({
         cloudFunction: z.unknown(),
         cloudRunRevision: z.unknown(),
         cloudSqlInstance: z.unknown(),
-        datastreamPrivateConnection: z.unknown(),
         deliver: z.unknown(),
         description: z.unknown(),
         directVpcEgressConnection: z.unknown(),
-        dmsPrivateConnection: z.unknown(),
         drop: z.unknown(),
         endpoint: z.unknown(),
         firewall: z.unknown(),
@@ -967,11 +953,9 @@ const StateSchema = z.object({
         cloudFunction: z.unknown(),
         cloudRunRevision: z.unknown(),
         cloudSqlInstance: z.unknown(),
-        datastreamPrivateConnection: z.unknown(),
         deliver: z.unknown(),
         description: z.unknown(),
         directVpcEgressConnection: z.unknown(),
-        dmsPrivateConnection: z.unknown(),
         drop: z.unknown(),
         endpoint: z.unknown(),
         firewall: z.unknown(),
@@ -1326,9 +1310,6 @@ const InputsSchema = z.object({
         cloudSqlInstance: z.unknown().describe(
           "For display only. Metadata associated with a Cloud SQL instance.",
         ).optional(),
-        datastreamPrivateConnection: z.unknown().describe(
-          "For display only. Metadata associated with a Private Connection.",
-        ).optional(),
         deliver: z.unknown().describe(
           'Details of the final state "deliver" and associated resource.',
         ).optional(),
@@ -1337,9 +1318,6 @@ const InputsSchema = z.object({
         ).optional(),
         directVpcEgressConnection: z.unknown().describe(
           "For display only. Metadata associated with a serverless direct VPC egress connection.",
-        ).optional(),
-        dmsPrivateConnection: z.unknown().describe(
-          "For display only. Metadata associated with a Private Connection.",
         ).optional(),
         drop: z.unknown().describe(
           'Details of the final state "drop" and associated resource.',
@@ -1518,9 +1496,6 @@ const InputsSchema = z.object({
         cloudSqlInstance: z.unknown().describe(
           "For display only. Metadata associated with a Cloud SQL instance.",
         ).optional(),
-        datastreamPrivateConnection: z.unknown().describe(
-          "For display only. Metadata associated with a Private Connection.",
-        ).optional(),
         deliver: z.unknown().describe(
           'Details of the final state "deliver" and associated resource.',
         ).optional(),
@@ -1529,9 +1504,6 @@ const InputsSchema = z.object({
         ).optional(),
         directVpcEgressConnection: z.unknown().describe(
           "For display only. Metadata associated with a serverless direct VPC egress connection.",
-        ).optional(),
-        dmsPrivateConnection: z.unknown().describe(
-          "For display only. Metadata associated with a Private Connection.",
         ).optional(),
         drop: z.unknown().describe(
           'Details of the final state "drop" and associated resource.',
@@ -1741,7 +1713,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Network Management Global.ConnectivityTests. Registered at `@swamp/gcp/networkmanagement/global-connectivitytests`. */
 export const model = {
   type: "@swamp/gcp/networkmanagement/global-connectivitytests",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1795,6 +1767,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

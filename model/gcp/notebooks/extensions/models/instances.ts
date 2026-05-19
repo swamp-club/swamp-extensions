@@ -162,10 +162,6 @@ const GlobalArgsSchema = z.object({
         "PD_BALANCED",
         "PD_EXTREME",
         "HYPERDISK_BALANCED",
-        "HYPERDISK_EXTREME",
-        "HYPERDISK_THROUGHPUT",
-        "HYPERDISK_BALANCED_HIGH_AVAILABILITY",
-        "HYPERDISK_ML",
       ]).describe("Optional. Indicates the type of the disk.").optional(),
       kmsKey: z.string().describe(
         "Optional. Input only. The KMS key used to encrypt the disks, only applicable if disk_encryption is CMEK. Format: `projects/{project_id}/locations/{location}/keyRings/{key_ring_id}/cryptoKeys/{key_id}` Learn more about using your own encryption keys.",
@@ -204,10 +200,6 @@ const GlobalArgsSchema = z.object({
         "PD_BALANCED",
         "PD_EXTREME",
         "HYPERDISK_BALANCED",
-        "HYPERDISK_EXTREME",
-        "HYPERDISK_THROUGHPUT",
-        "HYPERDISK_BALANCED_HIGH_AVAILABILITY",
-        "HYPERDISK_ML",
       ]).describe("Optional. Input only. Indicates the type of the disk.")
         .optional(),
       kmsKey: z.string().describe(
@@ -491,10 +483,6 @@ const InputsSchema = z.object({
         "PD_BALANCED",
         "PD_EXTREME",
         "HYPERDISK_BALANCED",
-        "HYPERDISK_EXTREME",
-        "HYPERDISK_THROUGHPUT",
-        "HYPERDISK_BALANCED_HIGH_AVAILABILITY",
-        "HYPERDISK_ML",
       ]).describe("Optional. Indicates the type of the disk.").optional(),
       kmsKey: z.string().describe(
         "Optional. Input only. The KMS key used to encrypt the disks, only applicable if disk_encryption is CMEK. Format: `projects/{project_id}/locations/{location}/keyRings/{key_ring_id}/cryptoKeys/{key_id}` Learn more about using your own encryption keys.",
@@ -533,10 +521,6 @@ const InputsSchema = z.object({
         "PD_BALANCED",
         "PD_EXTREME",
         "HYPERDISK_BALANCED",
-        "HYPERDISK_EXTREME",
-        "HYPERDISK_THROUGHPUT",
-        "HYPERDISK_BALANCED_HIGH_AVAILABILITY",
-        "HYPERDISK_ML",
       ]).describe("Optional. Input only. Indicates the type of the disk.")
         .optional(),
       kmsKey: z.string().describe(
@@ -671,7 +655,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Notebooks Instances. Registered at `@swamp/gcp/notebooks/instances`. */
 export const model = {
   type: "@swamp/gcp/notebooks/instances",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -725,6 +709,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

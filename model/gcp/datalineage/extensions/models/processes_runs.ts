@@ -108,7 +108,7 @@ const GlobalArgsSchema = z.object({
     "Optional. The attributes of the run. Should only be used for the purpose of non-semantic management (classifying, describing or labeling the run). Up to 100 attributes are allowed.",
   ).optional(),
   displayName: z.string().describe(
-    "Optional. A human-readable name you can set to display in a user interface. Must be not longer than 200 characters and only contain UTF-8 letters or numbers, spaces or characters like `_-:&.`",
+    "Optional. A human-readable name you can set to display in a user interface. Must be not longer than 1024 characters and only contain UTF-8 letters or numbers, spaces or characters like `_-:&.`",
   ).optional(),
   endTime: z.string().describe("Optional. The timestamp of the end of the run.")
     .optional(),
@@ -144,7 +144,7 @@ const InputsSchema = z.object({
     "Optional. The attributes of the run. Should only be used for the purpose of non-semantic management (classifying, describing or labeling the run). Up to 100 attributes are allowed.",
   ).optional(),
   displayName: z.string().describe(
-    "Optional. A human-readable name you can set to display in a user interface. Must be not longer than 200 characters and only contain UTF-8 letters or numbers, spaces or characters like `_-:&.`",
+    "Optional. A human-readable name you can set to display in a user interface. Must be not longer than 1024 characters and only contain UTF-8 letters or numbers, spaces or characters like `_-:&.`",
   ).optional(),
   endTime: z.string().describe("Optional. The timestamp of the end of the run.")
     .optional(),
@@ -167,7 +167,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Data Lineage Processes.Runs. Registered at `@swamp/gcp/datalineage/processes-runs`. */
 export const model = {
   type: "@swamp/gcp/datalineage/processes-runs",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -216,6 +216,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

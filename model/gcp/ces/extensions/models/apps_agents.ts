@@ -387,7 +387,6 @@ const StateSchema = z.object({
     }),
   })).optional(),
   updateTime: z.string().optional(),
-  validationErrors: z.array(z.string()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -597,7 +596,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Agents. Registered at `@swamp/gcp/ces/apps-agents`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-agents",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -646,6 +645,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
