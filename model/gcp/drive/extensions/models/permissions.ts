@@ -174,6 +174,11 @@ const GlobalArgsSchema = z.object({
   allowFileDiscovery: z.boolean().describe(
     "Whether the permission allows the file to be discovered through search. This is only applicable for permissions of type `domain` or `anyone`.",
   ).optional(),
+  domain: z.string().describe("The domain to which this permission refers.")
+    .optional(),
+  emailAddress: z.string().describe(
+    "The email address of the user or group to which this permission refers.",
+  ).optional(),
   expirationTime: z.string().describe(
     "The time at which this permission will expire (RFC 3339 date-time). Expiration times have the following restrictions: - They can only be set on user and group permissions - The time must be in the future - The time cannot be more than a year in the future",
   ).optional(),
@@ -249,6 +254,11 @@ const InputsSchema = z.object({
   allowFileDiscovery: z.boolean().describe(
     "Whether the permission allows the file to be discovered through search. This is only applicable for permissions of type `domain` or `anyone`.",
   ).optional(),
+  domain: z.string().describe("The domain to which this permission refers.")
+    .optional(),
+  emailAddress: z.string().describe(
+    "The email address of the user or group to which this permission refers.",
+  ).optional(),
   expirationTime: z.string().describe(
     "The time at which this permission will expire (RFC 3339 date-time). Expiration times have the following restrictions: - They can only be set on user and group permissions - The time must be in the future - The time cannot be more than a year in the future",
   ).optional(),
@@ -291,7 +301,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Drive Permissions. Registered at `@swamp/gcp/drive/permissions`. */
 export const model = {
   type: "@swamp/gcp/drive/permissions",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -349,6 +359,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.19.2",
+      description: "Added: domain, emailAddress",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -373,6 +388,10 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["allowFileDiscovery"] !== undefined) {
           body["allowFileDiscovery"] = g["allowFileDiscovery"];
+        }
+        if (g["domain"] !== undefined) body["domain"] = g["domain"];
+        if (g["emailAddress"] !== undefined) {
+          body["emailAddress"] = g["emailAddress"];
         }
         if (g["expirationTime"] !== undefined) {
           body["expirationTime"] = g["expirationTime"];
@@ -481,6 +500,10 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["allowFileDiscovery"] !== undefined) {
           body["allowFileDiscovery"] = g["allowFileDiscovery"];
+        }
+        if (g["domain"] !== undefined) body["domain"] = g["domain"];
+        if (g["emailAddress"] !== undefined) {
+          body["emailAddress"] = g["emailAddress"];
         }
         if (g["expirationTime"] !== undefined) {
           body["expirationTime"] = g["expirationTime"];

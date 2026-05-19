@@ -13,8 +13,9 @@ the live state in GCP. Available methods:
 - **delete** — remove the resource from GCP
 - **sync** — refresh all resource properties from the API
 
-Use `swamp model type describe @swamp/gcp/health/subscribers` to see the full
-list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/gcp/health/users_datatypes_datapoints` to
+see the full list of configurable properties and available methods for this
+model.
 
 ## Authentication
 
@@ -59,17 +60,17 @@ gcloud config set project my-project
 ## Usage
 
 ```bash
-# Create a new subscribers model
-swamp model create @swamp/gcp/health/subscribers my-subscribers
+# Create a new users_datatypes_datapoints model
+swamp model create @swamp/gcp/health/users_datatypes_datapoints my-users_datatypes_datapoints
 
 # Edit the model to configure its properties
-swamp model edit my-subscribers
+swamp model edit my-users_datatypes_datapoints
 
 # Create the resource in GCP
-swamp model method run my-subscribers create
+swamp model method run my-users_datatypes_datapoints create
 
 # Sync current state from GCP
-swamp model method run my-subscribers sync
+swamp model method run my-users_datatypes_datapoints sync
 ```
 
 ## License

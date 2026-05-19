@@ -76,7 +76,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dialogflow Agents.Environments.Deployments. Registered at `@swamp/gcp/dialogflow/agents-environments-deployments`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/agents-environments-deployments",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -115,6 +115,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

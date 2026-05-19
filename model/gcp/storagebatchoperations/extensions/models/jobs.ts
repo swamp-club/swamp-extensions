@@ -128,9 +128,6 @@ const GlobalArgsSchema = z.object({
     totalBytesFound: z.string().describe(
       "Output only. Number of bytes found from source. This field is only populated for jobs with a prefix list object configuration.",
     ).optional(),
-    totalBytesTransformed: z.string().describe(
-      "Output only. The total number of bytes affected by the transformation. For example, this counts bytes deleted for `DeleteObject` operations and bytes rewritten for `RewriteObject` operations.",
-    ).optional(),
     totalObjectCount: z.string().describe(
       "Output only. Number of objects listed.",
     ).optional(),
@@ -257,7 +254,6 @@ const StateSchema = z.object({
     objectCustomContextsUpdated: z.string(),
     succeededObjectCount: z.string(),
     totalBytesFound: z.string(),
-    totalBytesTransformed: z.string(),
     totalObjectCount: z.string(),
   }).optional(),
   createTime: z.string().optional(),
@@ -353,9 +349,6 @@ const InputsSchema = z.object({
     ).optional(),
     totalBytesFound: z.string().describe(
       "Output only. Number of bytes found from source. This field is only populated for jobs with a prefix list object configuration.",
-    ).optional(),
-    totalBytesTransformed: z.string().describe(
-      "Output only. The total number of bytes affected by the transformation. For example, this counts bytes deleted for `DeleteObject` operations and bytes rewritten for `RewriteObject` operations.",
     ).optional(),
     totalObjectCount: z.string().describe(
       "Output only. Number of objects listed.",
@@ -466,7 +459,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Storage Batch Operations Jobs. Registered at `@swamp/gcp/storagebatchoperations/jobs`. */
 export const model = {
   type: "@swamp/gcp/storagebatchoperations/jobs",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -530,6 +523,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -241,27 +241,12 @@ const GlobalArgsSchema = z.object({
   displayName: z.string().describe("Required. Display name of the app.")
     .optional(),
   errorHandlingSettings: z.object({
-    endSessionConfig: z.object({
-      escalateSession: z.boolean().describe(
-        "Optional. Whether to escalate the session in EndSession. If session is escalated, metadata in EndSession will contain `session_escalated = true`. See https://docs.cloud.google.com/customer-engagement-ai/conversational-agents/ps/deploy/google-telephony-platform#transfer_a_call_to_a_human_agent for details.",
-      ).optional(),
-    }).describe(
-      "Configuration for ending the session in case of system errors (e.g. LLM errors).",
-    ).optional(),
     errorHandlingStrategy: z.enum([
       "ERROR_HANDLING_STRATEGY_UNSPECIFIED",
       "NONE",
       "FALLBACK_RESPONSE",
       "END_SESSION",
     ]).describe("Optional. The strategy to use for error handling.").optional(),
-    fallbackResponseConfig: z.object({
-      customFallbackMessages: z.record(z.string(), z.string()).describe(
-        "Optional. The fallback messages in case of system errors (e.g. LLM errors), mapped by [supported language code](https://docs.cloud.google.com/customer-engagement-ai/conversational-agents/ps/reference/language).",
-      ).optional(),
-      maxFallbackAttempts: z.number().int().describe(
-        "Optional. The maximum number of fallback attempts to make before the agent emitting EndSession Signal.",
-      ).optional(),
-    }).describe("Configuration for handling fallback responses.").optional(),
   }).describe("Settings to describe how errors should be handled in the app.")
     .optional(),
   evaluationMetricsThresholds: z.object({
@@ -375,9 +360,6 @@ const GlobalArgsSchema = z.object({
       disableConversationLogging: z.boolean().describe(
         "Optional. Whether to disable conversation logging for the sessions.",
       ).optional(),
-      retentionWindow: z.string().describe(
-        "Optional. Controls the retention window for the conversation. If not set, the conversation will be retained for 365 days.",
-      ).optional(),
     }).describe(
       "Settings to describe the conversation logging behaviors for the app.",
     ).optional(),
@@ -410,16 +392,6 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }).describe(
       "Configuration to instruct how sensitive data should be handled.",
-    ).optional(),
-    unredactedAudioRecordingConfig: z.object({
-      gcsBucket: z.string().describe(
-        'Optional. The [Cloud Storage](https://cloud.google.com/storage) bucket to store the session audio recordings. The URI must start with "gs://". Please choose a bucket location that meets your data residency requirements. Note: If the Cloud Storage bucket is in a different project from the app, you should grant `storage.objects.create` permission to the CES service agent `service-@gcp-sa-ces.iam.gserviceaccount.com`.',
-      ).optional(),
-      gcsPathPrefix: z.string().describe(
-        "Optional. The Cloud Storage path prefix for audio recordings. This prefix can include the following placeholders, which will be dynamically substituted at serving time: - $project: project ID - $location: app location - $app: app ID - $date: session date in YYYY-MM-DD format - $session: session ID If the path prefix is not specified, the default prefix `$project/$location/$app/$date/$session/` will be used.",
-      ).optional(),
-    }).describe(
-      "Configuration for how the audio interactions should be recorded.",
     ).optional(),
   }).describe("Settings to describe the logging behaviors for the app.")
     .optional(),
@@ -525,11 +497,6 @@ const GlobalArgsSchema = z.object({
     }).describe("Represents a select subset of an OpenAPI 3.0 schema object.")
       .optional(),
   })).describe("Optional. The declarations of the variables.").optional(),
-  vpcScSettings: z.object({
-    allowedOrigins: z.array(z.string()).describe(
-      'Optional. The allowed HTTP(s) origins that OpenAPI tools in the App are able to directly call when VPC Service Controls are enabled. These strings must match the origin exactly, including the port if specified. For example, "https://example.com" or "https://example.com:443". This list does not yet apply to Python tools that may make direct HTTP calls.',
-    ).optional(),
-  }).describe("VPC-SC settings for the app.").optional(),
   appId: z.string().describe(
     "Optional. The ID to use for the app, which will become the final component of the app's resource name. If not provided, a unique ID will be automatically assigned for the app.",
   ).optional(),
@@ -590,14 +557,7 @@ const StateSchema = z.object({
   description: z.string().optional(),
   displayName: z.string().optional(),
   errorHandlingSettings: z.object({
-    endSessionConfig: z.object({
-      escalateSession: z.boolean(),
-    }),
     errorHandlingStrategy: z.string(),
-    fallbackResponseConfig: z.object({
-      customFallbackMessages: z.record(z.string(), z.unknown()),
-      maxFallbackAttempts: z.number(),
-    }),
   }).optional(),
   etag: z.string().optional(),
   evaluationMetricsThresholds: z.object({
@@ -642,7 +602,6 @@ const StateSchema = z.object({
     }),
     conversationLoggingSettings: z.object({
       disableConversationLogging: z.boolean(),
-      retentionWindow: z.string(),
     }),
     evaluationAudioRecordingConfig: z.object({
       gcsBucket: z.string(),
@@ -655,10 +614,6 @@ const StateSchema = z.object({
       deidentifyTemplate: z.string(),
       enableRedaction: z.boolean(),
       inspectTemplate: z.string(),
-    }),
-    unredactedAudioRecordingConfig: z.object({
-      gcsBucket: z.string(),
-      gcsPathPrefix: z.string(),
     }),
   }).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
@@ -699,7 +654,6 @@ const StateSchema = z.object({
   }).optional(),
   toolExecutionMode: z.string().optional(),
   updateTime: z.string().optional(),
-  validationErrors: z.array(z.string()).optional(),
   variableDeclarations: z.array(z.object({
     description: z.string(),
     name: z.string(),
@@ -725,9 +679,6 @@ const StateSchema = z.object({
       uniqueItems: z.boolean(),
     }),
   })).optional(),
-  vpcScSettings: z.object({
-    allowedOrigins: z.array(z.string()),
-  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -873,27 +824,12 @@ const InputsSchema = z.object({
   displayName: z.string().describe("Required. Display name of the app.")
     .optional(),
   errorHandlingSettings: z.object({
-    endSessionConfig: z.object({
-      escalateSession: z.boolean().describe(
-        "Optional. Whether to escalate the session in EndSession. If session is escalated, metadata in EndSession will contain `session_escalated = true`. See https://docs.cloud.google.com/customer-engagement-ai/conversational-agents/ps/deploy/google-telephony-platform#transfer_a_call_to_a_human_agent for details.",
-      ).optional(),
-    }).describe(
-      "Configuration for ending the session in case of system errors (e.g. LLM errors).",
-    ).optional(),
     errorHandlingStrategy: z.enum([
       "ERROR_HANDLING_STRATEGY_UNSPECIFIED",
       "NONE",
       "FALLBACK_RESPONSE",
       "END_SESSION",
     ]).describe("Optional. The strategy to use for error handling.").optional(),
-    fallbackResponseConfig: z.object({
-      customFallbackMessages: z.record(z.string(), z.string()).describe(
-        "Optional. The fallback messages in case of system errors (e.g. LLM errors), mapped by [supported language code](https://docs.cloud.google.com/customer-engagement-ai/conversational-agents/ps/reference/language).",
-      ).optional(),
-      maxFallbackAttempts: z.number().int().describe(
-        "Optional. The maximum number of fallback attempts to make before the agent emitting EndSession Signal.",
-      ).optional(),
-    }).describe("Configuration for handling fallback responses.").optional(),
   }).describe("Settings to describe how errors should be handled in the app.")
     .optional(),
   evaluationMetricsThresholds: z.object({
@@ -1007,9 +943,6 @@ const InputsSchema = z.object({
       disableConversationLogging: z.boolean().describe(
         "Optional. Whether to disable conversation logging for the sessions.",
       ).optional(),
-      retentionWindow: z.string().describe(
-        "Optional. Controls the retention window for the conversation. If not set, the conversation will be retained for 365 days.",
-      ).optional(),
     }).describe(
       "Settings to describe the conversation logging behaviors for the app.",
     ).optional(),
@@ -1042,16 +975,6 @@ const InputsSchema = z.object({
       ).optional(),
     }).describe(
       "Configuration to instruct how sensitive data should be handled.",
-    ).optional(),
-    unredactedAudioRecordingConfig: z.object({
-      gcsBucket: z.string().describe(
-        'Optional. The [Cloud Storage](https://cloud.google.com/storage) bucket to store the session audio recordings. The URI must start with "gs://". Please choose a bucket location that meets your data residency requirements. Note: If the Cloud Storage bucket is in a different project from the app, you should grant `storage.objects.create` permission to the CES service agent `service-@gcp-sa-ces.iam.gserviceaccount.com`.',
-      ).optional(),
-      gcsPathPrefix: z.string().describe(
-        "Optional. The Cloud Storage path prefix for audio recordings. This prefix can include the following placeholders, which will be dynamically substituted at serving time: - $project: project ID - $location: app location - $app: app ID - $date: session date in YYYY-MM-DD format - $session: session ID If the path prefix is not specified, the default prefix `$project/$location/$app/$date/$session/` will be used.",
-      ).optional(),
-    }).describe(
-      "Configuration for how the audio interactions should be recorded.",
     ).optional(),
   }).describe("Settings to describe the logging behaviors for the app.")
     .optional(),
@@ -1157,11 +1080,6 @@ const InputsSchema = z.object({
     }).describe("Represents a select subset of an OpenAPI 3.0 schema object.")
       .optional(),
   })).describe("Optional. The declarations of the variables.").optional(),
-  vpcScSettings: z.object({
-    allowedOrigins: z.array(z.string()).describe(
-      'Optional. The allowed HTTP(s) origins that OpenAPI tools in the App are able to directly call when VPC Service Controls are enabled. These strings must match the origin exactly, including the port if specified. For example, "https://example.com" or "https://example.com:443". This list does not yet apply to Python tools that may make direct HTTP calls.',
-    ).optional(),
-  }).describe("VPC-SC settings for the app.").optional(),
   appId: z.string().describe(
     "Optional. The ID to use for the app, which will become the final component of the app's resource name. If not provided, a unique ID will be automatically assigned for the app.",
   ).optional(),
@@ -1173,7 +1091,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps. Registered at `@swamp/gcp/ces/apps`. */
 export const model = {
   type: "@swamp/gcp/ces/apps",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1247,6 +1165,14 @@ export const model = {
       toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
+      description: "Removed: vpcScSettings",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { vpcScSettings: _vpcScSettings, ...rest } = old;
+        return rest;
+      },
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -1323,9 +1249,6 @@ export const model = {
         }
         if (g["variableDeclarations"] !== undefined) {
           body["variableDeclarations"] = g["variableDeclarations"];
-        }
-        if (g["vpcScSettings"] !== undefined) {
-          body["vpcScSettings"] = g["vpcScSettings"];
         }
         if (g["appId"] !== undefined) body["appId"] = g["appId"];
         if (g["name"] !== undefined) {
@@ -1458,9 +1381,6 @@ export const model = {
         if (g["variableDeclarations"] !== undefined) {
           body["variableDeclarations"] = g["variableDeclarations"];
         }
-        if (g["vpcScSettings"] !== undefined) {
-          body["vpcScSettings"] = g["vpcScSettings"];
-        }
         for (const key of Object.keys(existing)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
@@ -1570,7 +1490,6 @@ export const model = {
       arguments: z.object({
         args: z.any().optional(),
         context: z.any().optional(),
-        mockConfig: z.any().optional(),
         tool: z.any().optional(),
         toolsetTool: z.any().optional(),
         variables: z.any().optional(),
@@ -1585,9 +1504,6 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (args["args"] !== undefined) body["args"] = args["args"];
         if (args["context"] !== undefined) body["context"] = args["context"];
-        if (args["mockConfig"] !== undefined) {
-          body["mockConfig"] = args["mockConfig"];
-        }
         if (args["tool"] !== undefined) body["tool"] = args["tool"];
         if (args["toolsetTool"] !== undefined) {
           body["toolsetTool"] = args["toolsetTool"];

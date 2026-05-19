@@ -129,10 +129,7 @@ const GlobalArgsSchema = z.object({
     dbHome: z.object({
       database: z.object({
         adminPassword: z.string().describe(
-          "Optional. The password for the default ADMIN user. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
-        ).optional(),
-        adminPasswordSecretVersion: z.string().describe(
-          "Optional. The resource name of a secret version in Secret Manager which contains the database admin user's password. Format: projects/{project}/secrets/{secret}/versions/{version}. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
+          "Optional. The password for the default ADMIN user.",
         ).optional(),
         characterSet: z.string().describe(
           "Optional. The character set for the database. The default is AL32UTF8.",
@@ -232,10 +229,7 @@ const GlobalArgsSchema = z.object({
           ]).describe("Output only. State of the Database.").optional(),
         }).describe("The properties of a Database.").optional(),
         tdeWalletPassword: z.string().describe(
-          "Optional. The TDE wallet password for the database. Note: Only one of `tde_wallet_password_secret_version` or `tde_wallet_password` can be populated.",
-        ).optional(),
-        tdeWalletPasswordSecretVersion: z.string().describe(
-          "Optional. The resource name of a secret version in Secret Manager which contains the TDE wallet password for the database. Format: projects/{project}/secrets/{secret}/versions/{version}. Note: Only one of `tde_wallet_password_secret_version` or `tde_wallet_password` can be populated.",
+          "Optional. The TDE wallet password for the database.",
         ).optional(),
       }).describe(
         "Details of the Database resource. https://docs.oracle.com/en-us/iaas/api/#/en/database/20160918/Database/",
@@ -346,7 +340,6 @@ const StateSchema = z.object({
     dbHome: z.object({
       database: z.object({
         adminPassword: z.string(),
-        adminPasswordSecretVersion: z.string(),
         characterSet: z.string(),
         createTime: z.string(),
         databaseId: z.string(),
@@ -378,7 +371,6 @@ const StateSchema = z.object({
           state: z.string(),
         }),
         tdeWalletPassword: z.string(),
-        tdeWalletPasswordSecretVersion: z.string(),
       }),
       dbVersion: z.string(),
       displayName: z.string(),
@@ -454,10 +446,7 @@ const InputsSchema = z.object({
     dbHome: z.object({
       database: z.object({
         adminPassword: z.string().describe(
-          "Optional. The password for the default ADMIN user. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
-        ).optional(),
-        adminPasswordSecretVersion: z.string().describe(
-          "Optional. The resource name of a secret version in Secret Manager which contains the database admin user's password. Format: projects/{project}/secrets/{secret}/versions/{version}. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
+          "Optional. The password for the default ADMIN user.",
         ).optional(),
         characterSet: z.string().describe(
           "Optional. The character set for the database. The default is AL32UTF8.",
@@ -557,10 +546,7 @@ const InputsSchema = z.object({
           ]).describe("Output only. State of the Database.").optional(),
         }).describe("The properties of a Database.").optional(),
         tdeWalletPassword: z.string().describe(
-          "Optional. The TDE wallet password for the database. Note: Only one of `tde_wallet_password_secret_version` or `tde_wallet_password` can be populated.",
-        ).optional(),
-        tdeWalletPasswordSecretVersion: z.string().describe(
-          "Optional. The resource name of a secret version in Secret Manager which contains the TDE wallet password for the database. Format: projects/{project}/secrets/{secret}/versions/{version}. Note: Only one of `tde_wallet_password_secret_version` or `tde_wallet_password` can be populated.",
+          "Optional. The TDE wallet password for the database.",
         ).optional(),
       }).describe(
         "Details of the Database resource. https://docs.oracle.com/en-us/iaas/api/#/en/database/20160918/Database/",
@@ -652,7 +638,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud DbSystems. Registered at `@swamp/gcp/oracledatabase/dbsystems`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/dbsystems",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -701,6 +687,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

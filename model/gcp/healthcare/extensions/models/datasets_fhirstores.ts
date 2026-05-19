@@ -628,7 +628,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Healthcare Datasets.FhirStores. Registered at `@swamp/gcp/healthcare/datasets-fhirstores`. */
 export const model = {
   type: "@swamp/gcp/healthcare/datasets-fhirstores",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -682,6 +682,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1086,7 +1091,6 @@ export const model = {
         gcsDestination: z.any().optional(),
         type: z.any().optional(),
         until: z.any().optional(),
-        validateOnly: z.any().optional(),
         versionConfig: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
@@ -1105,9 +1109,6 @@ export const model = {
         }
         if (args["type"] !== undefined) body["type"] = args["type"];
         if (args["until"] !== undefined) body["until"] = args["until"];
-        if (args["validateOnly"] !== undefined) {
-          body["validateOnly"] = args["validateOnly"];
-        }
         if (args["versionConfig"] !== undefined) {
           body["versionConfig"] = args["versionConfig"];
         }

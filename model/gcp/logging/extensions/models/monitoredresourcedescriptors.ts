@@ -66,7 +66,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Logging MonitoredResourceDescriptors. Registered at `@swamp/gcp/logging/monitoredresourcedescriptors`. */
 export const model = {
   type: "@swamp/gcp/logging/monitoredresourcedescriptors",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -100,6 +100,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

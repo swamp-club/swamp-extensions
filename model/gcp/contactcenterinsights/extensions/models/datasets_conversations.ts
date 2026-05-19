@@ -204,7 +204,6 @@ const StateSchema = z.object({
       deploymentId: z.string(),
       displayName: z.string(),
       dispositionCode: z.string(),
-      entrySubagentDisplayName: z.string(),
       location: z.string(),
       team: z.string(),
       teams: z.array(z.string()),
@@ -247,26 +246,6 @@ const StateSchema = z.object({
       source: z.string(),
       title: z.string(),
       uri: z.string(),
-    }),
-    cesEndSessionAnnotation: z.object({
-      endSession: z.object({
-        metadata: z.record(z.string(), z.unknown()),
-      }),
-    }),
-    cesTurnAnnotation: z.object({
-      messages: z.array(z.object({
-        chunks: z.unknown(),
-        eventTime: z.unknown(),
-        role: z.unknown(),
-      })),
-      rootSpan: z.object({
-        attributes: z.record(z.string(), z.unknown()),
-        childSpans: z.array(z.unknown()),
-        duration: z.string(),
-        endTime: z.string(),
-        name: z.string(),
-        startTime: z.string(),
-      }),
     }),
     conversationSummarizationSuggestion: z.object({
       answerRecord: z.string(),
@@ -367,7 +346,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Contact Center AI Insights Datasets.Conversations. Registered at `@swamp/gcp/contactcenterinsights/datasets-conversations`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/datasets-conversations",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -426,6 +405,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

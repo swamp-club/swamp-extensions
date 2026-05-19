@@ -122,14 +122,10 @@ const GlobalArgsSchema = z.object({
   policyMode: z.enum(["POLICY_MODE_UNSPECIFIED", "PRESET"]).describe(
     "Optional. The policy mode of this hub. This field can be either PRESET or CUSTOM. If unspecified, the policy_mode defaults to PRESET.",
   ).optional(),
-  presetTopology: z.enum([
-    "PRESET_TOPOLOGY_UNSPECIFIED",
-    "MESH",
-    "STAR",
-    "HYBRID_INSPECTION",
-  ]).describe(
-    "Optional. The topology implemented in this hub. Currently, this field is only used when policy_mode = PRESET. The available preset topologies are MESH and STAR. If preset_topology is unspecified and policy_mode = PRESET, the preset_topology defaults to MESH. When policy_mode = CUSTOM, the preset_topology is set to PRESET_TOPOLOGY_UNSPECIFIED.",
-  ).optional(),
+  presetTopology: z.enum(["PRESET_TOPOLOGY_UNSPECIFIED", "MESH", "STAR"])
+    .describe(
+      "Optional. The topology implemented in this hub. Currently, this field is only used when policy_mode = PRESET. The available preset topologies are MESH and STAR. If preset_topology is unspecified and policy_mode = PRESET, the preset_topology defaults to MESH. When policy_mode = CUSTOM, the preset_topology is set to PRESET_TOPOLOGY_UNSPECIFIED.",
+    ).optional(),
   spokeSummary: z.object({
     spokeStateCounts: z.array(z.object({
       count: z.string().describe(
@@ -178,7 +174,6 @@ const GlobalArgsSchema = z.object({
         "INTERCONNECT_ATTACHMENT",
         "ROUTER_APPLIANCE",
         "VPC_NETWORK",
-        "GATEWAY",
         "PRODUCER_VPC_NETWORK",
       ]).describe("Output only. The type of the spokes.").optional(),
     })).describe(
@@ -247,14 +242,10 @@ const InputsSchema = z.object({
   policyMode: z.enum(["POLICY_MODE_UNSPECIFIED", "PRESET"]).describe(
     "Optional. The policy mode of this hub. This field can be either PRESET or CUSTOM. If unspecified, the policy_mode defaults to PRESET.",
   ).optional(),
-  presetTopology: z.enum([
-    "PRESET_TOPOLOGY_UNSPECIFIED",
-    "MESH",
-    "STAR",
-    "HYBRID_INSPECTION",
-  ]).describe(
-    "Optional. The topology implemented in this hub. Currently, this field is only used when policy_mode = PRESET. The available preset topologies are MESH and STAR. If preset_topology is unspecified and policy_mode = PRESET, the preset_topology defaults to MESH. When policy_mode = CUSTOM, the preset_topology is set to PRESET_TOPOLOGY_UNSPECIFIED.",
-  ).optional(),
+  presetTopology: z.enum(["PRESET_TOPOLOGY_UNSPECIFIED", "MESH", "STAR"])
+    .describe(
+      "Optional. The topology implemented in this hub. Currently, this field is only used when policy_mode = PRESET. The available preset topologies are MESH and STAR. If preset_topology is unspecified and policy_mode = PRESET, the preset_topology defaults to MESH. When policy_mode = CUSTOM, the preset_topology is set to PRESET_TOPOLOGY_UNSPECIFIED.",
+    ).optional(),
   spokeSummary: z.object({
     spokeStateCounts: z.array(z.object({
       count: z.string().describe(
@@ -303,7 +294,6 @@ const InputsSchema = z.object({
         "INTERCONNECT_ATTACHMENT",
         "ROUTER_APPLIANCE",
         "VPC_NETWORK",
-        "GATEWAY",
         "PRODUCER_VPC_NETWORK",
       ]).describe("Output only. The type of the spokes.").optional(),
     })).describe(
@@ -325,7 +315,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Network Connectivity Global.Hubs. Registered at `@swamp/gcp/networkconnectivity/global-hubs`. */
 export const model = {
   type: "@swamp/gcp/networkconnectivity/global-hubs",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -369,6 +359,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -143,9 +143,6 @@ const GlobalArgsSchema = z.object({
     "Unconditionally routes all read/write requests to a specific cluster. This option preserves read-your-writes consistency but does not improve availability.",
   ).optional(),
   standardIsolation: z.object({
-    memoryConfig: z.object({}).describe(
-      "If set, eligible single-row requests (currently limited to ReadRows) using this app profile will be routed to the memory layer. All eligible writes populate the memory layer. MemoryConfig can only be set if the AppProfile uses single cluster routing and the configured cluster has a memory layer enabled.",
-    ).optional(),
     priority: z.enum([
       "PRIORITY_UNSPECIFIED",
       "PRIORITY_LOW",
@@ -184,7 +181,6 @@ const StateSchema = z.object({
     clusterId: z.string(),
   }).optional(),
   standardIsolation: z.object({
-    memoryConfig: z.object({}),
     priority: z.string(),
   }).optional(),
 }).passthrough();
@@ -228,9 +224,6 @@ const InputsSchema = z.object({
     "Unconditionally routes all read/write requests to a specific cluster. This option preserves read-your-writes consistency but does not improve availability.",
   ).optional(),
   standardIsolation: z.object({
-    memoryConfig: z.object({}).describe(
-      "If set, eligible single-row requests (currently limited to ReadRows) using this app profile will be routed to the memory layer. All eligible writes populate the memory layer. MemoryConfig can only be set if the AppProfile uses single cluster routing and the configured cluster has a memory layer enabled.",
-    ).optional(),
     priority: z.enum([
       "PRIORITY_UNSPECIFIED",
       "PRIORITY_LOW",
@@ -255,7 +248,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Bigtable Admin Instances.AppProfiles. Registered at `@swamp/gcp/bigtableadmin/instances-appprofiles`. */
 export const model = {
   type: "@swamp/gcp/bigtableadmin/instances-appprofiles",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -304,6 +297,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

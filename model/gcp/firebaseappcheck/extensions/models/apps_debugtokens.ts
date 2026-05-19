@@ -87,9 +87,6 @@ const DELETE_CONFIG = {
     "name",
   ],
   "parameters": {
-    "etag": {
-      "location": "query",
-    },
     "name": {
       "location": "path",
       "required": true,
@@ -114,7 +111,6 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   displayName: z.string().optional(),
-  etag: z.string().optional(),
   name: z.string(),
   token: z.string().optional(),
   updateTime: z.string().optional(),
@@ -140,7 +136,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Firebase App Check Apps.DebugTokens. Registered at `@swamp/gcp/firebaseappcheck/apps-debugtokens`. */
 export const model = {
   type: "@swamp/gcp/firebaseappcheck/apps-debugtokens",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -189,6 +185,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
