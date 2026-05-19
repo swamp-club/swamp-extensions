@@ -267,7 +267,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Display & Video 360 FloodlightGroups. Registered at `@swamp/gcp/displayvideo/floodlightgroups`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/floodlightgroups",
-  version: "2026.04.23.1",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -296,6 +296,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

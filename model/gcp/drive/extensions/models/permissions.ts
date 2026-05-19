@@ -291,7 +291,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Drive Permissions. Registered at `@swamp/gcp/drive/permissions`. */
 export const model = {
   type: "@swamp/gcp/drive/permissions",
-  version: "2026.05.18.2",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -343,6 +343,11 @@ export const model = {
         const { domain: _domain, emailAddress: _emailAddress, ...rest } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

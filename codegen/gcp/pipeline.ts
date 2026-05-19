@@ -20,6 +20,7 @@ import { generateGcpReadme } from "../shared/readmeGenerator.ts";
 import {
   computeManifestVersion,
   computeModelVersion,
+  formatCode,
   formatFile,
 } from "../shared/version.ts";
 import { computeUpgradesBlock } from "../shared/upgradesGenerator.ts";
@@ -477,6 +478,20 @@ export async function generateGcpModels(options: {
     const models: GcpGeneratedFile[] = [];
     const modelChanges: GcpModelChange[] = [];
 
+    // Detect shared lib changes before model loop — a lib change means
+    // every model's runtime behavior changed even if its schema didn't.
+    const libSourceCode = generateGcpLibFile();
+    let libChanged = false;
+    try {
+      const existingLib = await Deno.readTextFile(
+        `${serviceOutputDir}/extensions/models/_lib/gcp.ts`,
+      );
+      const formattedLib = await formatCode(libSourceCode);
+      libChanged = existingLib !== formattedLib;
+    } catch {
+      libChanged = true;
+    }
+
     for (const resource of resources) {
       try {
         // Build CfSchema-compatible wrapper for zodGenerator
@@ -534,13 +549,33 @@ export async function generateGcpModels(options: {
           extensionName,
         });
 
-        const { version, status, existingContent } = await computeModelVersion(
+        const versionResult = await computeModelVersion(
           serviceOutputDir,
           filePath,
           datePrefix,
           candidateCode,
           placeholderVersion,
         );
+
+        // When the shared lib changed, force a version bump on models
+        // whose schema is otherwise unchanged — the runtime behavior changed.
+        let { version, status } = versionResult;
+        const { existingContent } = versionResult;
+        if (libChanged && status === "unchanged" && existingContent) {
+          const existingVersion = existingContent.match(
+            /version:\s*"(\d{4}\.\d{2}\.\d{2})\.(\d+)"/,
+          );
+          if (existingVersion) {
+            const existingDate = existingVersion[1];
+            const existingMicro = parseInt(existingVersion[2], 10);
+            version = existingDate === datePrefix
+              ? `${datePrefix}.${existingMicro + 1}`
+              : `${datePrefix}.1`;
+          } else {
+            version = `${datePrefix}.1`;
+          }
+          status = "changed";
+        }
 
         // Compute new GlobalArgs field names for upgrade diffing
         const { synthetic: isSyntheticName } = resolveGcpNamingField(
@@ -578,10 +613,10 @@ export async function generateGcpModels(options: {
 
     if (models.length === 0) continue;
 
-    // Generate shared lib
+    // Reuse the lib source generated earlier for change detection
     const libFile: GcpGeneratedFile = {
       filePath: "extensions/models/_lib/gcp.ts",
-      sourceCode: generateGcpLibFile(),
+      sourceCode: libSourceCode,
     };
 
     // Generate README
@@ -674,7 +709,8 @@ export async function generateGcpModels(options: {
     const hasChangedModels = modelChanges.some((c) =>
       c.status === "new" || c.status === "changed"
     );
-    const hasChanges = hasChangedModels || readmeChanged || licenseChanged;
+    const hasChanges = hasChangedModels || libChanged || readmeChanged ||
+      licenseChanged;
     const manifestVersion = await computeManifestVersion(
       serviceOutputDir,
       "manifest.yaml",

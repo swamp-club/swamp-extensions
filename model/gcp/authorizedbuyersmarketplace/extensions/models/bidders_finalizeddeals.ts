@@ -252,7 +252,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Authorized Buyers Marketplace Bidders.FinalizedDeals. Registered at `@swamp/gcp/authorizedbuyersmarketplace/bidders-finalizeddeals`. */
 export const model = {
   type: "@swamp/gcp/authorizedbuyersmarketplace/bidders-finalizeddeals",
-  version: "2026.04.23.1",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -286,6 +286,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

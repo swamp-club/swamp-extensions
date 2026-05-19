@@ -84,7 +84,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Commerce Partner Procurement Providers.Accounts. Registered at `@swamp/gcp/cloudcommerceprocurement/providers-accounts`. */
 export const model = {
   type: "@swamp/gcp/cloudcommerceprocurement/providers-accounts",
-  version: "2026.04.23.1",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -113,6 +113,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

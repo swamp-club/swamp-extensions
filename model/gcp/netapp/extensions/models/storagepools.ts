@@ -297,7 +297,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud NetApp StoragePools. Registered at `@swamp/gcp/netapp/storagepools`. */
 export const model = {
   type: "@swamp/gcp/netapp/storagepools",
-  version: "2026.05.18.3",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -364,6 +364,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.18.3",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -201,7 +201,7 @@ async function activateServiceAccountFromJson(
 async function getApplicationDefaultCredentials(): Promise<GcpCredentials> {
   // Get access token from current gcloud auth
   const tokenCmd = new Deno.Command("gcloud", {
-    args: ["auth", "print-access-token"],
+    args: ["auth", "application-default", "print-access-token"],
     stdout: "piped",
     stderr: "piped",
   });

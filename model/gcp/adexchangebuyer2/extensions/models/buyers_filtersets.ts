@@ -314,7 +314,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Ad Exchange Buyer Buyers.FilterSets. Registered at `@swamp/gcp/adexchangebuyer2/buyers-filtersets`. */
 export const model = {
   type: "@swamp/gcp/adexchangebuyer2/buyers-filtersets",
-  version: "2026.05.18.1",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -353,6 +353,11 @@ export const model = {
         const { ownerName: _ownerName, ...rest } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

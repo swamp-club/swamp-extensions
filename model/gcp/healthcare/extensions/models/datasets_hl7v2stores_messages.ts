@@ -327,7 +327,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Healthcare Datasets.Hl7V2Stores.Messages. Registered at `@swamp/gcp/healthcare/datasets-hl7v2stores-messages`. */
 export const model = {
   type: "@swamp/gcp/healthcare/datasets-hl7v2stores-messages",
-  version: "2026.05.18.1",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -366,6 +366,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

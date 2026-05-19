@@ -237,9 +237,6 @@ const GlobalArgsSchema = z.object({
     containerMemory: z.string().describe(
       'Optional. Amount of memory provisioned for a Python UDF container instance. Format: {number}{unit} where unit is one of "M", "G", "Mi" and "Gi" (e.g. 1G, 512Mi). If not specified, the default value is 512Mi. For more information, see [Configure container limits for Python UDFs](https://cloud.google.com/bigquery/docs/user-defined-functions-python#configure-container-limits)',
     ).optional(),
-    containerRequestConcurrency: z.string().describe(
-      "Optional. Maximum number of requests that a Cloud Run instance can handle concurrently. If absent or if `0`, a default concurrency is used.",
-    ).optional(),
     maxBatchingRows: z.string().describe(
       "Optional. Maximum number of rows in each batch sent to the external runtime. If absent or if 0, BigQuery dynamically decides the number of rows in a batch.",
     ).optional(),
@@ -464,7 +461,6 @@ const StateSchema = z.object({
   externalRuntimeOptions: z.object({
     containerCpu: z.number(),
     containerMemory: z.string(),
-    containerRequestConcurrency: z.string(),
     maxBatchingRows: z.string(),
     runtimeConnection: z.string(),
     runtimeVersion: z.string(),
@@ -640,9 +636,6 @@ const InputsSchema = z.object({
     ).optional(),
     containerMemory: z.string().describe(
       'Optional. Amount of memory provisioned for a Python UDF container instance. Format: {number}{unit} where unit is one of "M", "G", "Mi" and "Gi" (e.g. 1G, 512Mi). If not specified, the default value is 512Mi. For more information, see [Configure container limits for Python UDFs](https://cloud.google.com/bigquery/docs/user-defined-functions-python#configure-container-limits)',
-    ).optional(),
-    containerRequestConcurrency: z.string().describe(
-      "Optional. Maximum number of requests that a Cloud Run instance can handle concurrently. If absent or if `0`, a default concurrency is used.",
     ).optional(),
     maxBatchingRows: z.string().describe(
       "Optional. Maximum number of rows in each batch sent to the external runtime. If absent or if 0, BigQuery dynamically decides the number of rows in a batch.",
@@ -836,7 +829,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud BigQuery Routines. Registered at `@swamp/gcp/bigquery/routines`. */
 export const model = {
   type: "@swamp/gcp/bigquery/routines",
-  version: "2026.05.19.1",
+  version: "2026.05.19.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -875,6 +868,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -170,7 +170,7 @@ const InputsSchema = z.object({
 export const model = {
   type:
     "@swamp/gcp/discoveryengine/collections-engines-assistants-agents-a2a-v1-tasks-pushnotificationconfigs",
-  version: "2026.05.18.1",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -204,6 +204,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

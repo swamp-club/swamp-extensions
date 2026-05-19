@@ -197,7 +197,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Number Registry CustomRanges. Registered at `@swamp/gcp/cloudnumberregistry/customranges`. */
 export const model = {
   type: "@swamp/gcp/cloudnumberregistry/customranges",
-  version: "2026.05.18.1",
+  version: "2026.05.19.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

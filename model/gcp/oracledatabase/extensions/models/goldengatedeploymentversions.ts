@@ -77,7 +77,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud GoldengateDeploymentVersions. Registered at `@swamp/gcp/oracledatabase/goldengatedeploymentversions`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/goldengatedeploymentversions",
-  version: "2026.05.18.1",
+  version: "2026.05.19.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
