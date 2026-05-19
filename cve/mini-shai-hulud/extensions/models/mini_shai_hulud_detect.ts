@@ -457,7 +457,10 @@ function parsePackageLock(raw: string): PackageEntry[] {
 function detectFormat(path: string): "deno.lock" | "package-lock.json" {
   const basename = path.split("/").pop() ?? "";
   if (basename === "package-lock.json") return "package-lock.json";
-  return "deno.lock";
+  if (basename === "deno.lock") return "deno.lock";
+  throw new Error(
+    `Unsupported lockfile format: ${basename}. Expected deno.lock or package-lock.json`,
+  );
 }
 
 function checkPackage(

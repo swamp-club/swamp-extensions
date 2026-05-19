@@ -93,9 +93,13 @@ export const report = {
         handle.version,
       );
       if (raw) {
-        allResults.push(
-          JSON.parse(new TextDecoder().decode(raw)) as ScanResult,
-        );
+        try {
+          allResults.push(
+            JSON.parse(new TextDecoder().decode(raw)) as ScanResult,
+          );
+        } catch {
+          // Skip corrupted data handles
+        }
       }
     }
 

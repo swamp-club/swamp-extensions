@@ -158,3 +158,34 @@ Deno.test("report table contains all packages", async () => {
   assertStringIncludes(markdown, "| size-sensor | 1.0.4 | COMPROMISED |");
   assertStringIncludes(markdown, "| zod | 4.3.6 | clean |");
 });
+
+Deno.test("report skips corrupted data handles", async () => {
+  const validResult = makeScanResult();
+  const validEncoded = new TextEncoder().encode(JSON.stringify(validResult));
+  const corruptedEncoded = new TextEncoder().encode("{invalid json");
+
+  const ctx = {
+    modelType: "@swamp/cve/mini-shai-hulud",
+    modelId: "scanner",
+    methodName: "scan",
+    dataHandles: [
+      { specName: "scanResult", name: "corrupted", version: "1" },
+      { specName: "scanResult", name: "valid", version: "1" },
+    ],
+    dataRepository: {
+      getContent: (
+        _type: string,
+        _modelId: string,
+        dataName: string,
+        _version: string,
+      ) => {
+        if (dataName === "corrupted") return Promise.resolve(corruptedEncoded);
+        return Promise.resolve(validEncoded);
+      },
+    },
+  };
+
+  const { markdown } = await report.execute(ctx);
+  assertStringIncludes(markdown, "size-sensor");
+  assertStringIncludes(markdown, "VULNERABLE");
+});

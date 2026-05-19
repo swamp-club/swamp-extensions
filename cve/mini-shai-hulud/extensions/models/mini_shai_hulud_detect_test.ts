@@ -1,4 +1,4 @@
-import { assertEquals } from "jsr:@std/assert@1.0.19";
+import { assertEquals, assertThrows } from "jsr:@std/assert@1.0.19";
 import {
   checkPackage,
   COMPROMISED,
@@ -61,6 +61,19 @@ Deno.test("detectFormat identifies package-lock.json", () => {
   assertEquals(
     detectFormat("/project/package-lock.json"),
     "package-lock.json",
+  );
+});
+
+Deno.test("detectFormat rejects unsupported lockfile formats", () => {
+  assertThrows(
+    () => detectFormat("yarn.lock"),
+    Error,
+    "Unsupported lockfile format",
+  );
+  assertThrows(
+    () => detectFormat("/project/bun.lock"),
+    Error,
+    "Unsupported lockfile format",
   );
 });
 
@@ -160,7 +173,8 @@ Deno.test("parsePackageLock v1 extracts from dependencies field", () => {
 });
 
 Deno.test("scan method executes against a temp lockfile", async () => {
-  const tmpFile = await Deno.makeTempFile({ suffix: ".lock" });
+  const tmpDir = await Deno.makeTempDir();
+  const tmpFile = `${tmpDir}/deno.lock`;
   try {
     await Deno.writeTextFile(
       tmpFile,
@@ -213,12 +227,13 @@ Deno.test("scan method executes against a temp lockfile", async () => {
     const names = compromised.map((p) => p.name).sort();
     assertEquals(names, ["@antv/g2", "size-sensor"]);
   } finally {
-    await Deno.remove(tmpFile);
+    await Deno.remove(tmpDir, { recursive: true });
   }
 });
 
 Deno.test("scan method accepts lockfilePath override", async () => {
-  const tmpFile = await Deno.makeTempFile({ suffix: ".lock" });
+  const tmpDir = await Deno.makeTempDir();
+  const tmpFile = `${tmpDir}/deno.lock`;
   try {
     await Deno.writeTextFile(
       tmpFile,
@@ -248,6 +263,6 @@ Deno.test("scan method accepts lockfilePath override", async () => {
     const result = handles[0].data as { compromisedCount: number };
     assertEquals(result.compromisedCount, 0);
   } finally {
-    await Deno.remove(tmpFile);
+    await Deno.remove(tmpDir, { recursive: true });
   }
 });
