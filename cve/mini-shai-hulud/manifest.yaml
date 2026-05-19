@@ -11,10 +11,17 @@ description: |
   High-impact packages include size-sensor (4.2M downloads/month),
   echarts-for-react (3.8M), @antv/scale (2.2M), and timeago.js (1.15M).
 
+  ## Quick Start
+
+  ```
+  swamp model @swamp/cve/mini-shai-hulud method run scan lockfile-check \
+    --input lockfilePath=./deno.lock
+  ```
+
   ## Methods
 
   - `scan` — scan a deno.lock or package-lock.json and report each package
-    as clean or COMPROMISED
+    as clean or COMPROMISED (pass lockfilePath via --input)
 
   ## What It Checks
 
