@@ -1360,7 +1360,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud App Engine Admin Apps.Services.Versions. Registered at `@swamp/gcp/appengine/apps-services-versions`. */
 export const model = {
   type: "@swamp/gcp/appengine/apps-services-versions",
-  version: "2026.04.23.1",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1399,6 +1399,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

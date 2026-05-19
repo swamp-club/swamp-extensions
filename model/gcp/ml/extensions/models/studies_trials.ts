@@ -228,7 +228,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud AI Platform Training & Prediction Studies.Trials. Registered at `@swamp/gcp/ml/studies-trials`. */
 export const model = {
   type: "@swamp/gcp/ml/studies-trials",
-  version: "2026.05.18.1",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -262,6 +262,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

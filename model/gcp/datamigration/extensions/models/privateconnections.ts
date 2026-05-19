@@ -220,7 +220,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Database Migration PrivateConnections. Registered at `@swamp/gcp/datamigration/privateconnections`. */
 export const model = {
   type: "@swamp/gcp/datamigration/privateconnections",
-  version: "2026.05.18.1",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -254,6 +254,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

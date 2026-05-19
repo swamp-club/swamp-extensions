@@ -172,7 +172,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Android Management Enterprises.WebApps. Registered at `@swamp/gcp/androidmanagement/enterprises-webapps`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-webapps",
-  version: "2026.04.23.1",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -201,6 +201,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

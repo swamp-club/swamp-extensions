@@ -311,7 +311,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Spanner InstanceConfigs. Registered at `@swamp/gcp/spanner/instanceconfigs`. */
 export const model = {
   type: "@swamp/gcp/spanner/instanceconfigs",
-  version: "2026.05.18.1",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -345,6 +345,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
