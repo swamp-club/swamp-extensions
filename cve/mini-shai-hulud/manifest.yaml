@@ -1,0 +1,46 @@
+manifestVersion: 1
+name: "@swamp/cve/mini-shai-hulud"
+version: "2026.05.19.1"
+description: |
+  Scans deno.lock and package-lock.json files for npm packages compromised
+  in the May 2026 "Mini Shai-Hulud" supply chain attack (317 packages
+  hijacked via the `atool` npm account).
+
+  The payload features credential harvesting, dual exfiltration channels,
+  and persistence mechanisms targeting AI agents and CI/CD systems.
+  High-impact packages include size-sensor (4.2M downloads/month),
+  echarts-for-react (3.8M), @antv/scale (2.2M), and timeago.js (1.15M).
+
+  ## Methods
+
+  - `scan` — scan a deno.lock or package-lock.json and report each package
+    as clean or COMPROMISED
+
+  ## What It Checks
+
+  All 317 packages and their known malicious versions from the SafeDep
+  advisory. The compromised version list is embedded — no network calls
+  required.
+
+  Source: https://safedep.io/mini-shai-hulud-strikes-again-314-npm-packages-compromised/
+
+repository: "https://github.com/systeminit/swamp-extensions"
+
+models:
+  - mini_shai_hulud_detect.ts
+
+reports:
+  - mini_shai_hulud_scan_report.ts
+
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+
+platforms: []
+
+labels:
+  - security
+  - supply-chain
+  - cve
+  - npm
+  - mini-shai-hulud
