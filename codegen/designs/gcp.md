@@ -793,7 +793,8 @@ The shared lib appends `fields=*` to every read operation URL (`readResource`,
 `readViaList`, `tryReadResource`, and all post-LRO/readiness-polling read-backs
 in `createResource` and `updateResource`). This ensures the API returns the
 complete resource, matching the model's declared schema. The `pollOperation`
-function is excluded — LRO status endpoints do not accept the `fields` parameter.
+function is excluded — LRO status endpoints do not accept the `fields`
+parameter.
 
 If the URL already contains a `fields=` parameter (e.g., set explicitly by the
 caller), the automatic injection is skipped, preserving user-specified
