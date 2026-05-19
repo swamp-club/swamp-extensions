@@ -774,10 +774,30 @@ Key behaviors:
 - Full credential chain (inline JSON, file path, ADC)
 - gcloud CLI presence check on first use
 - URL construction from Discovery path templates
+- Automatic `fields=*` on all read operations (see below)
 - Three LRO detection patterns (Compute, generic, GKE)
 - Optional readiness polling after create/update
 - Concurrency control field injection in updates
 - `tryReadResource` returns null on 404/403
+
+### Automatic `fields=*` on read operations
+
+GCP Discovery Documents define `fields` as a global query parameter (at
+`doc.parameters`, not per-method) that controls partial responses. Many GCP APIs
+— notably Drive, Gmail, Calendar, Sheets, and other Workspace APIs — return only
+a minimal set of fields by default. Without `fields=*`, the response contains a
+tiny subset of the resource, creating a mismatch with the full `StateSchema`
+declared by the generated model.
+
+The shared lib appends `fields=*` to every read operation URL (`readResource`,
+`readViaList`, `tryReadResource`, and all post-LRO/readiness-polling read-backs
+in `createResource` and `updateResource`). This ensures the API returns the
+complete resource, matching the model's declared schema. The `pollOperation`
+function is excluded — LRO status endpoints do not accept the `fields` parameter.
+
+If the URL already contains a `fields=` parameter (e.g., set explicitly by the
+caller), the automatic injection is skipped, preserving user-specified
+projections.
 
 ### Naming conventions
 
