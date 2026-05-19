@@ -69,7 +69,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Batch ConsumableResource. Registered at `@swamp/aws/batch/consumable-resource`. */
 export const model = {
   type: "@swamp/aws/batch/consumable-resource",
-  version: "2026.05.18.1",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -103,6 +103,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -205,7 +210,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["ConsumableResourceName", "ResourceType", "Tags"],
+          ["ConsumableResourceName", "ResourceType"],
         );
         const handle = await context.writeResource(
           "state",

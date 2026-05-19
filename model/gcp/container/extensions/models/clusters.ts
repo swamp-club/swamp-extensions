@@ -1825,6 +1825,15 @@ const GlobalArgsSchema = z.object({
     }).describe(
       "Parameters that describe the nodes in a cluster. GKE Autopilot clusters do not recognize parameters in `NodeConfig`. Use AutoprovisioningNodePoolDefaults instead.",
     ).optional(),
+    nodeCreationConfig: z.object({
+      nodeCreationMode: z.enum([
+        "MODE_UNSPECIFIED",
+        "VIA_KUBELET",
+        "VIA_CONTROL_PLANE",
+      ]).describe("The mode of node creation.").optional(),
+    }).describe(
+      "NodeCreationConfig defines the settings of node creation mode.",
+    ).optional(),
     nodeIpv4CidrSize: z.number().int().describe(
       "Output only. The size of the address space on each node for hosting containers. This is provisioned from within the `container_ipv4_cidr` range. This field will only be set when cluster is in route-based network mode.",
     ).optional(),
@@ -2706,6 +2715,21 @@ const GlobalArgsSchema = z.object({
       locations: z.array(z.string()).describe(
         "The list of Google Compute Engine [zones](https://cloud.google.com/compute/docs/zones#available) in which the NodePool's nodes should be located. If this value is unspecified during node pool creation, the [Cluster.Locations](https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/projects.locations.clusters#Cluster.FIELDS.locations) value will be used, instead. Warning: changing node pool locations will result in nodes being added and/or removed.",
       ).optional(),
+      maintenancePolicy: z.object({
+        exclusionUntilEndOfSupport: z.object({
+          enabled: z.unknown().describe(
+            "Optional. Indicates whether the exclusion is enabled.",
+          ).optional(),
+          endTime: z.unknown().describe(
+            "Output only. The end time of the maintenance exclusion. It is output only. It is the cluster control plane version's end of support time, or end of extended support time when the cluster is on extended support channel.",
+          ).optional(),
+          startTime: z.unknown().describe(
+            "Output only. The start time of the maintenance exclusion. It is output only. It is the exclusion creation time.",
+          ).optional(),
+        }).describe("Defines the maintenance exclusion for the node pool.")
+          .optional(),
+      }).describe("Defines the maintenance policy for the node pool.")
+        .optional(),
       management: z.object({
         autoRepair: z.boolean().describe(
           "A flag that specifies whether the node auto-repair is enabled for the node pool. If enabled, the nodes in this node pool will be monitored and, if they fail health checks too many times, an automatic repair action will be triggered.",
@@ -2779,6 +2803,12 @@ const GlobalArgsSchema = z.object({
         ).optional(),
       }).describe("Parameters for node pool-level network config.").optional(),
       nodeDrainConfig: z.object({
+        graceTerminationDuration: z.string().describe(
+          "The duration of the grace termination period for node drain.",
+        ).optional(),
+        pdbTimeoutDuration: z.string().describe(
+          "The duration of the PDB timeout period for node drain.",
+        ).optional(),
         respectPdbDuringNodePoolDeletion: z.boolean().describe(
           "Whether to respect PDB during node pool deletion.",
         ).optional(),
@@ -3896,6 +3926,15 @@ const GlobalArgsSchema = z.object({
       ]).describe("Network tier configuration.").optional(),
     }).describe("NetworkTierConfig contains network tier information.")
       .optional(),
+    desiredNodeCreationConfig: z.object({
+      nodeCreationMode: z.enum([
+        "MODE_UNSPECIFIED",
+        "VIA_KUBELET",
+        "VIA_CONTROL_PLANE",
+      ]).describe("The mode of node creation.").optional(),
+    }).describe(
+      "NodeCreationConfig defines the settings of node creation mode.",
+    ).optional(),
     desiredNodeKubeletConfig: z.object({
       allowedUnsafeSysctls: z.array(z.string()).describe(
         "Optional. Defines a comma-separated allowlist of unsafe sysctls or sysctl patterns (ending in `*`). The unsafe namespaced sysctl groups are `kernel.shm*`, `kernel.msg*`, `kernel.sem`, `fs.mqueue.*`, and `net.*`. Leaving this allowlist empty means they cannot be set on Pods. To allow certain sysctls or sysctl patterns to be set on Pods, list them separated by commas. For example: `kernel.msg*,net.ipv4.route.min_pmtu`. See https://kubernetes.io/docs/tasks/administer-cluster/sysctl-cluster/ for more details.",
@@ -5273,6 +5312,9 @@ const StateSchema = z.object({
       mode: z.string(),
     }),
   }).optional(),
+  nodeCreationConfig: z.object({
+    nodeCreationMode: z.string(),
+  }).optional(),
   nodeIpv4CidrSize: z.number().optional(),
   nodePoolAutoConfig: z.object({
     linuxNodeConfig: z.object({
@@ -5678,6 +5720,13 @@ const StateSchema = z.object({
     initialNodeCount: z.number(),
     instanceGroupUrls: z.array(z.string()),
     locations: z.array(z.string()),
+    maintenancePolicy: z.object({
+      exclusionUntilEndOfSupport: z.object({
+        enabled: z.boolean(),
+        endTime: z.string(),
+        startTime: z.string(),
+      }),
+    }),
     management: z.object({
       autoRepair: z.boolean(),
       autoUpgrade: z.boolean(),
@@ -5719,6 +5768,8 @@ const StateSchema = z.object({
       subnetwork: z.string(),
     }),
     nodeDrainConfig: z.object({
+      graceTerminationDuration: z.string(),
+      pdbTimeoutDuration: z.string(),
       respectPdbDuringNodePoolDeletion: z.boolean(),
     }),
     placementPolicy: z.object({
@@ -7575,6 +7626,15 @@ const InputsSchema = z.object({
     }).describe(
       "Parameters that describe the nodes in a cluster. GKE Autopilot clusters do not recognize parameters in `NodeConfig`. Use AutoprovisioningNodePoolDefaults instead.",
     ).optional(),
+    nodeCreationConfig: z.object({
+      nodeCreationMode: z.enum([
+        "MODE_UNSPECIFIED",
+        "VIA_KUBELET",
+        "VIA_CONTROL_PLANE",
+      ]).describe("The mode of node creation.").optional(),
+    }).describe(
+      "NodeCreationConfig defines the settings of node creation mode.",
+    ).optional(),
     nodeIpv4CidrSize: z.number().int().describe(
       "Output only. The size of the address space on each node for hosting containers. This is provisioned from within the `container_ipv4_cidr` range. This field will only be set when cluster is in route-based network mode.",
     ).optional(),
@@ -8456,6 +8516,21 @@ const InputsSchema = z.object({
       locations: z.array(z.string()).describe(
         "The list of Google Compute Engine [zones](https://cloud.google.com/compute/docs/zones#available) in which the NodePool's nodes should be located. If this value is unspecified during node pool creation, the [Cluster.Locations](https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/projects.locations.clusters#Cluster.FIELDS.locations) value will be used, instead. Warning: changing node pool locations will result in nodes being added and/or removed.",
       ).optional(),
+      maintenancePolicy: z.object({
+        exclusionUntilEndOfSupport: z.object({
+          enabled: z.unknown().describe(
+            "Optional. Indicates whether the exclusion is enabled.",
+          ).optional(),
+          endTime: z.unknown().describe(
+            "Output only. The end time of the maintenance exclusion. It is output only. It is the cluster control plane version's end of support time, or end of extended support time when the cluster is on extended support channel.",
+          ).optional(),
+          startTime: z.unknown().describe(
+            "Output only. The start time of the maintenance exclusion. It is output only. It is the exclusion creation time.",
+          ).optional(),
+        }).describe("Defines the maintenance exclusion for the node pool.")
+          .optional(),
+      }).describe("Defines the maintenance policy for the node pool.")
+        .optional(),
       management: z.object({
         autoRepair: z.boolean().describe(
           "A flag that specifies whether the node auto-repair is enabled for the node pool. If enabled, the nodes in this node pool will be monitored and, if they fail health checks too many times, an automatic repair action will be triggered.",
@@ -8529,6 +8604,12 @@ const InputsSchema = z.object({
         ).optional(),
       }).describe("Parameters for node pool-level network config.").optional(),
       nodeDrainConfig: z.object({
+        graceTerminationDuration: z.string().describe(
+          "The duration of the grace termination period for node drain.",
+        ).optional(),
+        pdbTimeoutDuration: z.string().describe(
+          "The duration of the PDB timeout period for node drain.",
+        ).optional(),
         respectPdbDuringNodePoolDeletion: z.boolean().describe(
           "Whether to respect PDB during node pool deletion.",
         ).optional(),
@@ -9646,6 +9727,15 @@ const InputsSchema = z.object({
       ]).describe("Network tier configuration.").optional(),
     }).describe("NetworkTierConfig contains network tier information.")
       .optional(),
+    desiredNodeCreationConfig: z.object({
+      nodeCreationMode: z.enum([
+        "MODE_UNSPECIFIED",
+        "VIA_KUBELET",
+        "VIA_CONTROL_PLANE",
+      ]).describe("The mode of node creation.").optional(),
+    }).describe(
+      "NodeCreationConfig defines the settings of node creation mode.",
+    ).optional(),
     desiredNodeKubeletConfig: z.object({
       allowedUnsafeSysctls: z.array(z.string()).describe(
         "Optional. Defines a comma-separated allowlist of unsafe sysctls or sysctl patterns (ending in `*`). The unsafe namespaced sysctl groups are `kernel.shm*`, `kernel.msg*`, `kernel.sem`, `fs.mqueue.*`, and `net.*`. Leaving this allowlist empty means they cannot be set on Pods. To allow certain sysctls or sysctl patterns to be set on Pods, list them separated by commas. For example: `kernel.msg*,net.ipv4.route.min_pmtu`. See https://kubernetes.io/docs/tasks/administer-cluster/sysctl-cluster/ for more details.",
@@ -10374,7 +10464,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Kubernetes Engine Clusters. Registered at `@swamp/gcp/container/clusters`. */
 export const model = {
   type: "@swamp/gcp/container/clusters",
-  version: "2026.05.18.3",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -10448,6 +10538,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.18.3",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

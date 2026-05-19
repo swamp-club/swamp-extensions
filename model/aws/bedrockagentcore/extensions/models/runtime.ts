@@ -109,12 +109,40 @@ const CustomJWTAuthorizerConfigurationSchema = z.object({
 const SessionStorageConfigurationSchema = z.object({
   MountPath: z.string().min(6).max(200).regex(
     new RegExp("^/mnt/[a-zA-Z0-9._-]+/?$"),
-  ).describe("Mount path for session storage"),
+  ).describe("Mount path for filesystem configuration"),
+});
+
+const EfsAccessPointConfigurationSchema = z.object({
+  AccessPointArn: z.string().max(128).regex(
+    new RegExp(
+      "^arn:aws[-a-z]*:elasticfilesystem:[0-9a-z-:]+:access-point/fsap-[0-9a-f]{8,40}$",
+    ),
+  ).describe("ARN of the EFS access point"),
+  MountPath: z.string().min(6).max(200).regex(
+    new RegExp("^/mnt/[a-zA-Z0-9._-]+/?$"),
+  ).describe("Mount path for filesystem configuration"),
+});
+
+const S3FilesAccessPointConfigurationSchema = z.object({
+  AccessPointArn: z.string().max(256).regex(
+    new RegExp(
+      "^arn:aws[-a-z]*:s3files:[0-9a-z-:]+:file-system/fs-[0-9a-f]{17,40}/access-point/fsap-[0-9a-f]{17,40}$",
+    ),
+  ).describe("ARN of the S3 Files access point"),
+  MountPath: z.string().min(6).max(200).regex(
+    new RegExp("^/mnt/[a-zA-Z0-9._-]+/?$"),
+  ).describe("Mount path for filesystem configuration"),
 });
 
 const FilesystemConfigurationSchema = z.object({
   SessionStorage: SessionStorageConfigurationSchema.describe(
     "Configuration for session storage",
+  ).optional(),
+  EfsAccessPoint: EfsAccessPointConfigurationSchema.describe(
+    "Configuration for EFS access point filesystem",
+  ).optional(),
+  S3FilesAccessPoint: S3FilesAccessPointConfigurationSchema.describe(
+    "Configuration for S3 Files access point filesystem",
   ).optional(),
 });
 
@@ -167,9 +195,7 @@ const GlobalArgsSchema = z.object({
   RequestHeaderConfiguration: z.object({
     RequestHeaderAllowlist: z.array(
       z.string().min(1).max(256).regex(
-        new RegExp(
-          "^(Authorization|X-Amzn-Bedrock-AgentCore-Runtime-Custom-[a-zA-Z0-9_-]+)$",
-        ),
+        new RegExp("^[A-Za-z][A-Za-z0-9_-]{0,255}$"),
       ),
     ).describe("List of allowed HTTP headers for agent runtime requests")
       .optional(),
@@ -275,9 +301,7 @@ const InputsSchema = z.object({
   RequestHeaderConfiguration: z.object({
     RequestHeaderAllowlist: z.array(
       z.string().min(1).max(256).regex(
-        new RegExp(
-          "^(Authorization|X-Amzn-Bedrock-AgentCore-Runtime-Custom-[a-zA-Z0-9_-]+)$",
-        ),
+        new RegExp("^[A-Za-z][A-Za-z0-9_-]{0,255}$"),
       ),
     ).describe("List of allowed HTTP headers for agent runtime requests")
       .optional(),
@@ -299,7 +323,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for BedrockAgentCore Runtime. Registered at `@swamp/aws/bedrockagentcore/runtime`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/runtime",
-  version: "2026.05.01.1",
+  version: "2026.05.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -333,6 +357,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
