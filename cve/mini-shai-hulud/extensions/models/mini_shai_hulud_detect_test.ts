@@ -20,11 +20,16 @@ Deno.test("model export has expected shape", () => {
   assertEquals(model.reports, ["@swamp/cve/mini-shai-hulud-report"]);
 });
 
-Deno.test("globalArguments requires lockfilePath", () => {
+Deno.test("globalArguments accepts lockfilePath", () => {
   const result = model.globalArguments.parse({
     lockfilePath: "/path/to/deno.lock",
   });
   assertEquals(result.lockfilePath, "/path/to/deno.lock");
+});
+
+Deno.test("globalArguments accepts empty object", () => {
+  const result = model.globalArguments.parse({});
+  assertEquals(result.lockfilePath, undefined);
 });
 
 Deno.test("compromised database has entries", () => {

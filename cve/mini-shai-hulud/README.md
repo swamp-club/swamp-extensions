@@ -45,18 +45,18 @@ Supports two lockfile formats:
 ### Scan a lockfile (quickest)
 
 ```bash
-swamp model method run @swamp/cve/mini-shai-hulud scan \
-  --global-arg lockfilePath=./deno.lock
+swamp model @swamp/cve/mini-shai-hulud method run scan lockfile-check \
+  --input lockfilePath=./deno.lock
 ```
 
-The `@type` prefix auto-creates the model instance. No `swamp model create`
-needed.
+The `@type` prefix auto-creates a model instance named `lockfile-check`. No
+separate `swamp model create` needed. The lockfile path is passed via `--input`.
 
 ### Scan a package-lock.json
 
 ```bash
-swamp model method run @swamp/cve/mini-shai-hulud scan \
-  --global-arg lockfilePath=/path/to/package-lock.json
+swamp model @swamp/cve/mini-shai-hulud method run scan lockfile-check \
+  --input lockfilePath=/path/to/package-lock.json
 ```
 
 Full paths work -- the lockfile does not need to be local to the swamp repo.

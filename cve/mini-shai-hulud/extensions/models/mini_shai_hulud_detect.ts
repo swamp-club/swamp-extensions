@@ -366,8 +366,9 @@ export { COMPROMISED };
 const GlobalArgsSchema = z.object({
   lockfilePath: z
     .string()
+    .optional()
     .describe(
-      "Path to a deno.lock or package-lock.json file to scan",
+      "Default path to a deno.lock or package-lock.json file to scan",
     ),
 });
 
@@ -485,7 +486,7 @@ export {
 // ---------------------------------------------------------------------------
 
 type MethodContext = {
-  globalArgs: { lockfilePath: string };
+  globalArgs: { lockfilePath?: string };
   logger: { info: (msg: string) => void };
   writeResource: (
     specName: string,
@@ -528,6 +529,11 @@ export const model = {
       ) => {
         const lockfilePath = args.lockfilePath ??
           context.globalArgs.lockfilePath;
+        if (!lockfilePath) {
+          throw new Error(
+            "lockfilePath is required. Pass --input lockfilePath=./deno.lock",
+          );
+        }
         const raw = await Deno.readTextFile(lockfilePath);
         const format = detectFormat(lockfilePath);
         const entries = format === "deno.lock"
