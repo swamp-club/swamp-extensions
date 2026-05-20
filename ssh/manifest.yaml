@@ -1,0 +1,90 @@
+manifestVersion: 1
+name: "@swamp/ssh"
+version: "2026.05.19.1"
+description: |
+  Run commands, copy files, and open port forwards across a declared set of
+  hosts over SSH. Define the hosts once on the model, then target any subset
+  with a CEL expression (`'"prod" in host.tags'`), an explicit name list, or
+  `all`. Every host runs in parallel and records its own result resource, so
+  individual outcomes are auditable and workflows can gate on them.
+
+  OpenSSH targets reuse long-lived connections via ControlMaster; Tailscale
+  SSH targets authenticate with tailnet identity and bypass multiplexing.
+  Hosts can mix both transports in one fleet, and each host can override the
+  fleet defaults (user, port, identity, proxy jump, auth mode, and more).
+
+  ## Highlights
+
+  - Define your fleet once via `globalArguments.hosts[]` — each host can
+    override the fleet-default transport (kind, user, port, identity, etc.).
+  - Mix OpenSSH and Tailscale hosts in the same fleet.
+  - Per-host operations land as one resource each — `run-<method>-<name>` —
+    so you can diff, gate workflows, and audit individual hosts.
+  - Three selector forms: `"all"`, an explicit name list `["web-1"]`, or
+    a bare CEL string evaluated per host (e.g.
+    `'"prod" in host.tags && host.attrs.region == "us-east-1"'`).
+  - CEL helpers bundled on every call: `matchesRegex(s, pat)`,
+    `cidrContains(cidr, addr)`.
+  - Auth modes: key-based (file, agent, `IdentityAgent`) and
+    password-based via `sshpass -e` with the password supplied through
+    `${{ vault.get('<vault>', '<key>') }}`.
+
+  ## Methods
+
+  | Method   | What it does |
+  | -------- | ------------ |
+  | `apply`  | Materialise the host list as `host-*` resources; deletes stale entries that disappeared from `hosts[]`. |
+  | `open`   | Establish ControlMaster sockets for selected `ssh` hosts (no-op for tailscale). |
+  | `check`  | Probe ControlMaster (`ssh -O check`) or run `true` over `tailscale ssh`. |
+  | `close`  | Tear down ControlMaster sockets (`ssh -O exit`). |
+  | `exec`   | Run a single shell command on each selected host; optional `sudo: true` prefixes `sudo -n --`. |
+  | `script` | Pipe a multi-line script over stdin to `sh -s --` (or chosen interpreter) — no remote-side shell-quoting from us. |
+  | `copy`   | `scp` (or `rsync -e ssh`) files to/from each selected host. |
+  | `forward`| Local/remote port forwarding via the master, or detached `tailscale ssh -N -L` child for tailscale hosts. |
+
+  ## Output capture
+
+  Captured by default, opt out at the fleet (`captureOutput: false`) or
+  per call. No cap — `stdout`/`stderr` land verbatim in the matching
+  `run-<method>-<host>` resource.
+
+  ## Requirements
+
+  - OpenSSH client (`ssh`, `scp`) on the runner.
+  - `rsync` if any `copy` call sets `useRsync: true`.
+  - `tailscale` if any host uses the `tailscale` transport.
+  - `sshpass` if any host uses `auth.kind: password`.
+  - The swamp host must expose `ctx.createCelEnvironment()` on the
+    extension model context (introduced 2026-05).
+
+  ## Usage
+
+  ```bash
+  swamp extension pull @swamp/ssh
+
+  # Create the fleet, then author its globalArguments (transport + hosts).
+  swamp model create @swamp/ssh awesome
+  swamp model edit awesome
+
+  # Run methods — every selector-taking method requires a `hosts` argument.
+  swamp model method run awesome open --input hosts=all --json
+  swamp model method run awesome exec \
+    --input hosts='"prod" in host.tags' \
+    --input command='uptime' --json
+  ```
+
+  See the bundled README for the full configuration shape, transport
+  options, authentication modes, and worked examples.
+repository: "https://github.com/systeminit/swamp-extensions"
+models:
+  - ssh.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []
+labels:
+  - ssh
+  - fleet
+  - tailscale
+  - control-master
+  - remote-exec
