@@ -18,6 +18,7 @@ jobs:
       codegen: ${{ steps.filter.outputs.codegen }}
       models: ${{ steps.filter.outputs.models }}
       issue-lifecycle: ${{ steps.filter.outputs['issue-lifecycle'] }}
+      ssh: ${{ steps.filter.outputs.ssh }}
       workflows: ${{ steps.filter.outputs.workflows }}
       cve: ${{ steps.filter.outputs.cve }}
       ci: ${{ steps.filter.outputs.ci }}
@@ -40,6 +41,8 @@ jobs:
               - 'model/**'
             issue-lifecycle:
               - 'issue-lifecycle/**'
+            ssh:
+              - 'ssh/**'
             workflows:
               - 'workflows/**'
             cve:
@@ -197,6 +200,55 @@ jobs:
     defaults:
       run:
         working-directory: issue-lifecycle
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Verify lockfile is up to date
+        run: deno install --frozen
+
+  ssh-check:
+    name: ssh - ${{ matrix.task }}
+    needs: [changes]
+    if: needs.changes.outputs.ssh == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [check, lint, fmt, test]
+    defaults:
+      run:
+        working-directory: ssh
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: deno ${{ matrix.task }}
+        run: |
+          if [ "${{ matrix.task }}" = "fmt" ]; then
+            deno fmt --check extensions/models/
+          elif [ "${{ matrix.task }}" = "lint" ]; then
+            deno lint extensions/models/
+          elif [ "${{ matrix.task }}" = "test" ]; then
+            deno test --allow-read --allow-write --allow-env --allow-run --allow-sys extensions/models/
+          else
+            deno check extensions/models/ssh.ts
+          fi
+
+  ssh-lockfile:
+    name: ssh - lockfile up to date
+    needs: [changes]
+    if: needs.changes.outputs.ssh == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: ssh
     steps:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
