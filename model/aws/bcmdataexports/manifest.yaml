@@ -9,8 +9,6 @@ labels:
   - bcmdataexports
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: export
 models:
   - export.ts
 additionalFiles:

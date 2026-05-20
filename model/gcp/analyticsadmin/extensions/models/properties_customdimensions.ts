@@ -79,9 +79,6 @@ const PATCH_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe(
-    "Instance name for this resource (used as the unique identifier in the factory pattern)",
-  ),
   description: z.string().describe(
     "Optional. Description for this custom dimension. Max length of 150 characters.",
   ).optional(),
@@ -90,6 +87,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   displayName: z.string().describe(
     "Required. Display name for this custom dimension as shown in the Analytics UI. Max length of 82 characters, alphanumeric plus space and underscore starting with a letter. Legacy system-generated display names may contain square brackets, but updates to this field will never permit square brackets.",
+  ).optional(),
+  name: z.string().describe(
+    "Identifier. Resource name for this CustomDimension resource. Format: properties/{property}/customDimensions/{customDimension}",
   ).optional(),
   parameterName: z.string().describe(
     "Required. Immutable. Tagging parameter name for this custom dimension. If this is a user-scoped dimension, then this is the user property name. If this is an event-scoped dimension, then this is the event parameter name. If this is an item-scoped dimension, then this is the parameter name found in the eCommerce items array. May only contain alphanumeric and underscore characters, starting with a letter. Max length of 24 characters for user-scoped dimensions, 40 characters for event-scoped dimensions.",
@@ -113,7 +113,6 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().optional(),
   description: z.string().describe(
     "Optional. Description for this custom dimension. Max length of 150 characters.",
   ).optional(),
@@ -122,6 +121,9 @@ const InputsSchema = z.object({
   ).optional(),
   displayName: z.string().describe(
     "Required. Display name for this custom dimension as shown in the Analytics UI. Max length of 82 characters, alphanumeric plus space and underscore starting with a letter. Legacy system-generated display names may contain square brackets, but updates to this field will never permit square brackets.",
+  ).optional(),
+  name: z.string().describe(
+    "Identifier. Resource name for this CustomDimension resource. Format: properties/{property}/customDimensions/{customDimension}",
   ).optional(),
   parameterName: z.string().describe(
     "Required. Immutable. Tagging parameter name for this custom dimension. If this is a user-scoped dimension, then this is the user property name. If this is an event-scoped dimension, then this is the event parameter name. If this is an item-scoped dimension, then this is the parameter name found in the eCommerce items array. May only contain alphanumeric and underscore characters, starting with a letter. Max length of 24 characters for user-scoped dimensions, 40 characters for event-scoped dimensions.",
@@ -136,7 +138,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Analytics Admin Properties.CustomDimensions. Registered at `@swamp/gcp/analyticsadmin/properties-customdimensions`. */
 export const model = {
   type: "@swamp/gcp/analyticsadmin/properties-customdimensions",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -188,6 +190,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -218,6 +225,7 @@ export const model = {
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
         }
+        if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["parameterName"] !== undefined) {
           body["parameterName"] = g["parameterName"];
         }
@@ -235,10 +243,8 @@ export const model = {
           body,
           GET_CONFIG,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
+          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -265,10 +271,11 @@ export const model = {
           GET_CONFIG,
           params,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? args.identifier).replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName =
+          ((result.name ?? g.name)?.toString() ?? args.identifier).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,

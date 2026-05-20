@@ -117,6 +117,8 @@ const GlobalArgsSchema = z.object({
       "CAN_VIEW_NON_FINANCIAL_DATA_GLOBAL",
       "CAN_VIEW_APP_QUALITY_GLOBAL",
       "CAN_MANAGE_DEEPLINKS_GLOBAL",
+      "CAN_VIEW_CONNECTED_APPS_GLOBAL",
+      "CAN_EDIT_CONNECTED_APPS_GLOBAL",
     ]),
   ).describe(
     "Permissions for the user which apply across the developer account.",
@@ -171,6 +173,8 @@ const InputsSchema = z.object({
       "CAN_VIEW_NON_FINANCIAL_DATA_GLOBAL",
       "CAN_VIEW_APP_QUALITY_GLOBAL",
       "CAN_MANAGE_DEEPLINKS_GLOBAL",
+      "CAN_VIEW_CONNECTED_APPS_GLOBAL",
+      "CAN_EDIT_CONNECTED_APPS_GLOBAL",
     ]),
   ).describe(
     "Permissions for the user which apply across the developer account.",
@@ -190,7 +194,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Play Android Developer Users. Registered at `@swamp/gcp/androidpublisher/users`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/users",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -234,6 +238,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

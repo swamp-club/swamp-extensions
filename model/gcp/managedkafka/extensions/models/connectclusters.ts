@@ -116,7 +116,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe("A capacity configuration of a Kafka cluster.").optional(),
   config: z.record(z.string(), z.string()).describe(
-    "Optional. Configurations for the worker that are overridden from the defaults. The key of the map is a Kafka Connect worker property name, for example: `exactly.once.source.support`.",
+    "Optional. Reserved for future use. This field is meant for worker config overrides, but is unsupported for now.",
   ).optional(),
   gcpConfig: z.object({
     accessConfig: z.object({
@@ -199,7 +199,7 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe("A capacity configuration of a Kafka cluster.").optional(),
   config: z.record(z.string(), z.string()).describe(
-    "Optional. Configurations for the worker that are overridden from the defaults. The key of the map is a Kafka Connect worker property name, for example: `exactly.once.source.support`.",
+    "Optional. Reserved for future use. This field is meant for worker config overrides, but is unsupported for now.",
   ).optional(),
   gcpConfig: z.object({
     accessConfig: z.object({
@@ -247,7 +247,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Managed Service for Apache Kafka ConnectClusters. Registered at `@swamp/gcp/managedkafka/connectclusters`. */
 export const model = {
   type: "@swamp/gcp/managedkafka/connectclusters",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -306,6 +306,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

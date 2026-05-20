@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI SpecialistPools.
+ * Swamp extension model for Google Cloud Agent Platform SpecialistPools.
  *
  * SpecialistPool represents customers' own workforce to work on their data labeling jobs. It includes a group of specialist managers and workers. Managers are responsible for managing the workers in this pool as well as customers' data labeling jobs associated with this pool. Customers create specialist pool as well as start data labeling jobs on Cloud, managers and workers handle the jobs using CrowdCompute console.
  *
@@ -144,10 +144,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI SpecialistPools. Registered at `@swamp/gcp/aiplatform/specialistpools`. */
+/** Swamp extension model for Google Cloud Agent Platform SpecialistPools. Registered at `@swamp/gcp/aiplatform/specialistpools`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/specialistpools",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -201,6 +201,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

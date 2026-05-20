@@ -190,6 +190,10 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "This reservation type is specified by total resource amounts (e.g. total count of CPUs) and can account for multiple instance SKUs. In other words, one can create instances of varying shapes against this reservation.",
   ).optional(),
+  confidentialComputeType: z.enum([
+    "CONFIDENTIAL_COMPUTE_TYPE_TDX",
+    "CONFIDENTIAL_COMPUTE_TYPE_UNSPECIFIED",
+  ]).optional(),
   deleteAfterDuration: z.object({
     nanos: z.number().int().describe(
       "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
@@ -345,6 +349,7 @@ const StateSchema = z.object({
     workloadType: z.string(),
   }).optional(),
   commitment: z.string().optional(),
+  confidentialComputeType: z.string().optional(),
   creationTimestamp: z.string().optional(),
   deleteAfterDuration: z.object({
     nanos: z.number(),
@@ -485,6 +490,10 @@ const InputsSchema = z.object({
   }).describe(
     "This reservation type is specified by total resource amounts (e.g. total count of CPUs) and can account for multiple instance SKUs. In other words, one can create instances of varying shapes against this reservation.",
   ).optional(),
+  confidentialComputeType: z.enum([
+    "CONFIDENTIAL_COMPUTE_TYPE_TDX",
+    "CONFIDENTIAL_COMPUTE_TYPE_UNSPECIFIED",
+  ]).optional(),
   deleteAfterDuration: z.object({
     nanos: z.number().int().describe(
       "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
@@ -622,7 +631,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine Reservations. Registered at `@swamp/gcp/compute/reservations`. */
 export const model = {
   type: "@swamp/gcp/compute/reservations",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -715,6 +724,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.05.20.1",
+      description: "Added: confidentialComputeType",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -746,6 +760,9 @@ export const model = {
         }
         if (g["aggregateReservation"] !== undefined) {
           body["aggregateReservation"] = g["aggregateReservation"];
+        }
+        if (g["confidentialComputeType"] !== undefined) {
+          body["confidentialComputeType"] = g["confidentialComputeType"];
         }
         if (g["deleteAfterDuration"] !== undefined) {
           body["deleteAfterDuration"] = g["deleteAfterDuration"];
@@ -877,6 +894,9 @@ export const model = {
         }
         if (g["aggregateReservation"] !== undefined) {
           body["aggregateReservation"] = g["aggregateReservation"];
+        }
+        if (g["confidentialComputeType"] !== undefined) {
+          body["confidentialComputeType"] = g["confidentialComputeType"];
         }
         if (g["deleteAfterDuration"] !== undefined) {
           body["deleteAfterDuration"] = g["deleteAfterDuration"];

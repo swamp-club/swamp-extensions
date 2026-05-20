@@ -16,9 +16,12 @@
 
 import { z } from "npm:zod@4.3.6";
 import {
+  createResource,
+  deleteResource,
   getProjectId,
   isResourceNotFoundError,
   readResource,
+  updateResource,
 } from "./_lib/gcp.ts";
 
 const BASE_URL = "https://cloudidentity.googleapis.com/";
@@ -38,10 +41,72 @@ const GET_CONFIG = {
   },
 } as const;
 
+const INSERT_CONFIG = {
+  "id": "cloudidentity.policies.create",
+  "path": "v1/policies",
+  "httpMethod": "POST",
+  "parameterOrder": [],
+  "parameters": {},
+} as const;
+
+const PATCH_CONFIG = {
+  "id": "cloudidentity.policies.patch",
+  "path": "v1/{+name}",
+  "httpMethod": "PATCH",
+  "parameterOrder": [
+    "name",
+  ],
+  "parameters": {
+    "name": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const DELETE_CONFIG = {
+  "id": "cloudidentity.policies.delete",
+  "path": "v1/{+name}",
+  "httpMethod": "DELETE",
+  "parameterOrder": [
+    "name",
+  ],
+  "parameters": {
+    "name": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
+  customer: z.string().describe(
+    "Immutable. Customer that the Policy belongs to. The value is in the format 'customers/{customerId}'. The `customerId` must begin with \"C\" To find your customer ID in Admin Console see https://support.google.com/a/answer/10070793.",
+  ).optional(),
+  policyQuery: z.object({
+    group: z.string().describe(
+      "Immutable. The group that the query applies to. This field is only set if there is a single value for group that satisfies all clauses of the query. If no group applies, this will be the empty string.",
+    ).optional(),
+    orgUnit: z.string().describe(
+      "Required. Immutable. Non-empty default. The OrgUnit the query applies to. This field is only set if there is a single value for org_unit that satisfies all clauses of the query.",
+    ).optional(),
+    query: z.string().describe(
+      "Immutable. The CEL query that defines which entities the Policy applies to (ex. a User entity). For details about CEL see https://opensource.google.com/projects/cel. The OrgUnits the Policy applies to are represented by a clause like so: entity.org_units.exists(org_unit, org_unit.org_unit_id == orgUnitId('{orgUnitId}')) The Group the Policy applies to are represented by a clause like so: entity.groups.exists(group, group.group_id == groupId('{groupId}')) The Licenses the Policy applies to are represented by a clause like so: entity.licenses.exists(license, license in ['/product/{productId}/sku/{skuId}']) The above clauses can be present in any combination, and used in conjunction with the &&, || and! operators. The org_unit and group fields below are helper fields that contain the corresponding value(s) as the query to make the query easier to use.",
+    ).optional(),
+    sortOrder: z.number().describe(
+      "Output only. The decimal sort order of this PolicyQuery. The value is relative to all other policies with the same setting type for the customer. (There are no duplicates within this set).",
+    ).optional(),
+  }).describe("PolicyQuery").optional(),
+  setting: z.object({
+    type: z.string().describe("Required. Immutable. The type of the Setting..")
+      .optional(),
+    value: z.record(z.string(), z.string()).describe(
+      "Required. The value of the Setting.",
+    ).optional(),
+  }).describe("Setting").optional(),
 });
 
 const StateSchema = z.object({
@@ -64,12 +129,36 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
+  customer: z.string().describe(
+    "Immutable. Customer that the Policy belongs to. The value is in the format 'customers/{customerId}'. The `customerId` must begin with \"C\" To find your customer ID in Admin Console see https://support.google.com/a/answer/10070793.",
+  ).optional(),
+  policyQuery: z.object({
+    group: z.string().describe(
+      "Immutable. The group that the query applies to. This field is only set if there is a single value for group that satisfies all clauses of the query. If no group applies, this will be the empty string.",
+    ).optional(),
+    orgUnit: z.string().describe(
+      "Required. Immutable. Non-empty default. The OrgUnit the query applies to. This field is only set if there is a single value for org_unit that satisfies all clauses of the query.",
+    ).optional(),
+    query: z.string().describe(
+      "Immutable. The CEL query that defines which entities the Policy applies to (ex. a User entity). For details about CEL see https://opensource.google.com/projects/cel. The OrgUnits the Policy applies to are represented by a clause like so: entity.org_units.exists(org_unit, org_unit.org_unit_id == orgUnitId('{orgUnitId}')) The Group the Policy applies to are represented by a clause like so: entity.groups.exists(group, group.group_id == groupId('{groupId}')) The Licenses the Policy applies to are represented by a clause like so: entity.licenses.exists(license, license in ['/product/{productId}/sku/{skuId}']) The above clauses can be present in any combination, and used in conjunction with the &&, || and! operators. The org_unit and group fields below are helper fields that contain the corresponding value(s) as the query to make the query easier to use.",
+    ).optional(),
+    sortOrder: z.number().describe(
+      "Output only. The decimal sort order of this PolicyQuery. The value is relative to all other policies with the same setting type for the customer. (There are no duplicates within this set).",
+    ).optional(),
+  }).describe("PolicyQuery").optional(),
+  setting: z.object({
+    type: z.string().describe("Required. Immutable. The type of the Setting..")
+      .optional(),
+    value: z.record(z.string(), z.string()).describe(
+      "Required. The value of the Setting.",
+    ).optional(),
+  }).describe("Setting").optional(),
 });
 
 /** Swamp extension model for Google Cloud Identity Policies. Registered at `@swamp/gcp/cloudidentity/policies`. */
 export const model = {
   type: "@swamp/gcp/cloudidentity/policies",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -142,6 +231,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.05.20.1",
+      description: "Added: customer, policyQuery, setting",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -155,6 +249,39 @@ export const model = {
     },
   },
   methods: {
+    create: {
+      description: "Create a policies",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const body: Record<string, unknown> = {};
+        if (g["customer"] !== undefined) body["customer"] = g["customer"];
+        if (g["policyQuery"] !== undefined) {
+          body["policyQuery"] = g["policyQuery"];
+        }
+        if (g["setting"] !== undefined) body["setting"] = g["setting"];
+        if (g["name"] !== undefined) params["name"] = String(g["name"]);
+        const result = await createResource(
+          BASE_URL,
+          INSERT_CONFIG,
+          params,
+          body,
+          GET_CONFIG,
+        ) as StateData;
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
     get: {
       description: "Get a policies",
       arguments: z.object({
@@ -179,6 +306,83 @@ export const model = {
           instanceName,
           result,
         );
+        return { dataHandles: [handle] };
+      },
+    },
+    update: {
+      description: "Update policies attributes",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const params: Record<string, string> = { project: projectId };
+        params["name"] = existing["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (g["policyQuery"] !== undefined) {
+          body["policyQuery"] = g["policyQuery"];
+        }
+        if (g["setting"] !== undefined) body["setting"] = g["setting"];
+        for (const key of Object.keys(existing)) {
+          if (
+            key === "fingerprint" || key === "labelFingerprint" ||
+            key === "etag" || key.endsWith("Fingerprint")
+          ) {
+            body[key] = existing[key];
+          }
+        }
+        const result = await updateResource(
+          BASE_URL,
+          PATCH_CONFIG,
+          params,
+          body,
+          GET_CONFIG,
+        ) as StateData;
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    delete: {
+      description: "Delete the policies",
+      arguments: z.object({
+        identifier: z.string().describe("The name of the policies"),
+      }),
+      execute: async (args: { identifier: string }, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["name"] = args.identifier;
+        const { existed } = await deleteResource(
+          BASE_URL,
+          DELETE_CONFIG,
+          params,
+        );
+        const instanceName = (g.name?.toString() ?? args.identifier).replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource("state", instanceName, {
+          identifier: args.identifier,
+          existed,
+          status: existed ? "deleted" : "not_found",
+          deletedAt: new Date().toISOString(),
+        });
         return { dataHandles: [handle] };
       },
     },

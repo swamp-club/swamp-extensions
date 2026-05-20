@@ -25,9 +25,6 @@ const NodeGroupConfigurationSchema = z.object({
   Slots: z.string().describe(
     "A string of comma-separated values where the first set of values are the slot numbers (zero based), and the second set of values are the keyspaces for each slot. The following example specifies three slots (numbered 0, 1, and 2): 0,1,2,0-4999,5000-9999,10000-16,383.",
   ).optional(),
-  PrimaryAvailabilityZone: z.string().describe(
-    "The Availability Zone where the primary node of this node group (shard) is launched.",
-  ).optional(),
   ReplicaAvailabilityZones: z.array(z.string()).describe(
     "A list of Availability Zones to be used for the read replicas. The number of Availability Zones in this list must match the value of ReplicaCount or ReplicasPerNodeGroup if not specified.",
   ).optional(),
@@ -37,6 +34,18 @@ const NodeGroupConfigurationSchema = z.object({
   ReplicaCount: z.number().int().describe(
     "The number of read replica nodes in this node group (shard).",
   ).optional(),
+  PrimaryAvailabilityZone: z.string().describe(
+    "The Availability Zone where the primary node of this node group (shard) is launched.",
+  ).optional(),
+});
+
+const TagSchema = z.object({
+  Value: z.string().describe(
+    "The value for the tag. You can specify a value that is 0 to 256 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
+  ),
+  Key: z.string().describe(
+    "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
+  ),
 });
 
 const CloudWatchLogsDestinationDetailsSchema = z.object({
@@ -59,31 +68,19 @@ const DestinationDetailsSchema = z.object({
 });
 
 const LogDeliveryConfigurationRequestSchema = z.object({
-  DestinationDetails: DestinationDetailsSchema.describe(
-    "Configuration details of either a CloudWatch Logs destination or Kinesis Data Firehose destination.",
-  ),
-  DestinationType: z.string().describe(
-    "Specify either CloudWatch Logs or Kinesis Data Firehose as the destination type. Valid values are either cloudwatch-logs or kinesis-firehose.",
-  ),
   LogFormat: z.string().describe("Valid values are either json or text."),
   LogType: z.string().describe(
     "Valid value is either slow-log, which refers to slow-log or engine-log.",
   ),
-});
-
-const TagSchema = z.object({
-  Key: z.string().describe(
-    "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
+  DestinationType: z.string().describe(
+    "Specify either CloudWatch Logs or Kinesis Data Firehose as the destination type. Valid values are either cloudwatch-logs or kinesis-firehose.",
   ),
-  Value: z.string().describe(
-    "The value for the tag. You can specify a value that is 0 to 256 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
+  DestinationDetails: DestinationDetailsSchema.describe(
+    "Configuration details of either a CloudWatch Logs destination or Kinesis Data Firehose destination.",
   ),
 });
 
 const GlobalArgsSchema = z.object({
-  ReplicationGroupId: z.string().describe(
-    "The replication group identifier. This parameter is stored as a lowercase string.",
-  ).optional(),
   PreferredCacheClusterAZs: z.array(z.string()).describe(
     "A list of EC2 Availability Zones in which the replication group's clusters are created. The order of the Availability Zones in the list is the order in which clusters are allocated. The primary cluster is created in the first AZ in the list. This parameter is not used if there is more than one node group (shard). You should use NodeGroupConfiguration instead.",
   ).optional(),
@@ -93,14 +90,11 @@ const GlobalArgsSchema = z.object({
   NodeGroupConfiguration: z.array(NodeGroupConfigurationSchema).describe(
     "NodeGroupConfiguration is a property of the AWS::ElastiCache::ReplicationGroup resource that configures an Amazon ElastiCache (ElastiCache) Redis cluster node group.",
   ).optional(),
-  LogDeliveryConfigurations: z.array(LogDeliveryConfigurationRequestSchema)
-    .describe("Specifies the destination, format and type of the logs.")
-    .optional(),
   SnapshotArns: z.array(z.string()).describe(
     "A list of Amazon Resource Names (ARN) that uniquely identify the Redis RDB snapshot files stored in Amazon S3.",
   ).optional(),
-  UserGroupIds: z.array(z.string()).describe(
-    "The ID of user group to associate with the replication group.",
+  ClusterMode: z.string().describe(
+    "Enabled or Disabled. To modify cluster mode from Disabled to Enabled, you must first set the cluster mode to Compatible. Compatible mode allows your Redis OSS clients to connect using both cluster mode enabled and cluster mode disabled. After you migrate all Redis OSS clients to use cluster mode enabled, you can then complete cluster mode configuration and set the cluster mode to Enabled. For more information, see Modify cluster mode.",
   ).optional(),
   NumNodeGroups: z.number().int().describe(
     "An optional parameter that specifies the number of node groups (shards) for this Redis (cluster mode enabled) replication group. For Redis (cluster mode disabled) either omit this parameter or set it to 1.",
@@ -126,6 +120,12 @@ const GlobalArgsSchema = z.object({
   TransitEncryptionEnabled: z.boolean().describe(
     "A flag that enables in-transit encryption when set to true.",
   ).optional(),
+  NetworkType: z.string().describe(
+    "Must be either ipv4 | ipv6 | dual_stack. IPv6 is supported for workloads using Redis OSS engine version 6.2 onward or Memcached engine version 1.6.6 on all instances built on the Nitro system",
+  ).optional(),
+  ReplicationGroupId: z.string().describe(
+    "The replication group identifier. This parameter is stored as a lowercase string.",
+  ).optional(),
   Engine: z.string().describe(
     "The name of the cache engine to be used for the clusters in this replication group.",
   ).optional(),
@@ -134,6 +134,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   NumCacheClusters: z.number().int().describe(
     "The number of clusters this replication group initially has.This parameter is not used if there is more than one node group (shard). You should use ReplicasPerNodeGroup instead.",
+  ).optional(),
+  GlobalReplicationGroupId: z.string().describe(
+    "The name of the Global datastore",
   ).optional(),
   EngineVersion: z.string().describe(
     "The version number of the cache engine to be used for the clusters in this replication group. To view the supported cache engine versions, use the DescribeCacheEngineVersions operation.",
@@ -165,67 +168,53 @@ const GlobalArgsSchema = z.object({
   SnapshotWindow: z.string().describe(
     "The daily time range (in UTC) during which ElastiCache begins taking a daily snapshot of your node group (shard).",
   ).optional(),
+  TransitEncryptionMode: z.string().describe(
+    "A setting that allows you to migrate your clients to use in-transit encryption, with no downtime. When setting TransitEncryptionEnabled to true, you can set your TransitEncryptionMode to preferred in the same request, to allow both encrypted and unencrypted connections at the same time. Once you migrate all your Redis OSS clients to use encrypted connections you can modify the value to required to allow encrypted connections only. Setting TransitEncryptionMode to required is a two-step process that requires you to first set the TransitEncryptionMode to preferred, after that you can set TransitEncryptionMode to required. This process will not trigger the replacement of the replication group.",
+  ).optional(),
   CacheNodeType: z.string().describe(
     "The compute and memory capacity of the nodes in the node group (shard).",
   ).optional(),
   SnapshotRetentionLimit: z.number().int().describe(
     "The number of days for which ElastiCache retains automatic snapshots before deleting them. For example, if you set SnapshotRetentionLimit to 5, a snapshot that was taken today is retained for 5 days before being deleted.",
   ).optional(),
+  UserGroupIds: z.array(z.string()).describe(
+    "The ID of user group to associate with the replication group.",
+  ).optional(),
   SnapshottingClusterId: z.string().describe(
     "The cluster ID that is used as the daily snapshot source for the replication group. This parameter cannot be set for Redis (cluster mode enabled) replication groups.",
-  ).optional(),
-  AuthToken: z.string().describe(
-    "Reserved parameter. The password used to access a password protected server.AuthToken can be specified only on replication groups where TransitEncryptionEnabled is true. For more information.",
   ).optional(),
   IpDiscovery: z.string().describe(
     "The network type you choose when creating a replication group, either ipv4 | ipv6. IPv6 is supported for workloads using Redis OSS engine version 6.2 onward or Memcached engine version 1.6.6 on all instances built on the Nitro system.",
   ).optional(),
-  NetworkType: z.string().describe(
-    "Must be either ipv4 | ipv6 | dual_stack. IPv6 is supported for workloads using Redis OSS engine version 6.2 onward or Memcached engine version 1.6.6 on all instances built on the Nitro system",
-  ).optional(),
-  GlobalReplicationGroupId: z.string().describe(
-    "The name of the Global datastore",
+  AuthToken: z.string().describe(
+    "Reserved parameter. The password used to access a password protected server.AuthToken can be specified only on replication groups where TransitEncryptionEnabled is true. For more information.",
   ).optional(),
   DataTieringEnabled: z.boolean().describe(
     "Enables data tiering. Data tiering is only supported for replication groups using the r6gd node type. This parameter must be set to true when using r6gd nodes.",
   ).optional(),
-  TransitEncryptionMode: z.string().describe(
-    "A setting that allows you to migrate your clients to use in-transit encryption, with no downtime. When setting TransitEncryptionEnabled to true, you can set your TransitEncryptionMode to preferred in the same request, to allow both encrypted and unencrypted connections at the same time. Once you migrate all your Redis OSS clients to use encrypted connections you can modify the value to required to allow encrypted connections only. Setting TransitEncryptionMode to required is a two-step process that requires you to first set the TransitEncryptionMode to preferred, after that you can set TransitEncryptionMode to required. This process will not trigger the replacement of the replication group.",
-  ).optional(),
-  ClusterMode: z.string().describe(
-    "Enabled or Disabled. To modify cluster mode from Disabled to Enabled, you must first set the cluster mode to Compatible. Compatible mode allows your Redis OSS clients to connect using both cluster mode enabled and cluster mode disabled. After you migrate all Redis OSS clients to use cluster mode enabled, you can then complete cluster mode configuration and set the cluster mode to Enabled. For more information, see Modify cluster mode.",
-  ).optional(),
+  LogDeliveryConfigurations: z.array(LogDeliveryConfigurationRequestSchema)
+    .describe("Specifies the destination, format and type of the logs.")
+    .optional(),
 });
 
 const StateSchema = z.object({
-  ReplicationGroupId: z.string(),
   PreferredCacheClusterAZs: z.array(z.string()).optional(),
-  PrimaryEndPoint: z.object({
-    Address: z.string(),
-    Port: z.string(),
-  }).optional(),
   CacheSecurityGroupNames: z.array(z.string()).optional(),
   NodeGroupConfiguration: z.array(NodeGroupConfigurationSchema).optional(),
-  LogDeliveryConfigurations: z.array(LogDeliveryConfigurationRequestSchema)
-    .optional(),
-  SnapshotArns: z.array(z.string()).optional(),
-  UserGroupIds: z.array(z.string()).optional(),
-  ConfigurationEndPoint: z.object({
-    Address: z.string(),
-    Port: z.string(),
-  }).optional(),
   ReadEndPoint: z.object({
     Addresses: z.string(),
+    PortsList: z.array(z.string()),
     AddressesList: z.array(z.string()),
     Ports: z.string(),
-    PortsList: z.array(z.string()),
   }).optional(),
+  SnapshotArns: z.array(z.string()).optional(),
+  ClusterMode: z.string().optional(),
+  Port: z.number().optional(),
+  NumNodeGroups: z.number().optional(),
   ReaderEndPoint: z.object({
     Address: z.string(),
     Port: z.string(),
   }).optional(),
-  Port: z.number().optional(),
-  NumNodeGroups: z.number().optional(),
   NotificationTopicArn: z.string().optional(),
   SnapshotName: z.string().optional(),
   AutomaticFailoverEnabled: z.boolean().optional(),
@@ -233,12 +222,19 @@ const StateSchema = z.object({
   ReplicationGroupDescription: z.string().optional(),
   MultiAZEnabled: z.boolean().optional(),
   TransitEncryptionEnabled: z.boolean().optional(),
+  NetworkType: z.string().optional(),
+  ReplicationGroupId: z.string(),
   Engine: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
   NumCacheClusters: z.number().optional(),
+  GlobalReplicationGroupId: z.string().optional(),
   EngineVersion: z.string().optional(),
   KmsKeyId: z.string().optional(),
   CacheSubnetGroupName: z.string().optional(),
+  ConfigurationEndPoint: z.object({
+    Address: z.string(),
+    Port: z.string(),
+  }).optional(),
   CacheParameterGroupName: z.string().optional(),
   PreferredMaintenanceWindow: z.string().optional(),
   PrimaryClusterId: z.string().optional(),
@@ -246,24 +242,25 @@ const StateSchema = z.object({
   AutoMinorVersionUpgrade: z.boolean().optional(),
   SecurityGroupIds: z.array(z.string()).optional(),
   SnapshotWindow: z.string().optional(),
+  TransitEncryptionMode: z.string().optional(),
   CacheNodeType: z.string().optional(),
   SnapshotRetentionLimit: z.number().optional(),
+  UserGroupIds: z.array(z.string()).optional(),
   SnapshottingClusterId: z.string().optional(),
-  AuthToken: z.string().optional(),
   IpDiscovery: z.string().optional(),
-  NetworkType: z.string().optional(),
-  GlobalReplicationGroupId: z.string().optional(),
+  AuthToken: z.string().optional(),
   DataTieringEnabled: z.boolean().optional(),
-  TransitEncryptionMode: z.string().optional(),
-  ClusterMode: z.string().optional(),
+  LogDeliveryConfigurations: z.array(LogDeliveryConfigurationRequestSchema)
+    .optional(),
+  PrimaryEndPoint: z.object({
+    Address: z.string(),
+    Port: z.string(),
+  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  ReplicationGroupId: z.string().describe(
-    "The replication group identifier. This parameter is stored as a lowercase string.",
-  ).optional(),
   PreferredCacheClusterAZs: z.array(z.string()).describe(
     "A list of EC2 Availability Zones in which the replication group's clusters are created. The order of the Availability Zones in the list is the order in which clusters are allocated. The primary cluster is created in the first AZ in the list. This parameter is not used if there is more than one node group (shard). You should use NodeGroupConfiguration instead.",
   ).optional(),
@@ -273,14 +270,11 @@ const InputsSchema = z.object({
   NodeGroupConfiguration: z.array(NodeGroupConfigurationSchema).describe(
     "NodeGroupConfiguration is a property of the AWS::ElastiCache::ReplicationGroup resource that configures an Amazon ElastiCache (ElastiCache) Redis cluster node group.",
   ).optional(),
-  LogDeliveryConfigurations: z.array(LogDeliveryConfigurationRequestSchema)
-    .describe("Specifies the destination, format and type of the logs.")
-    .optional(),
   SnapshotArns: z.array(z.string()).describe(
     "A list of Amazon Resource Names (ARN) that uniquely identify the Redis RDB snapshot files stored in Amazon S3.",
   ).optional(),
-  UserGroupIds: z.array(z.string()).describe(
-    "The ID of user group to associate with the replication group.",
+  ClusterMode: z.string().describe(
+    "Enabled or Disabled. To modify cluster mode from Disabled to Enabled, you must first set the cluster mode to Compatible. Compatible mode allows your Redis OSS clients to connect using both cluster mode enabled and cluster mode disabled. After you migrate all Redis OSS clients to use cluster mode enabled, you can then complete cluster mode configuration and set the cluster mode to Enabled. For more information, see Modify cluster mode.",
   ).optional(),
   NumNodeGroups: z.number().int().describe(
     "An optional parameter that specifies the number of node groups (shards) for this Redis (cluster mode enabled) replication group. For Redis (cluster mode disabled) either omit this parameter or set it to 1.",
@@ -306,6 +300,12 @@ const InputsSchema = z.object({
   TransitEncryptionEnabled: z.boolean().describe(
     "A flag that enables in-transit encryption when set to true.",
   ).optional(),
+  NetworkType: z.string().describe(
+    "Must be either ipv4 | ipv6 | dual_stack. IPv6 is supported for workloads using Redis OSS engine version 6.2 onward or Memcached engine version 1.6.6 on all instances built on the Nitro system",
+  ).optional(),
+  ReplicationGroupId: z.string().describe(
+    "The replication group identifier. This parameter is stored as a lowercase string.",
+  ).optional(),
   Engine: z.string().describe(
     "The name of the cache engine to be used for the clusters in this replication group.",
   ).optional(),
@@ -314,6 +314,9 @@ const InputsSchema = z.object({
   ).optional(),
   NumCacheClusters: z.number().int().describe(
     "The number of clusters this replication group initially has.This parameter is not used if there is more than one node group (shard). You should use ReplicasPerNodeGroup instead.",
+  ).optional(),
+  GlobalReplicationGroupId: z.string().describe(
+    "The name of the Global datastore",
   ).optional(),
   EngineVersion: z.string().describe(
     "The version number of the cache engine to be used for the clusters in this replication group. To view the supported cache engine versions, use the DescribeCacheEngineVersions operation.",
@@ -345,42 +348,39 @@ const InputsSchema = z.object({
   SnapshotWindow: z.string().describe(
     "The daily time range (in UTC) during which ElastiCache begins taking a daily snapshot of your node group (shard).",
   ).optional(),
+  TransitEncryptionMode: z.string().describe(
+    "A setting that allows you to migrate your clients to use in-transit encryption, with no downtime. When setting TransitEncryptionEnabled to true, you can set your TransitEncryptionMode to preferred in the same request, to allow both encrypted and unencrypted connections at the same time. Once you migrate all your Redis OSS clients to use encrypted connections you can modify the value to required to allow encrypted connections only. Setting TransitEncryptionMode to required is a two-step process that requires you to first set the TransitEncryptionMode to preferred, after that you can set TransitEncryptionMode to required. This process will not trigger the replacement of the replication group.",
+  ).optional(),
   CacheNodeType: z.string().describe(
     "The compute and memory capacity of the nodes in the node group (shard).",
   ).optional(),
   SnapshotRetentionLimit: z.number().int().describe(
     "The number of days for which ElastiCache retains automatic snapshots before deleting them. For example, if you set SnapshotRetentionLimit to 5, a snapshot that was taken today is retained for 5 days before being deleted.",
   ).optional(),
+  UserGroupIds: z.array(z.string()).describe(
+    "The ID of user group to associate with the replication group.",
+  ).optional(),
   SnapshottingClusterId: z.string().describe(
     "The cluster ID that is used as the daily snapshot source for the replication group. This parameter cannot be set for Redis (cluster mode enabled) replication groups.",
-  ).optional(),
-  AuthToken: z.string().describe(
-    "Reserved parameter. The password used to access a password protected server.AuthToken can be specified only on replication groups where TransitEncryptionEnabled is true. For more information.",
   ).optional(),
   IpDiscovery: z.string().describe(
     "The network type you choose when creating a replication group, either ipv4 | ipv6. IPv6 is supported for workloads using Redis OSS engine version 6.2 onward or Memcached engine version 1.6.6 on all instances built on the Nitro system.",
   ).optional(),
-  NetworkType: z.string().describe(
-    "Must be either ipv4 | ipv6 | dual_stack. IPv6 is supported for workloads using Redis OSS engine version 6.2 onward or Memcached engine version 1.6.6 on all instances built on the Nitro system",
-  ).optional(),
-  GlobalReplicationGroupId: z.string().describe(
-    "The name of the Global datastore",
+  AuthToken: z.string().describe(
+    "Reserved parameter. The password used to access a password protected server.AuthToken can be specified only on replication groups where TransitEncryptionEnabled is true. For more information.",
   ).optional(),
   DataTieringEnabled: z.boolean().describe(
     "Enables data tiering. Data tiering is only supported for replication groups using the r6gd node type. This parameter must be set to true when using r6gd nodes.",
   ).optional(),
-  TransitEncryptionMode: z.string().describe(
-    "A setting that allows you to migrate your clients to use in-transit encryption, with no downtime. When setting TransitEncryptionEnabled to true, you can set your TransitEncryptionMode to preferred in the same request, to allow both encrypted and unencrypted connections at the same time. Once you migrate all your Redis OSS clients to use encrypted connections you can modify the value to required to allow encrypted connections only. Setting TransitEncryptionMode to required is a two-step process that requires you to first set the TransitEncryptionMode to preferred, after that you can set TransitEncryptionMode to required. This process will not trigger the replacement of the replication group.",
-  ).optional(),
-  ClusterMode: z.string().describe(
-    "Enabled or Disabled. To modify cluster mode from Disabled to Enabled, you must first set the cluster mode to Compatible. Compatible mode allows your Redis OSS clients to connect using both cluster mode enabled and cluster mode disabled. After you migrate all Redis OSS clients to use cluster mode enabled, you can then complete cluster mode configuration and set the cluster mode to Enabled. For more information, see Modify cluster mode.",
-  ).optional(),
+  LogDeliveryConfigurations: z.array(LogDeliveryConfigurationRequestSchema)
+    .describe("Specifies the destination, format and type of the logs.")
+    .optional(),
 });
 
 /** Swamp extension model for ElastiCache ReplicationGroup. Registered at `@swamp/aws/elasticache/replication-group`. */
 export const model = {
   type: "@swamp/aws/elasticache/replication-group",
-  version: "2026.05.14.1",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -409,6 +409,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

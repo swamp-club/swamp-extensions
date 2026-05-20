@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI Endpoints.
+ * Swamp extension model for Google Cloud Agent Platform Endpoints.
  *
  * Models are deployed into it, and afterwards Endpoint is called to obtain predictions and explanations.
  *
@@ -1059,10 +1059,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI Endpoints. Registered at `@swamp/gcp/aiplatform/endpoints`. */
+/** Swamp extension model for Google Cloud Agent Platform Endpoints. Registered at `@swamp/gcp/aiplatform/endpoints`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/endpoints",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1121,6 +1121,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

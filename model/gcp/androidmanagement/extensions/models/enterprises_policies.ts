@@ -365,6 +365,11 @@ const GlobalArgsSchema = z.object({
   ]).describe(
     "Whether auto date, time, and time zone are enabled on a company-owned device. If this is set, then autoTimeRequired is ignored.",
   ).optional(),
+  autofillPolicy: z.enum([
+    "AUTOFILL_POLICY_UNSPECIFIED",
+    "AUTOFILL_USER_CHOICE",
+    "AUTOFILL_DISABLED",
+  ]).describe("Optional. The policy for the autofill service.").optional(),
   bluetoothConfigDisabled: z.boolean().describe(
     "Whether configuring bluetooth is disabled.",
   ).optional(),
@@ -1514,6 +1519,7 @@ const StateSchema = z.object({
   assistContentPolicy: z.string().optional(),
   autoDateAndTimeZone: z.string().optional(),
   autoTimeRequired: z.boolean().optional(),
+  autofillPolicy: z.string().optional(),
   blockApplicationsEnabled: z.boolean().optional(),
   bluetoothConfigDisabled: z.boolean().optional(),
   bluetoothContactSharingDisabled: z.boolean().optional(),
@@ -2131,6 +2137,11 @@ const InputsSchema = z.object({
   ]).describe(
     "Whether auto date, time, and time zone are enabled on a company-owned device. If this is set, then autoTimeRequired is ignored.",
   ).optional(),
+  autofillPolicy: z.enum([
+    "AUTOFILL_POLICY_UNSPECIFIED",
+    "AUTOFILL_USER_CHOICE",
+    "AUTOFILL_DISABLED",
+  ]).describe("Optional. The policy for the autofill service.").optional(),
   bluetoothConfigDisabled: z.boolean().describe(
     "Whether configuring bluetooth is disabled.",
   ).optional(),
@@ -3215,7 +3226,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Android Management Enterprises.Policies. Registered at `@swamp/gcp/androidmanagement/enterprises-policies`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-policies",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3282,6 +3293,11 @@ export const model = {
         const { autofillPolicy: _autofillPolicy, ...rest } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.05.20.1",
+      description: "Added: autofillPolicy",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -3382,6 +3398,9 @@ export const model = {
         }
         if (g["autoDateAndTimeZone"] !== undefined) {
           body["autoDateAndTimeZone"] = g["autoDateAndTimeZone"];
+        }
+        if (g["autofillPolicy"] !== undefined) {
+          body["autofillPolicy"] = g["autofillPolicy"];
         }
         if (g["bluetoothConfigDisabled"] !== undefined) {
           body["bluetoothConfigDisabled"] = g["bluetoothConfigDisabled"];

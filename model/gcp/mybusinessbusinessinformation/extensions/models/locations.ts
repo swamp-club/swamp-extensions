@@ -198,7 +198,7 @@ const GlobalArgsSchema = z.object({
       "Output only. The location resource that this location duplicates.",
     ).optional(),
     hasGoogleUpdated: z.boolean().describe(
-      "Output only. Indicates whether the place ID associated with this location has updates that need to be updated or rejected by the client. If this boolean is set, you should call the `getGoogleUpdated` method to lookup information that's needs to be verified.",
+      "Output only. Indicates whether the place ID associated with this location has updates that need to be updated or rejected by the client. If this boolean is set, you should call the `getGoogleUpdated` method to look up information that's needs to be verified.",
     ).optional(),
     hasPendingEdits: z.boolean().describe(
       "Output only. Indicates whether any of this Location's properties are in the edit pending state.",
@@ -471,7 +471,7 @@ const GlobalArgsSchema = z.object({
         "Label to be used when displaying the price list, section, or item.",
       ).optional(),
     }).describe(
-      "Represents a free-form service offered by the merchant. These are services that are not exposed as part of our structure service data. The merchant manually enters the names for of such services via a geomerchant surface.",
+      "Represents a free-form service offered by the merchant. These are services that are not exposed as part of our structure service data. The merchant manually enters the names for such services using a geomerchant surface.",
     ).optional(),
     price: z.object({
       currencyCode: z.string().describe(
@@ -929,7 +929,7 @@ const InputsSchema = z.object({
       "Output only. The location resource that this location duplicates.",
     ).optional(),
     hasGoogleUpdated: z.boolean().describe(
-      "Output only. Indicates whether the place ID associated with this location has updates that need to be updated or rejected by the client. If this boolean is set, you should call the `getGoogleUpdated` method to lookup information that's needs to be verified.",
+      "Output only. Indicates whether the place ID associated with this location has updates that need to be updated or rejected by the client. If this boolean is set, you should call the `getGoogleUpdated` method to look up information that's needs to be verified.",
     ).optional(),
     hasPendingEdits: z.boolean().describe(
       "Output only. Indicates whether any of this Location's properties are in the edit pending state.",
@@ -1202,7 +1202,7 @@ const InputsSchema = z.object({
         "Label to be used when displaying the price list, section, or item.",
       ).optional(),
     }).describe(
-      "Represents a free-form service offered by the merchant. These are services that are not exposed as part of our structure service data. The merchant manually enters the names for of such services via a geomerchant surface.",
+      "Represents a free-form service offered by the merchant. These are services that are not exposed as part of our structure service data. The merchant manually enters the names for such services using a geomerchant surface.",
     ).optional(),
     price: z.object({
       currencyCode: z.string().describe(
@@ -1349,7 +1349,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud My Business Business Information Locations. Registered at `@swamp/gcp/mybusinessbusinessinformation/locations`. */
 export const model = {
   type: "@swamp/gcp/mybusinessbusinessinformation/locations",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1408,6 +1408,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

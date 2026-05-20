@@ -63,6 +63,9 @@ const INSERT_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
+  keyPortabilityEnabled: z.boolean().describe(
+    "Optional. Immutable. Indicates whether key portability is enabled for the SingleTenantHsmInstance. This can only be set at creation time. Key portability features are disabled by default and not yet available in GA.",
+  ).optional(),
   name: z.string().describe(
     "Identifier. The resource name for this SingleTenantHsmInstance in the format `projects/*/locations/*/singleTenantHsmInstances/*`.",
   ).optional(),
@@ -89,6 +92,7 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   deleteTime: z.string().optional(),
   disableTime: z.string().optional(),
+  keyPortabilityEnabled: z.boolean().optional(),
   name: z.string(),
   quorumAuth: z.object({
     requiredApproverCount: z.number(),
@@ -102,6 +106,9 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
+  keyPortabilityEnabled: z.boolean().describe(
+    "Optional. Immutable. Indicates whether key portability is enabled for the SingleTenantHsmInstance. This can only be set at creation time. Key portability features are disabled by default and not yet available in GA.",
+  ).optional(),
   name: z.string().describe(
     "Identifier. The resource name for this SingleTenantHsmInstance in the format `projects/*/locations/*/singleTenantHsmInstances/*`.",
   ).optional(),
@@ -127,7 +134,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Key Management Service (KMS) SingleTenantHsmInstances. Registered at `@swamp/gcp/cloudkms/singletenanthsminstances`. */
 export const model = {
   type: "@swamp/gcp/cloudkms/singletenanthsminstances",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -190,6 +197,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.05.20.1",
+      description: "Added: keyPortabilityEnabled",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -218,6 +230,9 @@ export const model = {
           String(g["location"] ?? "")
         }`;
         const body: Record<string, unknown> = {};
+        if (g["keyPortabilityEnabled"] !== undefined) {
+          body["keyPortabilityEnabled"] = g["keyPortabilityEnabled"];
+        }
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["quorumAuth"] !== undefined) body["quorumAuth"] = g["quorumAuth"];
         if (g["singleTenantHsmInstanceId"] !== undefined) {

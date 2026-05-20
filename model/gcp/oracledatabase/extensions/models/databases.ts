@@ -54,6 +54,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   adminPassword: z.string().optional(),
+  adminPasswordSecretVersion: z.string().optional(),
   characterSet: z.string().optional(),
   createTime: z.string().optional(),
   databaseId: z.string().optional(),
@@ -87,6 +88,7 @@ const StateSchema = z.object({
     state: z.string(),
   }).optional(),
   tdeWalletPassword: z.string().optional(),
+  tdeWalletPasswordSecretVersion: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -101,7 +103,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud Databases. Registered at `@swamp/gcp/oracledatabase/databases`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/databases",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -150,6 +152,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -210,6 +210,10 @@ const GlobalArgsSchema = z.object({
       "Only applicable if FR is delivering to the same reservation. If set, all parent commitments will be extended to match the end date of the plan for this commitment.",
     ).optional(),
   }).optional(),
+  confidentialComputeType: z.enum([
+    "CONFIDENTIAL_COMPUTE_TYPE_TDX",
+    "CONFIDENTIAL_COMPUTE_TYPE_UNSPECIFIED",
+  ]).optional(),
   deploymentType: z.enum(["DENSE", "DEPLOYMENT_TYPE_UNSPECIFIED"]).describe(
     "Type of the deployment requested as part of future reservation.",
   ).optional(),
@@ -226,6 +230,11 @@ const GlobalArgsSchema = z.object({
   namePrefix: z.string().describe(
     "Name prefix for the reservations to be created at the time of delivery. The name prefix must comply with RFC1035. Maximum allowed length for name prefix is 20. Automatically created reservations name format will be -date-####.",
   ).optional(),
+  params: z.object({
+    resourceManagerTags: z.record(z.string(), z.string()).describe(
+      "Input only. Resource manager tags to be bound to the future reservation. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/{tag_value_id}` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
+    ).optional(),
+  }).describe("Additional future reservation params.").optional(),
   planningStatus: z.enum(["DRAFT", "PLANNING_STATUS_UNSPECIFIED", "SUBMITTED"])
     .describe("Planning state before being submitted for evaluation")
     .optional(),
@@ -357,6 +366,7 @@ const StateSchema = z.object({
     commitmentPlan: z.string(),
     previousCommitmentTerms: z.string(),
   }).optional(),
+  confidentialComputeType: z.string().optional(),
   creationTimestamp: z.string().optional(),
   deploymentType: z.string().optional(),
   description: z.string().optional(),
@@ -365,6 +375,9 @@ const StateSchema = z.object({
   kind: z.string().optional(),
   name: z.string(),
   namePrefix: z.string().optional(),
+  params: z.object({
+    resourceManagerTags: z.record(z.string(), z.unknown()),
+  }).optional(),
   planningStatus: z.string().optional(),
   reservationMode: z.string().optional(),
   reservationName: z.string().optional(),
@@ -529,6 +542,10 @@ const InputsSchema = z.object({
       "Only applicable if FR is delivering to the same reservation. If set, all parent commitments will be extended to match the end date of the plan for this commitment.",
     ).optional(),
   }).optional(),
+  confidentialComputeType: z.enum([
+    "CONFIDENTIAL_COMPUTE_TYPE_TDX",
+    "CONFIDENTIAL_COMPUTE_TYPE_UNSPECIFIED",
+  ]).optional(),
   deploymentType: z.enum(["DENSE", "DEPLOYMENT_TYPE_UNSPECIFIED"]).describe(
     "Type of the deployment requested as part of future reservation.",
   ).optional(),
@@ -545,6 +562,11 @@ const InputsSchema = z.object({
   namePrefix: z.string().describe(
     "Name prefix for the reservations to be created at the time of delivery. The name prefix must comply with RFC1035. Maximum allowed length for name prefix is 20. Automatically created reservations name format will be -date-####.",
   ).optional(),
+  params: z.object({
+    resourceManagerTags: z.record(z.string(), z.string()).describe(
+      "Input only. Resource manager tags to be bound to the future reservation. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/{tag_value_id}` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
+    ).optional(),
+  }).describe("Additional future reservation params.").optional(),
   planningStatus: z.enum(["DRAFT", "PLANNING_STATUS_UNSPECIFIED", "SUBMITTED"])
     .describe("Planning state before being submitted for evaluation")
     .optional(),
@@ -651,7 +673,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine FutureReservations. Registered at `@swamp/gcp/compute/futurereservations`. */
 export const model = {
   type: "@swamp/gcp/compute/futurereservations",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -756,6 +778,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.05.20.1",
+      description: "Added: confidentialComputeType, params",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -796,6 +823,9 @@ export const model = {
         if (g["commitmentInfo"] !== undefined) {
           body["commitmentInfo"] = g["commitmentInfo"];
         }
+        if (g["confidentialComputeType"] !== undefined) {
+          body["confidentialComputeType"] = g["confidentialComputeType"];
+        }
         if (g["deploymentType"] !== undefined) {
           body["deploymentType"] = g["deploymentType"];
         }
@@ -807,6 +837,7 @@ export const model = {
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["namePrefix"] !== undefined) body["namePrefix"] = g["namePrefix"];
+        if (g["params"] !== undefined) body["params"] = g["params"];
         if (g["planningStatus"] !== undefined) {
           body["planningStatus"] = g["planningStatus"];
         }
@@ -922,6 +953,9 @@ export const model = {
         if (g["commitmentInfo"] !== undefined) {
           body["commitmentInfo"] = g["commitmentInfo"];
         }
+        if (g["confidentialComputeType"] !== undefined) {
+          body["confidentialComputeType"] = g["confidentialComputeType"];
+        }
         if (g["deploymentType"] !== undefined) {
           body["deploymentType"] = g["deploymentType"];
         }
@@ -933,6 +967,7 @@ export const model = {
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["namePrefix"] !== undefined) body["namePrefix"] = g["namePrefix"];
+        if (g["params"] !== undefined) body["params"] = g["params"];
         if (g["planningStatus"] !== undefined) {
           body["planningStatus"] = g["planningStatus"];
         }

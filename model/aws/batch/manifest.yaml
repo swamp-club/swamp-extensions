@@ -9,8 +9,6 @@ labels:
   - batch
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: consumable_resource, job_queue, scheduling_policy
 models:
   - compute_environment.ts
   - consumable_resource.ts

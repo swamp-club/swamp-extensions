@@ -110,6 +110,9 @@ const GlobalArgsSchema = z.object({
       networkUri: z.string().describe(
         "Optional. Network URI to connect workload to.",
       ).optional(),
+      resourceManagerTags: z.record(z.string(), z.string()).describe(
+        "Optional. Associates Resource Manager tags with the workload nodes. There is a max limit of 30 tags. Keys and values can be either in numeric format, such as tagKeys/{tag_key_id} and tagValues/{tag_value_id}, or in namespaced format, such as {org_id|project_id}/{tag_key_short_name} and {tag_value_short_name}.",
+      ).optional(),
       serviceAccount: z.string().describe(
         "Optional. Service account that used to execute workload.",
       ).optional(),
@@ -160,6 +163,27 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "A configuration for running an Apache PySpark (https://spark.apache.org/docs/latest/api/python/getting_started/quickstart.html) batch workload.",
   ).optional(),
+  pysparkNotebookBatch: z.object({
+    archiveUris: z.array(z.string()).describe(
+      "Optional. HCFS URIs of archives to be extracted into the working directory of each executor. Supported file types:.jar,.tar,.tar.gz,.tgz, and.zip.",
+    ).optional(),
+    fileUris: z.array(z.string()).describe(
+      "Optional. HCFS URIs of files to be placed in the working directory of each executor",
+    ).optional(),
+    jarFileUris: z.array(z.string()).describe(
+      "Optional. HCFS URIs of jar files to be added to the Spark CLASSPATH.",
+    ).optional(),
+    notebookFileUri: z.string().describe(
+      "Required. The HCFS URI of the notebook file to execute.",
+    ).optional(),
+    params: z.record(z.string(), z.string()).describe(
+      "Optional. The parameters to pass to the notebook.",
+    ).optional(),
+    pythonFileUris: z.array(z.string()).describe(
+      "Optional. HCFS URIs of Python files to pass to the PySpark framework.",
+    ).optional(),
+  }).describe("A configuration for running a PySpark Notebook batch workload.")
+    .optional(),
   runtimeConfig: z.object({
     autotuningConfig: z.object({
       scenarios: z.array(
@@ -348,6 +372,7 @@ const StateSchema = z.object({
       kmsKey: z.string(),
       networkTags: z.array(z.string()),
       networkUri: z.string(),
+      resourceManagerTags: z.record(z.string(), z.unknown()),
       serviceAccount: z.string(),
       stagingBucket: z.string(),
       subnetworkUri: z.string(),
@@ -369,6 +394,14 @@ const StateSchema = z.object({
     fileUris: z.array(z.string()),
     jarFileUris: z.array(z.string()),
     mainPythonFileUri: z.string(),
+    pythonFileUris: z.array(z.string()),
+  }).optional(),
+  pysparkNotebookBatch: z.object({
+    archiveUris: z.array(z.string()),
+    fileUris: z.array(z.string()),
+    jarFileUris: z.array(z.string()),
+    notebookFileUri: z.string(),
+    params: z.record(z.string(), z.unknown()),
     pythonFileUris: z.array(z.string()),
   }).optional(),
   runtimeConfig: z.object({
@@ -472,6 +505,9 @@ const InputsSchema = z.object({
       networkUri: z.string().describe(
         "Optional. Network URI to connect workload to.",
       ).optional(),
+      resourceManagerTags: z.record(z.string(), z.string()).describe(
+        "Optional. Associates Resource Manager tags with the workload nodes. There is a max limit of 30 tags. Keys and values can be either in numeric format, such as tagKeys/{tag_key_id} and tagValues/{tag_value_id}, or in namespaced format, such as {org_id|project_id}/{tag_key_short_name} and {tag_value_short_name}.",
+      ).optional(),
       serviceAccount: z.string().describe(
         "Optional. Service account that used to execute workload.",
       ).optional(),
@@ -522,6 +558,27 @@ const InputsSchema = z.object({
   }).describe(
     "A configuration for running an Apache PySpark (https://spark.apache.org/docs/latest/api/python/getting_started/quickstart.html) batch workload.",
   ).optional(),
+  pysparkNotebookBatch: z.object({
+    archiveUris: z.array(z.string()).describe(
+      "Optional. HCFS URIs of archives to be extracted into the working directory of each executor. Supported file types:.jar,.tar,.tar.gz,.tgz, and.zip.",
+    ).optional(),
+    fileUris: z.array(z.string()).describe(
+      "Optional. HCFS URIs of files to be placed in the working directory of each executor",
+    ).optional(),
+    jarFileUris: z.array(z.string()).describe(
+      "Optional. HCFS URIs of jar files to be added to the Spark CLASSPATH.",
+    ).optional(),
+    notebookFileUri: z.string().describe(
+      "Required. The HCFS URI of the notebook file to execute.",
+    ).optional(),
+    params: z.record(z.string(), z.string()).describe(
+      "Optional. The parameters to pass to the notebook.",
+    ).optional(),
+    pythonFileUris: z.array(z.string()).describe(
+      "Optional. HCFS URIs of Python files to pass to the PySpark framework.",
+    ).optional(),
+  }).describe("A configuration for running a PySpark Notebook batch workload.")
+    .optional(),
   runtimeConfig: z.object({
     autotuningConfig: z.object({
       scenarios: z.array(
@@ -701,7 +758,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dataproc Batches. Registered at `@swamp/gcp/dataproc/batches`. */
 export const model = {
   type: "@swamp/gcp/dataproc/batches",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -782,6 +839,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.05.20.1",
+      description: "Added: pysparkNotebookBatch",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -815,6 +877,9 @@ export const model = {
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["pysparkBatch"] !== undefined) {
           body["pysparkBatch"] = g["pysparkBatch"];
+        }
+        if (g["pysparkNotebookBatch"] !== undefined) {
+          body["pysparkNotebookBatch"] = g["pysparkNotebookBatch"];
         }
         if (g["runtimeConfig"] !== undefined) {
           body["runtimeConfig"] = g["runtimeConfig"];

@@ -152,6 +152,108 @@ const GlobalArgsSchema = z.object({
     "Specifies the custom error response policy that must be applied when the backend service or backend bucket responds with an error.",
   ).optional(),
   defaultRouteAction: z.object({
+    cachePolicy: z.object({
+      cacheBypassRequestHeaderNames: z.array(z.string()).describe(
+        "Bypass the cache when the specified request headers are matched by name, e.g. Pragma or Authorization headers. Values are case-insensitive. Up to 5 header names can be specified. The cache is bypassed for all `cacheMode` values.",
+      ).optional(),
+      cacheKeyPolicy: z.object({
+        excludedQueryParameters: z.array(z.string()).describe(
+          "Names of query string parameters to exclude in cache keys. All other parameters will be included. Either specify `excludedQueryParameters` or `includedQueryParameters`, not both. '&' and '=' will be percent encoded and not treated as delimiters. Note: This field applies to routes that use backend services. Attempting to set it on a route that points exclusively to Backend Buckets will result in a configuration error. For routes that point to a Backend Bucket, use `includedQueryParameters` to define which parameters should be part of the cache key.",
+        ).optional(),
+        includeHost: z.boolean().describe(
+          "If true, requests to different hosts will be cached separately. Note: This setting is only applicable to routes that use a Backend Service. It does not affect requests served by a Backend Bucket, as the host is never included in a Backend Bucket's cache key. Attempting to set it on a route that points exclusively to Backend Buckets will result in a configuration error.",
+        ).optional(),
+        includeProtocol: z.boolean().describe(
+          "If true, http and https requests will be cached separately. Note: This setting is only applicable to routes that use a Backend Service. It does not affect requests served by a Backend Bucket, as the protocol is never included in a Backend Bucket's cache key. Attempting to set on a route that points exclusively to Backend Buckets will result in a configuration error.",
+        ).optional(),
+        includeQueryString: z.boolean().describe(
+          "If true, include query string parameters in the cache key according to `includedQueryParameters` and `excludedQueryParameters`. If neither is set, the entire query string will be included. If false, the query string will be excluded from the cache key entirely. Note: This field applies to routes that use backend services. Attempting to set it on a route that points exclusively to Backend Buckets will result in a configuration error. For routes that point to a Backend Bucket, use `includedQueryParameters` to define which parameters should be part of the cache key.",
+        ).optional(),
+        includedCookieNames: z.array(z.string()).describe(
+          "Allows HTTP cookies (by name) to be used in the cache key. The name=value pair will be used in the cache key Cloud CDN generates. Note: This setting is only applicable to routes that use a Backend Service. It does not affect requests served by a Backend Bucket. Attempting to set it on a route that points exclusively to Backend Buckets will result in a configuration error. Up to 5 cookie names can be specified.",
+        ).optional(),
+        includedHeaderNames: z.array(z.string()).describe(
+          "Allows HTTP request headers (by name) to be used in the cache key.",
+        ).optional(),
+        includedQueryParameters: z.array(z.string()).describe(
+          "Names of query string parameters to include in cache keys. All other parameters will be excluded. Either specify `includedQueryParameters` or `excludedQueryParameters`, not both. '&' and '=' will be percent encoded and not treated as delimiters.",
+        ).optional(),
+      }).describe(
+        "Message containing what to include in the cache key for a request for Cache Policy defined on Route Action.",
+      ).optional(),
+      cacheMode: z.enum([
+        "CACHE_ALL_STATIC",
+        "FORCE_CACHE_ALL",
+        "USE_ORIGIN_HEADERS",
+      ]).describe(
+        "Specifies the cache setting for all responses from this route. If not specified, Cloud CDN uses `CACHE_ALL_STATIC` mode.",
+      ).optional(),
+      clientTtl: z.object({
+        nanos: z.number().int().describe(
+          "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
+        ).optional(),
+        seconds: z.string().describe(
+          "Span of time at a resolution of a second. Must be from 0 to 315,576,000,000 inclusive. Note: these bounds are computed from: 60 sec/min * 60 min/hr * 24 hr/day * 365.25 days/year * 10000 years",
+        ).optional(),
+      }).describe(
+        'A Duration represents a fixed-length span of time represented as a count of seconds and fractions of seconds at nanosecond resolution. It is independent of any calendar and concepts like "day" or "month". Range is approximately 10,000 years.',
+      ).optional(),
+      defaultTtl: z.object({
+        nanos: z.number().int().describe(
+          "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
+        ).optional(),
+        seconds: z.string().describe(
+          "Span of time at a resolution of a second. Must be from 0 to 315,576,000,000 inclusive. Note: these bounds are computed from: 60 sec/min * 60 min/hr * 24 hr/day * 365.25 days/year * 10000 years",
+        ).optional(),
+      }).describe(
+        'A Duration represents a fixed-length span of time represented as a count of seconds and fractions of seconds at nanosecond resolution. It is independent of any calendar and concepts like "day" or "month". Range is approximately 10,000 years.',
+      ).optional(),
+      maxTtl: z.object({
+        nanos: z.number().int().describe(
+          "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
+        ).optional(),
+        seconds: z.string().describe(
+          "Span of time at a resolution of a second. Must be from 0 to 315,576,000,000 inclusive. Note: these bounds are computed from: 60 sec/min * 60 min/hr * 24 hr/day * 365.25 days/year * 10000 years",
+        ).optional(),
+      }).describe(
+        'A Duration represents a fixed-length span of time represented as a count of seconds and fractions of seconds at nanosecond resolution. It is independent of any calendar and concepts like "day" or "month". Range is approximately 10,000 years.',
+      ).optional(),
+      negativeCaching: z.boolean().describe(
+        "Negative caching allows per-status code TTLs to be set, in order to apply fine-grained caching for common errors or redirects. This can reduce the load on your origin and improve end-user experience by reducing response latency. When the `cacheMode` is set to `CACHE_ALL_STATIC` or `USE_ORIGIN_HEADERS`, negative caching applies to responses with the specified response code that lack any Cache-Control, Expires, or Pragma: no-cache directives. When the `cacheMode` is set to `FORCE_CACHE_ALL`, negative caching applies to all responses with the specified response code, and overrides any caching headers. By default, Cloud CDN applies the following TTLs to these HTTP status codes: * 300 (Multiple Choice), 301, 308 (Permanent Redirects): 10m * 404 (Not Found), 410 (Gone), 451 (Unavailable For Legal Reasons): 120s * 405 (Method Not Found), 501 (Not Implemented): 60s These defaults can be overridden in `negativeCachingPolicy`. If not specified, Cloud CDN applies negative caching by default.",
+      ).optional(),
+      negativeCachingPolicy: z.array(z.object({
+        code: z.number().int().describe(
+          "The HTTP status code to define a TTL against. Only HTTP status codes 300, 301, 302, 307, 308, 404, 405, 410, 421, 451 and 501 can be specified as values, and you cannot specify a status code more than once.",
+        ).optional(),
+        ttl: z.object({
+          nanos: z.unknown().describe(
+            "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
+          ).optional(),
+          seconds: z.unknown().describe(
+            "Span of time at a resolution of a second. Must be from 0 to 315,576,000,000 inclusive. Note: these bounds are computed from: 60 sec/min * 60 min/hr * 24 hr/day * 365.25 days/year * 10000 years",
+          ).optional(),
+        }).describe(
+          'A Duration represents a fixed-length span of time represented as a count of seconds and fractions of seconds at nanosecond resolution. It is independent of any calendar and concepts like "day" or "month". Range is approximately 10,000 years.',
+        ).optional(),
+      })).describe(
+        "Sets a cache TTL for the specified HTTP status code. `negativeCaching` must be enabled to configure `negativeCachingPolicy`. Omitting the policy and leaving `negativeCaching` enabled will use Cloud CDN's default cache TTLs. Note that when specifying an explicit `negativeCachingPolicy`, you should take care to specify a cache TTL for all response codes that you wish to cache. Cloud CDN will not apply any default negative caching when a policy exists.",
+      ).optional(),
+      requestCoalescing: z.boolean().describe(
+        "If true then Cloud CDN will combine multiple concurrent cache fill requests into a small number of requests to the origin. If not specified, Cloud CDN applies request coalescing by default.",
+      ).optional(),
+      serveWhileStale: z.object({
+        nanos: z.number().int().describe(
+          "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
+        ).optional(),
+        seconds: z.string().describe(
+          "Span of time at a resolution of a second. Must be from 0 to 315,576,000,000 inclusive. Note: these bounds are computed from: 60 sec/min * 60 min/hr * 24 hr/day * 365.25 days/year * 10000 years",
+        ).optional(),
+      }).describe(
+        'A Duration represents a fixed-length span of time represented as a count of seconds and fractions of seconds at nanosecond resolution. It is independent of any calendar and concepts like "day" or "month". Range is approximately 10,000 years.',
+      ).optional(),
+    }).describe(
+      "Message containing CachePolicy configuration for URL Map's Route Action.",
+    ).optional(),
     corsPolicy: z.object({
       allowCredentials: z.boolean().describe(
         "In response to a preflight request, setting this to true indicates that the actual request can include user credentials. This field translates to the Access-Control-Allow-Credentials header. Default is false.",
@@ -401,6 +503,94 @@ const GlobalArgsSchema = z.object({
       "Specifies the custom error response policy that must be applied when the backend service or backend bucket responds with an error.",
     ).optional(),
     defaultRouteAction: z.object({
+      cachePolicy: z.object({
+        cacheBypassRequestHeaderNames: z.array(z.unknown()).describe(
+          "Bypass the cache when the specified request headers are matched by name, e.g. Pragma or Authorization headers. Values are case-insensitive. Up to 5 header names can be specified. The cache is bypassed for all `cacheMode` values.",
+        ).optional(),
+        cacheKeyPolicy: z.object({
+          excludedQueryParameters: z.unknown().describe(
+            "Names of query string parameters to exclude in cache keys. All other parameters will be included. Either specify `excludedQueryParameters` or `includedQueryParameters`, not both. '&' and '=' will be percent encoded and not treated as delimiters. Note: This field applies to routes that use backend services. Attempting to set it on a route that points exclusively to Backend Buckets will result in a configuration error. For routes that point to a Backend Bucket, use `includedQueryParameters` to define which parameters should be part of the cache key.",
+          ).optional(),
+          includeHost: z.unknown().describe(
+            "If true, requests to different hosts will be cached separately. Note: This setting is only applicable to routes that use a Backend Service. It does not affect requests served by a Backend Bucket, as the host is never included in a Backend Bucket's cache key. Attempting to set it on a route that points exclusively to Backend Buckets will result in a configuration error.",
+          ).optional(),
+          includeProtocol: z.unknown().describe(
+            "If true, http and https requests will be cached separately. Note: This setting is only applicable to routes that use a Backend Service. It does not affect requests served by a Backend Bucket, as the protocol is never included in a Backend Bucket's cache key. Attempting to set on a route that points exclusively to Backend Buckets will result in a configuration error.",
+          ).optional(),
+          includeQueryString: z.unknown().describe(
+            "If true, include query string parameters in the cache key according to `includedQueryParameters` and `excludedQueryParameters`. If neither is set, the entire query string will be included. If false, the query string will be excluded from the cache key entirely. Note: This field applies to routes that use backend services. Attempting to set it on a route that points exclusively to Backend Buckets will result in a configuration error. For routes that point to a Backend Bucket, use `includedQueryParameters` to define which parameters should be part of the cache key.",
+          ).optional(),
+          includedCookieNames: z.unknown().describe(
+            "Allows HTTP cookies (by name) to be used in the cache key. The name=value pair will be used in the cache key Cloud CDN generates. Note: This setting is only applicable to routes that use a Backend Service. It does not affect requests served by a Backend Bucket. Attempting to set it on a route that points exclusively to Backend Buckets will result in a configuration error. Up to 5 cookie names can be specified.",
+          ).optional(),
+          includedHeaderNames: z.unknown().describe(
+            "Allows HTTP request headers (by name) to be used in the cache key.",
+          ).optional(),
+          includedQueryParameters: z.unknown().describe(
+            "Names of query string parameters to include in cache keys. All other parameters will be excluded. Either specify `includedQueryParameters` or `excludedQueryParameters`, not both. '&' and '=' will be percent encoded and not treated as delimiters.",
+          ).optional(),
+        }).describe(
+          "Message containing what to include in the cache key for a request for Cache Policy defined on Route Action.",
+        ).optional(),
+        cacheMode: z.enum([
+          "CACHE_ALL_STATIC",
+          "FORCE_CACHE_ALL",
+          "USE_ORIGIN_HEADERS",
+        ]).describe(
+          "Specifies the cache setting for all responses from this route. If not specified, Cloud CDN uses `CACHE_ALL_STATIC` mode.",
+        ).optional(),
+        clientTtl: z.object({
+          nanos: z.unknown().describe(
+            "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
+          ).optional(),
+          seconds: z.unknown().describe(
+            "Span of time at a resolution of a second. Must be from 0 to 315,576,000,000 inclusive. Note: these bounds are computed from: 60 sec/min * 60 min/hr * 24 hr/day * 365.25 days/year * 10000 years",
+          ).optional(),
+        }).describe(
+          'A Duration represents a fixed-length span of time represented as a count of seconds and fractions of seconds at nanosecond resolution. It is independent of any calendar and concepts like "day" or "month". Range is approximately 10,000 years.',
+        ).optional(),
+        defaultTtl: z.object({
+          nanos: z.unknown().describe(
+            "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
+          ).optional(),
+          seconds: z.unknown().describe(
+            "Span of time at a resolution of a second. Must be from 0 to 315,576,000,000 inclusive. Note: these bounds are computed from: 60 sec/min * 60 min/hr * 24 hr/day * 365.25 days/year * 10000 years",
+          ).optional(),
+        }).describe(
+          'A Duration represents a fixed-length span of time represented as a count of seconds and fractions of seconds at nanosecond resolution. It is independent of any calendar and concepts like "day" or "month". Range is approximately 10,000 years.',
+        ).optional(),
+        maxTtl: z.object({
+          nanos: z.unknown().describe(
+            "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
+          ).optional(),
+          seconds: z.unknown().describe(
+            "Span of time at a resolution of a second. Must be from 0 to 315,576,000,000 inclusive. Note: these bounds are computed from: 60 sec/min * 60 min/hr * 24 hr/day * 365.25 days/year * 10000 years",
+          ).optional(),
+        }).describe(
+          'A Duration represents a fixed-length span of time represented as a count of seconds and fractions of seconds at nanosecond resolution. It is independent of any calendar and concepts like "day" or "month". Range is approximately 10,000 years.',
+        ).optional(),
+        negativeCaching: z.boolean().describe(
+          "Negative caching allows per-status code TTLs to be set, in order to apply fine-grained caching for common errors or redirects. This can reduce the load on your origin and improve end-user experience by reducing response latency. When the `cacheMode` is set to `CACHE_ALL_STATIC` or `USE_ORIGIN_HEADERS`, negative caching applies to responses with the specified response code that lack any Cache-Control, Expires, or Pragma: no-cache directives. When the `cacheMode` is set to `FORCE_CACHE_ALL`, negative caching applies to all responses with the specified response code, and overrides any caching headers. By default, Cloud CDN applies the following TTLs to these HTTP status codes: * 300 (Multiple Choice), 301, 308 (Permanent Redirects): 10m * 404 (Not Found), 410 (Gone), 451 (Unavailable For Legal Reasons): 120s * 405 (Method Not Found), 501 (Not Implemented): 60s These defaults can be overridden in `negativeCachingPolicy`. If not specified, Cloud CDN applies negative caching by default.",
+        ).optional(),
+        negativeCachingPolicy: z.array(z.unknown()).describe(
+          "Sets a cache TTL for the specified HTTP status code. `negativeCaching` must be enabled to configure `negativeCachingPolicy`. Omitting the policy and leaving `negativeCaching` enabled will use Cloud CDN's default cache TTLs. Note that when specifying an explicit `negativeCachingPolicy`, you should take care to specify a cache TTL for all response codes that you wish to cache. Cloud CDN will not apply any default negative caching when a policy exists.",
+        ).optional(),
+        requestCoalescing: z.boolean().describe(
+          "If true then Cloud CDN will combine multiple concurrent cache fill requests into a small number of requests to the origin. If not specified, Cloud CDN applies request coalescing by default.",
+        ).optional(),
+        serveWhileStale: z.object({
+          nanos: z.unknown().describe(
+            "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
+          ).optional(),
+          seconds: z.unknown().describe(
+            "Span of time at a resolution of a second. Must be from 0 to 315,576,000,000 inclusive. Note: these bounds are computed from: 60 sec/min * 60 min/hr * 24 hr/day * 365.25 days/year * 10000 years",
+          ).optional(),
+        }).describe(
+          'A Duration represents a fixed-length span of time represented as a count of seconds and fractions of seconds at nanosecond resolution. It is independent of any calendar and concepts like "day" or "month". Range is approximately 10,000 years.',
+        ).optional(),
+      }).describe(
+        "Message containing CachePolicy configuration for URL Map's Route Action.",
+      ).optional(),
       corsPolicy: z.object({
         allowCredentials: z.boolean().describe(
           "In response to a preflight request, setting this to true indicates that the actual request can include user credentials. This field translates to the Access-Control-Allow-Credentials header. Default is false.",
@@ -608,6 +798,9 @@ const GlobalArgsSchema = z.object({
         "The list of path patterns to match. Each must start with / and the only place a * is allowed is at the end following a /. The string fed to the path matcher does not include any text after the first? or #, and those chars are not allowed here.",
       ).optional(),
       routeAction: z.object({
+        cachePolicy: z.unknown().describe(
+          "Message containing CachePolicy configuration for URL Map's Route Action.",
+        ).optional(),
         corsPolicy: z.unknown().describe(
           "The specification for allowing client-side cross-origin requests. For more information about the W3C recommendation for cross-origin resource sharing (CORS), see Fetch API Living Standard.",
         ).optional(),
@@ -696,6 +889,9 @@ const GlobalArgsSchema = z.object({
         "For routeRules within a given pathMatcher, priority determines the order in which a load balancer interpretsrouteRules. RouteRules are evaluated in order of priority, from the lowest to highest number. The priority of a rule decreases as its number increases (1, 2, 3, N+1). The first rule that matches the request is applied. You cannot configure two or more routeRules with the same priority. Priority for each rule must be set to a number from 0 to 2147483647 inclusive. Priority numbers can have gaps, which enable you to add or remove rules in the future without affecting the rest of the rules. For example, 1, 2, 3, 4, 5, 9, 12, 16 is a valid series of priority numbers to which you could add rules numbered from 6 to 8, 10 to 11, and 13 to 15 in the future without any impact on existing rules.",
       ).optional(),
       routeAction: z.object({
+        cachePolicy: z.unknown().describe(
+          "Message containing CachePolicy configuration for URL Map's Route Action.",
+        ).optional(),
         corsPolicy: z.unknown().describe(
           "The specification for allowing client-side cross-origin requests. For more information about the W3C recommendation for cross-origin resource sharing (CORS), see Fetch API Living Standard.",
         ).optional(),
@@ -793,6 +989,44 @@ const StateSchema = z.object({
     errorService: z.string(),
   }).optional(),
   defaultRouteAction: z.object({
+    cachePolicy: z.object({
+      cacheBypassRequestHeaderNames: z.array(z.string()),
+      cacheKeyPolicy: z.object({
+        excludedQueryParameters: z.array(z.string()),
+        includeHost: z.boolean(),
+        includeProtocol: z.boolean(),
+        includeQueryString: z.boolean(),
+        includedCookieNames: z.array(z.string()),
+        includedHeaderNames: z.array(z.string()),
+        includedQueryParameters: z.array(z.string()),
+      }),
+      cacheMode: z.string(),
+      clientTtl: z.object({
+        nanos: z.number(),
+        seconds: z.string(),
+      }),
+      defaultTtl: z.object({
+        nanos: z.number(),
+        seconds: z.string(),
+      }),
+      maxTtl: z.object({
+        nanos: z.number(),
+        seconds: z.string(),
+      }),
+      negativeCaching: z.boolean(),
+      negativeCachingPolicy: z.array(z.object({
+        code: z.number(),
+        ttl: z.object({
+          nanos: z.unknown(),
+          seconds: z.unknown(),
+        }),
+      })),
+      requestCoalescing: z.boolean(),
+      serveWhileStale: z.object({
+        nanos: z.number(),
+        seconds: z.string(),
+      }),
+    }),
     corsPolicy: z.object({
       allowCredentials: z.boolean(),
       allowHeaders: z.array(z.string()),
@@ -895,6 +1129,38 @@ const StateSchema = z.object({
       errorService: z.string(),
     }),
     defaultRouteAction: z.object({
+      cachePolicy: z.object({
+        cacheBypassRequestHeaderNames: z.array(z.unknown()),
+        cacheKeyPolicy: z.object({
+          excludedQueryParameters: z.unknown(),
+          includeHost: z.unknown(),
+          includeProtocol: z.unknown(),
+          includeQueryString: z.unknown(),
+          includedCookieNames: z.unknown(),
+          includedHeaderNames: z.unknown(),
+          includedQueryParameters: z.unknown(),
+        }),
+        cacheMode: z.string(),
+        clientTtl: z.object({
+          nanos: z.unknown(),
+          seconds: z.unknown(),
+        }),
+        defaultTtl: z.object({
+          nanos: z.unknown(),
+          seconds: z.unknown(),
+        }),
+        maxTtl: z.object({
+          nanos: z.unknown(),
+          seconds: z.unknown(),
+        }),
+        negativeCaching: z.boolean(),
+        negativeCachingPolicy: z.array(z.unknown()),
+        requestCoalescing: z.boolean(),
+        serveWhileStale: z.object({
+          nanos: z.unknown(),
+          seconds: z.unknown(),
+        }),
+      }),
       corsPolicy: z.object({
         allowCredentials: z.boolean(),
         allowHeaders: z.array(z.unknown()),
@@ -978,6 +1244,7 @@ const StateSchema = z.object({
       }),
       paths: z.array(z.unknown()),
       routeAction: z.object({
+        cachePolicy: z.unknown(),
         corsPolicy: z.unknown(),
         faultInjectionPolicy: z.unknown(),
         maxStreamDuration: z.unknown(),
@@ -1012,6 +1279,7 @@ const StateSchema = z.object({
       matchRules: z.array(z.unknown()),
       priority: z.number(),
       routeAction: z.object({
+        cachePolicy: z.unknown(),
         corsPolicy: z.unknown(),
         faultInjectionPolicy: z.unknown(),
         maxStreamDuration: z.unknown(),
@@ -1072,6 +1340,108 @@ const InputsSchema = z.object({
     "Specifies the custom error response policy that must be applied when the backend service or backend bucket responds with an error.",
   ).optional(),
   defaultRouteAction: z.object({
+    cachePolicy: z.object({
+      cacheBypassRequestHeaderNames: z.array(z.string()).describe(
+        "Bypass the cache when the specified request headers are matched by name, e.g. Pragma or Authorization headers. Values are case-insensitive. Up to 5 header names can be specified. The cache is bypassed for all `cacheMode` values.",
+      ).optional(),
+      cacheKeyPolicy: z.object({
+        excludedQueryParameters: z.array(z.string()).describe(
+          "Names of query string parameters to exclude in cache keys. All other parameters will be included. Either specify `excludedQueryParameters` or `includedQueryParameters`, not both. '&' and '=' will be percent encoded and not treated as delimiters. Note: This field applies to routes that use backend services. Attempting to set it on a route that points exclusively to Backend Buckets will result in a configuration error. For routes that point to a Backend Bucket, use `includedQueryParameters` to define which parameters should be part of the cache key.",
+        ).optional(),
+        includeHost: z.boolean().describe(
+          "If true, requests to different hosts will be cached separately. Note: This setting is only applicable to routes that use a Backend Service. It does not affect requests served by a Backend Bucket, as the host is never included in a Backend Bucket's cache key. Attempting to set it on a route that points exclusively to Backend Buckets will result in a configuration error.",
+        ).optional(),
+        includeProtocol: z.boolean().describe(
+          "If true, http and https requests will be cached separately. Note: This setting is only applicable to routes that use a Backend Service. It does not affect requests served by a Backend Bucket, as the protocol is never included in a Backend Bucket's cache key. Attempting to set on a route that points exclusively to Backend Buckets will result in a configuration error.",
+        ).optional(),
+        includeQueryString: z.boolean().describe(
+          "If true, include query string parameters in the cache key according to `includedQueryParameters` and `excludedQueryParameters`. If neither is set, the entire query string will be included. If false, the query string will be excluded from the cache key entirely. Note: This field applies to routes that use backend services. Attempting to set it on a route that points exclusively to Backend Buckets will result in a configuration error. For routes that point to a Backend Bucket, use `includedQueryParameters` to define which parameters should be part of the cache key.",
+        ).optional(),
+        includedCookieNames: z.array(z.string()).describe(
+          "Allows HTTP cookies (by name) to be used in the cache key. The name=value pair will be used in the cache key Cloud CDN generates. Note: This setting is only applicable to routes that use a Backend Service. It does not affect requests served by a Backend Bucket. Attempting to set it on a route that points exclusively to Backend Buckets will result in a configuration error. Up to 5 cookie names can be specified.",
+        ).optional(),
+        includedHeaderNames: z.array(z.string()).describe(
+          "Allows HTTP request headers (by name) to be used in the cache key.",
+        ).optional(),
+        includedQueryParameters: z.array(z.string()).describe(
+          "Names of query string parameters to include in cache keys. All other parameters will be excluded. Either specify `includedQueryParameters` or `excludedQueryParameters`, not both. '&' and '=' will be percent encoded and not treated as delimiters.",
+        ).optional(),
+      }).describe(
+        "Message containing what to include in the cache key for a request for Cache Policy defined on Route Action.",
+      ).optional(),
+      cacheMode: z.enum([
+        "CACHE_ALL_STATIC",
+        "FORCE_CACHE_ALL",
+        "USE_ORIGIN_HEADERS",
+      ]).describe(
+        "Specifies the cache setting for all responses from this route. If not specified, Cloud CDN uses `CACHE_ALL_STATIC` mode.",
+      ).optional(),
+      clientTtl: z.object({
+        nanos: z.number().int().describe(
+          "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
+        ).optional(),
+        seconds: z.string().describe(
+          "Span of time at a resolution of a second. Must be from 0 to 315,576,000,000 inclusive. Note: these bounds are computed from: 60 sec/min * 60 min/hr * 24 hr/day * 365.25 days/year * 10000 years",
+        ).optional(),
+      }).describe(
+        'A Duration represents a fixed-length span of time represented as a count of seconds and fractions of seconds at nanosecond resolution. It is independent of any calendar and concepts like "day" or "month". Range is approximately 10,000 years.',
+      ).optional(),
+      defaultTtl: z.object({
+        nanos: z.number().int().describe(
+          "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
+        ).optional(),
+        seconds: z.string().describe(
+          "Span of time at a resolution of a second. Must be from 0 to 315,576,000,000 inclusive. Note: these bounds are computed from: 60 sec/min * 60 min/hr * 24 hr/day * 365.25 days/year * 10000 years",
+        ).optional(),
+      }).describe(
+        'A Duration represents a fixed-length span of time represented as a count of seconds and fractions of seconds at nanosecond resolution. It is independent of any calendar and concepts like "day" or "month". Range is approximately 10,000 years.',
+      ).optional(),
+      maxTtl: z.object({
+        nanos: z.number().int().describe(
+          "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
+        ).optional(),
+        seconds: z.string().describe(
+          "Span of time at a resolution of a second. Must be from 0 to 315,576,000,000 inclusive. Note: these bounds are computed from: 60 sec/min * 60 min/hr * 24 hr/day * 365.25 days/year * 10000 years",
+        ).optional(),
+      }).describe(
+        'A Duration represents a fixed-length span of time represented as a count of seconds and fractions of seconds at nanosecond resolution. It is independent of any calendar and concepts like "day" or "month". Range is approximately 10,000 years.',
+      ).optional(),
+      negativeCaching: z.boolean().describe(
+        "Negative caching allows per-status code TTLs to be set, in order to apply fine-grained caching for common errors or redirects. This can reduce the load on your origin and improve end-user experience by reducing response latency. When the `cacheMode` is set to `CACHE_ALL_STATIC` or `USE_ORIGIN_HEADERS`, negative caching applies to responses with the specified response code that lack any Cache-Control, Expires, or Pragma: no-cache directives. When the `cacheMode` is set to `FORCE_CACHE_ALL`, negative caching applies to all responses with the specified response code, and overrides any caching headers. By default, Cloud CDN applies the following TTLs to these HTTP status codes: * 300 (Multiple Choice), 301, 308 (Permanent Redirects): 10m * 404 (Not Found), 410 (Gone), 451 (Unavailable For Legal Reasons): 120s * 405 (Method Not Found), 501 (Not Implemented): 60s These defaults can be overridden in `negativeCachingPolicy`. If not specified, Cloud CDN applies negative caching by default.",
+      ).optional(),
+      negativeCachingPolicy: z.array(z.object({
+        code: z.number().int().describe(
+          "The HTTP status code to define a TTL against. Only HTTP status codes 300, 301, 302, 307, 308, 404, 405, 410, 421, 451 and 501 can be specified as values, and you cannot specify a status code more than once.",
+        ).optional(),
+        ttl: z.object({
+          nanos: z.unknown().describe(
+            "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
+          ).optional(),
+          seconds: z.unknown().describe(
+            "Span of time at a resolution of a second. Must be from 0 to 315,576,000,000 inclusive. Note: these bounds are computed from: 60 sec/min * 60 min/hr * 24 hr/day * 365.25 days/year * 10000 years",
+          ).optional(),
+        }).describe(
+          'A Duration represents a fixed-length span of time represented as a count of seconds and fractions of seconds at nanosecond resolution. It is independent of any calendar and concepts like "day" or "month". Range is approximately 10,000 years.',
+        ).optional(),
+      })).describe(
+        "Sets a cache TTL for the specified HTTP status code. `negativeCaching` must be enabled to configure `negativeCachingPolicy`. Omitting the policy and leaving `negativeCaching` enabled will use Cloud CDN's default cache TTLs. Note that when specifying an explicit `negativeCachingPolicy`, you should take care to specify a cache TTL for all response codes that you wish to cache. Cloud CDN will not apply any default negative caching when a policy exists.",
+      ).optional(),
+      requestCoalescing: z.boolean().describe(
+        "If true then Cloud CDN will combine multiple concurrent cache fill requests into a small number of requests to the origin. If not specified, Cloud CDN applies request coalescing by default.",
+      ).optional(),
+      serveWhileStale: z.object({
+        nanos: z.number().int().describe(
+          "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
+        ).optional(),
+        seconds: z.string().describe(
+          "Span of time at a resolution of a second. Must be from 0 to 315,576,000,000 inclusive. Note: these bounds are computed from: 60 sec/min * 60 min/hr * 24 hr/day * 365.25 days/year * 10000 years",
+        ).optional(),
+      }).describe(
+        'A Duration represents a fixed-length span of time represented as a count of seconds and fractions of seconds at nanosecond resolution. It is independent of any calendar and concepts like "day" or "month". Range is approximately 10,000 years.',
+      ).optional(),
+    }).describe(
+      "Message containing CachePolicy configuration for URL Map's Route Action.",
+    ).optional(),
     corsPolicy: z.object({
       allowCredentials: z.boolean().describe(
         "In response to a preflight request, setting this to true indicates that the actual request can include user credentials. This field translates to the Access-Control-Allow-Credentials header. Default is false.",
@@ -1321,6 +1691,94 @@ const InputsSchema = z.object({
       "Specifies the custom error response policy that must be applied when the backend service or backend bucket responds with an error.",
     ).optional(),
     defaultRouteAction: z.object({
+      cachePolicy: z.object({
+        cacheBypassRequestHeaderNames: z.array(z.unknown()).describe(
+          "Bypass the cache when the specified request headers are matched by name, e.g. Pragma or Authorization headers. Values are case-insensitive. Up to 5 header names can be specified. The cache is bypassed for all `cacheMode` values.",
+        ).optional(),
+        cacheKeyPolicy: z.object({
+          excludedQueryParameters: z.unknown().describe(
+            "Names of query string parameters to exclude in cache keys. All other parameters will be included. Either specify `excludedQueryParameters` or `includedQueryParameters`, not both. '&' and '=' will be percent encoded and not treated as delimiters. Note: This field applies to routes that use backend services. Attempting to set it on a route that points exclusively to Backend Buckets will result in a configuration error. For routes that point to a Backend Bucket, use `includedQueryParameters` to define which parameters should be part of the cache key.",
+          ).optional(),
+          includeHost: z.unknown().describe(
+            "If true, requests to different hosts will be cached separately. Note: This setting is only applicable to routes that use a Backend Service. It does not affect requests served by a Backend Bucket, as the host is never included in a Backend Bucket's cache key. Attempting to set it on a route that points exclusively to Backend Buckets will result in a configuration error.",
+          ).optional(),
+          includeProtocol: z.unknown().describe(
+            "If true, http and https requests will be cached separately. Note: This setting is only applicable to routes that use a Backend Service. It does not affect requests served by a Backend Bucket, as the protocol is never included in a Backend Bucket's cache key. Attempting to set on a route that points exclusively to Backend Buckets will result in a configuration error.",
+          ).optional(),
+          includeQueryString: z.unknown().describe(
+            "If true, include query string parameters in the cache key according to `includedQueryParameters` and `excludedQueryParameters`. If neither is set, the entire query string will be included. If false, the query string will be excluded from the cache key entirely. Note: This field applies to routes that use backend services. Attempting to set it on a route that points exclusively to Backend Buckets will result in a configuration error. For routes that point to a Backend Bucket, use `includedQueryParameters` to define which parameters should be part of the cache key.",
+          ).optional(),
+          includedCookieNames: z.unknown().describe(
+            "Allows HTTP cookies (by name) to be used in the cache key. The name=value pair will be used in the cache key Cloud CDN generates. Note: This setting is only applicable to routes that use a Backend Service. It does not affect requests served by a Backend Bucket. Attempting to set it on a route that points exclusively to Backend Buckets will result in a configuration error. Up to 5 cookie names can be specified.",
+          ).optional(),
+          includedHeaderNames: z.unknown().describe(
+            "Allows HTTP request headers (by name) to be used in the cache key.",
+          ).optional(),
+          includedQueryParameters: z.unknown().describe(
+            "Names of query string parameters to include in cache keys. All other parameters will be excluded. Either specify `includedQueryParameters` or `excludedQueryParameters`, not both. '&' and '=' will be percent encoded and not treated as delimiters.",
+          ).optional(),
+        }).describe(
+          "Message containing what to include in the cache key for a request for Cache Policy defined on Route Action.",
+        ).optional(),
+        cacheMode: z.enum([
+          "CACHE_ALL_STATIC",
+          "FORCE_CACHE_ALL",
+          "USE_ORIGIN_HEADERS",
+        ]).describe(
+          "Specifies the cache setting for all responses from this route. If not specified, Cloud CDN uses `CACHE_ALL_STATIC` mode.",
+        ).optional(),
+        clientTtl: z.object({
+          nanos: z.unknown().describe(
+            "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
+          ).optional(),
+          seconds: z.unknown().describe(
+            "Span of time at a resolution of a second. Must be from 0 to 315,576,000,000 inclusive. Note: these bounds are computed from: 60 sec/min * 60 min/hr * 24 hr/day * 365.25 days/year * 10000 years",
+          ).optional(),
+        }).describe(
+          'A Duration represents a fixed-length span of time represented as a count of seconds and fractions of seconds at nanosecond resolution. It is independent of any calendar and concepts like "day" or "month". Range is approximately 10,000 years.',
+        ).optional(),
+        defaultTtl: z.object({
+          nanos: z.unknown().describe(
+            "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
+          ).optional(),
+          seconds: z.unknown().describe(
+            "Span of time at a resolution of a second. Must be from 0 to 315,576,000,000 inclusive. Note: these bounds are computed from: 60 sec/min * 60 min/hr * 24 hr/day * 365.25 days/year * 10000 years",
+          ).optional(),
+        }).describe(
+          'A Duration represents a fixed-length span of time represented as a count of seconds and fractions of seconds at nanosecond resolution. It is independent of any calendar and concepts like "day" or "month". Range is approximately 10,000 years.',
+        ).optional(),
+        maxTtl: z.object({
+          nanos: z.unknown().describe(
+            "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
+          ).optional(),
+          seconds: z.unknown().describe(
+            "Span of time at a resolution of a second. Must be from 0 to 315,576,000,000 inclusive. Note: these bounds are computed from: 60 sec/min * 60 min/hr * 24 hr/day * 365.25 days/year * 10000 years",
+          ).optional(),
+        }).describe(
+          'A Duration represents a fixed-length span of time represented as a count of seconds and fractions of seconds at nanosecond resolution. It is independent of any calendar and concepts like "day" or "month". Range is approximately 10,000 years.',
+        ).optional(),
+        negativeCaching: z.boolean().describe(
+          "Negative caching allows per-status code TTLs to be set, in order to apply fine-grained caching for common errors or redirects. This can reduce the load on your origin and improve end-user experience by reducing response latency. When the `cacheMode` is set to `CACHE_ALL_STATIC` or `USE_ORIGIN_HEADERS`, negative caching applies to responses with the specified response code that lack any Cache-Control, Expires, or Pragma: no-cache directives. When the `cacheMode` is set to `FORCE_CACHE_ALL`, negative caching applies to all responses with the specified response code, and overrides any caching headers. By default, Cloud CDN applies the following TTLs to these HTTP status codes: * 300 (Multiple Choice), 301, 308 (Permanent Redirects): 10m * 404 (Not Found), 410 (Gone), 451 (Unavailable For Legal Reasons): 120s * 405 (Method Not Found), 501 (Not Implemented): 60s These defaults can be overridden in `negativeCachingPolicy`. If not specified, Cloud CDN applies negative caching by default.",
+        ).optional(),
+        negativeCachingPolicy: z.array(z.unknown()).describe(
+          "Sets a cache TTL for the specified HTTP status code. `negativeCaching` must be enabled to configure `negativeCachingPolicy`. Omitting the policy and leaving `negativeCaching` enabled will use Cloud CDN's default cache TTLs. Note that when specifying an explicit `negativeCachingPolicy`, you should take care to specify a cache TTL for all response codes that you wish to cache. Cloud CDN will not apply any default negative caching when a policy exists.",
+        ).optional(),
+        requestCoalescing: z.boolean().describe(
+          "If true then Cloud CDN will combine multiple concurrent cache fill requests into a small number of requests to the origin. If not specified, Cloud CDN applies request coalescing by default.",
+        ).optional(),
+        serveWhileStale: z.object({
+          nanos: z.unknown().describe(
+            "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
+          ).optional(),
+          seconds: z.unknown().describe(
+            "Span of time at a resolution of a second. Must be from 0 to 315,576,000,000 inclusive. Note: these bounds are computed from: 60 sec/min * 60 min/hr * 24 hr/day * 365.25 days/year * 10000 years",
+          ).optional(),
+        }).describe(
+          'A Duration represents a fixed-length span of time represented as a count of seconds and fractions of seconds at nanosecond resolution. It is independent of any calendar and concepts like "day" or "month". Range is approximately 10,000 years.',
+        ).optional(),
+      }).describe(
+        "Message containing CachePolicy configuration for URL Map's Route Action.",
+      ).optional(),
       corsPolicy: z.object({
         allowCredentials: z.boolean().describe(
           "In response to a preflight request, setting this to true indicates that the actual request can include user credentials. This field translates to the Access-Control-Allow-Credentials header. Default is false.",
@@ -1528,6 +1986,9 @@ const InputsSchema = z.object({
         "The list of path patterns to match. Each must start with / and the only place a * is allowed is at the end following a /. The string fed to the path matcher does not include any text after the first? or #, and those chars are not allowed here.",
       ).optional(),
       routeAction: z.object({
+        cachePolicy: z.unknown().describe(
+          "Message containing CachePolicy configuration for URL Map's Route Action.",
+        ).optional(),
         corsPolicy: z.unknown().describe(
           "The specification for allowing client-side cross-origin requests. For more information about the W3C recommendation for cross-origin resource sharing (CORS), see Fetch API Living Standard.",
         ).optional(),
@@ -1616,6 +2077,9 @@ const InputsSchema = z.object({
         "For routeRules within a given pathMatcher, priority determines the order in which a load balancer interpretsrouteRules. RouteRules are evaluated in order of priority, from the lowest to highest number. The priority of a rule decreases as its number increases (1, 2, 3, N+1). The first rule that matches the request is applied. You cannot configure two or more routeRules with the same priority. Priority for each rule must be set to a number from 0 to 2147483647 inclusive. Priority numbers can have gaps, which enable you to add or remove rules in the future without affecting the rest of the rules. For example, 1, 2, 3, 4, 5, 9, 12, 16 is a valid series of priority numbers to which you could add rules numbered from 6 to 8, 10 to 11, and 13 to 15 in the future without any impact on existing rules.",
       ).optional(),
       routeAction: z.object({
+        cachePolicy: z.unknown().describe(
+          "Message containing CachePolicy configuration for URL Map's Route Action.",
+        ).optional(),
         corsPolicy: z.unknown().describe(
           "The specification for allowing client-side cross-origin requests. For more information about the W3C recommendation for cross-origin resource sharing (CORS), see Fetch API Living Standard.",
         ).optional(),
@@ -1705,7 +2169,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine RegionUrlMaps. Registered at `@swamp/gcp/compute/regionurlmaps`. */
 export const model = {
   type: "@swamp/gcp/compute/regionurlmaps",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1764,6 +2228,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
