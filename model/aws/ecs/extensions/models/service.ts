@@ -296,8 +296,13 @@ const CanaryConfigurationSchema = z.object({
   ).optional(),
 });
 
+const HookTimeoutConfigSchema = z.object({
+  Action: z.enum(["ROLLBACK", "CONTINUE"]).optional(),
+  TimeoutInMinutes: z.number().int().min(1).max(20160).optional(),
+});
+
 const DeploymentLifecycleHookSchema = z.object({
-  TimeoutConfiguration: z.unknown().optional(),
+  TimeoutConfiguration: HookTimeoutConfigSchema.optional(),
   LifecycleStages: z.array(
     z.enum([
       "RECONCILE_SERVICE",
@@ -312,6 +317,7 @@ const DeploymentLifecycleHookSchema = z.object({
   ).describe(
     "The lifecycle stages at which to run the hook. Choose from these valid values: RECONCILE_SERVICE The reconciliation stage that only happens when you start a new service deployment with more than 1 service revision in an ACTIVE state. You can use a lifecycle hook for this stage. PRE_SCALE_UP The green service revision has not started. The blue service revision is handling 100% of the production traffic. There is no test traffic. You can use a lifecycle hook for this stage. POST_SCALE_UP The green service revision has started. The blue service revision is handling 100% of the production traffic. There is no test traffic. You can use a lifecycle hook for this stage. TEST_TRAFFIC_SHIFT The blue and green service revisions are running. The blue service revision handles 100% of the production traffic. The green service revision is migrating from 0% to 100% of test traffic. You can use a lifecycle hook for this stage. POST_TEST_TRAFFIC_SHIFT The test traffic shift is complete. The green service revision handles 100% of the test traffic. You can use a lifecycle hook for this stage. PRODUCTION_TRAFFIC_SHIFT Production traffic is shifting to the green service revision. The green service revision is migrating from 0% to 100% of production traffic. You can use a lifecycle hook for this stage. POST_PRODUCTION_TRAFFIC_SHIFT The production traffic shift is complete. You can use a lifecycle hook for this stage. You must provide this parameter when configuring a deployment lifecycle hook.",
   ),
+  TargetType: z.enum(["AWS_LAMBDA", "PAUSE"]).optional(),
   HookTargetArn: z.string().describe(
     "The Amazon Resource Name (ARN) of the hook target. Currently, only Lambda function ARNs are supported. You must provide this parameter when configuring a deployment lifecycle hook.",
   ).optional(),
@@ -695,7 +701,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ECS Service. Registered at `@swamp/aws/ecs/service`. */
 export const model = {
   type: "@swamp/aws/ecs/service",
-  version: "2026.05.14.1",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -729,6 +735,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

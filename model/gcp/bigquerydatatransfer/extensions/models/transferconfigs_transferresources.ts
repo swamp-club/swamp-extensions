@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud BigQuery Data Transfer TransferConfigs.TransferResources.
  *
- * Resource(table/partition) that is being transferred.
+ * Resource (table/partition) that is being transferred.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -107,7 +107,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud BigQuery Data Transfer TransferConfigs.TransferResources. Registered at `@swamp/gcp/bigquerydatatransfer/transferconfigs-transferresources`. */
 export const model = {
   type: "@swamp/gcp/bigquerydatatransfer/transferconfigs-transferresources",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -164,12 +164,17 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Resource(table/partition) that is being transferred.",
+      description: "Resource (table/partition) that is being transferred.",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,

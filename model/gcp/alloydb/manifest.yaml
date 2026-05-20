@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/alloydb"
-version: "2026.05.19.2"
+version: "2026.05.20.1"
 description: "Google Cloud alloydb infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,6 +10,8 @@ labels:
   - alloydb
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: clusters_instances
 models:
   - backups.ts
   - clusters.ts

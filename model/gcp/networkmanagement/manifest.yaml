@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/networkmanagement"
-version: "2026.05.19.3"
+version: "2026.05.20.1"
 description: "Google Cloud networkmanagement infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,9 +10,16 @@ labels:
   - networkmanagement
   - cloud
   - infrastructure
+releaseNotes: |
+  - Added: networkmonitoringproviders, networkmonitoringproviders_monitoringpoints, networkmonitoringproviders_networkpaths, networkmonitoringproviders_webpaths
+  - Updated: global_connectivitytests
 models:
   - global_connectivitytests.ts
   - locations.ts
+  - networkmonitoringproviders.ts
+  - networkmonitoringproviders_monitoringpoints.ts
+  - networkmonitoringproviders_networkpaths.ts
+  - networkmonitoringproviders_webpaths.ts
   - vpcflowlogsconfigs.ts
 additionalFiles:
   - LICENSE.txt

@@ -138,7 +138,7 @@ const GlobalArgsSchema = z.object({
     "Name of the resource; provided by the client when the resource is created. The name must be 1-63 characters long, and comply withRFC1035. Specifically, the name must be 1-63 characters long and match the regular expression `[a-z]([-a-z0-9]*[a-z0-9])?` which means the first character must be a lowercase letter, and all following characters must be a dash, lowercase letter, or digit, except the last character, which cannot be a dash.",
   ).optional(),
   network: z.string().describe(
-    "The URL of the network to which all network endpoints in the NEG belong. Uses default project network if unspecified.",
+    "The URL of the network to which all network endpoints in the NEG belong. For networkEndpointType GCE_VM_IP_PORT,GCE_VM_IP_PORTMAP or NON_GCP_PRIVATE_IP_PORT, if this field is not specified, a default network will be used. This field cannot be set for NEGs with networkEndpointType set toSERVERLESS or PRIVATE_SERVICE_CONNECT and for global NEGs. For all other network endpoint types, this field is required.",
   ).optional(),
   networkEndpointType: z.enum([
     "GCE_VM_IP",
@@ -276,7 +276,7 @@ const InputsSchema = z.object({
     "Name of the resource; provided by the client when the resource is created. The name must be 1-63 characters long, and comply withRFC1035. Specifically, the name must be 1-63 characters long and match the regular expression `[a-z]([-a-z0-9]*[a-z0-9])?` which means the first character must be a lowercase letter, and all following characters must be a dash, lowercase letter, or digit, except the last character, which cannot be a dash.",
   ).optional(),
   network: z.string().describe(
-    "The URL of the network to which all network endpoints in the NEG belong. Uses default project network if unspecified.",
+    "The URL of the network to which all network endpoints in the NEG belong. For networkEndpointType GCE_VM_IP_PORT,GCE_VM_IP_PORTMAP or NON_GCP_PRIVATE_IP_PORT, if this field is not specified, a default network will be used. This field cannot be set for NEGs with networkEndpointType set toSERVERLESS or PRIVATE_SERVICE_CONNECT and for global NEGs. For all other network endpoint types, this field is required.",
   ).optional(),
   networkEndpointType: z.enum([
     "GCE_VM_IP",
@@ -327,7 +327,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine GlobalNetworkEndpointGroups. Registered at `@swamp/gcp/compute/globalnetworkendpointgroups`. */
 export const model = {
   type: "@swamp/gcp/compute/globalnetworkendpointgroups",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -381,6 +381,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -109,6 +109,9 @@ const GlobalArgsSchema = z.object({
       "Email domain allowlist for the instance.",
     ).optional(),
   }).describe("Looker instance Admin settings fields.").optional(),
+  catalogIntegrationOptOut: z.boolean().describe(
+    "Optional. Indicates whether catalog integration is disabled for the Looker instance.",
+  ).optional(),
   classType: z.enum(["CLASS_TYPE_UNSPECIFIED", "R1", "P1"]).describe(
     "Optional. Storage class of the instance.",
   ).optional(),
@@ -201,6 +204,23 @@ const GlobalArgsSchema = z.object({
   geminiEnabled: z.boolean().describe(
     "Optional. Whether Gemini feature is enabled on the Looker instance or not.",
   ).optional(),
+  ingressIpAllowlistConfig: z.object({
+    allowlistRules: z.array(z.object({
+      description: z.string().describe(
+        "Optional. Description for the IP range.",
+      ).optional(),
+      ipRange: z.string().describe(
+        "Optional. The IP range to allow ingress traffic from.",
+      ).optional(),
+    })).describe("Optional. List of IP range rules to allow ingress traffic.")
+      .optional(),
+    enabled: z.boolean().describe(
+      "Optional. Whether ingress IP allowlist functionality is enabled on the Looker instance.",
+    ).optional(),
+    googleServicesEnabled: z.boolean().describe(
+      "Optional. Whether google service connections are enabled for the instance.",
+    ).optional(),
+  }).describe("Ingress IP allowlist configuration.").optional(),
   lastDenyMaintenancePeriod: z.object({
     endDate: z.object({
       day: z.number().int().describe(
@@ -402,6 +422,7 @@ const StateSchema = z.object({
   adminSettings: z.object({
     allowedEmailDomains: z.array(z.string()),
   }).optional(),
+  catalogIntegrationOptOut: z.boolean().optional(),
   classType: z.string().optional(),
   consumerNetwork: z.string().optional(),
   controlledEgressConfig: z.object({
@@ -441,6 +462,14 @@ const StateSchema = z.object({
   }).optional(),
   fipsEnabled: z.boolean().optional(),
   geminiEnabled: z.boolean().optional(),
+  ingressIpAllowlistConfig: z.object({
+    allowlistRules: z.array(z.object({
+      description: z.string(),
+      ipRange: z.string(),
+    })),
+    enabled: z.boolean(),
+    googleServicesEnabled: z.boolean(),
+  }).optional(),
   ingressPrivateIp: z.string().optional(),
   ingressPublicIp: z.string().optional(),
   lastDenyMaintenancePeriod: z.object({
@@ -529,6 +558,9 @@ const InputsSchema = z.object({
       "Email domain allowlist for the instance.",
     ).optional(),
   }).describe("Looker instance Admin settings fields.").optional(),
+  catalogIntegrationOptOut: z.boolean().describe(
+    "Optional. Indicates whether catalog integration is disabled for the Looker instance.",
+  ).optional(),
   classType: z.enum(["CLASS_TYPE_UNSPECIFIED", "R1", "P1"]).describe(
     "Optional. Storage class of the instance.",
   ).optional(),
@@ -621,6 +653,23 @@ const InputsSchema = z.object({
   geminiEnabled: z.boolean().describe(
     "Optional. Whether Gemini feature is enabled on the Looker instance or not.",
   ).optional(),
+  ingressIpAllowlistConfig: z.object({
+    allowlistRules: z.array(z.object({
+      description: z.string().describe(
+        "Optional. Description for the IP range.",
+      ).optional(),
+      ipRange: z.string().describe(
+        "Optional. The IP range to allow ingress traffic from.",
+      ).optional(),
+    })).describe("Optional. List of IP range rules to allow ingress traffic.")
+      .optional(),
+    enabled: z.boolean().describe(
+      "Optional. Whether ingress IP allowlist functionality is enabled on the Looker instance.",
+    ).optional(),
+    googleServicesEnabled: z.boolean().describe(
+      "Optional. Whether google service connections are enabled for the instance.",
+    ).optional(),
+  }).describe("Ingress IP allowlist configuration.").optional(),
   lastDenyMaintenancePeriod: z.object({
     endDate: z.object({
       day: z.number().int().describe(
@@ -821,7 +870,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Looker (Google Cloud core) Instances. Registered at `@swamp/gcp/looker/instances`. */
 export const model = {
   type: "@swamp/gcp/looker/instances",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -889,6 +938,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.05.20.1",
+      description: "Added: catalogIntegrationOptOut, ingressIpAllowlistConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -919,6 +973,9 @@ export const model = {
         if (g["adminSettings"] !== undefined) {
           body["adminSettings"] = g["adminSettings"];
         }
+        if (g["catalogIntegrationOptOut"] !== undefined) {
+          body["catalogIntegrationOptOut"] = g["catalogIntegrationOptOut"];
+        }
         if (g["classType"] !== undefined) body["classType"] = g["classType"];
         if (g["consumerNetwork"] !== undefined) {
           body["consumerNetwork"] = g["consumerNetwork"];
@@ -943,6 +1000,9 @@ export const model = {
         }
         if (g["geminiEnabled"] !== undefined) {
           body["geminiEnabled"] = g["geminiEnabled"];
+        }
+        if (g["ingressIpAllowlistConfig"] !== undefined) {
+          body["ingressIpAllowlistConfig"] = g["ingressIpAllowlistConfig"];
         }
         if (g["lastDenyMaintenancePeriod"] !== undefined) {
           body["lastDenyMaintenancePeriod"] = g["lastDenyMaintenancePeriod"];
@@ -1074,6 +1134,9 @@ export const model = {
         if (g["adminSettings"] !== undefined) {
           body["adminSettings"] = g["adminSettings"];
         }
+        if (g["catalogIntegrationOptOut"] !== undefined) {
+          body["catalogIntegrationOptOut"] = g["catalogIntegrationOptOut"];
+        }
         if (g["classType"] !== undefined) body["classType"] = g["classType"];
         if (g["consumerNetwork"] !== undefined) {
           body["consumerNetwork"] = g["consumerNetwork"];
@@ -1098,6 +1161,9 @@ export const model = {
         }
         if (g["geminiEnabled"] !== undefined) {
           body["geminiEnabled"] = g["geminiEnabled"];
+        }
+        if (g["ingressIpAllowlistConfig"] !== undefined) {
+          body["ingressIpAllowlistConfig"] = g["ingressIpAllowlistConfig"];
         }
         if (g["lastDenyMaintenancePeriod"] !== undefined) {
           body["lastDenyMaintenancePeriod"] = g["lastDenyMaintenancePeriod"];

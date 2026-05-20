@@ -101,6 +101,9 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
+  aiSkillAnalysis: z.object({}).describe(
+    "AISkillAnalysisNote provides the metadata of an AI-based skill analysis.",
+  ).optional(),
   attestation: z.object({
     hint: z.object({
       humanReadableName: z.string().describe(
@@ -181,6 +184,7 @@ const GlobalArgsSchema = z.object({
       "VULNERABILITY_ASSESSMENT",
       "SBOM_REFERENCE",
       "SECRET",
+      "AI_SKILL_ANALYSIS",
     ]).describe(
       "Required. Immutable. The kind of analysis that is handled by this discovery.",
     ).optional(),
@@ -826,6 +830,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  aiSkillAnalysis: z.object({}).optional(),
   attestation: z.object({
     hint: z.object({
       humanReadableName: z.string(),
@@ -1085,6 +1090,9 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
+  aiSkillAnalysis: z.object({}).describe(
+    "AISkillAnalysisNote provides the metadata of an AI-based skill analysis.",
+  ).optional(),
   attestation: z.object({
     hint: z.object({
       humanReadableName: z.string().describe(
@@ -1165,6 +1173,7 @@ const InputsSchema = z.object({
       "VULNERABILITY_ASSESSMENT",
       "SBOM_REFERENCE",
       "SECRET",
+      "AI_SKILL_ANALYSIS",
     ]).describe(
       "Required. Immutable. The kind of analysis that is handled by this discovery.",
     ).optional(),
@@ -1812,7 +1821,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Container Analysis Notes. Registered at `@swamp/gcp/containeranalysis/notes`. */
 export const model = {
   type: "@swamp/gcp/containeranalysis/notes",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1880,6 +1889,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.05.20.1",
+      description: "Added: aiSkillAnalysis",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1903,6 +1917,9 @@ export const model = {
           String(g["location"] ?? "")
         }`;
         const body: Record<string, unknown> = {};
+        if (g["aiSkillAnalysis"] !== undefined) {
+          body["aiSkillAnalysis"] = g["aiSkillAnalysis"];
+        }
         if (g["attestation"] !== undefined) {
           body["attestation"] = g["attestation"];
         }
@@ -2020,6 +2037,9 @@ export const model = {
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
+        if (g["aiSkillAnalysis"] !== undefined) {
+          body["aiSkillAnalysis"] = g["aiSkillAnalysis"];
+        }
         if (g["attestation"] !== undefined) {
           body["attestation"] = g["attestation"];
         }

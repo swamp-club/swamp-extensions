@@ -61,6 +61,9 @@ const INSERT_CONFIG = {
       "location": "path",
       "required": true,
     },
+    "requestId": {
+      "location": "query",
+    },
   },
 } as const;
 
@@ -338,6 +341,8 @@ const GlobalArgsSchema = z.object({
   httpRouteId: z.string().describe(
     "Required. Short name of the HttpRoute resource to be created.",
   ).optional(),
+  requestId: z.string().describe("Optional. Idempotent request UUID.")
+    .optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
@@ -683,6 +688,8 @@ const InputsSchema = z.object({
   httpRouteId: z.string().describe(
     "Required. Short name of the HttpRoute resource to be created.",
   ).optional(),
+  requestId: z.string().describe("Optional. Idempotent request UUID.")
+    .optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
@@ -691,7 +698,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Network Services HttpRoutes. Registered at `@swamp/gcp/networkservices/httproutes`. */
 export const model = {
   type: "@swamp/gcp/networkservices/httproutes",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -759,6 +766,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.05.20.1",
+      description: "Added: requestId",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -795,6 +807,7 @@ export const model = {
         if (g["httpRouteId"] !== undefined) {
           body["httpRouteId"] = g["httpRouteId"];
         }
+        if (g["requestId"] !== undefined) body["requestId"] = g["requestId"];
         if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
             `projects/${projectId}/locations/${String(g["location"] ?? "")}`,

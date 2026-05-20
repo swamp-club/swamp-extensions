@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI FeatureGroups.
+ * Swamp extension model for Google Cloud Agent Platform FeatureGroups.
  *
  * Vertex AI Feature Group.
  *
@@ -214,10 +214,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI FeatureGroups. Registered at `@swamp/gcp/aiplatform/featuregroups`. */
+/** Swamp extension model for Google Cloud Agent Platform FeatureGroups. Registered at `@swamp/gcp/aiplatform/featuregroups`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/featuregroups",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -271,6 +271,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

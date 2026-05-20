@@ -81,7 +81,7 @@ const GlobalArgsSchema = z.object({
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
   data: z.string().describe(
-    "The body of the private key credentials file, in string format. This is only populated when the ServiceAccountKey is created, and is not stored by Google.",
+    'The body of the private key credentials file, in string format. This is only populated when the ServiceAccountKey is created, and is not stored by Google. When type is "pkcs12", the contents of the data field is base64 encoded and has the password "notasecret".',
   ).optional(),
   id: z.string().describe(
     "An opaque, unique identifier for this ServiceAccountKey. Assigned by the server.",
@@ -107,7 +107,7 @@ type StateData = z.infer<typeof StateSchema>;
 const InputsSchema = z.object({
   name: z.string().optional(),
   data: z.string().describe(
-    "The body of the private key credentials file, in string format. This is only populated when the ServiceAccountKey is created, and is not stored by Google.",
+    'The body of the private key credentials file, in string format. This is only populated when the ServiceAccountKey is created, and is not stored by Google. When type is "pkcs12", the contents of the data field is base64 encoded and has the password "notasecret".',
   ).optional(),
   id: z.string().describe(
     "An opaque, unique identifier for this ServiceAccountKey. Assigned by the server.",
@@ -124,7 +124,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Play EMM Serviceaccountkeys. Registered at `@swamp/gcp/androidenterprise/serviceaccountkeys`. */
 export const model = {
   type: "@swamp/gcp/androidenterprise/serviceaccountkeys",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -178,6 +178,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

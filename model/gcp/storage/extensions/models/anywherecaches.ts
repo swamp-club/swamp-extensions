@@ -98,6 +98,9 @@ const GlobalArgsSchema = z.object({
   id: z.string().describe(
     "The ID of the resource, including the project number, bucket name and anywhere cache ID.",
   ).optional(),
+  ingestOnWrite: z.boolean().describe(
+    "Specifies whether objects are ingested into the cache upon write.",
+  ).optional(),
   pendingUpdate: z.boolean().describe(
     "True if the cache instance has an active Update long-running operation.",
   ).optional(),
@@ -120,6 +123,7 @@ const StateSchema = z.object({
   bucket: z.string().optional(),
   createTime: z.string().optional(),
   id: z.string().optional(),
+  ingestOnWrite: z.boolean().optional(),
   kind: z.string().optional(),
   pendingUpdate: z.boolean().optional(),
   selfLink: z.string().optional(),
@@ -147,6 +151,9 @@ const InputsSchema = z.object({
   id: z.string().describe(
     "The ID of the resource, including the project number, bucket name and anywhere cache ID.",
   ).optional(),
+  ingestOnWrite: z.boolean().describe(
+    "Specifies whether objects are ingested into the cache upon write.",
+  ).optional(),
   pendingUpdate: z.boolean().describe(
     "True if the cache instance has an active Update long-running operation.",
   ).optional(),
@@ -166,7 +173,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Storage JSON AnywhereCaches. Registered at `@swamp/gcp/storage/anywherecaches`. */
 export const model = {
   type: "@swamp/gcp/storage/anywherecaches",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -229,6 +236,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.05.20.1",
+      description: "Added: ingestOnWrite",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -258,6 +270,9 @@ export const model = {
         }
         if (g["createTime"] !== undefined) body["createTime"] = g["createTime"];
         if (g["id"] !== undefined) body["id"] = g["id"];
+        if (g["ingestOnWrite"] !== undefined) {
+          body["ingestOnWrite"] = g["ingestOnWrite"];
+        }
         if (g["pendingUpdate"] !== undefined) {
           body["pendingUpdate"] = g["pendingUpdate"];
         }
@@ -346,6 +361,9 @@ export const model = {
         }
         if (g["createTime"] !== undefined) body["createTime"] = g["createTime"];
         if (g["id"] !== undefined) body["id"] = g["id"];
+        if (g["ingestOnWrite"] !== undefined) {
+          body["ingestOnWrite"] = g["ingestOnWrite"];
+        }
         if (g["pendingUpdate"] !== undefined) {
           body["pendingUpdate"] = g["pendingUpdate"];
         }

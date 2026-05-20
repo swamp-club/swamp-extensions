@@ -80,6 +80,29 @@ const DependencyConfigSchema = z.object({
   ),
 });
 
+const MetricSourceSchema = z.object({
+  MetricSourceKeyAttributes: z.record(z.string(), z.string()).describe(
+    "Required attributes that identify the metric source",
+  ),
+  MetricSourceAttributes: z.record(z.string(), z.string()).describe(
+    "Optional additional attributes for the metric source",
+  ).optional(),
+});
+
+const SelectionConfigSchema = z.object({
+  Type: z.enum(["EXPLICIT", "PREFIX", "REGEX"]),
+  Pattern: z.string().regex(new RegExp("^.+$")).optional(),
+});
+
+const CompositeSliComponentSchema = z.object({
+  OperationName: z.string(),
+});
+
+const CompositeSliConfigSchema = z.object({
+  SelectionConfig: SelectionConfigSchema,
+  CompositeSliComponents: z.array(CompositeSliComponentSchema).optional(),
+});
+
 const SliMetricSchema = z.object({
   KeyAttributes: z.record(z.string(), z.string()).describe(
     "This is a string-to-string map that contains information about the type of object that this SLO is related to.",
@@ -102,6 +125,13 @@ const SliMetricSchema = z.object({
   DependencyConfig: DependencyConfigSchema.describe(
     "Configuration for identifying a dependency and its operation",
   ).optional(),
+  MetricSource: MetricSourceSchema.describe(
+    "Configuration for identifying the source of metrics for non-Application Signals services",
+  ).optional(),
+  MetricName: z.string().min(1).max(255).describe(
+    "The name of the metric for non-Application Signals services",
+  ).optional(),
+  CompositeSliConfig: CompositeSliConfigSchema.optional(),
 });
 
 const MonitoredRequestCountMetricSchema = z.object({
@@ -132,6 +162,13 @@ const RequestBasedSliMetricSchema = z.object({
   DependencyConfig: DependencyConfigSchema.describe(
     "Configuration for identifying a dependency and its operation",
   ).optional(),
+  MetricSource: MetricSourceSchema.describe(
+    "Configuration for identifying the source of metrics for non-Application Signals services",
+  ).optional(),
+  MetricName: z.string().min(1).max(255).describe(
+    "The name of the metric for non-Application Signals services",
+  ).optional(),
+  CompositeSliConfig: CompositeSliConfigSchema.optional(),
 });
 
 const RollingIntervalSchema = z.object({
@@ -381,7 +418,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ApplicationSignals ServiceLevelObjective. Registered at `@swamp/aws/applicationsignals/service-level-objective`. */
 export const model = {
   type: "@swamp/aws/applicationsignals/service-level-objective",
-  version: "2026.04.23.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -405,6 +442,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

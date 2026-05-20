@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI ModelDeploymentMonitoringJobs.
+ * Swamp extension model for Google Cloud Agent Platform ModelDeploymentMonitoringJobs.
  *
  * Represents a job that runs periodically to monitor the deployed models in an endpoint. It will analyze the logged training & prediction data to detect any abnormal behaviors.
  *
@@ -587,10 +587,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI ModelDeploymentMonitoringJobs. Registered at `@swamp/gcp/aiplatform/modeldeploymentmonitoringjobs`. */
+/** Swamp extension model for Google Cloud Agent Platform ModelDeploymentMonitoringJobs. Registered at `@swamp/gcp/aiplatform/modeldeploymentmonitoringjobs`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/modeldeploymentmonitoringjobs",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -649,6 +649,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

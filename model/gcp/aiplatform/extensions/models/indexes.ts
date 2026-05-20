@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI Indexes.
+ * Swamp extension model for Google Cloud Agent Platform Indexes.
  *
  * A representation of a collection of database items organized in a way that allows for approximate nearest neighbor (a.k.a ANN) algorithms search.
  *
@@ -216,10 +216,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI Indexes. Registered at `@swamp/gcp/aiplatform/indexes`. */
+/** Swamp extension model for Google Cloud Agent Platform Indexes. Registered at `@swamp/gcp/aiplatform/indexes`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/indexes",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -273,6 +273,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

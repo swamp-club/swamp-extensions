@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/bigtableadmin"
-version: "2026.05.19.2"
+version: "2026.05.20.1"
 description: "Google Cloud bigtableadmin infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,12 +10,16 @@ labels:
   - bigtableadmin
   - cloud
   - infrastructure
+releaseNotes: |
+  - Added: instances_clusters_memorylayers
+  - Updated: instances_appprofiles, instances_clusters, instances_tables, instances_tables_schemabundles
 models:
   - instances.ts
   - instances_appprofiles.ts
   - instances_clusters.ts
   - instances_clusters_backups.ts
   - instances_clusters_hottablets.ts
+  - instances_clusters_memorylayers.ts
   - instances_logicalviews.ts
   - instances_materializedviews.ts
   - instances_tables.ts

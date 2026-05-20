@@ -293,6 +293,7 @@ const CpuOptionsSchema = z.object({
   AmdSevSnp: z.enum(["enabled", "disabled"]).describe(
     "Indicates whether to enable the instance for AMD SEV-SNP. AMD SEV-SNP is supported with M6a, R6a, and C6a instance types only. For more information, see [AMD SEV-SNP for Amazon EC2 instances](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/sev-snp.html).",
   ).optional(),
+  NestedVirtualization: z.enum(["enabled", "disabled"]).optional(),
   CoreCount: z.number().int().describe(
     "The number of CPU cores for the instance.",
   ).optional(),
@@ -439,7 +440,7 @@ const InstanceRequirementsSchema = z.object({
     "The minimum and maximum amount of memory per vCPU, in GiB. Default: No minimum or maximum limits",
   ).optional(),
   AcceleratorTypes: z.array(z.string()).describe(
-    "The accelerator types that must be on the instance type. For instance types with FPGA accelerators, specify fpga. For instance types with GPU accelerators, specify gpu. For instance types with Inference accelerators, specify inference. Default: Any accelerator type",
+    "The accelerator types that must be on the instance type. For instance types with FPGA accelerators, specify fpga. For instance types with GPU accelerators, specify gpu. For instance types with Inference accelerators, specify inference. For instance types with Media accelerators, specify media. Default: Any accelerator type",
   ).optional(),
   VCpuCount: VCpuCountSchema.describe(
     "The minimum and maximum number of vCPUs.",
@@ -496,7 +497,7 @@ const InstanceRequirementsSchema = z.object({
     "The minimum and maximum baseline bandwidth to Amazon EBS, in Mbps. For more information, see [Amazon EBS–optimized instances](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-optimized.html) in the *Amazon EC2 User Guide*. Default: No minimum or maximum limits",
   ).optional(),
   AcceleratorNames: z.array(z.string()).describe(
-    "The accelerators that must be on the instance type. For instance types with NVIDIA A10G GPUs, specify a10g. For instance types with NVIDIA A100 GPUs, specify a100. For instance types with NVIDIA H100 GPUs, specify h100. For instance types with AWS Inferentia chips, specify inferentia. For instance types with NVIDIA GRID K520 GPUs, specify k520. For instance types with NVIDIA K80 GPUs, specify k80. For instance types with NVIDIA M60 GPUs, specify m60. For instance types with AMD Radeon Pro V520 GPUs, specify radeon-pro-v520. For instance types with NVIDIA T4 GPUs, specify t4. For instance types with NVIDIA T4G GPUs, specify t4g. For instance types with Xilinx VU9P FPGAs, specify vu9p. For instance types with NVIDIA V100 GPUs, specify v100. Default: Any accelerator",
+    "The accelerators that must be on the instance type. For instance types with NVIDIA A10G GPUs, specify a10g. For instance types with NVIDIA A100 GPUs, specify a100. For instance types with NVIDIA H100 GPUs, specify h100. For instance types with AWS Inferentia chips, specify inferentia. For instance types with AWS Inferentia2 chips, specify inferentia2. For instance types with Habana Gaudi HL-205 GPUs, specify gaudi-hl-205. For instance types with NVIDIA GRID K520 GPUs, specify k520. For instance types with NVIDIA K80 GPUs, specify k80. For instance types with NVIDIA L4 GPUs, specify l4. For instance types with NVIDIA L40S GPUs, specify l40s. For instance types with NVIDIA M60 GPUs, specify m60. For instance types with AMD Radeon Pro V520 GPUs, specify radeon-pro-v520. For instance types with AWS Trainium chips, specify trainium. For instance types with AWS Trainium2 chips, specify trainium2. For instance types with NVIDIA T4 GPUs, specify t4. For instance types with NVIDIA T4G GPUs, specify t4g. For instance types with Xilinx U30 cards, specify u30. For instance types with Xilinx VU9P FPGAs, specify vu9p. For instance types with NVIDIA V100 GPUs, specify v100. Default: Any accelerator",
   ).optional(),
   AcceleratorTotalMemoryMiB: AcceleratorTotalMemoryMiBSchema.describe(
     "The minimum and maximum amount of total accelerator memory, in MiB. Default: No minimum or maximum limits",
@@ -794,7 +795,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for EC2 LaunchTemplate. Registered at `@swamp/aws/ec2/launch-template`. */
 export const model = {
   type: "@swamp/aws/ec2/launch-template",
-  version: "2026.04.23.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -818,6 +819,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

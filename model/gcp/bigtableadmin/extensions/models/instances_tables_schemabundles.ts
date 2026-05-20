@@ -111,7 +111,7 @@ const GlobalArgsSchema = z.object({
     protoDescriptors: z.string().describe(
       "Required. Contains a protobuf-serialized [google.protobuf.FileDescriptorSet](https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/descriptor.proto), which could include multiple proto files. To generate it, [install](https://grpc.io/docs/protoc-installation/) and run `protoc` with `--include_imports` and `--descriptor_set_out`. For example, to generate for moon/shot/app.proto, run ` $protoc --proto_path=/app_path --proto_path=/lib_path \\ --include_imports \\ --descriptor_set_out=descriptors.pb \\ moon/shot/app.proto ` For more details, see protobuffer [self description](https://developers.google.com/protocol-buffers/docs/techniques#self-description).",
     ).optional(),
-  }).describe("Represents a protobuf schema.").optional(),
+  }).describe("Represents a collection of protobuf schemas.").optional(),
   schemaBundleId: z.string().describe(
     "Required. The unique ID to use for the schema bundle, which will become the final component of the schema bundle's resource name.",
   ).optional(),
@@ -138,7 +138,7 @@ const InputsSchema = z.object({
     protoDescriptors: z.string().describe(
       "Required. Contains a protobuf-serialized [google.protobuf.FileDescriptorSet](https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/descriptor.proto), which could include multiple proto files. To generate it, [install](https://grpc.io/docs/protoc-installation/) and run `protoc` with `--include_imports` and `--descriptor_set_out`. For example, to generate for moon/shot/app.proto, run ` $protoc --proto_path=/app_path --proto_path=/lib_path \\ --include_imports \\ --descriptor_set_out=descriptors.pb \\ moon/shot/app.proto ` For more details, see protobuffer [self description](https://developers.google.com/protocol-buffers/docs/techniques#self-description).",
     ).optional(),
-  }).describe("Represents a protobuf schema.").optional(),
+  }).describe("Represents a collection of protobuf schemas.").optional(),
   schemaBundleId: z.string().describe(
     "Required. The unique ID to use for the schema bundle, which will become the final component of the schema bundle's resource name.",
   ).optional(),
@@ -150,7 +150,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Bigtable Admin Instances.Tables.SchemaBundles. Registered at `@swamp/gcp/bigtableadmin/instances-tables-schemabundles`. */
 export const model = {
   type: "@swamp/gcp/bigtableadmin/instances-tables-schemabundles",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -199,6 +199,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

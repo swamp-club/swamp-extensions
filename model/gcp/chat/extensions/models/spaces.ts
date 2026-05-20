@@ -486,7 +486,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Chat Spaces. Registered at `@swamp/gcp/chat/spaces`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -540,6 +540,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -826,6 +831,32 @@ export const model = {
             "httpMethod": "GET",
             "parameterOrder": [],
             "parameters": { "name": { "location": "query" } },
+          },
+          params,
+          {},
+        );
+        return { result };
+      },
+    },
+    find_group_chats: {
+      description: "find group chats",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, _context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "chat.spaces.findGroupChats",
+            "path": "v1/spaces:findGroupChats",
+            "httpMethod": "GET",
+            "parameterOrder": [],
+            "parameters": {
+              "pageSize": { "location": "query" },
+              "pageToken": { "location": "query" },
+              "spaceView": { "location": "query" },
+              "users": { "location": "query" },
+            },
           },
           params,
           {},

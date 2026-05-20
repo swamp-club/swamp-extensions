@@ -55,6 +55,19 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   advisoryPublishTime: z.string().optional(),
+  aiSkillAnalysis: z.object({
+    findings: z.array(z.object({
+      category: z.string(),
+      location: z.object({
+        filePath: z.string(),
+        lineNumber: z.string(),
+      }),
+      scanner: z.string(),
+      severity: z.string(),
+    })),
+    maxSeverity: z.string(),
+    skillName: z.string(),
+  }).optional(),
   attestation: z.object({
     jwts: z.array(z.object({
       compactJwt: z.string(),
@@ -551,6 +564,7 @@ const StateSchema = z.object({
     cvssScore: z.number(),
     cvssV2: z.object({
       attackComplexity: z.string(),
+      attackRequirements: z.string(),
       attackVector: z.string(),
       authentication: z.string(),
       availabilityImpact: z.string(),
@@ -561,11 +575,18 @@ const StateSchema = z.object({
       integrityImpact: z.string(),
       privilegesRequired: z.string(),
       scope: z.string(),
+      subsequentSystemAvailabilityImpact: z.string(),
+      subsequentSystemConfidentialityImpact: z.string(),
+      subsequentSystemIntegrityImpact: z.string(),
       userInteraction: z.string(),
+      vulnerableSystemAvailabilityImpact: z.string(),
+      vulnerableSystemConfidentialityImpact: z.string(),
+      vulnerableSystemIntegrityImpact: z.string(),
     }),
     cvssVersion: z.string(),
     cvssv3: z.object({
       attackComplexity: z.string(),
+      attackRequirements: z.string(),
       attackVector: z.string(),
       authentication: z.string(),
       availabilityImpact: z.string(),
@@ -576,7 +597,13 @@ const StateSchema = z.object({
       integrityImpact: z.string(),
       privilegesRequired: z.string(),
       scope: z.string(),
+      subsequentSystemAvailabilityImpact: z.string(),
+      subsequentSystemConfidentialityImpact: z.string(),
+      subsequentSystemIntegrityImpact: z.string(),
       userInteraction: z.string(),
+      vulnerableSystemAvailabilityImpact: z.string(),
+      vulnerableSystemConfidentialityImpact: z.string(),
+      vulnerableSystemIntegrityImpact: z.string(),
     }),
     effectiveSeverity: z.string(),
     extraDetails: z.string(),
@@ -666,7 +693,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud On-Demand Scanning Scans.Vulnerabilities. Registered at `@swamp/gcp/ondemandscanning/scans-vulnerabilities`. */
 export const model = {
   type: "@swamp/gcp/ondemandscanning/scans-vulnerabilities",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -765,6 +792,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

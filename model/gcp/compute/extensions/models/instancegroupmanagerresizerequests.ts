@@ -158,7 +158,7 @@ const GlobalArgsSchema = z.object({
         "[Output Only] The array of errors encountered while processing this operation.",
       ).optional(),
     }).describe(
-      "Output only. [Output only] Fatal errors encountered during the queueing or provisioning phases of the ResizeRequest that caused the transition to the FAILED state. Contrary to the last_attempt errors, this field is final and errors are never removed from here, as the ResizeRequest is not going to retry.",
+      "Output only. Fatal errors encountered during the queueing or provisioning phases of the ResizeRequest that caused the transition to the FAILED state. Contrary to the last_attempt errors, this field is final and errors are never removed from here, as the ResizeRequest is not going to retry.",
     ).optional(),
     lastAttempt: z.object({
       error: z.object({
@@ -184,7 +184,7 @@ const GlobalArgsSchema = z.object({
     }).optional(),
   }).optional(),
   zone: z.string().describe(
-    "Output only. [Output Only] The URL of azone where the resize request is located. Populated only for zonal resize requests.",
+    "Output only. The URL of a zone where the resize request is located. Populated only for zonal resize requests.",
   ).optional(),
   instanceGroupManager: z.string().describe(
     "The name of the managed instance group to which the resize request will be added. Name should conform to RFC1035 or be a resource ID.",
@@ -200,6 +200,7 @@ const StateSchema = z.object({
   id: z.string().optional(),
   kind: z.string().optional(),
   name: z.string(),
+  region: z.string().optional(),
   requestedRunDuration: z.object({
     nanos: z.number(),
     seconds: z.string(),
@@ -272,7 +273,7 @@ const InputsSchema = z.object({
         "[Output Only] The array of errors encountered while processing this operation.",
       ).optional(),
     }).describe(
-      "Output only. [Output only] Fatal errors encountered during the queueing or provisioning phases of the ResizeRequest that caused the transition to the FAILED state. Contrary to the last_attempt errors, this field is final and errors are never removed from here, as the ResizeRequest is not going to retry.",
+      "Output only. Fatal errors encountered during the queueing or provisioning phases of the ResizeRequest that caused the transition to the FAILED state. Contrary to the last_attempt errors, this field is final and errors are never removed from here, as the ResizeRequest is not going to retry.",
     ).optional(),
     lastAttempt: z.object({
       error: z.object({
@@ -298,7 +299,7 @@ const InputsSchema = z.object({
     }).optional(),
   }).optional(),
   zone: z.string().describe(
-    "Output only. [Output Only] The URL of azone where the resize request is located. Populated only for zonal resize requests.",
+    "Output only. The URL of a zone where the resize request is located. Populated only for zonal resize requests.",
   ).optional(),
   instanceGroupManager: z.string().describe(
     "The name of the managed instance group to which the resize request will be added. Name should conform to RFC1035 or be a resource ID.",
@@ -311,7 +312,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine InstanceGroupManagerResizeRequests. Registered at `@swamp/gcp/compute/instancegroupmanagerresizerequests`. */
 export const model = {
   type: "@swamp/gcp/compute/instancegroupmanagerresizerequests",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -385,6 +386,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

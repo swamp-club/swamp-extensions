@@ -263,6 +263,15 @@ const GlobalArgsSchema = z.object({
       "MAX",
     ]).describe("Initial dump parallelism level.").optional(),
   }).describe("Performance configuration definition.").optional(),
+  postgresHomogeneousConfig: z.object({
+    isNativeLogical: z.boolean().describe(
+      "Required. Whether the migration is native logical.",
+    ).optional(),
+    maxAdditionalSubscriptions: z.number().int().describe(
+      "Optional. Maximum number of additional subscriptions to use for the migration job.",
+    ).optional(),
+  }).describe("Configuration for PostgreSQL to PostgreSQL migrations.")
+    .optional(),
   postgresToSqlserverConfig: z.object({
     postgresSourceConfig: z.object({
       skipFullDump: z.boolean().describe(
@@ -499,6 +508,10 @@ const StateSchema = z.object({
     dumpParallelLevel: z.string(),
   }).optional(),
   phase: z.string().optional(),
+  postgresHomogeneousConfig: z.object({
+    isNativeLogical: z.boolean(),
+    maxAdditionalSubscriptions: z.number(),
+  }).optional(),
   postgresToSqlserverConfig: z.object({
     postgresSourceConfig: z.object({
       skipFullDump: z.boolean(),
@@ -716,6 +729,15 @@ const InputsSchema = z.object({
       "MAX",
     ]).describe("Initial dump parallelism level.").optional(),
   }).describe("Performance configuration definition.").optional(),
+  postgresHomogeneousConfig: z.object({
+    isNativeLogical: z.boolean().describe(
+      "Required. Whether the migration is native logical.",
+    ).optional(),
+    maxAdditionalSubscriptions: z.number().int().describe(
+      "Optional. Maximum number of additional subscriptions to use for the migration job.",
+    ).optional(),
+  }).describe("Configuration for PostgreSQL to PostgreSQL migrations.")
+    .optional(),
   postgresToSqlserverConfig: z.object({
     postgresSourceConfig: z.object({
       skipFullDump: z.boolean().describe(
@@ -886,7 +908,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Database Migration MigrationJobs. Registered at `@swamp/gcp/datamigration/migrationjobs`. */
 export const model = {
   type: "@swamp/gcp/datamigration/migrationjobs",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -960,6 +982,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.05.20.1",
+      description: "Added: postgresHomogeneousConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1021,6 +1048,9 @@ export const model = {
         }
         if (g["performanceConfig"] !== undefined) {
           body["performanceConfig"] = g["performanceConfig"];
+        }
+        if (g["postgresHomogeneousConfig"] !== undefined) {
+          body["postgresHomogeneousConfig"] = g["postgresHomogeneousConfig"];
         }
         if (g["postgresToSqlserverConfig"] !== undefined) {
           body["postgresToSqlserverConfig"] = g["postgresToSqlserverConfig"];
@@ -1173,6 +1203,9 @@ export const model = {
         }
         if (g["performanceConfig"] !== undefined) {
           body["performanceConfig"] = g["performanceConfig"];
+        }
+        if (g["postgresHomogeneousConfig"] !== undefined) {
+          body["postgresHomogeneousConfig"] = g["postgresHomogeneousConfig"];
         }
         if (g["postgresToSqlserverConfig"] !== undefined) {
           body["postgresToSqlserverConfig"] = g["postgresToSqlserverConfig"];

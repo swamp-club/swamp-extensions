@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI Models.Evaluations.Slices.
+ * Swamp extension model for Google Cloud Agent Platform Models.Evaluations.Slices.
  *
  * A collection of metrics calculated by comparing Model's predictions on a slice of the test data against ground truth annotations.
  *
@@ -87,10 +87,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI Models.Evaluations.Slices. Registered at `@swamp/gcp/aiplatform/models-evaluations-slices`. */
+/** Swamp extension model for Google Cloud Agent Platform Models.Evaluations.Slices. Registered at `@swamp/gcp/aiplatform/models-evaluations-slices`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/models-evaluations-slices",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -144,6 +144,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

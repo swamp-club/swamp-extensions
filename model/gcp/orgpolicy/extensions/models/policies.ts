@@ -100,7 +100,7 @@ const DELETE_CONFIG = {
 const GlobalArgsSchema = z.object({
   alternate: z.object({
     launch: z.string().describe(
-      "Reference to the launch that will be used while audit logging and to control the launch. Should be set only in the alternate policy.",
+      "Reference to the launch that will be used while audit logging and to control the launch. Set only in the alternate policy.",
     ).optional(),
     spec: z.object({
       etag: z.string().describe(
@@ -366,7 +366,7 @@ type StateData = z.infer<typeof StateSchema>;
 const InputsSchema = z.object({
   alternate: z.object({
     launch: z.string().describe(
-      "Reference to the launch that will be used while audit logging and to control the launch. Should be set only in the alternate policy.",
+      "Reference to the launch that will be used while audit logging and to control the launch. Set only in the alternate policy.",
     ).optional(),
     spec: z.object({
       etag: z.string().describe(
@@ -556,7 +556,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Organization Policy Policies. Registered at `@swamp/gcp/orgpolicy/policies`. */
 export const model = {
   type: "@swamp/gcp/orgpolicy/policies",
-  version: "2026.05.19.2",
+  version: "2026.05.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -615,6 +615,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.20.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
