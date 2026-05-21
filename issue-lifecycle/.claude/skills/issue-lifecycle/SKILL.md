@@ -45,14 +45,14 @@ reference file.
 Each phase has detailed instructions in a reference file. Read only the
 reference you need for the current phase.
 
-### Phase 1: Triage (steps 1–5)
+### Phase 1: Triage (steps 1–4)
 
 Read [references/triage.md](references/triage.md) when starting a new triage or
-resuming an issue in the `triaging` phase. Covers: creating the model instance,
-fetching issue context from swamp-club, reading the codebase, classifying the
-issue, and reproducing bugs.
+resuming an issue in the `triaging` phase. Covers: starting the lifecycle (using
+direct type execution to auto-create the model and fetch issue context in one
+command), reading the codebase, classifying the issue, and reproducing bugs.
 
-### Phase 2: Planning (steps 6–9)
+### Phase 2: Planning (steps 5–7)
 
 Read [references/planning.md](references/planning.md) after triage is complete.
 Covers: generating the implementation plan, applying repo-specific planning
@@ -72,6 +72,25 @@ the human, and the iteration loop until approval.
 Read [references/implementation.md](references/implementation.md) after plan
 approval. Covers: signalling implementation start, doing the work, verifying
 fixes against the reproduction, creating the PR, and completing the issue.
+
+### Phase 5: Contributor Notification
+
+After `ship` or `complete`, the lifecycle enters the `notify` phase. This is
+where you decide whether to thank the issue author:
+
+- If the issue author is an **external contributor** (not a repo collaborator),
+  call `notify` to post a thank-you ripple mentioning them by handle.
+- If the issue author is a **collaborator**, call `skip_notify` to proceed
+  directly to done.
+
+Check collaborator status with:
+
+```
+gh api /repos/systeminit/swamp/collaborators --jq '.[].login' | grep -qx '<author>'
+```
+
+If the author is NOT in the collaborator list, they are external — call
+`notify`. Otherwise call `skip_notify`.
 
 ## Classification Types
 
@@ -97,7 +116,7 @@ but do NOT map to separate swamp-club types:
 To review a specific plan version:
 
 ```
-swamp model method run issue-<N> review --input version=<V>
+swamp model @swamp/issue-lifecycle method run review issue-<N> --input version=<V>
 ```
 
 To see all model data:
@@ -119,17 +138,18 @@ Read the `phase` field from the response. **Do NOT call `start` to resume** —
 
 Use this table to determine what to do next:
 
-| Phase            | Action                                                                    |
-| ---------------- | ------------------------------------------------------------------------- |
-| `triaging`       | Read [references/triage.md](references/triage.md)                         |
-| `classified`     | Read [references/planning.md](references/planning.md)                     |
-| `plan_generated` | Read [references/adversarial-review.md](references/adversarial-review.md) |
-| `approved`       | Read [references/implementation.md](references/implementation.md)         |
-| `implementing`   | Link a PR with `link_pr` or call `complete`                               |
-| `pr_open`        | Wait 3 min, then check PR: `pr_merged` if merged, `pr_failed` if failed   |
-| `pr_failed`      | Fix the issue, then `link_pr` (new PR) or `implement` (major rework)      |
-| `releasing`      | Check release build: `ship` when done, or `complete` as fallback          |
-| `done`           | Nothing to do — lifecycle is complete                                     |
+| Phase            | Action                                                                     |
+| ---------------- | -------------------------------------------------------------------------- |
+| `triaging`       | Read [references/triage.md](references/triage.md)                          |
+| `classified`     | Read [references/planning.md](references/planning.md)                      |
+| `plan_generated` | Read [references/adversarial-review.md](references/adversarial-review.md)  |
+| `approved`       | Read [references/implementation.md](references/implementation.md)          |
+| `implementing`   | Link a PR with `link_pr` or call `complete`                                |
+| `pr_open`        | Wait 3 min, then check PR: `pr_merged` if merged, `pr_failed` if failed    |
+| `pr_failed`      | Fix the issue, then `link_pr` (new PR) or `implement` (major rework)       |
+| `releasing`      | Check release build: `ship` when done, or `complete` as fallback           |
+| `notify`         | Check if author is external: `notify` to thank them, `skip_notify` to skip |
+| `done`           | Nothing to do — lifecycle is complete                                      |
 
 The canonical phase list lives in the `TRANSITIONS` constant in
 `extensions/models/_lib/schemas.ts`.
@@ -144,21 +164,24 @@ When a PR has already merged and the lifecycle just needs to be marked done:
    ```
 2. If the phase is `implementing`, link the PR first:
    ```
-   swamp model method run issue-<N> link_pr --input url=<PR URL>
+   swamp model @swamp/issue-lifecycle method run link_pr issue-<N> --input url=<PR URL>
    ```
 3. If the phase is `pr_open`, record the merge:
    ```
-   swamp model method run issue-<N> pr_merged
+   swamp model @swamp/issue-lifecycle method run pr_merged issue-<N>
    ```
 4. If the phase is `releasing`, ship it:
    ```
-   swamp model method run issue-<N> ship
+   swamp model @swamp/issue-lifecycle method run ship issue-<N>
    ```
-5. For quick close-out, `complete` still works from `implementing`, `pr_open`,
-   or `releasing`:
+5. If the phase is `notify`, check if the author is external and either thank
+   them or skip:
    ```
-   swamp model method run issue-<N> complete
+   swamp model @swamp/issue-lifecycle method run notify issue-<N>
+   swamp model @swamp/issue-lifecycle method run skip_notify issue-<N>
    ```
+6. For quick close-out, `complete` still works from `implementing`, `pr_open`,
+   or `releasing` (transitions to `notify`, then use `notify` or `skip_notify`).
 
 ## Key Rules
 
