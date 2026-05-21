@@ -480,13 +480,13 @@ export async function createResource(
   const resp = await request(config.httpMethod, url, body);
 
   if (resp.status === 409 && idempotency) {
-    await resp.text();
+    const conflictBody = await resp.text();
     const existing = await tryReadViaList(
       baseUrl, idempotency.listConfig, idempotency.listParams,
       idempotency.matchField, idempotency.matchValue,
     );
     if (existing) return existing;
-    throw new Error("Create failed (409): resource already exists but could not be found via list");
+    throw new Error(\`Create failed (409): \${conflictBody}. Idempotency fallback also found no match via list.\`);
   }
 
   if (!resp.ok) {

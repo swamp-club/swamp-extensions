@@ -194,7 +194,9 @@ export function generateGcpExtensionModel(
     usedConfigs.add("get");
   }
   // LIST_CONFIG is used in sync for listOnly resources and in create for idempotency
-  if (resource.methodConfigs.list) {
+  if (
+    resource.methodConfigs.list && (resource.listOnly || hasIdempotentCreate)
+  ) {
     usedConfigs.add("list");
   }
 
