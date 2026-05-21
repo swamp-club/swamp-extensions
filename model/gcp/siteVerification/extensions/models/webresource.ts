@@ -86,6 +86,14 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "siteVerification.webResource.list",
+  "path": "webResource",
+  "httpMethod": "GET",
+  "parameterOrder": [],
+  "parameters": {},
+} as const;
+
 const GlobalArgsSchema = z.object({
   id: z.string().describe(
     'The string used to identify this site. This value should be used in the "id" portion of the REST URL for the Get, Update, and Delete operations.',
@@ -144,7 +152,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Site Verification WebResource. Registered at `@swamp/gcp/siteverification/webresource`. */
 export const model = {
   type: "@swamp/gcp/siteverification/webresource",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -191,6 +199,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -224,6 +237,13 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {},
+            matchField: "id",
+            matchValue: String(g["id"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.id ?? g.id)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

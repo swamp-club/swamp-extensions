@@ -127,7 +127,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine ReservationBlocks. Registered at `@swamp/gcp/compute/reservationblocks`. */
 export const model = {
   type: "@swamp/gcp/compute/reservationblocks",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -171,6 +171,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -276,6 +281,53 @@ export const model = {
         }
       },
     },
+    get_iam_policy: {
+      description: "get iam policy",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["zone"] = existing["zone"]?.toString() ??
+          g["zone"]?.toString() ?? "";
+        params["parentResource"] = existing["parentResource"]?.toString() ??
+          g["parentResource"]?.toString() ?? "";
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "compute.reservationBlocks.getIamPolicy",
+            "path":
+              "projects/{project}/zones/{zone}/reservations/{parentResource}/reservationBlocks/{resource}/getIamPolicy",
+            "httpMethod": "GET",
+            "parameterOrder": ["project", "zone", "parentResource", "resource"],
+            "parameters": {
+              "optionsRequestedPolicyVersion": { "location": "query" },
+              "parentResource": { "location": "path", "required": true },
+              "project": { "location": "path", "required": true },
+              "resource": { "location": "path", "required": true },
+              "zone": { "location": "path", "required": true },
+            },
+          },
+          params,
+          {},
+        );
+        return { result };
+      },
+    },
     perform_maintenance: {
       description: "perform maintenance",
       arguments: z.object({
@@ -325,6 +377,112 @@ export const model = {
               "requestId": { "location": "query" },
               "reservation": { "location": "path", "required": true },
               "reservationBlock": { "location": "path", "required": true },
+              "zone": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+        );
+        return { result };
+      },
+    },
+    set_iam_policy: {
+      description: "set iam policy",
+      arguments: z.object({
+        bindings: z.any().optional(),
+        etag: z.any().optional(),
+        policy: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["zone"] = existing["zone"]?.toString() ??
+          g["zone"]?.toString() ?? "";
+        params["parentResource"] = existing["parentResource"]?.toString() ??
+          g["parentResource"]?.toString() ?? "";
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["bindings"] !== undefined) body["bindings"] = args["bindings"];
+        if (args["etag"] !== undefined) body["etag"] = args["etag"];
+        if (args["policy"] !== undefined) body["policy"] = args["policy"];
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "compute.reservationBlocks.setIamPolicy",
+            "path":
+              "projects/{project}/zones/{zone}/reservations/{parentResource}/reservationBlocks/{resource}/setIamPolicy",
+            "httpMethod": "POST",
+            "parameterOrder": ["project", "zone", "parentResource", "resource"],
+            "parameters": {
+              "parentResource": { "location": "path", "required": true },
+              "project": { "location": "path", "required": true },
+              "resource": { "location": "path", "required": true },
+              "zone": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+        );
+        return { result };
+      },
+    },
+    test_iam_permissions: {
+      description: "test iam permissions",
+      arguments: z.object({
+        permissions: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["zone"] = existing["zone"]?.toString() ??
+          g["zone"]?.toString() ?? "";
+        params["parentResource"] = existing["parentResource"]?.toString() ??
+          g["parentResource"]?.toString() ?? "";
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["permissions"] !== undefined) {
+          body["permissions"] = args["permissions"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "compute.reservationBlocks.testIamPermissions",
+            "path":
+              "projects/{project}/zones/{zone}/reservations/{parentResource}/reservationBlocks/{resource}/testIamPermissions",
+            "httpMethod": "POST",
+            "parameterOrder": ["project", "zone", "parentResource", "resource"],
+            "parameters": {
+              "parentResource": { "location": "path", "required": true },
+              "project": { "location": "path", "required": true },
+              "resource": { "location": "path", "required": true },
               "zone": { "location": "path", "required": true },
             },
           },

@@ -96,6 +96,51 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "dfareporting.eventTags.list",
+  "path": "userprofiles/{+profileId}/eventTags",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "profileId",
+  ],
+  "parameters": {
+    "adId": {
+      "location": "query",
+    },
+    "advertiserId": {
+      "location": "query",
+    },
+    "campaignId": {
+      "location": "query",
+    },
+    "definitionsOnly": {
+      "location": "query",
+    },
+    "enabled": {
+      "location": "query",
+    },
+    "eventTagTypes": {
+      "location": "query",
+    },
+    "ids": {
+      "location": "query",
+    },
+    "profileId": {
+      "location": "path",
+      "required": true,
+    },
+    "searchString": {
+      "location": "query",
+    },
+    "sortField": {
+      "location": "query",
+    },
+    "sortOrder": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   accountId: z.string().describe(
     "Account ID of this event tag. This is a read-only field that can be left blank.",
@@ -322,7 +367,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Campaign Manager 360 EventTags. Registered at `@swamp/gcp/dfareporting/eventtags`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/eventtags",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -361,6 +406,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -440,6 +490,12 @@ export const model = {
               "failedValues": [],
             }
             : undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: { "profileId": String(g["profileId"] ?? "") },
+            matchField: "id",
+            matchValue: String(g["id"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.id ?? g.id)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

@@ -129,7 +129,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Vault Matters.Holds.Accounts. Registered at `@swamp/gcp/vault/matters-holds-accounts`. */
 export const model = {
   type: "@swamp/gcp/vault/matters-holds-accounts",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -171,6 +171,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -203,6 +208,17 @@ export const model = {
           INSERT_CONFIG,
           params,
           body,
+          undefined,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "matterId": String(g["matterId"] ?? ""),
+              "holdId": String(g["holdId"] ?? ""),
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,

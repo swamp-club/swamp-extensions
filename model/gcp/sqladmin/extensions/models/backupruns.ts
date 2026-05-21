@@ -95,6 +95,32 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "sql.backupRuns.list",
+  "path": "v1/projects/{project}/instances/{instance}/backupRuns",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "project",
+    "instance",
+  ],
+  "parameters": {
+    "instance": {
+      "location": "path",
+      "required": true,
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "project": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   backupKind: z.enum(["SQL_BACKUP_KIND_UNSPECIFIED", "SNAPSHOT", "PHYSICAL"])
     .describe("Specifies the kind of backup, PHYSICAL or DEFAULT_SNAPSHOT.")
@@ -270,7 +296,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud SQL Admin BackupRuns. Registered at `@swamp/gcp/sqladmin/backupruns`. */
 export const model = {
   type: "@swamp/gcp/sqladmin/backupruns",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -309,6 +335,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -378,6 +409,15 @@ export const model = {
               "failedValues": ["FAILED"],
             }
             : undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "project": projectId,
+              "instance": String(g["instance"] ?? ""),
+            },
+            matchField: "id",
+            matchValue: String(g["id"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.id ?? g.id)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

@@ -91,6 +91,36 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "apigee.organizations.apiproducts.rateplans.list",
+  "path": "v1/{+parent}/rateplans",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "count": {
+      "location": "query",
+    },
+    "expand": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+    "startKey": {
+      "location": "query",
+    },
+    "state": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -340,7 +370,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Apigee Apiproducts.Rateplans. Registered at `@swamp/gcp/apigee/apiproducts-rateplans`. */
 export const model = {
   type: "@swamp/gcp/apigee/apiproducts-rateplans",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -384,6 +414,12 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description:
+        "Added: consumptionPricingType, currencyCode, description, displayName, endTime, fixedFeeFrequency, fixedRecurringFee, revenueShareRates, revenueShareType, setupFee, startTime, state, parent",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description:
         "Added: consumptionPricingType, currencyCode, description, displayName, endTime, fixedFeeFrequency, fixedRecurringFee, revenueShareRates, revenueShareType, setupFee, startTime, state, parent",
       upgradeAttributes: (old: Record<string, unknown>) => old,
@@ -456,6 +492,15 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": String(body["parent"] ?? g["parent"] ?? ""),
+            },
+            matchField: "displayName",
+            matchValue: String(g["displayName"] ?? ""),
+          },
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,

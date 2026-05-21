@@ -151,6 +151,41 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "dns.resourceRecordSets.list",
+  "path": "dns/v1/projects/{project}/managedZones/{managedZone}/rrsets",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "project",
+    "managedZone",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "managedZone": {
+      "location": "path",
+      "required": true,
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "name": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "project": {
+      "location": "path",
+      "required": true,
+    },
+    "type": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe("For example, www.example.com.").optional(),
   routingPolicy: z.object({
@@ -522,7 +557,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud DNS ResourceRecordSets. Registered at `@swamp/gcp/dns/resourcerecordsets`. */
 export const model = {
   type: "@swamp/gcp/dns/resourcerecordsets",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -566,6 +601,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -613,6 +653,16 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "project": projectId,
+              "managedZone": String(g["managedZone"] ?? ""),
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

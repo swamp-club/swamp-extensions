@@ -119,6 +119,47 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "compute.regionInstanceGroupManagerResizeRequests.list",
+  "path":
+    "projects/{project}/regions/{region}/instanceGroupManagers/{instanceGroupManager}/resizeRequests",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "project",
+    "region",
+    "instanceGroupManager",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "instanceGroupManager": {
+      "location": "path",
+      "required": true,
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "project": {
+      "location": "path",
+      "required": true,
+    },
+    "region": {
+      "location": "path",
+      "required": true,
+    },
+    "returnPartialSuccess": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   description: z.string().describe("An optional description of this resource.")
     .optional(),
@@ -312,7 +353,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine RegionInstanceGroupManagerResizeRequests. Registered at `@swamp/gcp/compute/regioninstancegroupmanagerresizerequests`. */
 export const model = {
   type: "@swamp/gcp/compute/regioninstancegroupmanagerresizerequests",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -367,6 +415,16 @@ export const model = {
               "failedValues": ["FAILED"],
             }
             : undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "project": projectId,
+              "region": String(g["region"] ?? ""),
+              "instanceGroupManager": String(g["instanceGroupManager"] ?? ""),
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

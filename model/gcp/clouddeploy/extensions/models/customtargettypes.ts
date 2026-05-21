@@ -124,6 +124,33 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "clouddeploy.projects.locations.customTargetTypes.list",
+  "path": "v1/{+parent}/customTargetTypes",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   annotations: z.record(z.string(), z.string()).describe(
     "Optional. User annotations. These attributes can only be set and used by the user, and not by Cloud Deploy. See https://google.aip.dev/128#annotations for more details such as format and size limitations.",
@@ -202,9 +229,6 @@ const GlobalArgsSchema = z.object({
         image: z.string().describe(
           "Required. Image is the container image to use.",
         ).optional(),
-        script: z.string().describe(
-          "Optional. Shell script to execute. If provided then command and args cannot be specified.",
-        ).optional(),
       }).describe(
         "This task is represented by a container that is executed in the Cloud Build execution environment.",
       ).optional(),
@@ -224,9 +248,6 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         image: z.string().describe(
           "Required. Image is the container image to use.",
-        ).optional(),
-        script: z.string().describe(
-          "Optional. Shell script to execute. If provided then command and args cannot be specified.",
         ).optional(),
       }).describe(
         "This task is represented by a container that is executed in the Cloud Build execution environment.",
@@ -281,7 +302,6 @@ const StateSchema = z.object({
         command: z.array(z.string()),
         env: z.record(z.string(), z.unknown()),
         image: z.string(),
-        script: z.string(),
       }),
     }),
     render: z.object({
@@ -290,7 +310,6 @@ const StateSchema = z.object({
         command: z.array(z.string()),
         env: z.record(z.string(), z.unknown()),
         image: z.string(),
-        script: z.string(),
       }),
     }),
   }).optional(),
@@ -378,9 +397,6 @@ const InputsSchema = z.object({
         image: z.string().describe(
           "Required. Image is the container image to use.",
         ).optional(),
-        script: z.string().describe(
-          "Optional. Shell script to execute. If provided then command and args cannot be specified.",
-        ).optional(),
       }).describe(
         "This task is represented by a container that is executed in the Cloud Build execution environment.",
       ).optional(),
@@ -400,9 +416,6 @@ const InputsSchema = z.object({
         ).optional(),
         image: z.string().describe(
           "Required. Image is the container image to use.",
-        ).optional(),
-        script: z.string().describe(
-          "Optional. Shell script to execute. If provided then command and args cannot be specified.",
         ).optional(),
       }).describe(
         "This task is represented by a container that is executed in the Cloud Build execution environment.",
@@ -424,7 +437,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Deploy CustomTargetTypes. Registered at `@swamp/gcp/clouddeploy/customtargettypes`. */
 export const model = {
   type: "@swamp/gcp/clouddeploy/customtargettypes",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -486,6 +499,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -535,6 +553,17 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": `projects/${projectId}/locations/${
+                String(g["location"] ?? "")
+              }`,
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
@@ -715,6 +744,93 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    get_iam_policy: {
+      description: "get iam policy",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id":
+              "clouddeploy.projects.locations.customTargetTypes.getIamPolicy",
+            "path": "v1/{+resource}:getIamPolicy",
+            "httpMethod": "GET",
+            "parameterOrder": ["resource"],
+            "parameters": {
+              "options.requestedPolicyVersion": { "location": "query" },
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          {},
+        );
+        return { result };
+      },
+    },
+    set_iam_policy: {
+      description: "set iam policy",
+      arguments: z.object({
+        policy: z.any().optional(),
+        updateMask: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["policy"] !== undefined) body["policy"] = args["policy"];
+        if (args["updateMask"] !== undefined) {
+          body["updateMask"] = args["updateMask"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id":
+              "clouddeploy.projects.locations.customTargetTypes.setIamPolicy",
+            "path": "v1/{+resource}:setIamPolicy",
+            "httpMethod": "POST",
+            "parameterOrder": ["resource"],
+            "parameters": {
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+        );
+        return { result };
       },
     },
   },

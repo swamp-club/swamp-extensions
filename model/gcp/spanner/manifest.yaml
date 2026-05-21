@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/spanner"
-version: "2026.05.20.1"
+version: "2026.05.21.1"
 description: "Google Cloud spanner infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,8 +10,6 @@ labels:
   - spanner
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: instances_backups, instances_databases_backupschedules
 models:
   - instanceconfigs.ts
   - instances.ts

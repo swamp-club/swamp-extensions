@@ -82,6 +82,27 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "analyticsadmin.properties.list",
+  "path": "v1beta/properties",
+  "httpMethod": "GET",
+  "parameterOrder": [],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "showDeleted": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   account: z.string().describe(
     'Immutable. The resource name of the parent account Format: accounts/{account_id} Example: "accounts/123"',
@@ -223,7 +244,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Analytics Admin Properties. Registered at `@swamp/gcp/analyticsadmin/properties`. */
 export const model = {
   type: "@swamp/gcp/analyticsadmin/properties",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -280,6 +301,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -312,6 +338,7 @@ export const model = {
           body["industryCategory"] = g["industryCategory"];
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
+        if (g["parent"] !== undefined) body["parent"] = g["parent"];
         if (g["propertyType"] !== undefined) {
           body["propertyType"] = g["propertyType"];
         }
@@ -323,6 +350,13 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {},
+            matchField: "displayName",
+            matchValue: String(g["displayName"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

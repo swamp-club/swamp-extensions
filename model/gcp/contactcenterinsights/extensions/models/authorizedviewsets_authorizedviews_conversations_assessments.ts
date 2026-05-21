@@ -81,6 +81,31 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id":
+    "contactcenterinsights.projects.locations.authorizedViewSets.authorizedViews.conversations.assessments.list",
+  "path": "v1/{+parent}/assessments",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   agentInfo: z.object({
     agentId: z.string().describe(
@@ -106,6 +131,7 @@ const GlobalArgsSchema = z.object({
     entrySubagentDisplayName: z.string().describe(
       "The entry subagent's display name.",
     ).optional(),
+    entrySubagentId: z.string().describe("The entry subagent's ID.").optional(),
     location: z.string().describe("The agent's location.").optional(),
     team: z.string().describe(
       "A user-specified string representing the agent's team. Deprecated in favor of the `teams` field.",
@@ -138,6 +164,7 @@ const StateSchema = z.object({
     displayName: z.string(),
     dispositionCode: z.string(),
     entrySubagentDisplayName: z.string(),
+    entrySubagentId: z.string(),
     location: z.string(),
     team: z.string(),
     teams: z.array(z.string()),
@@ -177,6 +204,7 @@ const InputsSchema = z.object({
     entrySubagentDisplayName: z.string().describe(
       "The entry subagent's display name.",
     ).optional(),
+    entrySubagentId: z.string().describe("The entry subagent's ID.").optional(),
     location: z.string().describe("The agent's location.").optional(),
     team: z.string().describe(
       "A user-specified string representing the agent's team. Deprecated in favor of the `teams` field.",
@@ -204,7 +232,7 @@ const InputsSchema = z.object({
 export const model = {
   type:
     "@swamp/gcp/contactcenterinsights/authorizedviewsets-authorizedviews-conversations-assessments",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -266,6 +294,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -303,6 +336,17 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": `projects/${projectId}/locations/${
+                String(g["location"] ?? "")
+              }`,
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

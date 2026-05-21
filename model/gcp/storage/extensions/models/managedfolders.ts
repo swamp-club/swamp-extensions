@@ -95,6 +95,30 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "storage.managedFolders.list",
+  "path": "b/{bucket}/managedFolders",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "bucket",
+  ],
+  "parameters": {
+    "bucket": {
+      "location": "path",
+      "required": true,
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "prefix": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   bucket: z.string().describe(
     "The name of the bucket containing this managed folder.",
@@ -153,7 +177,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Storage JSON ManagedFolders. Registered at `@swamp/gcp/storage/managedfolders`. */
 export const model = {
   type: "@swamp/gcp/storage/managedfolders",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -195,6 +219,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -232,6 +261,13 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: { "bucket": String(g["bucket"] ?? "") },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
@@ -354,6 +390,148 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    get_iam_policy: {
+      description: "get iam policy",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["bucket"] !== undefined) params["bucket"] = String(g["bucket"]);
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["managedFolder"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "storage.managedFolders.getIamPolicy",
+            "path": "b/{bucket}/managedFolders/{managedFolder}/iam",
+            "httpMethod": "GET",
+            "parameterOrder": ["bucket", "managedFolder"],
+            "parameters": {
+              "bucket": { "location": "path", "required": true },
+              "managedFolder": { "location": "path", "required": true },
+              "optionsRequestedPolicyVersion": { "location": "query" },
+              "userProject": { "location": "query" },
+            },
+          },
+          params,
+          {},
+        );
+        return { result };
+      },
+    },
+    set_iam_policy: {
+      description: "set iam policy",
+      arguments: z.object({
+        bindings: z.any().optional(),
+        etag: z.any().optional(),
+        kind: z.any().optional(),
+        resourceId: z.any().optional(),
+        version: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["bucket"] !== undefined) params["bucket"] = String(g["bucket"]);
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["managedFolder"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["bindings"] !== undefined) body["bindings"] = args["bindings"];
+        if (args["etag"] !== undefined) body["etag"] = args["etag"];
+        if (args["kind"] !== undefined) body["kind"] = args["kind"];
+        if (args["resourceId"] !== undefined) {
+          body["resourceId"] = args["resourceId"];
+        }
+        if (args["version"] !== undefined) body["version"] = args["version"];
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "storage.managedFolders.setIamPolicy",
+            "path": "b/{bucket}/managedFolders/{managedFolder}/iam",
+            "httpMethod": "PUT",
+            "parameterOrder": ["bucket", "managedFolder"],
+            "parameters": {
+              "bucket": { "location": "path", "required": true },
+              "managedFolder": { "location": "path", "required": true },
+              "userProject": { "location": "query" },
+            },
+          },
+          params,
+          body,
+        );
+        return { result };
+      },
+    },
+    test_iam_permissions: {
+      description: "test iam permissions",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["bucket"] !== undefined) params["bucket"] = String(g["bucket"]);
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["managedFolder"] = existing["managedFolder"]?.toString() ??
+          g["managedFolder"]?.toString() ?? "";
+        params["permissions"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "storage.managedFolders.testIamPermissions",
+            "path":
+              "b/{bucket}/managedFolders/{managedFolder}/iam/testPermissions",
+            "httpMethod": "GET",
+            "parameterOrder": ["bucket", "managedFolder", "permissions"],
+            "parameters": {
+              "bucket": { "location": "path", "required": true },
+              "managedFolder": { "location": "path", "required": true },
+              "permissions": { "location": "query", "required": true },
+              "userProject": { "location": "query" },
+            },
+          },
+          params,
+          {},
+        );
+        return { result };
       },
     },
   },

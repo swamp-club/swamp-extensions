@@ -97,6 +97,26 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "gmail.users.settings.sendAs.smimeInfo.list",
+  "path": "gmail/v1/users/{userId}/settings/sendAs/{sendAsEmail}/smimeInfo",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "userId",
+    "sendAsEmail",
+  ],
+  "parameters": {
+    "sendAsEmail": {
+      "location": "path",
+      "required": true,
+    },
+    "userId": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   encryptedKeyPassword: z.string().describe(
     "Encrypted key password, when key is encrypted.",
@@ -166,7 +186,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gmail Users.Settings.SendAs.SmimeInfo. Registered at `@swamp/gcp/gmail/users-settings-sendas-smimeinfo`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-settings-sendas-smimeinfo",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -205,6 +225,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -248,6 +273,16 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "userId": String(g["userId"] ?? ""),
+              "sendAsEmail": String(g["sendAsEmail"] ?? ""),
+            },
+            matchField: "id",
+            matchValue: String(g["id"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.id ?? g.id)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

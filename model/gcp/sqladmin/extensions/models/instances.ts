@@ -113,6 +113,30 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "sql.instances.list",
+  "path": "v1/projects/{project}/instances",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "project",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "project": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   backendType: z.enum([
     "SQL_BACKEND_TYPE_UNSPECIFIED",
@@ -631,8 +655,13 @@ const GlobalArgsSchema = z.object({
         'Time in UTC when the "deny maintenance period" starts on start_date and ends on end_date. The time is in format: HH:mm:SS, i.e., 00:00:00',
       ).optional(),
     })).describe("Deny maintenance periods").optional(),
-    edition: z.enum(["EDITION_UNSPECIFIED", "ENTERPRISE", "ENTERPRISE_PLUS"])
-      .describe("Optional. The edition of the instance.").optional(),
+    edition: z.enum([
+      "EDITION_UNSPECIFIED",
+      "ENTERPRISE",
+      "ENTERPRISE_PLUS",
+      "DEVELOPER",
+    ]).describe("Optional. The edition type of the Cloud SQL instance.")
+      .optional(),
     enableDataplexIntegration: z.boolean().describe(
       "Optional. By default, Cloud SQL instances have schema extraction disabled for Dataplex. When this parameter is set to true, schema extraction for Dataplex on Cloud SQL instances is activated.",
     ).optional(),
@@ -1827,8 +1856,13 @@ const InputsSchema = z.object({
         'Time in UTC when the "deny maintenance period" starts on start_date and ends on end_date. The time is in format: HH:mm:SS, i.e., 00:00:00',
       ).optional(),
     })).describe("Deny maintenance periods").optional(),
-    edition: z.enum(["EDITION_UNSPECIFIED", "ENTERPRISE", "ENTERPRISE_PLUS"])
-      .describe("Optional. The edition of the instance.").optional(),
+    edition: z.enum([
+      "EDITION_UNSPECIFIED",
+      "ENTERPRISE",
+      "ENTERPRISE_PLUS",
+      "DEVELOPER",
+    ]).describe("Optional. The edition type of the Cloud SQL instance.")
+      .optional(),
     enableDataplexIntegration: z.boolean().describe(
       "Optional. By default, Cloud SQL instances have schema extraction disabled for Dataplex. When this parameter is set to true, schema extraction for Dataplex on Cloud SQL instances is activated.",
     ).optional(),
@@ -2169,7 +2203,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud SQL Admin Instances. Registered at `@swamp/gcp/sqladmin/instances`. */
 export const model = {
   type: "@swamp/gcp/sqladmin/instances",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2263,6 +2297,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2392,6 +2431,12 @@ export const model = {
               "failedValues": ["FAILED"],
             }
             : undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: { "project": projectId },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

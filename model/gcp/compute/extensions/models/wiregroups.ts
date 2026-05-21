@@ -143,6 +143,42 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "compute.wireGroups.list",
+  "path":
+    "projects/{project}/global/crossSiteNetworks/{crossSiteNetwork}/wireGroups",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "project",
+    "crossSiteNetwork",
+  ],
+  "parameters": {
+    "crossSiteNetwork": {
+      "location": "path",
+      "required": true,
+    },
+    "filter": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "project": {
+      "location": "path",
+      "required": true,
+    },
+    "returnPartialSuccess": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   adminEnabled: z.boolean().describe(
     "Indicates whether the wires in the wire group are enabled. When false, the wires in the wire group are disabled. When true and when there is simultaneously no wire-specific override of `adminEnabled` to false, a given wire is enabled. Defaults to true.",
@@ -308,7 +344,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine WireGroups. Registered at `@swamp/gcp/compute/wiregroups`. */
 export const model = {
   type: "@swamp/gcp/compute/wiregroups",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -355,6 +391,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -398,6 +439,16 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "project": projectId,
+              "crossSiteNetwork": String(g["crossSiteNetwork"] ?? ""),
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

@@ -62,6 +62,30 @@ const INSERT_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "toolresults.projects.histories.list",
+  "path": "toolresults/v1beta3/projects/{projectId}/histories",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "projectId",
+  ],
+  "parameters": {
+    "filterByName": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "projectId": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   displayName: z.string().describe(
     "A short human-readable (plain text) name to display in the UI. Maximum of 100 characters. - In response: present if set during create. - In create request: optional",
@@ -110,7 +134,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Tool Results Histories. Registered at `@swamp/gcp/toolresults/histories`. */
 export const model = {
   type: "@swamp/gcp/toolresults/histories",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -152,6 +176,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -189,6 +218,13 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: { "projectId": projectId },
+            matchField: "displayName",
+            matchValue: String(g["displayName"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

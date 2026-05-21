@@ -78,7 +78,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud CSS Accounts.Quotas. Registered at `@swamp/gcp/css/accounts-quotas`. */
 export const model = {
   type: "@swamp/gcp/css/accounts-quotas",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -117,6 +117,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

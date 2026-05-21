@@ -63,6 +63,24 @@ const UPDATE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "walletobjects.eventticketclass.list",
+  "path": "walletobjects/v1/eventTicketClass",
+  "httpMethod": "GET",
+  "parameterOrder": [],
+  "parameters": {
+    "issuerId": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "token": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   appLinkData: z.object({
     androidAppLinkInfo: z.object({
@@ -4095,7 +4113,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Wallet Eventticketclass. Registered at `@swamp/gcp/walletobjects/eventticketclass`. */
 export const model = {
   type: "@swamp/gcp/walletobjects/eventticketclass",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -4139,6 +4157,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -4268,6 +4291,13 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {},
+            matchField: "id",
+            matchValue: String(g["id"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.id ?? g.id)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

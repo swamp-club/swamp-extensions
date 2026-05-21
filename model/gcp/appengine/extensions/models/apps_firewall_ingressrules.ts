@@ -104,6 +104,30 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "appengine.apps.firewall.ingressRules.list",
+  "path": "v1/apps/{appsId}/firewall/ingressRules",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "appsId",
+  ],
+  "parameters": {
+    "appsId": {
+      "location": "path",
+      "required": true,
+    },
+    "matchingAddress": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -152,7 +176,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud App Engine Admin Apps.Firewall.IngressRules. Registered at `@swamp/gcp/appengine/apps-firewall-ingressrules`. */
 export const model = {
   type: "@swamp/gcp/appengine/apps-firewall-ingressrules",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -191,6 +215,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -233,6 +262,13 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: { "appsId": String(g["appsId"] ?? "") },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,

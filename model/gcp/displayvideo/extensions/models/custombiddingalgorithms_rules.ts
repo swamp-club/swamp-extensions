@@ -72,6 +72,36 @@ const INSERT_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "displayvideo.customBiddingAlgorithms.rules.list",
+  "path": "v4/customBiddingAlgorithms/{+customBiddingAlgorithmId}/rules",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "customBiddingAlgorithmId",
+  ],
+  "parameters": {
+    "advertiserId": {
+      "location": "query",
+    },
+    "customBiddingAlgorithmId": {
+      "location": "path",
+      "required": true,
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "partnerId": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -152,7 +182,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Display & Video 360 CustomBiddingAlgorithms.Rules. Registered at `@swamp/gcp/displayvideo/custombiddingalgorithms-rules`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/custombiddingalgorithms-rules",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -191,6 +221,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -234,6 +269,17 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "customBiddingAlgorithmId": String(
+                g["customBiddingAlgorithmId"] ?? "",
+              ),
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,

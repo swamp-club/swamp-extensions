@@ -116,6 +116,36 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "blogger.pages.list",
+  "path": "v3/blogs/{blogId}/pages",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "blogId",
+  ],
+  "parameters": {
+    "blogId": {
+      "location": "path",
+      "required": true,
+    },
+    "fetchBodies": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "status": {
+      "location": "query",
+    },
+    "view": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -224,7 +254,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Blogger Pages. Registered at `@swamp/gcp/blogger/pages`. */
 export const model = {
   type: "@swamp/gcp/blogger/pages",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -263,6 +293,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -305,6 +340,13 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: { "blogId": String(g["blogId"] ?? "") },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,

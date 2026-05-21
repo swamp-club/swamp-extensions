@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/compute"
-version: "2026.05.20.1"
+version: "2026.05.21.1"
 description: "Google Cloud compute infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,9 +10,6 @@ labels:
   - compute
   - cloud
   - infrastructure
-releaseNotes: |
-  - Added: globalvmextensionpolicies, instantsnapshotgroups, regionbackendbuckets, regioninstancegroupmanagerresizerequests, regioninstantsnapshotgroups, regionsnapshotsettings, regionsnapshots, rolloutplans, rollouts, zonevmextensionpolicies
-  - Updated: autoscalers, backendbuckets, backendservices, disks, firewallpolicies, futurereservations, globalnetworkendpointgroups, images, instancegroupmanagerresizerequests, instancegroupmanagers, instancetemplates, instances, instantsnapshots, licensecodes, licenses, machineimages, networkattachments, networkendpointgroups, networkfirewallpolicies, networks, regionautoscalers, regionbackendservices, regioncommitments, regioncompositehealthchecks, regiondisks, regionhealthsources, regioninstancegroupmanagers, regioninstancetemplates, regioninstantsnapshots, regionnetworkendpointgroups, regionnetworkfirewallpolicies, regionsslpolicies, regionurlmaps, reservations, snapshotsettings, snapshots, sslpolicies, storagepools, urlmaps
 models:
   - acceleratortypes.ts
   - addresses.ts
