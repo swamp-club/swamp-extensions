@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/admob"
-version: "2026.05.21.1"
+version: "2026.05.21.2"
 description: "Google Cloud admob infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,6 +10,8 @@ labels:
   - admob
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: accounts, accounts_adunits, accounts_apps
 models:
   - accounts.ts
   - accounts_adunits.ts

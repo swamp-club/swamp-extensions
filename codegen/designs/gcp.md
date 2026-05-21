@@ -457,6 +457,15 @@ a service account, falls back to `gcloud config get-value project`. When using
 `GCP_ACCESS_TOKEN`, the project ID must be provided via `GCP_PROJECT` or
 `GOOGLE_CLOUD_PROJECT`.
 
+### Quota project header
+
+Every HTTP request includes the `x-goog-user-project` header when a project ID
+is available. Some GCP APIs (e.g., Cloud Identity) require this header to
+identify a billing/quota project when authenticating via Application Default
+Credentials. The header value comes from the resolved `projectId` in the
+credential chain. When no project ID is configured (org-scoped resources that
+don't need one), the header is omitted.
+
 ### gcloud CLI check
 
 On first credential request (for options 2–4), the helper verifies

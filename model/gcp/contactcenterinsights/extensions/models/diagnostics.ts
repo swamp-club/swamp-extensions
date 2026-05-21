@@ -69,9 +69,14 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  agentDisplayName: z.string().optional(),
+  agentId: z.string().optional(),
   analysisSummary: z.string().optional(),
+  appId: z.string().optional(),
+  appVersion: z.string().optional(),
   conversationFilter: z.string().optional(),
   createTime: z.string().optional(),
+  groupCreateTime: z.string().optional(),
   name: z.string(),
   report: z.object({
     conversationSlices: z.record(z.string(), z.unknown()),
@@ -125,10 +130,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Contact Center AI Insights Diagnostics. Registered at `@swamp/gcp/contactcenterinsights/diagnostics`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/diagnostics",
-  version: "2026.05.21.1",
+  version: "2026.05.21.2",
   upgrades: [
     {
       toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

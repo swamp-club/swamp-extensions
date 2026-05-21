@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/appengine"
-version: "2026.05.21.1"
+version: "2026.05.21.2"
 description: "Google Cloud appengine infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,6 +10,8 @@ labels:
   - appengine
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: apps, apps_authorizedcertificates, apps_authorizeddomains, apps_domainmappings, apps_firewall_ingressrules, apps_services, apps_services_versions, apps_services_versions_instances, applications_authorizedcertificates, applications_authorizeddomains, applications_domainmappings
 models:
   - applications_authorizedcertificates.ts
   - applications_authorizeddomains.ts

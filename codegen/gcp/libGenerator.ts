@@ -325,6 +325,9 @@ async function request(
     "Authorization": \`Bearer \${creds.accessToken}\`,
     "Content-Type": "application/json",
   };
+  if (creds.projectId) {
+    headers["x-goog-user-project"] = creds.projectId;
+  }
 
   const resp = await fetch(url, {
     method,
@@ -337,12 +340,16 @@ async function request(
     await resp.text(); // drain body
     cachedCredentials = undefined;
     const freshCreds = await getCredentials();
+    const retryHeaders: Record<string, string> = {
+      "Authorization": \`Bearer \${freshCreds.accessToken}\`,
+      "Content-Type": "application/json",
+    };
+    if (freshCreds.projectId) {
+      retryHeaders["x-goog-user-project"] = freshCreds.projectId;
+    }
     return await fetch(url, {
       method,
-      headers: {
-        "Authorization": \`Bearer \${freshCreds.accessToken}\`,
-        "Content-Type": "application/json",
-      },
+      headers: retryHeaders,
       body: body ? JSON.stringify(body) : undefined,
     });
   }

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/prod_tt_sasportal"
-version: "2026.05.21.1"
+version: "2026.05.21.2"
 description: "Google Cloud prod_tt_sasportal infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,6 +10,8 @@ labels:
   - prod_tt_sasportal
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: customers, customers_deployments, customers_deployments_devices, customers_devices, customers_nodes, customers_nodes_deployments, customers_nodes_devices, customers_nodes_nodes, deployments, deployments_devices, nodes, nodes_deployments, nodes_deployments_devices, nodes_devices, nodes_nodes, nodes_nodes_deployments, nodes_nodes_devices, nodes_nodes_nodes, policies
 models:
   - customers.ts
   - customers_deployments.ts

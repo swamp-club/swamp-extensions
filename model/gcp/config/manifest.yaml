@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/config"
-version: "2026.05.21.1"
+version: "2026.05.21.2"
 description: "Google Cloud config infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,6 +10,8 @@ labels:
   - config
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: locations, deploymentgroups, deploymentgroups_revisions, deployments, deployments_revisions, deployments_revisions_resources, previews, previews_resourcechanges, previews_resourcedrifts, terraformversions
 models:
   - deploymentgroups.ts
   - deploymentgroups_revisions.ts

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/cloudcontrolspartner"
-version: "2026.05.21.1"
+version: "2026.05.21.2"
 description: "Google Cloud cloudcontrolspartner infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,6 +10,8 @@ labels:
   - cloudcontrolspartner
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: customers, customers_workloads, customers_workloads_accessapprovalrequests, customers_workloads_violations
 models:
   - customers.ts
   - customers_workloads.ts

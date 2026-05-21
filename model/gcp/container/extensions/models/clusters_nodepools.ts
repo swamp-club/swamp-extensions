@@ -831,6 +831,20 @@ const GlobalArgsSchema = z.object({
     locations: z.array(z.string()).describe(
       "The list of Google Compute Engine [zones](https://cloud.google.com/compute/docs/zones#available) in which the NodePool's nodes should be located. If this value is unspecified during node pool creation, the [Cluster.Locations](https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/projects.locations.clusters#Cluster.FIELDS.locations) value will be used, instead. Warning: changing node pool locations will result in nodes being added and/or removed.",
     ).optional(),
+    maintenancePolicy: z.object({
+      exclusionUntilEndOfSupport: z.object({
+        enabled: z.boolean().describe(
+          "Optional. Indicates whether the exclusion is enabled.",
+        ).optional(),
+        endTime: z.string().describe(
+          "Output only. The end time of the maintenance exclusion. It is output only. It is the cluster control plane version's end of support time, or end of extended support time when the cluster is on extended support channel.",
+        ).optional(),
+        startTime: z.string().describe(
+          "Output only. The start time of the maintenance exclusion. It is output only. It is the exclusion creation time.",
+        ).optional(),
+      }).describe("Defines the maintenance exclusion for the node pool.")
+        .optional(),
+    }).describe("Defines the maintenance policy for the node pool.").optional(),
     management: z.object({
       autoRepair: z.boolean().describe(
         "A flag that specifies whether the node auto-repair is enabled for the node pool. If enabled, the nodes in this node pool will be monitored and, if they fail health checks too many times, an automatic repair action will be triggered.",
@@ -930,6 +944,12 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }).describe("Parameters for node pool-level network config.").optional(),
     nodeDrainConfig: z.object({
+      graceTerminationDuration: z.string().describe(
+        "The duration of the grace termination period for node drain.",
+      ).optional(),
+      pdbTimeoutDuration: z.string().describe(
+        "The duration of the PDB timeout period for node drain.",
+      ).optional(),
       respectPdbDuringNodePoolDeletion: z.boolean().describe(
         "Whether to respect PDB during node pool deletion.",
       ).optional(),
@@ -1487,6 +1507,12 @@ const GlobalArgsSchema = z.object({
     "The name (project, location, cluster, node pool) of the node pool to update. Specified in the format `projects/*/locations/*/clusters/*/nodePools/*`.",
   ).optional(),
   nodeDrainConfig: z.object({
+    graceTerminationDuration: z.string().describe(
+      "The duration of the grace termination period for node drain.",
+    ).optional(),
+    pdbTimeoutDuration: z.string().describe(
+      "The duration of the PDB timeout period for node drain.",
+    ).optional(),
     respectPdbDuringNodePoolDeletion: z.boolean().describe(
       "Whether to respect PDB during node pool deletion.",
     ).optional(),
@@ -1935,6 +1961,13 @@ const StateSchema = z.object({
   initialNodeCount: z.number().optional(),
   instanceGroupUrls: z.array(z.string()).optional(),
   locations: z.array(z.string()).optional(),
+  maintenancePolicy: z.object({
+    exclusionUntilEndOfSupport: z.object({
+      enabled: z.boolean(),
+      endTime: z.string(),
+      startTime: z.string(),
+    }),
+  }).optional(),
   management: z.object({
     autoRepair: z.boolean(),
     autoUpgrade: z.boolean(),
@@ -1978,6 +2011,8 @@ const StateSchema = z.object({
     subnetwork: z.string(),
   }).optional(),
   nodeDrainConfig: z.object({
+    graceTerminationDuration: z.string(),
+    pdbTimeoutDuration: z.string(),
     respectPdbDuringNodePoolDeletion: z.boolean(),
   }).optional(),
   placementPolicy: z.object({
@@ -2714,6 +2749,20 @@ const InputsSchema = z.object({
     locations: z.array(z.string()).describe(
       "The list of Google Compute Engine [zones](https://cloud.google.com/compute/docs/zones#available) in which the NodePool's nodes should be located. If this value is unspecified during node pool creation, the [Cluster.Locations](https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/projects.locations.clusters#Cluster.FIELDS.locations) value will be used, instead. Warning: changing node pool locations will result in nodes being added and/or removed.",
     ).optional(),
+    maintenancePolicy: z.object({
+      exclusionUntilEndOfSupport: z.object({
+        enabled: z.boolean().describe(
+          "Optional. Indicates whether the exclusion is enabled.",
+        ).optional(),
+        endTime: z.string().describe(
+          "Output only. The end time of the maintenance exclusion. It is output only. It is the cluster control plane version's end of support time, or end of extended support time when the cluster is on extended support channel.",
+        ).optional(),
+        startTime: z.string().describe(
+          "Output only. The start time of the maintenance exclusion. It is output only. It is the exclusion creation time.",
+        ).optional(),
+      }).describe("Defines the maintenance exclusion for the node pool.")
+        .optional(),
+    }).describe("Defines the maintenance policy for the node pool.").optional(),
     management: z.object({
       autoRepair: z.boolean().describe(
         "A flag that specifies whether the node auto-repair is enabled for the node pool. If enabled, the nodes in this node pool will be monitored and, if they fail health checks too many times, an automatic repair action will be triggered.",
@@ -2813,6 +2862,12 @@ const InputsSchema = z.object({
       ).optional(),
     }).describe("Parameters for node pool-level network config.").optional(),
     nodeDrainConfig: z.object({
+      graceTerminationDuration: z.string().describe(
+        "The duration of the grace termination period for node drain.",
+      ).optional(),
+      pdbTimeoutDuration: z.string().describe(
+        "The duration of the PDB timeout period for node drain.",
+      ).optional(),
       respectPdbDuringNodePoolDeletion: z.boolean().describe(
         "Whether to respect PDB during node pool deletion.",
       ).optional(),
@@ -3370,6 +3425,12 @@ const InputsSchema = z.object({
     "The name (project, location, cluster, node pool) of the node pool to update. Specified in the format `projects/*/locations/*/clusters/*/nodePools/*`.",
   ).optional(),
   nodeDrainConfig: z.object({
+    graceTerminationDuration: z.string().describe(
+      "The duration of the grace termination period for node drain.",
+    ).optional(),
+    pdbTimeoutDuration: z.string().describe(
+      "The duration of the PDB timeout period for node drain.",
+    ).optional(),
     respectPdbDuringNodePoolDeletion: z.boolean().describe(
       "Whether to respect PDB during node pool deletion.",
     ).optional(),
@@ -3567,7 +3628,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Kubernetes Engine Clusters.NodePools. Registered at `@swamp/gcp/container/clusters-nodepools`. */
 export const model = {
   type: "@swamp/gcp/container/clusters-nodepools",
-  version: "2026.05.21.1",
+  version: "2026.05.21.2",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -3667,6 +3728,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

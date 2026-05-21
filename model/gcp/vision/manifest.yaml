@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/vision"
-version: "2026.05.21.1"
+version: "2026.05.21.2"
 description: "Google Cloud vision infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,6 +10,8 @@ labels:
   - vision
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: productsets, productsets_products, products, products_referenceimages
 models:
   - products.ts
   - products_referenceimages.ts

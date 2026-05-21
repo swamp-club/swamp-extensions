@@ -163,7 +163,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Resource Manager Projects. Registered at `@swamp/gcp/cloudresourcemanager/projects`. */
 export const model = {
   type: "@swamp/gcp/cloudresourcemanager/projects",
-  version: "2026.05.21.5",
+  version: "2026.05.21.6",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -227,6 +227,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.21.5",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.6",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
