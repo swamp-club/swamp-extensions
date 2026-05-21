@@ -111,6 +111,8 @@ export function generateGcpExtensionModel(
 
   // Only import helpers that are actually used
   const hasActionMethods = resource.actionMethods.length > 0;
+  const hasIdempotentCreate = resource.handlers.create &&
+    resource.methodConfigs.list && resource.methodConfigs.insert;
   const helperImports: string[] = [];
   if (resource.handlers.create || hasActionMethods) {
     helperImports.push("createResource");
@@ -123,7 +125,6 @@ export function generateGcpExtensionModel(
   } else {
     helperImports.push("readResource");
   }
-  // tryReadResource is only used indirectly — don't import unless needed
   if (resource.handlers.update) helperImports.push("updateResource");
   lines.push(
     `import { ${helperImports.sort().join(", ")} } from "./_lib/gcp.ts";`,
@@ -192,8 +193,10 @@ export function generateGcpExtensionModel(
   ) {
     usedConfigs.add("get");
   }
-  // LIST_CONFIG is used in sync for listOnly resources
-  if (resource.methodConfigs.list && resource.listOnly) {
+  // LIST_CONFIG is used in sync for listOnly resources and in create for idempotency
+  if (
+    resource.methodConfigs.list && (resource.listOnly || hasIdempotentCreate)
+  ) {
     usedConfigs.add("list");
   }
 
@@ -353,7 +356,7 @@ export function generateGcpExtensionModel(
     lines.push(`        const body: Record<string, unknown> = {};`);
     for (const propName of Object.keys(resource.domainProperties)) {
       if (pathParamSet.has(propName)) continue;
-      if (propName === "parent") continue;
+      if (propName === "parent" && shouldConstructParent) continue;
       if (propName === "name" && isSyntheticName) continue;
       if (!resource.insertProperties.has(propName)) continue;
       lines.push(
@@ -425,14 +428,77 @@ export function generateGcpExtensionModel(
 
     // Build createResource args including optional readiness config
     const createArgs = ["BASE_URL", "INSERT_CONFIG", "params", "body"];
-    if (readConfigRef || resource.readiness) {
+    if (readConfigRef || resource.readiness || hasIdempotentCreate) {
       createArgs.push(readConfigRef || "undefined");
     }
-    if (resource.readiness) {
+    if (resource.readiness || hasIdempotentCreate) {
+      if (resource.readiness) {
+        createArgs.push(
+          `(args.waitForReady ?? true) ? ${
+            JSON.stringify(resource.readiness)
+          } : undefined`,
+        );
+      } else {
+        createArgs.push("undefined");
+      }
+    }
+    // Idempotent create: pass list config for already-exists fallback
+    if (hasIdempotentCreate && resource.methodConfigs.list) {
+      const listConfig = resource.methodConfigs.list;
+      // Determine match field: prefer displayName for idempotency (human-facing
+      // unique identifier), fall back to naming field
+      const matchField = resource.insertProperties.has("displayName") &&
+          resource.domainProperties["displayName"]
+        ? "displayName"
+        : namingField;
+
+      // Build list params from parameterOrder + parent if it's a list parameter
+      const listParamParts: string[] = [];
+      const handledParams = new Set<string>();
+      for (const paramName of listConfig.parameterOrder) {
+        if (handledParams.has(paramName)) continue;
+        handledParams.add(paramName);
+        if (paramName === "project" || paramName === "projectId") {
+          listParamParts.push(`${JSON.stringify(paramName)}: projectId`);
+        } else if (paramName === "parent") {
+          if (shouldConstructParent) {
+            listParamParts.push(`"parent": ${parentExpr}`);
+          } else {
+            listParamParts.push(
+              `"parent": String(body["parent"] ?? g["parent"] ?? "")`,
+            );
+          }
+        } else if (
+          paramName !== "pageSize" && paramName !== "pageToken" &&
+          paramName !== "showDeleted"
+        ) {
+          listParamParts.push(
+            `${JSON.stringify(paramName)}: String(g[${
+              JSON.stringify(paramName)
+            }] ?? "")`,
+          );
+        }
+      }
+      // Include parent as a query param if it's in the list config but not in parameterOrder
+      if (
+        !handledParams.has("parent") && listConfig.parameters &&
+        "parent" in listConfig.parameters
+      ) {
+        if (shouldConstructParent) {
+          listParamParts.push(`"parent": ${parentExpr}`);
+        } else {
+          listParamParts.push(
+            `"parent": String(body["parent"] ?? g["parent"] ?? "")`,
+          );
+        }
+      }
+
       createArgs.push(
-        `(args.waitForReady ?? true) ? ${
-          JSON.stringify(resource.readiness)
-        } : undefined`,
+        `{ listConfig: LIST_CONFIG, listParams: { ${
+          listParamParts.join(", ")
+        } }, matchField: ${JSON.stringify(matchField)}, matchValue: String(g[${
+          JSON.stringify(matchField)
+        }] ?? "") }`,
       );
     }
     lines.push(

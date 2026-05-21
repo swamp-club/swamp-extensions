@@ -458,14 +458,27 @@ operation object that must be polled for completion.
 | Pattern | Detection                                                                   | Example services                                         |
 | ------- | --------------------------------------------------------------------------- | -------------------------------------------------------- |
 | Compute | `response.kind` contains `#operation`                                       | Compute Engine                                           |
-| Generic | `response.done` exists AND `response.name` contains `operations/`           | Most services (serviceusage, cloudresourcemanager, etc.) |
+| Generic | `response.name` contains `operations/`                                      | Most services (serviceusage, cloudresourcemanager, etc.) |
 | GKE     | `response.operationType` exists AND `response.name` starts with `operation` | Container (GKE), some AI Platform                        |
+
+The generic pattern does not require a `done` field — v3 APIs (e.g.,
+cloudresourcemanager folders) return
+`{ "name": "operations/...", "metadata": {...} }` with no `done` field in the
+initial response. The `done` field appears after polling.
 
 ### Already-done operations
 
 Some APIs return operations that are already complete (e.g., `done: true` or
 `status: "DONE"` in the response). The LRO handler checks `isOperationDone()`
 before polling to avoid unnecessary requests.
+
+### Post-LRO resource name extraction
+
+v3 LROs include the created resource in `operation.response` when the operation
+completes successfully. `createResource` extracts `operation.response.name` into
+the path params so the post-LRO GET read-back can construct the correct URL.
+This handles resources like folders where the resource name (e.g.,
+`folders/981118018507`) is only known after the operation completes.
 
 ### Operation URL construction
 
@@ -521,6 +534,46 @@ update methods:
 
 Resources without detectable status enums have no readiness polling and no
 `waitForReady` argument.
+
+---
+
+## 10a. Idempotent Create
+
+`createResource` supports an optional `IdempotencyConfig` that enables
+already-exists fallback. When a create fails with HTTP 409 or an LRO-level
+"already exists" error (e.g., GCP's "display name uniqueness within the parent"
+for folders), the function falls back to listing resources and matching by a
+specified field.
+
+### Config shape
+
+```typescript
+interface IdempotencyConfig {
+  listConfig: GcpMethodConfig; // LIST endpoint config
+  listParams: Record<string, string>; // params for the list call (e.g., parent)
+  matchField: string; // field to match on (e.g., "displayName")
+  matchValue: string; // value to match
+}
+```
+
+### Match field selection
+
+The generator selects the match field based on the resource's naming pattern:
+
+- If `displayName` exists in `insertProperties`: match by `displayName` (covers
+  folders, projects, and other resources where `name` is auto-generated)
+- Otherwise: match by the resource's naming field
+
+### List params
+
+The generator populates list params from:
+
+1. Path parameters in `listConfig.parameterOrder` (e.g., `project`)
+2. `parent` if it appears as a query parameter in `listConfig.parameters`
+
+For project-only resources, parent is constructed from
+`projects/${projectId}/locations/${location}`. For multi-scope resources, parent
+is read from the create body or globalArgs.
 
 ---
 

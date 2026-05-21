@@ -110,7 +110,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Resource Manager TagBindings. Registered at `@swamp/gcp/cloudresourcemanager/tagbindings`. */
 export const model = {
   type: "@swamp/gcp/cloudresourcemanager/tagbindings",
-  version: "2026.05.19.2",
+  version: "2026.05.21.4",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -152,6 +152,26 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.3",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.4",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -173,6 +193,7 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         const body: Record<string, unknown> = {};
+        if (g["parent"] !== undefined) body["parent"] = g["parent"];
         if (g["tagValue"] !== undefined) body["tagValue"] = g["tagValue"];
         if (g["tagValueNamespacedName"] !== undefined) {
           body["tagValueNamespacedName"] = g["tagValueNamespacedName"];
@@ -182,6 +203,16 @@ export const model = {
           INSERT_CONFIG,
           params,
           body,
+          undefined,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": String(body["parent"] ?? g["parent"] ?? ""),
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,

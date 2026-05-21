@@ -82,6 +82,27 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "cloudresourcemanager.projects.list",
+  "path": "v3/projects",
+  "httpMethod": "GET",
+  "parameterOrder": [],
+  "parameters": {
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "query",
+    },
+    "showDeleted": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -142,7 +163,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Resource Manager Projects. Registered at `@swamp/gcp/cloudresourcemanager/projects`. */
 export const model = {
   type: "@swamp/gcp/cloudresourcemanager/projects",
-  version: "2026.05.19.2",
+  version: "2026.05.21.4",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -184,6 +205,26 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.3",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.4",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -213,6 +254,7 @@ export const model = {
           body["displayName"] = g["displayName"];
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        if (g["parent"] !== undefined) body["parent"] = g["parent"];
         if (g["projectId"] !== undefined) body["projectId"] = g["projectId"];
         if (g["tags"] !== undefined) body["tags"] = g["tags"];
         if (g["name"] !== undefined) params["name"] = String(g["name"]);
@@ -229,6 +271,14 @@ export const model = {
               "failedValues": [],
             }
             : undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": String(body["parent"] ?? g["parent"] ?? ""),
+            },
+            matchField: "displayName",
+            matchValue: String(g["displayName"] ?? ""),
+          },
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
