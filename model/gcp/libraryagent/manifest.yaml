@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/libraryagent"
-version: "2026.05.21.1"
+version: "2026.05.21.2"
 description: "Google Cloud libraryagent infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,6 +10,8 @@ labels:
   - libraryagent
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: shelves, shelves_books
 models:
   - shelves.ts
   - shelves_books.ts

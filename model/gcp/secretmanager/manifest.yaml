@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/secretmanager"
-version: "2026.05.21.1"
+version: "2026.05.21.2"
 description: "Google Cloud secretmanager infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,6 +10,8 @@ labels:
   - secretmanager
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: locations, secrets, secrets_versions
 models:
   - locations.ts
   - secrets.ts

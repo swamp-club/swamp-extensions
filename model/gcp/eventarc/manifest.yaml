@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/eventarc"
-version: "2026.05.21.1"
+version: "2026.05.21.2"
 description: "Google Cloud eventarc infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,6 +10,8 @@ labels:
   - eventarc
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: locations, channelconnections, channels, enrollments, googleapisources, messagebuses, pipelines, providers, triggers
 models:
   - channelconnections.ts
   - channels.ts

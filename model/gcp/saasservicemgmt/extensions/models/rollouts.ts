@@ -327,7 +327,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud App Lifecycle Manager Rollouts. Registered at `@swamp/gcp/saasservicemgmt/rollouts`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/rollouts",
-  version: "2026.05.21.1",
+  version: "2026.05.21.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -397,6 +397,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

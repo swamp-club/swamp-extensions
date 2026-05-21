@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/apigee"
-version: "2026.05.21.1"
+version: "2026.05.21.2"
 description: "Google Cloud apigee infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,6 +10,8 @@ labels:
   - apigee
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: hybrid_issuers, organizations, analytics_datastores, apimserviceextensions, apiproducts, apiproducts_attributes, apiproducts_rateplans, apis, apis_debugsessions, apis_deployments, apis_keyvaluemaps, apis_keyvaluemaps_entries, apis_revisions, apis_revisions_deployments, appgroups, appgroups_apps, appgroups_apps_keys, appgroups_subscriptions, apps, datacollectors, deployments, developers, developers_apps, developers_apps_attributes, developers_apps_keys, developers_attributes, developers_subscriptions, dnszones, endpointattachments, envgroups, envgroups_attachments, environments, environments_analytics_exports, environments_apis_deployments, environments_apis_revisions_debugsessions, environments_apis_revisions_debugsessions_data, environments_archivedeployments, environments_deployments, environments_flowhooks, environments_keystores, environments_keystores_aliases, environments_keyvaluemaps, environments_keyvaluemaps_entries, environments_optimizedstats, environments_queries, environments_references, environments_resourcefiles, environments_securityactions, environments_securityincidents, environments_securityreports, environments_sharedflows_deployments, environments_stats, environments_targetservers, environments_traceconfig_overrides, hostqueries, hostsecurityreports, hoststats, instances, instances_attachments, instances_canaryevaluations, instances_nataddresses, keyvaluemaps, keyvaluemaps_entries, optimizedhoststats, reports, securityfeedback, securitymonitoringconditions, securityprofiles, securityprofilesv2, sharedflows, sharedflows_deployments, sharedflows_revisions, sharedflows_revisions_deployments, sites_apicategories, sites_apidocs, spaces
 models:
   - analytics_datastores.ts
   - apimserviceextensions.ts

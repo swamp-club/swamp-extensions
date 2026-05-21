@@ -246,6 +246,9 @@ const GlobalArgsSchema = z.object({
     additionalGuests: z.number().int().describe(
       "Number of additional guests. Optional. The default is 0.",
     ).optional(),
+    asyncOperation: z.string().describe(
+      'If present, indicates the status of an asynchronous operation ongoing for this attendee (e.g. listing of members of large attendee groups). Read-only. The default is to not be present. Possible values are: - "inProgress" - The asynchronous operation is in progress. - (not present) - Otherwise.',
+    ).optional(),
     comment: z.string().describe("The attendee's response comment. Optional.")
       .optional(),
     displayName: z.string().describe(
@@ -627,6 +630,7 @@ const StateSchema = z.object({
   })).optional(),
   attendees: z.array(z.object({
     additionalGuests: z.number(),
+    asyncOperation: z.string(),
     comment: z.string(),
     displayName: z.string(),
     email: z.string(),
@@ -810,6 +814,9 @@ const InputsSchema = z.object({
   attendees: z.array(z.object({
     additionalGuests: z.number().int().describe(
       "Number of additional guests. Optional. The default is 0.",
+    ).optional(),
+    asyncOperation: z.string().describe(
+      'If present, indicates the status of an asynchronous operation ongoing for this attendee (e.g. listing of members of large attendee groups). Read-only. The default is to not be present. Possible values are: - "inProgress" - The asynchronous operation is in progress. - (not present) - Otherwise.',
     ).optional(),
     comment: z.string().describe("The attendee's response comment. Optional.")
       .optional(),
@@ -1184,7 +1191,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Calendar Events. Registered at `@swamp/gcp/calendar/events`. */
 export const model = {
   type: "@swamp/gcp/calendar/events",
-  version: "2026.05.21.1",
+  version: "2026.05.21.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1228,6 +1235,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

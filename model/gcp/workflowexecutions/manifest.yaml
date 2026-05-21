@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/workflowexecutions"
-version: "2026.05.21.1"
+version: "2026.05.21.2"
 description: "Google Cloud workflowexecutions infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,6 +10,8 @@ labels:
   - workflowexecutions
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: workflows_executions, workflows_executions_callbacks, workflows_executions_stepentries
 models:
   - workflows_executions.ts
   - workflows_executions_callbacks.ts

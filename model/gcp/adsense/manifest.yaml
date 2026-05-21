@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/adsense"
-version: "2026.05.21.1"
+version: "2026.05.21.2"
 description: "Google Cloud adsense infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,6 +10,8 @@ labels:
   - adsense
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: accounts, accounts_adclients, accounts_adclients_adunits, accounts_adclients_customchannels, accounts_adclients_urlchannels, accounts_alerts, accounts_payments, accounts_policyissues, accounts_reports_saved, accounts_sites
 models:
   - accounts.ts
   - accounts_adclients.ts

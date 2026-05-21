@@ -136,7 +136,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Analytics Data Properties.AudienceExports. Registered at `@swamp/gcp/analyticsdata/properties-audienceexports`. */
 export const model = {
   type: "@swamp/gcp/analyticsdata/properties-audienceexports",
-  version: "2026.05.21.1",
+  version: "2026.05.21.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -180,6 +180,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

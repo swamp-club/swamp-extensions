@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/analyticshub"
-version: "2026.05.21.1"
+version: "2026.05.21.2"
 description: "Google Cloud analyticshub infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,6 +10,8 @@ labels:
   - analyticshub
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: dataexchanges, dataexchanges_listings, dataexchanges_querytemplates, subscriptions
 models:
   - dataexchanges.ts
   - dataexchanges_listings.ts

@@ -67,10 +67,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Bigtable Admin Instances.Clusters.MemoryLayers. Registered at `@swamp/gcp/bigtableadmin/instances-clusters-memorylayers`. */
 export const model = {
   type: "@swamp/gcp/bigtableadmin/instances-clusters-memorylayers",
-  version: "2026.05.21.1",
+  version: "2026.05.21.2",
   upgrades: [
     {
       toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

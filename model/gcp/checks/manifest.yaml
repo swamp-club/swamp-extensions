@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/checks"
-version: "2026.05.21.1"
+version: "2026.05.21.2"
 description: "Google Cloud checks infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,6 +10,8 @@ labels:
   - checks
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: accounts_apps, accounts_apps_reports, accounts_repos_scans
 models:
   - accounts_apps.ts
   - accounts_apps_reports.ts

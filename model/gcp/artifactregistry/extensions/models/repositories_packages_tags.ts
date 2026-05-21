@@ -159,7 +159,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Artifact Registry Repositories.Packages.Tags. Registered at `@swamp/gcp/artifactregistry/repositories-packages-tags`. */
 export const model = {
   type: "@swamp/gcp/artifactregistry/repositories-packages-tags",
-  version: "2026.05.21.1",
+  version: "2026.05.21.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -208,6 +208,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
