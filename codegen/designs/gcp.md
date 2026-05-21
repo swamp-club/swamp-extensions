@@ -462,9 +462,9 @@ operation object that must be polled for completion.
 | GKE     | `response.operationType` exists AND `response.name` starts with `operation` | Container (GKE), some AI Platform                        |
 
 The generic pattern does not require a `done` field — v3 APIs (e.g.,
-cloudresourcemanager folders) return `{ "name": "operations/...", "metadata": {...} }`
-with no `done` field in the initial response. The `done` field appears after
-polling.
+cloudresourcemanager folders) return
+`{ "name": "operations/...", "metadata": {...} }` with no `done` field in the
+initial response. The `done` field appears after polling.
 
 ### Already-done operations
 
@@ -549,10 +549,10 @@ specified field.
 
 ```typescript
 interface IdempotencyConfig {
-  listConfig: GcpMethodConfig;     // LIST endpoint config
+  listConfig: GcpMethodConfig; // LIST endpoint config
   listParams: Record<string, string>; // params for the list call (e.g., parent)
-  matchField: string;              // field to match on (e.g., "displayName")
-  matchValue: string;              // value to match
+  matchField: string; // field to match on (e.g., "displayName")
+  matchValue: string; // value to match
 }
 ```
 
