@@ -9,8 +9,6 @@ labels:
   - ecs
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: service
 models:
   - capacity_provider.ts
   - cluster.ts

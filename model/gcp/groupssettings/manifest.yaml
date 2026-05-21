@@ -10,8 +10,6 @@ labels:
   - groupssettings
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: groups
 models:
   - groups.ts
 additionalFiles:

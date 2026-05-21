@@ -10,8 +10,6 @@ labels:
   - androidpublisher
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: generatedapks, monetization_subscriptions, purchases_subscriptions, purchases_subscriptionsv2, users
 models:
   - applications_devicetierconfigs.ts
   - applications_tracks_releases.ts

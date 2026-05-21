@@ -10,8 +10,6 @@ labels:
   - ondemandscanning
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: scans_vulnerabilities
 models:
   - scans_vulnerabilities.ts
 additionalFiles:

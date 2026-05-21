@@ -10,9 +10,6 @@ labels:
   - networkconnectivity
   - cloud
   - infrastructure
-releaseNotes: |
-  - Added: spokes_gatewayadvertisedroutes
-  - Updated: global_hubs, spokes
 models:
   - automateddnsrecords.ts
   - global_hubs.ts

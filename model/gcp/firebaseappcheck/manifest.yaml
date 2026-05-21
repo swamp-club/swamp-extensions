@@ -10,8 +10,6 @@ labels:
   - firebaseappcheck
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: apps_debugtokens, services
 models:
   - apps_appattestconfig.ts
   - apps_debugtokens.ts

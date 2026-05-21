@@ -10,8 +10,6 @@ labels:
   - drive
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: approvals, changes, drives, files, permissions, teamdrives
 models:
   - about.ts
   - accessproposals.ts

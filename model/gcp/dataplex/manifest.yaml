@@ -10,8 +10,6 @@ labels:
   - dataplex
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, dataproducts, datascans, datascans_jobs
 models:
   - aspecttypes.ts
   - dataattributebindings.ts

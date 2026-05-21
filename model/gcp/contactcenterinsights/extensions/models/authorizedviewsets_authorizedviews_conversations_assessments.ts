@@ -106,6 +106,7 @@ const GlobalArgsSchema = z.object({
     entrySubagentDisplayName: z.string().describe(
       "The entry subagent's display name.",
     ).optional(),
+    entrySubagentId: z.string().describe("The entry subagent's ID.").optional(),
     location: z.string().describe("The agent's location.").optional(),
     team: z.string().describe(
       "A user-specified string representing the agent's team. Deprecated in favor of the `teams` field.",
@@ -138,6 +139,7 @@ const StateSchema = z.object({
     displayName: z.string(),
     dispositionCode: z.string(),
     entrySubagentDisplayName: z.string(),
+    entrySubagentId: z.string(),
     location: z.string(),
     team: z.string(),
     teams: z.array(z.string()),
@@ -177,6 +179,7 @@ const InputsSchema = z.object({
     entrySubagentDisplayName: z.string().describe(
       "The entry subagent's display name.",
     ).optional(),
+    entrySubagentId: z.string().describe("The entry subagent's ID.").optional(),
     location: z.string().describe("The agent's location.").optional(),
     team: z.string().describe(
       "A user-specified string representing the agent's team. Deprecated in favor of the `teams` field.",
@@ -204,7 +207,7 @@ const InputsSchema = z.object({
 export const model = {
   type:
     "@swamp/gcp/contactcenterinsights/authorizedviewsets-authorizedviews-conversations-assessments",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -263,6 +266,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

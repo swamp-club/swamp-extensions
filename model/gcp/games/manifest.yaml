@@ -10,8 +10,6 @@ labels:
   - games
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: achievementdefinitions
 models:
   - achievementdefinitions.ts
   - achievements.ts

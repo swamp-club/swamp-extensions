@@ -10,8 +10,6 @@ labels:
   - domains
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: registrations
 models:
   - locations.ts
   - registrations.ts

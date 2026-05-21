@@ -19,10 +19,30 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
-  readViaList,
+  readResource,
 } from "./_lib/gcp.ts";
 
+/** Construct the fully-qualified resource name from parent and short name. */
+function buildResourceName(parent: string, shortName: string): string {
+  return `${parent}/comments/${shortName}`;
+}
+
 const BASE_URL = "https://cloudsupport.googleapis.com/";
+
+const GET_CONFIG = {
+  "id": "cloudsupport.cases.comments.get",
+  "path": "v2/{+name}",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "name",
+  ],
+  "parameters": {
+    "name": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
 
 const INSERT_CONFIG = {
   "id": "cloudsupport.cases.comments.create",
@@ -32,27 +52,6 @@ const INSERT_CONFIG = {
     "parent",
   ],
   "parameters": {
-    "parent": {
-      "location": "path",
-      "required": true,
-    },
-  },
-} as const;
-
-const LIST_CONFIG = {
-  "id": "cloudsupport.cases.comments.list",
-  "path": "v2/{+parent}/comments",
-  "httpMethod": "GET",
-  "parameterOrder": [
-    "parent",
-  ],
-  "parameters": {
-    "pageSize": {
-      "location": "query",
-    },
-    "pageToken": {
-      "location": "query",
-    },
     "parent": {
       "location": "path",
       "required": true,
@@ -132,7 +131,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Cloud Support Cases.Comments. Registered at `@swamp/gcp/cloudsupport/cases-comments`. */
 export const model = {
   type: "@swamp/gcp/cloudsupport/cases-comments",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -174,6 +173,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -198,11 +202,18 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["body"] !== undefined) body["body"] = g["body"];
         if (g["creator"] !== undefined) body["creator"] = g["creator"];
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
         const result = await createResource(
           BASE_URL,
           INSERT_CONFIG,
           params,
           body,
+          GET_CONFIG,
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
@@ -225,13 +236,14 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
-        const result = await readViaList(
-          BASE_URL,
-          LIST_CONFIG,
-          params,
-          "name",
+        params["name"] = buildResourceName(
+          String(g["parent"] ?? ""),
           args.identifier,
+        );
+        const result = await readResource(
+          BASE_URL,
+          GET_CONFIG,
+          params,
         ) as StateData;
         const instanceName = (g.name?.toString() ?? args.identifier).replace(
           /[\/\\]/g,
@@ -266,22 +278,16 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         try {
           const params: Record<string, string> = { project: projectId };
-          if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
-          else if (existing["parent"]) {
-            params["parent"] = String(existing["parent"]);
-          }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
-          if (!identifier) {
-            throw new Error(
-              "No identifier found in existing state or globalArgs",
-            );
-          }
-          const result = await readViaList(
+          const shortName = existing.name?.toString() ?? g["name"]?.toString();
+          if (!shortName) throw new Error("No identifier found");
+          params["name"] = buildResourceName(
+            String(g["parent"] ?? ""),
+            shortName,
+          );
+          const result = await readResource(
             BASE_URL,
-            LIST_CONFIG,
+            GET_CONFIG,
             params,
-            "name",
-            identifier,
           ) as StateData;
           const handle = await context.writeResource(
             "state",

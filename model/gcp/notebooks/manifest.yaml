@@ -10,8 +10,6 @@ labels:
   - notebooks
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: instances
 models:
   - instances.ts
   - locations.ts

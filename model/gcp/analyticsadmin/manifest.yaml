@@ -10,8 +10,6 @@ labels:
   - analyticsadmin
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: accounts, properties, properties_conversionevents, properties_customdimensions, properties_custommetrics, properties_datastreams, properties_datastreams_measurementprotocolsecrets, properties_firebaselinks, properties_googleadslinks
 models:
   - accounts.ts
   - accountsummaries.ts

@@ -10,8 +10,6 @@ labels:
   - discoveryengine
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: collections_datastores_servingconfigs, collections_datastores_sessions, collections_datastores_widgetconfigs, collections_engines, collections_engines_assistants, collections_engines_servingconfigs, collections_engines_sessions, collections_engines_widgetconfigs, datastores_servingconfigs, datastores_sessions, datastores_widgetconfigs, userstores_userlicenses
 models:
   - cmekconfigs.ts
   - collections_datastores.ts

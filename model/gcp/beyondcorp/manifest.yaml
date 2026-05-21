@@ -10,8 +10,6 @@ labels:
   - beyondcorp
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: appconnections, appconnectors, securitygateways, securitygateways_applications
 models:
   - appconnections.ts
   - appconnectors.ts

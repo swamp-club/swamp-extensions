@@ -10,8 +10,6 @@ labels:
   - backupdr
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: backupplans, resourcebackupconfigs
 models:
   - backupplanassociations.ts
   - backupplans.ts

@@ -10,8 +10,6 @@ labels:
   - managedkafka
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: connectclusters
 models:
   - clusters.ts
   - clusters_acls.ts

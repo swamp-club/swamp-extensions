@@ -10,8 +10,6 @@ labels:
   - dlp
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: inspecttemplates, dlpjobs
 models:
   - columndataprofiles.ts
   - connections.ts

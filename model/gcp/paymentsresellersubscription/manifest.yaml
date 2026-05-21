@@ -10,8 +10,6 @@ labels:
   - paymentsresellersubscription
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: partners_subscriptions
 models:
   - partners_products.ts
   - partners_promotions.ts

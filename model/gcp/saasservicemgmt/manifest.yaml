@@ -10,8 +10,6 @@ labels:
   - saasservicemgmt
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, releases, rolloutkinds, rollouts, saas, tenants, unitkinds, units
 models:
   - locations.ts
   - releases.ts

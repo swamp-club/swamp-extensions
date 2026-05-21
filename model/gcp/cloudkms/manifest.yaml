@@ -10,8 +10,6 @@ labels:
   - cloudkms
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: singletenanthsminstances
 models:
   - ekmconnections.ts
   - keyhandles.ts

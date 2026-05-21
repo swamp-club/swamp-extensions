@@ -10,8 +10,6 @@ labels:
   - mybusinessbusinessinformation
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: accounts, locations
 models:
   - accounts.ts
   - attributes.ts

@@ -10,9 +10,6 @@ labels:
   - searchads360
   - cloud
   - infrastructure
-releaseNotes: |
-  - Added: customers_invoices, customers_paymentsaccounts
-  - Updated: customers_customcolumns, searchads360fields
 models:
   - customers_customcolumns.ts
   - customers_invoices.ts

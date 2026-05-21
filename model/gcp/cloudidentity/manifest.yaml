@@ -10,8 +10,6 @@ labels:
   - cloudidentity
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: policies
 models:
   - customers_userinvitations.ts
   - devices.ts

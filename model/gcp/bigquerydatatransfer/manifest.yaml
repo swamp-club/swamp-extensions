@@ -10,8 +10,6 @@ labels:
   - bigquerydatatransfer
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: transferconfigs_transferresources
 models:
   - datasources.ts
   - locations.ts

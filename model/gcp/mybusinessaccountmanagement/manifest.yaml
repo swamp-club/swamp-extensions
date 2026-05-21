@@ -10,8 +10,6 @@ labels:
   - mybusinessaccountmanagement
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: accounts_invitations
 models:
   - accounts.ts
   - accounts_admins.ts

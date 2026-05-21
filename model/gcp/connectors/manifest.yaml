@@ -10,8 +10,6 @@ labels:
   - connectors
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: connections_actions, connections_entitytypes, connections_tools
 models:
   - connections_actions.ts
   - connections_entitytypes.ts

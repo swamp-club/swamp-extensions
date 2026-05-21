@@ -10,8 +10,6 @@ labels:
   - osconfig
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: global_policyorchestrators
 models:
   - global_policyorchestrators.ts
 additionalFiles:

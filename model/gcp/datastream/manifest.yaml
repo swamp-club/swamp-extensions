@@ -10,8 +10,6 @@ labels:
   - datastream
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: streams_objects
 models:
   - connectionprofiles.ts
   - locations.ts

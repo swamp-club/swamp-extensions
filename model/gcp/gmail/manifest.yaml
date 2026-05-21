@@ -10,8 +10,6 @@ labels:
   - gmail
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: users_drafts, users_labels, users_messages, users_settings_filters, users_settings_sendas
 models:
   - users_drafts.ts
   - users_history.ts

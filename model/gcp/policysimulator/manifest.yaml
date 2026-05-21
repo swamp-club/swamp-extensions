@@ -10,8 +10,6 @@ labels:
   - policysimulator
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: orgpolicyviolationspreviews
 models:
   - orgpolicyviolationspreviews.ts
   - orgpolicyviolationspreviews_orgpolicyviolations.ts

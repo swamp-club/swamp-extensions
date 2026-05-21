@@ -10,8 +10,6 @@ labels:
   - networkservices
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: gateways, httproutes
 models:
   - authzextensions.ts
   - endpointpolicies.ts

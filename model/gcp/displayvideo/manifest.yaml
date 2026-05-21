@@ -10,8 +10,6 @@ labels:
   - displayvideo
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: advertisers_adgroupads, advertisers_adgroups, advertisers_adgroups_targetingtypes_assignedtargetingoptions, advertisers_insertionorders, advertisers_lineitems, advertisers_lineitems_targetingtypes_assignedtargetingoptions, advertisers_targetingtypes_assignedtargetingoptions, inventorysources, partners_targetingtypes_assignedtargetingoptions
 models:
   - advertisers.ts
   - advertisers_adassets.ts

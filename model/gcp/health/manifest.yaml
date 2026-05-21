@@ -10,9 +10,6 @@ labels:
   - health
   - cloud
   - infrastructure
-releaseNotes: |
-  - Added: subscribers
-  - Updated: users_datatypes_datapoints
 models:
   - subscribers.ts
   - users_datatypes_datapoints.ts

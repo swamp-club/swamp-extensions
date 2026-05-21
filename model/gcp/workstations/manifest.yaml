@@ -10,8 +10,6 @@ labels:
   - workstations
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: workstationclusters, workstationclusters_workstationconfigs
 models:
   - locations.ts
   - workstationclusters.ts

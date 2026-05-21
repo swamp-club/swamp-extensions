@@ -10,8 +10,6 @@ labels:
   - hypercomputecluster
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: clusters
 models:
   - clusters.ts
   - locations.ts

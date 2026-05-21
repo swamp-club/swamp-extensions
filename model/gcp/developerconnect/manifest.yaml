@@ -10,8 +10,6 @@ labels:
   - developerconnect
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: accountconnectors
 models:
   - accountconnectors.ts
   - accountconnectors_users.ts

@@ -10,8 +10,6 @@ labels:
   - androidenterprise
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: serviceaccountkeys
 models:
   - devices.ts
   - enterprises.ts

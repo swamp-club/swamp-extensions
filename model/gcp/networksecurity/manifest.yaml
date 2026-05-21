@@ -10,8 +10,6 @@ labels:
   - networksecurity
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: authzpolicies
 models:
   - addressgroups.ts
   - authorizationpolicies.ts

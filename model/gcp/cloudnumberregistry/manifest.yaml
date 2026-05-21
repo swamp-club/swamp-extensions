@@ -10,8 +10,6 @@ labels:
   - cloudnumberregistry
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, customranges, discoveredranges, ipamadminscopes, realms, registrybooks
 models:
   - customranges.ts
   - discoveredranges.ts

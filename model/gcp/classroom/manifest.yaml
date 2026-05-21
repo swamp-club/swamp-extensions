@@ -10,8 +10,6 @@ labels:
   - classroom
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: courses, courses_coursework_addonattachments_studentsubmissions, courses_posts_addonattachments_studentsubmissions
 models:
   - courses.ts
   - courses_aliases.ts

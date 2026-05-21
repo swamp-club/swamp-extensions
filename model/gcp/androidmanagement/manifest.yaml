@@ -10,8 +10,6 @@ labels:
   - androidmanagement
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: enterprises_policies
 models:
   - enterprises.ts
   - enterprises_applications.ts

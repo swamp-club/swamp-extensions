@@ -10,8 +10,6 @@ labels:
   - cloudsearch
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: query_sources
 models:
   - debug_datasources_items_unmappedids.ts
   - debug_identitysources_unmappedids.ts
