@@ -74,12 +74,7 @@ async function getCredentials(): Promise<GcpCredentials> {
   if (directToken) {
     const projectId = Deno.env.get("GCP_PROJECT")?.trim() ||
       Deno.env.get("GOOGLE_CLOUD_PROJECT")?.trim();
-    if (!projectId) {
-      throw new Error(
-        "GCP_PROJECT or GOOGLE_CLOUD_PROJECT must be set when using GCP_ACCESS_TOKEN",
-      );
-    }
-    return { projectId, accessToken: directToken };
+    return { projectId: projectId ?? "", accessToken: directToken };
   }
 
   if (cachedCredentials && (Date.now() - cachedAt) < TOKEN_TTL_MS) {
@@ -244,10 +239,10 @@ async function getApplicationDefaultCredentials(): Promise<GcpCredentials> {
     }
   }
 
-  throw new Error(
-    "Could not determine GCP project ID. Set GCP_PROJECT or GOOGLE_CLOUD_PROJECT, " +
-      "or run: gcloud config set project <project-id>",
-  );
+  // No project configured — return empty. Org-scoped resources (folders,
+  // projects, tagKeys) don't need a project; project-scoped resources will
+  // fail later with "Missing required path parameter: project" from buildUrl.
+  return { projectId: "", accessToken };
 }
 
 /**
@@ -399,10 +394,10 @@ function isLongRunningOperation(response: any): boolean {
     response.kind && typeof response.kind === "string" &&
     response.kind.includes("#operation")
   ) return true;
-  // Generic LRO pattern: has "done" field and name contains "operations/"
+  // Generic LRO pattern: name contains "operations/" (v3 APIs may omit "done" initially)
   if (
-    "done" in response && "name" in response &&
-    typeof response.name === "string" && response.name.includes("operations/")
+    "name" in response && typeof response.name === "string" &&
+    response.name.includes("operations/")
   ) return true;
   // GKE / Container API pattern: has operationType + status + name starting with "operation-"
   if (
@@ -479,6 +474,13 @@ interface ReadinessConfig {
   failedValues?: string[];
 }
 
+interface IdempotencyConfig {
+  listConfig: GcpMethodConfig;
+  listParams: Record<string, string>;
+  matchField: string;
+  matchValue: string;
+}
+
 export async function createResource(
   baseUrl: string,
   config: GcpMethodConfig,
@@ -486,9 +488,25 @@ export async function createResource(
   body: Record<string, unknown>,
   readConfig?: GcpMethodConfig,
   readiness?: ReadinessConfig,
+  idempotency?: IdempotencyConfig,
 ): Promise<any> {
   const url = buildUrl(baseUrl, config, params);
   const resp = await request(config.httpMethod, url, body);
+
+  if (resp.status === 409 && idempotency) {
+    await resp.text();
+    const existing = await tryReadViaList(
+      baseUrl,
+      idempotency.listConfig,
+      idempotency.listParams,
+      idempotency.matchField,
+      idempotency.matchValue,
+    );
+    if (existing) return existing;
+    throw new Error(
+      "Create failed (409): resource already exists but could not be found via list",
+    );
+  }
 
   if (!resp.ok) {
     const text = await resp.text();
@@ -508,17 +526,57 @@ export async function createResource(
     }
 
     // Check for errors in the completed operation
-    checkOperationError(operation);
+    try {
+      checkOperationError(operation);
+    } catch (opErr) {
+      if (isAlreadyExistsError(opErr) && idempotency) {
+        const existing = await tryReadViaList(
+          baseUrl,
+          idempotency.listConfig,
+          idempotency.listParams,
+          idempotency.matchField,
+          idempotency.matchValue,
+        );
+        if (existing) return existing;
+      }
+      throw opErr;
+    }
 
-    // After operation completes, read the resource for final state
+    // After operation completes, read the resource for final state.
+    // v3 LROs include the resource in operation.response — extract its
+    // name so the read-back URL can be constructed.
+    if (
+      operation.response && typeof operation.response === "object" &&
+      operation.response.name && !params["name"]
+    ) {
+      params["name"] = String(operation.response.name);
+    }
     if (readConfig) {
-      const readUrl = appendFieldsParam(buildUrl(baseUrl, readConfig, params));
-      const readResp = await request("GET", readUrl);
-      if (readResp.ok) {
-        result = await readResp.json();
-      } else {
-        // If we can't read, use the operation's targetLink
-        if (operation.targetLink) {
+      try {
+        const readUrl = appendFieldsParam(
+          buildUrl(baseUrl, readConfig, params),
+        );
+        const readResp = await request("GET", readUrl);
+        if (readResp.ok) {
+          result = await readResp.json();
+        } else if (
+          operation.response && typeof operation.response === "object"
+        ) {
+          result = operation.response;
+        } else if (operation.targetLink) {
+          const targetResp = await request(
+            "GET",
+            appendFieldsParam(operation.targetLink),
+          );
+          if (targetResp.ok) {
+            result = await targetResp.json();
+          }
+        }
+      } catch {
+        // buildUrl may throw if required params are still missing — fall back
+        if (operation.response && typeof operation.response === "object") {
+          result = operation.response;
+        } else if (operation.targetLink) {
           const targetResp = await request(
             "GET",
             appendFieldsParam(operation.targetLink),
@@ -778,6 +836,62 @@ export function isResourceNotFoundError(error: unknown): boolean {
       error.message.includes("Not Found");
   }
   return false;
+}
+
+/**
+ * Checks if an error indicates a resource already exists.
+ */
+export function isAlreadyExistsError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    return msg.includes("(409)") ||
+      msg.includes("already exists") ||
+      msg.includes("already_exists") ||
+      msg.includes("uniqueness within the parent") ||
+      msg.includes("duplicate");
+  }
+  return false;
+}
+
+/**
+ * Like readViaList but returns null instead of throwing when not found.
+ */
+export async function tryReadViaList(
+  baseUrl: string,
+  config: GcpMethodConfig,
+  params: Record<string, string>,
+  filterField: string,
+  filterValue: string,
+): Promise<any | null> {
+  const baseUrlBuilt = appendFieldsParam(buildUrl(baseUrl, config, params));
+  const maxPages = 100;
+  let url = baseUrlBuilt;
+
+  for (let page = 0; page < maxPages; page++) {
+    const resp = await request("GET", url);
+    if (!resp.ok) {
+      await resp.text();
+      return null;
+    }
+
+    const data = await resp.json();
+    for (const value of Object.values(data)) {
+      if (Array.isArray(value)) {
+        const match = value.find((item: any) =>
+          item && item[filterField] === filterValue
+        );
+        if (match) return match;
+      }
+    }
+
+    if (!data.nextPageToken) break;
+    const separator = baseUrlBuilt.includes("?") ? "&" : "?";
+    url = `${baseUrlBuilt}${separator}pageToken=${
+      encodeURIComponent(data.nextPageToken)
+    }`;
+  }
+
+  return null;
 }
 
 /**

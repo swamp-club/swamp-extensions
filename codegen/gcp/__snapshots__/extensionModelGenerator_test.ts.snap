@@ -635,7 +635,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         const body: Record<string, unknown> = {};
         if (g["name"] !== undefined) body["name"] = g["name"];
-        const result = await createResource(BASE_URL, INSERT_CONFIG, params, body) as StateData;
+        const result = await createResource(BASE_URL, INSERT_CONFIG, params, body, undefined, undefined, { listConfig: LIST_CONFIG, listParams: { "project": projectId }, matchField: "name", matchValue: String(g["name"] ?? "") }) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -803,6 +803,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         if (g["name"] !== undefined) params["name"] = String(g["name"]);
         const body: Record<string, unknown> = {};
+        if (g["parent"] !== undefined) body["parent"] = g["parent"];
         const result = await createResource(BASE_URL, INSERT_CONFIG, params, body, GET_CONFIG) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);

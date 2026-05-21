@@ -82,6 +82,27 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "cloudresourcemanager.folders.list",
+  "path": "v3/folders",
+  "httpMethod": "GET",
+  "parameterOrder": [],
+  "parameters": {
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "query",
+    },
+    "showDeleted": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   displayName: z.string().describe(
     "The folder's display name. A folder's display name must be unique amongst its siblings. For example, no two folders with the same parent can share the same display name. The display name must start and end with a letter or digit, may contain letters, digits, spaces, hyphens and underscores and can be no longer than 30 characters. This is captured by the regular expression: `[\\p{L}\\p{N}]([\\p{L}\\p{N}_- ]{0,28}[\\p{L}\\p{N}])?`.",
@@ -131,7 +152,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Resource Manager Folders. Registered at `@swamp/gcp/cloudresourcemanager/folders`. */
 export const model = {
   type: "@swamp/gcp/cloudresourcemanager/folders",
-  version: "2026.05.19.2",
+  version: "2026.05.21.3",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -173,6 +194,21 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.3",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -202,6 +238,7 @@ export const model = {
           body["displayName"] = g["displayName"];
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
+        if (g["parent"] !== undefined) body["parent"] = g["parent"];
         if (g["tags"] !== undefined) body["tags"] = g["tags"];
         if (g["name"] !== undefined) params["name"] = String(g["name"]);
         const result = await createResource(
@@ -217,6 +254,14 @@ export const model = {
               "failedValues": [],
             }
             : undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": String(body["parent"] ?? g["parent"] ?? ""),
+            },
+            matchField: "displayName",
+            matchValue: String(g["displayName"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
