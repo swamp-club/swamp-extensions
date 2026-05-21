@@ -94,6 +94,30 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "jobs.projects.tenants.companies.list",
+  "path": "v4/{+parent}/companies",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+    "requireOpenJobs": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   careerSiteUri: z.string().describe(
     "The URI to employer's career site or careers page on the employer's web site, for example, \"https://careers.google.com\".",
@@ -363,7 +387,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Talent Solution Tenants.Companies. Registered at `@swamp/gcp/jobs/tenants-companies`. */
 export const model = {
   type: "@swamp/gcp/jobs/tenants-companies",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -407,6 +431,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -467,6 +496,17 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": `projects/${projectId}/locations/${
+                String(g["location"] ?? "")
+              }`,
+            },
+            matchField: "displayName",
+            matchValue: String(g["displayName"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

@@ -75,6 +75,30 @@ const PATCH_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "health.users.dataTypes.dataPoints.list",
+  "path": "v4/{+parent}/dataPoints",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   activeMinutes: z.object({
     activeMinutesByActivityLevel: z.array(z.object({
@@ -5886,7 +5910,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Health Users.DataTypes.DataPoints. Registered at `@swamp/gcp/health/users-datatypes-datapoints`. */
 export const model = {
   type: "@swamp/gcp/health/users-datatypes-datapoints",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -5977,6 +6001,11 @@ export const model = {
     {
       toVersion: "2026.05.20.1",
       description: "Added: basalEnergyBurned, height, swimLengthsData",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -6082,6 +6111,15 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": String(body["parent"] ?? g["parent"] ?? ""),
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

@@ -120,6 +120,45 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "dfareporting.creativeFieldValues.list",
+  "path":
+    "userprofiles/{+profileId}/creativeFields/{+creativeFieldId}/creativeFieldValues",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "profileId",
+    "creativeFieldId",
+  ],
+  "parameters": {
+    "creativeFieldId": {
+      "location": "path",
+      "required": true,
+    },
+    "ids": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "profileId": {
+      "location": "path",
+      "required": true,
+    },
+    "searchString": {
+      "location": "query",
+    },
+    "sortField": {
+      "location": "query",
+    },
+    "sortOrder": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   id: z.string().describe(
     "ID of this creative field value. This is a read-only, auto-generated field.",
@@ -161,7 +200,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Campaign Manager 360 CreativeFieldValues. Registered at `@swamp/gcp/dfareporting/creativefieldvalues`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/creativefieldvalues",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -203,6 +242,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -238,6 +282,16 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "profileId": String(g["profileId"] ?? ""),
+              "creativeFieldId": String(g["creativeFieldId"] ?? ""),
+            },
+            matchField: "id",
+            matchValue: String(g["id"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.id ?? g.id)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

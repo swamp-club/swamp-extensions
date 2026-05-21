@@ -78,6 +78,28 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id":
+    "datalabeling.projects.datasets.annotatedDatasets.feedbackThreads.feedbackMessages.list",
+  "path": "v1beta1/{+parent}/feedbackMessages",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   body: z.string().describe(
     "String content of the feedback. Maximum of 10000 characters.",
@@ -137,7 +159,7 @@ const InputsSchema = z.object({
 export const model = {
   type:
     "@swamp/gcp/datalabeling/datasets-annotateddatasets-feedbackthreads-feedbackmessages",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -181,6 +203,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -229,6 +256,17 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": `projects/${projectId}/locations/${
+                String(g["location"] ?? "")
+              }`,
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

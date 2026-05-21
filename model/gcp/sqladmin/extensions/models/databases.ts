@@ -121,6 +121,26 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "sql.databases.list",
+  "path": "v1/projects/{project}/instances/{instance}/databases",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "project",
+    "instance",
+  ],
+  "parameters": {
+    "instance": {
+      "location": "path",
+      "required": true,
+    },
+    "project": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   charset: z.string().describe("The Cloud SQL charset value.").optional(),
   collation: z.string().describe("The Cloud SQL collation value.").optional(),
@@ -187,7 +207,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud SQL Admin Databases. Registered at `@swamp/gcp/sqladmin/databases`. */
 export const model = {
   type: "@swamp/gcp/sqladmin/databases",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -229,6 +249,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -265,6 +290,16 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "project": projectId,
+              "instance": String(g["instance"] ?? ""),
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

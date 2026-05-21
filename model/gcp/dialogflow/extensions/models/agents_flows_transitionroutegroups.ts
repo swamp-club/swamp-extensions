@@ -109,6 +109,30 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "dialogflow.projects.locations.agents.flows.transitionRouteGroups.list",
+  "path": "v3/{+parent}/transitionRouteGroups",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "languageCode": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   displayName: z.string().optional(),
   name: z.string().optional(),
@@ -331,7 +355,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dialogflow Agents.Flows.TransitionRouteGroups. Registered at `@swamp/gcp/dialogflow/agents-flows-transitionroutegroups`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/agents-flows-transitionroutegroups",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -383,6 +407,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -428,6 +457,17 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": `projects/${projectId}/locations/${
+                String(g["location"] ?? "")
+              }`,
+            },
+            matchField: "displayName",
+            matchValue: String(g["displayName"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

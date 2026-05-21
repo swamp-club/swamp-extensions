@@ -94,6 +94,27 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "adsense.accounts.adclients.customchannels.list",
+  "path": "v2/{+parent}/customchannels",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -134,7 +155,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud AdSense Management Accounts.Adclients.Customchannels. Registered at `@swamp/gcp/adsense/accounts-adclients-customchannels`. */
 export const model = {
   type: "@swamp/gcp/adsense/accounts-adclients-customchannels",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -176,6 +197,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -213,6 +239,15 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": String(body["parent"] ?? g["parent"] ?? ""),
+            },
+            matchField: "displayName",
+            matchValue: String(g["displayName"] ?? ""),
+          },
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,

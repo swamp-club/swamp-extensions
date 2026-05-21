@@ -151,6 +151,38 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "appengine.projects.locations.applications.domainMappings.list",
+  "path":
+    "v1/projects/{projectsId}/locations/{locationsId}/applications/{applicationsId}/domainMappings",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "projectsId",
+    "locationsId",
+    "applicationsId",
+  ],
+  "parameters": {
+    "applicationsId": {
+      "location": "path",
+      "required": true,
+    },
+    "locationsId": {
+      "location": "path",
+      "required": true,
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "projectsId": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -241,7 +273,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud App Engine Admin Applications.DomainMappings. Registered at `@swamp/gcp/appengine/applications-domainmappings`. */
 export const model = {
   type: "@swamp/gcp/appengine/applications-domainmappings",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -280,6 +312,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -328,6 +365,17 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "projectsId": String(g["projectsId"] ?? ""),
+              "locationsId": String(g["locationsId"] ?? ""),
+              "applicationsId": String(g["applicationsId"] ?? ""),
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,

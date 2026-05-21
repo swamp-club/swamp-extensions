@@ -124,6 +124,32 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "classroom.courses.courseWork.rubrics.list",
+  "path": "v1/courses/{courseId}/courseWork/{courseWorkId}/rubrics",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "courseId",
+    "courseWorkId",
+  ],
+  "parameters": {
+    "courseId": {
+      "location": "path",
+      "required": true,
+    },
+    "courseWorkId": {
+      "location": "path",
+      "required": true,
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   courseId: z.string().describe("Identifier of the course. Read-only.")
     .optional(),
@@ -219,7 +245,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Classroom Courses.CourseWork.Rubrics. Registered at `@swamp/gcp/classroom/courses-coursework-rubrics`. */
 export const model = {
   type: "@swamp/gcp/classroom/courses-coursework-rubrics",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -258,6 +284,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -300,6 +331,16 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "courseId": String(g["courseId"] ?? ""),
+              "courseWorkId": String(g["courseWorkId"] ?? ""),
+            },
+            matchField: "id",
+            matchValue: String(g["id"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.id ?? g.id)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

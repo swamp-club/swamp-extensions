@@ -69,6 +69,27 @@ const PATCH_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "mybusinessaccountmanagement.accounts.list",
+  "path": "v1/accounts",
+  "httpMethod": "GET",
+  "parameterOrder": [],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parentAccount": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   accountName: z.string().describe(
     "Required. The name of the account. For an account of type `PERSONAL`, this is the first and last name of the user account.",
@@ -235,7 +256,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud My Business Account Management Accounts. Registered at `@swamp/gcp/mybusinessaccountmanagement/accounts`. */
 export const model = {
   type: "@swamp/gcp/mybusinessaccountmanagement/accounts",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -274,6 +295,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -316,6 +342,13 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {},
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

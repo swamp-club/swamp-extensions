@@ -161,6 +161,60 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "drive.files.list",
+  "path": "files",
+  "httpMethod": "GET",
+  "parameterOrder": [],
+  "parameters": {
+    "corpora": {
+      "location": "query",
+    },
+    "corpus": {
+      "location": "query",
+    },
+    "driveId": {
+      "location": "query",
+    },
+    "includeItemsFromAllDrives": {
+      "location": "query",
+    },
+    "includeLabels": {
+      "location": "query",
+    },
+    "includePermissionsForView": {
+      "location": "query",
+    },
+    "includeTeamDriveItems": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "q": {
+      "location": "query",
+    },
+    "spaces": {
+      "location": "query",
+    },
+    "supportsAllDrives": {
+      "location": "query",
+    },
+    "supportsTeamDrives": {
+      "location": "query",
+    },
+    "teamDriveId": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   appProperties: z.record(z.string(), z.string()).describe(
     "A collection of arbitrary key-value pairs which are private to the requesting app. Entries with null values are cleared in update and copy requests. These properties can only be retrieved using an authenticated request. An authenticated request uses an access token obtained with a OAuth 2 client ID. You cannot use an API key to retrieve private properties.",
@@ -1024,7 +1078,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Drive Files. Registered at `@swamp/gcp/drive/files`. */
 export const model = {
   type: "@swamp/gcp/drive/files",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1103,6 +1157,11 @@ export const model = {
     {
       toVersion: "2026.05.20.1",
       description: "Added: clientEncryptionDetails, labelInfo",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1230,6 +1289,13 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {},
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

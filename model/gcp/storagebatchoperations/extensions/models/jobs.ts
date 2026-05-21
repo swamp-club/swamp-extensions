@@ -87,6 +87,33 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "storagebatchoperations.projects.locations.jobs.list",
+  "path": "v1/{+parent}/jobs",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   bucketList: z.object({
     buckets: z.array(z.object({
@@ -466,7 +493,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Storage Batch Operations Jobs. Registered at `@swamp/gcp/storagebatchoperations/jobs`. */
 export const model = {
   type: "@swamp/gcp/storagebatchoperations/jobs",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -543,6 +570,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -616,6 +648,16 @@ export const model = {
               "failedValues": ["FAILED"],
             }
             : undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": `projects/${projectId}/locations/${
+                String(g["location"] ?? "")
+              }`,
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

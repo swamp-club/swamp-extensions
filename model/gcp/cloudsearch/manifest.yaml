@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/cloudsearch"
-version: "2026.05.20.1"
+version: "2026.05.21.1"
 description: "Google Cloud cloudsearch infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,8 +10,6 @@ labels:
   - cloudsearch
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: query_sources
 models:
   - debug_datasources_items_unmappedids.ts
   - debug_identitysources_unmappedids.ts

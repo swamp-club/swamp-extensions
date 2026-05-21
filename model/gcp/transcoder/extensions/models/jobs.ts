@@ -78,6 +78,33 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "transcoder.projects.locations.jobs.list",
+  "path": "v1/{+parent}/jobs",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   batchModePriority: z.number().int().describe(
     "The processing priority of a batch job. This field can only be set for batch mode jobs. The default value is 0. This value cannot be negative. Higher values correspond to higher priorities for the job.",
@@ -1458,7 +1485,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Transcoder Jobs. Registered at `@swamp/gcp/transcoder/jobs`. */
 export const model = {
   type: "@swamp/gcp/transcoder/jobs",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1507,6 +1534,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1576,6 +1608,16 @@ export const model = {
               "failedValues": ["FAILED"],
             }
             : undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": `projects/${projectId}/locations/${
+                String(g["location"] ?? "")
+              }`,
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

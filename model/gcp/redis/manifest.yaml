@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/redis"
-version: "2026.05.20.1"
+version: "2026.05.21.1"
 description: "Google Cloud redis infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,9 +10,6 @@ labels:
   - redis
   - cloud
   - infrastructure
-releaseNotes: |
-  - Added: clusters_tokenauthusers, clusters_tokenauthusers_authtokens
-  - Updated: clusters
 models:
   - aclpolicies.ts
   - backupcollections.ts

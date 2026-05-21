@@ -115,6 +115,30 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "container.projects.locations.clusters.nodePools.list",
+  "path": "v1/{+parent}/nodePools",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "clusterId": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+    "projectId": {
+      "location": "query",
+    },
+    "zone": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   nodePool: z.object({
     autopilotConfig: z.object({
@@ -3543,7 +3567,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Kubernetes Engine Clusters.NodePools. Registered at `@swamp/gcp/container/clusters-nodepools`. */
 export const model = {
   type: "@swamp/gcp/container/clusters-nodepools",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -3641,6 +3665,11 @@ export const model = {
       description: "Added: taintConfig",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -3687,6 +3716,14 @@ export const model = {
               "failedValues": ["ERROR"],
             }
             : undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": String(body["parent"] ?? g["parent"] ?? ""),
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

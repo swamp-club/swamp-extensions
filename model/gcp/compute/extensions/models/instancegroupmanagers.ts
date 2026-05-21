@@ -133,6 +133,41 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "compute.instanceGroupManagers.list",
+  "path": "projects/{project}/zones/{zone}/instanceGroupManagers",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "project",
+    "zone",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "project": {
+      "location": "path",
+      "required": true,
+    },
+    "returnPartialSuccess": {
+      "location": "query",
+    },
+    "zone": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   allInstancesConfig: z.object({
     properties: z.object({
@@ -1071,7 +1106,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine InstanceGroupManagers. Registered at `@swamp/gcp/compute/instancegroupmanagers`. */
 export const model = {
   type: "@swamp/gcp/compute/instancegroupmanagers",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1165,6 +1200,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1262,6 +1302,16 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "project": projectId,
+              "zone": String(g["zone"] ?? ""),
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

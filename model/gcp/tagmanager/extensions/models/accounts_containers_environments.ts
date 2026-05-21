@@ -89,6 +89,24 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "tagmanager.accounts.containers.environments.list",
+  "path": "tagmanager/v2/{+parent}/environments",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   accountId: z.string().describe("GTM Account ID.").optional(),
   authorizationCode: z.string().describe("The environment authorization code.")
@@ -198,7 +216,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Tag Manager Accounts.Containers.Environments. Registered at `@swamp/gcp/tagmanager/accounts-containers-environments`. */
 export const model = {
   type: "@swamp/gcp/tagmanager/accounts-containers-environments",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -237,6 +255,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -304,6 +327,15 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": String(body["parent"] ?? g["parent"] ?? ""),
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

@@ -113,6 +113,36 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "compute.globalPublicDelegatedPrefixes.list",
+  "path": "projects/{project}/global/publicDelegatedPrefixes",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "project",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "project": {
+      "location": "path",
+      "required": true,
+    },
+    "returnPartialSuccess": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   allocatablePrefixLength: z.number().int().describe(
     "The allocatable prefix length supported by this public delegated prefix. This field is optional and cannot be set for prefixes in DELEGATION mode. It cannot be set for IPv4 prefixes either, and it always defaults to 32.",
@@ -297,7 +327,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine GlobalPublicDelegatedPrefixes. Registered at `@swamp/gcp/compute/globalpublicdelegatedprefixes`. */
 export const model = {
   type: "@swamp/gcp/compute/globalpublicdelegatedprefixes",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -336,6 +366,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -404,6 +439,12 @@ export const model = {
               "failedValues": [],
             }
             : undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: { "project": projectId },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

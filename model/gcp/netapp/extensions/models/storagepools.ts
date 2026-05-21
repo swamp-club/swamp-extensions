@@ -97,6 +97,33 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "netapp.projects.locations.storagePools.list",
+  "path": "v1/{+parent}/storagePools",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   activeDirectory: z.string().describe(
     "Optional. Specifies the Active Directory to be used for creating a SMB volume.",
@@ -297,7 +324,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud NetApp StoragePools. Registered at `@swamp/gcp/netapp/storagepools`. */
 export const model = {
   type: "@swamp/gcp/netapp/storagepools",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -379,6 +406,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -476,6 +508,16 @@ export const model = {
               "failedValues": ["ERROR"],
             }
             : undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": `projects/${projectId}/locations/${
+                String(g["location"] ?? "")
+              }`,
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
@@ -699,6 +741,44 @@ export const model = {
         }
       },
     },
+    restore_volume: {
+      description: "restore volume",
+      arguments: z.object({
+        backupSource: z.any().optional(),
+        ontapVolumeTarget: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (args["backupSource"] !== undefined) {
+          body["backupSource"] = args["backupSource"];
+        }
+        if (args["ontapVolumeTarget"] !== undefined) {
+          body["ontapVolumeTarget"] = args["ontapVolumeTarget"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "netapp.projects.locations.storagePools.restoreVolume",
+            "path": "v1/{+name}:restoreVolume",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
+        );
+        return { result };
+      },
+    },
     switch: {
       description: "switch",
       arguments: z.object({}),
@@ -723,6 +803,48 @@ export const model = {
           },
           params,
           {},
+        );
+        return { result };
+      },
+    },
+    update_backup_config: {
+      description: "update backup config",
+      arguments: z.object({
+        backupConfig: z.any().optional(),
+        updateMask: z.any().optional(),
+        volumeUuid: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (args["backupConfig"] !== undefined) {
+          body["backupConfig"] = args["backupConfig"];
+        }
+        if (args["updateMask"] !== undefined) {
+          body["updateMask"] = args["updateMask"];
+        }
+        if (args["volumeUuid"] !== undefined) {
+          body["volumeUuid"] = args["volumeUuid"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "netapp.projects.locations.storagePools.updateBackupConfig",
+            "path": "v1/{+name}:updateBackupConfig",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
         );
         return { result };
       },

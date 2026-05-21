@@ -163,6 +163,38 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "androidpublisher.monetization.subscriptions.basePlans.offers.list",
+  "path":
+    "androidpublisher/v3/applications/{packageName}/subscriptions/{productId}/basePlans/{basePlanId}/offers",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "packageName",
+    "productId",
+    "basePlanId",
+  ],
+  "parameters": {
+    "basePlanId": {
+      "location": "path",
+      "required": true,
+    },
+    "packageName": {
+      "location": "path",
+      "required": true,
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "productId": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -652,7 +684,7 @@ const InputsSchema = z.object({
 export const model = {
   type:
     "@swamp/gcp/androidpublisher/monetization-subscriptions-baseplans-offers",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -696,6 +728,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -759,6 +796,16 @@ export const model = {
               "failedValues": [],
             }
             : undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "packageName": String(g["packageName"] ?? ""),
+              "productId": String(g["productId"] ?? ""),
+              "basePlanId": String(g["basePlanId"] ?? ""),
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,

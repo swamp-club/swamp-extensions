@@ -206,7 +206,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Health Subscribers. Registered at `@swamp/gcp/health/subscribers`. */
 export const model = {
   type: "@swamp/gcp/health/subscribers",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -259,6 +266,16 @@ export const model = {
               "failedValues": [],
             }
             : undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": `projects/${projectId}/locations/${
+                String(g["location"] ?? "")
+              }`,
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

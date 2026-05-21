@@ -125,7 +125,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Contact Center AI Insights Diagnostics. Registered at `@swamp/gcp/contactcenterinsights/diagnostics`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/diagnostics",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

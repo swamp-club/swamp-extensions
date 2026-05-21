@@ -79,6 +79,30 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "classroom.courses.list",
+  "path": "v1/courses",
+  "httpMethod": "GET",
+  "parameterOrder": [],
+  "parameters": {
+    "courseStates": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "studentId": {
+      "location": "query",
+    },
+    "teacherId": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   alternateLink: z.string().describe(
     "Absolute link to this course in the Classroom web UI. Read-only.",
@@ -344,7 +368,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Classroom Courses. Registered at `@swamp/gcp/classroom/courses`. */
 export const model = {
   type: "@swamp/gcp/classroom/courses",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -417,6 +441,11 @@ export const model = {
       description: "Added: levels",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -486,6 +515,13 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {},
+            matchField: "id",
+            matchValue: String(g["id"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.id ?? g.id)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

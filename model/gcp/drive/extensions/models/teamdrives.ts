@@ -92,6 +92,27 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "drive.teamdrives.list",
+  "path": "teamdrives",
+  "httpMethod": "GET",
+  "parameterOrder": [],
+  "parameters": {
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "q": {
+      "location": "query",
+    },
+    "useDomainAdminAccess": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   backgroundImageFile: z.object({
     id: z.string().describe(
@@ -421,7 +442,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Drive Teamdrives. Registered at `@swamp/gcp/drive/teamdrives`. */
 export const model = {
   type: "@swamp/gcp/drive/teamdrives",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -483,6 +504,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -533,6 +559,13 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {},
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

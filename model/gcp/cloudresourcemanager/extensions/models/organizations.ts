@@ -65,7 +65,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Resource Manager Organizations. Registered at `@swamp/gcp/cloudresourcemanager/organizations`. */
 export const model = {
   type: "@swamp/gcp/cloudresourcemanager/organizations",
-  version: "2026.05.21.2",
+  version: "2026.05.21.3",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -114,6 +114,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.21.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.3",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -208,6 +213,48 @@ export const model = {
         }
       },
     },
+    get_iam_policy: {
+      description: "get iam policy",
+      arguments: z.object({
+        options: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["options"] !== undefined) body["options"] = args["options"];
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "cloudresourcemanager.organizations.getIamPolicy",
+            "path": "v3/{+resource}:getIamPolicy",
+            "httpMethod": "POST",
+            "parameterOrder": ["resource"],
+            "parameters": {
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+        );
+        return { result };
+      },
+    },
     search: {
       description: "search",
       arguments: z.object({}),
@@ -229,6 +276,96 @@ export const model = {
           },
           params,
           {},
+        );
+        return { result };
+      },
+    },
+    set_iam_policy: {
+      description: "set iam policy",
+      arguments: z.object({
+        policy: z.any().optional(),
+        updateMask: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["policy"] !== undefined) body["policy"] = args["policy"];
+        if (args["updateMask"] !== undefined) {
+          body["updateMask"] = args["updateMask"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "cloudresourcemanager.organizations.setIamPolicy",
+            "path": "v3/{+resource}:setIamPolicy",
+            "httpMethod": "POST",
+            "parameterOrder": ["resource"],
+            "parameters": {
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+        );
+        return { result };
+      },
+    },
+    test_iam_permissions: {
+      description: "test iam permissions",
+      arguments: z.object({
+        permissions: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["permissions"] !== undefined) {
+          body["permissions"] = args["permissions"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "cloudresourcemanager.organizations.testIamPermissions",
+            "path": "v3/{+resource}:testIamPermissions",
+            "httpMethod": "POST",
+            "parameterOrder": ["resource"],
+            "parameters": {
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
         );
         return { result };
       },

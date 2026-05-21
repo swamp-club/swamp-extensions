@@ -79,6 +79,30 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "factchecktools.pages.list",
+  "path": "v1alpha1/pages",
+  "httpMethod": "GET",
+  "parameterOrder": [],
+  "parameters": {
+    "offset": {
+      "location": "query",
+    },
+    "organization": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "url": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   claimReviewAuthor: z.object({
     imageUrl: z.string().describe("Corresponds to `ClaimReview.author.image`.")
@@ -273,7 +297,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Fact Check Tools Pages. Registered at `@swamp/gcp/factchecktools/pages`. */
 export const model = {
   type: "@swamp/gcp/factchecktools/pages",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -312,6 +336,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -355,6 +384,13 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {},
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

@@ -84,6 +84,25 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id":
+    "managedkafka.projects.locations.schemaRegistries.contexts.subjects.versions.list",
+  "path": "v1/{+parent}/versions",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "deleted": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -166,7 +185,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Managed Service for Apache Kafka SchemaRegistries.Contexts.Subjects.Versions. Registered at `@swamp/gcp/managedkafka/schemaregistries-contexts-subjects-versions`. */
 export const model = {
   type: "@swamp/gcp/managedkafka/schemaregistries-contexts-subjects-versions",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -213,6 +232,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -254,6 +278,17 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": `projects/${projectId}/locations/${
+                String(g["location"] ?? "")
+              }`,
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,

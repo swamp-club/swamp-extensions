@@ -133,6 +133,41 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "compute.regionTargetHttpsProxies.list",
+  "path": "projects/{project}/regions/{region}/targetHttpsProxies",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "project",
+    "region",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "project": {
+      "location": "path",
+      "required": true,
+    },
+    "region": {
+      "location": "path",
+      "required": true,
+    },
+    "returnPartialSuccess": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   authorizationPolicy: z.string().describe(
     "Optional. A URL referring to a networksecurity.AuthorizationPolicy resource that describes how the proxy should authorize inbound traffic. If left blank, access will not be restricted by an authorization policy. Refer to the AuthorizationPolicy resource for additional details. authorizationPolicy only applies to a globalTargetHttpsProxy attached toglobalForwardingRules with theloadBalancingScheme set to INTERNAL_SELF_MANAGED. Note: This field currently has no impact.",
@@ -259,7 +294,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine RegionTargetHttpsProxies. Registered at `@swamp/gcp/compute/regiontargethttpsproxies`. */
 export const model = {
   type: "@swamp/gcp/compute/regiontargethttpsproxies",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -298,6 +333,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -364,6 +404,16 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "project": projectId,
+              "region": String(g["region"] ?? ""),
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

@@ -98,6 +98,24 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "workspaceevents.subscriptions.list",
+  "path": "v1/subscriptions",
+  "httpMethod": "GET",
+  "parameterOrder": [],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   driveOptions: z.object({
     includeDescendants: z.boolean().describe(
@@ -205,7 +223,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Workspace Events Subscriptions. Registered at `@swamp/gcp/workspaceevents/subscriptions`. */
 export const model = {
   type: "@swamp/gcp/workspaceevents/subscriptions",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -283,6 +301,11 @@ export const model = {
       description: "Added: driveOptions",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -337,6 +360,12 @@ export const model = {
               "failedValues": [],
             }
             : undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {},
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

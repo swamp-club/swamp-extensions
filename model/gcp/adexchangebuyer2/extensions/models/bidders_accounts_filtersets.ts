@@ -78,6 +78,27 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "adexchangebuyer2.bidders.accounts.filterSets.list",
+  "path": "v2beta1/{+ownerName}/filterSets",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "ownerName",
+  ],
+  "parameters": {
+    "ownerName": {
+      "location": "path",
+      "required": true,
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   absoluteDateRange: z.object({
     endDate: z.object({
@@ -314,7 +335,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Ad Exchange Buyer Bidders.Accounts.FilterSets. Registered at `@swamp/gcp/adexchangebuyer2/bidders-accounts-filtersets`. */
 export const model = {
   type: "@swamp/gcp/adexchangebuyer2/bidders-accounts-filtersets",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -361,6 +382,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -432,6 +458,13 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: { "ownerName": String(g["ownerName"] ?? "") },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

@@ -51,6 +51,23 @@ separate document fetched from Google's Discovery API directory.
 4. Save each as `{name}.json` in `schemas/gcp/` with sorted keys for
    deterministic output
 5. Retry with exponential backoff (250ms base, 3 retries, 30s timeout)
+6. Fetch additional non-preferred versions listed in `ADDITIONAL_VERSIONS`
+   (saved as `{name}-{version}.json`, e.g. `iam-v1.json`)
+
+### Additional versions
+
+Some APIs expose different resource sets across versions. The preferred version
+may lack resources needed for complete coverage. `ADDITIONAL_VERSIONS` maps API
+names to non-preferred versions that should also be fetched:
+
+| API   | Additional version | Resources included                  | Reason                                                         |
+| ----- | ------------------ | ----------------------------------- | -------------------------------------------------------------- |
+| `iam` | `v1`               | organizations/roles, projects/roles | v2 (preferred) only has Deny Policies; v1 has custom role CRUD |
+
+During generation, resources from additional-version schemas are filtered by
+`ADDITIONAL_VERSION_RESOURCE_FILTER` to include only the specific resource paths
+needed. This prevents duplicating resources already covered by the preferred
+version or other APIs.
 
 ### Skipped APIs
 
@@ -616,8 +633,11 @@ Action methods are non-CRUD operations exposed in Discovery Documents (e.g.,
 
 ### Collection
 
-All methods not matching CRUD patterns are collected as action methods. IAM
-methods (`testIamPermissions`, `getIamPolicy`, `setIamPolicy`) are excluded.
+All methods not matching CRUD patterns are collected as action methods. This
+includes IAM policy methods (`getIamPolicy`, `setIamPolicy`,
+`testIamPermissions`) which are generated as `get_iam_policy`, `set_iam_policy`,
+and `test_iam_permissions` action methods on every resource that exposes them
+(~64 GCP services).
 
 ### Path parameter resolution
 

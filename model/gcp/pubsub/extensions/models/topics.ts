@@ -86,6 +86,27 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "pubsub.projects.topics.list",
+  "path": "v1/{+project}/topics",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "project",
+  ],
+  "parameters": {
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "project": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   ingestionDataSourceSettings: z.object({
     awsKinesis: z.object({
@@ -1166,7 +1187,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Pub/Sub Topics. Registered at `@swamp/gcp/pubsub/topics`. */
 export const model = {
   type: "@swamp/gcp/pubsub/topics",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1243,6 +1264,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1304,6 +1330,12 @@ export const model = {
               "failedValues": [],
             }
             : undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: { "project": projectId },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
@@ -1480,6 +1512,45 @@ export const model = {
         }
       },
     },
+    get_iam_policy: {
+      description: "get iam policy",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "pubsub.projects.topics.getIamPolicy",
+            "path": "v1/{+resource}:getIamPolicy",
+            "httpMethod": "GET",
+            "parameterOrder": ["resource"],
+            "parameters": {
+              "options.requestedPolicyVersion": { "location": "query" },
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          {},
+        );
+        return { result };
+      },
+    },
     publish: {
       description: "publish",
       arguments: z.object({
@@ -1500,6 +1571,92 @@ export const model = {
             "httpMethod": "POST",
             "parameterOrder": ["topic"],
             "parameters": { "topic": { "location": "path", "required": true } },
+          },
+          params,
+          body,
+        );
+        return { result };
+      },
+    },
+    set_iam_policy: {
+      description: "set iam policy",
+      arguments: z.object({
+        policy: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["policy"] !== undefined) body["policy"] = args["policy"];
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "pubsub.projects.topics.setIamPolicy",
+            "path": "v1/{+resource}:setIamPolicy",
+            "httpMethod": "POST",
+            "parameterOrder": ["resource"],
+            "parameters": {
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+        );
+        return { result };
+      },
+    },
+    test_iam_permissions: {
+      description: "test iam permissions",
+      arguments: z.object({
+        permissions: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["permissions"] !== undefined) {
+          body["permissions"] = args["permissions"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "pubsub.projects.topics.testIamPermissions",
+            "path": "v1/{+resource}:testIamPermissions",
+            "httpMethod": "POST",
+            "parameterOrder": ["resource"],
+            "parameters": {
+              "resource": { "location": "path", "required": true },
+            },
           },
           params,
           body,

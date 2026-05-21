@@ -75,6 +75,47 @@ const UPDATE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "dfareporting.remarketingLists.list",
+  "path": "userprofiles/{+profileId}/remarketingLists",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "profileId",
+    "advertiserId",
+  ],
+  "parameters": {
+    "active": {
+      "location": "query",
+    },
+    "advertiserId": {
+      "location": "query",
+      "required": true,
+    },
+    "floodlightActivityId": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "name": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "profileId": {
+      "location": "path",
+      "required": true,
+    },
+    "sortField": {
+      "location": "query",
+    },
+    "sortOrder": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   accountId: z.string().describe(
     "Account ID of this remarketing list. This is a read-only, auto-generated field that is only returned in GET requests.",
@@ -324,7 +365,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Campaign Manager 360 RemarketingLists. Registered at `@swamp/gcp/dfareporting/remarketinglists`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/remarketinglists",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -368,6 +409,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -424,6 +470,16 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "profileId": String(g["profileId"] ?? ""),
+              "advertiserId": String(g["advertiserId"] ?? ""),
+            },
+            matchField: "id",
+            matchValue: String(g["id"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.id ?? g.id)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

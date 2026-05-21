@@ -110,6 +110,36 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "compute.backendServices.list",
+  "path": "projects/{project}/global/backendServices",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "project",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "project": {
+      "location": "path",
+      "required": true,
+    },
+    "returnPartialSuccess": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   affinityCookieTtlSec: z.number().int().describe(
     "Lifetime of cookies in seconds. This setting is applicable to Application Load Balancers and Traffic Director and requires GENERATED_COOKIE or HTTP_COOKIE session affinity. If set to 0, the cookie is non-persistent and lasts only until the end of the browser session (or equivalent). The maximum allowed value is two weeks (1,209,600). Not supported when the backend service is referenced by a URL map that is bound to target gRPC proxy that has validateForProxyless field set to true.",
@@ -1544,7 +1574,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine BackendServices. Registered at `@swamp/gcp/compute/backendservices`. */
 export const model = {
   type: "@swamp/gcp/compute/backendservices",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1623,6 +1653,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1762,6 +1797,13 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: { "project": projectId },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
@@ -2161,6 +2203,47 @@ export const model = {
         return { result };
       },
     },
+    get_iam_policy: {
+      description: "get iam policy",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "compute.backendServices.getIamPolicy",
+            "path":
+              "projects/{project}/global/backendServices/{resource}/getIamPolicy",
+            "httpMethod": "GET",
+            "parameterOrder": ["project", "resource"],
+            "parameters": {
+              "optionsRequestedPolicyVersion": { "location": "query" },
+              "project": { "location": "path", "required": true },
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          {},
+        );
+        return { result };
+      },
+    },
     list_usable: {
       description: "list usable",
       arguments: z.object({}),
@@ -2236,6 +2319,54 @@ export const model = {
         return { result };
       },
     },
+    set_iam_policy: {
+      description: "set iam policy",
+      arguments: z.object({
+        bindings: z.any().optional(),
+        etag: z.any().optional(),
+        policy: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["bindings"] !== undefined) body["bindings"] = args["bindings"];
+        if (args["etag"] !== undefined) body["etag"] = args["etag"];
+        if (args["policy"] !== undefined) body["policy"] = args["policy"];
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "compute.backendServices.setIamPolicy",
+            "path":
+              "projects/{project}/global/backendServices/{resource}/setIamPolicy",
+            "httpMethod": "POST",
+            "parameterOrder": ["project", "resource"],
+            "parameters": {
+              "project": { "location": "path", "required": true },
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+        );
+        return { result };
+      },
+    },
     set_security_policy: {
       description: "set security policy",
       arguments: z.object({
@@ -2275,6 +2406,52 @@ export const model = {
               "backendService": { "location": "path", "required": true },
               "project": { "location": "path", "required": true },
               "requestId": { "location": "query" },
+            },
+          },
+          params,
+          body,
+        );
+        return { result };
+      },
+    },
+    test_iam_permissions: {
+      description: "test iam permissions",
+      arguments: z.object({
+        permissions: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["permissions"] !== undefined) {
+          body["permissions"] = args["permissions"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "compute.backendServices.testIamPermissions",
+            "path":
+              "projects/{project}/global/backendServices/{resource}/testIamPermissions",
+            "httpMethod": "POST",
+            "parameterOrder": ["project", "resource"],
+            "parameters": {
+              "project": { "location": "path", "required": true },
+              "resource": { "location": "path", "required": true },
             },
           },
           params,

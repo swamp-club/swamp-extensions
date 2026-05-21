@@ -91,7 +91,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Network Management NetworkMonitoringProviders.WebPaths. Registered at `@swamp/gcp/networkmanagement/networkmonitoringproviders-webpaths`. */
 export const model = {
   type: "@swamp/gcp/networkmanagement/networkmonitoringproviders-webpaths",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

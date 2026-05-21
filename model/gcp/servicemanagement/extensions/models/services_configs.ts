@@ -62,6 +62,27 @@ const INSERT_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "servicemanagement.services.configs.list",
+  "path": "v1/services/{serviceName}/configs",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "serviceName",
+  ],
+  "parameters": {
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "serviceName": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   apis: z.array(z.object({
     edition: z.string().describe(
@@ -2823,7 +2844,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Service Management Services.Configs. Registered at `@swamp/gcp/servicemanagement/services-configs`. */
 export const model = {
   type: "@swamp/gcp/servicemanagement/services-configs",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2892,6 +2913,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2971,6 +2997,13 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: { "serviceName": String(g["serviceName"] ?? "") },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

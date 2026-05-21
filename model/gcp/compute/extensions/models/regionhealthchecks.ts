@@ -130,6 +130,41 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "compute.regionHealthChecks.list",
+  "path": "projects/{project}/regions/{region}/healthChecks",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "project",
+    "region",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "project": {
+      "location": "path",
+      "required": true,
+    },
+    "region": {
+      "location": "path",
+      "required": true,
+    },
+    "returnPartialSuccess": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   checkIntervalSec: z.number().int().describe(
     "How often (in seconds) to send a health check. The default value is 5 seconds.",
@@ -608,7 +643,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine RegionHealthChecks. Registered at `@swamp/gcp/compute/regionhealthchecks`. */
 export const model = {
   type: "@swamp/gcp/compute/regionhealthchecks",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -647,6 +682,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -720,6 +760,16 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "project": projectId,
+              "region": String(g["region"] ?? ""),
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
@@ -931,6 +981,54 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    test_iam_permissions: {
+      description: "test iam permissions",
+      arguments: z.object({
+        permissions: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["region"] !== undefined) params["region"] = String(g["region"]);
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["permissions"] !== undefined) {
+          body["permissions"] = args["permissions"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "compute.regionHealthChecks.testIamPermissions",
+            "path":
+              "projects/{project}/regions/{region}/healthChecks/{resource}/testIamPermissions",
+            "httpMethod": "POST",
+            "parameterOrder": ["project", "region", "resource"],
+            "parameters": {
+              "project": { "location": "path", "required": true },
+              "region": { "location": "path", "required": true },
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+        );
+        return { result };
       },
     },
   },

@@ -136,6 +136,32 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "dns.responsePolicyRules.list",
+  "path": "dns/v1/projects/{project}/responsePolicies/{responsePolicy}/rules",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "project",
+    "responsePolicy",
+  ],
+  "parameters": {
+    "maxResults": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "project": {
+      "location": "path",
+      "required": true,
+    },
+    "responsePolicy": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -335,7 +361,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud DNS ResponsePolicyRules. Registered at `@swamp/gcp/dns/responsepolicyrules`. */
 export const model = {
   type: "@swamp/gcp/dns/responsepolicyrules",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -382,6 +408,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -422,6 +453,16 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "project": projectId,
+              "responsePolicy": String(g["responsePolicy"] ?? ""),
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,

@@ -86,6 +86,27 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "cloudidentity.groups.list",
+  "path": "v1/groups",
+  "httpMethod": "GET",
+  "parameterOrder": [],
+  "parameters": {
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "query",
+    },
+    "view": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -225,7 +246,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Identity Groups. Registered at `@swamp/gcp/cloudidentity/groups`. */
 export const model = {
   type: "@swamp/gcp/cloudidentity/groups",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -267,6 +288,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -299,6 +325,7 @@ export const model = {
         }
         if (g["groupKey"] !== undefined) body["groupKey"] = g["groupKey"];
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        if (g["parent"] !== undefined) body["parent"] = g["parent"];
         if (g["initialGroupConfig"] !== undefined) {
           body["initialGroupConfig"] = g["initialGroupConfig"];
         }
@@ -309,6 +336,15 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": String(body["parent"] ?? g["parent"] ?? ""),
+            },
+            matchField: "displayName",
+            matchValue: String(g["displayName"] ?? ""),
+          },
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,

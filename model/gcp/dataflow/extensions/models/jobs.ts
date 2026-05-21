@@ -101,6 +101,39 @@ const UPDATE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "dataflow.projects.jobs.list",
+  "path": "v1b3/projects/{projectId}/jobs",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "projectId",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "location": {
+      "location": "query",
+    },
+    "name": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "projectId": {
+      "location": "path",
+      "required": true,
+    },
+    "view": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   clientRequestId: z.string().describe(
     "The client's unique identifier of the job, re-used across retried attempts. If this field is set, the service will ensure its uniqueness. The request to create a job will fail if the service has knowledge of a previously submitted job with the same client's ID and job name. The caller may use this field to ensure idempotence of job creation across retried attempts to create a job. By default, the field is empty and, in that case, the service ignores it.",
@@ -1791,7 +1824,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dataflow Jobs. Registered at `@swamp/gcp/dataflow/jobs`. */
 export const model = {
   type: "@swamp/gcp/dataflow/jobs",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1860,6 +1893,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1952,6 +1990,13 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: { "projectId": projectId },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

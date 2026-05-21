@@ -119,6 +119,31 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id":
+    "workstations.projects.locations.workstationClusters.workstationConfigs.list",
+  "path": "v1/{+parent}/workstationConfigs",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   allowedPorts: z.array(z.object({
     first: z.number().int().describe(
@@ -741,7 +766,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Workstations WorkstationClusters.WorkstationConfigs. Registered at `@swamp/gcp/workstations/workstationclusters-workstationconfigs`. */
 export const model = {
   type: "@swamp/gcp/workstations/workstationclusters-workstationconfigs",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -815,6 +840,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -904,6 +934,17 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": `projects/${projectId}/locations/${
+                String(g["location"] ?? "")
+              }`,
+            },
+            matchField: "displayName",
+            matchValue: String(g["displayName"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
@@ -1118,6 +1159,46 @@ export const model = {
         }
       },
     },
+    get_iam_policy: {
+      description: "get iam policy",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id":
+              "workstations.projects.locations.workstationClusters.workstationConfigs.getIamPolicy",
+            "path": "v1/{+resource}:getIamPolicy",
+            "httpMethod": "GET",
+            "parameterOrder": ["resource"],
+            "parameters": {
+              "options.requestedPolicyVersion": { "location": "query" },
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          {},
+        );
+        return { result };
+      },
+    },
     list_usable: {
       description: "list usable",
       arguments: z.object({}),
@@ -1144,6 +1225,98 @@ export const model = {
           },
           params,
           {},
+        );
+        return { result };
+      },
+    },
+    set_iam_policy: {
+      description: "set iam policy",
+      arguments: z.object({
+        policy: z.any().optional(),
+        updateMask: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["policy"] !== undefined) body["policy"] = args["policy"];
+        if (args["updateMask"] !== undefined) {
+          body["updateMask"] = args["updateMask"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id":
+              "workstations.projects.locations.workstationClusters.workstationConfigs.setIamPolicy",
+            "path": "v1/{+resource}:setIamPolicy",
+            "httpMethod": "POST",
+            "parameterOrder": ["resource"],
+            "parameters": {
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+        );
+        return { result };
+      },
+    },
+    test_iam_permissions: {
+      description: "test iam permissions",
+      arguments: z.object({
+        permissions: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["permissions"] !== undefined) {
+          body["permissions"] = args["permissions"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id":
+              "workstations.projects.locations.workstationClusters.workstationConfigs.testIamPermissions",
+            "path": "v1/{+resource}:testIamPermissions",
+            "httpMethod": "POST",
+            "parameterOrder": ["resource"],
+            "parameters": {
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
         );
         return { result };
       },

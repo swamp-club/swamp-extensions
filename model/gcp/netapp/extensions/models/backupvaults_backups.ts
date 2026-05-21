@@ -97,6 +97,33 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "netapp.projects.locations.backupVaults.backups.list",
+  "path": "v1/{+parent}/backups",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   description: z.string().describe(
     "A description of the backup with 2048 characters or less. Requests with longer descriptions will be rejected.",
@@ -107,6 +134,17 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Identifier. The resource name of the backup. Format: `projects/{project_id}/locations/{location}/backupVaults/{backup_vault_id}/backups/{backup_id}`.",
   ).optional(),
+  ontapSource: z.object({
+    snapshotUuid: z.string().describe(
+      "Optional. The UUID of the ONTAP source snapshot.",
+    ).optional(),
+    storagePool: z.string().describe(
+      "Required. Name of the storage pool. This must be specified for creating backups for ONTAP mode volumes. Format: `projects/{projects_id}/locations/{location}/storagePools/{storage_pool_id}`",
+    ).optional(),
+    volumeUuid: z.string().describe(
+      "Required. The UUID of the ONTAP source volume.",
+    ).optional(),
+  }).describe("Represents ONTAP source details.").optional(),
   sourceSnapshot: z.string().describe(
     "If specified, backup will be created from the given snapshot. If not specified, there will be a new snapshot taken to initiate the backup creation. Format: `projects/{project_id}/locations/{location}/volumes/{volume_id}/snapshots/{snapshot_id}`",
   ).optional(),
@@ -130,6 +168,11 @@ const StateSchema = z.object({
   enforcedRetentionEndTime: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
+  ontapSource: z.object({
+    snapshotUuid: z.string(),
+    storagePool: z.string(),
+    volumeUuid: z.string(),
+  }).optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   sourceSnapshot: z.string().optional(),
@@ -151,6 +194,17 @@ const InputsSchema = z.object({
   name: z.string().describe(
     "Identifier. The resource name of the backup. Format: `projects/{project_id}/locations/{location}/backupVaults/{backup_vault_id}/backups/{backup_id}`.",
   ).optional(),
+  ontapSource: z.object({
+    snapshotUuid: z.string().describe(
+      "Optional. The UUID of the ONTAP source snapshot.",
+    ).optional(),
+    storagePool: z.string().describe(
+      "Required. Name of the storage pool. This must be specified for creating backups for ONTAP mode volumes. Format: `projects/{projects_id}/locations/{location}/storagePools/{storage_pool_id}`",
+    ).optional(),
+    volumeUuid: z.string().describe(
+      "Required. The UUID of the ONTAP source volume.",
+    ).optional(),
+  }).describe("Represents ONTAP source details.").optional(),
   sourceSnapshot: z.string().describe(
     "If specified, backup will be created from the given snapshot. If not specified, there will be a new snapshot taken to initiate the backup creation. Format: `projects/{project_id}/locations/{location}/volumes/{volume_id}/snapshots/{snapshot_id}`",
   ).optional(),
@@ -168,7 +222,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud NetApp BackupVaults.Backups. Registered at `@swamp/gcp/netapp/backupvaults-backups`. */
 export const model = {
   type: "@swamp/gcp/netapp/backupvaults-backups",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -230,6 +284,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "Added: ontapSource",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -262,6 +321,9 @@ export const model = {
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["name"] !== undefined) body["name"] = g["name"];
+        if (g["ontapSource"] !== undefined) {
+          body["ontapSource"] = g["ontapSource"];
+        }
         if (g["sourceSnapshot"] !== undefined) {
           body["sourceSnapshot"] = g["sourceSnapshot"];
         }
@@ -288,6 +350,16 @@ export const model = {
               "failedValues": ["ERROR"],
             }
             : undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": `projects/${projectId}/locations/${
+                String(g["location"] ?? "")
+              }`,
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
@@ -363,6 +435,9 @@ export const model = {
           body["description"] = g["description"];
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        if (g["ontapSource"] !== undefined) {
+          body["ontapSource"] = g["ontapSource"];
+        }
         if (g["sourceSnapshot"] !== undefined) {
           body["sourceSnapshot"] = g["sourceSnapshot"];
         }

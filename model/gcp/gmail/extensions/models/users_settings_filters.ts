@@ -80,6 +80,21 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "gmail.users.settings.filters.list",
+  "path": "gmail/v1/users/{userId}/settings/filters",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "userId",
+  ],
+  "parameters": {
+    "userId": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   action: z.object({
     addLabelIds: z.array(z.string()).describe(
@@ -197,7 +212,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gmail Users.Settings.Filters. Registered at `@swamp/gcp/gmail/users-settings-filters`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-settings-filters",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -259,6 +274,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -291,6 +311,13 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: { "userId": String(g["userId"] ?? "") },
+            matchField: "id",
+            matchValue: String(g["id"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.id ?? g.id)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

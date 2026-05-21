@@ -92,7 +92,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Cloud Memorystore for Redis Clusters.TokenAuthUsers. Registered at `@swamp/gcp/redis/clusters-tokenauthusers`. */
 export const model = {
   type: "@swamp/gcp/redis/clusters-tokenauthusers",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

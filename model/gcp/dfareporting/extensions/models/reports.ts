@@ -101,6 +101,36 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "dfareporting.reports.list",
+  "path": "userprofiles/{profileId}/reports",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "profileId",
+  ],
+  "parameters": {
+    "maxResults": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "profileId": {
+      "location": "path",
+      "required": true,
+    },
+    "scope": {
+      "location": "query",
+    },
+    "sortField": {
+      "location": "query",
+    },
+    "sortOrder": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   accountId: z.string().describe("The account ID to which this report belongs.")
     .optional(),
@@ -1734,7 +1764,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Campaign Manager 360 Reports. Registered at `@swamp/gcp/dfareporting/reports`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/reports",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1773,6 +1803,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1836,6 +1871,13 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: { "profileId": String(g["profileId"] ?? "") },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

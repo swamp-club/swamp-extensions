@@ -718,7 +718,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud SAS Portal Nodes.Deployments.Devices. Registered at `@swamp/gcp/sasportal/nodes-deployments-devices`. */
 export const model = {
   type: "@swamp/gcp/sasportal/nodes-deployments-devices",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -762,6 +762,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -810,6 +815,16 @@ export const model = {
           INSERT_CONFIG,
           params,
           body,
+          undefined,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": String(body["parent"] ?? g["parent"] ?? ""),
+            },
+            matchField: "displayName",
+            matchValue: String(g["displayName"] ?? ""),
+          },
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/datamanager"
-version: "2026.05.20.1"
+version: "2026.05.21.1"
 description: "Google Cloud datamanager infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,8 +10,6 @@ labels:
   - datamanager
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: accounttypes_accounts_userlists
 models:
   - accounttypes_accounts_userlistdirectlicenses.ts
   - accounttypes_accounts_userlistgloballicenses.ts

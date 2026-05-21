@@ -125,7 +125,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Campaign Manager 360 BillingAssignments. Registered at `@swamp/gcp/dfareporting/billingassignments`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/billingassignments",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -164,6 +164,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -207,6 +212,17 @@ export const model = {
           INSERT_CONFIG,
           params,
           body,
+          undefined,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "profileId": String(g["profileId"] ?? ""),
+              "billingProfileId": String(g["billingProfileId"] ?? ""),
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,

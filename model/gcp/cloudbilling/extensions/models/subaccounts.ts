@@ -111,7 +111,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Billing SubAccounts. Registered at `@swamp/gcp/cloudbilling/subaccounts`. */
 export const model = {
   type: "@swamp/gcp/cloudbilling/subaccounts",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -153,6 +153,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -189,6 +194,16 @@ export const model = {
           INSERT_CONFIG,
           params,
           body,
+          undefined,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": String(body["parent"] ?? g["parent"] ?? ""),
+            },
+            matchField: "displayName",
+            matchValue: String(g["displayName"] ?? ""),
+          },
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,

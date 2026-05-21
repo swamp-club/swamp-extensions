@@ -112,7 +112,14 @@ const InputsSchema = z.object({
 export const model = {
   type:
     "@swamp/gcp/networkmanagement/networkmonitoringproviders-monitoringpoints",
-  version: "2026.05.20.1",
+  version: "2026.05.21.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

@@ -63,6 +63,24 @@ const UPDATE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "walletobjects.giftcardobject.list",
+  "path": "walletobjects/v1/giftCardObject",
+  "httpMethod": "GET",
+  "parameterOrder": [],
+  "parameters": {
+    "classId": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "token": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   appLinkData: z.object({
     androidAppLinkInfo: z.object({
@@ -5699,7 +5717,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Wallet Giftcardobject. Registered at `@swamp/gcp/walletobjects/giftcardobject`. */
 export const model = {
   type: "@swamp/gcp/walletobjects/giftcardobject",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -5743,6 +5761,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -5855,6 +5878,12 @@ export const model = {
               "failedValues": [],
             }
             : undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {},
+            matchField: "id",
+            matchValue: String(g["id"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.id ?? g.id)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

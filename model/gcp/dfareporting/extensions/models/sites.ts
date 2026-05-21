@@ -75,6 +75,66 @@ const UPDATE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "dfareporting.sites.list",
+  "path": "userprofiles/{+profileId}/sites",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "profileId",
+  ],
+  "parameters": {
+    "acceptsInStreamVideoPlacements": {
+      "location": "query",
+    },
+    "acceptsInterstitialPlacements": {
+      "location": "query",
+    },
+    "acceptsPublisherPaidPlacements": {
+      "location": "query",
+    },
+    "adWordsSite": {
+      "location": "query",
+    },
+    "approved": {
+      "location": "query",
+    },
+    "campaignIds": {
+      "location": "query",
+    },
+    "directorySiteIds": {
+      "location": "query",
+    },
+    "ids": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "profileId": {
+      "location": "path",
+      "required": true,
+    },
+    "searchString": {
+      "location": "query",
+    },
+    "sortField": {
+      "location": "query",
+    },
+    "sortOrder": {
+      "location": "query",
+    },
+    "subaccountId": {
+      "location": "query",
+    },
+    "unmappedSite": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   accountId: z.string().describe(
     "Account ID of this site. This is a read-only field that can be left blank.",
@@ -666,7 +726,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Campaign Manager 360 Sites. Registered at `@swamp/gcp/dfareporting/sites`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/sites",
-  version: "2026.05.19.2",
+  version: "2026.05.21.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -705,6 +765,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.21.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -768,6 +833,13 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: { "profileId": String(g["profileId"] ?? "") },
+            matchField: "id",
+            matchValue: String(g["id"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.id ?? g.id)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
