@@ -362,18 +362,16 @@ Deno.test("generateAwsExtensionModel - with enrichment", async (t) => {
     imports: [
       'import { DescribeDBClustersCommand, RDSClient } from "@aws-sdk/client-rds";',
     ],
-    schemas: [
-      "const MemberSchema = z.object({",
-      "  MemberId: z.string().optional(),",
-      "  IsWriter: z.boolean().optional(),",
-      "});",
-    ].join("\n"),
+    schemas: `\
+const MemberSchema = z.object({
+  MemberId: z.string().optional(),
+  IsWriter: z.boolean().optional(),
+});`,
     stateFields: "  Members: z.array(MemberSchema).optional(),",
-    enrichFunction: [
-      "async function enrichState(state: StateData): Promise<StateData> {",
-      "  return state;",
-      "}",
-    ].join("\n"),
+    enrichFunction: `\
+async function enrichState(state: StateData): Promise<StateData> {
+  return state;
+}`,
   };
 
   const input: AwsExtensionModelInput = {
