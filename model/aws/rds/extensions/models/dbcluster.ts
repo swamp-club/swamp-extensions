@@ -274,8 +274,8 @@ const DBClusterMemberSchema = z.object({
 });
 
 async function enrichState(
-  state: { DBClusterIdentifier?: string } & Record<string, any>,
-): Promise<Record<string, any>> {
+  state: { DBClusterIdentifier?: string } & Record<string, unknown>,
+): Promise<Record<string, unknown>> {
   const id = state.DBClusterIdentifier;
   if (!id) return state;
   try {
@@ -292,30 +292,37 @@ async function enrichState(
       { DBInstanceClass?: string; AvailabilityZone?: string }
     >();
     try {
-      const instResp = await rdsClient.send(
-        new DescribeDBInstancesCommand({
-          Filters: [{ Name: "db-cluster-id", Values: [id] }],
-        }),
-      );
-      for (const inst of instResp.DBInstances ?? []) {
-        if (inst.DBInstanceIdentifier) {
-          instanceMap.set(inst.DBInstanceIdentifier, {
-            DBInstanceClass: inst.DBInstanceClass,
-            AvailabilityZone: inst.AvailabilityZone,
-          });
+      let marker: string | undefined;
+      do {
+        const instResp = await rdsClient.send(
+          new DescribeDBInstancesCommand({
+            Filters: [{ Name: "db-cluster-id", Values: [id] }],
+            Marker: marker,
+          }),
+        );
+        for (const inst of instResp.DBInstances ?? []) {
+          if (inst.DBInstanceIdentifier) {
+            instanceMap.set(inst.DBInstanceIdentifier, {
+              DBInstanceClass: inst.DBInstanceClass,
+              AvailabilityZone: inst.AvailabilityZone,
+            });
+          }
         }
-      }
+        marker = instResp.Marker;
+      } while (marker);
     } catch {
       // Instance details are best-effort enrichment
     }
-    state.DBClusterMembers = cluster.DBClusterMembers.map((m) => ({
-      DBInstanceIdentifier: m.DBInstanceIdentifier,
-      IsClusterWriter: m.IsClusterWriter,
-      DBClusterParameterGroupStatus: m.DBClusterParameterGroupStatus,
-      PromotionTier: m.PromotionTier,
-      ...instanceMap.get(m.DBInstanceIdentifier ?? ""),
-    }));
-    return state;
+    return {
+      ...state,
+      DBClusterMembers: cluster.DBClusterMembers.map((m) => ({
+        DBInstanceIdentifier: m.DBInstanceIdentifier,
+        IsClusterWriter: m.IsClusterWriter,
+        DBClusterParameterGroupStatus: m.DBClusterParameterGroupStatus,
+        PromotionTier: m.PromotionTier,
+        ...instanceMap.get(m.DBInstanceIdentifier ?? ""),
+      })),
+    };
   } catch {
     return state;
   }
@@ -636,7 +643,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for RDS DBCluster. Registered at `@swamp/aws/rds/dbcluster`. */
 export const model = {
   type: "@swamp/aws/rds/dbcluster",
-  version: "2026.05.22.4",
+  version: "2026.05.22.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -675,16 +682,6 @@ export const model = {
     },
     {
       toVersion: "2026.05.22.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.22.3",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.22.4",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
