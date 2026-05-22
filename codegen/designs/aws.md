@@ -457,8 +457,8 @@ const identifier = idParts.join("|");
 
 CloudControl returns a unified property set for every resource type, but some
 resources have runtime data that CloudControl/CloudFormation omits by design.
-The enrichment mechanism lets the pipeline inject native SDK, CLI, or HTTP
-fetch calls into specific models to supplement the CloudControl state.
+The enrichment mechanism lets the pipeline inject native SDK, CLI, or HTTP fetch
+calls into specific models to supplement the CloudControl state.
 
 ### How it works
 
@@ -497,11 +497,11 @@ unmodified state on failure. This means:
 
 The interface is strategy-agnostic. Three patterns are supported:
 
-| Strategy | When to use | Example |
-| -------- | ----------- | ------- |
+| Strategy | When to use                                | Example                                               |
+| -------- | ------------------------------------------ | ----------------------------------------------------- |
 | SDK      | Service has an `@aws-sdk/client-*` package | RDS DBCluster members via `DescribeDBClustersCommand` |
-| CLI      | Data only available via `aws` CLI | `Deno.Command("aws", ...)` |
-| Fetch    | Data available via HTTP endpoint | `fetch("http://...")` |
+| CLI      | Data only available via `aws` CLI          | `Deno.Command("aws", ...)`                            |
+| Fetch    | Data available via HTTP endpoint           | `fetch("http://...")`                                 |
 
 ### Adding a new enrichment
 
@@ -513,9 +513,9 @@ The interface is strategy-agnostic. Three patterns are supported:
 
 ### Current enrichments
 
-| Resource | Strategy | Data added |
-| -------- | -------- | ---------- |
-| `AWS::RDS::DBCluster` | SDK | `DBClusterMembers` with instance class, AZ, writer status |
+| Resource              | Strategy | Data added                                                |
+| --------------------- | -------- | --------------------------------------------------------- |
+| `AWS::RDS::DBCluster` | SDK      | `DBClusterMembers` with instance class, AZ, writer status |
 
 ---
 
