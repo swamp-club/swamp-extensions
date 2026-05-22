@@ -1,0 +1,21 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/cloudflare/calls"
+version: "2026.05.22.1"
+description: "Cloudflare calls infrastructure models"
+repository: "https://github.com/systeminit/swamp-extensions"
+labels:
+  - cloudflare
+  - calls
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: apps
+  - Added: turn_keys
+models:
+  - apps.ts
+  - turn_keys.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

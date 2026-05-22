@@ -1,0 +1,27 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/cloudflare/firewall"
+version: "2026.05.22.1"
+description: "Cloudflare firewall infrastructure models"
+repository: "https://github.com/systeminit/swamp-extensions"
+labels:
+  - cloudflare
+  - firewall
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: rules
+  - Added: lockdowns
+  - Added: ua_rules
+  - Added: overrides
+  - Added: rate_limits
+models:
+  - lockdowns.ts
+  - overrides.ts
+  - rate_limits.ts
+  - rules.ts
+  - ua_rules.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

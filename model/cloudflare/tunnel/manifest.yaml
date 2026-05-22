@@ -1,0 +1,21 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/cloudflare/tunnel"
+version: "2026.05.22.1"
+description: "Cloudflare tunnel infrastructure models"
+repository: "https://github.com/systeminit/swamp-extensions"
+labels:
+  - cloudflare
+  - tunnel
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: cfd_tunnel
+  - Added: warp_connector
+models:
+  - cfd_tunnel.ts
+  - warp_connector.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

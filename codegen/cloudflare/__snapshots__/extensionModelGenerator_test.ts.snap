@@ -1,0 +1,734 @@
+export const snapshot = {};
+
+snapshot[`generateCloudflareExtensionModel - account-scoped, all handlers 1`] = `
+'// Auto-generated extension model for @swamp/cloudflare/d1/database
+// Do not edit manually. Re-generate with: deno task generate:cloudflare
+
+// deno-lint-ignore-file no-explicit-any
+
+/**
+ * Swamp extension model for a Cloudflare Database.
+ *
+ * Wraps the Cloudflare API as a swamp model so create, get, update,
+ * delete, and sync can be driven through \`swamp model\`.
+ *
+ * @module
+ */
+
+import { z } from "npm:zod@4.3.6";
+import { create, read, tryRead, remove } from "./_lib/cloudflare.ts";
+
+const GlobalArgsSchema = z.object({
+  account_id: z.string().describe("Cloudflare account ID"),
+  name: z.string().describe("Database name"),
+  primary_location_hint: z.enum(["wnam", "enam", "weur", "eeur", "apac"]).describe("Location hint").optional(),
+});
+
+const ResourceSchema = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  version: z.string().optional(),
+  num_tables: z.number().optional(),
+  file_size: z.number().optional(),
+}).passthrough();
+
+type ResourceData = z.infer<typeof ResourceSchema>;
+
+const InputsSchema = z.object({
+  account_id: z.string().optional(),
+  name: z.string().optional(),
+  primary_location_hint: z.enum(["wnam", "enam", "weur", "eeur", "apac"]).optional(),
+});
+
+/** Swamp extension model for Cloudflare Database. Registered at \`@swamp/cloudflare/d1/database\`. */
+export const model = {
+  type: "@swamp/cloudflare/d1/database",
+  version: "2026.01.01.1",
+  globalArguments: GlobalArgsSchema,
+  inputsSchema: InputsSchema,
+  resources: {
+    state: {
+      description: "Database resource state",
+      schema: ResourceSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+  },
+  methods: {
+    create: {
+      description: "Create a Database",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id + "/d1/database";
+        const body: Record<string, unknown> = {};
+        if (g.name !== undefined) body.name = g.name;
+        if (g.primary_location_hint !== undefined) body.primary_location_hint = g.primary_location_hint;
+        const result = await create(endpoint, body) as ResourceData;
+        const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const handle = await context.writeResource("state", instanceName, result);
+        return { dataHandles: [handle] };
+      },
+    },
+    get: {
+      description: "Get a Database",
+      arguments: z.object({ id: z.string().describe("The ID of the Database") }),
+      execute: async (args: { id: string }, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id + "/d1/database";
+        const result = await read(endpoint, args.id) as ResourceData;
+        const instanceName = (g.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const handle = await context.writeResource("state", instanceName, result);
+        return { dataHandles: [handle] };
+      },
+    },
+    delete: {
+      description: "Delete the Database",
+      arguments: z.object({ id: z.string().describe("The ID of the Database") }),
+      execute: async (args: { id: string }, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id + "/d1/database";
+        const { existed } = await remove(endpoint, args.id);
+        const instanceName = (context.globalArgs.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const handle = await context.writeResource("state", instanceName, {
+          id: args.id,
+          existed,
+          status: existed ? "deleted" : "not_found",
+          deletedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+    sync: {
+      description: "Sync Database state from Cloudflare",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id + "/d1/database";
+        const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType, context.modelId, instanceName,
+        );
+        if (!content) throw new Error("No data found - run create or get first");
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        if (!existing.id) throw new Error("Stored state has no id - cannot sync");
+        const result = await tryRead(endpoint, existing.id) as ResourceData | null;
+        if (result) {
+          const handle = await context.writeResource("state", instanceName, result);
+          return { dataHandles: [handle] };
+        }
+        const handle = await context.writeResource("state", instanceName, {
+          id: existing.id,
+          status: "not_found",
+          syncedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+  },
+};
+'
+`;
+
+snapshot[`generateCloudflareExtensionModel - zone-scoped, PATCH update 1`] = `
+'// Auto-generated extension model for @swamp/cloudflare/dns/dns-records
+// Do not edit manually. Re-generate with: deno task generate:cloudflare
+
+// deno-lint-ignore-file no-explicit-any
+
+/**
+ * Swamp extension model for a Cloudflare DNS Record.
+ *
+ * Wraps the Cloudflare API as a swamp model so create, get, update,
+ * delete, and sync can be driven through \`swamp model\`.
+ *
+ * @module
+ */
+
+import { z } from "npm:zod@4.3.6";
+import { create, read, tryRead, remove, update } from "./_lib/cloudflare.ts";
+
+const GlobalArgsSchema = z.object({
+  zone_id: z.string().describe("Cloudflare zone ID"),
+  name: z.string().min(1).max(255).describe("Record name"),
+  content: z.string().describe("Record content"),
+  ttl: z.number().int().min(30).max(86400).describe("TTL").optional(),
+  proxied: z.boolean().describe("Cloudflare proxy").optional(),
+  type: z.enum(["A", "AAAA", "CNAME", "MX", "TXT"]).describe("Record type"),
+});
+
+const ResourceSchema = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  type: z.string().optional(),
+  content: z.string().optional(),
+  ttl: z.number().optional(),
+  proxied: z.boolean().optional(),
+}).passthrough();
+
+type ResourceData = z.infer<typeof ResourceSchema>;
+
+const InputsSchema = z.object({
+  zone_id: z.string().optional(),
+  name: z.string().min(1).max(255).optional(),
+  content: z.string().optional(),
+  ttl: z.number().int().min(30).max(86400).optional(),
+  proxied: z.boolean().optional(),
+  type: z.enum(["A", "AAAA", "CNAME", "MX", "TXT"]).optional(),
+});
+
+/** Swamp extension model for Cloudflare DNS Record. Registered at \`@swamp/cloudflare/dns/dns-records\`. */
+export const model = {
+  type: "@swamp/cloudflare/dns/dns-records",
+  version: "2026.01.01.1",
+  globalArguments: GlobalArgsSchema,
+  inputsSchema: InputsSchema,
+  resources: {
+    state: {
+      description: "DNS Record resource state",
+      schema: ResourceSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+  },
+  methods: {
+    create: {
+      description: "Create a DNS Record",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/zones/" + g.zone_id + "/dns_records";
+        const body: Record<string, unknown> = {};
+        if (g.name !== undefined) body.name = g.name;
+        if (g.type !== undefined) body.type = g.type;
+        if (g.content !== undefined) body.content = g.content;
+        if (g.ttl !== undefined) body.ttl = g.ttl;
+        if (g.proxied !== undefined) body.proxied = g.proxied;
+        const result = await create(endpoint, body) as ResourceData;
+        const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const handle = await context.writeResource("state", instanceName, result);
+        return { dataHandles: [handle] };
+      },
+    },
+    get: {
+      description: "Get a DNS Record",
+      arguments: z.object({ id: z.string().describe("The ID of the DNS Record") }),
+      execute: async (args: { id: string }, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/zones/" + g.zone_id + "/dns_records";
+        const result = await read(endpoint, args.id) as ResourceData;
+        const instanceName = (g.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const handle = await context.writeResource("state", instanceName, result);
+        return { dataHandles: [handle] };
+      },
+    },
+    update: {
+      description: "Update DNS Record attributes",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/zones/" + g.zone_id + "/dns_records";
+        const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType, context.modelId, instanceName,
+        );
+        if (!content) throw new Error("No data found - run create first");
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const body: Record<string, unknown> = {};
+        if (g.name !== undefined) body.name = g.name;
+        if (g.content !== undefined) body.content = g.content;
+        if (g.ttl !== undefined) body.ttl = g.ttl;
+        if (g.proxied !== undefined) body.proxied = g.proxied;
+        const result = await update(endpoint, existing.id, body, "PATCH") as ResourceData;
+        const handle = await context.writeResource("state", instanceName, result);
+        return { dataHandles: [handle] };
+      },
+    },
+    delete: {
+      description: "Delete the DNS Record",
+      arguments: z.object({ id: z.string().describe("The ID of the DNS Record") }),
+      execute: async (args: { id: string }, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/zones/" + g.zone_id + "/dns_records";
+        const { existed } = await remove(endpoint, args.id);
+        const instanceName = (context.globalArgs.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const handle = await context.writeResource("state", instanceName, {
+          id: args.id,
+          existed,
+          status: existed ? "deleted" : "not_found",
+          deletedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+    sync: {
+      description: "Sync DNS Record state from Cloudflare",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/zones/" + g.zone_id + "/dns_records";
+        const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType, context.modelId, instanceName,
+        );
+        if (!content) throw new Error("No data found - run create or get first");
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        if (!existing.id) throw new Error("Stored state has no id - cannot sync");
+        const result = await tryRead(endpoint, existing.id) as ResourceData | null;
+        if (result) {
+          const handle = await context.writeResource("state", instanceName, result);
+          return { dataHandles: [handle] };
+        }
+        const handle = await context.writeResource("state", instanceName, {
+          id: existing.id,
+          status: "not_found",
+          syncedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+  },
+};
+'
+`;
+
+snapshot[`generateCloudflareExtensionModel - dual-scoped resource 1`] = `
+'// Auto-generated extension model for @swamp/cloudflare/rulesets/rulesets
+// Do not edit manually. Re-generate with: deno task generate:cloudflare
+
+// deno-lint-ignore-file no-explicit-any
+
+/**
+ * Swamp extension model for a Cloudflare Ruleset.
+ *
+ * Wraps the Cloudflare API as a swamp model so create, get, update,
+ * delete, and sync can be driven through \`swamp model\`.
+ *
+ * @module
+ */
+
+import { z } from "npm:zod@4.3.6";
+import { create, read, tryRead, remove, update } from "./_lib/cloudflare.ts";
+
+const GlobalArgsSchema = z.object({
+  account_id: z.string().optional().describe("Cloudflare account ID (provide account_id or zone_id)"),
+  zone_id: z.string().optional().describe("Cloudflare zone ID (provide account_id or zone_id)"),
+  name: z.string().describe("Ruleset name"),
+  kind: z.enum(["root", "zone", "managed"]).describe("Kind"),
+  phase: z.string().describe("Phase"),
+}).refine(
+  (d) => (d.account_id != null) !== (d.zone_id != null),
+  "Exactly one of account_id or zone_id must be provided",
+);
+
+const ResourceSchema = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  kind: z.string().optional(),
+  phase: z.string().optional(),
+  version: z.string().optional(),
+}).passthrough();
+
+type ResourceData = z.infer<typeof ResourceSchema>;
+
+const InputsSchema = z.object({
+  account_id: z.string().optional(),
+  zone_id: z.string().optional(),
+  name: z.string().optional(),
+  kind: z.enum(["root", "zone", "managed"]).optional(),
+  phase: z.string().optional(),
+});
+
+/** Swamp extension model for Cloudflare Ruleset. Registered at \`@swamp/cloudflare/rulesets/rulesets\`. */
+export const model = {
+  type: "@swamp/cloudflare/rulesets/rulesets",
+  version: "2026.01.01.1",
+  globalArguments: GlobalArgsSchema,
+  inputsSchema: InputsSchema,
+  resources: {
+    state: {
+      description: "Ruleset resource state",
+      schema: ResourceSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+  },
+  methods: {
+    create: {
+      description: "Create a Ruleset",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const scopePrefix = g.account_id ? "/accounts/" + g.account_id : "/zones/" + g.zone_id;
+        const endpoint = scopePrefix + "/rulesets";
+        const body: Record<string, unknown> = {};
+        if (g.name !== undefined) body.name = g.name;
+        if (g.kind !== undefined) body.kind = g.kind;
+        if (g.phase !== undefined) body.phase = g.phase;
+        const result = await create(endpoint, body) as ResourceData;
+        const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const handle = await context.writeResource("state", instanceName, result);
+        return { dataHandles: [handle] };
+      },
+    },
+    get: {
+      description: "Get a Ruleset",
+      arguments: z.object({ id: z.string().describe("The ID of the Ruleset") }),
+      execute: async (args: { id: string }, context: any) => {
+        const g = context.globalArgs;
+        const scopePrefix = g.account_id ? "/accounts/" + g.account_id : "/zones/" + g.zone_id;
+        const endpoint = scopePrefix + "/rulesets";
+        const result = await read(endpoint, args.id) as ResourceData;
+        const instanceName = (g.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const handle = await context.writeResource("state", instanceName, result);
+        return { dataHandles: [handle] };
+      },
+    },
+    update: {
+      description: "Update Ruleset attributes",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const scopePrefix = g.account_id ? "/accounts/" + g.account_id : "/zones/" + g.zone_id;
+        const endpoint = scopePrefix + "/rulesets";
+        const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType, context.modelId, instanceName,
+        );
+        if (!content) throw new Error("No data found - run create first");
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const body: Record<string, unknown> = {};
+        if (g.name !== undefined) body.name = g.name;
+        const result = await update(endpoint, existing.id, body, "PUT") as ResourceData;
+        const handle = await context.writeResource("state", instanceName, result);
+        return { dataHandles: [handle] };
+      },
+    },
+    delete: {
+      description: "Delete the Ruleset",
+      arguments: z.object({ id: z.string().describe("The ID of the Ruleset") }),
+      execute: async (args: { id: string }, context: any) => {
+        const g = context.globalArgs;
+        const scopePrefix = g.account_id ? "/accounts/" + g.account_id : "/zones/" + g.zone_id;
+        const endpoint = scopePrefix + "/rulesets";
+        const { existed } = await remove(endpoint, args.id);
+        const instanceName = (context.globalArgs.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const handle = await context.writeResource("state", instanceName, {
+          id: args.id,
+          existed,
+          status: existed ? "deleted" : "not_found",
+          deletedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+    sync: {
+      description: "Sync Ruleset state from Cloudflare",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const scopePrefix = g.account_id ? "/accounts/" + g.account_id : "/zones/" + g.zone_id;
+        const endpoint = scopePrefix + "/rulesets";
+        const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType, context.modelId, instanceName,
+        );
+        if (!content) throw new Error("No data found - run create or get first");
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        if (!existing.id) throw new Error("Stored state has no id - cannot sync");
+        const result = await tryRead(endpoint, existing.id) as ResourceData | null;
+        if (result) {
+          const handle = await context.writeResource("state", instanceName, result);
+          return { dataHandles: [handle] };
+        }
+        const handle = await context.writeResource("state", instanceName, {
+          id: existing.id,
+          status: "not_found",
+          syncedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+  },
+};
+'
+`;
+
+snapshot[`generateCloudflareExtensionModel - synthetic name 1`] = `
+'// Auto-generated extension model for @swamp/cloudflare/addressing/address-maps
+// Do not edit manually. Re-generate with: deno task generate:cloudflare
+
+// deno-lint-ignore-file no-explicit-any
+
+/**
+ * Swamp extension model for a Cloudflare Address Map.
+ *
+ * Wraps the Cloudflare API as a swamp model so create, get, update,
+ * delete, and sync can be driven through \`swamp model\`.
+ *
+ * @module
+ */
+
+import { z } from "npm:zod@4.3.6";
+import { create, read, tryRead, remove, update } from "./_lib/cloudflare.ts";
+
+const GlobalArgsSchema = z.object({
+  account_id: z.string().describe("Cloudflare account ID"),
+  name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),
+  enabled: z.boolean().describe("Whether the address map is enabled").optional(),
+});
+
+const ResourceSchema = z.object({
+  id: z.string(),
+  enabled: z.boolean().optional(),
+  created_at: z.string().optional(),
+}).passthrough();
+
+type ResourceData = z.infer<typeof ResourceSchema>;
+
+const InputsSchema = z.object({
+  account_id: z.string().optional(),
+  name: z.string().optional(),
+  enabled: z.boolean().optional(),
+});
+
+/** Swamp extension model for Cloudflare Address Map. Registered at \`@swamp/cloudflare/addressing/address-maps\`. */
+export const model = {
+  type: "@swamp/cloudflare/addressing/address-maps",
+  version: "2026.01.01.1",
+  globalArguments: GlobalArgsSchema,
+  inputsSchema: InputsSchema,
+  resources: {
+    state: {
+      description: "Address Map resource state",
+      schema: ResourceSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+  },
+  methods: {
+    create: {
+      description: "Create a Address Map",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id + "/addressing/address_maps";
+        const body: Record<string, unknown> = {};
+        if (g.enabled !== undefined) body.enabled = g.enabled;
+        const result = await create(endpoint, body) as ResourceData;
+        const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const handle = await context.writeResource("state", instanceName, result);
+        return { dataHandles: [handle] };
+      },
+    },
+    get: {
+      description: "Get a Address Map",
+      arguments: z.object({ id: z.string().describe("The ID of the Address Map") }),
+      execute: async (args: { id: string }, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id + "/addressing/address_maps";
+        const result = await read(endpoint, args.id) as ResourceData;
+        const instanceName = (g.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const handle = await context.writeResource("state", instanceName, result);
+        return { dataHandles: [handle] };
+      },
+    },
+    update: {
+      description: "Update Address Map attributes",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id + "/addressing/address_maps";
+        const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType, context.modelId, instanceName,
+        );
+        if (!content) throw new Error("No data found - run create first");
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const body: Record<string, unknown> = {};
+        if (g.enabled !== undefined) body.enabled = g.enabled;
+        const result = await update(endpoint, existing.id, body, "PATCH") as ResourceData;
+        const handle = await context.writeResource("state", instanceName, result);
+        return { dataHandles: [handle] };
+      },
+    },
+    delete: {
+      description: "Delete the Address Map",
+      arguments: z.object({ id: z.string().describe("The ID of the Address Map") }),
+      execute: async (args: { id: string }, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id + "/addressing/address_maps";
+        const { existed } = await remove(endpoint, args.id);
+        const instanceName = (context.globalArgs.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const handle = await context.writeResource("state", instanceName, {
+          id: args.id,
+          existed,
+          status: existed ? "deleted" : "not_found",
+          deletedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+    sync: {
+      description: "Sync Address Map state from Cloudflare",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id + "/addressing/address_maps";
+        const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType, context.modelId, instanceName,
+        );
+        if (!content) throw new Error("No data found - run create or get first");
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        if (!existing.id) throw new Error("Stored state has no id - cannot sync");
+        const result = await tryRead(endpoint, existing.id) as ResourceData | null;
+        if (result) {
+          const handle = await context.writeResource("state", instanceName, result);
+          return { dataHandles: [handle] };
+        }
+        const handle = await context.writeResource("state", instanceName, {
+          id: existing.id,
+          status: "not_found",
+          syncedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+  },
+};
+'
+`;
+
+snapshot[`generateCloudflareExtensionModel - with upgrades block 1`] = `
+'// Auto-generated extension model for @swamp/cloudflare/workers/scripts
+// Do not edit manually. Re-generate with: deno task generate:cloudflare
+
+// deno-lint-ignore-file no-explicit-any
+
+/**
+ * Swamp extension model for a Cloudflare Worker Script.
+ *
+ * Wraps the Cloudflare API as a swamp model so create, get, update,
+ * delete, and sync can be driven through \`swamp model\`.
+ *
+ * @module
+ */
+
+import { z } from "npm:zod@4.3.6";
+import { create, read, tryRead, remove } from "./_lib/cloudflare.ts";
+
+const GlobalArgsSchema = z.object({
+  account_id: z.string().describe("Cloudflare account ID"),
+  name: z.string().describe("Script name"),
+});
+
+const ResourceSchema = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  created_on: z.string().optional(),
+  modified_on: z.string().optional(),
+}).passthrough();
+
+type ResourceData = z.infer<typeof ResourceSchema>;
+
+const InputsSchema = z.object({
+  account_id: z.string().optional(),
+  name: z.string().optional(),
+});
+
+/** Swamp extension model for Cloudflare Worker Script. Registered at \`@swamp/cloudflare/workers/scripts\`. */
+export const model = {
+  type: "@swamp/cloudflare/workers/scripts",
+  version: "2026.01.02.1",
+  upgrades: [
+    {
+      toVersion: "2026.01.02.1",
+      description: "Added: metadata field",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
+  globalArguments: GlobalArgsSchema,
+  inputsSchema: InputsSchema,
+  resources: {
+    state: {
+      description: "Worker Script resource state",
+      schema: ResourceSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+  },
+  methods: {
+    create: {
+      description: "Create a Worker Script",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id + "/workers/scripts";
+        const body: Record<string, unknown> = {};
+        if (g.name !== undefined) body.name = g.name;
+        const result = await create(endpoint, body) as ResourceData;
+        const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const handle = await context.writeResource("state", instanceName, result);
+        return { dataHandles: [handle] };
+      },
+    },
+    get: {
+      description: "Get a Worker Script",
+      arguments: z.object({ id: z.string().describe("The ID of the Worker Script") }),
+      execute: async (args: { id: string }, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id + "/workers/scripts";
+        const result = await read(endpoint, args.id) as ResourceData;
+        const instanceName = (g.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const handle = await context.writeResource("state", instanceName, result);
+        return { dataHandles: [handle] };
+      },
+    },
+    delete: {
+      description: "Delete the Worker Script",
+      arguments: z.object({ id: z.string().describe("The ID of the Worker Script") }),
+      execute: async (args: { id: string }, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id + "/workers/scripts";
+        const { existed } = await remove(endpoint, args.id);
+        const instanceName = (context.globalArgs.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const handle = await context.writeResource("state", instanceName, {
+          id: args.id,
+          existed,
+          status: existed ? "deleted" : "not_found",
+          deletedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+    sync: {
+      description: "Sync Worker Script state from Cloudflare",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id + "/workers/scripts";
+        const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType, context.modelId, instanceName,
+        );
+        if (!content) throw new Error("No data found - run create or get first");
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        if (!existing.name) throw new Error("Stored state has no name - cannot sync");
+        const result = await tryRead(endpoint, existing.name) as ResourceData | null;
+        if (result) {
+          const handle = await context.writeResource("state", instanceName, result);
+          return { dataHandles: [handle] };
+        }
+        const handle = await context.writeResource("state", instanceName, {
+          id: existing.name,
+          status: "not_found",
+          syncedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+  },
+};
+'
+`;

@@ -1,0 +1,31 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/cloudflare/cloudforce-one"
+version: "2026.05.22.1"
+description: "Cloudflare cloudforce-one infrastructure models"
+repository: "https://github.com/systeminit/swamp-extensions"
+labels:
+  - cloudflare
+  - cloudforce-one
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: groups
+  - Added: requests
+  - Added: priority
+  - Added: rules
+  - Added: templates
+  - Added: takedown-notices
+  - Added: collections
+models:
+  - collections.ts
+  - groups.ts
+  - priority.ts
+  - requests.ts
+  - rules.ts
+  - takedown-notices.ts
+  - templates.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

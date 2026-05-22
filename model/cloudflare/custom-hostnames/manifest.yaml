@@ -1,0 +1,19 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/cloudflare/custom-hostnames"
+version: "2026.05.22.1"
+description: "Cloudflare custom-hostnames infrastructure models"
+repository: "https://github.com/systeminit/swamp-extensions"
+labels:
+  - cloudflare
+  - custom-hostnames
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: custom_hostnames
+models:
+  - custom_hostnames.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

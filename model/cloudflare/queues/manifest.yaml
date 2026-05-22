@@ -1,0 +1,19 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/cloudflare/queues"
+version: "2026.05.22.1"
+description: "Cloudflare queues infrastructure models"
+repository: "https://github.com/systeminit/swamp-extensions"
+labels:
+  - cloudflare
+  - queues
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: queues
+models:
+  - queues.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

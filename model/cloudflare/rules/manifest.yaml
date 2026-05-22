@@ -1,0 +1,19 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/cloudflare/rules"
+version: "2026.05.22.1"
+description: "Cloudflare rules infrastructure models"
+repository: "https://github.com/systeminit/swamp-extensions"
+labels:
+  - cloudflare
+  - rules
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: lists
+models:
+  - lists.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

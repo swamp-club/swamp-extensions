@@ -1,0 +1,19 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/cloudflare/tokens"
+version: "2026.05.22.1"
+description: "Cloudflare tokens infrastructure models"
+repository: "https://github.com/systeminit/swamp-extensions"
+labels:
+  - cloudflare
+  - tokens
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: tokens
+models:
+  - tokens.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

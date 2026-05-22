@@ -1,0 +1,19 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/cloudflare/urlscanner"
+version: "2026.05.22.1"
+description: "Cloudflare urlscanner infrastructure models"
+repository: "https://github.com/systeminit/swamp-extensions"
+labels:
+  - cloudflare
+  - urlscanner
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: scan
+models:
+  - scan.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

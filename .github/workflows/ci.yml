@@ -523,6 +523,59 @@ jobs:
             exit 1
           fi
 
+  cloudflare-check:
+    name: cloudflare models - ${{ matrix.task }}
+    needs: [changes]
+    if: needs.changes.outputs.models == 'true' || needs.changes.outputs.codegen == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [check, lint, fmt]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: deno ${{ matrix.task }}
+        run: |
+          if [ "${{ matrix.task }}" = "fmt" ]; then
+            find model/cloudflare -name "*.ts" -path "*/extensions/models/*" | xargs deno fmt --no-config --check
+          elif [ "${{ matrix.task }}" = "lint" ]; then
+            find model/cloudflare -name "*.ts" -path "*/extensions/models/*" | xargs deno lint --no-config
+          else
+            for service in model/cloudflare/*/; do
+              (cd "$service" && deno check extensions/models/*.ts)
+            done
+          fi
+
+  cloudflare-lockfile:
+    name: cloudflare models - lockfiles up to date
+    needs: [changes]
+    if: needs.changes.outputs.models == 'true' || needs.changes.outputs.codegen == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Verify all Cloudflare lockfiles are up to date
+        run: |
+          failed=false
+          for service in model/cloudflare/*/; do
+            if ! (cd "$service" && deno install --frozen 2>&1); then
+              echo "::error::Lockfile out of date in $service"
+              failed=true
+            fi
+          done
+          if [ "$failed" = true ]; then
+            exit 1
+          fi
+
   codegen-check:
     name: codegen - ${{ matrix.task }}
     needs: [changes]
@@ -629,6 +682,8 @@ jobs:
         model-lockfile,
         aws-check,
         aws-lockfile,
+        cloudflare-check,
+        cloudflare-lockfile,
         gcp-check,
         gcp-lockfile,
         codegen-check,
@@ -773,6 +828,8 @@ jobs:
         cve-lockfile,
         aws-check,
         aws-lockfile,
+        cloudflare-check,
+        cloudflare-lockfile,
         gcp-check,
         gcp-lockfile,
         codegen-check,

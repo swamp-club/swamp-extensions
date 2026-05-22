@@ -1,0 +1,397 @@
+// Auto-generated extension model for @swamp/cloudflare/workers/workers
+// Do not edit manually. Re-generate with: deno task generate:cloudflare
+
+// deno-lint-ignore-file no-explicit-any
+
+/**
+ * Swamp extension model for a Cloudflare Workers.
+ *
+ * Wraps the Cloudflare API as a swamp model so create, get, update,
+ * delete, and sync can be driven through `swamp model`.
+ *
+ * @module
+ */
+
+import { z } from "npm:zod@4.3.6";
+import { create, read, remove, tryRead, update } from "./_lib/cloudflare.ts";
+
+const GlobalArgsSchema = z.object({
+  account_id: z.string().describe("Cloudflare account ID"),
+  created_on: z.string().describe("When the Worker was created."),
+  deployed_on: z.string().describe(
+    "When the Worker's most recent deployment was created. `null` if the Worker has never been deployed.",
+  ).optional(),
+  id: z.string().describe("Immutable ID of the Worker."),
+  logpush: z.boolean().describe("Whether logpush is enabled for the Worker."),
+  name: z.string().regex(new RegExp("^[a-z0-9_][a-z0-9-_]*$")).describe(
+    "Name of the Worker.",
+  ),
+  observability: z.object({
+    enabled: z.boolean().optional(),
+    head_sampling_rate: z.number().optional(),
+    logs: z.object({
+      destinations: z.array(z.string()).optional(),
+      enabled: z.boolean().optional(),
+      head_sampling_rate: z.number().optional(),
+      invocation_logs: z.boolean().optional(),
+      persist: z.boolean().optional(),
+    }).optional(),
+    traces: z.object({
+      destinations: z.array(z.string()).optional(),
+      enabled: z.boolean().optional(),
+      head_sampling_rate: z.number().optional(),
+      persist: z.boolean().optional(),
+      propagation_policy: z.enum(["authenticated", "accept"]).optional(),
+    }).optional(),
+  }).describe("Observability settings for the Worker."),
+  references: z.object({
+    dispatch_namespace_outbounds: z.array(z.object({
+      namespace_id: z.string(),
+      namespace_name: z.string(),
+      worker_id: z.string(),
+      worker_name: z.string(),
+    })),
+    domains: z.array(z.object({
+      certificate_id: z.string(),
+      hostname: z.string(),
+      id: z.string(),
+      zone_id: z.string(),
+      zone_name: z.string(),
+    })),
+    durable_objects: z.array(z.object({
+      namespace_id: z.string(),
+      namespace_name: z.string(),
+      worker_id: z.string(),
+      worker_name: z.string(),
+    })),
+    queues: z.array(z.object({
+      queue_consumer_id: z.string(),
+      queue_id: z.string(),
+      queue_name: z.string(),
+    })),
+    workers: z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+    })),
+  }).describe(
+    "Other resources that reference the Worker and depend on it existing.",
+  ),
+  subdomain: z.object({
+    enabled: z.boolean().optional(),
+    previews_enabled: z.boolean().optional(),
+  }).describe("Subdomain settings for the Worker."),
+  tags: z.array(z.string().max(1024).regex(new RegExp("^[^,&]*$"))).describe(
+    "Tags associated with the Worker.",
+  ),
+  tail_consumers: z.array(z.object({
+    name: z.string(),
+  })).describe("Other Workers that should consume logs from the Worker."),
+  updated_on: z.string().describe("When the Worker was most recently updated."),
+});
+
+const ResourceSchema = z.object({
+  created_on: z.string().optional(),
+  deployed_on: z.string().optional(),
+  id: z.string(),
+  logpush: z.boolean().optional(),
+  name: z.string().optional(),
+  observability: z.object({
+    enabled: z.boolean().optional(),
+    head_sampling_rate: z.number().optional(),
+    logs: z.object({
+      destinations: z.array(z.string()).optional(),
+      enabled: z.boolean().optional(),
+      head_sampling_rate: z.number().optional(),
+      invocation_logs: z.boolean().optional(),
+      persist: z.boolean().optional(),
+    }).optional(),
+    traces: z.object({
+      destinations: z.array(z.string()).optional(),
+      enabled: z.boolean().optional(),
+      head_sampling_rate: z.number().optional(),
+      persist: z.boolean().optional(),
+      propagation_policy: z.string().optional(),
+    }).optional(),
+  }).optional(),
+  references: z.object({
+    dispatch_namespace_outbounds: z.array(z.object({
+      namespace_id: z.string().optional(),
+      namespace_name: z.string().optional(),
+      worker_id: z.string().optional(),
+      worker_name: z.string().optional(),
+    })).optional(),
+    domains: z.array(z.object({
+      certificate_id: z.string().optional(),
+      hostname: z.string().optional(),
+      id: z.string().optional(),
+      zone_id: z.string().optional(),
+      zone_name: z.string().optional(),
+    })).optional(),
+    durable_objects: z.array(z.object({
+      namespace_id: z.string().optional(),
+      namespace_name: z.string().optional(),
+      worker_id: z.string().optional(),
+      worker_name: z.string().optional(),
+    })).optional(),
+    queues: z.array(z.object({
+      queue_consumer_id: z.string().optional(),
+      queue_id: z.string().optional(),
+      queue_name: z.string().optional(),
+    })).optional(),
+    workers: z.array(z.object({
+      id: z.string().optional(),
+      name: z.string().optional(),
+    })).optional(),
+  }).optional(),
+  subdomain: z.object({
+    enabled: z.boolean().optional(),
+    previews_enabled: z.boolean().optional(),
+  }).optional(),
+  tags: z.array(z.string()).optional(),
+  tail_consumers: z.array(z.object({
+    name: z.string().optional(),
+  })).optional(),
+  updated_on: z.string().optional(),
+}).passthrough();
+
+type ResourceData = z.infer<typeof ResourceSchema>;
+
+const InputsSchema = z.object({
+  account_id: z.string().optional(),
+  created_on: z.string().optional(),
+  deployed_on: z.string().optional(),
+  id: z.string().optional(),
+  logpush: z.boolean().optional(),
+  name: z.string().regex(new RegExp("^[a-z0-9_][a-z0-9-_]*$")).optional(),
+  observability: z.object({
+    enabled: z.boolean().optional(),
+    head_sampling_rate: z.number().optional(),
+    logs: z.object({
+      destinations: z.array(z.string()).optional(),
+      enabled: z.boolean().optional(),
+      head_sampling_rate: z.number().optional(),
+      invocation_logs: z.boolean().optional(),
+      persist: z.boolean().optional(),
+    }).optional(),
+    traces: z.object({
+      destinations: z.array(z.string()).optional(),
+      enabled: z.boolean().optional(),
+      head_sampling_rate: z.number().optional(),
+      persist: z.boolean().optional(),
+      propagation_policy: z.enum(["authenticated", "accept"]).optional(),
+    }).optional(),
+  }).optional(),
+  references: z.object({
+    dispatch_namespace_outbounds: z.array(z.object({
+      namespace_id: z.string(),
+      namespace_name: z.string(),
+      worker_id: z.string(),
+      worker_name: z.string(),
+    })),
+    domains: z.array(z.object({
+      certificate_id: z.string(),
+      hostname: z.string(),
+      id: z.string(),
+      zone_id: z.string(),
+      zone_name: z.string(),
+    })),
+    durable_objects: z.array(z.object({
+      namespace_id: z.string(),
+      namespace_name: z.string(),
+      worker_id: z.string(),
+      worker_name: z.string(),
+    })),
+    queues: z.array(z.object({
+      queue_consumer_id: z.string(),
+      queue_id: z.string(),
+      queue_name: z.string(),
+    })),
+    workers: z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+    })),
+  }).optional(),
+  subdomain: z.object({
+    enabled: z.boolean().optional(),
+    previews_enabled: z.boolean().optional(),
+  }).optional(),
+  tags: z.array(z.string().max(1024).regex(new RegExp("^[^,&]*$"))).optional(),
+  tail_consumers: z.array(z.object({
+    name: z.string(),
+  })).optional(),
+  updated_on: z.string().optional(),
+});
+
+/** Swamp extension model for Cloudflare Workers. Registered at `@swamp/cloudflare/workers/workers`. */
+export const model = {
+  type: "@swamp/cloudflare/workers/workers",
+  version: "2026.05.22.1",
+  globalArguments: GlobalArgsSchema,
+  inputsSchema: InputsSchema,
+  resources: {
+    state: {
+      description: "Workers resource state",
+      schema: ResourceSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+  },
+  methods: {
+    create: {
+      description: "Create a Workers",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id + "/workers/workers";
+        const body: Record<string, unknown> = {};
+        if (g.created_on !== undefined) body.created_on = g.created_on;
+        if (g.deployed_on !== undefined) body.deployed_on = g.deployed_on;
+        if (g.id !== undefined) body.id = g.id;
+        if (g.logpush !== undefined) body.logpush = g.logpush;
+        if (g.name !== undefined) body.name = g.name;
+        if (g.observability !== undefined) body.observability = g.observability;
+        if (g.references !== undefined) body.references = g.references;
+        if (g.subdomain !== undefined) body.subdomain = g.subdomain;
+        if (g.tags !== undefined) body.tags = g.tags;
+        if (g.tail_consumers !== undefined) {
+          body.tail_consumers = g.tail_consumers;
+        }
+        if (g.updated_on !== undefined) body.updated_on = g.updated_on;
+        const result = await create(endpoint, body) as ResourceData;
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    get: {
+      description: "Get a Workers",
+      arguments: z.object({ id: z.string().describe("The ID of the Workers") }),
+      execute: async (args: { id: string }, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id + "/workers/workers";
+        const result = await read(endpoint, args.id) as ResourceData;
+        const instanceName = (g.name?.toString() ?? args.id).replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    update: {
+      description: "Update Workers attributes",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id + "/workers/workers";
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) throw new Error("No data found - run create first");
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const body: Record<string, unknown> = {};
+        if (g.created_on !== undefined) body.created_on = g.created_on;
+        if (g.deployed_on !== undefined) body.deployed_on = g.deployed_on;
+        if (g.id !== undefined) body.id = g.id;
+        if (g.logpush !== undefined) body.logpush = g.logpush;
+        if (g.name !== undefined) body.name = g.name;
+        if (g.observability !== undefined) body.observability = g.observability;
+        if (g.references !== undefined) body.references = g.references;
+        if (g.subdomain !== undefined) body.subdomain = g.subdomain;
+        if (g.tags !== undefined) body.tags = g.tags;
+        if (g.tail_consumers !== undefined) {
+          body.tail_consumers = g.tail_consumers;
+        }
+        if (g.updated_on !== undefined) body.updated_on = g.updated_on;
+        const result = await update(
+          endpoint,
+          existing.id,
+          body,
+          "PATCH",
+        ) as ResourceData;
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    delete: {
+      description: "Delete the Workers",
+      arguments: z.object({ id: z.string().describe("The ID of the Workers") }),
+      execute: async (args: { id: string }, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id + "/workers/workers";
+        const { existed } = await remove(endpoint, args.id);
+        const instanceName = (context.globalArgs.name?.toString() ?? args.id)
+          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource("state", instanceName, {
+          id: args.id,
+          existed,
+          status: existed ? "deleted" : "not_found",
+          deletedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+    sync: {
+      description: "Sync Workers state from Cloudflare",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id + "/workers/workers";
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error("No data found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        if (!existing.id) {
+          throw new Error("Stored state has no id - cannot sync");
+        }
+        const result = await tryRead(endpoint, existing.id) as
+          | ResourceData
+          | null;
+        if (result) {
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            result,
+          );
+          return { dataHandles: [handle] };
+        }
+        const handle = await context.writeResource("state", instanceName, {
+          id: existing.id,
+          status: "not_found",
+          syncedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+  },
+};

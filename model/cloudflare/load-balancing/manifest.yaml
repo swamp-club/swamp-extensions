@@ -1,0 +1,29 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/cloudflare/load-balancing"
+version: "2026.05.22.1"
+description: "Cloudflare load-balancing infrastructure models"
+repository: "https://github.com/systeminit/swamp-extensions"
+labels:
+  - cloudflare
+  - load-balancing
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: healthchecks
+  - Added: preview
+  - Added: load_balancers
+  - Added: monitor_groups
+  - Added: monitors
+  - Added: pools
+models:
+  - healthchecks.ts
+  - load_balancers.ts
+  - monitor_groups.ts
+  - monitors.ts
+  - pools.ts
+  - preview.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []
