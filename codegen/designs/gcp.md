@@ -893,7 +893,60 @@ projections.
 
 ---
 
-## 18. Differences from AWS, Hetzner, and DigitalOcean
+## 18. Enrichments
+
+Enrichments add non-schema-derived capabilities to generated models. The
+enrichment source is real, type-checkable TypeScript (`.enrich.ts` files) that
+is parsed and inlined at generation time. This keeps the codegen pipeline
+schema-faithful while allowing per-resource extensions.
+
+See the [AWS design doc](aws.md) for the original enrichment pattern (read-path
+enrichment via `enrichState`). GCP extends this pattern with a method injection
+insertion point for adding new action methods.
+
+### File structure
+
+```
+codegen/gcp/enrichments/
+├── types.ts                    # GcpEnrichment interface
+├── parser.ts                   # parseEnrichmentSource()
+├── parser_test.ts              # Parser tests
+├── index.ts                    # Registry: getEnrichment(), getServiceEnrichmentImports()
+├── storage-buckets.ts          # Metadata (resourceId, methodsExport, npmImports)
+└── storage-buckets.enrich.ts   # Real TypeScript source
+```
+
+### Insertion points
+
+The GCP extension model generator has four insertion points for enrichment:
+
+1. **Imports** — SDK imports from the `.enrich.ts` file, added after helper
+   imports. The `request()` function is also imported from `_lib/gcp.ts` when
+   enrichment is present.
+2. **Body** — schemas and helper code, inlined between `GlobalArgsSchema` and
+   `StateSchema`.
+3. **StateSchema fields** — extra Zod fields inside the `StateSchema` object
+   (not used by the current enrichment).
+4. **Methods** — additional method definitions spread into the model's `methods`
+   object after the action method loop: `...iamBindingMethods,`.
+
+### Creating a new enrichment
+
+1. Create `<resource>.enrich.ts` with exported schemas/functions and a methods
+   object.
+2. Create `<resource>.ts` metadata file registering the `GcpEnrichment`.
+3. Import and add to the `ENRICHMENTS` array in `index.ts`.
+4. Regenerate the affected service.
+
+### Current enrichments
+
+| Resource          | Methods                                 | Description                                                                 |
+| ----------------- | --------------------------------------- | --------------------------------------------------------------------------- |
+| `storage.buckets` | `add_iam_binding`, `remove_iam_binding` | Granular IAM binding management via read-modify-write with etag concurrency |
+
+---
+
+## 19. Differences from AWS, Hetzner, and DigitalOcean
 
 | Aspect              | GCP                                                 | AWS                                                     | Hetzner / DigitalOcean        |
 | ------------------- | --------------------------------------------------- | ------------------------------------------------------- | ----------------------------- |
@@ -908,6 +961,7 @@ projections.
 | Readiness polling   | Auto-detected from status enums                     | Not applicable                                          | Not applicable                |
 | Concurrency control | fingerprint/etag auto-carried in updates            | Not applicable (JSON Patch)                             | Not applicable                |
 | Action methods      | Auto-collected from non-CRUD Discovery methods      | Not applicable                                          | Discriminator-based (DO)      |
+| Enrichments         | Per-resource `.enrich.ts` files (see §18)           | Per-resource `.enrich.ts` files (see AWS design doc)    | Not applicable                |
 | Update mechanism    | PUT/PATCH with body from update-specific properties | JSON Patch (RFC 6902)                                   | PUT (Hetzner) / PATCH (DO)    |
 | Property provenance | Tracked (insert vs update properties)               | Not needed (single property set)                        | Create-only tracked (DO)      |
 | Auth                | Service account JSON, file path, or ADC             | SDK default credential chain                            | API token env var             |

@@ -24,6 +24,11 @@ import {
   formatFile,
 } from "../shared/version.ts";
 import { computeUpgradesBlock } from "../shared/upgradesGenerator.ts";
+import {
+  getEnrichment,
+  getServiceEnrichmentImports,
+  parseEnrichmentSource,
+} from "./enrichments/index.ts";
 
 const GCP_DISCOVERY_URL = "https://www.googleapis.com/discovery/v1/apis";
 
@@ -620,6 +625,18 @@ export async function generateGcpModels(options: {
         const fileName = `${resourcePathToFileName(resource.resourcePath)}.ts`;
         const filePath = `extensions/models/${fileName}`;
 
+        // Look up enrichment for this resource
+        const enrichmentResourceId = `${resource.service}.${
+          resource.resourcePath.join(".")
+        }`;
+        const rawEnrichment = getEnrichment(enrichmentResourceId);
+        const enrichment = rawEnrichment
+          ? {
+            source: await parseEnrichmentSource(rawEnrichment.sourceFile),
+            methodsExport: rawEnrichment.methodsExport,
+          }
+          : undefined;
+
         // Generate with placeholder version for change detection
         const candidateCode = generateGcpExtensionModel({
           resource,
@@ -628,6 +645,7 @@ export async function generateGcpModels(options: {
           version: placeholderVersion,
           modelType,
           extensionName,
+          enrichment,
         });
 
         const versionResult = await computeModelVersion(
@@ -683,6 +701,7 @@ export async function generateGcpModels(options: {
           modelType,
           extensionName,
           upgradesBlock,
+          enrichment,
         });
 
         models.push({ filePath, sourceCode });
@@ -723,9 +742,14 @@ export async function generateGcpModels(options: {
       filePath: "LICENSE.txt",
       sourceCode: generateLicense(),
     };
+    const enrichmentImports = getServiceEnrichmentImports(
+      resources.map((r) => ({
+        resourceId: `${r.service}.${r.resourcePath.join(".")}`,
+      })),
+    );
     const denoConfigFile: GcpGeneratedFile = {
       filePath: "deno.json",
-      sourceCode: generateGcpDenoConfig(),
+      sourceCode: generateGcpDenoConfig(enrichmentImports),
     };
 
     // Detect README/LICENSE changes

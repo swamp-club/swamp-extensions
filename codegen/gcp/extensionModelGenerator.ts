@@ -4,6 +4,7 @@
 import type { ZodGeneratorResult } from "../shared/zodGenerator.ts";
 import type { OnlyProperties } from "../shared/schema/types.ts";
 import type { GcpParsedResource } from "./pipeline.ts";
+import type { ParsedEnrichmentSource } from "./enrichments/types.ts";
 import { wrapWithSanitize } from "../shared/instanceName.ts";
 
 /**
@@ -29,6 +30,11 @@ export interface GcpExtensionModelInput {
   extensionName: string;
   /** Pre-built upgrades block to insert after version line */
   upgradesBlock?: string;
+  /** Parsed enrichment source to inline into the generated model */
+  enrichment?: {
+    source: ParsedEnrichmentSource;
+    methodsExport: string;
+  };
 }
 
 /**
@@ -126,9 +132,15 @@ export function generateGcpExtensionModel(
     helperImports.push("readResource");
   }
   if (resource.handlers.update) helperImports.push("updateResource");
+  if (input.enrichment) helperImports.push("request");
   lines.push(
     `import { ${helperImports.sort().join(", ")} } from "./_lib/gcp.ts";`,
   );
+  if (input.enrichment) {
+    for (const imp of input.enrichment.source.imports) {
+      lines.push(imp);
+    }
+  }
   lines.push("");
 
   // For resources using {+name} pattern, emit a helper to build the full resource name
@@ -233,6 +245,12 @@ export function generateGcpExtensionModel(
   }
   lines.push(`});`);
   lines.push("");
+
+  // Enrichment body (schemas + methods object inlined from .enrich.ts source)
+  if (input.enrichment) {
+    lines.push(input.enrichment.source.body);
+    lines.push("");
+  }
 
   // StateSchema
   lines.push(`const ${stateSchemaName} = z.object({`);
@@ -1246,6 +1264,13 @@ export function generateGcpExtensionModel(
     lines.push(`        return { result };`);
     lines.push(`      },`);
     lines.push(`    },`);
+  }
+
+  // Enrichment methods — splice additional method definitions from the enrichment
+  if (input.enrichment) {
+    lines.push(
+      `    ...${input.enrichment.methodsExport},`,
+    );
   }
 
   lines.push(`  },`);
