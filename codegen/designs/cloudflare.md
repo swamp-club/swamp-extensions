@@ -116,13 +116,13 @@ target.
 
 ### Cloudflare-specific OpenAPI extensions
 
-| Extension                  | Coverage   | Use                               |
-| -------------------------- | ---------- | --------------------------------- |
-| `x-cfPlanAvailability`     | 1,332 ops  | Plan tier requirements (free/pro/biz/ent) |
-| `x-cfPermissionsRequired`  | 674 ops    | Required API token permissions    |
-| `x-cfDeprecation`          | Some       | Deprecation notices               |
-| `x-sensitive`              | Some       | Marks sensitive fields            |
-| `x-api-token-group`        | Some       | Token permission grouping         |
+| Extension                 | Coverage  | Use                                       |
+| ------------------------- | --------- | ----------------------------------------- |
+| `x-cfPlanAvailability`    | 1,332 ops | Plan tier requirements (free/pro/biz/ent) |
+| `x-cfPermissionsRequired` | 674 ops   | Required API token permissions            |
+| `x-cfDeprecation`         | Some      | Deprecation notices                       |
+| `x-sensitive`             | Some      | Marks sensitive fields                    |
+| `x-api-token-group`       | Some      | Token permission grouping                 |
 
 The `x-cfPlanAvailability` data could be surfaced in model descriptions but is
 not needed for functional codegen. `x-sensitive` could inform which fields to
@@ -135,12 +135,12 @@ redact in logs.
 Cloudflare resources are scoped to one of three levels, determined by the path
 prefix:
 
-| Scope   | Path prefix                  | Path count | Examples                        |
-| ------- | ---------------------------- | ---------- | ------------------------------- |
-| Account | `/accounts/{account_id}/...` | 1,254      | Workers, R2, Zero Trust, D1     |
-| Zone    | `/zones/{zone_id}/...`       | 318        | DNS, WAF, Cache, Page Rules     |
-| User    | `/user/...`                  | 29         | API Tokens, User Profile        |
-| Other   | Various                      | 309        | Radar (read-only), Orgs, Certs  |
+| Scope   | Path prefix                  | Path count | Examples                       |
+| ------- | ---------------------------- | ---------- | ------------------------------ |
+| Account | `/accounts/{account_id}/...` | 1,254      | Workers, R2, Zero Trust, D1    |
+| Zone    | `/zones/{zone_id}/...`       | 318        | DNS, WAF, Cache, Page Rules    |
+| User    | `/user/...`                  | 29         | API Tokens, User Profile       |
+| Other   | Various                      | 309        | Radar (read-only), Orgs, Certs |
 
 ### Dual-scoped resources
 
@@ -151,19 +151,19 @@ patterns:
 versions share identical sub-paths and request/response schemas (e.g.,
 `rulesets`, `logpush/jobs`, `custom_pages`). Only the scope prefix differs.
 
-**Pattern B — Mostly account, few zone paths** (6 services): The bulk of the
-API is account-scoped with a small zone-scoped subset (e.g., `workers` has 58
+**Pattern B — Mostly account, few zone paths** (6 services): The bulk of the API
+is account-scoped with a small zone-scoped subset (e.g., `workers` has 58
 account paths but only 2 zone paths for routes; `devices` has 36 account paths
 but 1 zone path).
 
-**Pattern C — Different resources at each scope** (3 services): Account and
-zone versions expose different sub-resources (e.g., `secondary_dns` has ACLs/
+**Pattern C — Different resources at each scope** (3 services): Account and zone
+versions expose different sub-resources (e.g., `secondary_dns` has ACLs/
 peers/TSIGs at account scope but incoming/outgoing config at zone scope).
 
 ### How dual-scoped resources are handled
 
-Following the Cloudflare Terraform provider's pattern, dual-scoped resources
-use a **single model with mutually exclusive scope parameters**:
+Following the Cloudflare Terraform provider's pattern, dual-scoped resources use
+a **single model with mutually exclusive scope parameters**:
 
 ```typescript
 const GlobalArgsSchema = z.object({
@@ -172,7 +172,7 @@ const GlobalArgsSchema = z.object({
   // ... resource-specific fields
 }).refine(
   (d) => (d.account_id != null) !== (d.zone_id != null),
-  "Exactly one of account_id or zone_id must be provided"
+  "Exactly one of account_id or zone_id must be provided",
 );
 ```
 
@@ -187,7 +187,8 @@ const url = `${scopePrefix}/${resourcePath}`;
 ```
 
 For Pattern B, the zone-scoped paths are often different enough to warrant
-separate models (e.g., `worker_routes` is a distinct resource from `worker_scripts`).
+separate models (e.g., `worker_routes` is a distinct resource from
+`worker_scripts`).
 
 For Pattern C, the different sub-resources at each scope become separate models
 (e.g., `secondary_dns_peers` is account-only, `secondary_dns_incoming` is
@@ -256,10 +257,10 @@ and use flat paths. The SERVICE_MAP bridges this inconsistency.
 The pipeline iterates over all paths and groups them into **base + ID endpoint
 pairs**, similar to DigitalOcean:
 
-| Base path                              | ID path                                     |
-| -------------------------------------- | ------------------------------------------- |
-| `/accounts/{id}/d1/database`           | `/accounts/{id}/d1/database/{database_id}`  |
-| `/zones/{id}/dns_records`              | `/zones/{id}/dns_records/{dns_record_id}`   |
+| Base path                    | ID path                                    |
+| ---------------------------- | ------------------------------------------ |
+| `/accounts/{id}/d1/database` | `/accounts/{id}/d1/database/{database_id}` |
+| `/zones/{id}/dns_records`    | `/zones/{id}/dns_records/{dns_record_id}`  |
 
 A path is the "ID variant" if its terminal segment is a `{param}`. The base path
 is derived by stripping that segment.
@@ -279,11 +280,11 @@ minimum create a resource and read it back.
 
 With ~93 services containing CRUD resources, the distribution is:
 
-| Service size         | Count | Examples                              |
-| -------------------- | ----- | ------------------------------------- |
-| 1 resource           | 45    | d1, cfd_tunnel, dns_records, storage  |
-| 2-3 resources        | 29    | r2, queues, vectorize, waiting_rooms  |
-| 4+ resources         | 19    | access (19), magic (19), workers (8)  |
+| Service size  | Count | Examples                             |
+| ------------- | ----- | ------------------------------------ |
+| 1 resource    | 45    | d1, cfd_tunnel, dns_records, storage |
+| 2-3 resources | 29    | r2, queues, vectorize, waiting_rooms |
+| 4+ resources  | 19    | access (19), magic (19), workers (8) |
 
 ### Why per-service is still correct despite many single-resource packages
 
@@ -292,8 +293,8 @@ packages but requires a product-area mapping table that:
 
 1. Is subjective (where does "API Gateway" belong — security or developer?)
 2. Needs ongoing maintenance as Cloudflare launches new products
-3. Creates coupling between unrelated resources (a DNS update shouldn't bump
-   the version of a security package)
+3. Creates coupling between unrelated resources (a DNS update shouldn't bump the
+   version of a security package)
 
 Per-service packaging matches the AWS/GCP pattern in this repo and gives each
 service independent versioning. Single-resource packages have minimal overhead
@@ -302,16 +303,16 @@ service independent versioning. Single-resource packages have minimal overhead
 
 ### Exclusion rules
 
-| Rule                                        | Rationale                                                      |
-| ------------------------------------------- | -------------------------------------------------------------- |
-| Skip `/radar/` paths                        | Read-only analytics, not CRUD resources                        |
-| Skip `/user/` paths                         | User-scoped, doesn't fit account/zone model                    |
-| Skip `/organizations/` paths                | Legacy org management                                          |
-| Skip `/internal/` paths                     | Internal-only endpoints                                        |
-| Skip paths with >2 `{param}` segments       | Deeply nested sub-resources don't fit flat model pattern        |
-| Skip resources with empty POST body schemas | Can't generate meaningful input validation (22 resources)       |
-| Skip multipart/non-JSON POST resources      | File uploads need different handling (8 resources)              |
-| Skip `/memberships`, `/ips`, `/certificates`| Not infrastructure CRUD resources                              |
+| Rule                                         | Rationale                                                 |
+| -------------------------------------------- | --------------------------------------------------------- |
+| Skip `/radar/` paths                         | Read-only analytics, not CRUD resources                   |
+| Skip `/user/` paths                          | User-scoped, doesn't fit account/zone model               |
+| Skip `/organizations/` paths                 | Legacy org management                                     |
+| Skip `/internal/` paths                      | Internal-only endpoints                                   |
+| Skip paths with >2 `{param}` segments        | Deeply nested sub-resources don't fit flat model pattern  |
+| Skip resources with empty POST body schemas  | Can't generate meaningful input validation (22 resources) |
+| Skip multipart/non-JSON POST resources       | File uploads need different handling (8 resources)        |
+| Skip `/memberships`, `/ips`, `/certificates` | Not infrastructure CRUD resources                         |
 
 ---
 
@@ -319,20 +320,20 @@ service independent versioning. Single-resource packages have minimal overhead
 
 ### HTTP method to operation mapping
 
-| HTTP Method | Operation         | Where                                   |
-| ----------- | ----------------- | --------------------------------------- |
-| POST        | Create            | Base path                               |
-| GET         | Read              | ID path (single resource)               |
-| PATCH       | Update            | ID path (preferred)                     |
-| PUT         | Update (fallback) | ID path, only if no PATCH               |
-| DELETE      | Delete            | ID path                                 |
-| GET         | List              | Base path                               |
+| HTTP Method | Operation         | Where                     |
+| ----------- | ----------------- | ------------------------- |
+| POST        | Create            | Base path                 |
+| GET         | Read              | ID path (single resource) |
+| PATCH       | Update            | ID path (preferred)       |
+| PUT         | Update (fallback) | ID path, only if no PATCH |
+| DELETE      | Delete            | ID path                   |
+| GET         | List              | Base path                 |
 
 ### Why PATCH takes precedence over PUT
 
 When both PATCH and PUT exist on the ID endpoint (53 resources), PATCH is chosen
-for updates. PATCH performs partial updates (only send changed fields), while PUT
-requires sending the complete resource representation. This matches the
+for updates. PATCH performs partial updates (only send changed fields), while
+PUT requires sending the complete resource representation. This matches the
 DigitalOcean precedent.
 
 In the Cloudflare spec:
@@ -405,9 +406,11 @@ Response schemas in the spec consistently use `allOf` to compose the envelope:
 ```
 
 Verified across representative resources (DNS records, D1, tunnels, R2, queues,
-vectorize, waiting rooms): all follow this exact `allOf[envelope_base, {result:
-resource_schema}]` pattern. The pipeline resolves the `allOf`, identifies the
-`result` property, and extracts its schema as the resource's response schema.
+vectorize, waiting rooms): all follow this exact
+`allOf[envelope_base, {result:
+resource_schema}]` pattern. The pipeline resolves
+the `allOf`, identifies the `result` property, and extracts its schema as the
+resource's response schema.
 
 ### Envelope base schemas
 
@@ -477,10 +480,10 @@ function assertSuccess(data: Record<string, unknown>): void {
 
 ### Uniform identifier type
 
-Unlike DigitalOcean (which uses int `id`, string `name`, `uuid`, and `ip`
-across different resources) or Hetzner (which uses numeric `id` everywhere),
-Cloudflare uses **32-character hex string IDs** for nearly all resources. The
-per-service identifier schemas confirm this:
+Unlike DigitalOcean (which uses int `id`, string `name`, `uuid`, and `ip` across
+different resources) or Hetzner (which uses numeric `id` everywhere), Cloudflare
+uses **32-character hex string IDs** for nearly all resources. The per-service
+identifier schemas confirm this:
 
 ```json
 {
@@ -556,31 +559,31 @@ data.latest("dns_records", "www-a-record").attributes.id
 
 ### How instance names flow through methods
 
-| Method   | Instance name source                                    |
-| -------- | ------------------------------------------------------- |
-| `create` | `globalArgs.{namingField}` or `"current"`               |
+| Method   | Instance name source                                     |
+| -------- | -------------------------------------------------------- |
+| `create` | `globalArgs.{namingField}` or `"current"`                |
 | `get`    | Natural: `result.{namingField}`. Synthetic: `globalArgs` |
-| `update` | `globalArgs.{namingField}` or `"current"`               |
-| `delete` | `args.id.toString()`                                    |
+| `update` | `globalArgs.{namingField}` or `"current"`                |
+| `delete` | `args.id.toString()`                                     |
 
 ---
 
 ## 9. Authentication
 
-Cloudflare supports four authentication methods. The shared lib supports the
-two most common.
+Cloudflare supports four authentication methods. The shared lib supports the two
+most common.
 
 ### Per-operation security patterns
 
-Almost all operations (3,003 of 3,019) declare per-operation security
-overrides. The dominant patterns:
+Almost all operations (3,003 of 3,019) declare per-operation security overrides.
+The dominant patterns:
 
-| Pattern                                      | Count  |
-| -------------------------------------------- | ------ |
-| API token OR (API key + email) — either works | 1,085  |
-| API token preferred, key+email fallback       | 950    |
-| API token only                                | 359    |
-| API key + email only                          | 310    |
+| Pattern                                       | Count |
+| --------------------------------------------- | ----- |
+| API token OR (API key + email) — either works | 1,085 |
+| API token preferred, key+email fallback       | 950   |
+| API token only                                | 359   |
+| API key + email only                          | 310   |
 
 ### API Token (recommended)
 
@@ -607,9 +610,9 @@ Read from `CLOUDFLARE_API_KEY` and `CLOUDFLARE_EMAIL` environment variables.
 
 The shared lib checks for `CLOUDFLARE_API_TOKEN` first. If not set, it falls
 back to `CLOUDFLARE_API_KEY` + `CLOUDFLARE_EMAIL`. If neither is set, it throws
-a descriptive error. This covers 2,394 of 3,003 operations (the ones that
-accept either auth method). The 359 token-only operations naturally work. The
-310 key-only operations are mostly legacy.
+a descriptive error. This covers 2,394 of 3,003 operations (the ones that accept
+either auth method). The 359 token-only operations naturally work. The 310
+key-only operations are mostly legacy.
 
 ### Token validation
 
@@ -696,8 +699,8 @@ export async function tryFindByField(
 
 ## 11. Rate Limiting
 
-Cloudflare enforces rate limits (typically 1,200 requests per 5 minutes for
-most API endpoints). The shared lib handles 429 responses with retry logic:
+Cloudflare enforces rate limits (typically 1,200 requests per 5 minutes for most
+API endpoints). The shared lib handles 429 responses with retry logic:
 
 ```typescript
 async function requestWithRetry(
@@ -711,13 +714,17 @@ async function requestWithRetry(
     const resp = await request(method, path, body);
     if (resp.status === 429) {
       const retryAfter = resp.headers.get("Retry-After");
-      const delay = retryAfter ? parseInt(retryAfter) * 1000 : 1000 * (attempt + 1);
+      const delay = retryAfter
+        ? parseInt(retryAfter) * 1000
+        : 1000 * (attempt + 1);
       await new Promise((r) => setTimeout(r, delay));
       continue;
     }
     return resp;
   }
-  throw new Error(`Rate limited after ${maxRetries} retries: ${method} ${path}`);
+  throw new Error(
+    `Rate limited after ${maxRetries} retries: ${method} ${path}`,
+  );
 }
 ```
 
@@ -797,9 +804,9 @@ Cloudflare uses `anyOf` for some request bodies (e.g., DNS record creation
 accepts different schemas per record type). The pipeline follows DigitalOcean's
 approach: merge all branch properties, use required-field intersection.
 
-For the 23 schemas with explicit `discriminator` mappings, the pipeline
-flattens the variants for initial generation. Discriminator-aware generation
-(producing separate per-variant types) is a candidate for future enhancement.
+For the 23 schemas with explicit `discriminator` mappings, the pipeline flattens
+the variants for initial generation. Discriminator-aware generation (producing
+separate per-variant types) is a candidate for future enhancement.
 
 ---
 
@@ -918,107 +925,107 @@ Account-scoped paths with two-level nesting use their second segment directly
 and don't need entries here. This table is primarily for zone-scoped flat paths
 and path segments that need normalization.
 
-| Path segment       | Service name    | Scope  | Reason                                |
-| ------------------ | --------------- | ------ | ------------------------------------- |
-| `dns_records`      | `dns`           | Zone   | Group zone DNS resources              |
-| `dns_firewall`     | `dns`           | Acct   | Group with DNS records                |
-| `dns_settings`     | `dns`           | Both   | Group with DNS records                |
-| `dnssec`           | `dns`           | Zone   | Group with DNS records                |
-| `cfd_tunnel`       | `tunnel`        | Acct   | Normalize legacy prefix               |
-| `warp_connector`   | `tunnel`        | Acct   | Group with tunnels                    |
-| `tunnels`          | `tunnel`        | Other  | Group legacy tunnel path              |
-| `storage`          | `workers-kv`    | Acct   | KV namespace lives under /storage     |
-| `rulesets`         | `rulesets`      | Both   | Dual-scoped, same API                 |
-| `load_balancers`   | `load-balancing`| Both   | Normalize to product name             |
-| `healthchecks`     | `load-balancing`| Zone   | Group with load balancers             |
-| `waiting_rooms`    | `waiting-rooms` | Zone   | Normalize underscore to hyphen        |
-| `pagerules`        | `page-rules`    | Zone   | Normalize to readable name            |
-| `firewall`         | `firewall`      | Both   | Zone has more paths than account      |
-| `logpush`          | `logpush`       | Both   | Dual-scoped, same API                 |
-| `custom_pages`     | `custom-pages`  | Both   | Dual-scoped, same API                 |
-| `ssl`              | `ssl`           | Zone   | SSL certificates and settings         |
-| `custom_certificates` | `ssl`        | Zone   | Group with SSL                        |
-| `keyless_certificates` | `ssl`       | Zone   | Group with SSL                        |
-| `origin_tls_client_auth` | `ssl`     | Zone   | Group with SSL                        |
-| `client_certificates` | `ssl`        | Zone   | Group with SSL                        |
-| `custom_hostnames` | `custom-hostnames` | Zone | Standalone zone resource              |
-| `spectrum`         | `spectrum`      | Zone   | Spectrum apps                         |
-| `email`            | `email`         | Both   | Dual-scoped                           |
-| `email-security`   | `email-security`| Acct   | Separate from email routing           |
-| `cache`            | `cache`         | Zone   | Cache settings and purge              |
-| `settings`         | `zone-settings` | Zone   | Zone-level settings                   |
-| `snippets`         | `snippets`      | Zone   | Cloudflare Snippets                   |
-| `filters`          | `firewall`      | Zone   | Legacy firewall filters               |
-| `rate_limits`      | `firewall`      | Zone   | Legacy rate limiting rules            |
-| `access`           | `access`        | Both   | Dual-scoped, large service            |
+| Path segment             | Service name       | Scope | Reason                            |
+| ------------------------ | ------------------ | ----- | --------------------------------- |
+| `dns_records`            | `dns`              | Zone  | Group zone DNS resources          |
+| `dns_firewall`           | `dns`              | Acct  | Group with DNS records            |
+| `dns_settings`           | `dns`              | Both  | Group with DNS records            |
+| `dnssec`                 | `dns`              | Zone  | Group with DNS records            |
+| `cfd_tunnel`             | `tunnel`           | Acct  | Normalize legacy prefix           |
+| `warp_connector`         | `tunnel`           | Acct  | Group with tunnels                |
+| `tunnels`                | `tunnel`           | Other | Group legacy tunnel path          |
+| `storage`                | `workers-kv`       | Acct  | KV namespace lives under /storage |
+| `rulesets`               | `rulesets`         | Both  | Dual-scoped, same API             |
+| `load_balancers`         | `load-balancing`   | Both  | Normalize to product name         |
+| `healthchecks`           | `load-balancing`   | Zone  | Group with load balancers         |
+| `waiting_rooms`          | `waiting-rooms`    | Zone  | Normalize underscore to hyphen    |
+| `pagerules`              | `page-rules`       | Zone  | Normalize to readable name        |
+| `firewall`               | `firewall`         | Both  | Zone has more paths than account  |
+| `logpush`                | `logpush`          | Both  | Dual-scoped, same API             |
+| `custom_pages`           | `custom-pages`     | Both  | Dual-scoped, same API             |
+| `ssl`                    | `ssl`              | Zone  | SSL certificates and settings     |
+| `custom_certificates`    | `ssl`              | Zone  | Group with SSL                    |
+| `keyless_certificates`   | `ssl`              | Zone  | Group with SSL                    |
+| `origin_tls_client_auth` | `ssl`              | Zone  | Group with SSL                    |
+| `client_certificates`    | `ssl`              | Zone  | Group with SSL                    |
+| `custom_hostnames`       | `custom-hostnames` | Zone  | Standalone zone resource          |
+| `spectrum`               | `spectrum`         | Zone  | Spectrum apps                     |
+| `email`                  | `email`            | Both  | Dual-scoped                       |
+| `email-security`         | `email-security`   | Acct  | Separate from email routing       |
+| `cache`                  | `cache`            | Zone  | Cache settings and purge          |
+| `settings`               | `zone-settings`    | Zone  | Zone-level settings               |
+| `snippets`               | `snippets`         | Zone  | Cloudflare Snippets               |
+| `filters`                | `firewall`         | Zone  | Legacy firewall filters           |
+| `rate_limits`            | `firewall`         | Zone  | Legacy rate limiting rules        |
+| `access`                 | `access`           | Both  | Dual-scoped, large service        |
 
 ### IDENTIFIER_MAP
 
 Maps OpenAPI path parameter names to the field name in the API response:
 
-| Path param                                                       | Response field | Resources              |
-| ---------------------------------------------------------------- | -------------- | ---------------------- |
-| `id`, `identifier`, `rule_id`, `certificate_id`, `policy_id`,   | `id`           | Most resources         |
-| `tunnel_id`, `dns_record_id`, `group_id`, `app_id`, `member_id`,| `id`           |                        |
-| `job_id`, `entry_id`, `event_id`, `lock_downs_id`, `filter_id`  | `id`           |                        |
-| `bucket_name`, `script_name`, `index_name`, `dispatch_namespace` | `name`         | Name-identified        |
-| `snippet_name`, `asset_name`                                     | `name`         |                        |
+| Path param                                                       | Response field | Resources       |
+| ---------------------------------------------------------------- | -------------- | --------------- |
+| `id`, `identifier`, `rule_id`, `certificate_id`, `policy_id`,    | `id`           | Most resources  |
+| `tunnel_id`, `dns_record_id`, `group_id`, `app_id`, `member_id`, | `id`           |                 |
+| `job_id`, `entry_id`, `event_id`, `lock_downs_id`, `filter_id`   | `id`           |                 |
+| `bucket_name`, `script_name`, `index_name`, `dispatch_namespace` | `name`         | Name-identified |
+| `snippet_name`, `asset_name`                                     | `name`         |                 |
 
 ### SCOPE_PARAMETER_ALIASES
 
 Normalizes scope parameter name variants:
 
-| Spec parameter         | Normalized to  |
-| ---------------------- | -------------- |
-| `account_identifier`   | `account_id`   |
-| `zone_identifier`      | `zone_id`      |
+| Spec parameter       | Normalized to |
+| -------------------- | ------------- |
+| `account_identifier` | `account_id`  |
+| `zone_identifier`    | `zone_id`     |
 
 ### SKIP_TOP_LEVEL
 
 Path prefixes excluded from resource discovery:
 
-| Prefix           | Reason                                              |
-| ---------------- | --------------------------------------------------- |
-| `/radar`         | Read-only analytics, not CRUD resources              |
-| `/internal`      | Internal-only endpoints                              |
-| `/user`          | User-scoped, doesn't fit account/zone model          |
-| `/organizations` | Legacy organization management                       |
-| `/memberships`   | User membership management                           |
-| `/ips`           | Read-only Cloudflare IP list                         |
-| `/certificates`  | Origin CA certificates (special auth)                |
-| `/live`          | Health check endpoint                                |
+| Prefix           | Reason                                      |
+| ---------------- | ------------------------------------------- |
+| `/radar`         | Read-only analytics, not CRUD resources     |
+| `/internal`      | Internal-only endpoints                     |
+| `/user`          | User-scoped, doesn't fit account/zone model |
+| `/organizations` | Legacy organization management              |
+| `/memberships`   | User membership management                  |
+| `/ips`           | Read-only Cloudflare IP list                |
+| `/certificates`  | Origin CA certificates (special auth)       |
+| `/live`          | Health check endpoint                       |
 
 ### SKIP_RESOURCES
 
 Specific resource paths excluded from codegen:
 
-| Resource path                                   | Reason                                  |
-| ----------------------------------------------- | --------------------------------------- |
-| `/accounts/{id}/ai/run/*`                       | AI inference endpoints, not CRUD        |
-| `/accounts/{id}/ai/finetunes`                   | Incomplete schema                       |
-| `/accounts/{id}/stream`                         | Empty POST body                         |
-| `/accounts/{id}/rulesets`                        | Empty POST body                         |
-| `/zones/{id}/rulesets`                           | Empty POST body                         |
-| `/accounts/{id}/realtime/kit/*`                  | Empty POST bodies throughout            |
-| `/accounts/{id}/workers/scripts/{name}/versions` | Empty POST body                        |
+| Resource path                                    | Reason                           |
+| ------------------------------------------------ | -------------------------------- |
+| `/accounts/{id}/ai/run/*`                        | AI inference endpoints, not CRUD |
+| `/accounts/{id}/ai/finetunes`                    | Incomplete schema                |
+| `/accounts/{id}/stream`                          | Empty POST body                  |
+| `/accounts/{id}/rulesets`                        | Empty POST body                  |
+| `/zones/{id}/rulesets`                           | Empty POST body                  |
+| `/accounts/{id}/realtime/kit/*`                  | Empty POST bodies throughout     |
+| `/accounts/{id}/workers/scripts/{name}/versions` | Empty POST body                  |
 
 ---
 
 ## 17. Differences from Other Providers
 
-| Aspect                   | Cloudflare                               | DigitalOcean                    | Hetzner                        | AWS / GCP                     |
-| ------------------------ | ---------------------------------------- | ------------------------------- | ------------------------------ | ----------------------------- |
-| Schema format            | OpenAPI 3.0 JSON                         | OpenAPI 3.0 YAML               | OpenAPI 3.0 JSON               | CF schemas / Discovery Docs   |
-| `$ref` resolution        | Pre-dereferenced (cycle-safe)            | Pre-dereferenced (cycle-safe)   | Inline during parsing          | Pre-dereferenced              |
-| Package layout           | Per-service (~93)                        | Single package                  | Single package                 | Per-service (~250+)           |
-| Resource scoping         | Account / Zone (dual-scope supported)    | None (flat)                     | None (flat)                    | Region / project-based        |
-| Response envelope        | Fixed `result` key                       | Resource-name-keyed             | Resource-name-keyed            | Varies                        |
-| Identifier type          | 32-char hex string (uniform)             | Mixed (int, name, uuid, ip)     | Always numeric `id`            | Varies                        |
-| Update method            | PATCH preferred, PUT fallback            | PATCH preferred, PUT fallback   | Always PUT                     | Varies                        |
-| Pagination               | Page-based + cursor-based                | Page-based                      | Page-based                     | Token-based / page-based      |
-| Auth                     | Bearer token or API key + email          | Bearer token                    | Bearer token                   | IAM / OAuth2                  |
-| Rate limiting            | 429 retry with Retry-After               | Not handled                     | Not handled                    | Not handled                   |
-| Manual overrides needed  | Moderate (SERVICE_MAP, IDENTIFIER_MAP)   | High (5 override tables)        | None                           | Some                          |
-| Zone-scoped grouping     | SERVICE_MAP (manual)                     | N/A                             | N/A                            | N/A                           |
-| Dual-scoped resources    | Single model, mutually exclusive params  | N/A                             | N/A                            | N/A                           |
-| Empty POST bodies        | 22 skipped                               | None                            | None                           | ~201 skipped (no read handler)|
+| Aspect                  | Cloudflare                              | DigitalOcean                  | Hetzner               | AWS / GCP                      |
+| ----------------------- | --------------------------------------- | ----------------------------- | --------------------- | ------------------------------ |
+| Schema format           | OpenAPI 3.0 JSON                        | OpenAPI 3.0 YAML              | OpenAPI 3.0 JSON      | CF schemas / Discovery Docs    |
+| `$ref` resolution       | Pre-dereferenced (cycle-safe)           | Pre-dereferenced (cycle-safe) | Inline during parsing | Pre-dereferenced               |
+| Package layout          | Per-service (~93)                       | Single package                | Single package        | Per-service (~250+)            |
+| Resource scoping        | Account / Zone (dual-scope supported)   | None (flat)                   | None (flat)           | Region / project-based         |
+| Response envelope       | Fixed `result` key                      | Resource-name-keyed           | Resource-name-keyed   | Varies                         |
+| Identifier type         | 32-char hex string (uniform)            | Mixed (int, name, uuid, ip)   | Always numeric `id`   | Varies                         |
+| Update method           | PATCH preferred, PUT fallback           | PATCH preferred, PUT fallback | Always PUT            | Varies                         |
+| Pagination              | Page-based + cursor-based               | Page-based                    | Page-based            | Token-based / page-based       |
+| Auth                    | Bearer token or API key + email         | Bearer token                  | Bearer token          | IAM / OAuth2                   |
+| Rate limiting           | 429 retry with Retry-After              | Not handled                   | Not handled           | Not handled                    |
+| Manual overrides needed | Moderate (SERVICE_MAP, IDENTIFIER_MAP)  | High (5 override tables)      | None                  | Some                           |
+| Zone-scoped grouping    | SERVICE_MAP (manual)                    | N/A                           | N/A                   | N/A                            |
+| Dual-scoped resources   | Single model, mutually exclusive params | N/A                           | N/A                   | N/A                            |
+| Empty POST bodies       | 22 skipped                              | None                          | None                  | ~201 skipped (no read handler) |

@@ -52,7 +52,6 @@ const GlobalArgsSchema = z.object({
     "openai/gpt-5-mini",
     "openai/gpt-5-nano",
     "",
-    null,
   ]).optional(),
   cache: z.boolean().optional(),
   cache_threshold: z.enum([
@@ -79,7 +78,6 @@ const GlobalArgsSchema = z.object({
     "openai/text-embedding-3-small",
     "openai/text-embedding-3-large",
     "",
-    null,
   ]).optional(),
   fusion_method: z.enum(["max", "rrf"]).optional(),
   index_method: z.object({
@@ -117,7 +115,7 @@ const GlobalArgsSchema = z.object({
     }).optional(),
   }).optional(),
   reranking: z.boolean().optional(),
-  reranking_model: z.enum(["@cf/baai/bge-reranker-base", "", null]).optional(),
+  reranking_model: z.enum(["@cf/baai/bge-reranker-base", ""]).optional(),
   retrieval_options: z.object({
     boost_by: z.array(z.object({
       direction: z.enum(["asc", "desc", "exists", "not_exists"]).optional(),
@@ -156,7 +154,6 @@ const GlobalArgsSchema = z.object({
     "openai/gpt-5-mini",
     "openai/gpt-5-nano",
     "",
-    null,
   ]).optional(),
   rewrite_query: z.boolean().optional(),
   score_threshold: z.number().min(0).max(1).optional(),
@@ -227,7 +224,6 @@ const GlobalArgsSchema = z.object({
     "openai/gpt-5-mini",
     "openai/gpt-5-nano",
     "",
-    null,
   ]).optional(),
   sync_interval: z.union([z.literal(900)]).optional(),
   system_prompt_ai_search: z.string().optional(),
@@ -243,7 +239,7 @@ const GlobalArgsSchema = z.object({
     "AI Search instance ID. Lowercase alphanumeric, hyphens, and underscores.",
   ),
   source: z.string().optional(),
-  type: z.enum(["r2", "web-crawler", null]).optional(),
+  type: z.enum(["r2", "web-crawler"]).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -390,7 +386,6 @@ const InputsSchema = z.object({
     "openai/gpt-5-mini",
     "openai/gpt-5-nano",
     "",
-    null,
   ]).optional(),
   cache: z.boolean().optional(),
   cache_threshold: z.enum([
@@ -417,7 +412,6 @@ const InputsSchema = z.object({
     "openai/text-embedding-3-small",
     "openai/text-embedding-3-large",
     "",
-    null,
   ]).optional(),
   fusion_method: z.enum(["max", "rrf"]).optional(),
   index_method: z.object({
@@ -453,7 +447,7 @@ const InputsSchema = z.object({
     }).optional(),
   }).optional(),
   reranking: z.boolean().optional(),
-  reranking_model: z.enum(["@cf/baai/bge-reranker-base", "", null]).optional(),
+  reranking_model: z.enum(["@cf/baai/bge-reranker-base", ""]).optional(),
   retrieval_options: z.object({
     boost_by: z.array(z.object({
       direction: z.enum(["asc", "desc", "exists", "not_exists"]).optional(),
@@ -492,7 +486,6 @@ const InputsSchema = z.object({
     "openai/gpt-5-mini",
     "openai/gpt-5-nano",
     "",
-    null,
   ]).optional(),
   rewrite_query: z.boolean().optional(),
   score_threshold: z.number().min(0).max(1).optional(),
@@ -563,7 +556,6 @@ const InputsSchema = z.object({
     "openai/gpt-5-mini",
     "openai/gpt-5-nano",
     "",
-    null,
   ]).optional(),
   sync_interval: z.union([z.literal(900)]).optional(),
   system_prompt_ai_search: z.string().optional(),
@@ -575,7 +567,7 @@ const InputsSchema = z.object({
     new RegExp("^[a-z0-9_]+(?:-[a-z0-9_]+)*$"),
   ).optional(),
   source: z.string().optional(),
-  type: z.enum(["r2", "web-crawler", null]).optional(),
+  type: z.enum(["r2", "web-crawler"]).optional(),
 });
 
 /** Swamp extension model for Cloudflare Instances. Registered at `@swamp/cloudflare/ai-search/instances`. */

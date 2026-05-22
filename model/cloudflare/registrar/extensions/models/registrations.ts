@@ -46,7 +46,7 @@ const GlobalArgsSchema = z.object({
   domain_name: z.string().describe(
     "Fully qualified domain name (FQDN) including the extension\n(e.g., `example.com`, `mybrand.app`). The domain name uniquely\nidentifies a registration — the same domain cannot be registered\ntwice, making it a natural idempotency key for registration requests.\n",
   ),
-  privacy_mode: z.enum([false, "redaction"]).describe(
+  privacy_mode: z.enum(["redaction"]).describe(
     "WHOIS privacy mode for the registration. Defaults to `redaction`.\n- `off`: Do not request WHOIS privacy.\n- `redaction`: Request WHOIS redaction where supported by the extension.\n  Some extensions do not support privacy/redaction.\n",
   ).optional(),
   years: z.number().int().min(1).max(10).describe(
@@ -90,7 +90,7 @@ const InputsSchema = z.object({
     }).optional(),
   }).optional(),
   domain_name: z.string().optional(),
-  privacy_mode: z.enum([false, "redaction"]).optional(),
+  privacy_mode: z.enum(["redaction"]).optional(),
   years: z.number().int().min(1).max(10).optional(),
 });
 

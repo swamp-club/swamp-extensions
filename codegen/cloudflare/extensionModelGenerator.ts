@@ -448,8 +448,13 @@ function generateFullFidelityZod(prop: CloudflareProperty): string {
 
     case "string": {
       if (prop.enum && prop.enum.length > 0) {
-        const vals = prop.enum.map((v) => JSON.stringify(v));
-        return `z.enum([${vals.join(", ")}])`;
+        const stringVals = prop.enum.filter((v): v is string =>
+          typeof v === "string"
+        );
+        if (stringVals.length > 0) {
+          const vals = stringVals.map((v) => JSON.stringify(v));
+          return `z.enum([${vals.join(", ")}])`;
+        }
       }
       let expr = "z.string()";
       if (prop.minLength !== undefined) expr += `.min(${prop.minLength})`;
