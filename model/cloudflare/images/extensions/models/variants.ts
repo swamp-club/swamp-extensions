@@ -199,6 +199,9 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
+        if (!existing.id) {
+          throw new Error("Stored state has no id - cannot sync");
+        }
         const result = await tryRead(endpoint, existing.id) as
           | ResourceData
           | null;

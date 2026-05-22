@@ -349,3 +349,61 @@ Deno.test("generateAwsExtensionModel - with upgrades block", async (t) => {
 
   await assertSnapshot(t, generateAwsExtensionModel(input));
 });
+
+// ---------------------------------------------------------------------------
+// Snapshot: model with enrichment (SDK-based)
+// ---------------------------------------------------------------------------
+
+Deno.test("generateAwsExtensionModel - with enrichment", async (t) => {
+  const mockEnrichment = {
+    source: {
+      imports: [
+        'import { DescribeDBClustersCommand, RDSClient } from "npm:@aws-sdk/client-rds@3.1021.0";',
+      ],
+      body: [
+        "const MemberSchema = z.object({",
+        "  MemberId: z.string().optional(),",
+        "  IsWriter: z.boolean().optional(),",
+        "});",
+        "",
+        "async function enrichState(state: StateData): Promise<StateData> {",
+        "  return state;",
+        "}",
+      ].join("\n"),
+    },
+    stateFields: "  Members: z.array(MemberSchema).optional(),",
+    functionExport: "enrichState",
+  };
+
+  const input: AwsExtensionModelInput = {
+    typeName: "AWS::RDS::DBCluster",
+    zodResult: {
+      extractedSchemas: [],
+      inputSchemaBody:
+        `  DBClusterIdentifier: z.string().describe("The DB cluster identifier"),`,
+      resourceSchemaBody:
+        `  DBClusterIdentifier: z.string(),\n  DBClusterArn: z.string().optional(),`,
+    },
+    onlyProperties: {
+      primaryIdentifier: ["DBClusterIdentifier"],
+      readOnly: ["DBClusterArn"],
+      writeOnly: [],
+      createOnly: [],
+    },
+    cfSchema: {
+      typeName: "AWS::RDS::DBCluster",
+      description: "An RDS DB Cluster",
+      primaryIdentifier: ["/properties/DBClusterIdentifier"],
+      properties: {
+        DBClusterIdentifier: { type: "string" },
+        DBClusterArn: { type: "string" },
+      },
+    },
+    handlers: { create: true, read: true, update: true, delete: true },
+    version: "2026.01.01.1",
+    modelType: "@swamp/aws/rds/dbcluster",
+    enrichment: mockEnrichment,
+  };
+
+  await assertSnapshot(t, generateAwsExtensionModel(input));
+});

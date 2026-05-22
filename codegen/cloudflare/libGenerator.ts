@@ -78,7 +78,7 @@ async function request(
   const url = \`\${API_BASE}\${path}\`;
   const headers: Record<string, string> = {
     ...authHeaders(auth),
-    "Content-Type": "application/json",
+    ...(body ? { "Content-Type": "application/json" } : {}),
   };
 
   const maxRetries = 3;
@@ -91,8 +91,9 @@ async function request(
 
     if (resp.status === 429) {
       const retryAfter = resp.headers.get("Retry-After");
-      const delay = retryAfter
-        ? parseInt(retryAfter) * 1000
+      const parsed = retryAfter ? Number(retryAfter) : NaN;
+      const delay = Number.isFinite(parsed)
+        ? parsed * 1000
         : 1000 * (attempt + 1);
       await resp.text();
       if (attempt < maxRetries) {
@@ -197,13 +198,11 @@ export async function remove(
     await resp.text();
     return { existed: false };
   }
-  // Some DELETE responses have a body, some don't
-  try {
-    const data = await resp.json();
-    assertSuccess(data);
-  } catch {
-    // Empty body or non-JSON is fine for DELETEs
-  }
+  // Some DELETE responses have a body, some don't — separate JSON
+  // parse errors (fine) from API errors (must surface).
+  let data: Record<string, unknown> | undefined;
+  try { data = await resp.json(); } catch { /* non-JSON body is fine */ }
+  if (data) assertSuccess(data);
   return { existed: true };
 }
 

@@ -111,6 +111,7 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        if (!existing.id) throw new Error("Stored state has no id - cannot sync");
         const result = await tryRead(endpoint, existing.id) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
@@ -272,6 +273,7 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        if (!existing.id) throw new Error("Stored state has no id - cannot sync");
         const result = await tryRead(endpoint, existing.id) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
@@ -433,6 +435,7 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        if (!existing.id) throw new Error("Stored state has no id - cannot sync");
         const result = await tryRead(endpoint, existing.id) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
@@ -578,6 +581,7 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        if (!existing.id) throw new Error("Stored state has no id - cannot sync");
         const result = await tryRead(endpoint, existing.id) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
@@ -710,6 +714,7 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
+        if (!existing.name) throw new Error("Stored state has no name - cannot sync");
         const result = await tryRead(endpoint, existing.name) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);

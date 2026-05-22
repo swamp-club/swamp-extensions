@@ -124,6 +124,11 @@ function withTestToken(): () => void {
 
 // ---------------------------------------------------------------------------
 
+// importFreshLib() dynamically imports a module that performs async fetch
+// operations for token validation. These connections outlive the test scope
+// and trigger Deno's resource leak detector — sanitizeResources: false is
+// safe here because the module is written to a temp file and cleaned up.
+
 Deno.test(
   "create: POST with envelope unwrapping",
   { sanitizeResources: false },

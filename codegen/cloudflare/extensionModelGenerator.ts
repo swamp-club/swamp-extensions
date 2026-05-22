@@ -343,6 +343,9 @@ export function generateCloudflareExtensionModel(
     `        const existing = JSON.parse(new TextDecoder().decode(content));`,
   );
   lines.push(
+    `        if (!existing.${resource.identifyingField}) throw new Error("Stored state has no ${resource.identifyingField} - cannot sync");`,
+  );
+  lines.push(
     `        const result = await tryRead(endpoint, existing.${resource.identifyingField}) as ResourceData | null;`,
   );
   lines.push(`        if (result) {`);
@@ -411,7 +414,6 @@ function buildGlobalArgsProperties(
   resource: CloudflareResource,
 ): { line: string; nameOnly: string; baseExpr: string }[] {
   const result: { line: string; nameOnly: string; baseExpr: string }[] = [];
-  const seen = new Set<string>();
 
   const allProps: Record<string, CloudflareProperty> = {
     ...resource.updateProperties,
@@ -419,9 +421,6 @@ function buildGlobalArgsProperties(
   };
 
   for (const [name, prop] of Object.entries(allProps)) {
-    if (seen.has(name)) continue;
-    seen.add(name);
-
     const baseExpr = generateFullFidelityZod(prop);
     const qName = quoteProp(name);
     let line = `${qName}: ${baseExpr}`;

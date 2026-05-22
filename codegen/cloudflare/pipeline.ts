@@ -891,11 +891,11 @@ function detectPagination(
   getOp: Spec | undefined,
 ): "page" | "cursor" | "none" {
   if (!getOp?.parameters) return "none";
-  const paramNames = (getOp.parameters as Spec[]).map(
-    (p: Spec) => p.name as string,
-  );
-  if (paramNames.includes("cursor")) return "cursor";
-  if (paramNames.includes("page")) return "page";
+  const queryParams = (getOp.parameters as Spec[])
+    .filter((p: Spec) => !p.in || p.in === "query")
+    .map((p: Spec) => p.name as string);
+  if (queryParams.includes("cursor")) return "cursor";
+  if (queryParams.includes("page")) return "page";
   return "none";
 }
 

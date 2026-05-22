@@ -20,7 +20,6 @@ function createMockServer(): {
   return {
     start: () => {
       const records = new Map<string, MockRecord>();
-      let idCounter = 0;
 
       function cfOk(result: unknown): Response {
         return Response.json({
@@ -106,7 +105,6 @@ function createMockServer(): {
           if (method === "POST") {
             return req.json().then((body: Record<string, unknown>) => {
               const id = crypto.randomUUID().replace(/-/g, "").slice(0, 32);
-              idCounter++;
               const now = new Date().toISOString();
               const record: MockRecord = {
                 ...body,
@@ -195,7 +193,7 @@ interface CloudflareLib {
   ) => Promise<{ existed: boolean }>;
 }
 
-async function importLibWithMock(_mockPort: number): Promise<
+async function importLibWithMock(): Promise<
   { mod: CloudflareLib; cleanup: () => Promise<void> }
 > {
   const tmp = await Deno.makeTempFile({ suffix: ".ts" });
@@ -263,6 +261,11 @@ function withTestToken(): () => void {
 // Integration test: DNS records full CRUD lifecycle
 // ---------------------------------------------------------------------------
 
+// importLibWithMock() dynamically imports a module that performs async fetch
+// operations for token validation. These connections outlive the test scope
+// and trigger Deno's resource leak detector — sanitizeResources: false is
+// safe here because the module is written to a temp file and cleaned up.
+
 Deno.test(
   "integration: DNS records full CRUD lifecycle against mock server",
   { sanitizeResources: false },
@@ -270,7 +273,7 @@ Deno.test(
     const restoreToken = withTestToken();
     const { port, close } = createMockServer().start();
     const { restore: restoreFetch } = redirectFetchToMock(port);
-    const { mod, cleanup } = await importLibWithMock(port);
+    const { mod, cleanup } = await importLibWithMock();
 
     try {
       const zoneId = "test-zone-id-123";
@@ -352,7 +355,7 @@ Deno.test(
     const restoreToken = withTestToken();
     const { port, close } = createMockServer().start();
     const { restore: restoreFetch } = redirectFetchToMock(port);
-    const { mod, cleanup } = await importLibWithMock(port);
+    const { mod, cleanup } = await importLibWithMock();
 
     try {
       const accountId = "test-account-id-456";
@@ -399,7 +402,7 @@ Deno.test(
     const restoreToken = withTestToken();
     const { port, close } = createMockServer().start();
     const { restore: restoreFetch } = redirectFetchToMock(port);
-    const { mod, cleanup } = await importLibWithMock(port);
+    const { mod, cleanup } = await importLibWithMock();
 
     try {
       // The mock server validates the Bearer token header.
@@ -429,7 +432,7 @@ Deno.test(
     const restoreToken = withTestToken();
     const { port, close } = createMockServer().start();
     const { restore: restoreFetch } = redirectFetchToMock(port);
-    const { mod, cleanup } = await importLibWithMock(port);
+    const { mod, cleanup } = await importLibWithMock();
 
     try {
       let caught = false;
