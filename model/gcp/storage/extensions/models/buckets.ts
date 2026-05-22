@@ -558,16 +558,6 @@ const GlobalArgsSchema = z.object({
     .optional(),
 });
 
-const _IamBindingSchema = z.object({
-  role: z.string(),
-  members: z.array(z.string()),
-  condition: z.object({
-    title: z.string(),
-    description: z.string().optional(),
-    expression: z.string(),
-  }).optional(),
-});
-
 const iamBindingMethods = {
   add_iam_binding: {
     description:
@@ -585,7 +575,10 @@ const iamBindingMethods = {
         expression: z.string(),
       }).optional().describe("Optional IAM condition for conditional bindings"),
     }),
-    execute: async (args: Record<string, unknown>, context: any) => {
+    execute: async (
+      args: Record<string, unknown>,
+      context: { globalArgs: Record<string, unknown> },
+    ) => {
       const g = context.globalArgs;
       const projectId = await getProjectId();
       const bucketName = g["name"]?.toString() ?? "";
@@ -688,7 +681,10 @@ const iamBindingMethods = {
         "Match condition when removing a conditional binding",
       ),
     }),
-    execute: async (args: Record<string, unknown>, context: any) => {
+    execute: async (
+      args: Record<string, unknown>,
+      context: { globalArgs: Record<string, unknown> },
+    ) => {
       const g = context.globalArgs;
       const projectId = await getProjectId();
       const bucketName = g["name"]?.toString() ?? "";
@@ -1318,7 +1314,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Storage JSON Buckets. Registered at `@swamp/gcp/storage/buckets`. */
 export const model = {
   type: "@swamp/gcp/storage/buckets",
-  version: "2026.05.22.2",
+  version: "2026.05.22.3",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1382,6 +1378,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.22.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.22.3",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

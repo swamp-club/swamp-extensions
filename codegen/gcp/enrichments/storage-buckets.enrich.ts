@@ -1,16 +1,6 @@
-// deno-lint-ignore-file no-import-prefix no-explicit-any
+// deno-lint-ignore-file no-import-prefix
 
 import { z } from "npm:zod@4.3.6";
-
-export const _IamBindingSchema = z.object({
-  role: z.string(),
-  members: z.array(z.string()),
-  condition: z.object({
-    title: z.string(),
-    description: z.string().optional(),
-    expression: z.string(),
-  }).optional(),
-});
 
 export const iamBindingMethods = {
   add_iam_binding: {
@@ -29,7 +19,10 @@ export const iamBindingMethods = {
         expression: z.string(),
       }).optional().describe("Optional IAM condition for conditional bindings"),
     }),
-    execute: async (args: Record<string, unknown>, context: any) => {
+    execute: async (
+      args: Record<string, unknown>,
+      context: { globalArgs: Record<string, unknown> },
+    ) => {
       const g = context.globalArgs;
       const projectId = await getProjectId();
       const bucketName = g["name"]?.toString() ?? "";
@@ -132,7 +125,10 @@ export const iamBindingMethods = {
         "Match condition when removing a conditional binding",
       ),
     }),
-    execute: async (args: Record<string, unknown>, context: any) => {
+    execute: async (
+      args: Record<string, unknown>,
+      context: { globalArgs: Record<string, unknown> },
+    ) => {
       const g = context.globalArgs;
       const projectId = await getProjectId();
       const bucketName = g["name"]?.toString() ?? "";

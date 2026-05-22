@@ -20,7 +20,6 @@ Deno.test("parseEnrichmentSource - no SDK imports for this enrichment", async ()
 Deno.test("parseEnrichmentSource - strips export keywords from body", async () => {
   const result = await parseEnrichmentSource(enrichFilePath);
   assertEquals(result.body.includes("export const"), false);
-  assertStringIncludes(result.body, "const _IamBindingSchema");
   assertStringIncludes(result.body, "const iamBindingMethods");
 });
 
