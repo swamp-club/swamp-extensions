@@ -4,6 +4,18 @@
 
 import $RefParser from "@apidevtools/json-schema-ref-parser";
 import { dirname } from "@std/path";
+import { generateCloudflareExtensionModel } from "./extensionModelGenerator.ts";
+import { generateCloudflareLibFile } from "./libGenerator.ts";
+import { generateManifest } from "../shared/manifestGenerator.ts";
+import { generateLicense } from "../shared/licenseGenerator.ts";
+import { generateCloudflareDenoConfig } from "../shared/denoConfigGenerator.ts";
+import { generateCloudflareReadme } from "../shared/readmeGenerator.ts";
+import {
+  computeManifestVersion,
+  computeModelVersion,
+  formatFile,
+} from "../shared/version.ts";
+import { computeUpgradesBlock } from "../shared/upgradesGenerator.ts";
 
 const CLOUDFLARE_SPEC_URL =
   "https://raw.githubusercontent.com/cloudflare/api-schemas/refs/heads/main/openapi.json";
@@ -229,6 +241,209 @@ const SKIP_RESOURCES: string[] = [
   "/zones/{zone_id}/schema_validation/schemas",
   "/zones/{zone_id}/token_validation/",
 ];
+
+// --- Model generation ---
+
+export async function generateCloudflareModels(options: {
+  services?: string[];
+  outputDir: string;
+  schemaPath?: string;
+}): Promise<CloudflareGenerationResult> {
+  const schemaPath = options.schemaPath ??
+    new URL("../schemas/cloudflare.json", import.meta.url).pathname;
+
+  console.log(`Loading Cloudflare schema from ${schemaPath}...`);
+  const specText = await Deno.readTextFile(schemaPath);
+  const spec = JSON.parse(specText);
+
+  const { resources, skipped } = parseResources(spec);
+  console.log(
+    `Parsed ${resources.length} resources, skipped ${skipped.length}`,
+  );
+
+  // Group resources by service
+  const serviceResources = new Map<string, CloudflareResource[]>();
+  for (const resource of resources) {
+    const existing = serviceResources.get(resource.service) ?? [];
+    existing.push(resource);
+    serviceResources.set(resource.service, existing);
+  }
+
+  // Apply service filter if provided
+  if (options.services && options.services.length > 0) {
+    const filter = new Set(options.services);
+    for (const key of [...serviceResources.keys()]) {
+      if (!filter.has(key)) {
+        serviceResources.delete(key);
+      }
+    }
+  }
+
+  const today = new Date();
+  const datePrefix =
+    `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(2, "0")}.${
+      String(today.getDate()).padStart(2, "0")
+    }`;
+
+  const services = new Map<string, CloudflareServiceResult>();
+  const errors: string[] = [];
+
+  for (const [serviceName, svcResources] of serviceResources) {
+    const extensionName = `@swamp/cloudflare/${serviceName}`;
+    const placeholderVersion = "VERSION_PLACEHOLDER";
+    const serviceOutputDir = `${options.outputDir}/cloudflare/${serviceName}`;
+
+    const models: CloudflareGeneratedFile[] = [];
+    const modelChanges: CloudflareModelChange[] = [];
+    let hasChanges = false;
+
+    for (const resource of svcResources) {
+      try {
+        // Generate candidate code with placeholder version for change detection
+        const candidateCode = generateCloudflareExtensionModel({
+          resource,
+          extensionName,
+          version: placeholderVersion,
+        });
+
+        const filePath = `extensions/models/${resource.fileName}`;
+        const fullPath = `${serviceOutputDir}/${filePath}`;
+
+        // Compute version via content comparison
+        const { version, status, existingContent } =
+          await computeModelVersion(
+            serviceOutputDir,
+            filePath,
+            datePrefix,
+            candidateCode,
+            placeholderVersion,
+          );
+
+        if (status !== "unchanged") hasChanges = true;
+
+        // Compute upgrades block for changed/new models
+        const newFieldNames = Object.keys(resource.createProperties);
+        let upgradesBlock: string | undefined;
+        upgradesBlock = computeUpgradesBlock(
+          status,
+          version,
+          existingContent,
+          newFieldNames,
+        );
+
+        // Generate final code with real version
+        const finalCode = generateCloudflareExtensionModel({
+          resource,
+          extensionName,
+          version,
+          upgradesBlock,
+        });
+
+        models.push({ filePath, sourceCode: finalCode });
+        modelChanges.push({ fileName: resource.fileName, status });
+      } catch (err) {
+        errors.push(
+          `${serviceName}/${resource.fileName}: ${(err as Error).message}`,
+        );
+      }
+    }
+
+    // Generate shared lib
+    const libCode = generateCloudflareLibFile();
+    const libFile: CloudflareGeneratedFile = {
+      filePath: "extensions/models/_lib/cloudflare.ts",
+      sourceCode: libCode,
+    };
+
+    // Check if README/LICENSE changed (compare with disk)
+    const firstSlug = svcResources[0]?.modelSlug ?? serviceName;
+    const firstType = `${extensionName}/${firstSlug}`;
+    const readmeCode = generateCloudflareReadme(
+      serviceName,
+      extensionName,
+      firstSlug,
+      firstType,
+    );
+    const readmePath = `${serviceOutputDir}/README.md`;
+    try {
+      const existingReadme = await Deno.readTextFile(readmePath);
+      if (existingReadme !== readmeCode) hasChanges = true;
+    } catch {
+      hasChanges = true;
+    }
+
+    const licenseCode = generateLicense();
+    const licensePath = `${serviceOutputDir}/LICENSE.txt`;
+    try {
+      const existingLicense = await Deno.readTextFile(licensePath);
+      if (existingLicense !== licenseCode) hasChanges = true;
+    } catch {
+      hasChanges = true;
+    }
+
+    // Compute manifest
+    const modelFileNames = models.map((m) =>
+      m.filePath.replace("extensions/models/", "")
+    );
+    const releaseNotes = modelChanges
+      .filter((c) => c.status !== "unchanged")
+      .map((c) =>
+        `- ${c.status === "new" ? "Added" : "Updated"}: ${
+          c.fileName.replace(".ts", "")
+        }`
+      )
+      .join("\n");
+
+    const candidateManifest = generateManifest({
+      name: extensionName,
+      version: placeholderVersion,
+      description: `Cloudflare ${serviceName} infrastructure models`,
+      labels: ["cloudflare", serviceName, "cloud", "infrastructure"],
+      modelFiles: modelFileNames,
+      additionalFiles: ["LICENSE.txt", "README.md"],
+      releaseNotes: releaseNotes || undefined,
+      repository: "https://github.com/systeminit/swamp-extensions",
+      platforms: [],
+    });
+
+    const manifestVersion = await computeManifestVersion(
+      serviceOutputDir,
+      "manifest.yaml",
+      datePrefix,
+      candidateManifest,
+      placeholderVersion,
+      hasChanges,
+    );
+
+    const manifest = generateManifest({
+      name: extensionName,
+      version: manifestVersion,
+      description: `Cloudflare ${serviceName} infrastructure models`,
+      labels: ["cloudflare", serviceName, "cloud", "infrastructure"],
+      modelFiles: modelFileNames,
+      additionalFiles: ["LICENSE.txt", "README.md"],
+      releaseNotes: releaseNotes || undefined,
+      repository: "https://github.com/systeminit/swamp-extensions",
+      platforms: [],
+    });
+
+    const denoConfigCode = generateCloudflareDenoConfig();
+
+    services.set(serviceName, {
+      serviceName,
+      models,
+      libFile,
+      manifest: { filePath: "manifest.yaml", sourceCode: manifest },
+      readmeFile: { filePath: "README.md", sourceCode: readmeCode },
+      licenseFile: { filePath: "LICENSE.txt", sourceCode: licenseCode },
+      denoConfigFile: { filePath: "deno.json", sourceCode: denoConfigCode },
+      modelChanges,
+      hasChanges,
+    });
+  }
+
+  return { datePrefix, services, skipped, errors };
+}
 
 // --- Schema fetching ---
 

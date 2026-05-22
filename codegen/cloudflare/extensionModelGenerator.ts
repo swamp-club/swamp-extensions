@@ -55,7 +55,7 @@ export function generateCloudflareExtensionModel(
   lines.push("");
 
   // --- Scope helper ---
-  const scopeExpr = buildScopeExpression(resource);
+  const scopeType = buildScopePrefix(resource);
 
   // --- GlobalArgsSchema ---
   const globalArgsProps = buildGlobalArgsProperties(resource);
@@ -159,7 +159,7 @@ export function generateCloudflareExtensionModel(
     `      execute: async (_args: Record<string, never>, context: any) => {`,
   );
   lines.push(`        const g = context.globalArgs;`);
-  lines.push(`        const endpoint = \`${scopeExpr}/${relPath}\`;`);
+  lines.push(...buildEndpointLines(scopeType, relPath));
   lines.push(`        const body: Record<string, unknown> = {};`);
   for (const name of Object.keys(resource.createProperties)) {
     lines.push(
@@ -191,7 +191,7 @@ export function generateCloudflareExtensionModel(
     `      execute: async (args: { id: string }, context: any) => {`,
   );
   lines.push(`        const g = context.globalArgs;`);
-  lines.push(`        const endpoint = \`${scopeExpr}/${relPath}\`;`);
+  lines.push(...buildEndpointLines(scopeType, relPath));
   lines.push(
     `        const result = await read(endpoint, args.id) as ResourceData;`,
   );
@@ -228,7 +228,7 @@ export function generateCloudflareExtensionModel(
       `      execute: async (_args: Record<string, never>, context: any) => {`,
     );
     lines.push(`        const g = context.globalArgs;`);
-    lines.push(`        const endpoint = \`${scopeExpr}/${relPath}\`;`);
+    lines.push(...buildEndpointLines(scopeType, relPath));
     lines.push(
       `        const instanceName = ${
         wrapWithSanitize(`g.${namingField}?.toString() ?? "current"`)
@@ -280,7 +280,7 @@ export function generateCloudflareExtensionModel(
       `      execute: async (args: { id: string }, context: any) => {`,
     );
     lines.push(`        const g = context.globalArgs;`);
-    lines.push(`        const endpoint = \`${scopeExpr}/${relPath}\`;`);
+    lines.push(...buildEndpointLines(scopeType, relPath));
     lines.push(
       `        const { existed } = await remove(endpoint, args.id);`,
     );
@@ -314,7 +314,7 @@ export function generateCloudflareExtensionModel(
     `      execute: async (_args: Record<string, never>, context: any) => {`,
   );
   lines.push(`        const g = context.globalArgs;`);
-  lines.push(`        const endpoint = \`${scopeExpr}/${relPath}\`;`);
+  lines.push(...buildEndpointLines(scopeType, relPath));
   lines.push(
     `        const instanceName = ${
       wrapWithSanitize(`g.${namingField}?.toString() ?? "current"`)
@@ -360,15 +360,35 @@ export function generateCloudflareExtensionModel(
   return lines.join("\n");
 }
 
-function buildScopeExpression(resource: CloudflareResource): string {
+function buildEndpointLines(
+  scopeType: string,
+  relPath: string,
+): string[] {
+  if (scopeType === "account") {
+    return [
+      `        const endpoint = "/accounts/" + g.account_id + "/${relPath}";`,
+    ];
+  }
+  if (scopeType === "zone") {
+    return [
+      `        const endpoint = "/zones/" + g.zone_id + "/${relPath}";`,
+    ];
+  }
+  // dual-scope
+  return [
+    `        const scopePrefix = g.account_id ? "/accounts/" + g.account_id : "/zones/" + g.zone_id;`,
+    `        const endpoint = scopePrefix + "/${relPath}";`,
+  ];
+}
+
+function buildScopePrefix(resource: CloudflareResource): string {
   if (resource.scope === "account") {
-    return "\\${`/accounts/\\${g.account_id}`}";
+    return "account";
   }
   if (resource.scope === "zone") {
-    return "\\${`/zones/\\${g.zone_id}`}";
+    return "zone";
   }
-  // dual-scope: use whichever is provided
-  return '\\${g.account_id ? `/accounts/\\${g.account_id}` : `/zones/\\${g.zone_id}`}';
+  return "both";
 }
 
 function buildDualScopeRefine(): string {

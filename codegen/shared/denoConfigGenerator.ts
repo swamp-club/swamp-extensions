@@ -81,3 +81,19 @@ export function generateDigitalOceanDenoConfig(): string {
     2,
   ) + "\n";
 }
+
+/**
+ * Generates a deno.json with import mappings for a Cloudflare extension package.
+ */
+export function generateCloudflareDenoConfig(): string {
+  return JSON.stringify(
+    {
+      lint: LINT_CONFIG,
+      imports: {
+        "zod": "npm:zod@4.3.6",
+      },
+    },
+    null,
+    2,
+  ) + "\n";
+}
