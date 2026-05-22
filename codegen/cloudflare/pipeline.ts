@@ -13,7 +13,6 @@ import { generateCloudflareReadme } from "../shared/readmeGenerator.ts";
 import {
   computeManifestVersion,
   computeModelVersion,
-  formatFile,
 } from "../shared/version.ts";
 import { computeUpgradesBlock } from "../shared/upgradesGenerator.ts";
 
@@ -306,7 +305,6 @@ export async function generateCloudflareModels(options: {
         });
 
         const filePath = `extensions/models/${resource.fileName}`;
-        const fullPath = `${serviceOutputDir}/${filePath}`;
 
         // Compute version via content comparison
         const { version, status, existingContent } = await computeModelVersion(
@@ -321,8 +319,7 @@ export async function generateCloudflareModels(options: {
 
         // Compute upgrades block for changed/new models
         const newFieldNames = Object.keys(resource.createProperties);
-        let upgradesBlock: string | undefined;
-        upgradesBlock = computeUpgradesBlock(
+        const upgradesBlock = computeUpgradesBlock(
           status,
           version,
           existingContent,
