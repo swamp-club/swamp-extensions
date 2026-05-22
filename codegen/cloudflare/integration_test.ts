@@ -15,10 +15,10 @@ interface MockRecord {
 }
 
 function createMockServer(): {
-  start: () => Promise<{ port: number; close: () => Promise<void> }>;
+  start: () => { port: number; close: () => Promise<void> };
 } {
   return {
-    start: async () => {
+    start: () => {
       const records = new Map<string, MockRecord>();
       let idCounter = 0;
 
@@ -195,7 +195,7 @@ interface CloudflareLib {
   ) => Promise<{ existed: boolean }>;
 }
 
-async function importLibWithMock(mockPort: number): Promise<
+async function importLibWithMock(_mockPort: number): Promise<
   { mod: CloudflareLib; cleanup: () => Promise<void> }
 > {
   const tmp = await Deno.makeTempFile({ suffix: ".ts" });
@@ -268,7 +268,7 @@ Deno.test(
   { sanitizeResources: false },
   async () => {
     const restoreToken = withTestToken();
-    const { port, close } = await createMockServer().start();
+    const { port, close } = createMockServer().start();
     const { restore: restoreFetch } = redirectFetchToMock(port);
     const { mod, cleanup } = await importLibWithMock(port);
 
@@ -350,7 +350,7 @@ Deno.test(
   { sanitizeResources: false },
   async () => {
     const restoreToken = withTestToken();
-    const { port, close } = await createMockServer().start();
+    const { port, close } = createMockServer().start();
     const { restore: restoreFetch } = redirectFetchToMock(port);
     const { mod, cleanup } = await importLibWithMock(port);
 
@@ -397,7 +397,7 @@ Deno.test(
   { sanitizeResources: false },
   async () => {
     const restoreToken = withTestToken();
-    const { port, close } = await createMockServer().start();
+    const { port, close } = createMockServer().start();
     const { restore: restoreFetch } = redirectFetchToMock(port);
     const { mod, cleanup } = await importLibWithMock(port);
 
@@ -427,7 +427,7 @@ Deno.test(
   { sanitizeResources: false },
   async () => {
     const restoreToken = withTestToken();
-    const { port, close } = await createMockServer().start();
+    const { port, close } = createMockServer().start();
     const { restore: restoreFetch } = redirectFetchToMock(port);
     const { mod, cleanup } = await importLibWithMock(port);
 
