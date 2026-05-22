@@ -14,16 +14,6 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-/**
- * Issue-lifecycle model for @swamp/issue-lifecycle.
- *
- * Drives the triage → plan → iterate → approve → implement loop as a local
- * conversation with Claude, while posting structured lifecycle entries and
- * status transitions back to a swamp-club lab issue on every step.
- *
- * @module
- */
-
 import { z } from "zod";
 import {
   AdversarialFindingSchema,
@@ -78,14 +68,9 @@ async function readState(
 // Model Definition
 // ---------------------------------------------------------------------------
 
-/**
- * Swamp extension model export. Declares the issue-lifecycle type and the
- * methods (`start`, `triage`, `plan`, `iterate`, `approve`, `implement`,
- * `link_pr`, `complete`, …) that drive the lifecycle state machine.
- */
 export const model = {
   type: "@swamp/issue-lifecycle",
-  version: "2026.04.22.1",
+  version: "2026.05.21.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -143,14 +128,11 @@ export const model = {
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
-      toVersion: "2026.04.20.1",
-      description:
-        "Skill update: bundled triage.md worktree note now mirrors swamp's " +
-        "repo-dir resolution order (SWAMP_REPO_DIR > --repo-dir fallback when " +
-        "CWD is inside .claude/worktrees/ > CWD auto-detection). " +
-        "Stops the agent from clobbering a user-set SWAMP_REPO_DIR with an " +
-        "incorrect --repo-dir derived from the worktree parent. " +
-        "No model schema, method, or attribute changes.",
+      toVersion: "2026.05.21.1",
+      description: "Add notify phase for external contributors. " +
+        "ship() and complete() now transition to notify instead of done. " +
+        "New notify method posts a thank-you ripple and transitions to done. " +
+        "Issue data now includes author field.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -484,6 +466,7 @@ export const model = {
             body: issue.body,
             type: issue.type,
             status: issue.status,
+            author: issue.author,
             comments: issue.comments,
             fetchedAt: new Date().toISOString(),
           }),
@@ -1512,12 +1495,12 @@ export const model = {
         const now = new Date().toISOString();
 
         const stateHandle = await context.writeResource("state", "state-main", {
-          phase: "done",
+          phase: "notify",
           issueNumber,
           updatedAt: now,
         });
 
-        context.logger.info("Shipped", {});
+        context.logger.info("Shipped — awaiting contributor notification", {});
 
         const sc = await createSwampClubClient(
           context.globalArgs,
@@ -1565,12 +1548,15 @@ export const model = {
         const { issueNumber } = context.globalArgs;
 
         const stateHandle = await context.writeResource("state", "state-main", {
-          phase: "done",
+          phase: "notify",
           issueNumber,
           updatedAt: new Date().toISOString(),
         });
 
-        context.logger.info("Issue lifecycle complete", {});
+        context.logger.info(
+          "Issue lifecycle complete — awaiting contributor notification",
+          {},
+        );
 
         const sc = await createSwampClubClient(
           context.globalArgs,
@@ -1586,6 +1572,140 @@ export const model = {
             isVerbose: false,
           });
           await sc.transitionStatus("shipped");
+        }
+
+        return { dataHandles: [stateHandle] };
+      },
+    },
+
+    notify: {
+      description:
+        "Thank an external contributor by posting a ripple on the issue " +
+        "mentioning them by handle. Transitions to done.",
+      arguments: z.object({
+        message: z.string().optional().describe(
+          "Custom thank-you message. If omitted, a default message is generated.",
+        ),
+      }),
+      execute: async (
+        args: { message?: string },
+        context: {
+          globalArgs: GlobalArgs;
+          logger: {
+            info: (msg: string, props: Record<string, unknown>) => void;
+            warning: (msg: string, props: Record<string, unknown>) => void;
+          };
+          writeResource: (
+            specName: string,
+            instanceName: string,
+            data: Record<string, unknown>,
+          ) => Promise<{ name: string }>;
+          readResource: (
+            instanceName: string,
+            version?: number,
+          ) => Promise<Record<string, unknown> | null>;
+        },
+      ) => {
+        const { issueNumber } = context.globalArgs;
+
+        // Read the author from context, falling back to a re-fetch if missing.
+        let author: string | undefined;
+        const contextData = await context.readResource("context-main");
+        if (contextData && typeof contextData.author === "string") {
+          author = contextData.author;
+        }
+
+        const sc = await createSwampClubClient(
+          context.globalArgs,
+          context.logger,
+        );
+
+        if (!author && sc) {
+          const issue = await sc.fetchIssue();
+          author = issue?.author;
+        }
+
+        if (author && author !== "unknown" && sc) {
+          const body = args.message ??
+            `Thanks @${author} for reporting this! The fix has been merged and a release is on its way. We appreciate your contribution to swamp.`;
+          await sc.submitComment(body);
+          context.logger.info(
+            "Posted thank-you ripple for @{author} on issue #{issueNumber}",
+            { author, issueNumber },
+          );
+        } else {
+          context.logger.warning(
+            "Could not determine issue author — skipping notification",
+            {},
+          );
+        }
+
+        const stateHandle = await context.writeResource("state", "state-main", {
+          phase: "done",
+          issueNumber,
+          updatedAt: new Date().toISOString(),
+        });
+
+        if (sc) {
+          await sc.postLifecycleEntry({
+            step: "contributor_notified",
+            targetStatus: "shipped",
+            summary: author && author !== "unknown"
+              ? `Thanked @${author}`
+              : "Notification skipped (unknown author)",
+            emoji: "\u{1F64F}",
+            payload: { author: author ?? "unknown" },
+            isVerbose: false,
+          });
+        }
+
+        return { dataHandles: [stateHandle] };
+      },
+    },
+
+    skip_notify: {
+      description:
+        "Skip contributor notification and transition directly to done. " +
+        "Use when the issue author is a collaborator or notification is not needed.",
+      arguments: z.object({}),
+      execute: async (
+        _args: Record<string, never>,
+        context: {
+          globalArgs: GlobalArgs;
+          logger: {
+            info: (msg: string, props: Record<string, unknown>) => void;
+            warning: (msg: string, props: Record<string, unknown>) => void;
+          };
+          writeResource: (
+            specName: string,
+            instanceName: string,
+            data: Record<string, unknown>,
+          ) => Promise<{ name: string }>;
+        },
+      ) => {
+        const { issueNumber } = context.globalArgs;
+
+        const stateHandle = await context.writeResource("state", "state-main", {
+          phase: "done",
+          issueNumber,
+          updatedAt: new Date().toISOString(),
+        });
+
+        context.logger.info("Contributor notification skipped", {});
+
+        const sc = await createSwampClubClient(
+          context.globalArgs,
+          context.logger,
+        );
+        if (sc) {
+          await sc.postLifecycleEntry({
+            step: "notification_skipped",
+            targetStatus: "shipped",
+            summary: "Contributor notification skipped",
+            emoji: "\u{23ED}\u{FE0F}",
+            payload: {},
+            isVerbose: false,
+          });
         }
 
         return { dataHandles: [stateHandle] };
