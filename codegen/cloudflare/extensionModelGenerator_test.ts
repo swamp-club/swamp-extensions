@@ -11,8 +11,9 @@ function makeResource(
   },
 ): CloudflareResource {
   return {
-    displayName: overrides.modelSlug.replace(/-/g, " ").replace(/\b\w/g, (c) =>
-      c.toUpperCase()
+    displayName: overrides.modelSlug.replace(/-/g, " ").replace(
+      /\b\w/g,
+      (c) => c.toUpperCase(),
     ),
     scope: "account",
     basePath: `/accounts/{account_id}/${overrides.resourcePath}`,
@@ -98,8 +99,17 @@ Deno.test("generateCloudflareExtensionModel - zone-scoped, PATCH update", async 
     idPath: "/zones/{zone_id}/dns_records/{dns_record_id}",
     idParam: "dns_record_id",
     createProperties: {
-      name: { type: "string", description: "Record name", minLength: 1, maxLength: 255 },
-      type: { type: "string", description: "Record type", enum: ["A", "AAAA", "CNAME", "MX", "TXT"] },
+      name: {
+        type: "string",
+        description: "Record name",
+        minLength: 1,
+        maxLength: 255,
+      },
+      type: {
+        type: "string",
+        description: "Record type",
+        enum: ["A", "AAAA", "CNAME", "MX", "TXT"],
+      },
       content: { type: "string", description: "Record content" },
       ttl: { type: "integer", description: "TTL", minimum: 30, maximum: 86400 },
       proxied: { type: "boolean", description: "Cloudflare proxy" },
@@ -149,7 +159,11 @@ Deno.test("generateCloudflareExtensionModel - dual-scoped resource", async (t) =
     idParam: "ruleset_id",
     createProperties: {
       name: { type: "string", description: "Ruleset name" },
-      kind: { type: "string", description: "Kind", enum: ["root", "zone", "managed"] },
+      kind: {
+        type: "string",
+        description: "Kind",
+        enum: ["root", "zone", "managed"],
+      },
       phase: { type: "string", description: "Phase" },
     },
     updateProperties: {
@@ -192,10 +206,16 @@ Deno.test("generateCloudflareExtensionModel - synthetic name", async (t) => {
     idPath: "/accounts/{account_id}/addressing/address_maps/{address_map_id}",
     idParam: "address_map_id",
     createProperties: {
-      enabled: { type: "boolean", description: "Whether the address map is enabled" },
+      enabled: {
+        type: "boolean",
+        description: "Whether the address map is enabled",
+      },
     },
     updateProperties: {
-      enabled: { type: "boolean", description: "Whether the address map is enabled" },
+      enabled: {
+        type: "boolean",
+        description: "Whether the address map is enabled",
+      },
     },
     resourceProperties: {
       id: stringProp,

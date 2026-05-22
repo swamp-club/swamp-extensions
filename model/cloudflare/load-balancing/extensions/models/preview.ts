@@ -224,7 +224,7 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/zones/" + g.zone_id + "/healthchecks/preview";
         const result = await read(endpoint, args.id) as ResourceData;
-        const instanceName = (result.name?.toString() ?? args.id).replace(
+        const instanceName = (g.name?.toString() ?? args.id).replace(
           /[\/\\]/g,
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");

@@ -115,8 +115,10 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/magic/routes";
         const result = await read(endpoint, args.id) as ResourceData;
-        const instanceName = (result.description?.toString() ?? args.id)
-          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = (g.description?.toString() ?? args.id).replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,

@@ -105,8 +105,10 @@ export const model = {
         const endpoint = "/accounts/" + g.account_id +
           "/zt_risk_scoring/integrations";
         const result = await read(endpoint, args.id) as ResourceData;
-        const instanceName = (context.globalArgs.name?.toString() ?? args.id)
-          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = (g.name?.toString() ?? args.id).replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,

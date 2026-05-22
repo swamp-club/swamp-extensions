@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/cloudflare/dns"
-version: "2026.05.22.3"
+version: "2026.05.22.1"
 description: "Cloudflare dns infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,9 +10,9 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: dns_firewall
-  - Updated: dns_records
-  - Updated: views
+  - Added: dns_firewall
+  - Added: dns_records
+  - Added: views
 models:
   - dns_firewall.ts
   - dns_records.ts

@@ -323,7 +323,11 @@ Deno.test(
 
       // 6. Verify deletion — tryRead returns null
       const afterDelete = await mod.tryRead(endpoint, recordId);
-      assertEquals(afterDelete, null, "tryRead should return null after delete");
+      assertEquals(
+        afterDelete,
+        null,
+        "tryRead should return null after delete",
+      );
 
       // 7. Delete again — should return existed=false
       const deleteAgain = await mod.remove(endpoint, recordId);

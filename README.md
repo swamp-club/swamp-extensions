@@ -39,13 +39,15 @@ end-to-end with a single `swamp workflow run`.
 | Extension                                      | Description                         |
 | ---------------------------------------------- | ----------------------------------- |
 | [`@swamp/aws/*`](model/aws/)                   | AWS infrastructure models           |
+| [`@swamp/cloudflare/*`](model/cloudflare/)     | Cloudflare infrastructure models    |
 | [`@swamp/gcp/*`](model/gcp/)                   | Google Cloud infrastructure models  |
 | [`@swamp/hetzner-cloud`](model/hetzner-cloud/) | Hetzner Cloud infrastructure models |
 | [`@swamp/digitalocean`](model/digitalocean/)   | DigitalOcean infrastructure models  |
 
-AWS and GCP models are published per-service (e.g., `@swamp/aws/ec2`,
-`@swamp/gcp/compute`). All model extensions are auto-generated from provider
-schemas. See [Code Generation](#code-generation) for how to regenerate them.
+AWS, Cloudflare, and GCP models are published per-service (e.g.,
+`@swamp/aws/ec2`, `@swamp/cloudflare/dns`, `@swamp/gcp/compute`). All model
+extensions are auto-generated from provider schemas. See
+[Code Generation](#code-generation) for how to regenerate them.
 
 ## Installation
 
@@ -77,6 +79,10 @@ swamp extension pull @swamp/aws/ec2
 swamp extension pull @swamp/aws/s3
 swamp extension pull @swamp/aws/lambda
 # ... and ~249 other AWS services
+swamp extension pull @swamp/cloudflare/dns
+swamp extension pull @swamp/cloudflare/workers
+swamp extension pull @swamp/cloudflare/r2
+# ... and ~66 other Cloudflare services
 ```
 
 ## Usage
@@ -188,7 +194,8 @@ service factories. See `datastore/s3/` for the canonical example.
 
 **Model extensions** under `model/` are auto-generated — never edit by hand.
 AWS models are structured as `model/aws/<service>/` (one directory per service,
-~249 services). Hetzner and DigitalOcean each have a single directory.
+~249 services). Cloudflare uses the same per-service layout (~69 services).
+Hetzner and DigitalOcean each have a single directory.
 
 **Workflow extensions** live in `workflows/<name>/` and list a workflow YAML
 under `extensions/workflows/` plus any helper models under `extensions/models/`
@@ -215,21 +222,26 @@ Model extensions are regenerated from provider schemas:
 ```bash
 cd codegen
 deno task fetch-schema:aws
+deno task fetch-schema:cloudflare
 deno task fetch-schema:gcp
 deno task fetch-schema:hetzner
 deno task fetch-schema:digitalocean
 deno task generate:aws
+deno task generate:cloudflare
 deno task generate:gcp
 deno task generate:hetzner
 deno task generate:digitalocean
 ```
 
-AWS and GCP support service filtering: `deno task generate:aws ec2 s3 lambda`
+AWS, Cloudflare, and GCP support service filtering:
+`deno task generate:aws ec2 s3 lambda`
+`deno task generate:cloudflare dns workers r2`
 
 Generation is idempotent — versions only bump when content changes.
 
 Design documents explain how each provider's schema is mapped to swamp models:
 - [AWS](codegen/designs/aws.md)
+- [Cloudflare](codegen/designs/cloudflare.md)
 - [GCP](codegen/designs/gcp.md)
 - [Hetzner Cloud](codegen/designs/hetzner.md)
 - [DigitalOcean](codegen/designs/digitalocean.md)

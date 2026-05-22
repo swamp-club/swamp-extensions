@@ -280,10 +280,9 @@ export async function generateCloudflareModels(options: {
   }
 
   const today = new Date();
-  const datePrefix =
-    `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(2, "0")}.${
-      String(today.getDate()).padStart(2, "0")
-    }`;
+  const datePrefix = `${today.getFullYear()}.${
+    String(today.getMonth() + 1).padStart(2, "0")
+  }.${String(today.getDate()).padStart(2, "0")}`;
 
   const services = new Map<string, CloudflareServiceResult>();
   const errors: string[] = [];
@@ -310,14 +309,13 @@ export async function generateCloudflareModels(options: {
         const fullPath = `${serviceOutputDir}/${filePath}`;
 
         // Compute version via content comparison
-        const { version, status, existingContent } =
-          await computeModelVersion(
-            serviceOutputDir,
-            filePath,
-            datePrefix,
-            candidateCode,
-            placeholderVersion,
-          );
+        const { version, status, existingContent } = await computeModelVersion(
+          serviceOutputDir,
+          filePath,
+          datePrefix,
+          candidateCode,
+          placeholderVersion,
+        );
 
         if (status !== "unchanged") hasChanges = true;
 
@@ -610,8 +608,8 @@ export function parseResources(spec: Spec): {
     }
 
     // Check for empty POST body
-    const postContent =
-      baseMethods.post.requestBody?.content?.["application/json"];
+    const postContent = baseMethods.post.requestBody?.content
+      ?.["application/json"];
     if (!postContent?.schema || Object.keys(postContent.schema).length === 0) {
       // Check for multipart or non-JSON
       const contentTypes = Object.keys(
@@ -694,7 +692,9 @@ function mergeDualScopedResources(
         } else {
           // Disambiguate by adding a path-based suffix
           const pathParts = group[i].resourcePath.split("/");
-          const suffix = pathParts.length > 2 ? pathParts[pathParts.length - 2] : `v${i + 1}`;
+          const suffix = pathParts.length > 2
+            ? pathParts[pathParts.length - 2]
+            : `v${i + 1}`;
           const newFileName = group[i].fileName.replace(".ts", `_${suffix}.ts`);
           const newSlug = group[i].modelSlug + `-${suffix}`;
           result.push({

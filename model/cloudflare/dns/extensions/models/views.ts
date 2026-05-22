@@ -47,17 +47,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Views. Registered at `@swamp/cloudflare/dns/views`. */
 export const model = {
   type: "@swamp/cloudflare/dns/views",
-  version: "2026.05.22.2",
-  upgrades: [
-    {
-      toVersion: "2026.05.22.2",
-      description: "Removed: account_id",
-      upgradeAttributes: (old: Record<string, unknown>) => {
-        const { account_id: _account_id, ...rest } = old;
-        return rest;
-      },
-    },
-  ],
+  version: "2026.05.22.1",
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

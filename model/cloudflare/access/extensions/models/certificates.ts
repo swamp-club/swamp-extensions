@@ -107,7 +107,7 @@ export const model = {
           : "/zones/" + g.zone_id;
         const endpoint = scopePrefix + "/access/certificates";
         const result = await read(endpoint, args.id) as ResourceData;
-        const instanceName = (result.name?.toString() ?? args.id).replace(
+        const instanceName = (g.name?.toString() ?? args.id).replace(
           /[\/\\]/g,
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");

@@ -84,7 +84,12 @@ export function generateCloudflareExtensionModel(
     );
   }
 
-  if (resource.syntheticName) {
+  // Only inject synthetic name if the merged globalArgs don't already have the naming field
+  const allPropNames = new Set([
+    ...Object.keys(resource.createProperties),
+    ...Object.keys(resource.updateProperties),
+  ]);
+  if (resource.syntheticName && !allPropNames.has(resource.namingField)) {
     lines.push(
       `  name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),`,
     );
@@ -120,7 +125,7 @@ export function generateCloudflareExtensionModel(
     lines.push(`  account_id: z.string().optional(),`);
     lines.push(`  zone_id: z.string().optional(),`);
   }
-  if (resource.syntheticName) {
+  if (resource.syntheticName && !allPropNames.has(resource.namingField)) {
     lines.push(`  name: z.string().optional(),`);
   }
   for (const prop of globalArgsProps) {
@@ -167,7 +172,9 @@ export function generateCloudflareExtensionModel(
   lines.push(...buildEndpointLines(scopeType, relPath));
   lines.push(`        const body: Record<string, unknown> = {};`);
   for (const name of Object.keys(resource.createProperties)) {
-    const access = VALID_JS_IDENT.test(name) ? `.${name}` : `[${JSON.stringify(name)}]`;
+    const access = VALID_JS_IDENT.test(name)
+      ? `.${name}`
+      : `[${JSON.stringify(name)}]`;
     lines.push(
       `        if (g${access} !== undefined) body${access} = g${access};`,
     );
@@ -253,7 +260,9 @@ export function generateCloudflareExtensionModel(
         (k) => !resource.createOnlyProperties.has(k),
       );
     for (const name of updateKeys) {
-      const access = VALID_JS_IDENT.test(name) ? `.${name}` : `[${JSON.stringify(name)}]`;
+      const access = VALID_JS_IDENT.test(name)
+        ? `.${name}`
+        : `[${JSON.stringify(name)}]`;
       lines.push(
         `        if (g${access} !== undefined) body${access} = g${access};`,
       );
@@ -477,7 +486,9 @@ function generateFullFidelityZod(prop: CloudflareProperty): string {
         const fields = Object.entries(prop.properties).map(
           ([k, v]) => {
             const suffix = requiredSet.has(k) ? "" : ".optional()";
-            return `    ${quoteProp(k)}: ${generateFullFidelityZod(v)}${suffix}`;
+            return `    ${quoteProp(k)}: ${
+              generateFullFidelityZod(v)
+            }${suffix}`;
           },
         );
         return `z.object({\n${fields.join(",\n")},\n  })`;
@@ -508,7 +519,8 @@ function generateSimplifiedZod(prop: CloudflareProperty): string {
     case "object": {
       if (prop.properties && Object.keys(prop.properties).length > 0) {
         const fields = Object.entries(prop.properties).map(
-          ([k, v]) => `    ${quoteProp(k)}: ${generateSimplifiedZod(v)}.optional()`,
+          ([k, v]) =>
+            `    ${quoteProp(k)}: ${generateSimplifiedZod(v)}.optional()`,
         );
         return `z.object({\n${fields.join(",\n")},\n  })`;
       }

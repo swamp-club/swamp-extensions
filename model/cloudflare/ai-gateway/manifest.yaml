@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/cloudflare/ai-gateway"
-version: "2026.05.22.2"
+version: "2026.05.22.1"
 description: "Cloudflare ai-gateway infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,10 @@ labels:
   - ai-gateway
   - cloud
   - infrastructure
+releaseNotes: |
+  - Added: custom-providers
+  - Added: costs
+  - Added: gateways
 models:
   - costs.ts
   - custom-providers.ts

@@ -17,9 +17,6 @@ import { create, read, remove, tryRead, update } from "./_lib/cloudflare.ts";
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  name: z.string().describe(
-    "Instance name for this resource (used as the unique identifier in the factory pattern)",
-  ),
   ips: z.array(z.string()).describe(
     "Specify the list of CIDRs to restrict ingress connections.",
   ).optional(),
@@ -55,7 +52,6 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
   account_id: z.string().optional(),
-  name: z.string().optional(),
   ips: z.array(z.string()).optional(),
   name: z.string().optional(),
   kind: z.enum(["ip", "identity"]).optional(),
@@ -108,8 +104,10 @@ export const model = {
         const endpoint = "/accounts/" + g.account_id +
           "/gateway/proxy_endpoints";
         const result = await read(endpoint, args.id) as ResourceData;
-        const instanceName = (context.globalArgs.name?.toString() ?? args.id)
-          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = (g.name?.toString() ?? args.id).replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,

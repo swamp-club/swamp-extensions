@@ -103,8 +103,10 @@ export const model = {
           : "/zones/" + g.zone_id;
         const endpoint = scopePrefix + "/email/routing/suppression";
         const result = await read(endpoint, args.id) as ResourceData;
-        const instanceName = (context.globalArgs.name?.toString() ?? args.id)
-          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = (g.name?.toString() ?? args.id).replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
