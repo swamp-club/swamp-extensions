@@ -1,6 +1,7 @@
 // fetch-schema command — delegates to the appropriate provider pipeline
 
 import { fetchAwsSchema } from "../aws/pipeline.ts";
+import { fetchCloudflareSchema } from "../cloudflare/pipeline.ts";
 import { fetchDigitalOceanSchema } from "../digitalocean/pipeline.ts";
 import { fetchGcpSchema } from "../gcp/pipeline.ts";
 import { fetchHetznerSchema } from "../hetzner/pipeline.ts";
@@ -17,6 +18,9 @@ export async function fetchSchema(options: {
     case "aws":
       await fetchAwsSchema({ outputPath: options.outputPath });
       break;
+    case "cloudflare":
+      await fetchCloudflareSchema({ outputPath: options.outputPath });
+      break;
     case "hetzner":
       await fetchHetznerSchema({ outputPath: options.outputPath });
       break;
@@ -28,7 +32,7 @@ export async function fetchSchema(options: {
       break;
     default:
       throw new Error(
-        `Unsupported provider: ${options.provider}. Supported: "aws", "gcp", "hetzner", "digitalocean".`,
+        `Unsupported provider: ${options.provider}. Supported: "aws", "cloudflare", "gcp", "hetzner", "digitalocean".`,
       );
   }
 }

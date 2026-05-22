@@ -10,7 +10,7 @@ await new Command()
   .name("codegen")
   .version("0.1.0")
   .description(
-    "Generate swamp extension models for AWS, GCP, Hetzner Cloud, and DigitalOcean",
+    "Generate swamp extension models for AWS, Cloudflare, GCP, Hetzner Cloud, and DigitalOcean",
   )
   .command(
     "generate-models",
