@@ -144,13 +144,13 @@ collection and should be treated differently (currently skipped as a sub-asset).
 
 ### Exclusion rules
 
-| Rule                                    | Rationale                                                                                                      |
-| --------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `SKIP_TOP_LEVEL: ["add-ons", "gen-ai"]` | Incomplete/beta APIs not ready for codegen                                                                     |
-| Skip `/v2/registry` paths               | Duplicate of `/v2/registries` (singular vs plural)                                                             |
-| Skip paths with >1 `{param}` segment    | Sub-assets not in `CHILD_RESOURCE_ENDPOINTS` are too deeply nested for the current flat model pattern          |
-| Skip paths with >8 total operations     | Overly complex endpoints that likely represent aggregate APIs                                                  |
-| Skip `actions` sub-resource paths       | Handled separately via action method generation                                                                |
+| Rule                                    | Rationale                                                                                             |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `SKIP_TOP_LEVEL: ["add-ons", "gen-ai"]` | Incomplete/beta APIs not ready for codegen                                                            |
+| Skip `/v2/registry` paths               | Duplicate of `/v2/registries` (singular vs plural)                                                    |
+| Skip paths with >1 `{param}` segment    | Sub-assets not in `CHILD_RESOURCE_ENDPOINTS` are too deeply nested for the current flat model pattern |
+| Skip paths with >8 total operations     | Overly complex endpoints that likely represent aggregate APIs                                         |
+| Skip `actions` sub-resource paths       | Handled separately via action method generation                                                       |
 
 ### Child resource allowlist
 
@@ -172,20 +172,20 @@ The generated model constructs the API endpoint dynamically at runtime:
 const endpoint = `/v2/domains/${g.domain_name}/records`;
 ```
 
-| Collection path | Parent param | `forceSyntheticName` | Notes |
-| --- | --- | --- | --- |
-| `/v2/databases/{database_cluster_uuid}/dbs` | `database_cluster_uuid` | — | DB name is unique within cluster |
-| `/v2/databases/{database_cluster_uuid}/logsink` | `database_cluster_uuid` | — | Inherently synthetic (no name field) |
-| `/v2/databases/{database_cluster_uuid}/pools` | `database_cluster_uuid` | — | Pool name is unique within cluster |
-| `/v2/databases/{database_cluster_uuid}/replicas` | `database_cluster_uuid` | — | Replica name is unique |
-| `/v2/databases/{database_cluster_uuid}/schema-registry` | `database_cluster_uuid` | — | Inherently synthetic (subject_name field) |
-| `/v2/databases/{database_cluster_uuid}/topics` | `database_cluster_uuid` | — | Topic name is unique within cluster |
-| `/v2/databases/{database_cluster_uuid}/users` | `database_cluster_uuid` | — | Username is unique within cluster |
-| `/v2/domains/{domain_name}/records` | `domain_name` | `true` | DNS hostname is NOT unique |
-| `/v2/functions/namespaces/{namespace_id}/triggers` | `namespace_id` | — | Trigger name is unique within namespace |
-| `/v2/kubernetes/clusters/{cluster_id}/node_pools` | `cluster_id` | — | Node pool has name + numeric ID |
-| `/v2/uptime/checks/{check_id}/alerts` | `check_id` | — | Alert has name + numeric ID |
-| `/v2/apps/{app_id}/deployments` | `app_id` | — | Inherently synthetic; create + get only |
+| Collection path                                         | Parent param            | `forceSyntheticName` | Notes                                     |
+| ------------------------------------------------------- | ----------------------- | -------------------- | ----------------------------------------- |
+| `/v2/databases/{database_cluster_uuid}/dbs`             | `database_cluster_uuid` | —                    | DB name is unique within cluster          |
+| `/v2/databases/{database_cluster_uuid}/logsink`         | `database_cluster_uuid` | —                    | Inherently synthetic (no name field)      |
+| `/v2/databases/{database_cluster_uuid}/pools`           | `database_cluster_uuid` | —                    | Pool name is unique within cluster        |
+| `/v2/databases/{database_cluster_uuid}/replicas`        | `database_cluster_uuid` | —                    | Replica name is unique                    |
+| `/v2/databases/{database_cluster_uuid}/schema-registry` | `database_cluster_uuid` | —                    | Inherently synthetic (subject_name field) |
+| `/v2/databases/{database_cluster_uuid}/topics`          | `database_cluster_uuid` | —                    | Topic name is unique within cluster       |
+| `/v2/databases/{database_cluster_uuid}/users`           | `database_cluster_uuid` | —                    | Username is unique within cluster         |
+| `/v2/domains/{domain_name}/records`                     | `domain_name`           | `true`               | DNS hostname is NOT unique                |
+| `/v2/functions/namespaces/{namespace_id}/triggers`      | `namespace_id`          | —                    | Trigger name is unique within namespace   |
+| `/v2/kubernetes/clusters/{cluster_id}/node_pools`       | `cluster_id`            | —                    | Node pool has name + numeric ID           |
+| `/v2/uptime/checks/{check_id}/alerts`                   | `check_id`              | —                    | Alert has name + numeric ID               |
+| `/v2/apps/{app_id}/deployments`                         | `app_id`                | —                    | Inherently synthetic; create + get only   |
 
 ---
 
