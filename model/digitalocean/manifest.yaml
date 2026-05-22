@@ -1,28 +1,41 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/digitalocean"
-version: "2026.05.15.1"
+version: "2026.05.22.4"
 description: "DigitalOcean infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
   - digitalocean
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: domain_record
 models:
+  - app_deployment.ts
   - app_platform.ts
   - byoip_prefix.ts
   - cdn_endpoint.ts
   - container_registry.ts
   - custom_image.ts
   - database_cluster.ts
+  - database_db.ts
+  - database_logsink.ts
+  - database_pool.ts
+  - database_replica.ts
+  - database_schema_registry.ts
+  - database_topic.ts
+  - database_user.ts
   - dedicated_inference.ts
   - domain.ts
+  - domain_record.ts
   - droplet.ts
   - droplet_autoscale.ts
   - firewall.ts
   - floating_ip.ts
   - function_namespace.ts
+  - function_namespace_trigger.ts
   - kubernetes_cluster.ts
+  - kubernetes_cluster_node_pool.ts
   - load_balancer.ts
   - monitoring_alert_policy.ts
   - monitoring_sink.ts
@@ -38,6 +51,7 @@ models:
   - ssl_certificate.ts
   - tag.ts
   - uptime_check.ts
+  - uptime_check_alert.ts
   - volume.ts
   - vpc.ts
   - vpc_nat_gateway.ts

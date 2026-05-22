@@ -49,6 +49,17 @@ export function generateDigitalOceanExtensionModel(
   const modelType = `${extensionName}/${resource.modelSlug}`;
   const endpoint = resource.endpoint;
   const actionResourceName = resource.modelSlug.replace(/-/g, "_") + "_action";
+  const isChildResource = !!resource.parentParam;
+  const dynamicEndpointTemplate = isChildResource
+    ? endpoint.replace(
+      `{${resource.parentParam}}`,
+      `\${g.${resource.parentParam}}`,
+    )
+    : null;
+  const endpointLine = isChildResource
+    ? `        const endpoint = \`${dynamicEndpointTemplate}\`;`
+    : null;
+  const ep = () => isChildResource ? "endpoint" : `"${endpoint}"`;
 
   const lines: string[] = [];
 
@@ -91,8 +102,9 @@ export function generateDigitalOceanExtensionModel(
   }
   // tryFindByField needed for checkExists on numeric-id resources with a name/label field.
   // Check if the resource has a natural naming field (same logic as resolveNamingField).
-  const hasNaturalName = !!(resource.createProperties["name"] ||
-    resource.createProperties["label"]);
+  const hasNaturalName = !resource.forceSyntheticName &&
+    !!(resource.createProperties["name"] ||
+      resource.createProperties["label"]);
   const hasListFilter = hasNaturalName &&
     !["name", "ip", "uuid"].includes(resource.identifyingField);
   if (hasListFilter) helperImports.push("tryFindByField");
@@ -113,9 +125,14 @@ export function generateDigitalOceanExtensionModel(
   // GlobalArgsSchema — all create + update properties with full fidelity
   const globalArgsProps = buildGlobalArgsProperties(resource);
   lines.push(`const GlobalArgsSchema = z.object({`);
+  if (resource.parentParam) {
+    lines.push(
+      `  ${resource.parentParam}: z.string().describe("Parent resource identifier"),`,
+    );
+  }
   if (isSyntheticName) {
     lines.push(
-      `  name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),`,
+      `  ${namingField}: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),`,
     );
   }
   for (const prop of globalArgsProps) {
@@ -142,8 +159,11 @@ export function generateDigitalOceanExtensionModel(
 
   // InputsSchema — mirrors globalArgs but all optional
   lines.push(`const InputsSchema = z.object({`);
+  if (resource.parentParam) {
+    lines.push(`  ${resource.parentParam}: z.string().optional(),`);
+  }
   if (isSyntheticName) {
-    lines.push(`  name: z.string().optional(),`);
+    lines.push(`  ${namingField}: z.string().optional(),`);
   }
   for (const prop of globalArgsProps) {
     lines.push(`  ${prop.nameOnly}: ${prop.baseExpr}.optional(),`);
@@ -240,6 +260,7 @@ export function generateDigitalOceanExtensionModel(
     );
   }
   lines.push(`        const g = context.globalArgs;`);
+  if (endpointLine) lines.push(endpointLine);
   lines.push(
     `        const instanceName = ${
       wrapWithSanitize(`g.${namingField}?.toString() ?? "current"`)
@@ -250,7 +271,7 @@ export function generateDigitalOceanExtensionModel(
   if (canDirectLookup) {
     lines.push(`        if (args.checkExists) {`);
     lines.push(
-      `          const existing = await tryRead("${endpoint}", g.${namingField});`,
+      `          const existing = await tryRead(${ep()}, g.${namingField});`,
     );
     lines.push(`          if (existing) {`);
     lines.push(
@@ -261,7 +282,7 @@ export function generateDigitalOceanExtensionModel(
   } else if (canListFilter) {
     lines.push(`        if (args.checkExists) {`);
     lines.push(
-      `          const existing = await tryFindByField("${endpoint}", "${listFilterField}", g.${listFilterField}?.toString() ?? "");`,
+      `          const existing = await tryFindByField(${ep()}, "${listFilterField}", g.${listFilterField}?.toString() ?? "");`,
     );
     lines.push(`          if (existing) {`);
     lines.push(
@@ -281,7 +302,7 @@ export function generateDigitalOceanExtensionModel(
   if (hasReadiness) {
     // Create then optionally poll for readiness
     lines.push(
-      `        let result = await create("${endpoint}", body) as ResourceData;`,
+      `        let result = await create(${ep()}, body) as ResourceData;`,
     );
     lines.push(`        if (args.waitForReady !== false) {`);
     lines.push(
@@ -289,7 +310,7 @@ export function generateDigitalOceanExtensionModel(
     );
     lines.push(`          if (resourceId) {`);
     lines.push(
-      `            result = await pollResourceReady("${endpoint}", resourceId as string | number, ${
+      `            result = await pollResourceReady(${ep()}, resourceId as string | number, ${
         JSON.stringify(resource.readiness)
       }) as ResourceData;`,
     );
@@ -297,7 +318,7 @@ export function generateDigitalOceanExtensionModel(
     lines.push(`        }`);
   } else {
     lines.push(
-      `        const result = await create("${endpoint}", body) as ResourceData;`,
+      `        const result = await create(${ep()}, body) as ResourceData;`,
     );
   }
 
@@ -322,8 +343,12 @@ export function generateDigitalOceanExtensionModel(
   lines.push(
     `      execute: async (args: { ${idArg.argName}: ${idArg.tsType} }, context: any) => {`,
   );
+  if (endpointLine) {
+    lines.push(`        const g = context.globalArgs;`);
+    lines.push(endpointLine);
+  }
   lines.push(
-    `        const result = await read("${endpoint}", args.${idArg.argName}) as ResourceData;`,
+    `        const result = await read(${ep()}, args.${idArg.argName}) as ResourceData;`,
   );
   if (isSyntheticName) {
     lines.push(
@@ -369,6 +394,7 @@ export function generateDigitalOceanExtensionModel(
       );
     }
     lines.push(`        const g = context.globalArgs;`);
+    if (endpointLine) lines.push(endpointLine);
     lines.push(
       `        const instanceName = ${
         wrapWithSanitize(`g.${namingField}?.toString() ?? "current"`)
@@ -395,7 +421,7 @@ export function generateDigitalOceanExtensionModel(
     }
     if (hasReadiness) {
       lines.push(
-        `        let result = await update("${endpoint}", existing.${identifyingField} ?? existing.id, body, "${resource.updateMethod}") as ResourceData;`,
+        `        let result = await update(${ep()}, existing.${identifyingField} ?? existing.id, body, "${resource.updateMethod}") as ResourceData;`,
       );
       lines.push(`        if (args.waitForReady !== false) {`);
       lines.push(
@@ -403,7 +429,7 @@ export function generateDigitalOceanExtensionModel(
       );
       lines.push(`          if (resourceId) {`);
       lines.push(
-        `            result = await pollResourceReady("${endpoint}", resourceId as string | number, ${
+        `            result = await pollResourceReady(${ep()}, resourceId as string | number, ${
           JSON.stringify(resource.readiness)
         }) as ResourceData;`,
       );
@@ -411,7 +437,7 @@ export function generateDigitalOceanExtensionModel(
       lines.push(`        }`);
     } else {
       lines.push(
-        `        const result = await update("${endpoint}", existing.${identifyingField} ?? existing.id, body, "${resource.updateMethod}") as ResourceData;`,
+        `        const result = await update(${ep()}, existing.${identifyingField} ?? existing.id, body, "${resource.updateMethod}") as ResourceData;`,
       );
     }
     lines.push(
@@ -436,8 +462,12 @@ export function generateDigitalOceanExtensionModel(
     lines.push(
       `      execute: async (args: { ${idArg.argName}: ${idArg.tsType} }, context: any) => {`,
     );
+    if (endpointLine) {
+      lines.push(`        const g = context.globalArgs;`);
+      lines.push(endpointLine);
+    }
     lines.push(
-      `        const { existed } = await remove("${endpoint}", args.${idArg.argName});`,
+      `        const { existed } = await remove(${ep()}, args.${idArg.argName});`,
     );
     lines.push(
       `        const instanceName = ${
@@ -471,6 +501,7 @@ export function generateDigitalOceanExtensionModel(
     `      execute: async (_args: Record<string, never>, context: any) => {`,
   );
   lines.push(`        const g = context.globalArgs;`);
+  if (endpointLine) lines.push(endpointLine);
   lines.push(
     `        const instanceName = ${
       wrapWithSanitize(`g.${namingField}?.toString() ?? "current"`)
@@ -490,7 +521,7 @@ export function generateDigitalOceanExtensionModel(
     `        const existing = JSON.parse(new TextDecoder().decode(content));`,
   );
   lines.push(
-    `        const result = await tryRead("${endpoint}", existing.${identifyingField} ?? existing.id) as ResourceData | null;`,
+    `        const result = await tryRead(${ep()}, existing.${identifyingField} ?? existing.id) as ResourceData | null;`,
   );
   lines.push(`        if (result) {`);
   lines.push(
@@ -931,6 +962,10 @@ function buildGlobalArgsProperties(
 function resolveNamingField(
   resource: DigitalOceanResource,
 ): { field: string; synthetic: boolean } {
+  if (resource.forceSyntheticName) {
+    const field = resource.createProperties.name ? "instance_name" : "name";
+    return { field, synthetic: true };
+  }
   // Prefer "name" if it exists in create properties
   if (resource.createProperties.name) {
     return { field: "name", synthetic: false };
