@@ -4,6 +4,7 @@ import { generateAwsModels } from "../aws/pipeline.ts";
 import { generateDigitalOceanModels } from "../digitalocean/pipeline.ts";
 import { generateGcpModels } from "../gcp/pipeline.ts";
 import { generateHetznerModels } from "../hetzner/pipeline.ts";
+import { stripReleaseNotes } from "../shared/version.ts";
 
 export async function generateModels(options: {
   provider: string;
@@ -93,13 +94,16 @@ async function generateHetznerProvider(options: {
   // Write manifest only when content actually differs from disk. Note we
   // do *not* gate on hasChanges — that flag tracks model/readme/license
   // deltas only, so a pure manifest edit (e.g. adding `repository:` via a
-  // codegen change) would be missed. Rely on direct content comparison.
+  // codegen change) would be missed. Strip release notes from both sides
+  // so that stale notes from a prior run aren't wiped when no models changed.
   {
     const manifestPath = `${hetznerOutputDir}/${manifest.filePath}`;
     let manifestChanged = true;
     try {
       const existingManifest = await Deno.readTextFile(manifestPath);
-      manifestChanged = existingManifest !== manifest.sourceCode;
+      manifestChanged =
+        stripReleaseNotes(existingManifest) !==
+          stripReleaseNotes(manifest.sourceCode);
     } catch {
       // File doesn't exist — write it
     }
@@ -203,13 +207,16 @@ async function generateDigitalOceanProvider(options: {
   // Write manifest only when content actually differs from disk. Note we
   // do *not* gate on hasChanges — that flag tracks model/readme/license
   // deltas only, so a pure manifest edit (e.g. adding `repository:` via a
-  // codegen change) would be missed. Rely on direct content comparison.
+  // codegen change) would be missed. Strip release notes from both sides
+  // so that stale notes from a prior run aren't wiped when no models changed.
   {
     const manifestPath = `${doOutputDir}/${manifest.filePath}`;
     let manifestChanged = true;
     try {
       const existingManifest = await Deno.readTextFile(manifestPath);
-      manifestChanged = existingManifest !== manifest.sourceCode;
+      manifestChanged =
+        stripReleaseNotes(existingManifest) !==
+          stripReleaseNotes(manifest.sourceCode);
     } catch {
       // File doesn't exist — write it
     }
@@ -346,7 +353,8 @@ async function generateAwsProvider(options: {
     // do *not* gate on serviceResult.hasChanges here — that flag tracks
     // model/readme/license deltas only, so a pure manifest edit (e.g.
     // adding `repository:` or `platforms:` via a codegen change) would be
-    // missed. Rely on the direct content comparison instead.
+    // missed. Strip release notes from both sides so that stale notes
+    // from a prior run aren't wiped when no models changed.
     {
       const manifestPath =
         `${serviceOutputDir}/${serviceResult.manifest.filePath}`;
@@ -354,7 +362,8 @@ async function generateAwsProvider(options: {
       try {
         const existingManifest = await Deno.readTextFile(manifestPath);
         manifestChanged =
-          existingManifest !== serviceResult.manifest.sourceCode;
+          stripReleaseNotes(existingManifest) !==
+            stripReleaseNotes(serviceResult.manifest.sourceCode);
       } catch {
         // File doesn't exist — write it
       }
@@ -500,7 +509,8 @@ async function generateGcpProvider(options: {
     // do *not* gate on serviceResult.hasChanges here — that flag tracks
     // model/readme/license deltas only, so a pure manifest edit (e.g.
     // adding `repository:` or `platforms:` via a codegen change) would be
-    // missed. Rely on the direct content comparison instead.
+    // missed. Strip release notes from both sides so that stale notes
+    // from a prior run aren't wiped when no models changed.
     {
       const manifestPath =
         `${serviceOutputDir}/${serviceResult.manifest.filePath}`;
@@ -508,7 +518,8 @@ async function generateGcpProvider(options: {
       try {
         const existingManifest = await Deno.readTextFile(manifestPath);
         manifestChanged =
-          existingManifest !== serviceResult.manifest.sourceCode;
+          stripReleaseNotes(existingManifest) !==
+            stripReleaseNotes(serviceResult.manifest.sourceCode);
       } catch {
         // File doesn't exist — write it
       }
