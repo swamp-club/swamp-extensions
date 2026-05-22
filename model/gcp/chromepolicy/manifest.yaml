@@ -10,8 +10,6 @@ labels:
   - chromepolicy
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: customers_policyschemas
 models:
   - customers_policyschemas.ts
 additionalFiles:

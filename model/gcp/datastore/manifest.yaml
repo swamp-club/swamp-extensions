@@ -10,8 +10,6 @@ labels:
   - datastore
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: indexes
 models:
   - indexes.ts
 additionalFiles:

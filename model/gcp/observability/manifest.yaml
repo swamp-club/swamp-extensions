@@ -10,8 +10,6 @@ labels:
   - observability
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, buckets, buckets_datasets, buckets_datasets_links, buckets_datasets_views, scopes, tracescopes
 models:
   - buckets.ts
   - buckets_datasets.ts

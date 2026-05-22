@@ -10,8 +10,6 @@ labels:
   - orgpolicy
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: constraints, policies, customconstraints
 models:
   - constraints.ts
   - customconstraints.ts

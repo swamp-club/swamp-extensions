@@ -10,8 +10,6 @@ labels:
   - tagmanager
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: accounts, accounts_containers, accounts_containers_destinations, accounts_containers_environments, accounts_containers_version_headers, accounts_containers_versions, accounts_containers_workspaces, accounts_containers_workspaces_built_in_variables, accounts_containers_workspaces_clients, accounts_containers_workspaces_folders, accounts_containers_workspaces_gtag_config, accounts_containers_workspaces_tags, accounts_containers_workspaces_templates, accounts_containers_workspaces_transformations, accounts_containers_workspaces_triggers, accounts_containers_workspaces_variables, accounts_user_permissions
 models:
   - accounts.ts
   - accounts_containers.ts

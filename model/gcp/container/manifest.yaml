@@ -10,8 +10,6 @@ labels:
   - container
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: aggregated_usablesubnetworks, clusters, clusters_nodepools
 models:
   - aggregated_usablesubnetworks.ts
   - clusters.ts

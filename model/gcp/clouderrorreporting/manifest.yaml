@@ -10,8 +10,6 @@ labels:
   - clouderrorreporting
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: events, groupstats, groups
 models:
   - events.ts
   - groups.ts

@@ -10,8 +10,6 @@ labels:
   - networkconnectivity
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, automateddnsrecords, global_hubs, global_hubs_groups, global_hubs_routetables, global_hubs_routetables_routes, global_policybasedroutes, internalranges, multiclouddatatransferconfigs, multiclouddatatransferconfigs_destinations, multiclouddatatransfersupportedservices, regionalendpoints, remotetransportprofiles, serviceclasses, serviceconnectionmaps, serviceconnectionpolicies, serviceconnectiontokens, spokes, spokes_gatewayadvertisedroutes, transports
 models:
   - automateddnsrecords.ts
   - global_hubs.ts

@@ -10,8 +10,6 @@ labels:
   - run
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: instances, jobs, jobs_executions, jobs_executions_tasks, services, services_revisions, workerpools, workerpools_revisions
 models:
   - instances.ts
   - jobs.ts

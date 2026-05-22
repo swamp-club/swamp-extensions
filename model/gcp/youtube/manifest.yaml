@@ -10,8 +10,6 @@ labels:
   - youtube
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: activities, captions, channelsections, channels, commentthreads, comments, i18nlanguages, i18nregions, livebroadcasts, livechatmessages, livechatmoderators, livestreams, members, membershipslevels, playlistimages, playlistitems, playlists, search, subscriptions, superchatevents, thirdpartylinks, videoabusereportreasons, videocategories, videotrainability, videos
 models:
   - activities.ts
   - captions.ts

@@ -10,8 +10,6 @@ labels:
   - secretmanager
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, secrets, secrets_versions
 models:
   - locations.ts
   - secrets.ts

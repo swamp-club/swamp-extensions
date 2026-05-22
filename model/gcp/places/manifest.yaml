@@ -10,8 +10,6 @@ labels:
   - places
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: places
 models:
   - places.ts
 additionalFiles:

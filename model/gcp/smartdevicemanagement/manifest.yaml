@@ -10,8 +10,6 @@ labels:
   - smartdevicemanagement
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: enterprises_devices, enterprises_structures, enterprises_structures_rooms
 models:
   - enterprises_devices.ts
   - enterprises_structures.ts

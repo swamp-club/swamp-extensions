@@ -10,8 +10,6 @@ labels:
   - tpu
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, acceleratortypes, nodes, queuedresources, runtimeversions
 models:
   - acceleratortypes.ts
   - locations.ts

@@ -10,8 +10,6 @@ labels:
   - meet
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: conferencerecords, conferencerecords_participants, conferencerecords_participants_participantsessions, conferencerecords_recordings, conferencerecords_smartnotes, conferencerecords_transcripts, conferencerecords_transcripts_entries, spaces
 models:
   - conferencerecords.ts
   - conferencerecords_participants.ts

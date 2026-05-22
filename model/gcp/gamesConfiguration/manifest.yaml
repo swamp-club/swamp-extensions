@@ -10,8 +10,6 @@ labels:
   - gamesconfiguration
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: achievementconfigurations, leaderboardconfigurations
 models:
   - achievementconfigurations.ts
   - leaderboardconfigurations.ts

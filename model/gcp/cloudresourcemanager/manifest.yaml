@@ -10,8 +10,6 @@ labels:
   - cloudresourcemanager
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: effectivetags, folders, capabilities, liens, effectivetagbindingcollections, tagbindingcollections, organizations, projects, tagbindings, tagkeys, tagvalues, tagvalues_tagholds
 models:
   - capabilities.ts
   - effectivetagbindingcollections.ts

@@ -10,8 +10,6 @@ labels:
   - cloudkms
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, ekmconnections, keyhandles, keyrings, keyrings_cryptokeys, keyrings_cryptokeys_cryptokeyversions, keyrings_importjobs, retiredresources, singletenanthsminstances, singletenanthsminstances_proposals
 models:
   - ekmconnections.ts
   - keyhandles.ts

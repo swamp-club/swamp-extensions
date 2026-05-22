@@ -10,8 +10,6 @@ labels:
   - androidenterprise
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: devices, enterprises, entitlements, grouplicenses, grouplicenseusers, installs, managedconfigurationsfordevice, managedconfigurationsforuser, managedconfigurationssettings, permissions, products, serviceaccountkeys, storelayoutclusters, storelayoutpages, users, webapps
 models:
   - devices.ts
   - enterprises.ts

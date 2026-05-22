@@ -10,8 +10,6 @@ labels:
   - cloudbilling
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: billingaccounts, projects, subaccounts, services, services_skus
 models:
   - billingaccounts.ts
   - projects.ts

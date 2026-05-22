@@ -10,8 +10,6 @@ labels:
   - retail
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: catalogs, catalogs_branches_products, catalogs_controls, catalogs_generativequestions, catalogs_models, catalogs_servingconfigs
 models:
   - catalogs.ts
   - catalogs_branches_products.ts

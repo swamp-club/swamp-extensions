@@ -10,8 +10,6 @@ labels:
   - firebaseapphosting
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, backends, backends_builds, backends_domains, backends_rollouts, backends_traffic
 models:
   - backends.ts
   - backends_builds.ts

@@ -10,8 +10,6 @@ labels:
   - firebase
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: availableprojects, projects, androidapps, androidapps_sha, availablelocations, iosapps, webapps
 models:
   - androidapps.ts
   - androidapps_sha.ts

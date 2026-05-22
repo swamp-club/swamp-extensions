@@ -10,8 +10,6 @@ labels:
   - alloydb
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, backups, clusters, clusters_instances, clusters_users, supporteddatabaseflags
 models:
   - backups.ts
   - clusters.ts

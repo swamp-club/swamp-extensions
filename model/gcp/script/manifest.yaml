@@ -10,8 +10,6 @@ labels:
   - script
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: processes, projects, deployments, versions
 models:
   - deployments.ts
   - processes.ts

@@ -10,8 +10,6 @@ labels:
   - securityposture
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: posturedeployments, posturetemplates, postures, reports, locations
 models:
   - locations.ts
   - posturedeployments.ts

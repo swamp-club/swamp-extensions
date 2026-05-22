@@ -10,8 +10,6 @@ labels:
   - memcache
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, instances
 models:
   - instances.ts
   - locations.ts

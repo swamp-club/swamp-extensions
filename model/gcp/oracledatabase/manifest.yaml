@@ -10,8 +10,6 @@ labels:
   - oracledatabase
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, autonomousdatabasebackups, autonomousdatabasecharactersets, autonomousdatabases, autonomousdbversions, cloudexadatainfrastructures, cloudexadatainfrastructures_dbservers, cloudvmclusters, cloudvmclusters_dbnodes, databasecharactersets, databases, dbsysteminitialstoragesizes, dbsystemshapes, dbsystems, dbversions, entitlements, exadbvmclusters, exadbvmclusters_dbnodes, exascaledbstoragevaults, giversions, giversions_minorversions, goldengateconnectionassignments, goldengateconnectiontypes, goldengateconnections, goldengatedeploymentenvironments, goldengatedeploymenttypes, goldengatedeploymentversions, goldengatedeployments, odbnetworks, odbnetworks_odbsubnets, pluggabledatabases
 models:
   - autonomousdatabasebackups.ts
   - autonomousdatabasecharactersets.ts

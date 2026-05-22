@@ -10,8 +10,6 @@ labels:
   - fcmdata
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: androidapps_deliverydata
 models:
   - androidapps_deliverydata.ts
 additionalFiles:

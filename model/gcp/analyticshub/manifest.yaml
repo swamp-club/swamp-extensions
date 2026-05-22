@@ -10,8 +10,6 @@ labels:
   - analyticshub
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: dataexchanges, dataexchanges_listings, dataexchanges_querytemplates, subscriptions
 models:
   - dataexchanges.ts
   - dataexchanges_listings.ts

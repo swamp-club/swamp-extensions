@@ -10,8 +10,6 @@ labels:
   - forms
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: forms, forms_responses, forms_watches
 models:
   - forms.ts
   - forms_responses.ts

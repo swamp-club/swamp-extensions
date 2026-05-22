@@ -10,8 +10,6 @@ labels:
   - transcoder
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: jobtemplates, jobs
 models:
   - jobs.ts
   - jobtemplates.ts

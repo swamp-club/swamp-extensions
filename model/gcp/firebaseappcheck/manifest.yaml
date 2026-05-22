@@ -10,8 +10,6 @@ labels:
   - firebaseappcheck
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: jwks, apps_appattestconfig, apps_debugtokens, apps_devicecheckconfig, apps_playintegrityconfig, apps_recaptchaenterpriseconfig, apps_recaptchav3config, apps_safetynetconfig, services, services_resourcepolicies
 models:
   - apps_appattestconfig.ts
   - apps_debugtokens.ts

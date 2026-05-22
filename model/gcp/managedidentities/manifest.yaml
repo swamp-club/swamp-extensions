@@ -10,8 +10,6 @@ labels:
   - managedidentities
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, global_domains, global_domains_backups, global_domains_sqlintegrations, global_peerings
 models:
   - global_domains.ts
   - global_domains_backups.ts

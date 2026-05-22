@@ -10,8 +10,6 @@ labels:
   - gkehub
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, memberships_features
 models:
   - locations.ts
   - memberships_features.ts

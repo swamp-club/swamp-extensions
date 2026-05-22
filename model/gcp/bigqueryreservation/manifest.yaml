@@ -10,8 +10,6 @@ labels:
   - bigqueryreservation
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: capacitycommitments, reservationgroups, reservations, reservations_assignments
 models:
   - capacitycommitments.ts
   - reservationgroups.ts

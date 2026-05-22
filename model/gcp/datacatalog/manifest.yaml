@@ -10,8 +10,6 @@ labels:
   - datacatalog
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: entrygroups, entrygroups_entries, entrygroups_entries_tags, entrygroups_tags, tagtemplates, taxonomies, taxonomies_policytags
 models:
   - entrygroups.ts
   - entrygroups_entries.ts

@@ -10,8 +10,6 @@ labels:
   - pubsublite
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: admin_projects_reservations, admin_projects_reservations_topics, admin_projects_subscriptions, admin_projects_topics, admin_projects_topics_subscriptions, cursor_projects_subscriptions_cursors
 models:
   - admin_projects_reservations.ts
   - admin_projects_reservations_topics.ts

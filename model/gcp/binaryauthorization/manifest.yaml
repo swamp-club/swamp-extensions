@@ -10,8 +10,6 @@ labels:
   - binaryauthorization
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: attestors, platforms_policies
 models:
   - attestors.ts
   - platforms_policies.ts

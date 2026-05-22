@@ -10,8 +10,6 @@ labels:
   - vmwareengine
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, announcements, datastores, networkpeerings, networkpeerings_peeringroutes, networkpolicies, networkpolicies_externalaccessrules, nodetypes, privateclouds, privateclouds_clusters, privateclouds_clusters_nodes, privateclouds_externaladdresses, privateclouds_hcxactivationkeys, privateclouds_loggingservers, privateclouds_managementdnszonebindings, privateclouds_subnets, privateclouds_upgrades, privateconnections, privateconnections_peeringroutes, vmwareenginenetworks
 models:
   - announcements.ts
   - datastores.ts

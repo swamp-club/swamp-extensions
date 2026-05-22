@@ -10,8 +10,6 @@ labels:
   - apphub
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, applications, applications_services, applications_workloads, discoveredservices, discoveredworkloads, extendedmetadataschemas, serviceprojectattachments
 models:
   - applications.ts
   - applications_services.ts

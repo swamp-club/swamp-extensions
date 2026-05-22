@@ -10,8 +10,6 @@ labels:
   - cloudbuild
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, connections, connections_repositories
 models:
   - connections.ts
   - connections_repositories.ts

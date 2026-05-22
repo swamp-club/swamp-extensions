@@ -10,8 +10,6 @@ labels:
   - firebaserules
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: releases, rulesets
 models:
   - releases.ts
   - rulesets.ts

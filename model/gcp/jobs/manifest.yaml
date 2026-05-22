@@ -10,8 +10,6 @@ labels:
   - jobs
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: tenants, tenants_companies, tenants_jobs
 models:
   - tenants.ts
   - tenants_companies.ts

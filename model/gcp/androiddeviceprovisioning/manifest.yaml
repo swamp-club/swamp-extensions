@@ -10,8 +10,6 @@ labels:
   - androiddeviceprovisioning
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: customers, customers_configurations, customers_devices, customers_dpcs, partners_customers, partners_devices, partners_vendors, partners_vendors_customers
 models:
   - customers.ts
   - customers_configurations.ts

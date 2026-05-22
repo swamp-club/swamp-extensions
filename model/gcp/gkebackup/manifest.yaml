@@ -10,8 +10,6 @@ labels:
   - gkebackup
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, backupchannels, backupchannels_backupplanbindings, backupplans, backupplans_backups, backupplans_backups_volumebackups, restorechannels, restorechannels_restoreplanbindings, restoreplans, restoreplans_restores, restoreplans_restores_volumerestores
 models:
   - backupchannels.ts
   - backupchannels_backupplanbindings.ts

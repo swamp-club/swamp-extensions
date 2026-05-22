@@ -10,8 +10,6 @@ labels:
   - workspaceevents
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: subscriptions, tasks, tasks_pushnotificationconfigs
 models:
   - subscriptions.ts
   - tasks.ts

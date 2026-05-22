@@ -10,8 +10,6 @@ labels:
   - content
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: accounts, accounts_labels, accounts_returncarrier, accountstatuses, accounttax, collections, collectionstatuses, conversionsources, csses, datafeeds, datafeedstatuses, freelistingsprogram, freelistingsprogram_checkoutsettings, liasettings, pos, productdeliverytime, products, productstatuses, promotions, pubsubnotificationsettings, quotas, regions, returnpolicyonline, shippingsettings, shoppingadsprogram
 models:
   - accounts.ts
   - accounts_labels.ts

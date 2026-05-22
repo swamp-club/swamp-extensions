@@ -10,8 +10,6 @@ labels:
   - walletobjects
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: eventticketclass, eventticketobject, flightclass, flightobject, genericclass, genericobject, giftcardclass, giftcardobject, issuer, loyaltyclass, loyaltyobject, offerclass, offerobject, permissions, transitclass, transitobject
 models:
   - eventticketclass.ts
   - eventticketobject.ts

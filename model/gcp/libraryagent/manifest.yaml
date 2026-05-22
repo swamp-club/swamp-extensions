@@ -10,8 +10,6 @@ labels:
   - libraryagent
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: shelves, shelves_books
 models:
   - shelves.ts
   - shelves_books.ts

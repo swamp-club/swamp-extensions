@@ -10,8 +10,6 @@ labels:
   - toolresults
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: histories, histories_executions, histories_executions_clusters, histories_executions_environments, histories_executions_steps, histories_executions_steps_perfsampleseries, histories_executions_steps_perfsampleseries_samples, histories_executions_steps_testcases, histories_executions_steps_thumbnails
 models:
   - histories.ts
   - histories_executions.ts

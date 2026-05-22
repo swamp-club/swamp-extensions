@@ -10,8 +10,6 @@ labels:
   - marketingplatformadmin
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: organizations, analyticsaccountlinks
 models:
   - analyticsaccountlinks.ts
   - organizations.ts

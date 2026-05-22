@@ -10,8 +10,6 @@ labels:
   - sheets
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: spreadsheets, spreadsheets_developermetadata, spreadsheets_values
 models:
   - spreadsheets.ts
   - spreadsheets_developermetadata.ts

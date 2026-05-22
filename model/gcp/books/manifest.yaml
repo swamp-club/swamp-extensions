@@ -10,8 +10,6 @@ labels:
   - books
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: bookshelves, bookshelves_volumes, layers, layers_annotationdata, layers_volumeannotations, mylibrary_annotations, mylibrary_bookshelves, mylibrary_bookshelves_volumes, mylibrary_readingpositions, notification, personalizedstream, promooffer, series, series_membership, volumes, volumes_associated, volumes_mybooks, volumes_recommended, volumes_useruploaded
 models:
   - bookshelves.ts
   - bookshelves_volumes.ts

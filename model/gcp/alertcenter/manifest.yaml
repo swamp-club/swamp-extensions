@@ -10,8 +10,6 @@ labels:
   - alertcenter
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: alerts, alerts_feedback
 models:
   - alerts.ts
   - alerts_feedback.ts

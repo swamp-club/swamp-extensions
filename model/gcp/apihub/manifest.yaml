@@ -10,8 +10,6 @@ labels:
   - apihub
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, addons, apihubinstances, apis, apis_versions, apis_versions_definitions, apis_versions_specs, attributes, curations, dependencies, deployments, discoveredapiobservations, externalapis, hostprojectregistrations, plugins, plugins_instances, runtimeprojectattachments
 models:
   - addons.ts
   - apihubinstances.ts

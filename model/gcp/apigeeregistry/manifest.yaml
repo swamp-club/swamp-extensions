@@ -10,8 +10,6 @@ labels:
   - apigeeregistry
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, apis, apis_artifacts, apis_deployments, apis_deployments_artifacts, apis_versions, apis_versions_artifacts, apis_versions_specs, apis_versions_specs_artifacts, artifacts, instances
 models:
   - apis.ts
   - apis_artifacts.ts

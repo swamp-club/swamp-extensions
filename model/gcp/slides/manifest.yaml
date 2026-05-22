@@ -10,8 +10,6 @@ labels:
   - slides
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: presentations, presentations_pages
 models:
   - presentations.ts
   - presentations_pages.ts

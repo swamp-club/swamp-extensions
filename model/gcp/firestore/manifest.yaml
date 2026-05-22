@@ -10,8 +10,6 @@ labels:
   - firestore
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: databases, databases_backupschedules, databases_collectiongroups_fields, databases_collectiongroups_indexes, databases_documents, databases_usercreds, locations, backups
 models:
   - backups.ts
   - databases.ts

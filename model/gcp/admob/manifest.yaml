@@ -10,8 +10,6 @@ labels:
   - admob
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: accounts, accounts_adunits, accounts_apps
 models:
   - accounts.ts
   - accounts_adunits.ts

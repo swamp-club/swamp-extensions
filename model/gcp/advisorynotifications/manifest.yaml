@@ -10,8 +10,6 @@ labels:
   - advisorynotifications
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: notifications
 models:
   - notifications.ts
 additionalFiles:

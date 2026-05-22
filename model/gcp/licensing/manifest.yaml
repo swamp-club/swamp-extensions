@@ -10,8 +10,6 @@ labels:
   - licensing
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: licenseassignments
 models:
   - licenseassignments.ts
 additionalFiles:

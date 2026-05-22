@@ -10,8 +10,6 @@ labels:
   - metastore
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, federations, services, services_backups, services_metadataimports, services_migrationexecutions
 models:
   - federations.ts
   - locations.ts

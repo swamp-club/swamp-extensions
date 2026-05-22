@@ -10,8 +10,6 @@ labels:
   - monitoring
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: timeseries, alertpolicies, alerts, groups, groups_members, metricdescriptors, monitoredresourcedescriptors, notificationchanneldescriptors, notificationchannels, snoozes, uptimecheckconfigs, services, services_servicelevelobjectives, uptimecheckips
 models:
   - alertpolicies.ts
   - alerts.ts

@@ -30,6 +30,9 @@ const VpcSchema = z.object({
   SecurityGroupIds: z.array(
     z.string().min(11).max(20).regex(new RegExp("^sg-[0-9a-f]{8,17}$")),
   ).optional(),
+  IpAddressType: z.enum(["IPV4", "DUALSTACK"]).describe(
+    "The IP address type for the VPC endpoint used by the web app.",
+  ).optional(),
 });
 
 const TagSchema = z.object({
@@ -155,7 +158,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Transfer WebApp. Registered at `@swamp/aws/transfer/web-app`. */
 export const model = {
   type: "@swamp/aws/transfer/web-app",
-  version: "2026.04.23.2",
+  version: "2026.05.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -179,6 +182,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

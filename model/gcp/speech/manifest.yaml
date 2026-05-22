@@ -10,8 +10,6 @@ labels:
   - speech
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: customclasses, phrasesets
 models:
   - customclasses.ts
   - phrasesets.ts

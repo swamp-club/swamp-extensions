@@ -10,8 +10,6 @@ labels:
   - dataplex
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: encryptionconfigs, locations, aspecttypes, dataattributebindings, dataproducts, dataproducts_dataassets, datascans, datascans_jobs, datataxonomies, datataxonomies_attributes, entrygroups, entrygroups_entries, entrygroups_entrylinks, entrytypes, glossaries, glossaries_categories, glossaries_terms, lakes, lakes_actions, lakes_tasks, lakes_tasks_jobs, lakes_assets, lakes_assets_actions, lakes_entities, lakes_entities_partitions, metadatafeeds, metadatajobs
 models:
   - aspecttypes.ts
   - dataattributebindings.ts

@@ -173,6 +173,11 @@ const TelemetryDestinationConfigurationSchema = z.object({
   WAFLoggingParameters: WAFLoggingParametersSchema.describe(
     "Telemetry parameters for WAF v2 Web ACL",
   ).optional(),
+  LogDeliveryParameters: z.object({
+    LogTypes: z.array(z.enum(["SECURITY_FINDING_LOGS"])).describe(
+      "Types of logs to deliver",
+    ).optional(),
+  }).describe("Parameters for log delivery configuration").optional(),
 });
 
 const TagSchema = z.object({
@@ -198,6 +203,7 @@ const GlobalArgsSchema = z.object({
       "AWS::EKS::Cluster",
       "AWS::ElasticLoadBalancingV2::LoadBalancer",
       "AWS::EC2::Instance",
+      "AWS::SecurityHub::Hub",
     ]).describe(
       "Resource Type associated with the Organization Telemetry Rule",
     ),
@@ -275,6 +281,7 @@ const InputsSchema = z.object({
       "AWS::EKS::Cluster",
       "AWS::ElasticLoadBalancingV2::LoadBalancer",
       "AWS::EC2::Instance",
+      "AWS::SecurityHub::Hub",
     ]).describe("Resource Type associated with the Organization Telemetry Rule")
       .optional(),
     TelemetryType: z.enum(["Logs", "Metrics"]).describe(
@@ -318,7 +325,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ObservabilityAdmin OrganizationTelemetryRule. Registered at `@swamp/aws/observabilityadmin/organization-telemetry-rule`. */
 export const model = {
   type: "@swamp/aws/observabilityadmin/organization-telemetry-rule",
-  version: "2026.05.12.1",
+  version: "2026.05.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -352,6 +359,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.12.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

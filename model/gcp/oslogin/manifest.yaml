@@ -10,8 +10,6 @@ labels:
   - oslogin
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: users_sshpublickeys
 models:
   - users_sshpublickeys.ts
 additionalFiles:

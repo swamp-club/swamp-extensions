@@ -10,8 +10,6 @@ labels:
   - safebrowsing
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: hashlist, hashlists
 models:
   - hashlist.ts
   - hashlists.ts

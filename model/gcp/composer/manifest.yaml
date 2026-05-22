@@ -10,8 +10,6 @@ labels:
   - composer
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: environments, environments_userworkloadsconfigmaps, environments_userworkloadssecrets, environments_workloads, imageversions
 models:
   - environments.ts
   - environments_userworkloadsconfigmaps.ts

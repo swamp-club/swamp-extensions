@@ -10,8 +10,6 @@ labels:
   - datapipelines
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: pipelines, pipelines_jobs
 models:
   - pipelines.ts
   - pipelines_jobs.ts

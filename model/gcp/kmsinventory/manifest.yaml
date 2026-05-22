@@ -10,8 +10,6 @@ labels:
   - kmsinventory
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: cryptokeys
 models:
   - cryptokeys.ts
 additionalFiles:

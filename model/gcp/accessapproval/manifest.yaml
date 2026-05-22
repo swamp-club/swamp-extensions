@@ -10,8 +10,6 @@ labels:
   - accessapproval
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: approvalrequests
 models:
   - approvalrequests.ts
 additionalFiles:

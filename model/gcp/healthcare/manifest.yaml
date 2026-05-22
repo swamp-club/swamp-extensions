@@ -10,8 +10,6 @@ labels:
   - healthcare
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, datasets, datasets_consentstores, datasets_consentstores_attributedefinitions, datasets_consentstores_consentartifacts, datasets_consentstores_consents, datasets_consentstores_userdatamappings, datasets_dicomstores, datasets_fhirstores, datasets_hl7v2stores, datasets_hl7v2stores_messages
 models:
   - datasets.ts
   - datasets_consentstores.ts

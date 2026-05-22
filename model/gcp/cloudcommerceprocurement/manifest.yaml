@@ -10,8 +10,6 @@ labels:
   - cloudcommerceprocurement
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: providers_accounts, providers_entitlements
 models:
   - providers_accounts.ts
   - providers_entitlements.ts

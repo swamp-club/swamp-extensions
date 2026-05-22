@@ -10,8 +10,6 @@ labels:
   - bigtableadmin
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: instances, instances_appprofiles, instances_clusters, instances_clusters_backups, instances_clusters_hottablets, instances_clusters_memorylayers, instances_logicalviews, instances_materializedviews, instances_tables, instances_tables_authorizedviews, instances_tables_schemabundles, locations
 models:
   - instances.ts
   - instances_appprofiles.ts

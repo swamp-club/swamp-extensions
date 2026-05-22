@@ -10,8 +10,6 @@ labels:
   - recommendationengine
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: catalogs, catalogs_catalogitems, catalogs_eventstores_predictionapikeyregistrations, catalogs_eventstores_userevents
 models:
   - catalogs.ts
   - catalogs_catalogitems.ts

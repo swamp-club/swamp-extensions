@@ -10,8 +10,6 @@ labels:
   - baremetalsolution
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, instances, networks, nfsshares, osimages, provisioningconfigs, provisioningquotas, sshkeys, volumes, volumes_luns, volumes_snapshots
 models:
   - instances.ts
   - locations.ts

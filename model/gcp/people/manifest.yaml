@@ -10,8 +10,6 @@ labels:
   - people
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: contactgroups, othercontacts, people, people_connections
 models:
   - contactgroups.ts
   - othercontacts.ts

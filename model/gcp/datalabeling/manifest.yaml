@@ -10,8 +10,6 @@ labels:
   - datalabeling
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: annotationspecsets, datasets, datasets_annotateddatasets, datasets_annotateddatasets_dataitems, datasets_annotateddatasets_examples, datasets_annotateddatasets_feedbackthreads, datasets_annotateddatasets_feedbackthreads_feedbackmessages, datasets_dataitems, datasets_evaluations, evaluationjobs, instructions
 models:
   - annotationspecsets.ts
   - datasets.ts

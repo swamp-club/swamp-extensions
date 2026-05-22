@@ -10,8 +10,6 @@ labels:
   - vision
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: productsets, productsets_products, products, products_referenceimages
 models:
   - products.ts
   - products_referenceimages.ts

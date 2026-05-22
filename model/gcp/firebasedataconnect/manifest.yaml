@@ -10,8 +10,6 @@ labels:
   - firebasedataconnect
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, services, services_connectors, services_schemas
 models:
   - locations.ts
   - services.ts

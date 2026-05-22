@@ -10,8 +10,6 @@ labels:
   - cloudtasks
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, queues, queues_tasks
 models:
   - locations.ts
   - queues.ts

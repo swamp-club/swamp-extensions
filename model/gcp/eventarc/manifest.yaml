@@ -10,8 +10,6 @@ labels:
   - eventarc
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, channelconnections, channels, enrollments, googleapisources, messagebuses, pipelines, providers, triggers
 models:
   - channelconnections.ts
   - channels.ts

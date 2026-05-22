@@ -18,26 +18,25 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
-  readViaList,
+  readResource,
 } from "./_lib/gcp.ts";
+
+/** Construct the fully-qualified resource name from parent and short name. */
+function buildResourceName(parent: string, shortName: string): string {
+  return `${parent}/attachments/${shortName}`;
+}
 
 const BASE_URL = "https://cloudsupport.googleapis.com/";
 
-const LIST_CONFIG = {
-  "id": "cloudsupport.cases.attachments.list",
-  "path": "v2/{+parent}/attachments",
+const GET_CONFIG = {
+  "id": "cloudsupport.cases.attachments.get",
+  "path": "v2/{+name}",
   "httpMethod": "GET",
   "parameterOrder": [
-    "parent",
+    "name",
   ],
   "parameters": {
-    "pageSize": {
-      "location": "query",
-    },
-    "pageToken": {
-      "location": "query",
-    },
-    "parent": {
+    "name": {
       "location": "path",
       "required": true,
     },
@@ -79,7 +78,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Cloud Support Cases.Attachments. Registered at `@swamp/gcp/cloudsupport/cases-attachments`. */
 export const model = {
   type: "@swamp/gcp/cloudsupport/cases-attachments",
-  version: "2026.05.21.2",
+  version: "2026.05.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -131,6 +130,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.22.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -153,13 +157,14 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
-        const result = await readViaList(
-          BASE_URL,
-          LIST_CONFIG,
-          params,
-          "name",
+        params["name"] = buildResourceName(
+          String(g["parent"] ?? ""),
           args.identifier,
+        );
+        const result = await readResource(
+          BASE_URL,
+          GET_CONFIG,
+          params,
         ) as StateData;
         const instanceName = (g.name?.toString() ?? args.identifier).replace(
           /[\/\\]/g,
@@ -194,22 +199,16 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         try {
           const params: Record<string, string> = { project: projectId };
-          if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
-          else if (existing["parent"]) {
-            params["parent"] = String(existing["parent"]);
-          }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
-          if (!identifier) {
-            throw new Error(
-              "No identifier found in existing state or globalArgs",
-            );
-          }
-          const result = await readViaList(
+          const shortName = existing.name?.toString() ?? g["name"]?.toString();
+          if (!shortName) throw new Error("No identifier found");
+          params["name"] = buildResourceName(
+            String(g["parent"] ?? ""),
+            shortName,
+          );
+          const result = await readResource(
             BASE_URL,
-            LIST_CONFIG,
+            GET_CONFIG,
             params,
-            "name",
-            identifier,
           ) as StateData;
           const handle = await context.writeResource(
             "state",

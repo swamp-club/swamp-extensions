@@ -10,8 +10,6 @@ labels:
   - workflowexecutions
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: workflows_executions, workflows_executions_callbacks, workflows_executions_stepentries
 models:
   - workflows_executions.ts
   - workflows_executions_callbacks.ts

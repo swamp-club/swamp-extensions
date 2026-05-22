@@ -10,8 +10,6 @@ labels:
   - firebaseappdistribution
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: apps_releases, apps_releases_feedbackreports, groups, testers
 models:
   - apps_releases.ts
   - apps_releases_feedbackreports.ts

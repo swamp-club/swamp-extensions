@@ -10,8 +10,6 @@ labels:
   - authorizedbuyersmarketplace
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: bidders_auctionpackages, bidders_finalizeddeals, buyers_auctionpackages, buyers_clients, buyers_clients_users, buyers_finalizeddeals, buyers_proposals, buyers_proposals_deals, buyers_publisherprofiles
 models:
   - bidders_auctionpackages.ts
   - bidders_finalizeddeals.ts

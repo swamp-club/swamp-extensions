@@ -10,8 +10,6 @@ labels:
   - iam
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: policies, roles
 models:
   - policies.ts
   - roles.ts

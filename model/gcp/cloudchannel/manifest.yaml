@@ -10,8 +10,6 @@ labels:
   - cloudchannel
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: accounts_channelpartnerlinks, accounts_channelpartnerlinks_channelpartnerrepricingconfigs, accounts_channelpartnerlinks_customers, accounts_customers, accounts_customers_customerrepricingconfigs, accounts_customers_entitlements, accounts_offers, accounts_reports, accounts_skugroups, accounts_skugroups_billableskus, products, products_skus
 models:
   - accounts_channelpartnerlinks.ts
   - accounts_channelpartnerlinks_channelpartnerrepricingconfigs.ts

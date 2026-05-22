@@ -10,8 +10,6 @@ labels:
   - workflows
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, workflows
 models:
   - locations.ts
   - workflows.ts

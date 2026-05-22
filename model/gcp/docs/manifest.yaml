@@ -10,8 +10,6 @@ labels:
   - docs
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: documents
 models:
   - documents.ts
 additionalFiles:

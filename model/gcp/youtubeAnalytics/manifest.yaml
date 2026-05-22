@@ -10,8 +10,6 @@ labels:
   - youtubeanalytics
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: groupitems, groups
 models:
   - groupitems.ts
   - groups.ts

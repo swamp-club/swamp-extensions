@@ -10,8 +10,6 @@ labels:
   - searchconsole
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: sitemaps, sites
 models:
   - sitemaps.ts
   - sites.ts

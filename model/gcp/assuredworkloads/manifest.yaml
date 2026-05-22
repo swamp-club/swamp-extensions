@@ -10,8 +10,6 @@ labels:
   - assuredworkloads
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: workloads, workloads_updates, workloads_violations
 models:
   - workloads.ts
   - workloads_updates.ts

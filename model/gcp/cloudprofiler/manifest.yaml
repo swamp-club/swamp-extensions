@@ -10,8 +10,6 @@ labels:
   - cloudprofiler
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: profiles
 models:
   - profiles.ts
 additionalFiles:

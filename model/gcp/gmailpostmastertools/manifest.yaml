@@ -10,8 +10,6 @@ labels:
   - gmailpostmastertools
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: domains
 models:
   - domains.ts
 additionalFiles:

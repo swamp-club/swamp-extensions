@@ -10,8 +10,6 @@ labels:
   - backupdr
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, backupplanassociations, backupplans, backupplans_revisions, backupvaults, backupvaults_datasources, backupvaults_datasources_backups, datasourcereferences, managementservers, resourcebackupconfigs
 models:
   - backupplanassociations.ts
   - backupplans.ts

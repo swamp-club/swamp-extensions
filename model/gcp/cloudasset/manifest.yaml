@@ -10,8 +10,6 @@ labels:
   - cloudasset
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: assets, feeds, savedqueries
 models:
   - assets.ts
   - feeds.ts

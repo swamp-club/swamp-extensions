@@ -10,8 +10,6 @@ labels:
   - versionhistory
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: platforms, platforms_channels, platforms_channels_versions, platforms_channels_versions_releases
 models:
   - platforms.ts
   - platforms_channels.ts

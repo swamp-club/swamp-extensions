@@ -10,8 +10,6 @@ labels:
   - games
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: achievementdefinitions, achievements, applications, leaderboards, players, scores, snapshots, stats
 models:
   - achievementdefinitions.ts
   - achievements.ts

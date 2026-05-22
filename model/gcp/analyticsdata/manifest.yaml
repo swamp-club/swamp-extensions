@@ -10,8 +10,6 @@ labels:
   - analyticsdata
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: properties_audienceexports
 models:
   - properties_audienceexports.ts
 additionalFiles:

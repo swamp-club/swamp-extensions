@@ -10,8 +10,6 @@ labels:
   - networkservices
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, authzextensions, endpointpolicies, gateways, gateways_routeviews, grpcroutes, httproutes, lbedgeextensions, lbrouteextensions, lbtrafficextensions, meshes, meshes_routeviews, servicebindings, servicelbpolicies, tcproutes, tlsroutes, wasmplugins, wasmplugins_versions
 models:
   - authzextensions.ts
   - endpointpolicies.ts

@@ -10,8 +10,6 @@ labels:
   - digitalassetlinks
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: statements
 models:
   - statements.ts
 additionalFiles:

@@ -10,8 +10,6 @@ labels:
   - solar
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: datalayers, geotiff
 models:
   - datalayers.ts
   - geotiff.ts

@@ -10,8 +10,6 @@ labels:
   - androidmanagement
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: enterprises, enterprises_applications, enterprises_devices, enterprises_enrollmenttokens, enterprises_migrationtokens, enterprises_policies, enterprises_webapps, provisioninginfo
 models:
   - enterprises.ts
   - enterprises_applications.ts

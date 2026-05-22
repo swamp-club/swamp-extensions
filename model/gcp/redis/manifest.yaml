@@ -10,8 +10,6 @@ labels:
   - redis
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, aclpolicies, backupcollections, backupcollections_backups, clusters, clusters_tokenauthusers, clusters_tokenauthusers_authtokens, instances
 models:
   - aclpolicies.ts
   - backupcollections.ts

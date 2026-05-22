@@ -10,8 +10,6 @@ labels:
   - essentialcontacts
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: contacts
 models:
   - contacts.ts
 additionalFiles:

@@ -10,8 +10,6 @@ labels:
   - migrationcenter
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, assets, assetsexportjobs, discoveryclients, groups, importjobs, importjobs_importdatafiles, preferencesets, relations, reportconfigs, reportconfigs_reports, sources, sources_errorframes
 models:
   - assets.ts
   - assetsexportjobs.ts

@@ -10,8 +10,6 @@ labels:
   - contentwarehouse
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: documentschemas, documents, documents_referenceid, rulesets, synonymsets
 models:
   - documents.ts
   - documents_referenceid.ts

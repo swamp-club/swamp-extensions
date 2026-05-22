@@ -10,8 +10,6 @@ labels:
   - datafusion
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, instances, instances_dnspeerings, versions
 models:
   - instances.ts
   - instances_dnspeerings.ts

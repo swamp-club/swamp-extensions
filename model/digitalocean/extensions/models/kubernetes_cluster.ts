@@ -67,6 +67,14 @@ const GlobalArgsSchema = z.object({
       .optional(),
   }).describe("An object specifying custom cluster autoscaler configuration.")
     .optional(),
+  sso: z.object({
+    enabled: z.boolean().optional(),
+    required: z.boolean().optional(),
+    issuer_url: z.string().optional(),
+    client_id: z.string().optional(),
+  }).describe(
+    "An object specifying Single Sign-On (SSO) configuration for the Kubernetes cluster.",
+  ).optional(),
   routing_agent: z.object({
     enabled: z.boolean().optional(),
   }).describe(
@@ -123,6 +131,9 @@ const GlobalArgsSchema = z.object({
   vpc_uuid: z.string().describe(
     "A string specifying the UUID of the VPC to which the Kubernetes cluster is assigned.<br><br>Requires `vpc:read` scope.",
   ).optional(),
+  worker_subnet_uuid: z.string().describe(
+    "The UUID of the VPC subnet to attach worker nodes to. When omitted on\ncreate, the default subnet for the VPC is used. This value cannot be changed\nafter the cluster is created.\n\n`vpc_uuid` must also be set.\n<br><br>Requires `vpc:read` scope.\n",
+  ).optional(),
   node_pools: z.array(z.object({
     size: z.string(),
     id: z.string().optional(),
@@ -163,6 +174,7 @@ const ResourceSchema = z.object({
   cluster_subnet: z.string().optional(),
   service_subnet: z.string().optional(),
   vpc_uuid: z.string().optional(),
+  worker_subnet_uuid: z.string().optional(),
   ipv4: z.string().optional(),
   endpoint: z.string().optional(),
   tags: z.array(z.string()).optional(),
@@ -217,6 +229,12 @@ const ResourceSchema = z.object({
     scale_down_unneeded_time: z.string().optional(),
     expanders: z.array(z.string()).optional(),
   }).nullable().optional(),
+  sso: z.object({
+    enabled: z.boolean().optional(),
+    required: z.boolean().optional(),
+    issuer_url: z.string().optional(),
+    client_id: z.string().optional(),
+  }).nullable().optional(),
   routing_agent: z.object({
     enabled: z.boolean().optional(),
   }).nullable().optional(),
@@ -266,6 +284,12 @@ const InputsSchema = z.object({
     expanders: z.array(z.enum(["random", "priority", "least_waste"]))
       .optional(),
   }).optional(),
+  sso: z.object({
+    enabled: z.boolean().optional(),
+    required: z.boolean().optional(),
+    issuer_url: z.string().optional(),
+    client_id: z.string().optional(),
+  }).optional(),
   routing_agent: z.object({
     enabled: z.boolean().optional(),
   }).optional(),
@@ -302,6 +326,7 @@ const InputsSchema = z.object({
   cluster_subnet: z.string().optional(),
   service_subnet: z.string().optional(),
   vpc_uuid: z.string().optional(),
+  worker_subnet_uuid: z.string().optional(),
   node_pools: z.array(z.object({
     size: z.string(),
     id: z.string().optional(),
@@ -335,7 +360,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean kubernetes cluster. Registered at `@swamp/digitalocean/kubernetes-cluster`. */
 export const model = {
   type: "@swamp/digitalocean/kubernetes-cluster",
-  version: "2026.05.15.1",
+  version: "2026.05.22.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -380,6 +405,11 @@ export const model = {
     {
       toVersion: "2026.05.15.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.22.1",
+      description: "Added: sso, worker_subnet_uuid",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -434,6 +464,9 @@ export const model = {
           body.service_subnet = g.service_subnet;
         }
         if (g.vpc_uuid !== undefined) body.vpc_uuid = g.vpc_uuid;
+        if (g.worker_subnet_uuid !== undefined) {
+          body.worker_subnet_uuid = g.worker_subnet_uuid;
+        }
         if (g.tags !== undefined) body.tags = g.tags;
         if (g.node_pools !== undefined) body.node_pools = g.node_pools;
         if (g.maintenance_policy !== undefined) {
@@ -449,6 +482,7 @@ export const model = {
           body.cluster_autoscaler_configuration =
             g.cluster_autoscaler_configuration;
         }
+        if (g.sso !== undefined) body.sso = g.sso;
         if (g.routing_agent !== undefined) body.routing_agent = g.routing_agent;
         if (g.amd_gpu_device_plugin !== undefined) {
           body.amd_gpu_device_plugin = g.amd_gpu_device_plugin;
@@ -547,6 +581,7 @@ export const model = {
           body.cluster_autoscaler_configuration =
             g.cluster_autoscaler_configuration;
         }
+        if (g.sso !== undefined) body.sso = g.sso;
         if (g.routing_agent !== undefined) body.routing_agent = g.routing_agent;
         if (g.amd_gpu_device_plugin !== undefined) {
           body.amd_gpu_device_plugin = g.amd_gpu_device_plugin;

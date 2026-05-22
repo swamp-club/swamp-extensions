@@ -10,8 +10,6 @@ labels:
   - datamanager
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: accounttypes_accounts_userlistdirectlicenses, accounttypes_accounts_userlistgloballicenses, accounttypes_accounts_userlistgloballicenses_userlistgloballicensecustomerinfos, accounttypes_accounts_userlists
 models:
   - accounttypes_accounts_userlistdirectlicenses.ts
   - accounttypes_accounts_userlistgloballicenses.ts

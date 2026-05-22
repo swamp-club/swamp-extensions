@@ -10,8 +10,6 @@ labels:
   - discovery
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: apis
 models:
   - apis.ts
 additionalFiles:

@@ -10,8 +10,6 @@ labels:
   - websecurityscanner
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: scanconfigs, scanconfigs_scanruns, scanconfigs_scanruns_crawledurls, scanconfigs_scanruns_findingtypestats, scanconfigs_scanruns_findings
 models:
   - scanconfigs.ts
   - scanconfigs_scanruns.ts

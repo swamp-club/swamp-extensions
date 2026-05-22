@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Blogger Blogs.
+ * Swamp extension model for Google Cloud blogger Blogs.
  *
  * Gets a blog by id.
  *
@@ -125,10 +125,10 @@ const InputsSchema = z.object({
   name: z.string().optional(),
 });
 
-/** Swamp extension model for Google Cloud Blogger Blogs. Registered at `@swamp/gcp/blogger/blogs`. */
+/** Swamp extension model for Google Cloud blogger Blogs. Registered at `@swamp/gcp/blogger/blogs`. */
 export const model = {
   type: "@swamp/gcp/blogger/blogs",
-  version: "2026.05.21.2",
+  version: "2026.05.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -182,6 +182,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.21.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

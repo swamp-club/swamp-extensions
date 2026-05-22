@@ -10,8 +10,6 @@ labels:
   - texttospeech
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: voices
 models:
   - voices.ts
 additionalFiles:

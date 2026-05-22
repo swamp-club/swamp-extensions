@@ -24,7 +24,7 @@ import {
 const BASE_URL = "https://networksecurity.googleapis.com/";
 
 const GET_CONFIG = {
-  "id": "networksecurity.projects.locations.get",
+  "id": "networksecurity.organizations.locations.get",
   "path": "v1/{+name}",
   "httpMethod": "GET",
   "parameterOrder": [
@@ -61,7 +61,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Network Security Locations. Registered at `@swamp/gcp/networksecurity/locations`. */
 export const model = {
   type: "@swamp/gcp/networksecurity/locations",
-  version: "2026.05.21.2",
+  version: "2026.05.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -110,6 +110,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.21.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

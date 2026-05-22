@@ -10,8 +10,6 @@ labels:
   - batch
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, jobs, jobs_taskgroups_tasks
 models:
   - jobs.ts
   - jobs_taskgroups_tasks.ts

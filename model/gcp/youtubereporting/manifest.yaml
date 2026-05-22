@@ -10,8 +10,6 @@ labels:
   - youtubereporting
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: jobs, jobs_reports, reporttypes
 models:
   - jobs.ts
   - jobs_reports.ts

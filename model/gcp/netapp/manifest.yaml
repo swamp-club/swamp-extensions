@@ -10,8 +10,6 @@ labels:
   - netapp
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, activedirectories, backuppolicies, backupvaults, backupvaults_backups, hostgroups, kmsconfigs, storagepools, storagepools_backupconfigs, volumes, volumes_quotarules, volumes_replications, volumes_snapshots
 models:
   - activedirectories.ts
   - backuppolicies.ts

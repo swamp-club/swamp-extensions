@@ -10,8 +10,6 @@ labels:
   - cloudlocationfinder
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, cloudlocations
 models:
   - cloudlocations.ts
   - locations.ts

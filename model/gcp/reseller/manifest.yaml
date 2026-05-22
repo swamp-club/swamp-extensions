@@ -10,8 +10,6 @@ labels:
   - reseller
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: customers, subscriptions
 models:
   - customers.ts
   - subscriptions.ts

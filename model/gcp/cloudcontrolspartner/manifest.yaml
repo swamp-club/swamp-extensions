@@ -10,8 +10,6 @@ labels:
   - cloudcontrolspartner
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: customers, customers_workloads, customers_workloads_accessapprovalrequests, customers_workloads_violations
 models:
   - customers.ts
   - customers_workloads.ts

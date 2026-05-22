@@ -10,8 +10,6 @@ labels:
   - threatintelligence
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: alerts, alerts_documents, configurations, configurations_revisions, findings
 models:
   - alerts.ts
   - alerts_documents.ts

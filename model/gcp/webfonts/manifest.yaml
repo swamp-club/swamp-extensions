@@ -10,8 +10,6 @@ labels:
   - webfonts
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: webfonts
 models:
   - webfonts.ts
 additionalFiles:

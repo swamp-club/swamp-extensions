@@ -10,8 +10,6 @@ labels:
   - securesourcemanager
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, instances, repositories, repositories_branchrules, repositories_hooks, repositories_issues, repositories_issues_issuecomments, repositories_pullrequests, repositories_pullrequests_pullrequestcomments
 models:
   - instances.ts
   - locations.ts

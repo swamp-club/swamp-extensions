@@ -10,8 +10,6 @@ labels:
   - storage
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: anywherecaches, bucketaccesscontrols, buckets, defaultobjectaccesscontrols, folders, managedfolders, notifications, objectaccesscontrols, objects, hmackeys, serviceaccount
 models:
   - anywherecaches.ts
   - bucketaccesscontrols.ts

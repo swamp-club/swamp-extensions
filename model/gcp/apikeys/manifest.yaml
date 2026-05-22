@@ -10,8 +10,6 @@ labels:
   - apikeys
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: keys
 models:
   - keys.ts
 additionalFiles:

@@ -10,8 +10,6 @@ labels:
   - chat
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: customemojis, spaces, spaces_members, spaces_messages, spaces_messages_attachments, spaces_messages_reactions, spaces_spaceevents, users_sections, users_sections_items, users_spaces_spacenotificationsetting
 models:
   - customemojis.ts
   - spaces.ts

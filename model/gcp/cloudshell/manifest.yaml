@@ -10,8 +10,6 @@ labels:
   - cloudshell
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: users_environments
 models:
   - users_environments.ts
 additionalFiles:

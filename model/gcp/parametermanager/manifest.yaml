@@ -10,8 +10,6 @@ labels:
   - parametermanager
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, parameters, parameters_versions
 models:
   - locations.ts
   - parameters.ts

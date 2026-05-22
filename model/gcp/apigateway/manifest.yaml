@@ -10,8 +10,6 @@ labels:
   - apigateway
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, apis, apis_configs, gateways
 models:
   - apis.ts
   - apis_configs.ts

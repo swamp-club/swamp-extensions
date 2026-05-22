@@ -10,8 +10,6 @@ labels:
   - calendar
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: acl, calendarlist, calendars, colors, events, settings
 models:
   - acl.ts
   - calendarlist.ts

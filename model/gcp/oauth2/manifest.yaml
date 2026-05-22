@@ -10,8 +10,6 @@ labels:
   - oauth2
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: userinfo, userinfo_v2_me
 models:
   - userinfo.ts
   - userinfo_v2_me.ts

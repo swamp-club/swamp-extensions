@@ -10,8 +10,6 @@ labels:
   - networkmanagement
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, vpcflowlogsconfigs, global_connectivitytests, networkmonitoringproviders, networkmonitoringproviders_monitoringpoints, networkmonitoringproviders_networkpaths, networkmonitoringproviders_webpaths
 models:
   - global_connectivitytests.ts
   - locations.ts

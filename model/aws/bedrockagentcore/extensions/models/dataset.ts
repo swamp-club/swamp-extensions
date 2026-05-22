@@ -1,10 +1,10 @@
-// Auto-generated extension model for @swamp/aws/devopsagent/service
+// Auto-generated extension model for @swamp/aws/bedrockagentcore/dataset
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for DevOpsAgent Service (AWS::DevOpsAgent::Service).
+ * Swamp extension model for BedrockAgentCore Dataset (AWS::BedrockAgentCore::Dataset).
  *
  * Wraps the CloudFormation resource type as a swamp model so create,
  * get, update, delete, and sync can be driven through `swamp model`.
@@ -21,46 +21,76 @@ import {
   updateResource,
 } from "./_lib/aws.ts";
 
+const InlineExamplesSourceSchema = z.object({
+  Examples: z.array(z.string()).describe(
+    "Examples to add. Each example is a free-form JSON document validated against the declared schemaType.",
+  ),
+});
+
+const S3SourceSchema = z.object({
+  S3Uri: z.string().regex(
+    new RegExp("^s3://[a-z0-9][a-z0-9.\\-]{1,61}[a-z0-9]/.{1,1024}$"),
+  ).describe(
+    "S3 URI of the JSONL file (e.g. s3://my-bucket/path/to/examples.jsonl).",
+  ),
+});
+
 const TagSchema = z.object({
-  Key: z.string().min(1).max(128).describe("The key name of the tag."),
-  Value: z.string().min(0).max(256).describe("The value for the tag."),
+  Key: z.string().min(1).max(128),
+  Value: z.string().min(0).max(256),
 });
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  ServiceType: z.enum([
-    "dynatrace",
-    "mcpserver",
-    "mcpserversplunk",
-    "mcpservernewrelic",
-    "gitlab",
-    "servicenow",
-    "pagerduty",
-    "azureidentity",
-    "mcpserversigv4",
-    "mcpservergrafana",
-  ]).describe("The type of service being registered"),
-  ServiceDetails: z.string().describe(
-    "Service-specific configuration details for create operation",
+  DatasetName: z.string().regex(new RegExp("^[a-zA-Z][a-zA-Z0-9_]{0,47}$"))
+    .describe(
+      "Human-readable name for the dataset. Unique within the account (case-insensitive). Immutable after creation.",
+    ),
+  Description: z.string().max(200).describe("A description of the dataset.")
+    .optional(),
+  SchemaType: z.enum([
+    "AGENTCORE_EVALUATION_PREDEFINED_V1",
+    "AGENTCORE_EVALUATION_SIMULATED_V1",
+  ]).describe(
+    "Versioned schema type governing the structure of examples. Immutable after creation.",
+  ),
+  Source: z.object({
+    InlineExamples: InlineExamplesSourceSchema.describe(
+      "Inline examples provided directly in the request body.",
+    ).optional(),
+    S3Source: S3SourceSchema.describe(
+      "S3 location of a JSONL file containing dataset examples.",
+    ).optional(),
+  }).describe(
+    "Source of initial examples. Provide either inline examples or an S3 URI pointing to a JSONL file.",
   ).optional(),
-  KmsKeyArn: z.string().min(1).max(2048).describe(
-    "The ARN of the KMS key to use for encryption.",
-  ).optional(),
-  Tags: z.array(TagSchema).describe(
-    "An array of key-value pairs to apply to this resource.",
-  ).optional(),
+  KmsKeyArn: z.string().min(1).max(2048).regex(
+    new RegExp(
+      "^arn:aws(|-cn|-us-gov):kms:[a-zA-Z0-9-]*:[0-9]{12}:key/[a-zA-Z0-9-]{36}$",
+    ),
+  ).describe("Optional AWS KMS key ARN for SSE-KMS on service S3 writes.")
+    .optional(),
+  Tags: z.array(TagSchema).describe("A list of tags to assign to the dataset.")
+    .optional(),
 });
 
 const StateSchema = z.object({
-  ServiceId: z.string(),
-  ServiceType: z.string().optional(),
-  ServiceDetails: z.string().optional(),
-  AccessibleResources: z.array(z.string()).optional(),
-  AdditionalServiceDetails: z.string().optional(),
+  DatasetArn: z.string(),
+  DatasetId: z.string().optional(),
+  DatasetName: z.string().optional(),
+  Description: z.string().optional(),
+  SchemaType: z.string().optional(),
+  Source: z.object({
+    InlineExamples: InlineExamplesSourceSchema,
+    S3Source: S3SourceSchema,
+  }).optional(),
   KmsKeyArn: z.string().optional(),
-  Arn: z.string().optional(),
+  Status: z.string().optional(),
+  ExampleCount: z.number().optional(),
+  CreatedAt: z.string().optional(),
+  UpdatedAt: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -68,90 +98,47 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
-  ServiceType: z.enum([
-    "dynatrace",
-    "mcpserver",
-    "mcpserversplunk",
-    "mcpservernewrelic",
-    "gitlab",
-    "servicenow",
-    "pagerduty",
-    "azureidentity",
-    "mcpserversigv4",
-    "mcpservergrafana",
-  ]).describe("The type of service being registered").optional(),
-  ServiceDetails: z.string().describe(
-    "Service-specific configuration details for create operation",
+  DatasetName: z.string().regex(new RegExp("^[a-zA-Z][a-zA-Z0-9_]{0,47}$"))
+    .describe(
+      "Human-readable name for the dataset. Unique within the account (case-insensitive). Immutable after creation.",
+    ).optional(),
+  Description: z.string().max(200).describe("A description of the dataset.")
+    .optional(),
+  SchemaType: z.enum([
+    "AGENTCORE_EVALUATION_PREDEFINED_V1",
+    "AGENTCORE_EVALUATION_SIMULATED_V1",
+  ]).describe(
+    "Versioned schema type governing the structure of examples. Immutable after creation.",
   ).optional(),
-  KmsKeyArn: z.string().min(1).max(2048).describe(
-    "The ARN of the KMS key to use for encryption.",
+  Source: z.object({
+    InlineExamples: InlineExamplesSourceSchema.describe(
+      "Inline examples provided directly in the request body.",
+    ).optional(),
+    S3Source: S3SourceSchema.describe(
+      "S3 location of a JSONL file containing dataset examples.",
+    ).optional(),
+  }).describe(
+    "Source of initial examples. Provide either inline examples or an S3 URI pointing to a JSONL file.",
   ).optional(),
-  Tags: z.array(TagSchema).describe(
-    "An array of key-value pairs to apply to this resource.",
-  ).optional(),
+  KmsKeyArn: z.string().min(1).max(2048).regex(
+    new RegExp(
+      "^arn:aws(|-cn|-us-gov):kms:[a-zA-Z0-9-]*:[0-9]{12}:key/[a-zA-Z0-9-]{36}$",
+    ),
+  ).describe("Optional AWS KMS key ARN for SSE-KMS on service S3 writes.")
+    .optional(),
+  Tags: z.array(TagSchema).describe("A list of tags to assign to the dataset.")
+    .optional(),
 });
 
-/** Swamp extension model for DevOpsAgent Service. Registered at `@swamp/aws/devopsagent/service`. */
+/** Swamp extension model for BedrockAgentCore Dataset. Registered at `@swamp/aws/bedrockagentcore/dataset`. */
 export const model = {
-  type: "@swamp/aws/devopsagent/service",
+  type: "@swamp/aws/bedrockagentcore/dataset",
   version: "2026.05.22.1",
-  upgrades: [
-    {
-      toVersion: "2026.03.27.1",
-      description: "Added: KmsKeyArn, Tags",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.01.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.3",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.01.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.14.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.22.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "DevOpsAgent Service resource state",
+      description: "BedrockAgentCore Dataset resource state",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -159,7 +146,7 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a DevOpsAgent Service",
+      description: "Create a BedrockAgentCore Dataset",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -169,7 +156,7 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await createResource(
-          "AWS::DevOpsAgent::Service",
+          "AWS::BedrockAgentCore::Dataset",
           desiredState,
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
@@ -185,15 +172,15 @@ export const model = {
       },
     },
     get: {
-      description: "Get a DevOpsAgent Service",
+      description: "Get a BedrockAgentCore Dataset",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the DevOpsAgent Service",
+          "The primary identifier of the BedrockAgentCore Dataset",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const result = await readResource(
-          "AWS::DevOpsAgent::Service",
+          "AWS::BedrockAgentCore::Dataset",
           args.identifier,
         ) as StateData;
         const instanceName =
@@ -210,7 +197,7 @@ export const model = {
       },
     },
     update: {
-      description: "Update a DevOpsAgent Service",
+      description: "Update a BedrockAgentCore Dataset",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -227,12 +214,12 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.ServiceId?.toString();
+        const identifier = existing.DatasetArn?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         const currentState = await readResource(
-          "AWS::DevOpsAgent::Service",
+          "AWS::BedrockAgentCore::Dataset",
           identifier,
         ) as StateData;
         const desiredState: Record<string, unknown> = { ...currentState };
@@ -241,23 +228,11 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await updateResource(
-          "AWS::DevOpsAgent::Service",
+          "AWS::BedrockAgentCore::Dataset",
           identifier,
           currentState,
           desiredState,
-          [
-            "ServiceType",
-            "Dynatrace",
-            "MCPServer",
-            "MCPServerSplunk",
-            "MCPServerNewRelic",
-            "GitLab",
-            "ServiceNow",
-            "PagerDuty",
-            "AzureIdentity",
-            "MCPServerGrafana",
-            "KmsKeyArn",
-          ],
+          ["DatasetName", "SchemaType", "KmsKeyArn", "Source"],
         );
         const handle = await context.writeResource(
           "state",
@@ -268,15 +243,15 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete a DevOpsAgent Service",
+      description: "Delete a BedrockAgentCore Dataset",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the DevOpsAgent Service",
+          "The primary identifier of the BedrockAgentCore Dataset",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const { existed } = await deleteResource(
-          "AWS::DevOpsAgent::Service",
+          "AWS::BedrockAgentCore::Dataset",
           args.identifier,
         );
         const instanceName =
@@ -294,7 +269,7 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync DevOpsAgent Service state from AWS",
+      description: "Sync BedrockAgentCore Dataset state from AWS",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -311,13 +286,13 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.ServiceId?.toString();
+        const identifier = existing.DatasetArn?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         try {
           const result = await readResource(
-            "AWS::DevOpsAgent::Service",
+            "AWS::BedrockAgentCore::Dataset",
             identifier,
           ) as StateData;
           const handle = await context.writeResource(

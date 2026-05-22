@@ -10,8 +10,6 @@ labels:
   - mybusinessplaceactions
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: placeactionlinks, placeactiontypemetadata
 models:
   - placeactionlinks.ts
   - placeactiontypemetadata.ts

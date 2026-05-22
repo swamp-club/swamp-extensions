@@ -10,8 +10,6 @@ labels:
   - testing
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: devicesessions, testmatrices, testenvironmentcatalog
 models:
   - devicesessions.ts
   - testenvironmentcatalog.ts

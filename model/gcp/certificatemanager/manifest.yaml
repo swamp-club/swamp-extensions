@@ -10,8 +10,6 @@ labels:
   - certificatemanager
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, certificateissuanceconfigs, certificatemaps, certificatemaps_certificatemapentries, certificates, dnsauthorizations, trustconfigs
 models:
   - certificateissuanceconfigs.ts
   - certificatemaps.ts

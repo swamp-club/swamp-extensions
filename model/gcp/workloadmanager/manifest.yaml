@@ -10,8 +10,6 @@ labels:
   - workloadmanager
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, deployments, deployments_actuations, discoveredprofiles, discoveredprofiles_health, evaluations, evaluations_executions, evaluations_executions_results, evaluations_executions_scannedresources, rules
 models:
   - deployments.ts
   - deployments_actuations.ts

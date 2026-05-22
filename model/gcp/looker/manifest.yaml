@@ -10,8 +10,6 @@ labels:
   - looker
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, instances, instances_backups
 models:
   - instances.ts
   - instances_backups.ts

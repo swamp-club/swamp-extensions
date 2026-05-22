@@ -10,8 +10,6 @@ labels:
   - abusiveexperiencereport
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: sites, violatingsites
 models:
   - sites.ts
   - violatingsites.ts

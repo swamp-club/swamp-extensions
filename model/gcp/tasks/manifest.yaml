@@ -10,8 +10,6 @@ labels:
   - tasks
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: tasklists, tasks
 models:
   - tasklists.ts
   - tasks.ts

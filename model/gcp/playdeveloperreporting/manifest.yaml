@@ -10,8 +10,6 @@ labels:
   - playdeveloperreporting
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: anomalies, vitals_anrrate, vitals_crashrate, vitals_errors_counts, vitals_excessivewakeuprate, vitals_lmkrate, vitals_slowrenderingrate, vitals_slowstartrate, vitals_stuckbackgroundwakelockrate
 models:
   - anomalies.ts
   - vitals_anrrate.ts

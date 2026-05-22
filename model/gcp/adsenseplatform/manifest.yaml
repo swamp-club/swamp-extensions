@@ -10,8 +10,6 @@ labels:
   - adsenseplatform
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: platforms_accounts, platforms_accounts_sites
 models:
   - platforms_accounts.ts
   - platforms_accounts_sites.ts

@@ -273,140 +273,6 @@ const GlobalArgsSchema = z.object({
         "Required. Specifies a list of allowed custom CA certificates for HTTPS verification.",
       ).optional(),
     }).describe("The TLS configuration.").optional(),
-    toolOverrides: z.array(z.object({
-      descriptionOverride: z.string().describe(
-        "Optional. If present, this tool uses this description instead of the original description from the server.",
-      ).optional(),
-      nameOverride: z.string().describe(
-        "Optional. If present, this tool uses this name in the Agent instead of the original name. This is primarily used as an alias if the MCP server offers poorly named tools.",
-      ).optional(),
-      snapshot: z.object({
-        description: z.string().describe(
-          "Output only. The description of the MCP tool. This can be overridden by `description_override` in `McpToolOverride`.",
-        ).optional(),
-        inputSchema: z.object({
-          additionalProperties: z.unknown().describe(
-            "Circular reference to Schema",
-          ).optional(),
-          anyOf: z.unknown().describe(
-            "Optional. The value should be validated against any (one or more) of the subschemas in the list.",
-          ).optional(),
-          default: z.unknown().describe("Optional. Default value of the data.")
-            .optional(),
-          defs: z.unknown().describe(
-            "Optional. A map of definitions for use by `ref`. Only allowed at the root of the schema.",
-          ).optional(),
-          description: z.unknown().describe(
-            "Optional. The description of the data.",
-          ).optional(),
-          enum: z.unknown().describe(
-            'Optional. Possible values of the element of primitive type with enum format. Examples: 1. We can define direction as: {type:STRING, format:enum, enum:["EAST", NORTH", "SOUTH", "WEST"]} 2. We can define apartment number as: {type:INTEGER, format:enum, enum:["101", "201", "301"]}',
-          ).optional(),
-          items: z.unknown().describe("Circular reference to Schema")
-            .optional(),
-          maxItems: z.unknown().describe(
-            "Optional. Maximum number of the elements for Type.ARRAY.",
-          ).optional(),
-          maximum: z.unknown().describe(
-            "Optional. Maximum value for Type.INTEGER and Type.NUMBER.",
-          ).optional(),
-          minItems: z.unknown().describe(
-            "Optional. Minimum number of the elements for Type.ARRAY.",
-          ).optional(),
-          minimum: z.unknown().describe(
-            "Optional. Minimum value for Type.INTEGER and Type.NUMBER.",
-          ).optional(),
-          nullable: z.unknown().describe(
-            "Optional. Indicates if the value may be null.",
-          ).optional(),
-          prefixItems: z.unknown().describe(
-            "Optional. Schemas of initial elements of Type.ARRAY.",
-          ).optional(),
-          properties: z.unknown().describe(
-            "Optional. Properties of Type.OBJECT.",
-          ).optional(),
-          ref: z.unknown().describe(
-            'Optional. Allows indirect references between schema nodes. The value should be a valid reference to a child of the root `defs`. For example, the following schema defines a reference to a schema node named "Pet": ` type: object properties: pet: ref: #/defs/Pet defs: Pet: type: object properties: name: type: string ` The value of the "pet" property is a reference to the schema node named "Pet". See details in https://json-schema.org/understanding-json-schema/structuring.',
-          ).optional(),
-          required: z.unknown().describe(
-            "Optional. Required properties of Type.OBJECT.",
-          ).optional(),
-          title: z.unknown().describe("Optional. The title of the schema.")
-            .optional(),
-          type: z.unknown().describe("Required. The type of the data.")
-            .optional(),
-          uniqueItems: z.unknown().describe(
-            "Optional. Indicate the items in the array must be unique. Only applies to TYPE.ARRAY.",
-          ).optional(),
-        }).describe(
-          "Represents a select subset of an OpenAPI 3.0 schema object.",
-        ).optional(),
-        outputSchema: z.object({
-          additionalProperties: z.unknown().describe(
-            "Circular reference to Schema",
-          ).optional(),
-          anyOf: z.unknown().describe(
-            "Optional. The value should be validated against any (one or more) of the subschemas in the list.",
-          ).optional(),
-          default: z.unknown().describe("Optional. Default value of the data.")
-            .optional(),
-          defs: z.unknown().describe(
-            "Optional. A map of definitions for use by `ref`. Only allowed at the root of the schema.",
-          ).optional(),
-          description: z.unknown().describe(
-            "Optional. The description of the data.",
-          ).optional(),
-          enum: z.unknown().describe(
-            'Optional. Possible values of the element of primitive type with enum format. Examples: 1. We can define direction as: {type:STRING, format:enum, enum:["EAST", NORTH", "SOUTH", "WEST"]} 2. We can define apartment number as: {type:INTEGER, format:enum, enum:["101", "201", "301"]}',
-          ).optional(),
-          items: z.unknown().describe("Circular reference to Schema")
-            .optional(),
-          maxItems: z.unknown().describe(
-            "Optional. Maximum number of the elements for Type.ARRAY.",
-          ).optional(),
-          maximum: z.unknown().describe(
-            "Optional. Maximum value for Type.INTEGER and Type.NUMBER.",
-          ).optional(),
-          minItems: z.unknown().describe(
-            "Optional. Minimum number of the elements for Type.ARRAY.",
-          ).optional(),
-          minimum: z.unknown().describe(
-            "Optional. Minimum value for Type.INTEGER and Type.NUMBER.",
-          ).optional(),
-          nullable: z.unknown().describe(
-            "Optional. Indicates if the value may be null.",
-          ).optional(),
-          prefixItems: z.unknown().describe(
-            "Optional. Schemas of initial elements of Type.ARRAY.",
-          ).optional(),
-          properties: z.unknown().describe(
-            "Optional. Properties of Type.OBJECT.",
-          ).optional(),
-          ref: z.unknown().describe(
-            'Optional. Allows indirect references between schema nodes. The value should be a valid reference to a child of the root `defs`. For example, the following schema defines a reference to a schema node named "Pet": ` type: object properties: pet: ref: #/defs/Pet defs: Pet: type: object properties: name: type: string ` The value of the "pet" property is a reference to the schema node named "Pet". See details in https://json-schema.org/understanding-json-schema/structuring.',
-          ).optional(),
-          required: z.unknown().describe(
-            "Optional. Required properties of Type.OBJECT.",
-          ).optional(),
-          title: z.unknown().describe("Optional. The title of the schema.")
-            .optional(),
-          type: z.unknown().describe("Required. The type of the data.")
-            .optional(),
-          uniqueItems: z.unknown().describe(
-            "Optional. Indicate the items in the array must be unique. Only applies to TYPE.ARRAY.",
-          ).optional(),
-        }).describe(
-          "Represents a select subset of an OpenAPI 3.0 schema object.",
-        ).optional(),
-      }).describe(
-        "Container for a tool's core definition elements that are snapshot. Schemas in the snapshot are used as-is and cannot be overridden.",
-      ).optional(),
-      tool: z.string().describe(
-        "Required. The original name of the tool as it is emitted by the MCP server.",
-      ).optional(),
-    })).describe(
-      "Optional. Overrides for individual tools within this toolset. This allows overriding specific details like descriptions, names, or pinning the tools' states so they aren't fully dynamic.",
-    ).optional(),
   }).describe(
     "A toolset that contains a list of tools that are offered by the MCP server.",
   ).optional(),
@@ -577,56 +443,6 @@ const StateSchema = z.object({
         displayName: z.string(),
       })),
     }),
-    toolOverrides: z.array(z.object({
-      descriptionOverride: z.string(),
-      nameOverride: z.string(),
-      snapshot: z.object({
-        description: z.string(),
-        inputSchema: z.object({
-          additionalProperties: z.unknown(),
-          anyOf: z.unknown(),
-          default: z.unknown(),
-          defs: z.unknown(),
-          description: z.unknown(),
-          enum: z.unknown(),
-          items: z.unknown(),
-          maxItems: z.unknown(),
-          maximum: z.unknown(),
-          minItems: z.unknown(),
-          minimum: z.unknown(),
-          nullable: z.unknown(),
-          prefixItems: z.unknown(),
-          properties: z.unknown(),
-          ref: z.unknown(),
-          required: z.unknown(),
-          title: z.unknown(),
-          type: z.unknown(),
-          uniqueItems: z.unknown(),
-        }),
-        outputSchema: z.object({
-          additionalProperties: z.unknown(),
-          anyOf: z.unknown(),
-          default: z.unknown(),
-          defs: z.unknown(),
-          description: z.unknown(),
-          enum: z.unknown(),
-          items: z.unknown(),
-          maxItems: z.unknown(),
-          maximum: z.unknown(),
-          minItems: z.unknown(),
-          minimum: z.unknown(),
-          nullable: z.unknown(),
-          prefixItems: z.unknown(),
-          properties: z.unknown(),
-          ref: z.unknown(),
-          required: z.unknown(),
-          title: z.unknown(),
-          type: z.unknown(),
-          uniqueItems: z.unknown(),
-        }),
-      }),
-      tool: z.string(),
-    })),
   }).optional(),
   name: z.string(),
   openApiToolset: z.object({
@@ -819,140 +635,6 @@ const InputsSchema = z.object({
         "Required. Specifies a list of allowed custom CA certificates for HTTPS verification.",
       ).optional(),
     }).describe("The TLS configuration.").optional(),
-    toolOverrides: z.array(z.object({
-      descriptionOverride: z.string().describe(
-        "Optional. If present, this tool uses this description instead of the original description from the server.",
-      ).optional(),
-      nameOverride: z.string().describe(
-        "Optional. If present, this tool uses this name in the Agent instead of the original name. This is primarily used as an alias if the MCP server offers poorly named tools.",
-      ).optional(),
-      snapshot: z.object({
-        description: z.string().describe(
-          "Output only. The description of the MCP tool. This can be overridden by `description_override` in `McpToolOverride`.",
-        ).optional(),
-        inputSchema: z.object({
-          additionalProperties: z.unknown().describe(
-            "Circular reference to Schema",
-          ).optional(),
-          anyOf: z.unknown().describe(
-            "Optional. The value should be validated against any (one or more) of the subschemas in the list.",
-          ).optional(),
-          default: z.unknown().describe("Optional. Default value of the data.")
-            .optional(),
-          defs: z.unknown().describe(
-            "Optional. A map of definitions for use by `ref`. Only allowed at the root of the schema.",
-          ).optional(),
-          description: z.unknown().describe(
-            "Optional. The description of the data.",
-          ).optional(),
-          enum: z.unknown().describe(
-            'Optional. Possible values of the element of primitive type with enum format. Examples: 1. We can define direction as: {type:STRING, format:enum, enum:["EAST", NORTH", "SOUTH", "WEST"]} 2. We can define apartment number as: {type:INTEGER, format:enum, enum:["101", "201", "301"]}',
-          ).optional(),
-          items: z.unknown().describe("Circular reference to Schema")
-            .optional(),
-          maxItems: z.unknown().describe(
-            "Optional. Maximum number of the elements for Type.ARRAY.",
-          ).optional(),
-          maximum: z.unknown().describe(
-            "Optional. Maximum value for Type.INTEGER and Type.NUMBER.",
-          ).optional(),
-          minItems: z.unknown().describe(
-            "Optional. Minimum number of the elements for Type.ARRAY.",
-          ).optional(),
-          minimum: z.unknown().describe(
-            "Optional. Minimum value for Type.INTEGER and Type.NUMBER.",
-          ).optional(),
-          nullable: z.unknown().describe(
-            "Optional. Indicates if the value may be null.",
-          ).optional(),
-          prefixItems: z.unknown().describe(
-            "Optional. Schemas of initial elements of Type.ARRAY.",
-          ).optional(),
-          properties: z.unknown().describe(
-            "Optional. Properties of Type.OBJECT.",
-          ).optional(),
-          ref: z.unknown().describe(
-            'Optional. Allows indirect references between schema nodes. The value should be a valid reference to a child of the root `defs`. For example, the following schema defines a reference to a schema node named "Pet": ` type: object properties: pet: ref: #/defs/Pet defs: Pet: type: object properties: name: type: string ` The value of the "pet" property is a reference to the schema node named "Pet". See details in https://json-schema.org/understanding-json-schema/structuring.',
-          ).optional(),
-          required: z.unknown().describe(
-            "Optional. Required properties of Type.OBJECT.",
-          ).optional(),
-          title: z.unknown().describe("Optional. The title of the schema.")
-            .optional(),
-          type: z.unknown().describe("Required. The type of the data.")
-            .optional(),
-          uniqueItems: z.unknown().describe(
-            "Optional. Indicate the items in the array must be unique. Only applies to TYPE.ARRAY.",
-          ).optional(),
-        }).describe(
-          "Represents a select subset of an OpenAPI 3.0 schema object.",
-        ).optional(),
-        outputSchema: z.object({
-          additionalProperties: z.unknown().describe(
-            "Circular reference to Schema",
-          ).optional(),
-          anyOf: z.unknown().describe(
-            "Optional. The value should be validated against any (one or more) of the subschemas in the list.",
-          ).optional(),
-          default: z.unknown().describe("Optional. Default value of the data.")
-            .optional(),
-          defs: z.unknown().describe(
-            "Optional. A map of definitions for use by `ref`. Only allowed at the root of the schema.",
-          ).optional(),
-          description: z.unknown().describe(
-            "Optional. The description of the data.",
-          ).optional(),
-          enum: z.unknown().describe(
-            'Optional. Possible values of the element of primitive type with enum format. Examples: 1. We can define direction as: {type:STRING, format:enum, enum:["EAST", NORTH", "SOUTH", "WEST"]} 2. We can define apartment number as: {type:INTEGER, format:enum, enum:["101", "201", "301"]}',
-          ).optional(),
-          items: z.unknown().describe("Circular reference to Schema")
-            .optional(),
-          maxItems: z.unknown().describe(
-            "Optional. Maximum number of the elements for Type.ARRAY.",
-          ).optional(),
-          maximum: z.unknown().describe(
-            "Optional. Maximum value for Type.INTEGER and Type.NUMBER.",
-          ).optional(),
-          minItems: z.unknown().describe(
-            "Optional. Minimum number of the elements for Type.ARRAY.",
-          ).optional(),
-          minimum: z.unknown().describe(
-            "Optional. Minimum value for Type.INTEGER and Type.NUMBER.",
-          ).optional(),
-          nullable: z.unknown().describe(
-            "Optional. Indicates if the value may be null.",
-          ).optional(),
-          prefixItems: z.unknown().describe(
-            "Optional. Schemas of initial elements of Type.ARRAY.",
-          ).optional(),
-          properties: z.unknown().describe(
-            "Optional. Properties of Type.OBJECT.",
-          ).optional(),
-          ref: z.unknown().describe(
-            'Optional. Allows indirect references between schema nodes. The value should be a valid reference to a child of the root `defs`. For example, the following schema defines a reference to a schema node named "Pet": ` type: object properties: pet: ref: #/defs/Pet defs: Pet: type: object properties: name: type: string ` The value of the "pet" property is a reference to the schema node named "Pet". See details in https://json-schema.org/understanding-json-schema/structuring.',
-          ).optional(),
-          required: z.unknown().describe(
-            "Optional. Required properties of Type.OBJECT.",
-          ).optional(),
-          title: z.unknown().describe("Optional. The title of the schema.")
-            .optional(),
-          type: z.unknown().describe("Required. The type of the data.")
-            .optional(),
-          uniqueItems: z.unknown().describe(
-            "Optional. Indicate the items in the array must be unique. Only applies to TYPE.ARRAY.",
-          ).optional(),
-        }).describe(
-          "Represents a select subset of an OpenAPI 3.0 schema object.",
-        ).optional(),
-      }).describe(
-        "Container for a tool's core definition elements that are snapshot. Schemas in the snapshot are used as-is and cannot be overridden.",
-      ).optional(),
-      tool: z.string().describe(
-        "Required. The original name of the tool as it is emitted by the MCP server.",
-      ).optional(),
-    })).describe(
-      "Optional. Overrides for individual tools within this toolset. This allows overriding specific details like descriptions, names, or pinning the tools' states so they aren't fully dynamic.",
-    ).optional(),
   }).describe(
     "A toolset that contains a list of tools that are offered by the MCP server.",
   ).optional(),
@@ -1064,7 +746,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Toolsets. Registered at `@swamp/gcp/ces/apps-toolsets`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-toolsets",
-  version: "2026.05.21.2",
+  version: "2026.05.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -1118,6 +800,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.21.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1382,7 +1069,6 @@ export const model = {
     retrieve_tools: {
       description: "retrieve tools",
       arguments: z.object({
-        bypassPersistenceConfig: z.any().optional(),
         toolIds: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
@@ -1404,9 +1090,6 @@ export const model = {
         params["toolset"] = existing["name"]?.toString() ??
           g["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
-        if (args["bypassPersistenceConfig"] !== undefined) {
-          body["bypassPersistenceConfig"] = args["bypassPersistenceConfig"];
-        }
         if (args["toolIds"] !== undefined) body["toolIds"] = args["toolIds"];
         const result = await createResource(
           BASE_URL,

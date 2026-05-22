@@ -302,7 +302,9 @@ const HookTimeoutConfigSchema = z.object({
 });
 
 const DeploymentLifecycleHookSchema = z.object({
-  TimeoutConfiguration: HookTimeoutConfigSchema.optional(),
+  TimeoutConfiguration: HookTimeoutConfigSchema.describe(
+    "The timeout configuration for the lifecycle hook. This specifies how long Amazon ECS waits before taking the timeout action if the hook is not resolved.",
+  ).optional(),
   LifecycleStages: z.array(
     z.enum([
       "RECONCILE_SERVICE",
@@ -315,11 +317,13 @@ const DeploymentLifecycleHookSchema = z.object({
       "POST_PRODUCTION_TRAFFIC_SHIFT",
     ]),
   ).describe(
-    "The lifecycle stages at which to run the hook. Choose from these valid values: RECONCILE_SERVICE The reconciliation stage that only happens when you start a new service deployment with more than 1 service revision in an ACTIVE state. You can use a lifecycle hook for this stage. PRE_SCALE_UP The green service revision has not started. The blue service revision is handling 100% of the production traffic. There is no test traffic. You can use a lifecycle hook for this stage. POST_SCALE_UP The green service revision has started. The blue service revision is handling 100% of the production traffic. There is no test traffic. You can use a lifecycle hook for this stage. TEST_TRAFFIC_SHIFT The blue and green service revisions are running. The blue service revision handles 100% of the production traffic. The green service revision is migrating from 0% to 100% of test traffic. You can use a lifecycle hook for this stage. POST_TEST_TRAFFIC_SHIFT The test traffic shift is complete. The green service revision handles 100% of the test traffic. You can use a lifecycle hook for this stage. PRODUCTION_TRAFFIC_SHIFT Production traffic is shifting to the green service revision. The green service revision is migrating from 0% to 100% of production traffic. You can use a lifecycle hook for this stage. POST_PRODUCTION_TRAFFIC_SHIFT The production traffic shift is complete. You can use a lifecycle hook for this stage. You must provide this parameter when configuring a deployment lifecycle hook.",
+    "The lifecycle stages at which to run the hook. Choose from these valid values: RECONCILE_SERVICE The reconciliation stage that only happens when you start a new service deployment with more than 1 service revision in an ACTIVE state. You can use a lifecycle hook for this stage. PRE_SCALE_UP The green service revision has not started. The blue service revision is handling 100% of the production traffic. There is no test traffic. You can use a lifecycle hook for this stage. POST_SCALE_UP The green service revision has started. The blue service revision is handling 100% of the production traffic. There is no test traffic. You can use a lifecycle hook for this stage. TEST_TRAFFIC_SHIFT The blue and green service revisions are running. The blue service revision handles 100% of the production traffic. The green service revision is migrating from 0% to 100% of test traffic. You can use a lifecycle hook for this stage. POST_TEST_TRAFFIC_SHIFT The test traffic shift is complete. The green service revision handles 100% of the test traffic. You can use a lifecycle hook for this stage. PRE_PRODUCTION_TRAFFIC_SHIFT Occurs before production traffic shift. For linear and canary deployments, this stage is invoked before every traffic shift step. You can use a lifecycle hook for this stage. PRODUCTION_TRAFFIC_SHIFT Production traffic is shifting to the green service revision. The green service revision is migrating from 0% to 100% of production traffic. For linear and canary deployments, this stage is invoked at every traffic shift step. You can use a lifecycle hook for this stage. POST_PRODUCTION_TRAFFIC_SHIFT The production traffic shift is complete. You can use a lifecycle hook for this stage. PAUSE hooks cannot be configured at TEST_TRAFFIC_SHIFT or PRODUCTION_TRAFFIC_SHIFT stages. These stages are only valid for AWS_LAMBDA hooks. You must provide this parameter when configuring a deployment lifecycle hook.",
   ),
-  TargetType: z.enum(["AWS_LAMBDA", "PAUSE"]).optional(),
+  TargetType: z.enum(["AWS_LAMBDA", "PAUSE"]).describe(
+    "The type of action the lifecycle hook performs. Valid values are: AWS_LAMBDA - Invokes a Lambda function at the specified lifecycle stage. This is the default value. PAUSE - Pauses the deployment at the specified lifecycle stage until you call ContinueServiceDeployment to continue or roll back. This field is optional. If not specified, the default value is AWS_LAMBDA.",
+  ).optional(),
   HookTargetArn: z.string().describe(
-    "The Amazon Resource Name (ARN) of the hook target. Currently, only Lambda function ARNs are supported. You must provide this parameter when configuring a deployment lifecycle hook.",
+    "The Amazon Resource Name (ARN) of the hook target. For AWS_LAMBDA hooks, this is the Lambda function ARN. This field is not applicable for PAUSE hooks. You must provide this parameter when configuring an AWS_LAMBDA lifecycle hook.",
   ).optional(),
   HookDetails: z.string().describe(
     "Use this field to specify custom parameters that ECS passes to your hook target invocations (such as a Lambda function). This field must be a JSON object as a string.",
@@ -476,7 +480,7 @@ const GlobalArgsSchema = z.object({
       "The duration waiting before terminating the previous service revision and marking a deployment complete. The following rules apply when you don't specify a value: For blue/green, linear, and canary deployments, the value is set to 15 minutes. For rolling deployments, there is no bake time set by default. The external deployment controller ( EXTERNAL) and the ACD blue/green deployment controller ( CODE_DEPLOY) do not support the BakeTimeInMinutes parameter. If you provide a bake time for a rolling deployment, the CloudFormation handler timeout is increased to the maximum of 36 hours, matching the timeout for blue/green, linear, and canary deployments.",
     ).optional(),
     LifecycleHooks: z.array(DeploymentLifecycleHookSchema).describe(
-      "An array of deployment lifecycle hook objects to run custom logic at specific stages of the deployment lifecycle.",
+      "An array of deployment lifecycle hook objects to run custom logic or pause the deployment at specific stages of the deployment lifecycle.",
     ).optional(),
     Alarms: DeploymentAlarmsSchema.describe(
       "Information about the CloudWatch alarms.",
@@ -673,7 +677,7 @@ const InputsSchema = z.object({
       "The duration waiting before terminating the previous service revision and marking a deployment complete. The following rules apply when you don't specify a value: For blue/green, linear, and canary deployments, the value is set to 15 minutes. For rolling deployments, there is no bake time set by default. The external deployment controller ( EXTERNAL) and the ACD blue/green deployment controller ( CODE_DEPLOY) do not support the BakeTimeInMinutes parameter. If you provide a bake time for a rolling deployment, the CloudFormation handler timeout is increased to the maximum of 36 hours, matching the timeout for blue/green, linear, and canary deployments.",
     ).optional(),
     LifecycleHooks: z.array(DeploymentLifecycleHookSchema).describe(
-      "An array of deployment lifecycle hook objects to run custom logic at specific stages of the deployment lifecycle.",
+      "An array of deployment lifecycle hook objects to run custom logic or pause the deployment at specific stages of the deployment lifecycle.",
     ).optional(),
     Alarms: DeploymentAlarmsSchema.describe(
       "Information about the CloudWatch alarms.",
@@ -701,7 +705,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ECS Service. Registered at `@swamp/aws/ecs/service`. */
 export const model = {
   type: "@swamp/aws/ecs/service",
-  version: "2026.05.20.1",
+  version: "2026.05.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -740,6 +744,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

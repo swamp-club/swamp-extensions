@@ -10,8 +10,6 @@ labels:
   - merchantapi
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: accounts_merchantreviews, accounts_productreviews
 models:
   - accounts_merchantreviews.ts
   - accounts_productreviews.ts

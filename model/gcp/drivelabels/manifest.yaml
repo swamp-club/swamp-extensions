@@ -10,8 +10,6 @@ labels:
   - drivelabels
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: labels, labels_locks, labels_permissions, labels_revisions_locks, labels_revisions_permissions
 models:
   - labels.ts
   - labels_locks.ts

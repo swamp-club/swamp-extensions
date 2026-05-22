@@ -10,8 +10,6 @@ labels:
   - iap
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: brands, brands_identityawareproxyclients, iap_tunnel_destgroups
 models:
   - brands.ts
   - brands_identityawareproxyclients.ts

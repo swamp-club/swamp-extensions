@@ -10,8 +10,6 @@ labels:
   - vault
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: matters, matters_exports, matters_holds, matters_holds_accounts, matters_savedqueries
 models:
   - matters.ts
   - matters_exports.ts

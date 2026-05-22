@@ -10,8 +10,6 @@ labels:
   - vpcaccess
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, connectors
 models:
   - connectors.ts
   - locations.ts

@@ -10,8 +10,6 @@ labels:
   - realtimebidding
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: bidders, bidders_creatives, bidders_endpoints, bidders_pretargetingconfigs, bidders_publisherconnections, buyers, buyers_creatives, buyers_userlists
 models:
   - bidders.ts
   - bidders_creatives.ts

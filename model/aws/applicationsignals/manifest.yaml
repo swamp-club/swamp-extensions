@@ -9,8 +9,6 @@ labels:
   - applicationsignals
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: service_level_objective
 models:
   - discovery.ts
   - grouping_configuration.ts

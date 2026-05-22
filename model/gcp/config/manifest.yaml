@@ -10,8 +10,6 @@ labels:
   - config
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, deploymentgroups, deploymentgroups_revisions, deployments, deployments_revisions, deployments_revisions_resources, previews, previews_resourcechanges, previews_resourcedrifts, terraformversions
 models:
   - deploymentgroups.ts
   - deploymentgroups_revisions.ts

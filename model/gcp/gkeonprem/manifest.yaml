@@ -10,8 +10,6 @@ labels:
   - gkeonprem
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, baremetaladminclusters, baremetalclusters, baremetalclusters_baremetalnodepools, vmwareadminclusters, vmwareclusters, vmwareclusters_vmwarenodepools
 models:
   - baremetaladminclusters.ts
   - baremetalclusters.ts

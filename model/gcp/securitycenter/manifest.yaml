@@ -10,8 +10,6 @@ labels:
   - securitycenter
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: assets, bigqueryexports, eventthreatdetectionsettings_custommodules, eventthreatdetectionsettings_effectivecustommodules, muteconfigs, notificationconfigs, securityhealthanalyticssettings_custommodules, securityhealthanalyticssettings_effectivecustommodules, sources, sources_findings, attackpaths, resourcevalueconfigs, simulations, simulations_attackexposureresults_attackpaths, simulations_attackexposureresults_valuedresources, simulations_attackpaths, simulations_valuedresources, simulations_valuedresources_attackpaths, valuedresources
 models:
   - assets.ts
   - attackpaths.ts

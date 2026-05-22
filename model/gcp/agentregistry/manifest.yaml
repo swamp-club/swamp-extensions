@@ -10,8 +10,6 @@ labels:
   - agentregistry
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, agents, bindings, endpoints, mcpservers, services
 models:
   - agents.ts
   - bindings.ts

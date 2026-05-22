@@ -10,8 +10,6 @@ labels:
   - vmmigration
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, groups, imageimports, imageimports_imageimportjobs, sources, sources_datacenterconnectors, sources_diskmigrationjobs, sources_migratingvms, sources_migratingvms_clonejobs, sources_migratingvms_cutoverjobs, sources_migratingvms_replicationcycles, sources_utilizationreports, targetprojects
 models:
   - groups.ts
   - imageimports.ts

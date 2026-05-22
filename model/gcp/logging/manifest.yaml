@@ -10,8 +10,6 @@ labels:
   - logging
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: exclusions, locations, buckets, buckets_links, buckets_views, buckets_views_logs, recentqueries, savedqueries, logs, sinks, entries, logscopes, monitoredresourcedescriptors, metrics
 models:
   - buckets.ts
   - buckets_links.ts

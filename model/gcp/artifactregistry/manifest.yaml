@@ -10,8 +10,6 @@ labels:
   - artifactregistry
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, repositories, repositories_attachments, repositories_dockerimages, repositories_files, repositories_mavenartifacts, repositories_npmpackages, repositories_packages, repositories_packages_tags, repositories_packages_versions, repositories_pythonpackages, repositories_rules
 models:
   - locations.ts
   - repositories.ts

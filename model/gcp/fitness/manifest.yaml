@@ -10,8 +10,6 @@ labels:
   - fitness
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: users_datasources, users_datasources_datapointchanges, users_datasources_datasets, users_sessions
 models:
   - users_datasources.ts
   - users_datasources_datapointchanges.ts

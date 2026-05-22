@@ -10,8 +10,6 @@ labels:
   - translate
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, adaptivemtdatasets, adaptivemtdatasets_adaptivemtfiles, adaptivemtdatasets_adaptivemtfiles_adaptivemtsentences, adaptivemtdatasets_adaptivemtsentences, datasets, datasets_examples, glossaries, glossaries_glossaryentries, models
 models:
   - adaptivemtdatasets.ts
   - adaptivemtdatasets_adaptivemtfiles.ts

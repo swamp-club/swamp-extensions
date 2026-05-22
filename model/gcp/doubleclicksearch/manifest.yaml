@@ -10,8 +10,6 @@ labels:
   - doubleclicksearch
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: conversion, reports, savedcolumns
 models:
   - conversion.ts
   - reports.ts

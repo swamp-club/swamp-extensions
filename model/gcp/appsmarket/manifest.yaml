@@ -10,8 +10,6 @@ labels:
   - appsmarket
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: customerlicense, userlicense
 models:
   - customerlicense.ts
   - userlicense.ts

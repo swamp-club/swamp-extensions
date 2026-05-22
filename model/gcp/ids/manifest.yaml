@@ -10,8 +10,6 @@ labels:
   - ids
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, endpoints
 models:
   - endpoints.ts
   - locations.ts

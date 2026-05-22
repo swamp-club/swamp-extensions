@@ -10,8 +10,6 @@ labels:
   - factchecktools
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: pages
 models:
   - pages.ts
 additionalFiles:

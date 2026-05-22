@@ -10,8 +10,6 @@ labels:
   - accesscontextmanager
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: accesspolicies, accesspolicies_accesslevels, accesspolicies_authorizedorgsdescs, accesspolicies_serviceperimeters, gcpuseraccessbindings, permissions, services
 models:
   - accesspolicies.ts
   - accesspolicies_accesslevels.ts

@@ -10,8 +10,6 @@ labels:
   - developerconnect
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, accountconnectors, accountconnectors_users, connections, connections_gitrepositorylinks, insightsconfigs, insightsconfigs_deploymentevents
 models:
   - accountconnectors.ts
   - accountconnectors_users.ts

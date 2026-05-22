@@ -10,8 +10,6 @@ labels:
   - servicenetworking
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: services_connections, services_dnsrecordsets, services_projects_global_networks, services_projects_global_networks_dnszones, services_projects_global_networks_peereddnsdomains
 models:
   - services_connections.ts
   - services_dnsrecordsets.ts

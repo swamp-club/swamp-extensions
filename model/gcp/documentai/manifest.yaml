@@ -10,8 +10,6 @@ labels:
   - documentai
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, processortypes, processors, processors_processorversions, processors_processorversions_evaluations, schemas, schemas_schemaversions
 models:
   - locations.ts
   - processors.ts

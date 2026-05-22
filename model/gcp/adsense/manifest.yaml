@@ -10,8 +10,6 @@ labels:
   - adsense
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: accounts, accounts_adclients, accounts_adclients_adunits, accounts_adclients_customchannels, accounts_adclients_urlchannels, accounts_alerts, accounts_payments, accounts_policyissues, accounts_reports_saved, accounts_sites
 models:
   - accounts.ts
   - accounts_adclients.ts

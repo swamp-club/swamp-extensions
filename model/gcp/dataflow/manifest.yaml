@@ -10,8 +10,6 @@ labels:
   - dataflow
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: jobs, jobs_messages, jobs_snapshots, snapshots, templates
 models:
   - jobs.ts
   - jobs_messages.ts

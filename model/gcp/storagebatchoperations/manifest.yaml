@@ -10,8 +10,6 @@ labels:
   - storagebatchoperations
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, jobs
 models:
   - jobs.ts
   - locations.ts

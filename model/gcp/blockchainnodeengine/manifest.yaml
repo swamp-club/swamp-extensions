@@ -10,8 +10,6 @@ labels:
   - blockchainnodeengine
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: locations, blockchainnodes
 models:
   - blockchainnodes.ts
   - locations.ts

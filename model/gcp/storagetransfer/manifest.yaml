@@ -10,8 +10,6 @@ labels:
   - storagetransfer
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: googleserviceaccounts, agentpools, transferjobs
 models:
   - agentpools.ts
   - googleserviceaccounts.ts

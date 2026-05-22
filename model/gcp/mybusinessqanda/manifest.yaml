@@ -10,8 +10,6 @@ labels:
   - mybusinessqanda
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: questions, questions_answers
 models:
   - questions.ts
   - questions_answers.ts

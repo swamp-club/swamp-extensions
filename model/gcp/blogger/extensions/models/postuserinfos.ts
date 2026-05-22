@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Blogger PostUserInfos.
+ * Swamp extension model for Google Cloud blogger PostUserInfos.
  *
  * Gets one post and user info pair, by post_id and user_id.
  *
@@ -139,10 +139,10 @@ const InputsSchema = z.object({
   name: z.string().optional(),
 });
 
-/** Swamp extension model for Google Cloud Blogger PostUserInfos. Registered at `@swamp/gcp/blogger/postuserinfos`. */
+/** Swamp extension model for Google Cloud blogger PostUserInfos. Registered at `@swamp/gcp/blogger/postuserinfos`. */
 export const model = {
   type: "@swamp/gcp/blogger/postuserinfos",
-  version: "2026.05.21.2",
+  version: "2026.05.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -196,6 +196,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.21.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -10,8 +10,6 @@ labels:
   - mybusinessverifications
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: verifications
 models:
   - verifications.ts
 additionalFiles:

@@ -10,8 +10,6 @@ labels:
   - manufacturers
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: accounts_languages_productcertifications, accounts_products
 models:
   - accounts_languages_productcertifications.ts
   - accounts_products.ts

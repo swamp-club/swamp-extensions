@@ -10,8 +10,6 @@ labels:
   - doubleclickbidmanager
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: queries, queries_reports
 models:
   - queries.ts
   - queries_reports.ts

@@ -10,8 +10,6 @@ labels:
   - androidpublisher
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: applications_devicetierconfigs, applications_tracks_releases, apprecovery, edits, edits_apks, edits_bundles, edits_countryavailability, edits_details, edits_expansionfiles, edits_images, edits_listings, edits_testers, edits_tracks, generatedapks, inappproducts, monetization_onetimeproducts, monetization_onetimeproducts_purchaseoptions_offers, monetization_subscriptions, monetization_subscriptions_baseplans_offers, orders, purchases_products, purchases_subscriptions, purchases_subscriptionsv2, purchases_voidedpurchases, reviews, systemapks_variants, users
 models:
   - applications_devicetierconfigs.ts
   - applications_tracks_releases.ts
