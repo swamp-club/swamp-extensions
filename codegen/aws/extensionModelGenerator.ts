@@ -125,9 +125,15 @@ export function generateAwsExtensionModel(
     `import { ${helperImports.join(", ")} } from "./_lib/aws.ts";`,
   );
   if (input.enrichment) {
-    for (const imp of input.enrichment.imports) {
-      lines.push(imp);
-    }
+    const allExports = [
+      ...input.enrichment.schemaExports,
+      input.enrichment.functionExport,
+    ];
+    lines.push(
+      `import { ${allExports.join(", ")} } from "./_enrichments/${
+        typeNameToResourceFileName(typeName)
+      }.ts";`,
+    );
   }
   lines.push("");
 
@@ -158,12 +164,6 @@ export function generateAwsExtensionModel(
   lines.push(`});`);
   lines.push("");
 
-  // Enrichment schemas (emitted before StateSchema so they can be referenced)
-  if (input.enrichment?.schemas) {
-    lines.push(input.enrichment.schemas);
-    lines.push("");
-  }
-
   // StateSchema — all resource properties, simplified
   lines.push(`const ${stateSchemaName} = z.object({`);
   if (zodResult.resourceSchemaBody) {
@@ -176,12 +176,6 @@ export function generateAwsExtensionModel(
   lines.push("");
   lines.push(`type StateData = z.infer<typeof ${stateSchemaName}>;`);
   lines.push("");
-
-  // Enrichment function (emitted after StateData type alias)
-  if (input.enrichment?.enrichFunction) {
-    lines.push(input.enrichment.enrichFunction);
-    lines.push("");
-  }
 
   // InputsSchema — mirrors globalArgs but all optional
   lines.push(`const InputsSchema = z.object({`);
@@ -293,7 +287,7 @@ export function generateAwsExtensionModel(
     );
     if (input.enrichment) {
       lines.push(
-        `        const result = await enrichState(await readResource("${typeName}", args.identifier) as StateData);`,
+        `        const result = await ${input.enrichment.functionExport}(await readResource("${typeName}", args.identifier) as StateData);`,
       );
     } else {
       lines.push(
@@ -529,7 +523,7 @@ export function generateAwsExtensionModel(
     lines.push(`        try {`);
     if (input.enrichment) {
       lines.push(
-        `          const result = await enrichState(await readResource("${typeName}", identifier) as StateData);`,
+        `          const result = await ${input.enrichment.functionExport}(await readResource("${typeName}", identifier) as StateData);`,
       );
     } else {
       lines.push(

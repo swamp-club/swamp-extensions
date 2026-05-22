@@ -364,6 +364,19 @@ export async function generateAwsModels(options: {
 
         models.push({ filePath, sourceCode });
         modelChanges.push({ fileName, status });
+
+        // Copy enrichment source file to output if present
+        if (enrichment) {
+          const enrichSourceCode = await Deno.readTextFile(
+            enrichment.sourceFile,
+          );
+          const enrichFilePath =
+            `extensions/models/_enrichments/${resourceFileName}.ts`;
+          models.push({
+            filePath: enrichFilePath,
+            sourceCode: enrichSourceCode,
+          });
+        }
       } catch (error) {
         errors.push(`${typeName}: ${error}`);
       }

@@ -1022,15 +1022,10 @@ snapshot[`generateAwsExtensionModel - with enrichment 1`] = `
 
 import { z } from "npm:zod@4.3.6";
 import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from "./_lib/aws.ts";
-import { DescribeDBClustersCommand, RDSClient } from "@aws-sdk/client-rds";
+import { MemberSchema, enrichState } from "./_enrichments/dbcluster.ts";
 
 const GlobalArgsSchema = z.object({
   DBClusterIdentifier: z.string().describe("The DB cluster identifier"),
-});
-
-const MemberSchema = z.object({
-  MemberId: z.string().optional(),
-  IsWriter: z.boolean().optional(),
 });
 
 const StateSchema = z.object({
@@ -1040,10 +1035,6 @@ const StateSchema = z.object({
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
-
-async function enrichState(state: StateData): Promise<StateData> {
-  return state;
-}
 
 const InputsSchema = z.object({
   DBClusterIdentifier: z.string().describe("The DB cluster identifier").optional(),
