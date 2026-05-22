@@ -203,7 +203,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Storage JSON BucketAccessControls. Registered at `@swamp/gcp/storage/bucketaccesscontrols`. */
 export const model = {
   type: "@swamp/gcp/storage/bucketaccesscontrols",
-  version: "2026.05.21.2",
+  version: "2026.05.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -252,6 +252,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.21.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

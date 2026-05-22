@@ -41,14 +41,20 @@ export function generateAwsDenoConfig(
 
 /**
  * Generates a deno.json with import mappings for a GCP extension package.
+ * When additionalImports is provided, those entries are merged into the
+ * imports map (e.g. service-specific SDK packages for enrichments).
  */
-export function generateGcpDenoConfig(): string {
+export function generateGcpDenoConfig(
+  additionalImports: Record<string, string> = {},
+): string {
+  const imports: Record<string, string> = {
+    "zod": "npm:zod@4.3.6",
+    ...additionalImports,
+  };
   return JSON.stringify(
     {
       lint: LINT_CONFIG,
-      imports: {
-        "zod": "npm:zod@4.3.6",
-      },
+      imports,
     },
     null,
     2,
