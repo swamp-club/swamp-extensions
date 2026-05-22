@@ -1,0 +1,21 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/cloudflare/workers"
+version: "2026.05.22.2"
+description: "Cloudflare workers infrastructure models"
+repository: "https://github.com/systeminit/swamp-extensions"
+labels:
+  - cloudflare
+  - workers
+  - cloud
+  - infrastructure
+models:
+  - namespaces.ts
+  - queries.ts
+  - query.ts
+  - routes.ts
+  - workers.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

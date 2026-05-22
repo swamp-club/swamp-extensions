@@ -1,0 +1,17 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/cloudflare/event-subscriptions"
+version: "2026.05.22.2"
+description: "Cloudflare event-subscriptions infrastructure models"
+repository: "https://github.com/systeminit/swamp-extensions"
+labels:
+  - cloudflare
+  - event-subscriptions
+  - cloud
+  - infrastructure
+models:
+  - subscriptions.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

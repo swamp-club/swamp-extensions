@@ -4,6 +4,11 @@
 import type { CloudflareProperty, CloudflareResource } from "./pipeline.ts";
 import { wrapWithSanitize } from "../shared/instanceName.ts";
 
+const VALID_JS_IDENT = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
+function quoteProp(name: string): string {
+  return VALID_JS_IDENT.test(name) ? name : JSON.stringify(name);
+}
+
 export interface ExtensionModelInput {
   resource: CloudflareResource;
   extensionName: string;
@@ -94,7 +99,7 @@ export function generateCloudflareExtensionModel(
   lines.push(`const ResourceSchema = z.object({`);
   for (const [name, prop] of Object.entries(resource.resourceProperties)) {
     const expr = generateSimplifiedZod(prop);
-    let line = `  ${name}: ${expr}`;
+    let line = `  ${quoteProp(name)}: ${expr}`;
     if (name !== "id") {
       line += `.optional()`;
     }
@@ -162,8 +167,9 @@ export function generateCloudflareExtensionModel(
   lines.push(...buildEndpointLines(scopeType, relPath));
   lines.push(`        const body: Record<string, unknown> = {};`);
   for (const name of Object.keys(resource.createProperties)) {
+    const access = VALID_JS_IDENT.test(name) ? `.${name}` : `[${JSON.stringify(name)}]`;
     lines.push(
-      `        if (g.${name} !== undefined) body.${name} = g.${name};`,
+      `        if (g${access} !== undefined) body${access} = g${access};`,
     );
   }
   lines.push(
@@ -254,8 +260,9 @@ export function generateCloudflareExtensionModel(
         (k) => !resource.createOnlyProperties.has(k),
       );
     for (const name of updateKeys) {
+      const access = VALID_JS_IDENT.test(name) ? `.${name}` : `[${JSON.stringify(name)}]`;
       lines.push(
-        `        if (g.${name} !== undefined) body.${name} = g.${name};`,
+        `        if (g${access} !== undefined) body${access} = g${access};`,
       );
     }
     lines.push(
@@ -414,7 +421,8 @@ function buildGlobalArgsProperties(
     seen.add(name);
 
     const baseExpr = generateFullFidelityZod(prop);
-    let line = `${name}: ${baseExpr}`;
+    const qName = quoteProp(name);
+    let line = `${qName}: ${baseExpr}`;
 
     if (prop.description) {
       line += `.describe(${JSON.stringify(prop.description)})`;
@@ -425,7 +433,7 @@ function buildGlobalArgsProperties(
       line += `.optional()`;
     }
 
-    result.push({ line, nameOnly: name, baseExpr });
+    result.push({ line, nameOnly: qName, baseExpr });
   }
 
   return result;
@@ -476,7 +484,7 @@ function generateFullFidelityZod(prop: CloudflareProperty): string {
         const fields = Object.entries(prop.properties).map(
           ([k, v]) => {
             const suffix = requiredSet.has(k) ? "" : ".optional()";
-            return `    ${k}: ${generateFullFidelityZod(v)}${suffix}`;
+            return `    ${quoteProp(k)}: ${generateFullFidelityZod(v)}${suffix}`;
           },
         );
         return `z.object({\n${fields.join(",\n")},\n  })`;
@@ -507,7 +515,7 @@ function generateSimplifiedZod(prop: CloudflareProperty): string {
     case "object": {
       if (prop.properties && Object.keys(prop.properties).length > 0) {
         const fields = Object.entries(prop.properties).map(
-          ([k, v]) => `    ${k}: ${generateSimplifiedZod(v)}.optional()`,
+          ([k, v]) => `    ${quoteProp(k)}: ${generateSimplifiedZod(v)}.optional()`,
         );
         return `z.object({\n${fields.join(",\n")},\n  })`;
       }

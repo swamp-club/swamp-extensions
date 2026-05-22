@@ -1,0 +1,23 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/cloudflare/ssl"
+version: "2026.05.22.2"
+description: "Cloudflare ssl infrastructure models"
+repository: "https://github.com/systeminit/swamp-extensions"
+labels:
+  - cloudflare
+  - ssl
+  - cloud
+  - infrastructure
+models:
+  - certificates.ts
+  - client_certificates.ts
+  - custom_certificates.ts
+  - custom_csrs.ts
+  - custom_trust_store.ts
+  - keyless_certificates.ts
+  - origin_tls_client_auth.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

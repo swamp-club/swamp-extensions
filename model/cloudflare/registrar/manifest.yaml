@@ -1,0 +1,17 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/cloudflare/registrar"
+version: "2026.05.22.2"
+description: "Cloudflare registrar infrastructure models"
+repository: "https://github.com/systeminit/swamp-extensions"
+labels:
+  - cloudflare
+  - registrar
+  - cloud
+  - infrastructure
+models:
+  - registrations.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

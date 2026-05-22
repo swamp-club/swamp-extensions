@@ -1,0 +1,18 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/cloudflare/vectorize"
+version: "2026.05.22.2"
+description: "Cloudflare vectorize infrastructure models"
+repository: "https://github.com/systeminit/swamp-extensions"
+labels:
+  - cloudflare
+  - vectorize
+  - cloud
+  - infrastructure
+models:
+  - indexes.ts
+  - indexes_v2.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

@@ -1,0 +1,19 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/cloudflare/vuln-scanner"
+version: "2026.05.22.2"
+description: "Cloudflare vuln-scanner infrastructure models"
+repository: "https://github.com/systeminit/swamp-extensions"
+labels:
+  - cloudflare
+  - vuln-scanner
+  - cloud
+  - infrastructure
+models:
+  - credential_sets.ts
+  - scans.ts
+  - target_environments.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []
