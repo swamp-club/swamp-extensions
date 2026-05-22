@@ -47,7 +47,17 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Views. Registered at `@swamp/cloudflare/dns/views`. */
 export const model = {
   type: "@swamp/cloudflare/dns/views",
-  version: "2026.05.22.1",
+  version: "2026.05.22.2",
+  upgrades: [
+    {
+      toVersion: "2026.05.22.2",
+      description: "Removed: account_id",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { account_id: _account_id, ...rest } = old;
+        return rest;
+      },
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -90,7 +100,7 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/dns_settings/views";
         const result = await read(endpoint, args.id) as ResourceData;
-        const instanceName = (result.name?.toString() ?? args.id).replace(
+        const instanceName = (g.name?.toString() ?? args.id).replace(
           /[\/\\]/g,
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");

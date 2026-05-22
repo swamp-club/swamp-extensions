@@ -77,7 +77,7 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/d1/database";
         const result = await read(endpoint, args.id) as ResourceData;
-        const instanceName = (result.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const instanceName = (g.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -216,7 +216,7 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/zones/" + g.zone_id + "/dns_records";
         const result = await read(endpoint, args.id) as ResourceData;
-        const instanceName = (result.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const instanceName = (g.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -377,7 +377,7 @@ export const model = {
         const scopePrefix = g.account_id ? "/accounts/" + g.account_id : "/zones/" + g.zone_id;
         const endpoint = scopePrefix + "/rulesets";
         const result = await read(endpoint, args.id) as ResourceData;
-        const instanceName = (result.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const instanceName = (g.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -525,7 +525,7 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/addressing/address_maps";
         const result = await read(endpoint, args.id) as ResourceData;
-        const instanceName = (context.globalArgs.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const instanceName = (g.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -676,7 +676,7 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/workers/scripts";
         const result = await read(endpoint, args.id) as ResourceData;
-        const instanceName = (result.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const instanceName = (g.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },

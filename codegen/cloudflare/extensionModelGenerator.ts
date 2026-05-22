@@ -201,23 +201,16 @@ export function generateCloudflareExtensionModel(
   lines.push(
     `        const result = await read(endpoint, args.id) as ResourceData;`,
   );
-  if (resource.syntheticName) {
-    lines.push(
-      `        const instanceName = ${
-        wrapWithSanitize(
-          `context.globalArgs.${namingField}?.toString() ?? args.id`,
-        )
-      };`,
-    );
-  } else {
-    lines.push(
-      `        const instanceName = ${
-        wrapWithSanitize(
-          `result.${namingField}?.toString() ?? args.id`,
-        )
-      };`,
-    );
-  }
+  // Prefer globalArgs name over API response name — Cloudflare may transform
+  // the name (e.g., appending the zone domain to DNS record names), so using
+  // g.name keeps the instance key consistent across create/get/update/sync.
+  lines.push(
+    `        const instanceName = ${
+      wrapWithSanitize(
+        `g.${namingField}?.toString() ?? args.id`,
+      )
+    };`,
+  );
   lines.push(
     `        const handle = await context.writeResource("state", instanceName, result);`,
   );
