@@ -4,7 +4,7 @@
 import type { ZodGeneratorResult } from "../shared/zodGenerator.ts";
 import type { CfSchema, OnlyProperties } from "../shared/schema/types.ts";
 import { wrapWithSanitize } from "../shared/instanceName.ts";
-import type { AwsEnrichment } from "./enrichments/index.ts";
+import type { ParsedEnrichmentSource } from "./enrichments/types.ts";
 
 /**
  * Handler availability for a resource, derived from cfSchema.handlers.
@@ -33,8 +33,15 @@ export interface AwsExtensionModelInput {
   modelType: string;
   /** Pre-built upgrades block to insert after version line */
   upgradesBlock?: string;
-  /** Optional enrichment to augment state with native SDK/CLI/fetch data */
-  enrichment?: AwsEnrichment;
+  /** Parsed enrichment source to inline into the generated model */
+  enrichment?: {
+    /** Parsed source (imports + body) from the .enrich.ts file */
+    source: ParsedEnrichmentSource;
+    /** Extra StateSchema fields referencing schemas from the enrichment body */
+    stateFields: string;
+    /** Name of the enrichState function in the enrichment body */
+    functionExport: string;
+  };
 }
 
 /**
@@ -125,15 +132,9 @@ export function generateAwsExtensionModel(
     `import { ${helperImports.join(", ")} } from "./_lib/aws.ts";`,
   );
   if (input.enrichment) {
-    const allExports = [
-      ...input.enrichment.schemaExports,
-      input.enrichment.functionExport,
-    ];
-    lines.push(
-      `import { ${allExports.join(", ")} } from "./_enrichments/${
-        typeNameToResourceFileName(typeName)
-      }.ts";`,
-    );
+    for (const imp of input.enrichment.source.imports) {
+      lines.push(imp);
+    }
   }
   lines.push("");
 
@@ -163,6 +164,12 @@ export function generateAwsExtensionModel(
   }
   lines.push(`});`);
   lines.push("");
+
+  // Enrichment body (schemas + function inlined from .enrich.ts source)
+  if (input.enrichment) {
+    lines.push(input.enrichment.source.body);
+    lines.push("");
+  }
 
   // StateSchema — all resource properties, simplified
   lines.push(`const ${stateSchemaName} = z.object({`);

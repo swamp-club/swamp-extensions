@@ -20,6 +20,7 @@ import { generateAwsLibFile } from "./libGenerator.ts";
 import {
   getEnrichment,
   getServiceEnrichmentImports,
+  parseEnrichmentSource,
 } from "./enrichments/index.ts";
 import { generateManifest } from "../shared/manifestGenerator.ts";
 import { generateLicense } from "../shared/licenseGenerator.ts";
@@ -312,7 +313,14 @@ export async function generateAwsModels(options: {
         const filePath = `extensions/models/${fileName}`;
 
         // Generate with placeholder version for change detection
-        const enrichment = getEnrichment(typeName);
+        const rawEnrichment = getEnrichment(typeName);
+        const enrichment = rawEnrichment
+          ? {
+            source: await parseEnrichmentSource(rawEnrichment.sourceFile),
+            stateFields: rawEnrichment.stateFields,
+            functionExport: rawEnrichment.functionExport,
+          }
+          : undefined;
         const candidateCode = generateAwsExtensionModel({
           typeName,
           zodResult,
@@ -364,19 +372,6 @@ export async function generateAwsModels(options: {
 
         models.push({ filePath, sourceCode });
         modelChanges.push({ fileName, status });
-
-        // Copy enrichment source file to output if present
-        if (enrichment) {
-          const enrichSourceCode = await Deno.readTextFile(
-            enrichment.sourceFile,
-          );
-          const enrichFilePath =
-            `extensions/models/_enrichments/${resourceFileName}.ts`;
-          models.push({
-            filePath: enrichFilePath,
-            sourceCode: enrichSourceCode,
-          });
-        }
       } catch (error) {
         errors.push(`${typeName}: ${error}`);
       }

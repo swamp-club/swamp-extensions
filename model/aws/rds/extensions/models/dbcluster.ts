@@ -21,9 +21,10 @@ import {
   updateResource,
 } from "./_lib/aws.ts";
 import {
-  DBClusterMemberSchema,
-  enrichState,
-} from "./_enrichments/dbcluster.ts";
+  DescribeDBClustersCommand,
+  DescribeDBInstancesCommand,
+  RDSClient,
+} from "npm:@aws-sdk/client-rds@3.1021.0";
 
 const DBClusterRoleSchema = z.object({
   FeatureName: z.string().describe(
@@ -262,6 +263,63 @@ const GlobalArgsSchema = z.object({
     "A list of EC2 VPC security groups to associate with this DB cluster. If you plan to update the resource, don't specify VPC security groups in a shared VPC. Valid for: Aurora DB clusters and Multi-AZ DB clusters",
   ).optional(),
 });
+
+const DBClusterMemberSchema = z.object({
+  DBInstanceIdentifier: z.string().optional(),
+  IsClusterWriter: z.boolean().optional(),
+  DBClusterParameterGroupStatus: z.string().optional(),
+  PromotionTier: z.number().optional(),
+  DBInstanceClass: z.string().optional(),
+  AvailabilityZone: z.string().optional(),
+});
+
+async function enrichState(
+  state: { DBClusterIdentifier?: string } & Record<string, any>,
+): Promise<Record<string, any>> {
+  const id = state.DBClusterIdentifier;
+  if (!id) return state;
+  try {
+    const rdsClient = new RDSClient({
+      region: Deno.env.get("AWS_REGION") || "us-east-1",
+    });
+    const descResp = await rdsClient.send(
+      new DescribeDBClustersCommand({ DBClusterIdentifier: id }),
+    );
+    const cluster = descResp.DBClusters?.[0];
+    if (!cluster?.DBClusterMembers) return state;
+    const instanceMap = new Map<
+      string,
+      { DBInstanceClass?: string; AvailabilityZone?: string }
+    >();
+    try {
+      const instResp = await rdsClient.send(
+        new DescribeDBInstancesCommand({
+          Filters: [{ Name: "db-cluster-id", Values: [id] }],
+        }),
+      );
+      for (const inst of instResp.DBInstances ?? []) {
+        if (inst.DBInstanceIdentifier) {
+          instanceMap.set(inst.DBInstanceIdentifier, {
+            DBInstanceClass: inst.DBInstanceClass,
+            AvailabilityZone: inst.AvailabilityZone,
+          });
+        }
+      }
+    } catch {
+      // Instance details are best-effort enrichment
+    }
+    state.DBClusterMembers = cluster.DBClusterMembers.map((m) => ({
+      DBInstanceIdentifier: m.DBInstanceIdentifier,
+      IsClusterWriter: m.IsClusterWriter,
+      DBClusterParameterGroupStatus: m.DBClusterParameterGroupStatus,
+      PromotionTier: m.PromotionTier,
+      ...instanceMap.get(m.DBInstanceIdentifier ?? ""),
+    }));
+    return state;
+  } catch {
+    return state;
+  }
+}
 
 const StateSchema = z.object({
   Endpoint: z.object({
@@ -578,7 +636,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for RDS DBCluster. Registered at `@swamp/aws/rds/dbcluster`. */
 export const model = {
   type: "@swamp/aws/rds/dbcluster",
-  version: "2026.05.22.2",
+  version: "2026.05.22.4",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -619,6 +677,31 @@ export const model = {
       toVersion: "2026.05.22.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.22.3",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.22.4",
+      description:
+        "Removed: MinCapacity, MaxCapacity, SecondsUntilAutoPause, AutoPause, MaxCapacity, MinCapacity, SecondsBeforeTimeout, SecondsUntilAutoPause, TimeoutAction",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          MinCapacity: _MinCapacity,
+          MaxCapacity: _MaxCapacity,
+          SecondsUntilAutoPause: _SecondsUntilAutoPause,
+          AutoPause: _AutoPause,
+          MaxCapacity: _MaxCapacity,
+          MinCapacity: _MinCapacity,
+          SecondsBeforeTimeout: _SecondsBeforeTimeout,
+          SecondsUntilAutoPause: _SecondsUntilAutoPause,
+          TimeoutAction: _TimeoutAction,
+          ...rest
+        } = old;
+        return rest;
+      },
     },
   ],
   globalArguments: GlobalArgsSchema,

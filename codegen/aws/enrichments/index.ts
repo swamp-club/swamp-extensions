@@ -1,4 +1,5 @@
 import type { AwsEnrichment } from "./types.ts";
+export { parseEnrichmentSource } from "./types.ts";
 import { enrichment as rdsDbcluster } from "./rds-dbcluster.ts";
 
 export type { AwsEnrichment };

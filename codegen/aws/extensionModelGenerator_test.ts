@@ -4,7 +4,6 @@ import {
   generateAwsExtensionModel,
   resolveNamingField,
 } from "./extensionModelGenerator.ts";
-import type { AwsEnrichment } from "./enrichments/index.ts";
 import { assertEquals } from "@std/assert";
 
 // ---------------------------------------------------------------------------
@@ -356,13 +355,24 @@ Deno.test("generateAwsExtensionModel - with upgrades block", async (t) => {
 // ---------------------------------------------------------------------------
 
 Deno.test("generateAwsExtensionModel - with enrichment", async (t) => {
-  const mockEnrichment: AwsEnrichment = {
-    cfTypeName: "AWS::RDS::DBCluster",
-    npmImports: { "@aws-sdk/client-rds": "npm:@aws-sdk/client-rds@3.1021.0" },
-    sourceFile: "/tmp/fake-enrich.ts",
-    schemaExports: ["MemberSchema"],
-    functionExport: "enrichState",
+  const mockEnrichment = {
+    source: {
+      imports: [
+        'import { DescribeDBClustersCommand, RDSClient } from "npm:@aws-sdk/client-rds@3.1021.0";',
+      ],
+      body: [
+        "const MemberSchema = z.object({",
+        "  MemberId: z.string().optional(),",
+        "  IsWriter: z.boolean().optional(),",
+        "});",
+        "",
+        "async function enrichState(state: StateData): Promise<StateData> {",
+        "  return state;",
+        "}",
+      ].join("\n"),
+    },
     stateFields: "  Members: z.array(MemberSchema).optional(),",
+    functionExport: "enrichState",
   };
 
   const input: AwsExtensionModelInput = {
