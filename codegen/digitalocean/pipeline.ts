@@ -283,8 +283,6 @@ export interface DigitalOceanResource {
   };
   /** Parent path parameter name for child resources (e.g., "domain_name") */
   parentParam?: string;
-  /** Parent base endpoint for child resources (e.g., "/v2/domains") */
-  parentEndpoint?: string;
   /** Force synthetic naming even if "name" exists in create properties */
   forceSyntheticName?: boolean;
 }
@@ -412,15 +410,21 @@ export async function generateDigitalOceanModels(options: {
         placeholderVersion,
       );
 
-      // Compute new GlobalArgs field names for upgrade diffing
-      const isSyntheticName = !resource.createProperties.name &&
-        !resource.createProperties.label;
+      // Compute new GlobalArgs field names for upgrade diffing.
+      // Must match the field injection logic in extensionModelGenerator.ts.
+      const isForcedSynthetic = !!resource.forceSyntheticName;
+      const isSyntheticName = isForcedSynthetic ||
+        (!resource.createProperties.name && !resource.createProperties.label);
+      const syntheticField = isForcedSynthetic && resource.createProperties.name
+        ? "instance_name"
+        : "name";
       const mergedProps = {
         ...resource.updateProperties,
         ...resource.createProperties,
       };
       const newFieldNames = [
-        ...(isSyntheticName ? ["name"] : []),
+        ...(resource.parentParam ? [resource.parentParam] : []),
+        ...(isSyntheticName ? [syntheticField] : []),
         ...Object.keys(mergedProps),
       ];
 
@@ -825,8 +829,6 @@ function parseResources(
       const childConfig = CHILD_RESOURCE_ENDPOINTS.get(basePath);
       if (childConfig) {
         resource.parentParam = childConfig.parentParam;
-        const paramIdx = basePath.indexOf(`{${childConfig.parentParam}}`);
-        resource.parentEndpoint = basePath.slice(0, paramIdx - 1);
         if (childConfig.forceSyntheticName) {
           resource.forceSyntheticName = true;
         }

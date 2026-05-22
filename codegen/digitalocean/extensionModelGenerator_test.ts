@@ -489,7 +489,7 @@ Deno.test("generateDigitalOceanExtensionModel - child resource with forceSynthet
     identifyingField: "id",
     idParam: "domain_record_id",
     parentParam: "domain_name",
-    parentEndpoint: "/v2/domains",
+
     forceSyntheticName: true,
     createProperties: {
       type: { type: "string", description: "The DNS record type" },
@@ -534,7 +534,7 @@ Deno.test("generateDigitalOceanExtensionModel - child resource with natural name
     identifyingField: "name",
     idParam: "pool_name",
     parentParam: "database_cluster_uuid",
-    parentEndpoint: "/v2/databases",
+
     createProperties: {
       name: { type: "string", description: "The pool name" },
       db: { type: "string", description: "The database name" },
