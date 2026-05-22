@@ -4,6 +4,7 @@ import {
   generateAwsExtensionModel,
   resolveNamingField,
 } from "./extensionModelGenerator.ts";
+import type { AwsEnrichment } from "./enrichments/index.ts";
 import { assertEquals } from "@std/assert";
 
 // ---------------------------------------------------------------------------
@@ -345,6 +346,64 @@ Deno.test("generateAwsExtensionModel - with upgrades block", async (t) => {
     modelType: "@swamp/aws/sqs/queue",
     upgradesBlock:
       `  upgrades: [\n    {\n      toVersion: "2026.01.02.1",\n      description: "Added: NewField",\n      upgradeAttributes: (old: Record<string, unknown>) => old,\n    },\n  ],`,
+  };
+
+  await assertSnapshot(t, generateAwsExtensionModel(input));
+});
+
+// ---------------------------------------------------------------------------
+// Snapshot: model with enrichment (SDK-based)
+// ---------------------------------------------------------------------------
+
+Deno.test("generateAwsExtensionModel - with enrichment", async (t) => {
+  const mockEnrichment: AwsEnrichment = {
+    cfTypeName: "AWS::RDS::DBCluster",
+    npmImports: { "@aws-sdk/client-rds": "npm:@aws-sdk/client-rds@3.1021.0" },
+    imports: [
+      'import { DescribeDBClustersCommand, RDSClient } from "@aws-sdk/client-rds";',
+    ],
+    schemas: [
+      "const MemberSchema = z.object({",
+      "  MemberId: z.string().optional(),",
+      "  IsWriter: z.boolean().optional(),",
+      "});",
+    ].join("\n"),
+    stateFields: "  Members: z.array(MemberSchema).optional(),",
+    enrichFunction: [
+      "async function enrichState(state: StateData): Promise<StateData> {",
+      "  return state;",
+      "}",
+    ].join("\n"),
+  };
+
+  const input: AwsExtensionModelInput = {
+    typeName: "AWS::RDS::DBCluster",
+    zodResult: {
+      extractedSchemas: [],
+      inputSchemaBody:
+        `  DBClusterIdentifier: z.string().describe("The DB cluster identifier"),`,
+      resourceSchemaBody:
+        `  DBClusterIdentifier: z.string(),\n  DBClusterArn: z.string().optional(),`,
+    },
+    onlyProperties: {
+      primaryIdentifier: ["DBClusterIdentifier"],
+      readOnly: ["DBClusterArn"],
+      writeOnly: [],
+      createOnly: [],
+    },
+    cfSchema: {
+      typeName: "AWS::RDS::DBCluster",
+      description: "An RDS DB Cluster",
+      primaryIdentifier: ["/properties/DBClusterIdentifier"],
+      properties: {
+        DBClusterIdentifier: { type: "string" },
+        DBClusterArn: { type: "string" },
+      },
+    },
+    handlers: { create: true, read: true, update: true, delete: true },
+    version: "2026.01.01.1",
+    modelType: "@swamp/aws/rds/dbcluster",
+    enrichment: mockEnrichment,
   };
 
   await assertSnapshot(t, generateAwsExtensionModel(input));

@@ -17,6 +17,10 @@ import {
   typeNameToServiceName,
 } from "./extensionModelGenerator.ts";
 import { generateAwsLibFile } from "./libGenerator.ts";
+import {
+  getEnrichment,
+  getServiceEnrichmentImports,
+} from "./enrichments/index.ts";
 import { generateManifest } from "../shared/manifestGenerator.ts";
 import { generateLicense } from "../shared/licenseGenerator.ts";
 import { generateAwsDenoConfig } from "../shared/denoConfigGenerator.ts";
@@ -308,6 +312,7 @@ export async function generateAwsModels(options: {
         const filePath = `extensions/models/${fileName}`;
 
         // Generate with placeholder version for change detection
+        const enrichment = getEnrichment(typeName);
         const candidateCode = generateAwsExtensionModel({
           typeName,
           zodResult,
@@ -316,6 +321,7 @@ export async function generateAwsModels(options: {
           handlers,
           version: placeholderVersion,
           modelType,
+          enrichment,
         });
 
         const { version, status, existingContent } = await computeModelVersion(
@@ -353,6 +359,7 @@ export async function generateAwsModels(options: {
           version,
           modelType,
           upgradesBlock,
+          enrichment,
         });
 
         models.push({ filePath, sourceCode });
@@ -417,9 +424,10 @@ export async function generateAwsModels(options: {
       filePath: "LICENSE.txt",
       sourceCode: generateLicense(),
     };
+    const enrichmentImports = getServiceEnrichmentImports(resources);
     const denoConfigFile: GeneratedFile = {
       filePath: "deno.json",
-      sourceCode: generateAwsDenoConfig(),
+      sourceCode: generateAwsDenoConfig(enrichmentImports),
     };
 
     // Detect README/LICENSE changes

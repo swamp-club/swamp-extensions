@@ -1004,3 +1004,160 @@ export const model = {
 };
 '
 `;
+
+snapshot[`generateAwsExtensionModel - with enrichment 1`] = `
+'// Auto-generated extension model for @swamp/aws/rds/dbcluster
+// Do not edit manually. Re-generate with: deno task generate:aws
+
+// deno-lint-ignore-file no-explicit-any
+
+/**
+ * Swamp extension model for RDS DBCluster (AWS::RDS::DBCluster).
+ *
+ * Wraps the CloudFormation resource type as a swamp model so create,
+ * get, update, delete, and sync can be driven through \`swamp model\`.
+ *
+ * @module
+ */
+
+import { z } from "npm:zod@4.3.6";
+import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from "./_lib/aws.ts";
+import { DescribeDBClustersCommand, RDSClient } from "@aws-sdk/client-rds";
+
+const GlobalArgsSchema = z.object({
+  DBClusterIdentifier: z.string().describe("The DB cluster identifier"),
+});
+
+const MemberSchema = z.object({
+  MemberId: z.string().optional(),
+  IsWriter: z.boolean().optional(),
+});
+
+const StateSchema = z.object({
+  DBClusterIdentifier: z.string(),
+  DBClusterArn: z.string().optional(),
+  Members: z.array(MemberSchema).optional(),
+}).passthrough();
+
+type StateData = z.infer<typeof StateSchema>;
+
+async function enrichState(state: StateData): Promise<StateData> {
+  return state;
+}
+
+const InputsSchema = z.object({
+  DBClusterIdentifier: z.string().describe("The DB cluster identifier").optional(),
+});
+
+/** Swamp extension model for RDS DBCluster. Registered at \`@swamp/aws/rds/dbcluster\`. */
+export const model = {
+  type: "@swamp/aws/rds/dbcluster",
+  version: "2026.01.01.1",
+  globalArguments: GlobalArgsSchema,
+  inputsSchema: InputsSchema,
+  resources: {
+    state: {
+      description: "RDS DBCluster resource state",
+      schema: StateSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+  },
+  methods: {
+    create: {
+      description: "Create a RDS DBCluster",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const desiredState: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(g)) {
+          if (value !== undefined) desiredState[key] = value;
+        }
+        const result = await createResource("AWS::RDS::DBCluster", desiredState) as StateData;
+        const instanceName = ((result.DBClusterIdentifier ?? g.DBClusterIdentifier)?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const handle = await context.writeResource("state", instanceName, result);
+        return { dataHandles: [handle] };
+      },
+    },
+    get: {
+      description: "Get a RDS DBCluster",
+      arguments: z.object({ identifier: z.string().describe("The primary identifier of the RDS DBCluster") }),
+      execute: async (args: { identifier: string }, context: any) => {
+        const result = await enrichState(await readResource("AWS::RDS::DBCluster", args.identifier) as StateData);
+        const instanceName = ((result.DBClusterIdentifier ?? context.globalArgs.DBClusterIdentifier)?.toString() ?? args.identifier).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const handle = await context.writeResource("state", instanceName, result);
+        return { dataHandles: [handle] };
+      },
+    },
+    update: {
+      description: "Update a RDS DBCluster",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const instanceName = (g.DBClusterIdentifier?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType, context.modelId, instanceName,
+        );
+        if (!content) throw new Error("No existing state found - run create or get first");
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const identifier = existing.DBClusterIdentifier?.toString();
+        if (!identifier) throw new Error("No identifier found in existing state");
+        const currentState = await readResource("AWS::RDS::DBCluster", identifier) as StateData;
+        const desiredState: Record<string, unknown> = { ...currentState };
+        for (const [key, value] of Object.entries(g)) {
+          if (value !== undefined) desiredState[key] = value;
+        }
+        const result = await updateResource("AWS::RDS::DBCluster", identifier, currentState, desiredState);
+        const handle = await context.writeResource("state", instanceName, result);
+        return { dataHandles: [handle] };
+      },
+    },
+    delete: {
+      description: "Delete a RDS DBCluster",
+      arguments: z.object({ identifier: z.string().describe("The primary identifier of the RDS DBCluster") }),
+      execute: async (args: { identifier: string }, context: any) => {
+        const { existed } = await deleteResource("AWS::RDS::DBCluster", args.identifier);
+        const instanceName = (context.globalArgs.DBClusterIdentifier?.toString() ?? args.identifier).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const handle = await context.writeResource("state", instanceName, {
+          identifier: args.identifier,
+          existed,
+          status: existed ? "deleted" : "not_found",
+          deletedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+    sync: {
+      description: "Sync RDS DBCluster state from AWS",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const instanceName = (g.DBClusterIdentifier?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType, context.modelId, instanceName,
+        );
+        if (!content) throw new Error("No existing state found - run create or get first");
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const identifier = existing.DBClusterIdentifier?.toString();
+        if (!identifier) throw new Error("No identifier found in existing state");
+        try {
+          const result = await enrichState(await readResource("AWS::RDS::DBCluster", identifier) as StateData);
+          const handle = await context.writeResource("state", instanceName, result);
+          return { dataHandles: [handle] };
+        } catch (error: unknown) {
+          if (isResourceNotFoundError(error)) {
+            const handle = await context.writeResource("state", instanceName, {
+              identifier,
+              status: "not_found",
+              syncedAt: new Date().toISOString(),
+            });
+            return { dataHandles: [handle] };
+          }
+          throw error;
+        }
+      },
+    },
+  },
+};
+'
+`;

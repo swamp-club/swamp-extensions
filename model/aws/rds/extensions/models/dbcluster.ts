@@ -20,6 +20,11 @@ import {
   readResource,
   updateResource,
 } from "./_lib/aws.ts";
+import {
+  DescribeDBClustersCommand,
+  DescribeDBInstancesCommand,
+  RDSClient,
+} from "@aws-sdk/client-rds";
 
 const DBClusterRoleSchema = z.object({
   FeatureName: z.string().describe(
@@ -259,6 +264,15 @@ const GlobalArgsSchema = z.object({
   ).optional(),
 });
 
+const DBClusterMemberSchema = z.object({
+  DBInstanceIdentifier: z.string().optional(),
+  IsClusterWriter: z.boolean().optional(),
+  DBClusterParameterGroupStatus: z.string().optional(),
+  PromotionTier: z.number().optional(),
+  DBInstanceClass: z.string().optional(),
+  AvailabilityZone: z.string().optional(),
+});
+
 const StateSchema = z.object({
   Endpoint: z.object({
     Address: z.string(),
@@ -346,9 +360,56 @@ const StateSchema = z.object({
   Tags: z.array(TagSchema).optional(),
   UseLatestRestorableTime: z.boolean().optional(),
   VpcSecurityGroupIds: z.array(z.string()).optional(),
+  DBClusterMembers: z.array(DBClusterMemberSchema).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
+
+async function enrichState(state: StateData): Promise<StateData> {
+  const id = state.DBClusterIdentifier;
+  if (!id) return state;
+  try {
+    const rdsClient = new RDSClient({
+      region: Deno.env.get("AWS_REGION") || "us-east-1",
+    });
+    const descResp = await rdsClient.send(
+      new DescribeDBClustersCommand({ DBClusterIdentifier: id }),
+    );
+    const cluster = descResp.DBClusters?.[0];
+    if (!cluster?.DBClusterMembers) return state;
+    const instanceMap = new Map<
+      string,
+      { DBInstanceClass?: string; AvailabilityZone?: string }
+    >();
+    try {
+      const instResp = await rdsClient.send(
+        new DescribeDBInstancesCommand({
+          Filters: [{ Name: "db-cluster-id", Values: [id] }],
+        }),
+      );
+      for (const inst of instResp.DBInstances ?? []) {
+        if (inst.DBInstanceIdentifier) {
+          instanceMap.set(inst.DBInstanceIdentifier, {
+            DBInstanceClass: inst.DBInstanceClass,
+            AvailabilityZone: inst.AvailabilityZone,
+          });
+        }
+      }
+    } catch {
+      // Instance details are best-effort enrichment
+    }
+    state.DBClusterMembers = cluster.DBClusterMembers.map((m) => ({
+      DBInstanceIdentifier: m.DBInstanceIdentifier,
+      IsClusterWriter: m.IsClusterWriter,
+      DBClusterParameterGroupStatus: m.DBClusterParameterGroupStatus,
+      PromotionTier: m.PromotionTier,
+      ...instanceMap.get(m.DBInstanceIdentifier ?? ""),
+    }));
+    return state;
+  } catch {
+    return state;
+  }
+}
 
 const InputsSchema = z.object({
   AllocatedStorage: z.number().int().describe(
@@ -573,7 +634,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for RDS DBCluster. Registered at `@swamp/aws/rds/dbcluster`. */
 export const model = {
   type: "@swamp/aws/rds/dbcluster",
-  version: "2026.04.23.2",
+  version: "2026.05.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -602,6 +663,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -652,10 +718,12 @@ export const model = {
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
-        const result = await readResource(
-          "AWS::RDS::DBCluster",
-          args.identifier,
-        ) as StateData;
+        const result = await enrichState(
+          await readResource(
+            "AWS::RDS::DBCluster",
+            args.identifier,
+          ) as StateData,
+        );
         const instanceName = ((result.DBClusterIdentifier ??
           context.globalArgs.DBClusterIdentifier)?.toString() ??
           args.identifier).replace(/[\/\\]/g, "_").replace(/\.\./g, "_")
@@ -775,10 +843,9 @@ export const model = {
           throw new Error("No identifier found in existing state");
         }
         try {
-          const result = await readResource(
-            "AWS::RDS::DBCluster",
-            identifier,
-          ) as StateData;
+          const result = await enrichState(
+            await readResource("AWS::RDS::DBCluster", identifier) as StateData,
+          );
           const handle = await context.writeResource(
             "state",
             instanceName,

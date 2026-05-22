@@ -4,6 +4,7 @@
 import type { ZodGeneratorResult } from "../shared/zodGenerator.ts";
 import type { CfSchema, OnlyProperties } from "../shared/schema/types.ts";
 import { wrapWithSanitize } from "../shared/instanceName.ts";
+import type { AwsEnrichment } from "./enrichments/index.ts";
 
 /**
  * Handler availability for a resource, derived from cfSchema.handlers.
@@ -32,6 +33,8 @@ export interface AwsExtensionModelInput {
   modelType: string;
   /** Pre-built upgrades block to insert after version line */
   upgradesBlock?: string;
+  /** Optional enrichment to augment state with native SDK/CLI/fetch data */
+  enrichment?: AwsEnrichment;
 }
 
 /**
@@ -121,6 +124,11 @@ export function generateAwsExtensionModel(
   lines.push(
     `import { ${helperImports.join(", ")} } from "./_lib/aws.ts";`,
   );
+  if (input.enrichment) {
+    for (const imp of input.enrichment.imports) {
+      lines.push(imp);
+    }
+  }
   lines.push("");
 
   // Determine the naming field for factory-pattern instance names
@@ -150,15 +158,30 @@ export function generateAwsExtensionModel(
   lines.push(`});`);
   lines.push("");
 
+  // Enrichment schemas (emitted before StateSchema so they can be referenced)
+  if (input.enrichment?.schemas) {
+    lines.push(input.enrichment.schemas);
+    lines.push("");
+  }
+
   // StateSchema — all resource properties, simplified
   lines.push(`const ${stateSchemaName} = z.object({`);
   if (zodResult.resourceSchemaBody) {
     lines.push(zodResult.resourceSchemaBody);
   }
+  if (input.enrichment?.stateFields) {
+    lines.push(input.enrichment.stateFields);
+  }
   lines.push(`}).passthrough();`);
   lines.push("");
   lines.push(`type StateData = z.infer<typeof ${stateSchemaName}>;`);
   lines.push("");
+
+  // Enrichment function (emitted after StateData type alias)
+  if (input.enrichment?.enrichFunction) {
+    lines.push(input.enrichment.enrichFunction);
+    lines.push("");
+  }
 
   // InputsSchema — mirrors globalArgs but all optional
   lines.push(`const InputsSchema = z.object({`);
@@ -268,9 +291,15 @@ export function generateAwsExtensionModel(
     lines.push(
       `      execute: async (args: { identifier: string }, context: any) => {`,
     );
-    lines.push(
-      `        const result = await readResource("${typeName}", args.identifier) as StateData;`,
-    );
+    if (input.enrichment) {
+      lines.push(
+        `        const result = await enrichState(await readResource("${typeName}", args.identifier) as StateData);`,
+      );
+    } else {
+      lines.push(
+        `        const result = await readResource("${typeName}", args.identifier) as StateData;`,
+      );
+    }
     if (isSyntheticName) {
       lines.push(
         `        const instanceName = ${
@@ -498,9 +527,15 @@ export function generateAwsExtensionModel(
     }
 
     lines.push(`        try {`);
-    lines.push(
-      `          const result = await readResource("${typeName}", identifier) as StateData;`,
-    );
+    if (input.enrichment) {
+      lines.push(
+        `          const result = await enrichState(await readResource("${typeName}", identifier) as StateData);`,
+      );
+    } else {
+      lines.push(
+        `          const result = await readResource("${typeName}", identifier) as StateData;`,
+      );
+    }
     lines.push(
       `          const handle = await context.writeResource("state", instanceName, result);`,
     );
