@@ -453,6 +453,81 @@ const identifier = idParts.join("|");
 
 ---
 
+## 8a. Native SDK Enrichment
+
+CloudControl returns a unified property set for every resource type, but some
+resources have runtime data that CloudControl/CloudFormation omits by design.
+The enrichment mechanism lets the pipeline inject native SDK, CLI, or HTTP fetch
+calls into specific models to supplement the CloudControl state.
+
+### How it works
+
+Each enrichment has two files: a metadata file and a source file:
+
+```
+codegen/aws/enrichments/
+├── types.ts                    # AwsEnrichment interface + source parser
+├── index.ts                    # Registry: getEnrichment() + helpers
+├── rds-dbcluster.ts            # Metadata: cfTypeName, npmImports, stateFields
+└── rds-dbcluster.enrich.ts     # Real TypeScript: schemas + enrichState function
+```
+
+The `.enrich.ts` file is real, type-checkable TypeScript — `deno check`
+validates it independently. It exports Zod schemas and an `enrichState()`
+function.
+
+The metadata file (`rds-dbcluster.ts`) exports an `AwsEnrichment` object with:
+
+- `cfTypeName` — the CloudFormation type to enrich
+- `npmImports` — additional deno.json entries for the service
+- `sourceFile` — path to the `.enrich.ts` source file
+- `functionExport` — name of the enrichState function export
+- `stateFields` — extra fields added inside StateSchema
+
+At generation time, `parseEnrichmentSource()` reads the `.enrich.ts` file,
+extracts SDK imports and the body (with `export` keywords stripped), and the
+generator inlines everything into the model file. The output is self-contained —
+no extra directories or imports beyond the standard `_lib/aws.ts`.
+
+### Graceful degradation
+
+Every `enrichState()` function wraps its work in a try/catch that returns
+unmodified state on failure. This means:
+
+- Missing IAM permissions for the native API → CloudControl state still works
+- Throttled enrichment calls → CloudControl state still works
+- The enrichment fields are optional in StateSchema
+
+### Strategies
+
+The interface is strategy-agnostic. Three patterns are supported:
+
+| Strategy | When to use                                | Example                                               |
+| -------- | ------------------------------------------ | ----------------------------------------------------- |
+| SDK      | Service has an `@aws-sdk/client-*` package | RDS DBCluster members via `DescribeDBClustersCommand` |
+| CLI      | Data only available via `aws` CLI          | `Deno.Command("aws", ...)`                            |
+| Fetch    | Data available via HTTP endpoint           | `fetch("http://...")`                                 |
+
+### Adding a new enrichment
+
+1. Create `codegen/aws/enrichments/<service>-<resource>.enrich.ts` — real
+   TypeScript with `npm:` specifiers, exporting schemas and an `enrichState()`
+   function
+2. Create `codegen/aws/enrichments/<service>-<resource>.ts` — metadata file
+   exporting an `AwsEnrichment` object pointing to the source file
+3. Add the import to `codegen/aws/enrichments/index.ts`
+4. Run `deno check` on the `.enrich.ts` file to verify it type-checks
+5. Run `deno task generate:aws <service>` and verify the output
+6. Run a second time to confirm idempotency
+
+### Current enrichments
+
+| Resource              | Strategy | Data added                                                |
+| --------------------- | -------- | --------------------------------------------------------- |
+| `AWS::RDS::DBCluster` | SDK      | `DBClusterMembers` with instance class, AZ, writer status |
+
+---
+
 ## 9. Zod Schema Generation
 
 Each generated model contains three Zod schemas. The Zod generation is shared
