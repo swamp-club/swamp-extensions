@@ -76,10 +76,21 @@ const IDENTIFIER_MAP: Record<string, string> = {
   node_pool_id: "id",
   registry_id: "id",
   key_id: "id",
+  domain_record_id: "id",
+  deployment_id: "id",
   // Name-based
   domain_name: "name",
   registry_name: "name",
   tag_id: "name",
+  database_name: "name",
+  pool_name: "name",
+  replica_name: "name",
+  topic_name: "name",
+  username: "name",
+  trigger_name: "name",
+  // Field-named identifiers
+  logsink_id: "sink_id",
+  subject_name: "subject_name",
   // UUID-based
   alert_uuid: "uuid",
   workspace_uuid: "uuid",
@@ -136,6 +147,52 @@ const READINESS_CONFIG: Record<
     failedValues: ["error", "degraded"],
   },
 };
+
+// Child resource endpoints: nested CRUD collections under a parent resource.
+// Keyed by collection path (the base path with one {param} in the middle).
+// These paths would otherwise be skipped by the >1-param exclusion rule.
+const CHILD_RESOURCE_ENDPOINTS = new Map<
+  string,
+  { parentParam: string; forceSyntheticName?: boolean }
+>([
+  ["/v2/databases/{database_cluster_uuid}/dbs", {
+    parentParam: "database_cluster_uuid",
+  }],
+  ["/v2/databases/{database_cluster_uuid}/logsink", {
+    parentParam: "database_cluster_uuid",
+  }],
+  ["/v2/databases/{database_cluster_uuid}/pools", {
+    parentParam: "database_cluster_uuid",
+  }],
+  ["/v2/databases/{database_cluster_uuid}/replicas", {
+    parentParam: "database_cluster_uuid",
+  }],
+  ["/v2/databases/{database_cluster_uuid}/schema-registry", {
+    parentParam: "database_cluster_uuid",
+  }],
+  ["/v2/databases/{database_cluster_uuid}/topics", {
+    parentParam: "database_cluster_uuid",
+  }],
+  ["/v2/databases/{database_cluster_uuid}/users", {
+    parentParam: "database_cluster_uuid",
+  }],
+  ["/v2/domains/{domain_name}/records", {
+    parentParam: "domain_name",
+    forceSyntheticName: true,
+  }],
+  ["/v2/functions/namespaces/{namespace_id}/triggers", {
+    parentParam: "namespace_id",
+  }],
+  ["/v2/kubernetes/clusters/{cluster_id}/node_pools", {
+    parentParam: "cluster_id",
+  }],
+  ["/v2/uptime/checks/{check_id}/alerts", {
+    parentParam: "check_id",
+  }],
+  ["/v2/apps/{app_id}/deployments", {
+    parentParam: "app_id",
+  }],
+]);
 
 // --- Public types ---
 
@@ -224,6 +281,12 @@ export interface DigitalOceanResource {
     readyValues: string[];
     failedValues: string[];
   };
+  /** Parent path parameter name for child resources (e.g., "domain_name") */
+  parentParam?: string;
+  /** Parent base endpoint for child resources (e.g., "/v2/domains") */
+  parentEndpoint?: string;
+  /** Force synthetic naming even if "name" exists in create properties */
+  forceSyntheticName?: boolean;
 }
 
 export interface DigitalOceanGeneratedFile {
@@ -592,8 +655,33 @@ function parseResources(
       }
     }
 
-    // Skip sub-assets: more than 1 {param} segment
+    // Check if this path belongs to an allowlisted child resource
     if (paramSegments.length > 1) {
+      // 2-param path: could be the ID endpoint of a child resource
+      // e.g. /v2/domains/{domain_name}/records/{domain_record_id}
+      // Derive candidate collection path by stripping the terminal {param}
+      const candidateBase = "/" + segments.slice(0, -1).join("/");
+      if (
+        lastSegment.startsWith("{") &&
+        CHILD_RESOURCE_ENDPOINTS.has(candidateBase)
+      ) {
+        // This is the ID endpoint of a child resource — add to groups
+        const childIdParam = lastSegment.replace(/[{}]/g, "");
+        if (!groups.has(candidateBase)) {
+          groups.set(candidateBase, {
+            basePath: candidateBase,
+            idPath: null,
+            idParam: null,
+            baseOps: {},
+            idOps: {},
+          });
+        }
+        const group = groups.get(candidateBase)!;
+        group.idPath = path;
+        group.idParam = childIdParam;
+        group.idOps = paths[path];
+        continue;
+      }
       skipped.push({ path, reason: "sub-asset (>1 ID segment)" });
       continue;
     }
@@ -625,6 +713,21 @@ function parseResources(
         basePath = "/" + segments.slice(0, -1).join("/");
       } else {
         // Param is in the middle: /{base}/{param}/{sub_resource}
+        // Check if this is the collection endpoint of an allowlisted child resource
+        if (CHILD_RESOURCE_ENDPOINTS.has(path)) {
+          if (!groups.has(path)) {
+            groups.set(path, {
+              basePath: path,
+              idPath: null,
+              idParam: null,
+              baseOps: {},
+              idOps: {},
+            });
+          }
+          groups.get(path)!.baseOps = paths[path];
+          continue;
+        }
+
         // Check if this qualifies as a sub-resource method endpoint
         const pathOps = paths[path];
         const hasPutOrPatch = !!pathOps?.put || !!pathOps?.patch;
@@ -719,6 +822,15 @@ function parseResources(
 
     const resource = buildResource(basePath, group, spec);
     if (resource) {
+      const childConfig = CHILD_RESOURCE_ENDPOINTS.get(basePath);
+      if (childConfig) {
+        resource.parentParam = childConfig.parentParam;
+        const paramIdx = basePath.indexOf(`{${childConfig.parentParam}}`);
+        resource.parentEndpoint = basePath.slice(0, paramIdx - 1);
+        if (childConfig.forceSyntheticName) {
+          resource.forceSyntheticName = true;
+        }
+      }
       resources.push(resource);
     } else {
       skipped.push({ path: basePath, reason: "could not build resource" });

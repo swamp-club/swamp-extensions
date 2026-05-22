@@ -478,6 +478,95 @@ Deno.test("generateDigitalOceanExtensionModel - no update, no delete", async (t)
 });
 
 // ---------------------------------------------------------------------------
+// Snapshot: child resource with forceSyntheticName (domain records pattern)
+// ---------------------------------------------------------------------------
+
+Deno.test("generateDigitalOceanExtensionModel - child resource with forceSyntheticName", async (t) => {
+  const resource = makeResource({
+    displayName: "Domain Record",
+    modelSlug: "domain-record",
+    endpoint: "/v2/domains/{domain_name}/records",
+    identifyingField: "id",
+    idParam: "domain_record_id",
+    parentParam: "domain_name",
+    parentEndpoint: "/v2/domains",
+    forceSyntheticName: true,
+    createProperties: {
+      type: { type: "string", description: "The DNS record type" },
+      name: { type: "string", description: "The hostname" },
+      data: { type: "string", description: "The record data" },
+    },
+    updateProperties: {
+      type: { type: "string", description: "The DNS record type" },
+      name: { type: "string", description: "The hostname" },
+      data: { type: "string", description: "The record data" },
+    },
+    resourceProperties: {
+      id: intProp,
+      type: stringProp,
+      name: stringProp,
+      data: stringProp,
+      ttl: intProp,
+    },
+    requiredProperties: ["type"],
+    updateMethod: "PATCH",
+  });
+
+  await assertSnapshot(
+    t,
+    generateDigitalOceanExtensionModel({
+      resource,
+      extensionName: "@swamp/digitalocean",
+      version: "2026.01.01.1",
+    }),
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Snapshot: child resource with natural name (database pool pattern)
+// ---------------------------------------------------------------------------
+
+Deno.test("generateDigitalOceanExtensionModel - child resource with natural name", async (t) => {
+  const resource = makeResource({
+    displayName: "Database Pool",
+    modelSlug: "database-pool",
+    endpoint: "/v2/databases/{database_cluster_uuid}/pools",
+    identifyingField: "name",
+    idParam: "pool_name",
+    parentParam: "database_cluster_uuid",
+    parentEndpoint: "/v2/databases",
+    createProperties: {
+      name: { type: "string", description: "The pool name" },
+      db: { type: "string", description: "The database name" },
+      size: { type: "integer", description: "The pool size" },
+      mode: { type: "string", description: "The pool mode" },
+    },
+    updateProperties: {
+      db: { type: "string", description: "The database name" },
+      size: { type: "integer", description: "The pool size" },
+      mode: { type: "string", description: "The pool mode" },
+    },
+    resourceProperties: {
+      name: stringProp,
+      db: stringProp,
+      size: intProp,
+      mode: stringProp,
+    },
+    requiredProperties: ["name", "db", "size", "mode"],
+    updateMethod: "PUT",
+  });
+
+  await assertSnapshot(
+    t,
+    generateDigitalOceanExtensionModel({
+      resource,
+      extensionName: "@swamp/digitalocean",
+      version: "2026.01.01.1",
+    }),
+  );
+});
+
+// ---------------------------------------------------------------------------
 // Snapshot: with upgrades block
 // ---------------------------------------------------------------------------
 
