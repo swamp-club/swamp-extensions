@@ -172,8 +172,10 @@ export function generateUpgradeEntry(
       `      upgradeAttributes: (old: Record<string, unknown>) => old,`,
     );
   } else {
-    // Remove fields that no longer exist in the schema
-    const destructured = removedFields
+    // Remove fields that no longer exist in the schema (deduplicate to avoid
+    // redeclaring block-scoped variables when nested objects share field names)
+    const uniqueRemoved = [...new Set(removedFields)];
+    const destructured = uniqueRemoved
       .map((name) => `${name}: _${name}`)
       .join(", ");
     lines.push(

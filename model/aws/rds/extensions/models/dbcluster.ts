@@ -685,23 +685,8 @@ export const model = {
     },
     {
       toVersion: "2026.05.22.4",
-      description:
-        "Removed: MinCapacity, MaxCapacity, SecondsUntilAutoPause, AutoPause, MaxCapacity, MinCapacity, SecondsBeforeTimeout, SecondsUntilAutoPause, TimeoutAction",
-      upgradeAttributes: (old: Record<string, unknown>) => {
-        const {
-          MinCapacity: _MinCapacity,
-          MaxCapacity: _MaxCapacity,
-          SecondsUntilAutoPause: _SecondsUntilAutoPause,
-          AutoPause: _AutoPause,
-          MaxCapacity: _MaxCapacity,
-          MinCapacity: _MinCapacity,
-          SecondsBeforeTimeout: _SecondsBeforeTimeout,
-          SecondsUntilAutoPause: _SecondsUntilAutoPause,
-          TimeoutAction: _TimeoutAction,
-          ...rest
-        } = old;
-        return rest;
-      },
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

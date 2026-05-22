@@ -462,27 +462,32 @@ calls into specific models to supplement the CloudControl state.
 
 ### How it works
 
-Each enrichment is a standalone TypeScript file in `codegen/aws/enrichments/`:
+Each enrichment has two files: a metadata file and a source file:
 
 ```
 codegen/aws/enrichments/
-├── types.ts              # AwsEnrichment interface
-├── index.ts              # Registry: getEnrichment() + getServiceEnrichmentImports()
-└── rds-dbcluster.ts      # RDS DBCluster enrichment (SDK-based)
+├── types.ts                    # AwsEnrichment interface + source parser
+├── index.ts                    # Registry: getEnrichment() + helpers
+├── rds-dbcluster.ts            # Metadata: cfTypeName, npmImports, stateFields
+└── rds-dbcluster.enrich.ts     # Real TypeScript: schemas + enrichState function
 ```
 
-An enrichment file exports an `AwsEnrichment` object with:
+The `.enrich.ts` file is real, type-checkable TypeScript — `deno check`
+validates it independently. It exports Zod schemas and an `enrichState()`
+function.
 
-- `cfTypeName` — the CloudFormation type to enrich (e.g., `AWS::RDS::DBCluster`)
+The metadata file (`rds-dbcluster.ts`) exports an `AwsEnrichment` object with:
+
+- `cfTypeName` — the CloudFormation type to enrich
 - `npmImports` — additional deno.json entries for the service
-- `imports` — import lines added to the generated model file
-- `schemas` — extra Zod schema definitions (emitted before StateSchema)
+- `sourceFile` — path to the `.enrich.ts` source file
+- `functionExport` — name of the enrichState function export
 - `stateFields` — extra fields added inside StateSchema
-- `enrichFunction` — the `enrichState()` function body
 
-The generator checks `getEnrichment(typeName)` for each resource. When an
-enrichment exists, it splices the enrichment code into the model file and wraps
-`readResource()` calls in `get` and `sync` with `enrichState()`.
+At generation time, `parseEnrichmentSource()` reads the `.enrich.ts` file,
+extracts SDK imports and the body (with `export` keywords stripped), and the
+generator inlines everything into the model file. The output is self-contained —
+no extra directories or imports beyond the standard `_lib/aws.ts`.
 
 ### Graceful degradation
 
@@ -505,11 +510,15 @@ The interface is strategy-agnostic. Three patterns are supported:
 
 ### Adding a new enrichment
 
-1. Create `codegen/aws/enrichments/<service>-<resource>.ts` exporting an
-   `AwsEnrichment` object
-2. Add the import to `codegen/aws/enrichments/index.ts`
-3. Run `deno task generate:aws <service>` and verify the output
-4. Run a second time to confirm idempotency
+1. Create `codegen/aws/enrichments/<service>-<resource>.enrich.ts` — real
+   TypeScript with `npm:` specifiers, exporting schemas and an `enrichState()`
+   function
+2. Create `codegen/aws/enrichments/<service>-<resource>.ts` — metadata file
+   exporting an `AwsEnrichment` object pointing to the source file
+3. Add the import to `codegen/aws/enrichments/index.ts`
+4. Run `deno check` on the `.enrich.ts` file to verify it type-checks
+5. Run `deno task generate:aws <service>` and verify the output
+6. Run a second time to confirm idempotency
 
 ### Current enrichments
 
