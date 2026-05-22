@@ -112,7 +112,7 @@ export async function computeModelVersion(
  * them in the content comparison would cause a version bump every time the
  * set of changed models differs from the previous run.
  */
-function stripReleaseNotes(content: string): string {
+export function stripReleaseNotes(content: string): string {
   return content.replace(
     new RegExp("releaseNotes:[^\\n]*\\n(?: {2}[^\\n]*\\n)*", "g"),
     "",
