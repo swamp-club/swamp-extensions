@@ -24,6 +24,7 @@ import {
 } from "jsr:@std/assert@1.0.19";
 import { assertVaultExportConformance } from "@systeminit/swamp-testing";
 import {
+  _annotationToTags,
   _createTestProvider,
   vault,
   VaultAnnotation,
@@ -54,18 +55,23 @@ Deno.test("createProvider throws on invalid config", () => {
   );
 });
 
-Deno.test("createProvider returns a provider with annotation methods", () => {
-  const provider = vault.createProvider("test", {
-    vault_url: "https://myvault.vault.azure.net/",
-  });
-  // No upstream conformance helper exists for VaultAnnotationProvider yet
-  const annotationProvider = provider as
-    & VaultProvider
-    & VaultAnnotationProvider;
-  assertEquals(typeof annotationProvider.getAnnotation, "function");
-  assertEquals(typeof annotationProvider.putAnnotation, "function");
-  assertEquals(typeof annotationProvider.deleteAnnotation, "function");
-  assertEquals(typeof annotationProvider.listAnnotations, "function");
+Deno.test({
+  name: "createProvider returns a provider with annotation methods",
+  // Azure SDK connection pool leaks resources in Deno
+  sanitizeResources: false,
+  fn: () => {
+    const provider = vault.createProvider("test", {
+      vault_url: "https://myvault.vault.azure.net/",
+    });
+    // No upstream conformance helper exists for VaultAnnotationProvider yet
+    const annotationProvider = provider as
+      & VaultProvider
+      & VaultAnnotationProvider;
+    assertEquals(typeof annotationProvider.getAnnotation, "function");
+    assertEquals(typeof annotationProvider.putAnnotation, "function");
+    assertEquals(typeof annotationProvider.deleteAnnotation, "function");
+    assertEquals(typeof annotationProvider.listAnnotations, "function");
+  },
 });
 
 // --- VaultAnnotation class unit tests ---
@@ -192,6 +198,39 @@ Deno.test("VaultAnnotation.labels is frozen", () => {
   });
 });
 
+Deno.test("annotationToTags rejects when tag count exceeds Azure 15-tag limit", () => {
+  const labels: Record<string, string> = {};
+  for (let i = 0; i < 13; i++) {
+    labels[`key${i}`] = `value${i}`;
+  }
+  const annotation = VaultAnnotation.create({
+    url: "https://example.com",
+    notes: "test",
+    labels,
+  });
+  // 3 metadata tags (url, notes, updatedAt) + 13 label tags = 16 > 15
+  assertThrows(
+    () => _annotationToTags(annotation, undefined),
+    Error,
+    "exceeding Azure Key Vault's limit of 15",
+  );
+});
+
+Deno.test("annotationToTags accepts exactly 15 tags", () => {
+  const labels: Record<string, string> = {};
+  for (let i = 0; i < 12; i++) {
+    labels[`key${i}`] = `value${i}`;
+  }
+  const annotation = VaultAnnotation.create({
+    url: "https://example.com",
+    notes: "test",
+    labels,
+  });
+  // 3 metadata + 12 labels = 15, exactly at limit
+  const tags = _annotationToTags(annotation, undefined);
+  assertEquals(Object.keys(tags).length, 15);
+});
+
 // --- Emulator-backed behavioral tests ---
 // Requires: docker pull --platform linux/amd64 ghcr.io/rokeller/azure-keyvault-emulator:v2
 // The emulator runs HTTPS on port 11001 with a self-signed cert.
@@ -257,6 +296,7 @@ async function startEmulator(): Promise<EmulatorHandle> {
 
   // Wait for emulator to accept HTTPS connections
   const httpClient = Deno.createHttpClient({ caCerts: [] });
+  let ready = false;
   try {
     for (let i = 0; i < 30; i++) {
       try {
@@ -264,6 +304,7 @@ async function startEmulator(): Promise<EmulatorHandle> {
           headers: { Authorization: `Bearer ${EMULATOR_TOKEN}` },
           client: httpClient,
         });
+        ready = true;
         break;
       } catch {
         await new Promise((r) => setTimeout(r, 1000));
@@ -271,6 +312,11 @@ async function startEmulator(): Promise<EmulatorHandle> {
     }
   } finally {
     httpClient.close();
+  }
+  if (!ready) {
+    throw new Error(
+      `Emulator ${containerName} did not become ready within 30s`,
+    );
   }
 
   return { containerName, port };

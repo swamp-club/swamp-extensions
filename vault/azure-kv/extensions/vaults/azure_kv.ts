@@ -137,13 +137,18 @@ const TAG_NOTES = `${TAG_PREFIX}notes`;
 const TAG_UPDATED_AT = `${TAG_PREFIX}updatedAt`;
 const TAG_LABEL_PREFIX = `${TAG_PREFIX}label.`;
 
+function isRecognizedSwampTag(key: string): boolean {
+  return key === TAG_URL || key === TAG_NOTES || key === TAG_UPDATED_AT ||
+    key.startsWith(TAG_LABEL_PREFIX);
+}
+
 function tagsToAnnotation(
   tags: Record<string, string> | undefined,
 ): VaultAnnotation | null {
   if (!tags) return null;
 
-  const hasSwampTags = Object.keys(tags).some((k) => k.startsWith(TAG_PREFIX));
-  if (!hasSwampTags) return null;
+  const hasRecognizedTags = Object.keys(tags).some(isRecognizedSwampTag);
+  if (!hasRecognizedTags) return null;
 
   const labels: Record<string, string> = {};
   for (const [key, value] of Object.entries(tags)) {
@@ -152,17 +157,21 @@ function tagsToAnnotation(
     }
   }
 
-  return new VaultAnnotation(
+  const annotation = new VaultAnnotation(
     tags[TAG_URL],
     tags[TAG_NOTES],
     labels,
     tags[TAG_UPDATED_AT] ? new Date(tags[TAG_UPDATED_AT]) : new Date(),
   );
+
+  if (annotation.isEmpty()) return null;
+
+  return annotation;
 }
 
 const MAX_AZURE_TAGS = 15;
 
-function annotationToTags(
+export function _annotationToTags(
   annotation: VaultAnnotation,
   existingTags: Record<string, string> | undefined,
 ): Record<string, string> {
@@ -289,12 +298,14 @@ class AzureKvVaultProvider implements VaultProvider, VaultAnnotationProvider {
         `Failed to read annotation for '${secretKey}': ${
           error instanceof Error ? error.message : String(error)
         }`,
+        { cause: error },
       );
     }
   }
 
-  // Read-modify-write: not atomic. Concurrent writers to the same secret
-  // can silently overwrite each other's annotation changes.
+  // Read-modify-write: not atomic. Concurrent annotation writers or a
+  // concurrent put() (which creates a new secret version) can cause
+  // annotation loss — tags are per-version in Azure KV.
   async putAnnotation(
     secretKey: string,
     annotation: VaultAnnotation,
@@ -302,16 +313,25 @@ class AzureKvVaultProvider implements VaultProvider, VaultAnnotationProvider {
     const azureSecretName = toAzureSecretName(
       this.secretPrefix + secretKey,
     );
+    const secret = await this.client.getSecret(azureSecretName).catch(
+      (error) => {
+        throw new Error(
+          `Failed to write annotation for '${secretKey}': ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          { cause: error },
+        );
+      },
+    );
+    const version = secret.properties.version;
+    if (!version) {
+      throw new Error(`Secret '${secretKey}' has no version`);
+    }
+    const existingTags = secret.properties.tags as
+      | Record<string, string>
+      | undefined;
+    const newTags = _annotationToTags(annotation, existingTags);
     try {
-      const secret = await this.client.getSecret(azureSecretName);
-      const version = secret.properties.version;
-      if (!version) {
-        throw new Error(`Secret '${secretKey}' has no version`);
-      }
-      const existingTags = secret.properties.tags as
-        | Record<string, string>
-        | undefined;
-      const newTags = annotationToTags(annotation, existingTags);
       await this.client.updateSecretProperties(
         azureSecretName,
         version,
@@ -322,6 +342,7 @@ class AzureKvVaultProvider implements VaultProvider, VaultAnnotationProvider {
         `Failed to write annotation for '${secretKey}': ${
           error instanceof Error ? error.message : String(error)
         }`,
+        { cause: error },
       );
     }
   }
@@ -350,6 +371,7 @@ class AzureKvVaultProvider implements VaultProvider, VaultAnnotationProvider {
         `Failed to delete annotation for '${secretKey}': ${
           error instanceof Error ? error.message : String(error)
         }`,
+        { cause: error },
       );
     }
   }
@@ -382,6 +404,7 @@ class AzureKvVaultProvider implements VaultProvider, VaultAnnotationProvider {
         `Failed to list annotations in vault '${this.name}': ${
           error instanceof Error ? error.message : String(error)
         }`,
+        { cause: error },
       );
     }
     return annotations;
