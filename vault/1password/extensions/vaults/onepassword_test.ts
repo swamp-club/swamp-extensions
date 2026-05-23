@@ -115,6 +115,7 @@ function createOpMock() {
       id: `id-${name}`,
       title: name,
       category: "SECURE_NOTE",
+      updated_at: new Date().toISOString(),
       sections,
       fields,
     };
@@ -174,9 +175,12 @@ function createOpMock() {
       }
       const data = items.get(item)!;
 
-      for (const arg of args.slice(3)) {
-        if (arg.startsWith("--")) continue;
-        if (args[args.indexOf(arg) - 1]?.startsWith("--")) continue;
+      for (let i = 3; i < args.length; i++) {
+        const arg = args[i];
+        if (arg.startsWith("--")) {
+          i++;
+          continue;
+        }
 
         const deleteMatch = arg.match(/^(.+)\[delete\]$/);
         if (deleteMatch) {
@@ -407,6 +411,63 @@ Deno.test("1password vault: putAnnotation rejects invalid label keys", async () 
       "must not contain dots",
     );
   });
+});
+
+Deno.test("1password vault: putAnnotation rejects label keys with equals", async () => {
+  await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("bad-labels", "value");
+
+    const annotation = VaultAnnotation.create({
+      labels: { "a=b": "value" },
+    });
+    await assertRejects(
+      () => provider.putAnnotation("bad-labels", annotation),
+      Error,
+      "must not contain",
+    );
+  });
+});
+
+Deno.test("1password vault: putAnnotation rejects empty label keys", async () => {
+  await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("bad-labels", "value");
+
+    const annotation = VaultAnnotation.create({
+      labels: { "": "value" },
+    });
+    await assertRejects(
+      () => provider.putAnnotation("bad-labels", annotation),
+      Error,
+      "must not be empty",
+    );
+  });
+});
+
+Deno.test("1password vault: putAnnotation with empty annotation is no-op", async () => {
+  const { calls } = await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("my-key", "value");
+
+    const empty = VaultAnnotation.create({});
+    await provider.putAnnotation("my-key", empty);
+  });
+
+  const editCalls = calls.filter(
+    (c) => c.command === "op" && c.args[0] === "item" && c.args[1] === "edit",
+  );
+  assertEquals(
+    editCalls.length,
+    0,
+    "should not call op item edit for empty annotation",
+  );
 });
 
 Deno.test("1password vault: putAnnotation rejects label keys with brackets", async () => {

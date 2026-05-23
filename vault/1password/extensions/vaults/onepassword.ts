@@ -130,12 +130,15 @@ export class VaultAnnotation {
 const SWAMP_ANNOTATIONS_SECTION = "swamp-annotations";
 const SWAMP_LABELS_SECTION = "swamp-labels";
 
-const INVALID_LABEL_KEY_PATTERN = /[.\[\]\/\\]/;
+const INVALID_LABEL_KEY_PATTERN = /[.\[\]\/\\=]/;
 
 function validateLabelKey(key: string): void {
+  if (!key) {
+    throw new Error("Label key must not be empty.");
+  }
   if (INVALID_LABEL_KEY_PATTERN.test(key)) {
     throw new Error(
-      `Invalid label key '${key}': label keys must not contain dots, brackets, slashes, or backslashes ` +
+      `Invalid label key '${key}': label keys must not contain dots, brackets, slashes, backslashes, or equals signs ` +
         `because these characters conflict with the 1Password CLI field reference syntax.`,
     );
   }
@@ -154,6 +157,7 @@ interface OpItem {
   id: string;
   title: string;
   category: string;
+  updated_at?: string;
   urls?: Array<{ label?: string; primary?: boolean; href: string }>;
   sections?: Array<{ id: string; label: string }>;
   fields?: OpItemField[];
@@ -335,6 +339,14 @@ class OnePasswordVaultProvider implements VaultProvider {
       return null;
     }
 
+    if (item.updated_at) {
+      return VaultAnnotation.fromData({
+        url,
+        notes,
+        labels,
+        updatedAt: item.updated_at,
+      });
+    }
     return VaultAnnotation.create({ url, notes, labels });
   }
 
@@ -355,27 +367,32 @@ class OnePasswordVaultProvider implements VaultProvider {
       }
     }
 
+    const fieldArgs: string[] = [];
+
+    if (annotation.url !== undefined) {
+      fieldArgs.push(`${SWAMP_ANNOTATIONS_SECTION}.url[url]=${annotation.url}`);
+    }
+
+    if (annotation.notes !== undefined) {
+      fieldArgs.push(`notesPlain=${annotation.notes}`);
+    }
+
+    if (annotation.labels) {
+      for (const [key, value] of Object.entries(annotation.labels)) {
+        fieldArgs.push(`${SWAMP_LABELS_SECTION}.${key}[text]=${value}`);
+      }
+    }
+
+    if (fieldArgs.length === 0) return;
+
     const args: string[] = [
       "item",
       "edit",
       parsed.item,
       "--vault",
       this.opVault,
+      ...fieldArgs,
     ];
-
-    if (annotation.url !== undefined) {
-      args.push(`${SWAMP_ANNOTATIONS_SECTION}.url[url]=${annotation.url}`);
-    }
-
-    if (annotation.notes !== undefined) {
-      args.push(`notesPlain=${annotation.notes}`);
-    }
-
-    if (annotation.labels) {
-      for (const [key, value] of Object.entries(annotation.labels)) {
-        args.push(`${SWAMP_LABELS_SECTION}.${key}[text]=${value}`);
-      }
-    }
 
     if (this.opAccount) {
       args.push("--account", this.opAccount);
