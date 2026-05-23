@@ -30,11 +30,15 @@
 import { z } from "npm:zod@4.3.6";
 import {
   CreateSecretCommand,
+  DescribeSecretCommand,
   GetSecretValueCommand,
   ListSecretsCommand,
   PutSecretValueCommand,
   SecretsManagerClient,
-} from "npm:@aws-sdk/client-secrets-manager@3.1046.0";
+  TagResourceCommand,
+  UntagResourceCommand,
+  UpdateSecretCommand,
+} from "npm:@aws-sdk/client-secrets-manager@3.1053.0";
 import { AwsSmOperationError, wrapAwsSmError } from "./aws_sm_errors.ts";
 
 /**
@@ -53,7 +57,87 @@ export interface VaultProvider {
   getName(): string;
 }
 
-class AwsSmVaultProvider implements VaultProvider {
+export interface VaultAnnotationData {
+  url?: string;
+  notes?: string;
+  labels?: Record<string, string>;
+  updatedAt: string;
+}
+
+export interface VaultAnnotation {
+  readonly url: string | undefined;
+  readonly notes: string | undefined;
+  readonly labels: Readonly<Record<string, string>>;
+  readonly updatedAt: Date;
+  toData(): VaultAnnotationData;
+  merge(updates: {
+    url?: string;
+    notes?: string;
+    labels?: Record<string, string>;
+  }): VaultAnnotation;
+  isEmpty(): boolean;
+}
+
+export function createVaultAnnotation(fields: {
+  url?: string;
+  notes?: string;
+  labels?: Record<string, string>;
+  updatedAt?: Date;
+}): VaultAnnotation {
+  const url = fields.url;
+  const notes = fields.notes;
+  const labels = Object.freeze({ ...fields.labels });
+  const updatedAt = fields.updatedAt ?? new Date();
+  return {
+    url,
+    notes,
+    labels,
+    updatedAt,
+    toData(): VaultAnnotationData {
+      const data: VaultAnnotationData = {
+        updatedAt: updatedAt.toISOString(),
+      };
+      if (url !== undefined) data.url = url;
+      if (notes !== undefined) data.notes = notes;
+      if (Object.keys(labels).length > 0) {
+        data.labels = { ...labels };
+      }
+      return data;
+    },
+    merge(updates: {
+      url?: string;
+      notes?: string;
+      labels?: Record<string, string>;
+    }): VaultAnnotation {
+      return createVaultAnnotation({
+        url: updates.url !== undefined ? updates.url : url,
+        notes: updates.notes !== undefined ? updates.notes : notes,
+        labels: updates.labels !== undefined
+          ? { ...labels, ...updates.labels }
+          : { ...labels },
+      });
+    },
+    isEmpty(): boolean {
+      return url === undefined &&
+        notes === undefined &&
+        Object.keys(labels).length === 0;
+    },
+  };
+}
+
+export interface VaultAnnotationProvider {
+  getAnnotation(secretKey: string): Promise<VaultAnnotation | null>;
+  putAnnotation(
+    secretKey: string,
+    annotation: VaultAnnotation,
+  ): Promise<void>;
+  deleteAnnotation(secretKey: string): Promise<void>;
+  listAnnotations(): Promise<Map<string, VaultAnnotation>>;
+}
+
+const SWAMP_URL_TAG_KEY = "swamp:url";
+
+class AwsSmVaultProvider implements VaultProvider, VaultAnnotationProvider {
   private readonly client: SecretsManagerClient;
   private readonly name: string;
 
@@ -143,6 +227,182 @@ class AwsSmVaultProvider implements VaultProvider {
 
   getName(): string {
     return this.name;
+  }
+
+  async getAnnotation(secretKey: string): Promise<VaultAnnotation | null> {
+    let response;
+    try {
+      response = await this.client.send(
+        new DescribeSecretCommand({ SecretId: secretKey }),
+      );
+    } catch (error) {
+      throw wrapAwsSmError("DescribeSecret", error);
+    }
+
+    const notes = response.Description || undefined;
+    const tags = response.Tags ?? [];
+    let url: string | undefined;
+    const labels: Record<string, string> = {};
+
+    for (const tag of tags) {
+      if (!tag.Key) continue;
+      if (tag.Key === SWAMP_URL_TAG_KEY) {
+        url = tag.Value ?? undefined;
+      } else if (!tag.Key.startsWith("aws:")) {
+        labels[tag.Key] = tag.Value ?? "";
+      }
+    }
+
+    const hasAnnotation = notes !== undefined ||
+      url !== undefined ||
+      Object.keys(labels).length > 0;
+    if (!hasAnnotation) return null;
+
+    return createVaultAnnotation({
+      url,
+      notes,
+      labels: Object.keys(labels).length > 0 ? labels : undefined,
+      updatedAt: response.LastChangedDate ?? undefined,
+    });
+  }
+
+  async putAnnotation(
+    secretKey: string,
+    annotation: VaultAnnotation,
+  ): Promise<void> {
+    // Update Description — pass only SecretId and Description, never
+    // SecretString/SecretBinary, to avoid rotating the secret value.
+    if (annotation.notes !== undefined) {
+      try {
+        await this.client.send(
+          new UpdateSecretCommand({
+            SecretId: secretKey,
+            Description: annotation.notes,
+          }),
+        );
+      } catch (error) {
+        throw wrapAwsSmError("UpdateSecret", error);
+      }
+    }
+
+    const tagsToSet: { Key: string; Value: string }[] = [];
+    if (annotation.url !== undefined) {
+      tagsToSet.push({ Key: SWAMP_URL_TAG_KEY, Value: annotation.url });
+    }
+    if (annotation.labels) {
+      for (const [key, value] of Object.entries(annotation.labels)) {
+        tagsToSet.push({ Key: key, Value: value });
+      }
+    }
+
+    if (tagsToSet.length > 0) {
+      try {
+        await this.client.send(
+          new TagResourceCommand({
+            SecretId: secretKey,
+            Tags: tagsToSet,
+          }),
+        );
+      } catch (error) {
+        throw wrapAwsSmError("TagResource", error);
+      }
+    }
+  }
+
+  async deleteAnnotation(secretKey: string): Promise<void> {
+    try {
+      await this.client.send(
+        new UpdateSecretCommand({
+          SecretId: secretKey,
+          Description: "",
+        }),
+      );
+    } catch (error) {
+      throw wrapAwsSmError("UpdateSecret", error);
+    }
+
+    let response;
+    try {
+      response = await this.client.send(
+        new DescribeSecretCommand({ SecretId: secretKey }),
+      );
+    } catch (error) {
+      throw wrapAwsSmError("DescribeSecret", error);
+    }
+
+    const tagKeysToRemove: string[] = [];
+    for (const tag of response.Tags ?? []) {
+      if (!tag.Key) continue;
+      if (tag.Key === SWAMP_URL_TAG_KEY || !tag.Key.startsWith("aws:")) {
+        tagKeysToRemove.push(tag.Key);
+      }
+    }
+
+    if (tagKeysToRemove.length > 0) {
+      try {
+        await this.client.send(
+          new UntagResourceCommand({
+            SecretId: secretKey,
+            TagKeys: tagKeysToRemove,
+          }),
+        );
+      } catch (error) {
+        throw wrapAwsSmError("UntagResource", error);
+      }
+    }
+  }
+
+  async listAnnotations(): Promise<Map<string, VaultAnnotation>> {
+    const annotations = new Map<string, VaultAnnotation>();
+    let nextToken: string | undefined;
+
+    do {
+      let response;
+      try {
+        response = await this.client.send(
+          new ListSecretsCommand({ NextToken: nextToken }),
+        );
+      } catch (error) {
+        throw wrapAwsSmError("ListSecrets", error);
+      }
+
+      for (const secret of response.SecretList ?? []) {
+        if (!secret.Name) continue;
+
+        const notes = secret.Description || undefined;
+        const tags = secret.Tags ?? [];
+        let url: string | undefined;
+        const labels: Record<string, string> = {};
+
+        for (const tag of tags) {
+          if (!tag.Key) continue;
+          if (tag.Key === SWAMP_URL_TAG_KEY) {
+            url = tag.Value ?? undefined;
+          } else if (!tag.Key.startsWith("aws:")) {
+            labels[tag.Key] = tag.Value ?? "";
+          }
+        }
+
+        const hasAnnotation = notes !== undefined ||
+          url !== undefined ||
+          Object.keys(labels).length > 0;
+        if (hasAnnotation) {
+          annotations.set(
+            secret.Name,
+            createVaultAnnotation({
+              url,
+              notes,
+              labels: Object.keys(labels).length > 0 ? labels : undefined,
+              updatedAt: secret.LastChangedDate ?? undefined,
+            }),
+          );
+        }
+      }
+
+      nextToken = response.NextToken;
+    } while (nextToken);
+
+    return annotations;
   }
 }
 

@@ -27,6 +27,10 @@ secrets:
 - `secretsmanager:PutSecretValue`
 - `secretsmanager:CreateSecret`
 - `secretsmanager:ListSecrets`
+- `secretsmanager:DescribeSecret`
+- `secretsmanager:UpdateSecret`
+- `secretsmanager:TagResource`
+- `secretsmanager:UntagResource`
 
 ## Usage
 
@@ -43,6 +47,26 @@ Read, write, and list secrets:
 swamp vault get my-aws-sm my/secret/name --json
 swamp vault put my-aws-sm my/secret/name "s3cr3t" --json
 swamp vault list-keys my-aws-sm --json
+```
+
+## Annotations
+
+Attach metadata to secrets via `swamp vault annotate` and inspect it with
+`swamp vault inspect`. Annotation fields map to native AWS primitives:
+
+| Field    | AWS primitive                            |
+| -------- | ---------------------------------------- |
+| `notes`  | Secret `Description` field               |
+| `labels` | Resource tags (key-value pairs)          |
+| `url`    | Tag with key `swamp:url`                 |
+
+```bash
+swamp vault annotate my-aws-sm API_KEY \
+  --url https://console.aws.amazon.com/iam \
+  --note "Production API key" \
+  --label env=prod --label team=infra
+
+swamp vault inspect my-aws-sm API_KEY --json
 ```
 
 ## Secret key format
