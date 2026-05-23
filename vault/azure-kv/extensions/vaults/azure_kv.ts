@@ -161,7 +161,9 @@ function tagsToAnnotation(
     tags[TAG_URL],
     tags[TAG_NOTES],
     labels,
-    tags[TAG_UPDATED_AT] ? new Date(tags[TAG_UPDATED_AT]) : new Date(),
+    tags[TAG_UPDATED_AT] && !isNaN(new Date(tags[TAG_UPDATED_AT]).getTime())
+      ? new Date(tags[TAG_UPDATED_AT])
+      : new Date(),
   );
 
   if (annotation.isEmpty()) return null;
@@ -258,7 +260,22 @@ class AzureKvVaultProvider implements VaultProvider, VaultAnnotationProvider {
     const azureSecretName = toAzureSecretName(
       this.secretPrefix + secretKey,
     );
-    await this.client.setSecret(azureSecretName, secretValue);
+    // Azure KV tags are per-version. setSecret creates a new version with
+    // blank tags, so we must forward existing tags to preserve annotations.
+    let existingTags: Record<string, string> | undefined;
+    try {
+      const current = await this.client.getSecret(azureSecretName);
+      existingTags = current.properties.tags as
+        | Record<string, string>
+        | undefined;
+    } catch {
+      // Secret doesn't exist yet — no tags to preserve
+    }
+    await this.client.setSecret(
+      azureSecretName,
+      secretValue,
+      existingTags ? { tags: existingTags } : undefined,
+    );
   }
 
   async list(): Promise<string[]> {
@@ -347,6 +364,7 @@ class AzureKvVaultProvider implements VaultProvider, VaultAnnotationProvider {
     }
   }
 
+  // Read-modify-write: same non-atomic constraint as putAnnotation.
   async deleteAnnotation(secretKey: string): Promise<void> {
     const azureSecretName = toAzureSecretName(
       this.secretPrefix + secretKey,

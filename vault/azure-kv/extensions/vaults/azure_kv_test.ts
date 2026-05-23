@@ -583,3 +583,41 @@ Deno.test({
     }
   },
 });
+
+Deno.test({
+  name: "emulator: put preserves annotations across secret rotation",
+  ignore: !hasDocker,
+  sanitizeResources: false,
+  fn: async () => {
+    const emulator = await startEmulator();
+    try {
+      const provider = createEmulatorProvider(emulator.port);
+
+      await provider.put("rotate-test", "v1");
+      await provider.putAnnotation(
+        "rotate-test",
+        VaultAnnotation.create({
+          url: "https://console.azure.com",
+          notes: "Prod API key",
+          labels: { env: "prod" },
+        }),
+      );
+
+      // Rotate the secret value
+      await provider.put("rotate-test", "v2");
+
+      // Annotation must survive the rotation
+      const result = await provider.getAnnotation("rotate-test");
+      assertExists(result);
+      assertEquals(result.url, "https://console.azure.com");
+      assertEquals(result.notes, "Prod API key");
+      assertEquals({ ...result.labels }, { env: "prod" });
+
+      // Value must be the new one
+      const value = await provider.get("rotate-test");
+      assertEquals(value, "v2");
+    } finally {
+      await stopEmulator(emulator);
+    }
+  },
+});
