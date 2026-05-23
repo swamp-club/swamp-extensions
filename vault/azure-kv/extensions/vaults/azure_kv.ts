@@ -33,7 +33,7 @@ import {
   SecretClient,
   type SecretClientOptions,
 } from "npm:@azure/keyvault-secrets@4.11.2";
-import type { TokenCredential } from "npm:@azure/core-auth@1.9.0";
+import type { TokenCredential } from "@azure/core-auth";
 
 export interface VaultProvider {
   get(secretKey: string): Promise<string>;
@@ -160,6 +160,8 @@ function tagsToAnnotation(
   );
 }
 
+const MAX_AZURE_TAGS = 15;
+
 function annotationToTags(
   annotation: VaultAnnotation,
   existingTags: Record<string, string> | undefined,
@@ -181,6 +183,14 @@ function annotationToTags(
 
   for (const [key, value] of Object.entries(annotation.labels)) {
     tags[`${TAG_LABEL_PREFIX}${key}`] = value;
+  }
+
+  if (Object.keys(tags).length > MAX_AZURE_TAGS) {
+    throw new Error(
+      `Annotation would produce ${Object.keys(tags).length} tags, ` +
+        `exceeding Azure Key Vault's limit of ${MAX_AZURE_TAGS}. ` +
+        `Reduce the number of labels.`,
+    );
   }
 
   return tags;
@@ -283,6 +293,8 @@ class AzureKvVaultProvider implements VaultProvider, VaultAnnotationProvider {
     }
   }
 
+  // Read-modify-write: not atomic. Concurrent writers to the same secret
+  // can silently overwrite each other's annotation changes.
   async putAnnotation(
     secretKey: string,
     annotation: VaultAnnotation,
@@ -292,13 +304,17 @@ class AzureKvVaultProvider implements VaultProvider, VaultAnnotationProvider {
     );
     try {
       const secret = await this.client.getSecret(azureSecretName);
+      const version = secret.properties.version;
+      if (!version) {
+        throw new Error(`Secret '${secretKey}' has no version`);
+      }
       const existingTags = secret.properties.tags as
         | Record<string, string>
         | undefined;
       const newTags = annotationToTags(annotation, existingTags);
       await this.client.updateSecretProperties(
         azureSecretName,
-        secret.properties.version!,
+        version,
         { tags: newTags },
       );
     } catch (error) {
@@ -316,13 +332,17 @@ class AzureKvVaultProvider implements VaultProvider, VaultAnnotationProvider {
     );
     try {
       const secret = await this.client.getSecret(azureSecretName);
+      const version = secret.properties.version;
+      if (!version) {
+        throw new Error(`Secret '${secretKey}' has no version`);
+      }
       const existingTags = secret.properties.tags as
         | Record<string, string>
         | undefined;
       const cleaned = stripAnnotationTags(existingTags);
       await this.client.updateSecretProperties(
         azureSecretName,
-        secret.properties.version!,
+        version,
         { tags: cleaned },
       );
     } catch (error) {
@@ -350,6 +370,8 @@ class AzureKvVaultProvider implements VaultProvider, VaultAnnotationProvider {
               this.secretPrefix && keyName.startsWith(this.secretPrefix)
             ) {
               keyName = keyName.slice(this.secretPrefix.length);
+            } else if (this.secretPrefix) {
+              continue;
             }
             annotations.set(keyName, annotation);
           }

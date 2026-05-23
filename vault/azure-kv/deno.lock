@@ -354,6 +354,7 @@
   "workspace": {
     "dependencies": [
       "jsr:@systeminit/swamp-testing@0.20260521.16",
+      "npm:@azure/core-auth@1.9.0",
       "npm:@azure/identity@4.13.1",
       "npm:@azure/keyvault-secrets@4.11.2",
       "npm:zod@4.3.6"

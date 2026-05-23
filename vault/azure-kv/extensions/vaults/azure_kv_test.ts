@@ -217,7 +217,12 @@ async function dockerAvailable(): Promise<boolean> {
   }
 }
 
-async function startEmulator(): Promise<string> {
+interface EmulatorHandle {
+  containerName: string;
+  port: string;
+}
+
+async function startEmulator(): Promise<EmulatorHandle> {
   const containerName = `azure-kv-test-${crypto.randomUUID().slice(0, 8)}`;
   const cmd = new Deno.Command("docker", {
     args: [
@@ -241,7 +246,6 @@ async function startEmulator(): Promise<string> {
     );
   }
 
-  // Get the mapped port
   const inspectCmd = new Deno.Command("docker", {
     args: ["port", containerName, String(EMULATOR_PORT)],
     stdout: "piped",
@@ -251,48 +255,51 @@ async function startEmulator(): Promise<string> {
   const portOutput = new TextDecoder().decode(inspectResult.stdout).trim();
   const port = portOutput.split(":").pop()!;
 
-  // Wait for emulator to be ready
-  for (let i = 0; i < 30; i++) {
-    try {
-      await fetch(`https://localhost:${port}/secrets?api-version=7.4`, {
-        headers: { Authorization: `Bearer ${EMULATOR_TOKEN}` },
-        // deno-lint-ignore no-explicit-any
-        ...(({ client: { tls: { verify: false } } }) as any),
-      });
-      break;
-    } catch {
-      await new Promise((r) => setTimeout(r, 1000));
+  // Wait for emulator to accept HTTPS connections
+  const httpClient = Deno.createHttpClient({ caCerts: [] });
+  try {
+    for (let i = 0; i < 30; i++) {
+      try {
+        await fetch(`https://localhost:${port}/secrets?api-version=7.4`, {
+          headers: { Authorization: `Bearer ${EMULATOR_TOKEN}` },
+          client: httpClient,
+        });
+        break;
+      } catch {
+        await new Promise((r) => setTimeout(r, 1000));
+      }
     }
+  } finally {
+    httpClient.close();
   }
 
-  return containerName;
+  return { containerName, port };
 }
 
-async function stopEmulator(containerName: string): Promise<void> {
+async function stopEmulator(handle: EmulatorHandle): Promise<void> {
   const stop = new Deno.Command("docker", {
-    args: ["stop", containerName],
+    args: ["stop", handle.containerName],
     stdout: "null",
     stderr: "null",
   });
   await stop.output();
   const rm = new Deno.Command("docker", {
-    args: ["rm", containerName],
+    args: ["rm", handle.containerName],
     stdout: "null",
     stderr: "null",
   });
   await rm.output();
 }
 
-async function getEmulatorPort(containerName: string): Promise<string> {
-  const cmd = new Deno.Command("docker", {
-    args: ["port", containerName, String(EMULATOR_PORT)],
-    stdout: "piped",
-    stderr: "piped",
-  });
-  const result = await cmd.output();
-  const output = new TextDecoder().decode(result.stdout).trim();
-  return output.split(":").pop()!;
-}
+import type { SecretClientOptions } from "npm:@azure/keyvault-secrets@4.11.2";
+
+// SecretClientOptions.tlsOptions does not expose rejectUnauthorized, but
+// the underlying Node.js https agent accepts it. No typed alternative
+// exists in the Azure SDK for bypassing self-signed cert validation.
+const EMULATOR_CLIENT_OPTIONS = {
+  disableChallengeResourceVerification: true,
+  tlsOptions: { rejectUnauthorized: false },
+} as SecretClientOptions;
 
 function createEmulatorProvider(
   port: string,
@@ -309,11 +316,7 @@ function createEmulatorProvider(
     "emulator-test",
     { vault_url: `https://localhost:${port}` },
     fakeCredential,
-    {
-      disableChallengeResourceVerification: true,
-      // deno-lint-ignore no-explicit-any
-      tlsOptions: { rejectUnauthorized: false } as any,
-    },
+    EMULATOR_CLIENT_OPTIONS,
   );
 }
 
@@ -326,10 +329,9 @@ Deno.test({
   // Azure SDK connection pool leaks resources in Deno
   sanitizeResources: false,
   fn: async () => {
-    const container = await startEmulator();
+    const emulator = await startEmulator();
     try {
-      const port = await getEmulatorPort(container);
-      const provider = createEmulatorProvider(port);
+      const provider = createEmulatorProvider(emulator.port);
 
       // Create the secret first
       await provider.put("test-key", "secret-value");
@@ -359,7 +361,7 @@ Deno.test({
 
       assertEquals(result.isEmpty(), false);
     } finally {
-      await stopEmulator(container);
+      await stopEmulator(emulator);
     }
   },
 });
@@ -369,16 +371,15 @@ Deno.test({
   ignore: !hasDocker,
   sanitizeResources: false,
   fn: async () => {
-    const container = await startEmulator();
+    const emulator = await startEmulator();
     try {
-      const port = await getEmulatorPort(container);
-      const provider = createEmulatorProvider(port);
+      const provider = createEmulatorProvider(emulator.port);
 
       await provider.put("no-annotation", "value");
       const result = await provider.getAnnotation("no-annotation");
       assertEquals(result, null);
     } finally {
-      await stopEmulator(container);
+      await stopEmulator(emulator);
     }
   },
 });
@@ -388,10 +389,9 @@ Deno.test({
   ignore: !hasDocker,
   sanitizeResources: false,
   fn: async () => {
-    const container = await startEmulator();
+    const emulator = await startEmulator();
     try {
-      const port = await getEmulatorPort(container);
-      const provider = createEmulatorProvider(port);
+      const provider = createEmulatorProvider(emulator.port);
 
       await provider.put("delete-test", "value");
       const annotation = VaultAnnotation.create({
@@ -412,7 +412,7 @@ Deno.test({
       const after = await provider.getAnnotation("delete-test");
       assertEquals(after, null);
     } finally {
-      await stopEmulator(container);
+      await stopEmulator(emulator);
     }
   },
 });
@@ -422,10 +422,9 @@ Deno.test({
   ignore: !hasDocker,
   sanitizeResources: false,
   fn: async () => {
-    const container = await startEmulator();
+    const emulator = await startEmulator();
     try {
-      const port = await getEmulatorPort(container);
-      const provider = createEmulatorProvider(port);
+      const provider = createEmulatorProvider(emulator.port);
 
       // Create two secrets, annotate only one
       await provider.put("annotated", "value1");
@@ -447,7 +446,7 @@ Deno.test({
       assertEquals(ann.url, "https://annotated.com");
       assertEquals({ ...ann.labels }, { env: "prod" });
     } finally {
-      await stopEmulator(container);
+      await stopEmulator(emulator);
     }
   },
 });
@@ -457,10 +456,9 @@ Deno.test({
   ignore: !hasDocker,
   sanitizeResources: false,
   fn: async () => {
-    const container = await startEmulator();
+    const emulator = await startEmulator();
     try {
-      const port = await getEmulatorPort(container);
-      const provider = createEmulatorProvider(port);
+      const provider = createEmulatorProvider(emulator.port);
 
       // Create secret with external tags via direct SDK call
       const fakeCredential = {
@@ -475,13 +473,9 @@ Deno.test({
         "npm:@azure/keyvault-secrets@4.11.2"
       );
       const directClient = new SecretClient(
-        `https://localhost:${port}`,
+        `https://localhost:${emulator.port}`,
         fakeCredential,
-        {
-          disableChallengeResourceVerification: true,
-          // deno-lint-ignore no-explicit-any
-          tlsOptions: { rejectUnauthorized: false } as any,
-        },
+        EMULATOR_CLIENT_OPTIONS,
       );
       await directClient.setSecret("ext-tags-test", "value", {
         tags: { "external-tag": "keep-me" },
@@ -499,7 +493,7 @@ Deno.test({
       assertEquals(tags["external-tag"], "keep-me");
       assertEquals(tags["swamp.url"], "https://example.com");
     } finally {
-      await stopEmulator(container);
+      await stopEmulator(emulator);
     }
   },
 });
@@ -509,10 +503,9 @@ Deno.test({
   ignore: !hasDocker,
   sanitizeResources: false,
   fn: async () => {
-    const container = await startEmulator();
+    const emulator = await startEmulator();
     try {
-      const port = await getEmulatorPort(container);
-      const provider = createEmulatorProvider(port);
+      const provider = createEmulatorProvider(emulator.port);
 
       await provider.put("merge-test", "value");
 
@@ -540,7 +533,7 @@ Deno.test({
       assertEquals(result.url, "https://v2.com");
       assertEquals({ ...result.labels }, { env: "prod", team: "infra" });
     } finally {
-      await stopEmulator(container);
+      await stopEmulator(emulator);
     }
   },
 });
