@@ -232,6 +232,7 @@ class OnePasswordVaultProvider implements VaultProvider {
       );
     }
 
+    const editField = parsed.field.replace(/\//g, ".");
     const itemExists = await this.itemExists(parsed.item);
 
     if (itemExists) {
@@ -239,7 +240,7 @@ class OnePasswordVaultProvider implements VaultProvider {
         "item",
         "edit",
         parsed.item,
-        `${parsed.field}=${secretValue}`,
+        `${editField}=${secretValue}`,
         "--vault",
         this.opVault,
       ];
@@ -255,7 +256,7 @@ class OnePasswordVaultProvider implements VaultProvider {
         "Secure Note",
         "--title",
         parsed.item,
-        `${parsed.field}=${secretValue}`,
+        `${editField}=${secretValue}`,
         "--vault",
         this.opVault,
       ];
