@@ -70,7 +70,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: deno ${{ matrix.task }}
         run: |
           if [ "${{ matrix.task }}" = "fmt" ]; then
@@ -101,7 +101,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: Verify lockfile is up to date
         run: deno install --frozen
 
@@ -124,7 +124,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: deno ${{ matrix.task }}
         run: |
           if [ "${{ matrix.task }}" = "fmt" ]; then
@@ -155,7 +155,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: Verify lockfile is up to date
         run: deno install --frozen
 
@@ -177,7 +177,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: deno ${{ matrix.task }}
         run: |
           if [ "${{ matrix.task }}" = "fmt" ]; then
@@ -204,7 +204,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: Verify lockfile is up to date
         run: deno install --frozen
 
@@ -226,7 +226,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: deno ${{ matrix.task }}
         run: |
           if [ "${{ matrix.task }}" = "fmt" ]; then
@@ -253,7 +253,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: Verify lockfile is up to date
         run: deno install --frozen
 
@@ -276,7 +276,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: deno ${{ matrix.task }}
         run: |
           if [ "${{ matrix.task }}" = "fmt" ]; then
@@ -307,7 +307,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: Verify lockfile is up to date
         run: deno install --frozen
 
@@ -330,7 +330,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: deno ${{ matrix.task }}
         run: |
           if [ "${{ matrix.task }}" = "fmt" ]; then
@@ -361,7 +361,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: Verify lockfile is up to date
         run: deno install --frozen
 
@@ -384,7 +384,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: deno ${{ matrix.task }}
         run: |
           if [ "${{ matrix.task }}" = "fmt" ]; then
@@ -413,7 +413,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: Verify lockfile is up to date
         run: deno install --frozen
 
@@ -432,7 +432,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: deno ${{ matrix.task }}
         run: |
           if [ "${{ matrix.task }}" = "fmt" ]; then
@@ -456,7 +456,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: Verify all AWS lockfiles are up to date
         run: |
           failed=false
@@ -485,7 +485,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: deno ${{ matrix.task }}
         run: |
           if [ "${{ matrix.task }}" = "fmt" ]; then
@@ -509,7 +509,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: Verify all GCP lockfiles are up to date
         run: |
           failed=false
@@ -538,7 +538,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: deno ${{ matrix.task }}
         run: |
           if [ "${{ matrix.task }}" = "fmt" ]; then
@@ -562,7 +562,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: Verify all Cloudflare lockfiles are up to date
         run: |
           failed=false
@@ -594,7 +594,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: deno ${{ matrix.task }}
         run: |
           if [ "${{ matrix.task }}" = "fmt" ]; then
@@ -619,7 +619,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: Verify lockfile is up to date
         run: deno install --frozen
 
@@ -632,7 +632,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: Scan for known vulnerabilities
         run: deno run --allow-read --allow-net=api.osv.dev --allow-env=GITHUB_STEP_SUMMARY --allow-write scripts/audit_deps.ts
       - name: Check for outdated dependencies
@@ -659,7 +659,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.7.x
       - name: Check for unpinned or outdated GitHub Actions
         run: deno run --allow-read --allow-net=api.github.com --allow-env=GITHUB_STEP_SUMMARY,GITHUB_TOKEN --allow-write scripts/audit_actions.ts
 
