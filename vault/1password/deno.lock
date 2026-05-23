@@ -2,9 +2,11 @@
   "version": "5",
   "specifiers": {
     "jsr:@std/assert@1.0.19": "1.0.19",
-    "jsr:@std/internal@^1.0.12": "1.0.12",
-    "jsr:@systeminit/swamp-testing@0.20260331.5": "0.20260331.5",
-    "npm:zod@4.3.6": "4.3.6"
+    "jsr:@std/internal@^1.0.12": "1.0.13",
+    "jsr:@systeminit/swamp-testing@0.20260521.16": "0.20260521.16",
+    "npm:@marcbachmann/cel-js@7.6.1": "7.6.1",
+    "npm:zod@4.3.6": "4.3.6",
+    "npm:zod@^4.3.6": "4.3.6"
   },
   "jsr": {
     "@std/assert@1.0.19": {
@@ -13,24 +15,30 @@
         "jsr:@std/internal"
       ]
     },
-    "@std/internal@1.0.12": {
-      "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
+    "@std/internal@1.0.13": {
+      "integrity": "2f9546691d4ac2d32859c82dff284aaeac980ddeca38430d07941e7e288725c0"
     },
-    "@systeminit/swamp-testing@0.20260331.5": {
-      "integrity": "7f336df3a10433f2218c998b1b9757cba134585f44d53776ed82420b12b04df7",
+    "@systeminit/swamp-testing@0.20260521.16": {
+      "integrity": "abf6bec3d7d367b158c7dc09ce292a906aec6d5ce575ced5572bae92d39b5b7f",
       "dependencies": [
-        "jsr:@std/assert"
+        "jsr:@std/assert",
+        "npm:@marcbachmann/cel-js",
+        "npm:zod@^4.3.6"
       ]
     }
   },
   "npm": {
+    "@marcbachmann/cel-js@7.6.1": {
+      "integrity": "sha512-YyY8yiDU07ByKb2rJUoNgMAkYeeDvkdrONBREV2MP9siAW7yNft0KfbIoonWTIMY0fGtv8og0EhzKx3Xsi1Nmg==",
+      "bin": true
+    },
     "zod@4.3.6": {
       "integrity": "sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg=="
     }
   },
   "workspace": {
     "dependencies": [
-      "jsr:@systeminit/swamp-testing@0.20260331.5",
+      "jsr:@systeminit/swamp-testing@0.20260521.16",
       "npm:zod@4.3.6"
     ]
   }

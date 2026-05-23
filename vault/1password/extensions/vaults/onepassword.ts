@@ -46,6 +46,119 @@ export interface VaultProvider {
   getName(): string;
 }
 
+export interface VaultAnnotationData {
+  url?: string;
+  notes?: string;
+  labels?: Record<string, string>;
+  updatedAt: string;
+}
+
+export class VaultAnnotation {
+  readonly url: string | undefined;
+  readonly notes: string | undefined;
+  readonly labels: Readonly<Record<string, string>>;
+  readonly updatedAt: Date;
+
+  private constructor(
+    url: string | undefined,
+    notes: string | undefined,
+    labels: Record<string, string>,
+    updatedAt: Date,
+  ) {
+    this.url = url;
+    this.notes = notes;
+    this.labels = Object.freeze({ ...labels });
+    this.updatedAt = updatedAt;
+  }
+
+  static create(fields: {
+    url?: string;
+    notes?: string;
+    labels?: Record<string, string>;
+  }): VaultAnnotation {
+    return new VaultAnnotation(
+      fields.url,
+      fields.notes,
+      fields.labels ?? {},
+      new Date(),
+    );
+  }
+
+  static fromData(data: VaultAnnotationData): VaultAnnotation {
+    return new VaultAnnotation(
+      data.url,
+      data.notes,
+      data.labels ?? {},
+      new Date(data.updatedAt),
+    );
+  }
+
+  toData(): VaultAnnotationData {
+    const data: VaultAnnotationData = {
+      updatedAt: this.updatedAt.toISOString(),
+    };
+    if (this.url !== undefined) data.url = this.url;
+    if (this.notes !== undefined) data.notes = this.notes;
+    if (Object.keys(this.labels).length > 0) {
+      data.labels = { ...this.labels };
+    }
+    return data;
+  }
+
+  merge(updates: {
+    url?: string;
+    notes?: string;
+    labels?: Record<string, string>;
+  }): VaultAnnotation {
+    return new VaultAnnotation(
+      updates.url !== undefined ? updates.url : this.url,
+      updates.notes !== undefined ? updates.notes : this.notes,
+      updates.labels !== undefined
+        ? { ...this.labels, ...updates.labels }
+        : { ...this.labels },
+      new Date(),
+    );
+  }
+
+  isEmpty(): boolean {
+    return this.url === undefined &&
+      this.notes === undefined &&
+      Object.keys(this.labels).length === 0;
+  }
+}
+
+const SWAMP_ANNOTATIONS_SECTION = "swamp-annotations";
+const SWAMP_LABELS_SECTION = "swamp-labels";
+
+const INVALID_LABEL_KEY_PATTERN = /[.\[\]\/\\]/;
+
+function validateLabelKey(key: string): void {
+  if (INVALID_LABEL_KEY_PATTERN.test(key)) {
+    throw new Error(
+      `Invalid label key '${key}': label keys must not contain dots, brackets, slashes, or backslashes ` +
+        `because these characters conflict with the 1Password CLI field reference syntax.`,
+    );
+  }
+}
+
+interface OpItemField {
+  id: string;
+  type: string;
+  label: string;
+  value: string;
+  purpose?: string;
+  section?: { id: string; label?: string };
+}
+
+interface OpItem {
+  id: string;
+  title: string;
+  category: string;
+  urls?: Array<{ label?: string; primary?: boolean; href: string }>;
+  sections?: Array<{ id: string; label: string }>;
+  fields?: OpItemField[];
+}
+
 interface ParsedSecretKey {
   item: string;
   field: string;
@@ -175,6 +288,192 @@ class OnePasswordVaultProvider implements VaultProvider {
     return this.name;
   }
 
+  async getAnnotation(
+    secretKey: string,
+  ): Promise<VaultAnnotation | null> {
+    await this.checkOpInstalled();
+    const parsed = parseSecretKey(secretKey, this.opVault);
+    const item = await this.getItemJson(parsed.item);
+    if (!item) return null;
+
+    let url: string | undefined;
+    let notes: string | undefined;
+    const labels: Record<string, string> = {};
+
+    if (item.fields) {
+      const annotationsSection = item.sections?.find(
+        (s) => s.label === SWAMP_ANNOTATIONS_SECTION,
+      );
+      const labelsSection = item.sections?.find(
+        (s) => s.label === SWAMP_LABELS_SECTION,
+      );
+
+      for (const field of item.fields) {
+        if (field.purpose === "NOTES" && field.value) {
+          notes = field.value;
+        }
+        if (
+          annotationsSection &&
+          field.section?.id === annotationsSection.id &&
+          field.label === "url" && field.value
+        ) {
+          url = field.value;
+        }
+        if (
+          labelsSection && field.section?.id === labelsSection.id &&
+          field.label && field.value
+        ) {
+          labels[field.label] = field.value;
+        }
+      }
+    }
+
+    if (
+      url === undefined && notes === undefined &&
+      Object.keys(labels).length === 0
+    ) {
+      return null;
+    }
+
+    return VaultAnnotation.create({ url, notes, labels });
+  }
+
+  async putAnnotation(
+    secretKey: string,
+    annotation: {
+      url?: string;
+      notes?: string;
+      labels?: Readonly<Record<string, string>>;
+    },
+  ): Promise<void> {
+    await this.checkOpInstalled();
+    const parsed = parseSecretKey(secretKey, this.opVault);
+
+    if (annotation.labels) {
+      for (const key of Object.keys(annotation.labels)) {
+        validateLabelKey(key);
+      }
+    }
+
+    const args: string[] = [
+      "item",
+      "edit",
+      parsed.item,
+      "--vault",
+      this.opVault,
+    ];
+
+    if (annotation.url !== undefined) {
+      args.push(`${SWAMP_ANNOTATIONS_SECTION}.url[url]=${annotation.url}`);
+    }
+
+    if (annotation.notes !== undefined) {
+      args.push(`notesPlain=${annotation.notes}`);
+    }
+
+    if (annotation.labels) {
+      for (const [key, value] of Object.entries(annotation.labels)) {
+        args.push(`${SWAMP_LABELS_SECTION}.${key}[text]=${value}`);
+      }
+    }
+
+    if (this.opAccount) {
+      args.push("--account", this.opAccount);
+    }
+
+    await this.runOp(args);
+  }
+
+  async deleteAnnotation(secretKey: string): Promise<void> {
+    await this.checkOpInstalled();
+    const parsed = parseSecretKey(secretKey, this.opVault);
+
+    const item = await this.getItemJson(parsed.item);
+    if (!item) return;
+
+    const args: string[] = [
+      "item",
+      "edit",
+      parsed.item,
+      "--vault",
+      this.opVault,
+    ];
+    let hasEdits = false;
+
+    const annotationsSection = item.sections?.find(
+      (s) => s.label === SWAMP_ANNOTATIONS_SECTION,
+    );
+    if (annotationsSection && item.fields) {
+      for (const field of item.fields) {
+        if (field.section?.id === annotationsSection.id && field.label) {
+          args.push(`${SWAMP_ANNOTATIONS_SECTION}.${field.label}[delete]`);
+          hasEdits = true;
+        }
+      }
+    }
+
+    const hasNotes = item.fields?.some(
+      (f) => f.purpose === "NOTES" && f.value,
+    );
+    if (hasNotes) {
+      args.push("notesPlain=");
+      hasEdits = true;
+    }
+
+    const labelsSection = item.sections?.find(
+      (s) => s.label === SWAMP_LABELS_SECTION,
+    );
+    if (labelsSection && item.fields) {
+      for (const field of item.fields) {
+        if (field.section?.id === labelsSection.id && field.label) {
+          args.push(`${SWAMP_LABELS_SECTION}.${field.label}[delete]`);
+          hasEdits = true;
+        }
+      }
+    }
+
+    if (!hasEdits) return;
+
+    if (this.opAccount) {
+      args.push("--account", this.opAccount);
+    }
+
+    await this.runOp(args);
+  }
+
+  async listAnnotations(): Promise<Map<string, VaultAnnotation>> {
+    const annotations = new Map<string, VaultAnnotation>();
+    const items = await this.list();
+    for (const itemName of items) {
+      const annotation = await this.getAnnotation(itemName);
+      if (annotation) {
+        annotations.set(itemName, annotation);
+      }
+    }
+    return annotations;
+  }
+
+  private async getItemJson(itemName: string): Promise<OpItem | null> {
+    const args = [
+      "item",
+      "get",
+      itemName,
+      "--vault",
+      this.opVault,
+      "--format",
+      "json",
+    ];
+    if (this.opAccount) {
+      args.push("--account", this.opAccount);
+    }
+    try {
+      const result = await this.runOp(args);
+      return JSON.parse(result) as OpItem;
+    } catch {
+      return null;
+    }
+  }
+
   private async itemExists(itemName: string): Promise<boolean> {
     const args = [
       "item",
@@ -290,7 +589,19 @@ export const vault = {
   createProvider(
     name: string,
     config: Record<string, unknown>,
-  ): VaultProvider {
+  ): VaultProvider & {
+    getAnnotation(secretKey: string): Promise<VaultAnnotation | null>;
+    putAnnotation(
+      secretKey: string,
+      annotation: {
+        url?: string;
+        notes?: string;
+        labels?: Readonly<Record<string, string>>;
+      },
+    ): Promise<void>;
+    deleteAnnotation(secretKey: string): Promise<void>;
+    listAnnotations(): Promise<Map<string, VaultAnnotation>>;
+  } {
     const parsed = vault.configSchema.parse(config);
     return new OnePasswordVaultProvider(name, parsed);
   },

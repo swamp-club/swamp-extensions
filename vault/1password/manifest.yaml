@@ -1,8 +1,10 @@
 manifestVersion: 1
 name: "@swamp/1password"
-version: "2026.04.22.2"
+version: "2026.05.23.1"
 description: |
-  Read and write secrets stored in 1Password using the `op` CLI.
+  Read, write, and annotate secrets stored in 1Password using the `op` CLI.
+  Supports `swamp vault annotate` and `swamp vault inspect` for attaching
+  metadata (URL, notes, labels) to secrets.
 
   ## Prerequisites
 
