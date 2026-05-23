@@ -138,10 +138,22 @@ function createOpMock() {
       const item = parts[1];
       const field = parts.slice(2).join("/") || "password";
       const itemData = items.get(item);
-      if (!itemData || !itemData.fields.has(field)) {
+      if (!itemData) {
         return { stdout: "", stderr: `item "${item}" not found`, code: 1 };
       }
-      return { stdout: itemData.fields.get(field)!, code: 0 };
+      if (itemData.fields.has(field)) {
+        return { stdout: itemData.fields.get(field)!, code: 0 };
+      }
+      const slashIdx = field.indexOf("/");
+      if (slashIdx >= 0) {
+        const section = field.slice(0, slashIdx);
+        const sectionField = field.slice(slashIdx + 1);
+        const sectionData = itemData.sectionFields.get(section);
+        if (sectionData?.has(sectionField)) {
+          return { stdout: sectionData.get(sectionField)!, code: 0 };
+        }
+      }
+      return { stdout: "", stderr: `field "${field}" not found`, code: 1 };
     }
 
     if (args[0] === "item" && args[1] === "get") {
@@ -160,10 +172,21 @@ function createOpMock() {
       const title = titleIdx >= 0 ? args[titleIdx + 1] : "";
       const fieldArg = args.find((a) => a.includes("=") && !a.startsWith("--"));
       if (fieldArg && title) {
-        const [field, ...valueParts] = fieldArg.split("=");
-        const value = valueParts.join("=");
+        const eqIdx = fieldArg.indexOf("=");
+        const fieldRef = fieldArg.slice(0, eqIdx);
+        const value = fieldArg.slice(eqIdx + 1);
         const data = ensureItem(title);
-        data.fields.set(field, value);
+        const dotIdx = fieldRef.indexOf(".");
+        if (dotIdx >= 0) {
+          const section = fieldRef.slice(0, dotIdx);
+          const field = fieldRef.slice(dotIdx + 1);
+          if (!data.sectionFields.has(section)) {
+            data.sectionFields.set(section, new Map());
+          }
+          data.sectionFields.get(section)!.set(field, value);
+        } else {
+          data.fields.set(fieldRef, value);
+        }
       }
       return { stdout: JSON.stringify({ title }), code: 0 };
     }
@@ -610,4 +633,52 @@ Deno.test("1password vault: provider has annotation methods (duck-typing gate)",
   assertEquals(typeof provider.putAnnotation, "function");
   assertEquals(typeof provider.deleteAnnotation, "function");
   assertEquals(typeof provider.listAnnotations, "function");
+});
+
+// --- Section/field separator tests ---
+
+Deno.test("1password vault: put and get round-trip with section/field syntax", async () => {
+  const { result } = await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("my-item/database/password", "s3cret");
+    return await provider.get("my-item/database/password");
+  });
+
+  assertEquals(result, "s3cret");
+});
+
+Deno.test("1password vault: put translates / to . for op item edit", async () => {
+  const { calls } = await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("my-item/section/field", "value");
+  });
+
+  const createCall = calls.find(
+    (c) => c.command === "op" && c.args[0] === "item" && c.args[1] === "create",
+  );
+  assertEquals(
+    createCall !== undefined,
+    true,
+    "expected an op item create call",
+  );
+  const fieldArg = createCall!.args.find((a: string) =>
+    a.includes("=") && !a.startsWith("--")
+  );
+  assertEquals(fieldArg, "section.field=value");
+});
+
+Deno.test("1password vault: put and get round-trip with plain field (no section)", async () => {
+  const { result } = await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("my-item/password", "plain-secret");
+    return await provider.get("my-item/password");
+  });
+
+  assertEquals(result, "plain-secret");
 });
