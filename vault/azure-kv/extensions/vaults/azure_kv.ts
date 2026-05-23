@@ -28,34 +28,182 @@
  */
 
 import { z } from "npm:zod@4.3.6";
-import { DefaultAzureCredential } from "npm:@azure/identity@4.13.0";
-import { SecretClient } from "npm:@azure/keyvault-secrets@4.10.0";
+import { DefaultAzureCredential } from "npm:@azure/identity@4.13.1";
+import {
+  SecretClient,
+  type SecretClientOptions,
+} from "npm:@azure/keyvault-secrets@4.11.2";
+import type { TokenCredential } from "npm:@azure/core-auth@1.9.0";
 
-/**
- * Minimal contract implemented by swamp vault providers. Exported so that
- * downstream consumers and tests can type-check against a public interface
- * rather than an inferred shape.
- */
 export interface VaultProvider {
-  /** Fetches the current value of the given secret. */
   get(secretKey: string): Promise<string>;
-  /** Writes a new value for the given secret. */
   put(secretKey: string, secretValue: string): Promise<void>;
-  /** Lists all secret keys visible to the vault. */
   list(): Promise<string[]>;
-  /** Returns the swamp-assigned name of this vault instance. */
   getName(): string;
 }
 
-/**
- * Converts a swamp secret name to an Azure Key Vault compatible name.
- * Azure Key Vault secret names only allow alphanumeric characters and hyphens.
- */
+interface VaultAnnotationData {
+  url?: string;
+  notes?: string;
+  labels?: Record<string, string>;
+  updatedAt: string;
+}
+
+export class VaultAnnotation {
+  readonly url: string | undefined;
+  readonly notes: string | undefined;
+  readonly labels: Readonly<Record<string, string>>;
+  readonly updatedAt: Date;
+
+  constructor(
+    url: string | undefined,
+    notes: string | undefined,
+    labels: Record<string, string>,
+    updatedAt: Date,
+  ) {
+    this.url = url;
+    this.notes = notes;
+    this.labels = Object.freeze({ ...labels });
+    this.updatedAt = updatedAt;
+  }
+
+  static create(fields: {
+    url?: string;
+    notes?: string;
+    labels?: Record<string, string>;
+  }): VaultAnnotation {
+    return new VaultAnnotation(
+      fields.url,
+      fields.notes,
+      fields.labels ?? {},
+      new Date(),
+    );
+  }
+
+  static fromData(data: VaultAnnotationData): VaultAnnotation {
+    return new VaultAnnotation(
+      data.url,
+      data.notes,
+      data.labels ?? {},
+      new Date(data.updatedAt),
+    );
+  }
+
+  toData(): VaultAnnotationData {
+    const data: VaultAnnotationData = {
+      updatedAt: this.updatedAt.toISOString(),
+    };
+    if (this.url !== undefined) data.url = this.url;
+    if (this.notes !== undefined) data.notes = this.notes;
+    if (Object.keys(this.labels).length > 0) {
+      data.labels = { ...this.labels };
+    }
+    return data;
+  }
+
+  merge(updates: {
+    url?: string;
+    notes?: string;
+    labels?: Record<string, string>;
+  }): VaultAnnotation {
+    return new VaultAnnotation(
+      updates.url !== undefined ? updates.url : this.url,
+      updates.notes !== undefined ? updates.notes : this.notes,
+      { ...this.labels, ...(updates.labels ?? {}) },
+      new Date(),
+    );
+  }
+
+  isEmpty(): boolean {
+    return this.url === undefined &&
+      this.notes === undefined &&
+      Object.keys(this.labels).length === 0;
+  }
+}
+
+export interface VaultAnnotationProvider {
+  getAnnotation(secretKey: string): Promise<VaultAnnotation | null>;
+  putAnnotation(
+    secretKey: string,
+    annotation: VaultAnnotation,
+  ): Promise<void>;
+  deleteAnnotation(secretKey: string): Promise<void>;
+  listAnnotations(): Promise<Map<string, VaultAnnotation>>;
+}
+
+const TAG_PREFIX = "swamp.";
+const TAG_URL = `${TAG_PREFIX}url`;
+const TAG_NOTES = `${TAG_PREFIX}notes`;
+const TAG_UPDATED_AT = `${TAG_PREFIX}updatedAt`;
+const TAG_LABEL_PREFIX = `${TAG_PREFIX}label.`;
+
+function tagsToAnnotation(
+  tags: Record<string, string> | undefined,
+): VaultAnnotation | null {
+  if (!tags) return null;
+
+  const hasSwampTags = Object.keys(tags).some((k) => k.startsWith(TAG_PREFIX));
+  if (!hasSwampTags) return null;
+
+  const labels: Record<string, string> = {};
+  for (const [key, value] of Object.entries(tags)) {
+    if (key.startsWith(TAG_LABEL_PREFIX)) {
+      labels[key.slice(TAG_LABEL_PREFIX.length)] = value;
+    }
+  }
+
+  return new VaultAnnotation(
+    tags[TAG_URL],
+    tags[TAG_NOTES],
+    labels,
+    tags[TAG_UPDATED_AT] ? new Date(tags[TAG_UPDATED_AT]) : new Date(),
+  );
+}
+
+function annotationToTags(
+  annotation: VaultAnnotation,
+  existingTags: Record<string, string> | undefined,
+): Record<string, string> {
+  const tags: Record<string, string> = {};
+
+  // Preserve non-swamp tags
+  if (existingTags) {
+    for (const [key, value] of Object.entries(existingTags)) {
+      if (!key.startsWith(TAG_PREFIX)) {
+        tags[key] = value;
+      }
+    }
+  }
+
+  if (annotation.url !== undefined) tags[TAG_URL] = annotation.url;
+  if (annotation.notes !== undefined) tags[TAG_NOTES] = annotation.notes;
+  tags[TAG_UPDATED_AT] = annotation.updatedAt.toISOString();
+
+  for (const [key, value] of Object.entries(annotation.labels)) {
+    tags[`${TAG_LABEL_PREFIX}${key}`] = value;
+  }
+
+  return tags;
+}
+
+function stripAnnotationTags(
+  tags: Record<string, string> | undefined,
+): Record<string, string> {
+  if (!tags) return {};
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(tags)) {
+    if (!key.startsWith(TAG_PREFIX)) {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 function toAzureSecretName(name: string): string {
   return name.replace(/[/_]/g, "-");
 }
 
-class AzureKvVaultProvider implements VaultProvider {
+class AzureKvVaultProvider implements VaultProvider, VaultAnnotationProvider {
   private readonly client: SecretClient;
   private readonly name: string;
   private readonly secretPrefix: string;
@@ -63,11 +211,13 @@ class AzureKvVaultProvider implements VaultProvider {
   constructor(
     name: string,
     config: { vault_url: string; secret_prefix?: string },
+    credential?: TokenCredential,
+    clientOptions?: SecretClientOptions,
   ) {
     this.name = name;
     this.secretPrefix = config.secret_prefix ?? "";
-    const credential = new DefaultAzureCredential();
-    this.client = new SecretClient(config.vault_url, credential);
+    const cred = credential ?? new DefaultAzureCredential();
+    this.client = new SecretClient(config.vault_url, cred, clientOptions);
   }
 
   async get(secretKey: string): Promise<string> {
@@ -114,12 +264,108 @@ class AzureKvVaultProvider implements VaultProvider {
   getName(): string {
     return this.name;
   }
+
+  async getAnnotation(secretKey: string): Promise<VaultAnnotation | null> {
+    const azureSecretName = toAzureSecretName(
+      this.secretPrefix + secretKey,
+    );
+    try {
+      const secret = await this.client.getSecret(azureSecretName);
+      return tagsToAnnotation(
+        secret.properties.tags as Record<string, string> | undefined,
+      );
+    } catch (error) {
+      throw new Error(
+        `Failed to read annotation for '${secretKey}': ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  async putAnnotation(
+    secretKey: string,
+    annotation: VaultAnnotation,
+  ): Promise<void> {
+    const azureSecretName = toAzureSecretName(
+      this.secretPrefix + secretKey,
+    );
+    try {
+      const secret = await this.client.getSecret(azureSecretName);
+      const existingTags = secret.properties.tags as
+        | Record<string, string>
+        | undefined;
+      const newTags = annotationToTags(annotation, existingTags);
+      await this.client.updateSecretProperties(
+        azureSecretName,
+        secret.properties.version!,
+        { tags: newTags },
+      );
+    } catch (error) {
+      throw new Error(
+        `Failed to write annotation for '${secretKey}': ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  async deleteAnnotation(secretKey: string): Promise<void> {
+    const azureSecretName = toAzureSecretName(
+      this.secretPrefix + secretKey,
+    );
+    try {
+      const secret = await this.client.getSecret(azureSecretName);
+      const existingTags = secret.properties.tags as
+        | Record<string, string>
+        | undefined;
+      const cleaned = stripAnnotationTags(existingTags);
+      await this.client.updateSecretProperties(
+        azureSecretName,
+        secret.properties.version!,
+        { tags: cleaned },
+      );
+    } catch (error) {
+      throw new Error(
+        `Failed to delete annotation for '${secretKey}': ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  async listAnnotations(): Promise<Map<string, VaultAnnotation>> {
+    const annotations = new Map<string, VaultAnnotation>();
+    try {
+      for await (
+        const secretProperties of this.client.listPropertiesOfSecrets()
+      ) {
+        if (secretProperties.name) {
+          const annotation = tagsToAnnotation(
+            secretProperties.tags as Record<string, string> | undefined,
+          );
+          if (annotation) {
+            let keyName = secretProperties.name;
+            if (
+              this.secretPrefix && keyName.startsWith(this.secretPrefix)
+            ) {
+              keyName = keyName.slice(this.secretPrefix.length);
+            }
+            annotations.set(keyName, annotation);
+          }
+        }
+      }
+    } catch (error) {
+      throw new Error(
+        `Failed to list annotations in vault '${this.name}': ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+    return annotations;
+  }
 }
 
-/**
- * Extension entrypoint registered with swamp. Declares the vault type, its
- * configuration schema, and the factory used to instantiate a provider.
- */
 export const vault = {
   type: "@swamp/azure-kv",
   name: "Azure Key Vault",
@@ -134,8 +380,17 @@ export const vault = {
   createProvider(
     name: string,
     config: Record<string, unknown>,
-  ): VaultProvider {
+  ): VaultProvider & VaultAnnotationProvider {
     const parsed = vault.configSchema.parse(config);
     return new AzureKvVaultProvider(name, parsed);
   },
 };
+
+export function _createTestProvider(
+  name: string,
+  config: { vault_url: string; secret_prefix?: string },
+  credential: TokenCredential,
+  clientOptions?: SecretClientOptions,
+): VaultProvider & VaultAnnotationProvider {
+  return new AzureKvVaultProvider(name, config, credential, clientOptions);
+}
