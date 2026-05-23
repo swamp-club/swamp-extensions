@@ -268,8 +268,11 @@ class AzureKvVaultProvider implements VaultProvider, VaultAnnotationProvider {
       existingTags = current.properties.tags as
         | Record<string, string>
         | undefined;
-    } catch {
-      // Secret doesn't exist yet — no tags to preserve
+    } catch (error) {
+      const statusCode = (error as { statusCode?: number }).statusCode;
+      if (statusCode !== 404) {
+        throw error;
+      }
     }
     await this.client.setSecret(
       azureSecretName,
