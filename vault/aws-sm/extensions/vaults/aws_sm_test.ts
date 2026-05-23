@@ -27,7 +27,11 @@ import {
   assertVaultConformance,
   assertVaultExportConformance,
 } from "@systeminit/swamp-testing";
-import { vault } from "./aws_sm.ts";
+import {
+  createVaultAnnotation,
+  vault,
+  type VaultAnnotationProvider,
+} from "./aws_sm.ts";
 import { AwsSmOperationError } from "./aws_sm_errors.ts";
 
 Deno.test("vault export conforms to VaultProvider contract", () => {
@@ -70,6 +74,10 @@ interface MockOverrides {
   PutSecretValue?: MockResponse;
   CreateSecret?: MockResponse;
   ListSecrets?: MockResponse;
+  DescribeSecret?: MockResponse;
+  UpdateSecret?: MockResponse;
+  TagResource?: MockResponse;
+  UntagResource?: MockResponse;
 }
 
 function mockResponse(r: MockResponse): Response {
@@ -81,13 +89,35 @@ function mockResponse(r: MockResponse): Response {
   });
 }
 
+interface SecretMetadata {
+  description: string;
+  tags: Map<string, string>;
+}
+
 /** Start a local HTTP server that simulates AWS Secrets Manager. */
 function startMockAwsServer(overrides: MockOverrides = {}): {
   url: string;
   server: Deno.HttpServer;
   secrets: Map<string, string>;
+  metadata: Map<string, SecretMetadata>;
 } {
   const secrets = new Map<string, string>();
+  const metadata = new Map<string, SecretMetadata>();
+
+  function ensureMetadata(secretId: string): SecretMetadata {
+    let meta = metadata.get(secretId);
+    if (!meta) {
+      meta = { description: "", tags: new Map() };
+      metadata.set(secretId, meta);
+    }
+    return meta;
+  }
+
+  function tagsToArray(
+    tags: Map<string, string>,
+  ): { Key: string; Value: string }[] {
+    return [...tags.entries()].map(([Key, Value]) => ({ Key, Value }));
+  }
 
   const server = Deno.serve({ port: 0, onListen() {} }, async (req) => {
     const target = req.headers.get("x-amz-target") ?? "";
@@ -121,10 +151,72 @@ function startMockAwsServer(overrides: MockOverrides = {}): {
       return Response.json({ Name: body.Name });
     }
 
+    if (target.includes("DescribeSecret")) {
+      if (overrides.DescribeSecret) {
+        return mockResponse(overrides.DescribeSecret);
+      }
+      if (!secrets.has(body.SecretId)) {
+        return Response.json({
+          __type: "ResourceNotFoundException",
+          Message: `Secret ${body.SecretId} not found`,
+        }, { status: 400 });
+      }
+      const meta = ensureMetadata(body.SecretId);
+      return Response.json({
+        Name: body.SecretId,
+        Description: meta.description,
+        Tags: tagsToArray(meta.tags),
+        LastChangedDate: Date.now() / 1000,
+      });
+    }
+
+    if (target.includes("UpdateSecret")) {
+      if (overrides.UpdateSecret) {
+        return mockResponse(overrides.UpdateSecret);
+      }
+      if (!secrets.has(body.SecretId)) {
+        return Response.json({
+          __type: "ResourceNotFoundException",
+          Message: `Secret ${body.SecretId} not found`,
+        }, { status: 400 });
+      }
+      const meta = ensureMetadata(body.SecretId);
+      if (body.Description !== undefined) {
+        meta.description = body.Description;
+      }
+      return Response.json({ Name: body.SecretId });
+    }
+
+    if (target.includes("TagResource")) {
+      if (overrides.TagResource) return mockResponse(overrides.TagResource);
+      const meta = ensureMetadata(body.SecretId);
+      for (const tag of body.Tags ?? []) {
+        meta.tags.set(tag.Key, tag.Value);
+      }
+      return Response.json({});
+    }
+
+    if (target.includes("UntagResource")) {
+      if (overrides.UntagResource) return mockResponse(overrides.UntagResource);
+      const meta = ensureMetadata(body.SecretId);
+      for (const key of body.TagKeys ?? []) {
+        meta.tags.delete(key);
+      }
+      return Response.json({});
+    }
+
     if (target.includes("ListSecrets")) {
       if (overrides.ListSecrets) return mockResponse(overrides.ListSecrets);
       return Response.json({
-        SecretList: [...secrets.keys()].map((n) => ({ Name: n })),
+        SecretList: [...secrets.keys()].map((n) => {
+          const meta = metadata.get(n);
+          return {
+            Name: n,
+            Description: meta?.description ?? "",
+            Tags: meta ? tagsToArray(meta.tags) : [],
+            LastChangedDate: Date.now() / 1000,
+          };
+        }),
       });
     }
 
@@ -134,7 +226,7 @@ function startMockAwsServer(overrides: MockOverrides = {}): {
   });
 
   const addr = server.addr as Deno.NetAddr;
-  return { url: `http://localhost:${addr.port}`, server, secrets };
+  return { url: `http://localhost:${addr.port}`, server, secrets, metadata };
 }
 
 /**
@@ -144,10 +236,13 @@ function startMockAwsServer(overrides: MockOverrides = {}): {
  * AWS_PROFILE at wrap time and embed it in the suggested SSO command).
  */
 async function withMockAws<T>(
-  fn: (secrets: Map<string, string>) => Promise<T>,
+  fn: (
+    secrets: Map<string, string>,
+    metadata: Map<string, SecretMetadata>,
+  ) => Promise<T>,
   overrides: MockOverrides = {},
 ): Promise<T> {
-  const { url, server, secrets } = startMockAwsServer(overrides);
+  const { url, server, secrets, metadata } = startMockAwsServer(overrides);
   const originalEndpoint = Deno.env.get("AWS_ENDPOINT_URL");
   const originalKey = Deno.env.get("AWS_ACCESS_KEY_ID");
   const originalSecret = Deno.env.get("AWS_SECRET_ACCESS_KEY");
@@ -160,7 +255,7 @@ async function withMockAws<T>(
   Deno.env.delete("AWS_PROFILE");
 
   try {
-    return await fn(secrets);
+    return await fn(secrets, metadata);
   } finally {
     if (originalEndpoint) {
       Deno.env.set("AWS_ENDPOINT_URL", originalEndpoint);
@@ -416,6 +511,279 @@ Deno.test({
       );
     }, {
       GetSecretValue: { status: 400, body: "{}" },
+    });
+  },
+});
+
+// --- VaultAnnotationProvider behavioral tests ---
+
+function asAnnotationProvider(
+  provider: ReturnType<typeof vault.createProvider>,
+): VaultAnnotationProvider {
+  return provider as unknown as VaultAnnotationProvider;
+}
+
+Deno.test({
+  name: "aws-sm vault: putAnnotation/getAnnotation roundtrip",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      await provider.put("annotated-secret", "secret-value");
+
+      const ap = asAnnotationProvider(provider);
+      await ap.putAnnotation(
+        "annotated-secret",
+        createVaultAnnotation({
+          url: "https://console.aws.amazon.com/secretsmanager",
+          notes: "Production API key",
+          labels: { env: "prod", team: "infra" },
+        }),
+      );
+
+      const annotation = await ap.getAnnotation("annotated-secret");
+      assert(annotation !== null);
+      assertEquals(
+        annotation.url,
+        "https://console.aws.amazon.com/secretsmanager",
+      );
+      assertEquals(annotation.notes, "Production API key");
+      assertEquals(annotation.labels?.env, "prod");
+      assertEquals(annotation.labels?.team, "infra");
+      assert(annotation.updatedAt !== undefined);
+    });
+  },
+});
+
+Deno.test({
+  name: "aws-sm vault: getAnnotation returns null for unannotated secret",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      await provider.put("bare-secret", "value");
+
+      const ap = asAnnotationProvider(provider);
+      const annotation = await ap.getAnnotation("bare-secret");
+      assertEquals(annotation, null);
+    });
+  },
+});
+
+Deno.test({
+  name: "aws-sm vault: putAnnotation with only notes",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      await provider.put("notes-only", "value");
+
+      const ap = asAnnotationProvider(provider);
+      await ap.putAnnotation(
+        "notes-only",
+        createVaultAnnotation({ notes: "Just a note" }),
+      );
+
+      const annotation = await ap.getAnnotation("notes-only");
+      assert(annotation !== null);
+      assertEquals(annotation.notes, "Just a note");
+      assertEquals(annotation.url, undefined);
+      assertEquals(Object.keys(annotation.labels).length, 0);
+    });
+  },
+});
+
+Deno.test({
+  name: "aws-sm vault: putAnnotation with only url",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      await provider.put("url-only", "value");
+
+      const ap = asAnnotationProvider(provider);
+      await ap.putAnnotation(
+        "url-only",
+        createVaultAnnotation({ url: "https://example.com" }),
+      );
+
+      const annotation = await ap.getAnnotation("url-only");
+      assert(annotation !== null);
+      assertEquals(annotation.url, "https://example.com");
+      assertEquals(annotation.notes, undefined);
+      assertEquals(Object.keys(annotation.labels).length, 0);
+    });
+  },
+});
+
+Deno.test({
+  name: "aws-sm vault: putAnnotation with only labels",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      await provider.put("labels-only", "value");
+
+      const ap = asAnnotationProvider(provider);
+      await ap.putAnnotation(
+        "labels-only",
+        createVaultAnnotation({ labels: { env: "staging" } }),
+      );
+
+      const annotation = await ap.getAnnotation("labels-only");
+      assert(annotation !== null);
+      assertEquals(annotation.url, undefined);
+      assertEquals(annotation.notes, undefined);
+      assertEquals(annotation.labels?.env, "staging");
+    });
+  },
+});
+
+Deno.test({
+  name: "aws-sm vault: deleteAnnotation removes all annotation data",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      await provider.put("to-delete", "value");
+
+      const ap = asAnnotationProvider(provider);
+      await ap.putAnnotation(
+        "to-delete",
+        createVaultAnnotation({
+          url: "https://example.com",
+          notes: "Will be deleted",
+          labels: { env: "prod" },
+        }),
+      );
+
+      const before = await ap.getAnnotation("to-delete");
+      assert(before !== null);
+
+      await ap.deleteAnnotation("to-delete");
+
+      const after = await ap.getAnnotation("to-delete");
+      assertEquals(after, null);
+    });
+  },
+});
+
+Deno.test({
+  name: "aws-sm vault: listAnnotations returns only annotated secrets",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      await provider.put("annotated", "value1");
+      await provider.put("bare", "value2");
+
+      const ap = asAnnotationProvider(provider);
+      await ap.putAnnotation(
+        "annotated",
+        createVaultAnnotation({ notes: "Has annotation" }),
+      );
+
+      const all = await ap.listAnnotations();
+      assertEquals(all.size, 1);
+      assert(all.has("annotated"));
+      assertEquals(all.get("annotated")?.notes, "Has annotation");
+      assert(!all.has("bare"));
+    });
+  },
+});
+
+Deno.test({
+  name: "aws-sm vault: listAnnotations returns empty map when none annotated",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      await provider.put("bare1", "value1");
+      await provider.put("bare2", "value2");
+
+      const ap = asAnnotationProvider(provider);
+      const all = await ap.listAnnotations();
+      assertEquals(all.size, 0);
+    });
+  },
+});
+
+Deno.test({
+  name:
+    "aws-sm vault: DescribeSecret credential error → 'Vault session expired:' prefix",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      await provider.put("target", "value");
+
+      const ap = asAnnotationProvider(provider);
+      const err = await assertRejects(() => ap.getAnnotation("target"));
+      assert(err instanceof AwsSmOperationError);
+      assertEquals(err.name, "ExpiredTokenException");
+      assert(
+        err.message.startsWith("Vault session expired:"),
+        `expected "Vault session expired:" prefix, got: ${err.message}`,
+      );
+    }, {
+      DescribeSecret: {
+        status: 400,
+        body: JSON.stringify({
+          __type: "ExpiredTokenException",
+          Message: "The security token included in the request is expired",
+        }),
+      },
+    });
+  },
+});
+
+Deno.test({
+  name: "aws-sm vault: malformed DescribeSecret response wraps cleanly",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      await provider.put("target", "value");
+
+      const ap = asAnnotationProvider(provider);
+      const err = await assertRejects(() => ap.getAnnotation("target"));
+      assert(err instanceof AwsSmOperationError);
+      assertEquals(err.httpStatusCode, 500);
+      assert(
+        err.message.includes("AWS Secrets Manager DescribeSecret failed"),
+      );
+    }, {
+      DescribeSecret: { status: 500, body: "{}" },
+    });
+  },
+});
+
+Deno.test({
+  name: "aws-sm vault: TagResource error surfaces actionable message",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      await provider.put("tag-fail", "value");
+
+      const ap = asAnnotationProvider(provider);
+      const err = await assertRejects(() =>
+        ap.putAnnotation(
+          "tag-fail",
+          createVaultAnnotation({ labels: { env: "prod" } }),
+        )
+      );
+      assert(err instanceof AwsSmOperationError);
+      assertEquals(err.httpStatusCode, 400);
+      assert(err.message.includes("AWS Secrets Manager TagResource failed"));
+    }, {
+      TagResource: {
+        status: 400,
+        body: JSON.stringify({
+          __type: "InvalidParameterException",
+          Message: "Too many tags",
+        }),
+      },
     });
   },
 });
