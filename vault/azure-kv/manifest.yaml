@@ -1,8 +1,9 @@
 manifestVersion: 1
 name: "@swamp/azure-kv"
-version: "2026.04.22.2"
+version: "2026.05.23.1"
 description: |
-  Read and write secrets stored in Azure Key Vault.
+  Read and write secrets stored in Azure Key Vault. Supports secret annotations
+  via `swamp vault annotate` and `swamp vault inspect`.
 
   ## Authentication
 
@@ -21,6 +22,9 @@ description: |
   swamp vault get my-azure-kv my-secret --json
   swamp vault put my-azure-kv my-secret "s3cr3t" --json
   swamp vault list-keys my-azure-kv --json
+
+  swamp vault annotate my-azure-kv my-secret --url https://console.azure.com --note "Production key"
+  swamp vault inspect my-azure-kv my-secret --json
   ```
 
   ## Secret Key Format
@@ -29,6 +33,14 @@ description: |
   converted to hyphens (Azure only allows alphanumeric characters and hyphens).
   Use `secret_prefix` to namespace secrets when sharing a vault across multiple
   swamp instances.
+
+  ## Annotations
+
+  Annotations are stored as Azure Key Vault secret tags with a `swamp.` prefix.
+  URL, notes, and updatedAt use `swamp.url`, `swamp.notes`, `swamp.updatedAt`.
+  Labels use `swamp.label.<key>`. Non-swamp tags are preserved across annotation
+  operations. Annotation operations use the same secret data-plane permissions
+  (Get, Set) — no additional Azure RBAC grants are needed.
 repository: "https://github.com/systeminit/swamp-extensions"
 vaults:
   - azure_kv.ts
@@ -41,3 +53,4 @@ labels:
   - azure
   - key-vault
   - secrets
+  - annotations

@@ -48,6 +48,31 @@ provider rewrites `/` and `_` in the swamp key name to `-` before talking to
 Azure. Use the optional `secret_prefix` config value to namespace a Key Vault
 across multiple swamp instances.
 
+## Annotations
+
+Supports `swamp vault annotate` and `swamp vault inspect` for attaching metadata
+(URL, notes, labels) to secrets. Annotations are stored as Azure Key Vault
+secret tags using a `swamp.` prefix:
+
+| Annotation field | Azure tag key |
+| ---------------- | ----------------------- |
+| `url` | `swamp.url` |
+| `notes` | `swamp.notes` |
+| `updatedAt` | `swamp.updatedAt` |
+| `labels.{key}` | `swamp.label.{key}` |
+
+Non-swamp tags on the secret are preserved across annotation operations.
+Annotation operations use the same data-plane permissions (`Get`, `Set`) as
+regular secret operations — no additional Azure RBAC grants are needed.
+
+```bash
+swamp vault annotate my-azure-kv API_KEY \
+  --url https://console.azure.com --note "Production API key" \
+  --label env=prod --label team=infra
+
+swamp vault inspect my-azure-kv API_KEY --json
+```
+
 ## License
 
 AGPLv3 — see [LICENSE.txt](./LICENSE.txt) for details.
