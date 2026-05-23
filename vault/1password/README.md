@@ -47,6 +47,30 @@ swamp vault list-keys my-1password --json
 `put` creates a Secure Note if the item does not already exist, or updates the
 target field in place.
 
+## Annotations
+
+This provider supports `swamp vault annotate` and `swamp vault inspect` for
+attaching metadata to secrets. Annotation fields map to native 1Password item
+properties:
+
+| Annotation | 1Password field |
+| ---------- | --------------- |
+| `url` | Custom URL field in `swamp-annotations` section |
+| `notes` | `notesPlain` built-in field |
+| `labels` | Custom fields in a `swamp-labels` section |
+
+```bash
+swamp vault annotate my-1password my-api-key \
+  --url https://console.aws.com/iam \
+  --note "Production API key" \
+  --label env=prod --label team=infra
+
+swamp vault inspect my-1password my-api-key --json
+```
+
+Label keys must not contain dots, brackets, slashes, or backslashes — these
+characters conflict with the 1Password CLI field reference syntax.
+
 ## License
 
 AGPLv3 — see [LICENSE.txt](./LICENSE.txt) for details.

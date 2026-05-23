@@ -26,7 +26,7 @@ import {
   assertVaultExportConformance,
   withMockedCommand,
 } from "@systeminit/swamp-testing";
-import { vault } from "./onepassword.ts";
+import { vault, VaultAnnotation } from "./onepassword.ts";
 
 Deno.test("vault export conforms to VaultProvider contract", () => {
   assertVaultExportConformance(vault, {
@@ -57,83 +57,174 @@ Deno.test("createProvider throws on invalid config", () => {
 
 // --- Behavioral tests using withMockedCommand ---
 
-/**
- * Simulate 1Password CLI (`op`) responses.
- * Maintains an in-memory store of items keyed by name.
- */
+interface MockItemData {
+  fields: Map<string, string>;
+  notes?: string;
+  sectionFields: Map<string, Map<string, string>>;
+}
+
 function createOpMock() {
-  const items = new Map<string, Map<string, string>>();
+  const items = new Map<string, MockItemData>();
+
+  function ensureItem(name: string): MockItemData {
+    if (!items.has(name)) {
+      items.set(name, {
+        fields: new Map(),
+        sectionFields: new Map(),
+      });
+    }
+    return items.get(name)!;
+  }
+
+  function buildItemJson(name: string, data: MockItemData): string {
+    const sections: Array<{ id: string; label: string }> = [];
+    const fields: Array<Record<string, unknown>> = [];
+
+    fields.push({
+      id: "notesPlain",
+      type: "STRING",
+      purpose: "NOTES",
+      label: "notesPlain",
+      value: data.notes ?? "",
+    });
+
+    for (const [fieldName, value] of data.fields) {
+      fields.push({
+        id: fieldName,
+        type: "STRING",
+        label: fieldName,
+        value,
+      });
+    }
+
+    for (const [sectionLabel, sectionData] of data.sectionFields) {
+      const sectionId = `section-${sectionLabel}`;
+      sections.push({ id: sectionId, label: sectionLabel });
+      for (const [fieldLabel, value] of sectionData) {
+        fields.push({
+          id: `${sectionId}-${fieldLabel}`,
+          type: "STRING",
+          label: fieldLabel,
+          value,
+          section: { id: sectionId, label: sectionLabel },
+        });
+      }
+    }
+
+    const item: Record<string, unknown> = {
+      id: `id-${name}`,
+      title: name,
+      category: "SECURE_NOTE",
+      updated_at: new Date().toISOString(),
+      sections,
+      fields,
+    };
+
+    return JSON.stringify(item);
+  }
 
   return (cmd: string, args: string[]) => {
     if (cmd !== "op") {
       return { stdout: "", stderr: `unknown command: ${cmd}`, code: 1 };
     }
 
-    // op --version (installation check)
     if (args.includes("--version")) {
       return { stdout: "2.30.0", code: 0 };
     }
 
-    // op read <uri>
     if (args[0] === "read") {
       const uri = args[1];
-      // Parse op://vault/item/field
       const parts = uri.replace("op://", "").split("/");
       const item = parts[1];
       const field = parts.slice(2).join("/") || "password";
       const itemData = items.get(item);
-      if (!itemData || !itemData.has(field)) {
-        return {
-          stdout: "",
-          stderr: `item "${item}" not found`,
-          code: 1,
-        };
+      if (!itemData || !itemData.fields.has(field)) {
+        return { stdout: "", stderr: `item "${item}" not found`, code: 1 };
       }
-      return { stdout: itemData.get(field)!, code: 0 };
+      return { stdout: itemData.fields.get(field)!, code: 0 };
     }
 
-    // op item get <item> --vault <vault> --format json (existence check)
     if (args[0] === "item" && args[1] === "get") {
       const item = args[2];
-      if (items.has(item)) {
-        return {
-          stdout: JSON.stringify({ title: item }),
-          code: 0,
-        };
+      if (!items.has(item)) {
+        return { stdout: "", stderr: `item "${item}" not found`, code: 1 };
       }
-      return { stdout: "", stderr: `item "${item}" not found`, code: 1 };
+      if (args.includes("--format") && args.includes("json")) {
+        return { stdout: buildItemJson(item, items.get(item)!), code: 0 };
+      }
+      return { stdout: JSON.stringify({ title: item }), code: 0 };
     }
 
-    // op item create ... (new item)
     if (args[0] === "item" && args[1] === "create") {
       const titleIdx = args.indexOf("--title");
       const title = titleIdx >= 0 ? args[titleIdx + 1] : "";
-      // Find field=value arg (not a flag)
       const fieldArg = args.find((a) => a.includes("=") && !a.startsWith("--"));
       if (fieldArg && title) {
         const [field, ...valueParts] = fieldArg.split("=");
         const value = valueParts.join("=");
-        if (!items.has(title)) {
-          items.set(title, new Map());
-        }
-        items.get(title)!.set(field, value);
+        const data = ensureItem(title);
+        data.fields.set(field, value);
       }
       return { stdout: JSON.stringify({ title }), code: 0 };
     }
 
-    // op item edit <item> field=value ...
     if (args[0] === "item" && args[1] === "edit") {
       const item = args[2];
-      const fieldArg = args.find((a) => a.includes("=") && !a.startsWith("--"));
-      if (fieldArg && items.has(item)) {
-        const [field, ...valueParts] = fieldArg.split("=");
-        const value = valueParts.join("=");
-        items.get(item)!.set(field, value);
+      if (!items.has(item)) {
+        return { stdout: "", stderr: `item "${item}" not found`, code: 1 };
       }
+      const data = items.get(item)!;
+
+      for (let i = 3; i < args.length; i++) {
+        const arg = args[i];
+        if (arg.startsWith("--")) {
+          i++;
+          continue;
+        }
+
+        const deleteMatch = arg.match(/^(.+)\[delete\]$/);
+        if (deleteMatch) {
+          const ref = deleteMatch[1];
+          const dotIdx = ref.indexOf(".");
+          if (dotIdx >= 0) {
+            const section = ref.slice(0, dotIdx);
+            const field = ref.slice(dotIdx + 1);
+            data.sectionFields.get(section)?.delete(field);
+            const sectionData = data.sectionFields.get(section);
+            if (sectionData && sectionData.size === 0) {
+              data.sectionFields.delete(section);
+            }
+          }
+          continue;
+        }
+
+        const eqIdx = arg.indexOf("=");
+        if (eqIdx < 0) continue;
+
+        const ref = arg.slice(0, eqIdx);
+        const value = arg.slice(eqIdx + 1);
+
+        const typeMatch = ref.match(/^(.+)\[(\w+)\]$/);
+        const fieldRef = typeMatch ? typeMatch[1] : ref;
+
+        const dotIdx = fieldRef.indexOf(".");
+        if (dotIdx >= 0) {
+          const section = fieldRef.slice(0, dotIdx);
+          const field = fieldRef.slice(dotIdx + 1);
+          if (!data.sectionFields.has(section)) {
+            data.sectionFields.set(section, new Map());
+          }
+          data.sectionFields.get(section)!.set(field, value);
+        } else if (fieldRef === "notesPlain") {
+          data.notes = value || undefined;
+        } else {
+          data.fields.set(fieldRef, value);
+        }
+      }
+
       return { stdout: "", code: 0 };
     }
 
-    // op item list --vault <vault> --format json
     if (args[0] === "item" && args[1] === "list") {
       const list = [...items.keys()].map((title) => ({ title }));
       return { stdout: JSON.stringify(list), code: 0 };
@@ -215,4 +306,308 @@ Deno.test("1password vault: getName returns provider name", async () => {
     });
     assertEquals(provider.getName(), "my-vault");
   });
+});
+
+// --- Annotation tests ---
+
+Deno.test("1password vault: getAnnotation returns null for unannotated item", async () => {
+  const { result } = await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("plain-secret", "value");
+    return await provider.getAnnotation("plain-secret");
+  });
+
+  assertEquals(result, null);
+});
+
+Deno.test("1password vault: getAnnotation returns null for missing item", async () => {
+  const { result } = await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    return await provider.getAnnotation("nonexistent");
+  });
+
+  assertEquals(result, null);
+});
+
+Deno.test("1password vault: putAnnotation and getAnnotation roundtrip", async () => {
+  const { result } = await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("my-key", "secret-value");
+
+    const annotation = VaultAnnotation.create({
+      url: "https://console.aws.com/iam",
+      notes: "Production API key",
+      labels: { env: "prod", team: "infra" },
+    });
+    await provider.putAnnotation("my-key", annotation);
+    return await provider.getAnnotation("my-key");
+  });
+
+  assertEquals(result !== null, true);
+  assertEquals(result!.url, "https://console.aws.com/iam");
+  assertEquals(result!.notes, "Production API key");
+  assertEquals(result!.labels.env, "prod");
+  assertEquals(result!.labels.team, "infra");
+});
+
+Deno.test("1password vault: putAnnotation sets only url", async () => {
+  const { result } = await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("url-only", "value");
+
+    const annotation = VaultAnnotation.create({
+      url: "https://example.com",
+    });
+    await provider.putAnnotation("url-only", annotation);
+    return await provider.getAnnotation("url-only");
+  });
+
+  assertEquals(result !== null, true);
+  assertEquals(result!.url, "https://example.com");
+  assertEquals(result!.notes, undefined);
+  assertEquals(Object.keys(result!.labels).length, 0);
+});
+
+Deno.test("1password vault: putAnnotation sets only notes", async () => {
+  const { result } = await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("notes-only", "value");
+
+    const annotation = VaultAnnotation.create({
+      notes: "Important note",
+    });
+    await provider.putAnnotation("notes-only", annotation);
+    return await provider.getAnnotation("notes-only");
+  });
+
+  assertEquals(result !== null, true);
+  assertEquals(result!.url, undefined);
+  assertEquals(result!.notes, "Important note");
+});
+
+Deno.test("1password vault: putAnnotation rejects invalid label keys", async () => {
+  await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("bad-labels", "value");
+
+    const annotation = VaultAnnotation.create({
+      labels: { "bad.key": "value" },
+    });
+    await assertRejects(
+      () => provider.putAnnotation("bad-labels", annotation),
+      Error,
+      "must not contain dots",
+    );
+  });
+});
+
+Deno.test("1password vault: putAnnotation rejects label keys with equals", async () => {
+  await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("bad-labels", "value");
+
+    const annotation = VaultAnnotation.create({
+      labels: { "a=b": "value" },
+    });
+    await assertRejects(
+      () => provider.putAnnotation("bad-labels", annotation),
+      Error,
+      "must not contain",
+    );
+  });
+});
+
+Deno.test("1password vault: putAnnotation rejects empty label keys", async () => {
+  await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("bad-labels", "value");
+
+    const annotation = VaultAnnotation.create({
+      labels: { "": "value" },
+    });
+    await assertRejects(
+      () => provider.putAnnotation("bad-labels", annotation),
+      Error,
+      "must not be empty",
+    );
+  });
+});
+
+Deno.test("1password vault: putAnnotation with empty annotation is no-op", async () => {
+  const { calls } = await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("my-key", "value");
+
+    const empty = VaultAnnotation.create({});
+    await provider.putAnnotation("my-key", empty);
+  });
+
+  const editCalls = calls.filter(
+    (c) => c.command === "op" && c.args[0] === "item" && c.args[1] === "edit",
+  );
+  assertEquals(
+    editCalls.length,
+    0,
+    "should not call op item edit for empty annotation",
+  );
+});
+
+Deno.test("1password vault: putAnnotation rejects label keys with brackets", async () => {
+  await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("bad-labels", "value");
+
+    const annotation = VaultAnnotation.create({
+      labels: { "bad[key]": "value" },
+    });
+    await assertRejects(
+      () => provider.putAnnotation("bad-labels", annotation),
+      Error,
+      "must not contain dots",
+    );
+  });
+});
+
+Deno.test("1password vault: deleteAnnotation clears all annotation data", async () => {
+  const { result } = await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("annotated", "value");
+
+    const annotation = VaultAnnotation.create({
+      url: "https://example.com",
+      notes: "A note",
+      labels: { env: "prod" },
+    });
+    await provider.putAnnotation("annotated", annotation);
+
+    await provider.deleteAnnotation("annotated");
+    return await provider.getAnnotation("annotated");
+  });
+
+  assertEquals(result, null);
+});
+
+Deno.test("1password vault: deleteAnnotation is idempotent on clean item", async () => {
+  await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("clean", "value");
+    await provider.deleteAnnotation("clean");
+    await provider.deleteAnnotation("clean");
+  });
+});
+
+Deno.test("1password vault: deleteAnnotation on missing item is no-op", async () => {
+  await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.deleteAnnotation("nonexistent");
+  });
+});
+
+Deno.test("1password vault: listAnnotations returns annotated items only", async () => {
+  const { result } = await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("annotated-1", "val");
+    await provider.put("plain", "val");
+    await provider.put("annotated-2", "val");
+
+    await provider.putAnnotation(
+      "annotated-1",
+      VaultAnnotation.create({ url: "https://a.com" }),
+    );
+    await provider.putAnnotation(
+      "annotated-2",
+      VaultAnnotation.create({ notes: "note" }),
+    );
+
+    return await provider.listAnnotations();
+  });
+
+  assertEquals(result.size, 2);
+  assertEquals(result.has("annotated-1"), true);
+  assertEquals(result.has("annotated-2"), true);
+  assertEquals(result.has("plain"), false);
+  assertEquals(result.get("annotated-1")!.url, "https://a.com");
+  assertEquals(result.get("annotated-2")!.notes, "note");
+});
+
+Deno.test("1password vault: listAnnotations returns empty map for empty vault", async () => {
+  const { result } = await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    return await provider.listAnnotations();
+  });
+
+  assertEquals(result.size, 0);
+});
+
+Deno.test("1password vault: VaultAnnotation.merge preserves existing fields", () => {
+  const original = VaultAnnotation.create({
+    url: "https://original.com",
+    notes: "original note",
+    labels: { env: "prod" },
+  });
+
+  const merged = original.merge({ labels: { team: "infra" } });
+
+  assertEquals(merged.url, "https://original.com");
+  assertEquals(merged.notes, "original note");
+  assertEquals(merged.labels.env, "prod");
+  assertEquals(merged.labels.team, "infra");
+});
+
+Deno.test("1password vault: VaultAnnotation.toData omits empty fields", () => {
+  const annotation = VaultAnnotation.create({});
+  const data = annotation.toData();
+
+  assertEquals(data.url, undefined);
+  assertEquals(data.notes, undefined);
+  assertEquals(data.labels, undefined);
+  assertEquals(typeof data.updatedAt, "string");
+});
+
+Deno.test("1password vault: VaultAnnotation.isEmpty returns true when empty", () => {
+  const empty = VaultAnnotation.create({});
+  assertEquals(empty.isEmpty(), true);
+
+  const withUrl = VaultAnnotation.create({ url: "https://example.com" });
+  assertEquals(withUrl.isEmpty(), false);
+});
+
+Deno.test("1password vault: provider has annotation methods (duck-typing gate)", () => {
+  const provider = vault.createProvider("test", {
+    op_vault: "Engineering",
+  });
+  assertEquals(typeof provider.getAnnotation, "function");
+  assertEquals(typeof provider.putAnnotation, "function");
+  assertEquals(typeof provider.deleteAnnotation, "function");
+  assertEquals(typeof provider.listAnnotations, "function");
 });
