@@ -62,15 +62,22 @@ function createSyncService(
 }
 
 async function main() {
-  // Suppress trace output globally — the collector captures what we need
-  const _originalDebug = console.debug;
+  const originalDebug = console.debug;
   console.debug = () => {};
 
   const endpoints = await startEmulators();
 
-  Deno.env.set("AWS_ACCESS_KEY_ID", "minioadmin");
-  Deno.env.set("AWS_SECRET_ACCESS_KEY", "minioadmin");
-  Deno.env.set("AWS_REGION", "us-east-1");
+  if (isEmulator(endpoints.s3)) {
+    Deno.env.set(
+      "AWS_ACCESS_KEY_ID",
+      Deno.env.get("AWS_ACCESS_KEY_ID") ?? "minioadmin",
+    );
+    Deno.env.set(
+      "AWS_SECRET_ACCESS_KEY",
+      Deno.env.get("AWS_SECRET_ACCESS_KEY") ?? "minioadmin",
+    );
+    Deno.env.set("AWS_REGION", Deno.env.get("AWS_REGION") ?? "us-east-1");
+  }
 
   const results: ScenarioResult[] = [];
   const cleanups: string[] = [];
@@ -387,6 +394,7 @@ async function main() {
       }
     }
   } finally {
+    console.debug = originalDebug;
     for (const p of cleanups) {
       try {
         await Deno.remove(p, { recursive: true });

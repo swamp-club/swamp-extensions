@@ -32,8 +32,8 @@ export async function runScenario(
     } finally {
       collector.uninstall();
       collector.clear();
+      if (config.teardown) await config.teardown();
     }
-    if (config.teardown) await config.teardown();
   }
 
   // Measured runs
@@ -47,10 +47,10 @@ export async function runScenario(
       await config.run();
     } finally {
       collector.uninstall();
+      const wallMs = Math.round(performance.now() - start);
+      trialResults.push({ wallMs, traces: [...collector.entries] });
+      if (config.teardown) await config.teardown();
     }
-    const wallMs = Math.round(performance.now() - start);
-    trialResults.push({ wallMs, traces: [...collector.entries] });
-    if (config.teardown) await config.teardown();
   }
 
   const wallTimes = trialResults.map((r) => r.wallMs).sort((a, b) => a - b);

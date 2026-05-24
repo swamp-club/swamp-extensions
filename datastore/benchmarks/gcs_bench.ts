@@ -66,11 +66,12 @@ async function verifyGcsGenerationHeader(endpoint: string): Promise<boolean> {
 
   const uploadUrl =
     `${endpoint}/upload/storage/v1/b/${testBucket}/o?uploadType=media&name=probe.txt`;
-  await fetch(uploadUrl, {
+  const uploadResp = await fetch(uploadUrl, {
     method: "POST",
     headers: { "Content-Type": "application/octet-stream" },
     body: new TextEncoder().encode("probe"),
   });
+  await uploadResp.body?.cancel();
 
   const getUrl = `${endpoint}/storage/v1/b/${testBucket}/o/probe.txt?alt=media`;
   const resp = await fetch(getUrl);
@@ -90,8 +91,7 @@ async function verifyGcsGenerationHeader(endpoint: string): Promise<boolean> {
 }
 
 async function main() {
-  // Suppress trace output globally — the collector captures what we need
-  const _originalDebug = console.debug;
+  const originalDebug = console.debug;
   console.debug = () => {};
 
   const endpoints = await startEmulators();
@@ -425,6 +425,7 @@ async function main() {
       }
     }
   } finally {
+    console.debug = originalDebug;
     for (const p of cleanups) {
       try {
         await Deno.remove(p, { recursive: true });

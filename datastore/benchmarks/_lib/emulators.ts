@@ -149,14 +149,16 @@ export async function createGcsBucket(
   bucket: string,
 ): Promise<void> {
   const url = `${endpoint}/storage/v1/b`;
-  try {
-    const resp = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: bucket }),
-    });
-    await resp.body?.cancel();
-  } catch {
-    // Bucket may already exist
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: bucket }),
+  });
+  if (!resp.ok && resp.status !== 409) {
+    const body = await resp.text();
+    throw new Error(
+      `GCS bucket creation failed: ${resp.status} ${resp.statusText} — ${body}`,
+    );
   }
+  await resp.body?.cancel();
 }
