@@ -1443,31 +1443,35 @@ export class S3CacheSyncService implements DatastoreSyncService {
     if (partitions.size === 0) return;
 
     const partitionKeys: string[] = [];
+    const writes: Promise<void>[] = [];
+
     for (const [key, entries] of partitions) {
       partitionKeys.push(key);
       const partition: PartitionIndex = { version: 1, entries };
       const data = new TextEncoder().encode(JSON.stringify(partition, null, 2));
-      try {
-        await retryWithBackoff(
+      writes.push(
+        retryWithBackoff(
           () => this.s3.putObject(`_index/${key}.json`, data, signal),
           { signal },
-        );
-      } catch {
-        // Non-fatal: partition files are an optimization. Old clients
-        // read monolithic. New clients fall back to monolithic on miss.
-      }
+        ).then(() => {}).catch(() => {
+          // Non-fatal: partition files are an optimization. Old clients
+          // read monolithic. New clients fall back to monolithic on miss.
+        }),
+      );
     }
 
     const meta: PartitionMeta = { version: 1, partitions: partitionKeys };
     const metaData = new TextEncoder().encode(JSON.stringify(meta, null, 2));
-    try {
-      await retryWithBackoff(
+    writes.push(
+      retryWithBackoff(
         () => this.s3.putObject("_index/_meta.json", metaData, signal),
         { signal },
-      );
-    } catch {
-      // Non-fatal: _meta.json is advisory.
-    }
+      ).then(() => {}).catch(() => {
+        // Non-fatal: _meta.json is advisory.
+      }),
+    );
+
+    await Promise.allSettled(writes);
   }
 
   /**
