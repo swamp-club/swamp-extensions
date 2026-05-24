@@ -122,7 +122,7 @@ export async function createS3Bucket(
   bucket: string,
 ): Promise<void> {
   const { S3Client, CreateBucketCommand } = await import(
-    "npm:@aws-sdk/client-s3@3.1046.0"
+    "@aws-sdk/client-s3"
   );
   const client = new S3Client({
     endpoint,

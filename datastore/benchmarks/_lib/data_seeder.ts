@@ -1,5 +1,5 @@
 import { join } from "@std/path";
-import { ensureDir } from "@std/fs";
+import { copy, ensureDir } from "@std/fs";
 
 export interface SeedOptions {
   cachePath: string;
@@ -89,9 +89,30 @@ export async function bulkModifyFiles(
   count: number,
 ): Promise<string[]> {
   const paths: string[] = [];
-  for (let i = 0; i < Math.min(count, models.length); i++) {
-    const p = await modifyOneFile(cachePath, models, i);
-    paths.push(p);
+  const filesPerModel = models.length > 0
+    ? Math.ceil(count / models.length)
+    : count;
+  for (let m = 0; m < models.length && paths.length < count; m++) {
+    const model = models[m];
+    const modelDir = join(cachePath, "data", model.modelType, model.modelId);
+    for (let f = 0; f < filesPerModel && paths.length < count; f++) {
+      const fileName = `file-${String(f).padStart(4, "0")}.json`;
+      const filePath = join(modelDir, fileName);
+      const content = JSON.stringify({
+        model: m,
+        file: f,
+        timestamp: new Date().toISOString(),
+        data: "bulk-modified-" + crypto.randomUUID(),
+      });
+      await Deno.writeTextFile(filePath, content);
+      paths.push(
+        join("data", model.modelType, model.modelId, fileName),
+      );
+    }
   }
   return paths;
+}
+
+export async function copyDir(src: string, dest: string): Promise<void> {
+  await copy(src, dest, { overwrite: true });
 }

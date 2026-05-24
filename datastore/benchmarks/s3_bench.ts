@@ -5,6 +5,7 @@ import { S3CacheSyncService } from "../s3/extensions/datastores/_lib/s3_cache_sy
 import { runScenario } from "./_lib/trial_runner.ts";
 import {
   bulkModifyFiles,
+  copyDir,
   modifyOneFile,
   seedTestData,
 } from "./_lib/data_seeder.ts";
@@ -272,15 +273,12 @@ async function main() {
           name: "Pull 1 changed / 1000",
           warmup: 0,
           async setup() {
+            // Copy pulled data, modify one file, push — uses same model IDs
             const modCache = await Deno.makeTempDir({
               prefix: "bench-s3-mod-",
             });
-            const modSeed = await seedTestData({
-              cachePath: modCache,
-              fileCount: 1000,
-              modelCount: 50,
-            });
-            await modifyOneFile(modCache, modSeed.models, 0);
+            await copyDir(pullCache6, modCache);
+            await modifyOneFile(modCache, seedResult.models, 0);
             const modSvc = createSyncService(
               endpoints.s3,
               sourceBucket,

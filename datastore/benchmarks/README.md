@@ -78,3 +78,11 @@ scenario group gets a unique prefix within the bucket for isolation.
 
 Results print as a table with min/avg/max per phase. Set
 `BENCHMARK_JSON=/path/to/out.json` to also write structured results.
+
+## Cross-version comparison
+
+`deno task benchmark:compare` runs the suite twice and reports delta
+percentages. Currently both runs use the same local code, so it measures
+run-to-run variance. For meaningful version comparison, build and install a
+prior version separately, then compare the JSON output files from two
+independent runs.

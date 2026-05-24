@@ -70,7 +70,10 @@ export async function runScenario(
 function getTrialCount(): number {
   try {
     const v = Deno.env.get("BENCHMARK_TRIALS");
-    if (v) return Math.max(1, parseInt(v, 10));
+    if (v) {
+      const parsed = parseInt(v, 10);
+      if (!isNaN(parsed)) return Math.max(1, parsed);
+    }
   } catch {
     // --allow-env may be absent
   }
