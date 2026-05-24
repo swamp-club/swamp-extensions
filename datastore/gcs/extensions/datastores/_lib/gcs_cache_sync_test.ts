@@ -2248,3 +2248,394 @@ Deno.test("pullChanged + pushChanged: fresh-process push after pull against popu
     await Deno.remove(cachePath, { recursive: true });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Phase 2 tests: dirty sidecar v2, content hashing, partitioned index,
+// scoped sync, configurable concurrency
+// ---------------------------------------------------------------------------
+
+Deno.test("isInternalCacheFile: excludes _index/ partition directory", () => {
+  assert(isInternalCacheFile("_index"));
+  assert(isInternalCacheFile("_index/data--gcp--compute--instance--abc.json"));
+  assert(isInternalCacheFile("_index/_meta.json"));
+  assert(!isInternalCacheFile("data/index/file.json"));
+});
+
+Deno.test("markDirty with relPath: tracks individual dirty paths", async () => {
+  const cachePath = await Deno.makeTempDir();
+  const mock = createMockGcsClient();
+  const service = new GcsCacheSyncService(mock, cachePath);
+  try {
+    await service.markDirty({ relPath: "data/model/abc/output" });
+    await service.markDirty({ relPath: "data/model/def/output" });
+    const stateText = await Deno.readTextFile(
+      join(cachePath, ".datastore-sync-state.json"),
+    );
+    const state = JSON.parse(stateText);
+    assertEquals(state.version, 2);
+    assertEquals(state.localDirty, true);
+    assertEquals(state.bulkInvalidated, false);
+    assert(state.dirtyPaths.includes("data/model/abc/output"));
+    assert(state.dirtyPaths.includes("data/model/def/output"));
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("markDirty with relPath: caps at 200 and flips bulkInvalidated", async () => {
+  const cachePath = await Deno.makeTempDir();
+  const mock = createMockGcsClient();
+  const service = new GcsCacheSyncService(mock, cachePath);
+  try {
+    for (let i = 0; i < 201; i++) {
+      await service.markDirty({ relPath: `data/model/item-${i}/output` });
+    }
+    const stateText = await Deno.readTextFile(
+      join(cachePath, ".datastore-sync-state.json"),
+    );
+    const state = JSON.parse(stateText);
+    assertEquals(state.version, 2);
+    assertEquals(state.bulkInvalidated, true);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("markDirty with relPath: path-escape triggers bulkInvalidated", async () => {
+  const cachePath = await Deno.makeTempDir();
+  const mock = createMockGcsClient();
+  const service = new GcsCacheSyncService(mock, cachePath);
+  try {
+    await service.markDirty({ relPath: "../../etc/passwd" });
+    const stateText = await Deno.readTextFile(
+      join(cachePath, ".datastore-sync-state.json"),
+    );
+    const state = JSON.parse(stateText);
+    assertEquals(state.version, 2);
+    assertEquals(state.bulkInvalidated, true);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("markDirty without relPath: bulk invalidation (legacy path)", async () => {
+  const cachePath = await Deno.makeTempDir();
+  const mock = createMockGcsClient();
+  const service = new GcsCacheSyncService(mock, cachePath);
+  try {
+    await service.markDirty();
+    const stateText = await Deno.readTextFile(
+      join(cachePath, ".datastore-sync-state.json"),
+    );
+    const state = JSON.parse(stateText);
+    assertEquals(state.version, 2);
+    assertEquals(state.localDirty, true);
+    assertEquals(state.bulkInvalidated, true);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged: scoped walk only visits dirty paths", async () => {
+  const cachePath = await Deno.makeTempDir();
+  const mock = createMockGcsClient();
+  const service = new GcsCacheSyncService(mock, cachePath);
+  try {
+    await seedFile(cachePath, "data/model/abc/out/1/raw", "hello");
+    await seedFile(cachePath, "data/model/def/out/1/raw", "world");
+
+    mock.storage.set(
+      ".datastore-index.json",
+      encodeIndex({}),
+    );
+
+    await service.markDirty({ relPath: "data/model/abc" });
+
+    const pushed = await service.pushChanged();
+    assert(typeof pushed === "number");
+    assert(pushed >= 1);
+
+    const dataPuts = mock.puts.filter((p) =>
+      !p.key.startsWith(".datastore-index") && !p.key.startsWith("_index")
+    );
+    for (const put of dataPuts) {
+      assert(
+        put.key.startsWith("data/model/abc/"),
+        `unexpected push of non-dirty path: ${put.key}`,
+      );
+    }
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged: SHA-256 content hashing prevents redundant push when only mtime changed", async () => {
+  const cachePath = await Deno.makeTempDir();
+  const mock = createMockGcsClient();
+  const service = new GcsCacheSyncService(mock, cachePath);
+  try {
+    const content = "unchanged content";
+    await seedFile(cachePath, "data/model/x/out/1/raw", content);
+    const stat = await Deno.stat(join(cachePath, "data/model/x/out/1/raw"));
+
+    const hashBuffer = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(content),
+    );
+    const sha256 = Array.from(new Uint8Array(hashBuffer))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    const indexWithHash = {
+      version: 1,
+      lastPulled: new Date().toISOString(),
+      entries: {
+        "data/model/x/out/1/raw": {
+          key: "data/model/x/out/1/raw",
+          size: new TextEncoder().encode(content).length,
+          lastModified: new Date().toISOString(),
+          localMtime: new Date(
+            (stat.mtime?.getTime() ?? 0) - 1000,
+          ).toISOString(),
+          sha256,
+        },
+      },
+    };
+    mock.storage.set(
+      ".datastore-index.json",
+      new TextEncoder().encode(JSON.stringify(indexWithHash, null, 2)),
+    );
+
+    await service.markDirty();
+    const pushed = await service.pushChanged();
+    assertEquals(pushed, 0);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged: SHA-256 mismatch triggers push even with same size", async () => {
+  const cachePath = await Deno.makeTempDir();
+  const mock = createMockGcsClient();
+  const service = new GcsCacheSyncService(mock, cachePath);
+  try {
+    await seedFile(cachePath, "data/model/x/out/1/raw", "new content!!");
+    const stat = await Deno.stat(join(cachePath, "data/model/x/out/1/raw"));
+
+    const indexWithHash = {
+      version: 1,
+      lastPulled: new Date().toISOString(),
+      entries: {
+        "data/model/x/out/1/raw": {
+          key: "data/model/x/out/1/raw",
+          size: new TextEncoder().encode("new content!!").length,
+          lastModified: new Date().toISOString(),
+          localMtime: new Date(
+            (stat.mtime?.getTime() ?? 0) - 1000,
+          ).toISOString(),
+          sha256:
+            "deadbeef0000000000000000000000000000000000000000000000000000dead",
+        },
+      },
+    };
+    mock.storage.set(
+      ".datastore-index.json",
+      new TextEncoder().encode(JSON.stringify(indexWithHash, null, 2)),
+    );
+
+    await service.markDirty();
+    const pushed = await service.pushChanged();
+    assert(typeof pushed === "number" && pushed > 0);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged: writes partitioned index alongside monolithic", async () => {
+  const cachePath = await Deno.makeTempDir();
+  const mock = createMockGcsClient();
+  const service = new GcsCacheSyncService(mock, cachePath);
+  try {
+    await seedFile(
+      cachePath,
+      "data/gcp/compute/instance/abc/out-main/1/raw",
+      "vm1",
+    );
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+
+    await service.markDirty();
+    await service.pushChanged();
+
+    assert(mock.storage.has(".datastore-index.json"));
+    assert(mock.storage.has("_index/_meta.json"));
+    const metaText = new TextDecoder().decode(
+      mock.storage.get("_index/_meta.json")!,
+    );
+    const meta = JSON.parse(metaText);
+    assertEquals(meta.version, 1);
+    assert(meta.partitions.length > 0);
+
+    const partKey = meta.partitions[0];
+    assert(mock.storage.has(`_index/${partKey}.json`));
+    const partText = new TextDecoder().decode(
+      mock.storage.get(`_index/${partKey}.json`)!,
+    );
+    const part = JSON.parse(partText);
+    assertEquals(part.version, 1);
+    assert(Object.keys(part.entries).length > 0);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pullChanged: scoped pull reads partition files when context.models provided", async () => {
+  const cachePath = await Deno.makeTempDir();
+  const mock = createMockGcsClient();
+  const service = new GcsCacheSyncService(mock, cachePath);
+  try {
+    const partitionKey = "data--gcp--compute--instance--abc";
+    const partData: { version: 1; entries: Record<string, unknown> } = {
+      version: 1,
+      entries: {
+        "data/gcp/compute/instance/abc/out-main/1/raw": {
+          key: "data/gcp/compute/instance/abc/out-main/1/raw",
+          size: 3,
+          lastModified: new Date().toISOString(),
+        },
+      },
+    };
+    mock.storage.set(
+      `_index/${partitionKey}.json`,
+      new TextEncoder().encode(JSON.stringify(partData)),
+    );
+    mock.storage.set(
+      "data/gcp/compute/instance/abc/out-main/1/raw",
+      new TextEncoder().encode("vm1"),
+    );
+
+    const pulled = await service.pullChanged({
+      context: {
+        models: [{ modelType: "gcp/compute/instance", modelId: "abc" }],
+      },
+    });
+    assert(typeof pulled === "number" && pulled >= 1);
+    const localContent = await Deno.readTextFile(
+      join(cachePath, "data/gcp/compute/instance/abc/out-main/1/raw"),
+    );
+    assertEquals(localContent, "vm1");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pullChanged: scoped pull falls back to monolithic when partition missing", async () => {
+  const cachePath = await Deno.makeTempDir();
+  const mock = createMockGcsClient();
+  const service = new GcsCacheSyncService(mock, cachePath);
+  try {
+    const fullIndex = {
+      version: 1,
+      lastPulled: new Date().toISOString(),
+      entries: {
+        "data/gcp/compute/instance/abc/out-main/1/raw": {
+          key: "data/gcp/compute/instance/abc/out-main/1/raw",
+          size: 3,
+          lastModified: new Date().toISOString(),
+        },
+      },
+    };
+    mock.storage.set(
+      ".datastore-index.json",
+      new TextEncoder().encode(JSON.stringify(fullIndex)),
+    );
+    mock.storage.set(
+      "data/gcp/compute/instance/abc/out-main/1/raw",
+      new TextEncoder().encode("vm1"),
+    );
+
+    const pulled = await service.pullChanged({
+      context: {
+        models: [{ modelType: "gcp/compute/instance", modelId: "abc" }],
+      },
+    });
+    assert(typeof pulled === "number" && pulled >= 1);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("capabilities: returns scopedSync true", () => {
+  const mock = createMockGcsClient();
+  const service = new GcsCacheSyncService(mock, "/tmp/unused");
+  assertEquals(service.capabilities(), { scopedSync: true });
+});
+
+Deno.test("configurable concurrency: respects custom pullConcurrency", async () => {
+  const cachePath = await Deno.makeTempDir();
+  const mock = createMockGcsClient();
+  const service = new GcsCacheSyncService(mock, cachePath, {
+    pullConcurrency: 2,
+    pushConcurrency: 2,
+  });
+  try {
+    const index = {
+      version: 1,
+      lastPulled: new Date().toISOString(),
+      entries: {
+        "data/a/1/raw": {
+          key: "data/a/1/raw",
+          size: 1,
+          lastModified: new Date().toISOString(),
+        },
+        "data/b/1/raw": {
+          key: "data/b/1/raw",
+          size: 1,
+          lastModified: new Date().toISOString(),
+        },
+        "data/c/1/raw": {
+          key: "data/c/1/raw",
+          size: 1,
+          lastModified: new Date().toISOString(),
+        },
+      },
+    };
+    mock.storage.set(
+      ".datastore-index.json",
+      new TextEncoder().encode(JSON.stringify(index)),
+    );
+    mock.storage.set("data/a/1/raw", new Uint8Array([65]));
+    mock.storage.set("data/b/1/raw", new Uint8Array([66]));
+    mock.storage.set("data/c/1/raw", new Uint8Array([67]));
+
+    const pulled = await service.pullChanged();
+    assertEquals(pulled, 3);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("v1 sidecar migration: version 1 sidecar triggers full walk (no dirtyPaths)", async () => {
+  const cachePath = await Deno.makeTempDir();
+  const mock = createMockGcsClient();
+  const service = new GcsCacheSyncService(mock, cachePath);
+  try {
+    const v1Sidecar = {
+      version: 1,
+      remoteIndexGeneration: "42",
+      lastVerifiedAt: new Date().toISOString(),
+      localDirty: true,
+    };
+    await Deno.mkdir(cachePath, { recursive: true });
+    await Deno.writeTextFile(
+      join(cachePath, ".datastore-sync-state.json"),
+      JSON.stringify(v1Sidecar),
+    );
+    await seedFile(cachePath, "data/model/x/out/1/raw", "hello");
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+
+    const pushed = await service.pushChanged();
+    assert(typeof pushed === "number" && pushed >= 1);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});

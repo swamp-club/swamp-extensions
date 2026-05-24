@@ -1,10 +1,12 @@
 manifestVersion: 1
 name: "@swamp/gcs-datastore"
-version: "2026.05.15.3"
+version: "2026.05.24.1"
 description: |
   Store data in a Google Cloud Storage bucket with local cache synchronization.
   Provides distributed locking via GCS generation-based preconditions and
-  bidirectional sync between a local cache directory and GCS.
+  bidirectional sync between a local cache directory and GCS. Features
+  per-path dirty tracking, SHA-256 content hashing, partitioned index for
+  scoped sync, and configurable transfer concurrency.
 
   ## Authentication
 

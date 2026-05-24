@@ -35,6 +35,7 @@ import { ensureDir, walk } from "jsr:@std/fs@1";
 import type {
   DatastoreSyncOptions,
   DatastoreSyncService,
+  SyncCapabilities,
 } from "./interfaces.ts";
 import { GcsOperationError, NotFoundError } from "./gcs_client.ts";
 import type { GcsClient } from "./gcs_client.ts";
@@ -104,6 +105,7 @@ export function isInternalCacheFile(rel: string): boolean {
   ) {
     return true;
   }
+  if (rel === "_index" || rel.startsWith("_index/")) return true;
   const base = rel.split("/").pop() ?? "";
   if (base === ".lock") return true;
   return base === "_catalog.db" || base.startsWith("_catalog.db-");
@@ -311,6 +313,19 @@ interface IndexEntry {
   size: number;
   lastModified: string;
   localMtime?: string;
+  sha256?: string;
+}
+
+/** Metadata for the partitioned index directory. */
+interface PartitionMeta {
+  version: 1;
+  partitions: string[];
+}
+
+/** A single partition index file containing entries for one model. */
+interface PartitionIndex {
+  version: 1;
+  entries: Record<string, IndexEntry>;
 }
 
 /** Metadata index tracking all files in the GCS datastore. */
@@ -323,8 +338,13 @@ interface DatastoreIndex {
 /** TTL in ms for using the local index cache instead of fetching from GCS. */
 const INDEX_CACHE_TTL_MS = 60_000;
 
-/** Maximum number of concurrent GCS downloads/uploads. */
-const MAX_CONCURRENCY = 10;
+/** Default concurrent GCS downloads. */
+const DEFAULT_PULL_CONCURRENCY = 50;
+/** Default concurrent GCS uploads. */
+const DEFAULT_PUSH_CONCURRENCY = 25;
+
+/** When the dirty-path set exceeds this cap, fall back to a full walk. */
+const DIRTY_PATHS_CAP = 200;
 
 /**
  * Fast-path sidecar persisted alongside the cache. Records the last
@@ -346,23 +366,23 @@ const MAX_CONCURRENCY = 10;
  * values are int64 strings — we store them verbatim and compare as
  * strings; parsing to number would overflow JS number precision.
  */
-interface DatastoreSyncState {
+interface DatastoreSyncStateV1 {
   version: 1;
-  /** Remote `.datastore-index.json` GCS generation at last verification. */
   remoteIndexGeneration: string;
-  /** ISO-8601 timestamp of the last successful verification. */
   lastVerifiedAt: string;
-  /**
-   * `true` when a writer has touched the local cache since the last
-   * verified-clean snapshot. Set pessimistically by `pushFile` BEFORE
-   * any upload work so a crash mid-batch leaves the flag dirty (safe
-   * default: re-walk on next push). Cleared only after a successful
-   * index writeback completes, or after a verified-clean
-   * `pullChanged`. The guardrail test pins the contract: cache writes
-   * that bypass `pushFile` won't update this flag.
-   */
   localDirty: boolean;
 }
+
+interface DatastoreSyncStateV2 {
+  version: 2;
+  remoteIndexGeneration: string;
+  lastVerifiedAt: string;
+  localDirty: boolean;
+  dirtyPaths: string[];
+  bulkInvalidated: boolean;
+}
+
+type DatastoreSyncState = DatastoreSyncStateV1 | DatastoreSyncStateV2;
 
 /** GCS cache sync service. */
 export class GcsCacheSyncService implements DatastoreSyncService {
@@ -370,22 +390,26 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   private readonly cachePath: string;
   private readonly indexPath: string;
   private readonly syncStatePath: string;
+  private readonly pullConcurrency: number;
+  private readonly pushConcurrency: number;
   private index: DatastoreIndex | null = null;
   private syncState: DatastoreSyncState | null = null;
   private syncStateLoaded = false;
-  /**
-   * Set to true when `scrubIndex()` removes zombie entries from the
-   * in-memory index. Drives the write-back gate in `pushChanged()` so
-   * that the cleaned index propagates to the remote even on a no-op
-   * push (no new files to upload). Reset after a successful write-back.
-   */
   private indexMutated = false;
+  private dirtyPaths: Set<string> = new Set();
+  private bulkInvalidated = false;
 
-  constructor(gcs: GcsClient, cachePath: string) {
+  constructor(
+    gcs: GcsClient,
+    cachePath: string,
+    options?: { pullConcurrency?: number; pushConcurrency?: number },
+  ) {
     this.gcs = gcs;
     this.cachePath = cachePath;
     this.indexPath = join(cachePath, ".datastore-index.json");
     this.syncStatePath = join(cachePath, SYNC_STATE_FILE);
+    this.pullConcurrency = options?.pullConcurrency ?? DEFAULT_PULL_CONCURRENCY;
+    this.pushConcurrency = options?.pushConcurrency ?? DEFAULT_PUSH_CONCURRENCY;
   }
 
   /**
@@ -401,14 +425,22 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     this.syncStateLoaded = true;
     try {
       const text = await Deno.readTextFile(this.syncStatePath);
-      const parsed = JSON.parse(text) as Partial<DatastoreSyncState>;
+      const parsed = JSON.parse(text);
       if (
-        parsed.version === 1 &&
         typeof parsed.remoteIndexGeneration === "string" &&
         typeof parsed.lastVerifiedAt === "string" &&
         typeof parsed.localDirty === "boolean"
       ) {
-        this.syncState = parsed as DatastoreSyncState;
+        if (parsed.version === 2) {
+          const v2 = parsed as DatastoreSyncStateV2;
+          this.syncState = v2;
+          if (Array.isArray(v2.dirtyPaths)) {
+            this.dirtyPaths = new Set(v2.dirtyPaths);
+          }
+          this.bulkInvalidated = !!v2.bulkInvalidated;
+        } else if (parsed.version === 1) {
+          this.syncState = parsed as DatastoreSyncStateV1;
+        }
       }
     } catch {
       // Missing/corrupt/unreadable — treat as no sidecar (safe default).
@@ -427,26 +459,62 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     );
   }
 
-  /**
-   * Pessimistically mark the local cache as dirty. Called by `pushFile`
-   * before its upload work so a crash mid-batch leaves the flag set
-   * (safe: forces a full walk next time). Also the public
-   * `DatastoreSyncService.markDirty` entry point — swamp-core's
-   * repository layer calls this before writing to the cache directly
-   * (any write that bypasses `pushFile`). Without this hook, the
-   * fast-path short-circuit silently skips core's writes on the next
-   * `pushChanged`. Idempotent — if the sidecar already records
-   * `localDirty: true`, no write is issued.
-   */
-  async markDirty(): Promise<void> {
-    const current = await this.loadSyncState();
-    if (current?.localDirty === true) return;
-    await this.writeSyncState({
-      version: 1,
+  /** Build a v2 sidecar snapshot from current in-memory state. */
+  private buildV2State(
+    overrides?: Partial<
+      Pick<DatastoreSyncStateV2, "localDirty" | "bulkInvalidated">
+    >,
+  ): DatastoreSyncStateV2 {
+    const current = this.syncState;
+    return {
+      version: 2,
       remoteIndexGeneration: current?.remoteIndexGeneration ?? "",
       lastVerifiedAt: current?.lastVerifiedAt ?? "",
-      localDirty: true,
-    });
+      localDirty: overrides?.localDirty ?? current?.localDirty ?? false,
+      dirtyPaths: [...this.dirtyPaths],
+      bulkInvalidated: overrides?.bulkInvalidated ?? this.bulkInvalidated,
+    };
+  }
+
+  async markDirty(options?: DatastoreSyncOptions): Promise<void> {
+    const current = await this.loadSyncState();
+    const relPath = options?.relPath;
+
+    if (relPath) {
+      if (this.bulkInvalidated) return;
+      const resolved = normalize(join(this.cachePath, relPath));
+      const normalizedCache = normalize(this.cachePath);
+      let normalizedRel: string;
+      if (
+        resolved.startsWith(normalizedCache + "/") ||
+        resolved === normalizedCache
+      ) {
+        normalizedRel = relative(this.cachePath, resolved);
+      } else {
+        this.bulkInvalidated = true;
+        await this.writeSyncState(
+          this.buildV2State({ localDirty: true, bulkInvalidated: true }),
+        );
+        return;
+      }
+      if (this.dirtyPaths.has(normalizedRel)) return;
+      if (this.dirtyPaths.size >= DIRTY_PATHS_CAP) {
+        this.bulkInvalidated = true;
+        await this.writeSyncState(
+          this.buildV2State({ localDirty: true, bulkInvalidated: true }),
+        );
+        return;
+      }
+      this.dirtyPaths.add(normalizedRel);
+      await this.writeSyncState(this.buildV2State({ localDirty: true }));
+      return;
+    }
+
+    if (current?.localDirty === true && this.bulkInvalidated) return;
+    this.bulkInvalidated = true;
+    await this.writeSyncState(
+      this.buildV2State({ localDirty: true, bulkInvalidated: true }),
+    );
   }
 
   /**
@@ -486,11 +554,15 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       // No local index yet (e.g. first push against an empty cache);
       // wall-clock baseline is fine.
     }
+    this.dirtyPaths.clear();
+    this.bulkInvalidated = false;
     await this.writeSyncState({
-      version: 1,
+      version: 2,
       remoteIndexGeneration,
       lastVerifiedAt: new Date(baselineMs).toISOString(),
       localDirty: false,
+      dirtyPaths: [],
+      bulkInvalidated: false,
     });
   }
 
@@ -826,27 +898,34 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     if (fastResult !== null) return fastResult;
 
     const indexStart = Date.now();
-    // Force a remote fetch on the slow path. The 60-second TTL cache in
-    // pullIndex is correct within a single process (don't re-fetch what
-    // we just pulled), but it's stale across processes: another writer
-    // may have pushed since we last wrote our local index, and the
-    // fast-path miss above specifically means the remote generation is
-    // not the one our sidecar recorded. Trusting the local-mtime cache
-    // here would walk a stale index, find toPull=0, and report
-    // "Pulled 0 files" while writer2's data sits unpulled on remote.
-    // Symmetric with `pushChanged`'s slow path, which already does this.
-    const indexGeneration = await this.pullIndex({
-      forceRemote: true,
-      signal,
-    });
+    const models = options?.context?.models;
+    let indexGeneration: string | null;
+
+    if (models && models.length > 0) {
+      const partitionEntries = await this.pullPartitionedIndex(models, signal);
+      if (partitionEntries) {
+        if (!this.index) {
+          this.index = {
+            version: 1,
+            lastPulled: new Date().toISOString(),
+            entries: {},
+          };
+        }
+        for (const [rel, entry] of Object.entries(partitionEntries)) {
+          this.index.entries[rel] = entry;
+        }
+        indexGeneration = null;
+      } else {
+        indexGeneration = await this.pullIndex({ forceRemote: true, signal });
+      }
+    } else {
+      indexGeneration = await this.pullIndex({ forceRemote: true, signal });
+    }
     tracePhase("pullChanged.pullIndex", indexStart);
 
     const walkStart = Date.now();
     const toPull: string[] = [];
     for (const [rel, entry] of Object.entries(this.index?.entries ?? {})) {
-      // Belt-and-suspenders: `scrubIndex` already removed internal
-      // entries in `pullIndex`, but if anything re-adds a zombie
-      // between the scrub and the walk, this guard still catches it.
       if (isInternalCacheFile(rel)) {
         continue;
       }
@@ -854,9 +933,6 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       try {
         const stat = await Deno.stat(localPath);
         if (stat.size === entry.size) {
-          // Reconcile localMtime so pushChanged() doesn't treat it as
-          // changed due to mtime drift (e.g. file was placed by a
-          // migration or a different machine pushed the index).
           if (
             this.index && stat.mtime &&
             entry.localMtime !== stat.mtime.toISOString()
@@ -875,9 +951,9 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     const downloadStart = Date.now();
     let pulled = 0;
     const failures: Array<{ file: string; error: unknown }> = [];
-    for (let i = 0; i < toPull.length; i += MAX_CONCURRENCY) {
+    for (let i = 0; i < toPull.length; i += this.pullConcurrency) {
       throwIfAborted(signal);
-      const batch = toPull.slice(i, i + MAX_CONCURRENCY);
+      const batch = toPull.slice(i, i + this.pullConcurrency);
       const results = await Promise.allSettled(
         batch.map(async (rel) => {
           await this.pullFile(rel, signal);
@@ -907,35 +983,6 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       throw new Error(formatBatchFailure("pull", failures));
     }
 
-    // Local cache matches the remote index whose generation we captured
-    // from the `pullIndex` GET response — either the walk found zero
-    // diff (`pulled === 0`) or we just downloaded the missing files
-    // (`pulled > 0`). Persist THAT generation — the one we walked
-    // against — so the next `pullChanged` / `pushChanged` can take the
-    // fast path. We deliberately do NOT re-`getMetadata`: a post-walk
-    // metadata call could observe a generation from a concurrent
-    // writer's push landing during our walk, and recording that
-    // generation would mask their data on the next fast-path sync
-    // (swamp-club #168). If generation is null (cache-hit pullIndex or
-    // NotFound brand-new bucket), the sidecar is skipped — next sync
-    // self-heals on the slow path.
-    //
-    // When `pulled > 0`, also rewrite the on-disk index with the
-    // in-memory state so it carries the localMtime values we just
-    // recorded for each downloaded file. Pre-fix, the on-disk file was
-    // last written by `pullIndex` from the raw remote payload (carrying
-    // the original pusher's local mtimes), so a subsequent fresh-process
-    // `pushChanged` slow-path walk saw `existing.localMtime` (pusher's)
-    // ≠ `stat.mtime` (local mtime from `Deno.writeFile`) and pushed
-    // every file with byte-identical content (swamp-club #222).
-    //
-    // Ordering invariant — DO NOT REVERSE: `atomicWriteTextFile` MUST
-    // run before `markSynced`. `markSynced` derives `lastVerifiedAt`
-    // from `Deno.stat(this.indexPath).mtime + 1ms`. Reversing the order
-    // captures `lastVerifiedAt` against the pre-write mtime; the
-    // subsequent rewrite then bumps the index mtime forward, and the
-    // next `tryFastPullChanged` probe spuriously bails on
-    // `indexMtime >= verifiedAt`.
     if (indexGeneration) {
       try {
         if (pulled > 0 && this.index) {
@@ -946,10 +993,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
         }
         await this.markSynced(indexGeneration);
       } catch {
-        // Non-fatal: sidecar update is opportunistic. Disk-full /
-        // permissions / unmount must not turn a successful sync into
-        // a failure — the sidecar is a fast-path optimization, and a
-        // missed update only costs one slow-path sync next time.
+        // Non-fatal: sidecar update is opportunistic.
       }
     }
 
@@ -969,6 +1013,10 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     await this.markDirty();
     const localPath = assertSafePath(this.cachePath, relativePath);
     const data = await Deno.readFile(localPath);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const sha256 = Array.from(new Uint8Array(hashBuffer))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
     await retryWithBackoff(
       () => this.gcs.putObject(relativePath, data, signal),
       { signal },
@@ -981,6 +1029,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
         size: data.length,
         lastModified: new Date().toISOString(),
         localMtime: stat.mtime?.toISOString(),
+        sha256,
       };
     }
   }
@@ -1027,44 +1076,58 @@ export class GcsCacheSyncService implements DatastoreSyncService {
 
     const walkStart = Date.now();
     const toPush: string[] = [];
-    try {
-      for await (
-        const entry of walk(this.cachePath, {
-          includeDirs: false,
-        })
-      ) {
-        const rel = relative(this.cachePath, entry.path);
-        if (isInternalCacheFile(rel)) {
-          continue;
-        }
+    const useScopedWalk = !this.bulkInvalidated && this.dirtyPaths.size > 0;
 
-        const stat = await Deno.stat(entry.path);
-        const existing = this.index?.entries[rel];
-        if (existing && existing.size === stat.size) {
-          if (
-            existing.localMtime && stat.mtime &&
-            existing.localMtime === stat.mtime.toISOString()
-          ) {
-            continue;
+    if (useScopedWalk) {
+      for (const dirtyPath of this.dirtyPaths) {
+        const absPath = join(this.cachePath, dirtyPath);
+        try {
+          const stat = await Deno.stat(absPath);
+          if (stat.isFile) {
+            if (
+              !isInternalCacheFile(dirtyPath) &&
+              await this.fileNeedsPush(absPath, dirtyPath)
+            ) {
+              toPush.push(dirtyPath);
+            }
+          } else if (stat.isDirectory) {
+            for await (
+              const entry of walk(absPath, { includeDirs: false })
+            ) {
+              const rel = relative(this.cachePath, entry.path);
+              if (isInternalCacheFile(rel)) continue;
+              if (await this.fileNeedsPush(entry.path, rel)) {
+                toPush.push(rel);
+              }
+            }
           }
-          if (!stat.mtime || existing.localMtime === undefined) {
-            continue;
-          }
+        } catch {
+          // Path may have been deleted between markDirty and push
         }
-
-        toPush.push(rel);
       }
-    } catch {
-      // Cache directory may not exist yet
+    } else {
+      try {
+        for await (
+          const entry of walk(this.cachePath, { includeDirs: false })
+        ) {
+          const rel = relative(this.cachePath, entry.path);
+          if (isInternalCacheFile(rel)) continue;
+          if (await this.fileNeedsPush(entry.path, rel)) {
+            toPush.push(rel);
+          }
+        }
+      } catch {
+        // Cache directory may not exist yet
+      }
     }
     tracePhase("pushChanged.walk", walkStart, `toPush=${toPush.length}`);
 
     const uploadStart = Date.now();
     let pushed = 0;
     const failures: Array<{ file: string; error: unknown }> = [];
-    for (let i = 0; i < toPush.length; i += MAX_CONCURRENCY) {
+    for (let i = 0; i < toPush.length; i += this.pushConcurrency) {
       throwIfAborted(signal);
-      const batch = toPush.slice(i, i + MAX_CONCURRENCY);
+      const batch = toPush.slice(i, i + this.pushConcurrency);
       const results = await Promise.allSettled(
         batch.map((rel) => this.pushFile(rel, signal)),
       );
@@ -1083,9 +1146,6 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       throw new Error(formatBatchFailure("push", failures));
     }
 
-    // Push updated index if anything changed — either new files were
-    // pushed OR scrubIndex removed zombie entries that need to
-    // propagate to the remote (swamp-club#29 migration path).
     if ((pushed > 0 || this.indexMutated) && this.index) {
       const writebackStart = Date.now();
       if (pushed > 0) {
@@ -1093,34 +1153,15 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       }
       const indexJson = JSON.stringify(this.index, null, 2);
       const indexData = new TextEncoder().encode(indexJson);
-      // Wrap in retryWithBackoff: if per-file pushes all succeed but
-      // the index write fails on a transient 5xx/timeout, we'd leave
-      // the remote inconsistent (files present, index unaware). Retry
-      // keeps the write-back atomic from the caller's perspective.
       const putResult = await retryWithBackoff(
         () => this.gcs.putObject(".datastore-index.json", indexData, signal),
         { signal },
       );
       await atomicWriteTextFile(this.indexPath, indexJson);
       this.indexMutated = false;
-      // Record the new index generation as the verified-clean
-      // baseline so the next `pushChanged` can take the fast path.
-      // The putObject response's generation is bound to the bytes we
-      // just uploaded — it's race-free. If it's missing or zero, skip
-      // silently: a post-PUT `getMetadata` would be TOCTOU-racy (a
-      // concurrent writer could push between our PUT and our metadata
-      // call, and we'd record their generation as ours), and the
-      // sidecar is opportunistic — a missed update just costs one
-      // slow path next time (swamp-club #168).
-      //
-      // Verify local has every entry in the merged index before marking
-      // clean. The walk only iterated LOCAL files — remote-only entries
-      // pulled in via `pullIndex(forceRemote)` were never visited, so
-      // `pushed > 0` does not imply local fully matches the merged
-      // index we just wrote back. A fresh reader migrating one file
-      // against a populated remote takes this branch; without the
-      // verify, the sidecar would lie and the next `pullChanged` would
-      // fast-path past unfetched remote-only files (swamp-club#1225).
+
+      await this.writePartitionedIndex(this.index, signal);
+
       if (
         putResult.generation && putResult.generation !== "0" &&
         await this.localHasAllRemoteEntries()
@@ -1133,17 +1174,6 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       }
       tracePhase("pushChanged.writeback", writebackStart);
     } else if (indexGeneration && this.index) {
-      // pushed === 0 and no writeback. The slow walk only visited
-      // LOCAL files, so remote-index entries with no local counterpart
-      // were never checked. Marking the sidecar clean unconditionally
-      // would lie about cache state for a fresh reader against a
-      // non-empty bucket and let the next `pullChanged` fast-path
-      // past unfetched files (swamp-club#1225 data-loss scenario).
-      //
-      // Verify before recording a clean baseline by walking the
-      // remote index and confirming each entry exists locally with
-      // matching size. Restores the legitimate recovery path
-      // (cache populated, sidecar deleted, no diffs to push).
       if (await this.localHasAllRemoteEntries()) {
         try {
           await this.markSynced(indexGeneration);
@@ -1176,5 +1206,140 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       }
     }
     return true;
+  }
+
+  private async fileNeedsPush(
+    absPath: string,
+    rel: string,
+  ): Promise<boolean> {
+    const stat = await Deno.stat(absPath);
+    const existing = this.index?.entries[rel];
+    if (!existing) return true;
+
+    if (existing.size !== stat.size) return true;
+
+    if (
+      existing.localMtime && stat.mtime &&
+      existing.localMtime === stat.mtime.toISOString()
+    ) {
+      return false;
+    }
+
+    if (!stat.mtime || existing.localMtime === undefined) {
+      if (!existing.sha256) return false;
+    }
+
+    if (existing.sha256) {
+      const data = await Deno.readFile(absPath);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      const localHash = Array.from(new Uint8Array(hashBuffer))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+      return localHash !== existing.sha256;
+    }
+
+    return true;
+  }
+
+  private static groupEntriesByPartition(
+    entries: Record<string, IndexEntry>,
+  ): Map<string, Record<string, IndexEntry>> {
+    const partitions = new Map<string, Record<string, IndexEntry>>();
+
+    for (const [rel, entry] of Object.entries(entries)) {
+      if (!rel.startsWith("data/")) continue;
+      const segments = rel.split("/");
+      if (segments.length < 4) continue;
+
+      const prefixEnd = segments.length >= 6
+        ? segments.length - 3
+        : segments.length - 1;
+      const key = segments.slice(0, prefixEnd).join("--");
+
+      let bucket = partitions.get(key);
+      if (!bucket) {
+        bucket = {};
+        partitions.set(key, bucket);
+      }
+      bucket[rel] = entry;
+    }
+
+    return partitions;
+  }
+
+  private static partitionKeyFromModel(
+    modelType: string,
+    modelId: string,
+  ): string {
+    return `data--${modelType.replace(/\//g, "--")}--${modelId}`;
+  }
+
+  private async writePartitionedIndex(
+    index: DatastoreIndex,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const partitions = GcsCacheSyncService.groupEntriesByPartition(
+      index.entries,
+    );
+    if (partitions.size === 0) return;
+
+    const partitionKeys: string[] = [];
+    const writes: Array<Promise<unknown>> = [];
+    for (const [key, entries] of partitions) {
+      partitionKeys.push(key);
+      const partition: PartitionIndex = { version: 1, entries };
+      const data = new TextEncoder().encode(JSON.stringify(partition, null, 2));
+      writes.push(
+        retryWithBackoff(
+          () => this.gcs.putObject(`_index/${key}.json`, data, signal),
+          { signal },
+        ).catch(() => {}),
+      );
+    }
+
+    const meta: PartitionMeta = { version: 1, partitions: partitionKeys };
+    const metaData = new TextEncoder().encode(JSON.stringify(meta, null, 2));
+    writes.push(
+      retryWithBackoff(
+        () => this.gcs.putObject("_index/_meta.json", metaData, signal),
+        { signal },
+      ).catch(() => {}),
+    );
+
+    await Promise.allSettled(writes);
+  }
+
+  private async pullPartitionedIndex(
+    models: ReadonlyArray<{ modelType: string; modelId: string }>,
+    signal?: AbortSignal,
+  ): Promise<Record<string, IndexEntry> | null> {
+    const merged: Record<string, IndexEntry> = {};
+
+    for (const model of models) {
+      const key = GcsCacheSyncService.partitionKeyFromModel(
+        model.modelType,
+        model.modelId,
+      );
+      try {
+        const { data } = await this.gcs.getObject(
+          `_index/${key}.json`,
+          signal,
+        );
+        const text = new TextDecoder().decode(data);
+        const partition = JSON.parse(text) as PartitionIndex;
+        if (partition.version !== 1) return null;
+        for (const [rel, entry] of Object.entries(partition.entries)) {
+          merged[rel] = entry;
+        }
+      } catch {
+        return null;
+      }
+    }
+
+    return merged;
+  }
+
+  capabilities(): SyncCapabilities {
+    return { scopedSync: true };
   }
 }
