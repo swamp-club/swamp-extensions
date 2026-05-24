@@ -74,7 +74,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Chat Users.Sections.Items. Registered at `@swamp/gcp/chat/users-sections-items`. */
 export const model = {
   type: "@swamp/gcp/chat/users-sections-items",
-  version: "2026.05.21.2",
+  version: "2026.05.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -138,6 +138,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.21.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

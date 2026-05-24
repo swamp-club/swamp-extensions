@@ -293,7 +293,9 @@ const CpuOptionsSchema = z.object({
   AmdSevSnp: z.enum(["enabled", "disabled"]).describe(
     "Indicates whether to enable the instance for AMD SEV-SNP. AMD SEV-SNP is supported with M6a, R6a, and C6a instance types only. For more information, see [AMD SEV-SNP for Amazon EC2 instances](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/sev-snp.html).",
   ).optional(),
-  NestedVirtualization: z.enum(["enabled", "disabled"]).optional(),
+  NestedVirtualization: z.enum(["enabled", "disabled"]).describe(
+    "Indicates whether the instance is enabled for nested virtualization.",
+  ).optional(),
   CoreCount: z.number().int().describe(
     "The number of CPU cores for the instance.",
   ).optional(),
@@ -795,7 +797,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for EC2 LaunchTemplate. Registered at `@swamp/aws/ec2/launch-template`. */
 export const model = {
   type: "@swamp/aws/ec2/launch-template",
-  version: "2026.05.20.1",
+  version: "2026.05.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -824,6 +826,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.20.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

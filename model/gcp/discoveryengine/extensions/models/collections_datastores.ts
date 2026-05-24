@@ -449,8 +449,9 @@ const GlobalArgsSchema = z.object({
   }).describe("Defines the structure and layout of a type of document data.")
     .optional(),
   workspaceConfig: z.object({
-    dasherCustomerId: z.string().describe("Obfuscated Dasher customer ID.")
-      .optional(),
+    dasherCustomerId: z.string().describe(
+      "Output only. Obfuscated Dasher customer ID. Derived by the server from the project's GCP organization at data store creation time; any value supplied in the request payload is ignored.",
+    ).optional(),
     superAdminEmailAddress: z.string().describe(
       "Optional. The super admin email address for the workspace that will be used for access token generation. For now we only use it for Native Google Drive connector data ingestion.",
     ).optional(),
@@ -921,8 +922,9 @@ const InputsSchema = z.object({
   }).describe("Defines the structure and layout of a type of document data.")
     .optional(),
   workspaceConfig: z.object({
-    dasherCustomerId: z.string().describe("Obfuscated Dasher customer ID.")
-      .optional(),
+    dasherCustomerId: z.string().describe(
+      "Output only. Obfuscated Dasher customer ID. Derived by the server from the project's GCP organization at data store creation time; any value supplied in the request payload is ignored.",
+    ).optional(),
     superAdminEmailAddress: z.string().describe(
       "Optional. The super admin email address for the workspace that will be used for access token generation. For now we only use it for Native Google Drive connector data ingestion.",
     ).optional(),
@@ -966,7 +968,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Discovery Engine Collections.DataStores. Registered at `@swamp/gcp/discoveryengine/collections-datastores`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-datastores",
-  version: "2026.05.21.2",
+  version: "2026.05.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1025,6 +1027,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.21.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

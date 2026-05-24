@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/networksecurity"
-version: "2026.05.21.2"
+version: "2026.05.24.1"
 description: "Google Cloud networksecurity infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,8 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: addressgroups, firewallendpoints, securityprofilegroups, securityprofiles, locations, authorizationpolicies, authzpolicies, backendauthenticationconfigs, clienttlspolicies, dnsthreatdetectors, firewallendpointassociations, gatewaysecuritypolicies, gatewaysecuritypolicies_rules, interceptdeploymentgroups, interceptdeployments, interceptendpointgroupassociations, interceptendpointgroups, mirroringdeploymentgroups, mirroringdeployments, mirroringendpointgroupassociations, mirroringendpointgroups, servertlspolicies, tlsinspectionpolicies, urllists
+  - Added: sacattachments, sacrealms
+  - Updated: locations, addressgroups, firewallendpoints, securityprofilegroups, securityprofiles, authorizationpolicies, authzpolicies, backendauthenticationconfigs, clienttlspolicies, dnsthreatdetectors, firewallendpointassociations, gatewaysecuritypolicies, gatewaysecuritypolicies_rules, interceptdeploymentgroups, interceptdeployments, interceptendpointgroupassociations, interceptendpointgroups, mirroringdeploymentgroups, mirroringdeployments, mirroringendpointgroupassociations, mirroringendpointgroups, servertlspolicies, tlsinspectionpolicies, urllists
 models:
   - addressgroups.ts
   - authorizationpolicies.ts
@@ -32,6 +33,8 @@ models:
   - mirroringdeployments.ts
   - mirroringendpointgroupassociations.ts
   - mirroringendpointgroups.ts
+  - sacattachments.ts
+  - sacrealms.ts
   - securityprofilegroups.ts
   - securityprofiles.ts
   - servertlspolicies.ts

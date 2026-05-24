@@ -176,7 +176,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Firebase Rules Releases. Registered at `@swamp/gcp/firebaserules/releases`. */
 export const model = {
   type: "@swamp/gcp/firebaserules/releases",
-  version: "2026.05.21.2",
+  version: "2026.05.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -225,6 +225,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.21.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

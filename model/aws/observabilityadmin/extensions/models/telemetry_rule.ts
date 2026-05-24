@@ -174,10 +174,10 @@ const TelemetryDestinationConfigurationSchema = z.object({
     "Telemetry parameters for WAF v2 Web ACL",
   ).optional(),
   LogDeliveryParameters: z.object({
-    LogTypes: z.array(z.enum(["APPLICATION_LOGS", "USAGE_LOGS"])).describe(
-      "Types of logs to deliver for BedrockAgentCore resources",
-    ).optional(),
-  }).describe("Parameters for BedrockAgentCore log delivery").optional(),
+    LogTypes: z.array(
+      z.enum(["APPLICATION_LOGS", "USAGE_LOGS", "SECURITY_FINDING_LOGS"]),
+    ).describe("Types of logs to deliver").optional(),
+  }).describe("Parameters for log delivery configuration").optional(),
 });
 
 const TagSchema = z.object({
@@ -206,6 +206,7 @@ const GlobalArgsSchema = z.object({
       "AWS::BedrockAgentCore::Runtime",
       "AWS::BedrockAgentCore::Browser",
       "AWS::BedrockAgentCore::CodeInterpreter",
+      "AWS::SecurityHub::Hub",
     ]).describe("Resource Type associated with the Telemetry Rule"),
     TelemetryType: z.enum(["Logs", "Traces", "Metrics"]).describe(
       "Telemetry Type associated with the Telemetry Rule",
@@ -280,6 +281,7 @@ const InputsSchema = z.object({
       "AWS::BedrockAgentCore::Runtime",
       "AWS::BedrockAgentCore::Browser",
       "AWS::BedrockAgentCore::CodeInterpreter",
+      "AWS::SecurityHub::Hub",
     ]).describe("Resource Type associated with the Telemetry Rule").optional(),
     TelemetryType: z.enum(["Logs", "Traces", "Metrics"]).describe(
       "Telemetry Type associated with the Telemetry Rule",
@@ -319,7 +321,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ObservabilityAdmin TelemetryRule. Registered at `@swamp/aws/observabilityadmin/telemetry-rule`. */
 export const model = {
   type: "@swamp/aws/observabilityadmin/telemetry-rule",
-  version: "2026.05.12.1",
+  version: "2026.05.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -353,6 +355,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.12.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
