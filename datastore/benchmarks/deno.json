@@ -1,0 +1,22 @@
+{
+  "tasks": {
+    "benchmark:s3": "SWAMP_S3_SYNC_TRACE=1 deno run --allow-read --allow-write --allow-env --allow-net --allow-sys --allow-run s3_bench.ts",
+    "benchmark:gcs": "SWAMP_GCS_SYNC_TRACE=1 deno run --allow-read --allow-write --allow-env --allow-net --allow-sys --allow-run gcs_bench.ts",
+    "benchmark:compare": "deno run --allow-read --allow-write --allow-env --allow-net --allow-sys --allow-run _lib/cross_version.ts",
+    "check": "deno check s3_bench.ts gcs_bench.ts _lib/cross_version.ts",
+    "lint": "deno lint",
+    "fmt": "deno fmt",
+    "fmt:check": "deno fmt --check"
+  },
+  "lint": {
+    "rules": {
+      "exclude": ["no-import-prefix"]
+    }
+  },
+  "imports": {
+    "zod": "npm:zod@4.3.6",
+    "@aws-sdk/client-s3": "npm:@aws-sdk/client-s3@3.1046.0",
+    "@std/path": "jsr:@std/path@1",
+    "@std/fs": "jsr:@std/fs@1"
+  }
+}

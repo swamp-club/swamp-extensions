@@ -54,6 +54,18 @@ AWS and GCP support service filtering: `deno task generate:aws ec2 s3 lambda`
 Hetzner and DigitalOcean each have a single directory. Each service directory
 has its own `deno.json`, `deno.lock`, and `manifest.yaml`.
 
+### Benchmarks (run from datastore/benchmarks/)
+
+```bash
+cd datastore/benchmarks
+deno task benchmark:s3    # S3 benchmarks against MinIO
+deno task benchmark:gcs   # GCS benchmarks against fake-gcs-server
+deno task benchmark:compare  # Cross-version comparison (defaults to S3)
+```
+
+Requires Docker for emulators, or set `BENCHMARK_S3_ENDPOINT` and
+`BENCHMARK_GCS_ENDPOINT` to use pre-running instances.
+
 ### Codegen verification (run from codegen/)
 
 ```bash
