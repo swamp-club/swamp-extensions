@@ -22,6 +22,8 @@ swamp datastore setup @swamp/gcs-datastore \
 | `prefix` | No | Object name prefix within the bucket (e.g. `swamp/prod`) |
 | `projectId` | No | GCP project ID. Defaults to the project from Application Default Credentials. |
 | `apiEndpoint` | No | Custom API endpoint URL for emulators (e.g. [fake-gcs-server](https://github.com/fsouza/fake-gcs-server)). When set, authentication is skipped — matching the behavior of Google's official client libraries with `STORAGE_EMULATOR_HOST`. |
+| `pullConcurrency` | No | Maximum concurrent GCS downloads during pull (default: `50`, max: `1000`). |
+| `pushConcurrency` | No | Maximum concurrent GCS uploads during push (default: `25`, max: `1000`). |
 | `defaultRequestTimeoutMs` | No | Per-request timeout in milliseconds (default: `30000`). Every outbound GCS call is guarded by this deadline. Operations that legitimately run longer than the default (large-file uploads on slow links, say) should raise this. Setting it too low makes transient network blips look like timeouts. |
 
 ## Timeouts and cancellation
@@ -176,21 +178,40 @@ bad credentials, insufficient permissions).
 The cache sync service maintains a local cache directory and syncs with GCS:
 
 - **Pull** — downloads a metadata index from GCS, compares file sizes against
-  local files, and downloads only new or changed files. Uses concurrent
-  batches of 10 for throughput.
+  local files, and downloads only new or changed files. Uses configurable
+  concurrent batches (default: 50) for throughput.
 - **Push** — walks the local cache directory, compares size and mtime against
-  the index, and uploads only changed files. Updates the remote index after
-  a successful push.
-- **Index** — a `.datastore-index.json` file in GCS tracks file sizes and
-  timestamps. The local copy has a 60-second TTL to avoid redundant fetches
-  during rapid command sequences.
-- **Fast path** — a `.datastore-sync-state.json` sidecar records the
-  remote index's GCS `generation` from the last verified-clean sync.
+  the index, and uploads only changed files. Uses configurable concurrent
+  batches (default: 25). Updates the remote index after a successful push.
+- **Index** — a `.datastore-index.json` file in GCS tracks file sizes,
+  timestamps, and SHA-256 content hashes. The local copy has a 60-second
+  TTL to avoid redundant fetches during rapid command sequences.
+- **Partitioned index** — alongside the monolithic index, partition files
+  under `_index/{partition-key}.json` are written for each model. When
+  core provides a scoped sync context (`context.models`), pull reads
+  only the relevant partition files instead of the full monolithic index.
+  Falls back to monolithic when partition files are missing (old writer).
+- **Content hashing** — push computes SHA-256 for each uploaded file and
+  stores it in the index. Change detection uses three branches: size
+  differs → push; same size + same mtime → skip (stat-only); same size +
+  different mtime → compare SHA-256 hashes (avoids redundant uploads
+  when only mtime drifted).
+- **Per-path dirty tracking** — `markDirty(options)` accepts a `relPath`
+  argument and tracks per-path dirty sets (capped at 200 paths). When
+  pushing, only dirty directories/files are walked instead of the entire
+  cache. Overflows (> 200 paths) or path-escape trigger a full walk
+  fallback.
+- **Scoped sync** — advertises `capabilities().scopedSync = true`. When
+  core passes `context.models`, pull reads partition files for just those
+  models, avoiding the full monolithic index parse.
+- **Fast path** — a `.datastore-sync-state.json` sidecar (v2) records the
+  remote index's GCS `generation` from the last verified-clean sync,
+  along with dirty paths and bulk-invalidation state.
   The next `pullChanged` / `pushChanged` HEADs the remote index first;
-  on generation match, it short-circuits without the full index GET or
-  the cache walk. Self-healing: any remote mutation changes the
-  generation and falls through to the slow path. External writers
-  into the cache (e.g. swamp-core's repository layer using
+  on generation match (and clean local state), it short-circuits without
+  the full index GET or the cache walk. Self-healing: any remote mutation
+  changes the generation and falls through to the slow path. External
+  writers into the cache (e.g. swamp-core's repository layer using
   `atomicWriteFile`) MUST call `DatastoreSyncService.markDirty()` so
   the fast-path short-circuit knows to run a full walk on the next
   `pushChanged`. Without `markDirty`, the external write is silently

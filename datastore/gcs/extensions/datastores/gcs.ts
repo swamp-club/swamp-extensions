@@ -38,6 +38,7 @@ import type {
   DistributedLock,
   LockInfo,
   LockOptions,
+  SyncCapabilities,
 } from "./_lib/interfaces.ts";
 import { GcsClient } from "./_lib/gcs_client.ts";
 import { GcsLock } from "./_lib/gcs_lock.ts";
@@ -52,6 +53,7 @@ export type {
   DistributedLock,
   LockInfo,
   LockOptions,
+  SyncCapabilities,
 };
 
 // ---------------------------------------------------------------------------
@@ -89,6 +91,14 @@ const gcsConfigSchema = z.object({
     .describe(
       "Custom API endpoint URL (for emulators like fake-gcs-server)",
     ),
+  pullConcurrency: z.number().int().min(1).max(1000).optional()
+    .describe(
+      "Maximum concurrent GCS downloads during pull. Default: 50",
+    ),
+  pushConcurrency: z.number().int().min(1).max(1000).optional()
+    .describe(
+      "Maximum concurrent GCS uploads during push. Default: 25",
+    ),
 });
 
 // ---------------------------------------------------------------------------
@@ -100,6 +110,8 @@ interface GcsDatastoreProviderConfig {
   prefix?: string;
   projectId?: string;
   apiEndpoint?: string;
+  pullConcurrency?: number;
+  pushConcurrency?: number;
 }
 
 class GcsDatastoreProviderImpl implements DatastoreProvider {
@@ -123,7 +135,10 @@ class GcsDatastoreProviderImpl implements DatastoreProvider {
     cachePath: string,
   ): DatastoreSyncService {
     const gcs = new GcsClient(this.config);
-    return new GcsCacheSyncService(gcs, cachePath);
+    return new GcsCacheSyncService(gcs, cachePath, {
+      pullConcurrency: this.config.pullConcurrency,
+      pushConcurrency: this.config.pushConcurrency,
+    });
   }
 
   resolveDatastorePath(repoDir: string): string {
