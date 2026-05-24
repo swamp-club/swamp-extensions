@@ -1,10 +1,12 @@
 manifestVersion: 1
 name: "@swamp/s3-datastore"
-version: "2026.05.15.3"
+version: "2026.05.23.1"
 description: |
   Store data in an Amazon S3 bucket with local cache synchronization.
   Provides distributed locking via S3 conditional writes and bidirectional
-  sync between a local cache directory and S3.
+  sync between a local cache directory and S3. Features SHA-256 content
+  hashing, per-path dirty tracking, partitioned index for scoped sync,
+  and configurable transfer concurrency.
 
   ## Authentication
 

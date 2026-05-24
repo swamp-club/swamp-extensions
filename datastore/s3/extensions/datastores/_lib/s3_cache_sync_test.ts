@@ -30,6 +30,7 @@ import {
   assertRejects,
 } from "jsr:@std/assert@1.0.19";
 import { join } from "jsr:@std/path@1";
+import { ensureDir } from "jsr:@std/fs@1";
 import {
   isInternalCacheFile,
   isRetryableError,
@@ -178,6 +179,7 @@ function encodeIndex(
     size: number;
     lastModified: string;
     localMtime?: string;
+    sha256?: string;
   }>,
 ): Uint8Array {
   return new TextEncoder().encode(
@@ -1449,7 +1451,15 @@ async function writeSidecar(
 /** Read sidecar from disk; returns parsed JSON or null if missing/bad. */
 async function readSidecar(
   cachePath: string,
-): Promise<{ remoteIndexETag: string; localDirty: boolean } | null> {
+): Promise<
+  {
+    version?: number;
+    remoteIndexETag: string;
+    localDirty: boolean;
+    dirtyPaths?: string[];
+    bulkInvalidated?: boolean;
+  } | null
+> {
   try {
     const text = await Deno.readTextFile(join(cachePath, SYNC_STATE_FILE));
     return JSON.parse(text);
@@ -2606,4 +2616,534 @@ Deno.test({
       await Deno.remove(cachePath, { recursive: true });
     }
   },
+});
+
+// ============================================================================
+// Issue #379: Dirty sidecar per-path tracking, partitioned index,
+// SHA-256 content hashing, configurable concurrency, and scopedSync.
+// ============================================================================
+
+Deno.test("isInternalCacheFile: excludes _index/ directory", () => {
+  assertEquals(isInternalCacheFile("_index/_meta.json"), true);
+  assertEquals(
+    isInternalCacheFile("_index/data--aws--ec2--vpc--abc-123.json"),
+    true,
+  );
+  assertEquals(isInternalCacheFile("_index"), true);
+  assertEquals(isInternalCacheFile("data/_index/something"), false);
+});
+
+Deno.test("markDirty with relPath: tracks per-path dirty state", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-dirty-path-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.pullChanged();
+
+    await service.markDirty({ relPath: "data/aws/ec2/vpc/abc-123" });
+
+    const sidecar = await readSidecar(cachePath);
+    assertEquals(
+      sidecar?.version,
+      2,
+      "markDirty with relPath must write v2 sidecar",
+    );
+    assertEquals(sidecar?.localDirty, true);
+    assertEquals(sidecar?.dirtyPaths, ["data/aws/ec2/vpc/abc-123"]);
+    assertEquals(sidecar?.bulkInvalidated, false);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("markDirty: dirty set cap flips to bulkInvalidated at 200 paths", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-dirty-cap-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.pullChanged();
+
+    for (let i = 0; i < 200; i++) {
+      await service.markDirty({ relPath: `data/m/id-${i}` });
+    }
+
+    let sidecar = await readSidecar(cachePath);
+    assertEquals(sidecar?.dirtyPaths?.length, 200);
+    assertEquals(sidecar?.bulkInvalidated, false);
+
+    // The 201st path exceeds the cap
+    await service.markDirty({ relPath: "data/m/id-overflow" });
+
+    sidecar = await readSidecar(cachePath);
+    assertEquals(
+      sidecar?.bulkInvalidated,
+      true,
+      "exceeding cap must flip bulkInvalidated",
+    );
+    assertEquals(sidecar?.localDirty, true);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged: scoped push walks only dirty directories (in-process)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-scoped-push-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+    const service = new S3CacheSyncService(mock, cachePath);
+
+    // Seed files in two directories
+    await seedFile(cachePath, "data/m/a/state-main/1/raw", "aaa");
+    await seedFile(cachePath, "data/m/b/state-main/1/raw", "bbb");
+
+    // Only mark one directory dirty via in-process markDirty call
+    await service.markDirty({ relPath: "data/m/a" });
+
+    mock.puts.length = 0;
+    await service.pushChanged();
+
+    const uploadedKeys = mock.puts.map((p) => p.key);
+    assert(
+      uploadedKeys.includes("data/m/a/state-main/1/raw"),
+      "dirty directory file must be uploaded",
+    );
+    assertEquals(
+      uploadedKeys.includes("data/m/b/state-main/1/raw"),
+      false,
+      "non-dirty directory file must NOT be uploaded in scoped push",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged: scoped push handles file-level dirty paths", async () => {
+  const cachePath = await Deno.makeTempDir({
+    prefix: "s3sync-scoped-file-",
+  });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+    const service = new S3CacheSyncService(mock, cachePath);
+
+    await seedFile(cachePath, "data/m/a/state-main/1/raw", "aaa");
+    await seedFile(
+      cachePath,
+      "outputs/command/shell/execute/c19f88eb-2026.yaml",
+      "out",
+    );
+    await seedFile(cachePath, "data/m/b/state-main/1/raw", "bbb");
+
+    // Mark a directory and a file path dirty
+    await service.markDirty({ relPath: "data/m/a" });
+    await service.markDirty({
+      relPath: "outputs/command/shell/execute/c19f88eb-2026.yaml",
+    });
+
+    mock.puts.length = 0;
+    await service.pushChanged();
+
+    const uploadedKeys = mock.puts.map((p) => p.key);
+    assert(
+      uploadedKeys.includes("data/m/a/state-main/1/raw"),
+      "dirty directory file must be uploaded",
+    );
+    assert(
+      uploadedKeys.includes(
+        "outputs/command/shell/execute/c19f88eb-2026.yaml",
+      ),
+      "dirty file path must be uploaded",
+    );
+    assertEquals(
+      uploadedKeys.includes("data/m/b/state-main/1/raw"),
+      false,
+      "non-dirty directory file must NOT be uploaded",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("crash recovery: fresh process loads v2 sidecar with dirtyPaths", async () => {
+  const cachePath = await Deno.makeTempDir({
+    prefix: "s3sync-crash-recovery-",
+  });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+
+    // Simulate a crash: write a v2 sidecar with dirty paths directly
+    const sidecarPath = join(cachePath, ".datastore-sync-state.json");
+    await ensureDir(cachePath);
+    await Deno.writeTextFile(
+      sidecarPath,
+      JSON.stringify({
+        version: 2,
+        remoteIndexETag: "",
+        lastVerifiedAt: "",
+        localDirty: true,
+        dirtyPaths: ["data/m/recovered"],
+        bulkInvalidated: false,
+      }),
+    );
+
+    // Seed a file in the dirty directory
+    await seedFile(cachePath, "data/m/recovered/state-main/1/raw", "recovered");
+    // Seed a file in a NON-dirty directory
+    await seedFile(cachePath, "data/m/other/state-main/1/raw", "other");
+
+    // Fresh service — simulates process restart
+    const service = new S3CacheSyncService(mock, cachePath);
+    mock.puts.length = 0;
+    await service.pushChanged();
+
+    const uploadedKeys = mock.puts.map((p) => p.key);
+    assert(
+      uploadedKeys.includes("data/m/recovered/state-main/1/raw"),
+      "recovered dirty path must be pushed after crash recovery",
+    );
+    assertEquals(
+      uploadedKeys.includes("data/m/other/state-main/1/raw"),
+      false,
+      "non-dirty path must NOT be pushed (scoped walk from sidecar)",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("markDirty: path traversal triggers bulk invalidation", async () => {
+  const cachePath = await Deno.makeTempDir({
+    prefix: "s3sync-traversal-",
+  });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.pullChanged();
+
+    // A relPath with ../ that escapes the cache dir
+    await service.markDirty({
+      relPath: "../../../somewhere/outside/cache.yaml",
+    });
+
+    const sidecar = await readSidecar(cachePath);
+    assertEquals(
+      sidecar?.bulkInvalidated,
+      true,
+      "path traversal must trigger bulk invalidation",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("v1 sidecar read by v2 code: falls back to full walk", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-v1-migration-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+
+    // Write a v1 sidecar directly
+    const sidecarPath = join(cachePath, ".datastore-sync-state.json");
+    await ensureDir(cachePath);
+    await Deno.writeTextFile(
+      sidecarPath,
+      JSON.stringify({
+        version: 1,
+        remoteIndexETag: "",
+        lastVerifiedAt: "",
+        localDirty: true,
+      }),
+    );
+
+    await seedFile(cachePath, "data/m/a/payload.yaml", "aaa");
+    await seedFile(cachePath, "data/m/b/payload.yaml", "bbb");
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    mock.puts.length = 0;
+    await service.pushChanged();
+
+    const uploadedKeys = mock.puts.map((p) => p.key);
+    assert(
+      uploadedKeys.includes("data/m/a/payload.yaml"),
+      "v1 sidecar must trigger full walk — file a",
+    );
+    assert(
+      uploadedKeys.includes("data/m/b/payload.yaml"),
+      "v1 sidecar must trigger full walk — file b",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushFile: computes and stores SHA-256 hash in index entry", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-sha256-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+    const service = new S3CacheSyncService(mock, cachePath);
+
+    // Pull to initialize index
+    await service.pullChanged();
+
+    const content = "hello world";
+    await seedFile(cachePath, "data/m/test.yaml", content);
+    await service.pushFile("data/m/test.yaml");
+
+    const state = privateState(service);
+    const entry = state.index?.entries["data/m/test.yaml"] as {
+      sha256?: string;
+    };
+    assertExists(entry?.sha256, "pushFile must record sha256 in index entry");
+    assertEquals(
+      entry.sha256.length,
+      64,
+      "sha256 must be a 64-char hex string",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged: SHA-256 detects unchanged content despite mtime difference", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-sha256-dedup-" });
+  try {
+    const mock = createMockS3Client();
+
+    // Compute the SHA-256 of "same content" for the index entry
+    const content = "same content";
+    const data = new TextEncoder().encode(content);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const sha256 = Array.from(new Uint8Array(hashBuffer))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    // Seed remote index with sha256 and a fake mtime that won't match local
+    mock.storage.set(
+      ".datastore-index.json",
+      encodeIndex({
+        "data/m/dedup.yaml": {
+          key: "data/m/dedup.yaml",
+          size: data.length,
+          lastModified: new Date().toISOString(),
+          localMtime: new Date(0).toISOString(),
+          sha256,
+        },
+      }),
+    );
+
+    // Write local file with same content but different mtime
+    await seedFile(cachePath, "data/m/dedup.yaml", content);
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    mock.puts.length = 0;
+    const pushed = await service.pushChanged();
+
+    assertEquals(
+      pushed,
+      0,
+      "SHA-256 match must skip upload despite mtime difference",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged: partitioned index dual-write creates partition files", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-partitioned-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+    const service = new S3CacheSyncService(mock, cachePath);
+
+    // Seed files for two different models
+    await seedFile(
+      cachePath,
+      "data/aws/ec2/vpc/abc-123/state-main/1/raw",
+      "vpc-data",
+    );
+    await seedFile(
+      cachePath,
+      "data/aws/s3/bucket/xyz-789/state-main/1/raw",
+      "bucket-data",
+    );
+
+    mock.puts.length = 0;
+    await service.pushChanged();
+
+    const putKeys = mock.puts.map((p) => p.key);
+
+    // Monolithic index must be written
+    assert(
+      putKeys.includes(".datastore-index.json"),
+      "monolithic index must be written",
+    );
+
+    // Partition files must be written
+    assert(
+      putKeys.some((k) =>
+        k.startsWith("_index/") && k.endsWith(".json") &&
+        k !== "_index/_meta.json"
+      ),
+      "at least one partition file must be written",
+    );
+    assert(
+      putKeys.includes("_index/_meta.json"),
+      "_meta.json must be written",
+    );
+
+    // Verify monolithic is written BEFORE partitions (write order for crash safety)
+    const monolithicIdx = putKeys.indexOf(".datastore-index.json");
+    const firstPartitionIdx = putKeys.findIndex((k) => k.startsWith("_index/"));
+    assert(
+      monolithicIdx < firstPartitionIdx,
+      "monolithic index must be written before partition files",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pullChanged: scoped pull reads partition files instead of monolithic", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-scoped-pull-" });
+  try {
+    const mock = createMockS3Client();
+
+    // Seed a partition file and the data it references
+    const partitionKey = "data--aws--ec2--vpc--abc-123";
+    const partitionIndex = {
+      version: 1,
+      entries: {
+        "data/aws/ec2/vpc/abc-123/state-main/1/raw": {
+          key: "data/aws/ec2/vpc/abc-123/state-main/1/raw",
+          size: 8,
+          lastModified: new Date().toISOString(),
+        },
+      },
+    };
+    mock.storage.set(
+      `_index/${partitionKey}.json`,
+      new TextEncoder().encode(JSON.stringify(partitionIndex)),
+    );
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc-123/state-main/1/raw",
+      new TextEncoder().encode("vpc-data"),
+    );
+
+    // Also seed monolithic index with more entries
+    mock.storage.set(
+      ".datastore-index.json",
+      encodeIndex({
+        "data/aws/ec2/vpc/abc-123/state-main/1/raw": {
+          key: "data/aws/ec2/vpc/abc-123/state-main/1/raw",
+          size: 8,
+          lastModified: new Date().toISOString(),
+        },
+        "data/aws/s3/bucket/xyz/state-main/1/raw": {
+          key: "data/aws/s3/bucket/xyz/state-main/1/raw",
+          size: 6,
+          lastModified: new Date().toISOString(),
+        },
+      }),
+    );
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    mock.gets.length = 0;
+    const pulled = await service.pullChanged({
+      context: {
+        models: [{ modelType: "aws/ec2/vpc", modelId: "abc-123" }],
+      },
+    });
+
+    assertEquals(pulled, 1, "scoped pull must download the partition's file");
+
+    // The scoped pull should have read the partition file, NOT the monolithic
+    assert(
+      mock.gets.includes(`_index/${partitionKey}.json`),
+      "scoped pull must read the partition file",
+    );
+    assertEquals(
+      mock.gets.includes(".datastore-index.json"),
+      false,
+      "scoped pull must NOT read the monolithic index when partition exists",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pullChanged: scoped pull falls back to monolithic when partition missing", async () => {
+  const cachePath = await Deno.makeTempDir({
+    prefix: "s3sync-scoped-fallback-",
+  });
+  try {
+    const mock = createMockS3Client();
+    // NO partition files — only monolithic
+    mock.storage.set(
+      ".datastore-index.json",
+      encodeIndex({
+        "data/aws/ec2/vpc/abc-123/state-main/1/raw": {
+          key: "data/aws/ec2/vpc/abc-123/state-main/1/raw",
+          size: 8,
+          lastModified: new Date().toISOString(),
+        },
+      }),
+    );
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc-123/state-main/1/raw",
+      new TextEncoder().encode("vpc-data"),
+    );
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    mock.gets.length = 0;
+    const pulled = await service.pullChanged({
+      context: {
+        models: [{ modelType: "aws/ec2/vpc", modelId: "abc-123" }],
+      },
+    });
+
+    assertEquals(pulled, 1, "fallback must still download the file");
+    assert(
+      mock.gets.includes(".datastore-index.json"),
+      "must fall back to monolithic when partition file is missing",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("capabilities: returns scopedSync true", () => {
+  const mock = createMockS3Client();
+  const service = new S3CacheSyncService(mock, "/tmp/unused");
+  assertEquals(service.capabilities(), { scopedSync: true });
+});
+
+Deno.test("configurable concurrency: constructor accepts custom values", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-concurrency-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+
+    // Create service with custom concurrency
+    const service = new S3CacheSyncService(mock, cachePath, {
+      pullConcurrency: 5,
+      pushConcurrency: 3,
+    });
+
+    // Verify it works by running a sync — concurrency values are
+    // internal, so we just verify the service operates correctly
+    await seedFile(cachePath, "data/m/test.yaml", "test");
+    await service.pushChanged();
+    assert(
+      mock.puts.some((p) => p.key === "data/m/test.yaml"),
+      "push must work with custom concurrency",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
 });

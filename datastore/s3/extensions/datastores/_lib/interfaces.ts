@@ -84,6 +84,22 @@ export interface DatastoreVerifier {
   verify(): Promise<DatastoreHealthResult>;
 }
 
+/** Model identity passed by core when scoped sync is active. */
+export interface SyncModelRef {
+  modelType: string;
+  modelId: string;
+}
+
+/** Context provided by core to scoped sync operations. */
+export interface SyncContext {
+  models: SyncModelRef[];
+}
+
+/** Capabilities advertised by a sync service implementation. */
+export interface SyncCapabilities {
+  scopedSync: boolean;
+}
+
 /** Optional flags passed to a sync operation. */
 export interface DatastoreSyncOptions {
   /**
@@ -94,6 +110,10 @@ export interface DatastoreSyncOptions {
    * in-flight work instead of leaking it past the deadline.
    */
   signal?: AbortSignal;
+  /** Cache-relative path of the directory that was dirtied. */
+  relPath?: string;
+  /** Scoped sync context provided by core when capabilities().scopedSync is true. */
+  context?: SyncContext;
 }
 
 /** Moves data between the local cache directory and the remote datastore. */
@@ -110,7 +130,9 @@ export interface DatastoreSyncService {
    * `pushChanged` performs a full walk + upload. No-op on
    * implementations without a fast-path optimization.
    */
-  markDirty(): Promise<void>;
+  markDirty(options?: DatastoreSyncOptions): Promise<void>;
+  /** Advertises sync capabilities to the framework. */
+  capabilities?(): SyncCapabilities;
 }
 
 /** Factory that produces the datastore's lock, verifier, and sync service. */
