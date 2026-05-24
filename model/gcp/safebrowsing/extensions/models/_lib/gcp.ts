@@ -311,7 +311,7 @@ function appendFieldsParam(url: string): string {
 /**
  * Makes an authenticated HTTP request to the GCP API.
  */
-async function request(
+export async function request(
   method: string,
   url: string,
   body?: Record<string, unknown>,

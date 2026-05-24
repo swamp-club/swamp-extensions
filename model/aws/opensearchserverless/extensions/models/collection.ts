@@ -126,7 +126,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for OpenSearchServerless Collection. Registered at `@swamp/aws/opensearchserverless/collection`. */
 export const model = {
   type: "@swamp/aws/opensearchserverless/collection",
-  version: "2026.04.23.2",
+  version: "2026.05.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -155,6 +155,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -264,8 +269,6 @@ export const model = {
             "StandbyReplicas",
             "CollectionGroupName",
             "EncryptionConfig",
-            "VectorOptions",
-            "ServerlessVectorAcceleration",
           ],
         );
         const handle = await context.writeResource(

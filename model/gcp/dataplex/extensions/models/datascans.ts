@@ -233,9 +233,6 @@ const GlobalArgsSchema = z.object({
         ).optional(),
       }).describe("Describes JSON data format.").optional(),
       unstructuredDataOptions: z.object({
-        entityInferenceEnabled: z.boolean().describe(
-          "Optional. Deprecated: Use semantic_inference_enabled instead. Specifies whether deeper entity inference over the objects' contents using GenAI is enabled.",
-        ).optional(),
         semanticInferenceEnabled: z.boolean().describe(
           "Optional. Specifies whether deeper semantic inference over the objects' contents using GenAI is enabled.",
         ).optional(),
@@ -1006,7 +1003,6 @@ const StateSchema = z.object({
         typeInferenceDisabled: z.boolean(),
       }),
       unstructuredDataOptions: z.object({
-        entityInferenceEnabled: z.boolean(),
         semanticInferenceEnabled: z.boolean(),
       }),
     }),
@@ -1420,9 +1416,6 @@ const InputsSchema = z.object({
         ).optional(),
       }).describe("Describes JSON data format.").optional(),
       unstructuredDataOptions: z.object({
-        entityInferenceEnabled: z.boolean().describe(
-          "Optional. Deprecated: Use semantic_inference_enabled instead. Specifies whether deeper entity inference over the objects' contents using GenAI is enabled.",
-        ).optional(),
         semanticInferenceEnabled: z.boolean().describe(
           "Optional. Specifies whether deeper semantic inference over the objects' contents using GenAI is enabled.",
         ).optional(),
@@ -2151,7 +2144,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dataplex DataScans. Registered at `@swamp/gcp/dataplex/datascans`. */
 export const model = {
   type: "@swamp/gcp/dataplex/datascans",
-  version: "2026.05.21.2",
+  version: "2026.05.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2251,6 +2244,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.21.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
