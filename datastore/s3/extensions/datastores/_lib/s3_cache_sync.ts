@@ -971,8 +971,8 @@ export class S3CacheSyncService implements DatastoreSyncService {
         for (const [rel, entry] of Object.entries(partitionEntries)) {
           this.index.entries[rel] = entry;
         }
-        // Monolithic ETag is still the fast-path fingerprint — fetch it
-        // via HEAD so the sidecar stays consistent.
+        // No ETag from partition reads — the next unscoped pull will
+        // take the slow path and self-heal the sidecar.
         indexETag = null;
       } else {
         // Partition files missing (old writer) — fall back to monolithic.
@@ -1337,8 +1337,8 @@ export class S3CacheSyncService implements DatastoreSyncService {
     if (!this.index) return false;
     for (const [rel, entry] of Object.entries(this.index.entries)) {
       if (isInternalCacheFile(rel)) continue;
-      const localPath = assertSafePath(this.cachePath, rel);
       try {
+        const localPath = assertSafePath(this.cachePath, rel);
         const stat = await Deno.stat(localPath);
         if (stat.size !== entry.size) return false;
       } catch {
@@ -1372,13 +1372,13 @@ export class S3CacheSyncService implements DatastoreSyncService {
       return false;
     }
 
-    // No mtime available or mtime not recorded — fall back to size-only
-    // for old index entries without sha256
+    // No mtime available or not recorded — hash if available, otherwise
+    // size-only skip for old index entries without sha256
     if (!stat.mtime || existing.localMtime === undefined) {
-      return !existing.sha256;
+      if (!existing.sha256) return false;
     }
 
-    // Same size, different mtime — hash if index has sha256
+    // Same size, mtime differs (or unavailable) — hash if index has sha256
     if (existing.sha256) {
       const data = await Deno.readFile(absPath);
       const hashBuffer = await crypto.subtle.digest("SHA-256", data);
