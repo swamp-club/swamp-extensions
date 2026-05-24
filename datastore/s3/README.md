@@ -56,6 +56,41 @@ The datastore speaks the S3 API, so any S3-compatible object store works. Set
 `endpoint` (and `forcePathStyle: true` where required) to point at MinIO,
 DigitalOcean Spaces, Cloudflare R2, or other providers.
 
+## Sync configuration
+
+Transfer concurrency is configurable via the `pullConcurrency` and
+`pushConcurrency` config fields (defaults: 50 and 25 respectively).
+Users on constrained S3-compatible endpoints can dial these back:
+
+```bash
+swamp datastore setup @swamp/s3-datastore \
+  --config '{"bucket": "my-bucket", "pullConcurrency": 10, "pushConcurrency": 5}'
+```
+
+## Efficiency features
+
+- **Per-path dirty tracking**: `markDirty({ relPath })` records which
+  directories changed. `pushChanged` walks only those directories instead
+  of the entire cache. A 200-path cap falls back to a full walk for bulk
+  operations.
+- **SHA-256 content hashing**: File content is hashed on push and stored in
+  the index. On subsequent pushes, files with matching size and mtime skip
+  I/O entirely; files with matching size but different mtime are hash-compared
+  to avoid redundant uploads across machines with clock skew.
+- **Partitioned index**: Alongside the monolithic `.datastore-index.json`, per-model
+  partition files are written under `_index/`. Scoped pulls read only the
+  relevant partitions instead of the full index.
+- **Scoped sync**: The extension advertises `scopedSync` capability. When the
+  framework passes `context.models`, pull and push operate only on the
+  specified models.
+
+## Backward compatibility
+
+- Old clients continue to read `.datastore-index.json` (always written first).
+- Old clients ignore the `sha256` field in index entries (JSON forward compat).
+- A v1 sidecar read by the new code triggers a full walk (safe fallback).
+- The `_index/` directory is excluded from sync — old clients never see it.
+
 ## Cache-write contract
 
 The fast-path sync optimization maintains a `.datastore-sync-state.json`
@@ -66,6 +101,11 @@ call to `DatastoreSyncService.markDirty()`; otherwise the next
 skipped. swamp-core calls `markDirty()` from its repository layer for
 this reason. Downstream tooling that writes into the cache directory
 directly must follow the same contract.
+
+The `markDirty` method now accepts an optional `relPath` parameter for
+per-path tracking. When `relPath` is provided, only that directory is
+walked on the next push. Without `relPath`, the entire cache is walked
+(bulk invalidation).
 
 ## License
 

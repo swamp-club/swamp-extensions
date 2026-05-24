@@ -38,6 +38,7 @@ import type {
   DistributedLock,
   LockInfo,
   LockOptions,
+  SyncCapabilities,
 } from "./_lib/interfaces.ts";
 import { S3Client } from "./_lib/s3_client.ts";
 import { S3Lock } from "./_lib/s3_lock.ts";
@@ -52,6 +53,7 @@ export type {
   DistributedLock,
   LockInfo,
   LockOptions,
+  SyncCapabilities,
 };
 
 // ---------------------------------------------------------------------------
@@ -81,6 +83,14 @@ const s3ConfigSchema = z.object({
     .describe(
       "Use path-style addressing (bucket in path, not subdomain). Default: false",
     ),
+  pullConcurrency: z.number().int().min(1).max(1000).optional()
+    .describe(
+      "Maximum concurrent S3 downloads during pull. Default: 50",
+    ),
+  pushConcurrency: z.number().int().min(1).max(1000).optional()
+    .describe(
+      "Maximum concurrent S3 uploads during push. Default: 25",
+    ),
 });
 
 // ---------------------------------------------------------------------------
@@ -93,6 +103,8 @@ interface S3DatastoreProviderConfig {
   region?: string;
   endpoint?: string;
   forcePathStyle?: boolean;
+  pullConcurrency?: number;
+  pushConcurrency?: number;
 }
 
 class S3DatastoreProviderImpl implements DatastoreProvider {
@@ -116,7 +128,10 @@ class S3DatastoreProviderImpl implements DatastoreProvider {
     cachePath: string,
   ): DatastoreSyncService {
     const s3 = new S3Client(this.config);
-    return new S3CacheSyncService(s3, cachePath);
+    return new S3CacheSyncService(s3, cachePath, {
+      pullConcurrency: this.config.pullConcurrency,
+      pushConcurrency: this.config.pushConcurrency,
+    });
   }
 
   resolveDatastorePath(repoDir: string): string {

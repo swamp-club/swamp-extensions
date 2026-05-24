@@ -32,6 +32,7 @@ import { ensureDir, walk } from "jsr:@std/fs@1";
 import type {
   DatastoreSyncOptions,
   DatastoreSyncService,
+  SyncCapabilities,
 } from "./interfaces.ts";
 import { type S3Client, S3OperationError } from "./s3_client.ts";
 import { atomicWriteTextFile } from "./atomic_write.ts";
@@ -107,6 +108,7 @@ export function isInternalCacheFile(rel: string): boolean {
   ) {
     return true;
   }
+  if (rel === "_index" || rel.startsWith("_index/")) return true;
   const base = rel.split("/").pop() ?? "";
   if (base === ".lock") return true;
   return base === "_catalog.db" || base.startsWith("_catalog.db-");
@@ -223,6 +225,19 @@ interface IndexEntry {
   size: number;
   lastModified: string;
   localMtime?: string;
+  sha256?: string;
+}
+
+/** Metadata for the partitioned index directory. */
+interface PartitionMeta {
+  version: 1;
+  partitions: string[];
+}
+
+/** A single partition index file containing entries for one model. */
+interface PartitionIndex {
+  version: 1;
+  entries: Record<string, IndexEntry>;
 }
 
 /** Metadata index tracking all files in the S3 datastore. */
@@ -246,8 +261,13 @@ interface PushQueue {
 /** TTL in ms for using the local index cache instead of fetching from S3. */
 const INDEX_CACHE_TTL_MS = 60_000;
 
-/** Maximum number of concurrent S3 downloads/uploads. */
-const MAX_CONCURRENCY = 10;
+/** Default concurrent S3 downloads. */
+const DEFAULT_PULL_CONCURRENCY = 50;
+/** Default concurrent S3 uploads. */
+const DEFAULT_PUSH_CONCURRENCY = 25;
+
+/** When the dirty-path set exceeds this cap, fall back to a full walk. */
+const DIRTY_PATHS_CAP = 200;
 
 /** Retry budget for single-object S3 operations in the sync pipeline. */
 const RETRY_MAX_ATTEMPTS = 3;
@@ -379,23 +399,23 @@ function formatBatchFailure(
  * without a migration step (any parse failure or version mismatch
  * falls through to the slow path and rewrites the sidecar).
  */
-interface DatastoreSyncState {
+interface DatastoreSyncStateV1 {
   version: 1;
-  /** Remote `.datastore-index.json` ETag at last successful verification. */
   remoteIndexETag: string;
-  /** ISO-8601 timestamp of the last successful verification. */
   lastVerifiedAt: string;
-  /**
-   * `true` when a writer has touched the local cache since the last
-   * verified-clean snapshot. Set pessimistically by `pushFile` BEFORE
-   * any upload work so a crash mid-batch leaves the flag dirty (safe
-   * default: re-walk on next push). Cleared only after a successful
-   * index writeback completes, or after a verified-clean
-   * `pullChanged`. See the guardrail test for the contract: cache
-   * writes that bypass `pushFile` won't update this flag.
-   */
   localDirty: boolean;
 }
+
+interface DatastoreSyncStateV2 {
+  version: 2;
+  remoteIndexETag: string;
+  lastVerifiedAt: string;
+  localDirty: boolean;
+  dirtyPaths: string[];
+  bulkInvalidated: boolean;
+}
+
+type DatastoreSyncState = DatastoreSyncStateV1 | DatastoreSyncStateV2;
 
 /** S3 cache sync service. */
 export class S3CacheSyncService implements DatastoreSyncService {
@@ -404,23 +424,27 @@ export class S3CacheSyncService implements DatastoreSyncService {
   private readonly indexPath: string;
   private readonly pushQueuePath: string;
   private readonly syncStatePath: string;
+  private readonly pullConcurrency: number;
+  private readonly pushConcurrency: number;
   private index: DatastoreIndex | null = null;
   private syncState: DatastoreSyncState | null = null;
   private syncStateLoaded = false;
-  /**
-   * Set to true when `scrubIndex()` removes zombie entries from the
-   * in-memory index. Drives the write-back gate in `pushChanged()` so
-   * that the cleaned index propagates to the remote even on a no-op
-   * push (no new files to upload). Reset after a successful write-back.
-   */
   private indexMutated = false;
+  private dirtyPaths: Set<string> = new Set();
+  private bulkInvalidated = false;
 
-  constructor(s3: S3Client, cachePath: string) {
+  constructor(
+    s3: S3Client,
+    cachePath: string,
+    options?: { pullConcurrency?: number; pushConcurrency?: number },
+  ) {
     this.s3 = s3;
     this.cachePath = cachePath;
     this.indexPath = join(cachePath, ".datastore-index.json");
     this.pushQueuePath = join(cachePath, ".push-queue.json");
     this.syncStatePath = join(cachePath, SYNC_STATE_FILE);
+    this.pullConcurrency = options?.pullConcurrency ?? DEFAULT_PULL_CONCURRENCY;
+    this.pushConcurrency = options?.pushConcurrency ?? DEFAULT_PUSH_CONCURRENCY;
   }
 
   /**
@@ -436,14 +460,22 @@ export class S3CacheSyncService implements DatastoreSyncService {
     this.syncStateLoaded = true;
     try {
       const text = await Deno.readTextFile(this.syncStatePath);
-      const parsed = JSON.parse(text) as Partial<DatastoreSyncState>;
+      const parsed = JSON.parse(text);
       if (
-        parsed.version === 1 &&
         typeof parsed.remoteIndexETag === "string" &&
         typeof parsed.lastVerifiedAt === "string" &&
         typeof parsed.localDirty === "boolean"
       ) {
-        this.syncState = parsed as DatastoreSyncState;
+        if (parsed.version === 2) {
+          const v2 = parsed as DatastoreSyncStateV2;
+          this.syncState = v2;
+          if (Array.isArray(v2.dirtyPaths)) {
+            this.dirtyPaths = new Set(v2.dirtyPaths);
+          }
+          this.bulkInvalidated = !!v2.bulkInvalidated;
+        } else if (parsed.version === 1) {
+          this.syncState = parsed as DatastoreSyncStateV1;
+        }
       }
     } catch {
       // Missing/corrupt/unreadable — treat as no sidecar (safe default).
@@ -462,26 +494,69 @@ export class S3CacheSyncService implements DatastoreSyncService {
     );
   }
 
-  /**
-   * Pessimistically mark the local cache as dirty. Called by `pushFile`
-   * before its upload work so a crash mid-batch leaves the flag set
-   * (safe: forces a full walk next time). Also the public
-   * `DatastoreSyncService.markDirty` entry point — swamp-core's
-   * repository layer calls this before writing to the cache directly
-   * (any write that bypasses `pushFile`). Without this hook, the
-   * fast-path short-circuit silently skips core's writes on the next
-   * `pushChanged`. Idempotent — if the sidecar already records
-   * `localDirty: true`, no write is issued.
-   */
-  async markDirty(): Promise<void> {
-    const current = await this.loadSyncState();
-    if (current?.localDirty === true) return;
-    await this.writeSyncState({
-      version: 1,
+  /** Build a v2 sidecar snapshot from current in-memory state. */
+  private buildV2State(
+    overrides?: Partial<
+      Pick<DatastoreSyncStateV2, "localDirty" | "bulkInvalidated">
+    >,
+  ): DatastoreSyncStateV2 {
+    const current = this.syncState;
+    return {
+      version: 2,
       remoteIndexETag: current?.remoteIndexETag ?? "",
       lastVerifiedAt: current?.lastVerifiedAt ?? "",
-      localDirty: true,
-    });
+      localDirty: overrides?.localDirty ?? current?.localDirty ?? false,
+      dirtyPaths: [...this.dirtyPaths],
+      bulkInvalidated: overrides?.bulkInvalidated ?? this.bulkInvalidated,
+    };
+  }
+
+  async markDirty(options?: DatastoreSyncOptions): Promise<void> {
+    const current = await this.loadSyncState();
+    const relPath = options?.relPath;
+
+    if (relPath) {
+      if (this.bulkInvalidated) return;
+      // Normalize the path relative to cachePath. Core may pass absolute
+      // or ../‑relative paths for repos that resolve outside the cache
+      // dir (e.g. definitions-evaluated, outputs). Resolve and re-derive
+      // the cache-relative form so the scoped walker can find the files.
+      const resolved = normalize(join(this.cachePath, relPath));
+      const normalizedCache = normalize(this.cachePath);
+      let normalizedRel: string;
+      if (
+        resolved.startsWith(normalizedCache + "/") ||
+        resolved === normalizedCache
+      ) {
+        normalizedRel = relative(this.cachePath, resolved);
+      } else {
+        // Path escapes cache dir — can't scope the walk to it, so
+        // fall back to bulk invalidation.
+        this.bulkInvalidated = true;
+        await this.writeSyncState(
+          this.buildV2State({ localDirty: true, bulkInvalidated: true }),
+        );
+        return;
+      }
+      if (this.dirtyPaths.has(normalizedRel)) return;
+      if (this.dirtyPaths.size >= DIRTY_PATHS_CAP) {
+        this.bulkInvalidated = true;
+        await this.writeSyncState(
+          this.buildV2State({ localDirty: true, bulkInvalidated: true }),
+        );
+        return;
+      }
+      this.dirtyPaths.add(normalizedRel);
+      await this.writeSyncState(this.buildV2State({ localDirty: true }));
+      return;
+    }
+
+    // No relPath — bulk invalidation (legacy path or pushFile)
+    if (current?.localDirty === true && this.bulkInvalidated) return;
+    this.bulkInvalidated = true;
+    await this.writeSyncState(
+      this.buildV2State({ localDirty: true, bulkInvalidated: true }),
+    );
   }
 
   /**
@@ -519,11 +594,15 @@ export class S3CacheSyncService implements DatastoreSyncService {
       // No local index yet (e.g. first push against an empty cache);
       // wall-clock baseline is fine.
     }
+    this.dirtyPaths.clear();
+    this.bulkInvalidated = false;
     await this.writeSyncState({
-      version: 1,
+      version: 2,
       remoteIndexETag: normalized,
       lastVerifiedAt: new Date(baselineMs).toISOString(),
       localDirty: false,
+      dirtyPaths: [],
+      bulkInvalidated: false,
     });
   }
 
@@ -873,16 +952,35 @@ export class S3CacheSyncService implements DatastoreSyncService {
     if (fastResult !== null) return fastResult;
 
     const indexStart = Date.now();
-    // Force a remote fetch on the slow path. The 60-second TTL cache in
-    // pullIndex is correct within a single process (don't re-fetch what
-    // we just pulled), but it's stale across processes: another writer
-    // may have pushed since we last wrote our local index, and the
-    // fast-path miss above specifically means the remote ETag is not
-    // the one our sidecar recorded. Trusting the local-mtime cache
-    // here would walk a stale index, find toPull=0, and report
-    // "Pulled 0 files" while writer2's data sits unpulled on remote.
-    // Symmetric with `pushChanged`'s slow path, which already does this.
-    const indexETag = await this.pullIndex({ forceRemote: true, signal });
+    const models = options?.context?.models;
+    let indexETag: string | null;
+
+    if (models && models.length > 0) {
+      // Scoped pull: try partition files first, fall back to monolithic.
+      const partitionEntries = await this.pullPartitionedIndex(models, signal);
+      if (partitionEntries) {
+        // Merge partition entries into the in-memory index without
+        // replacing the full index — we only update the scoped entries.
+        if (!this.index) {
+          this.index = {
+            version: 1,
+            lastPulled: new Date().toISOString(),
+            entries: {},
+          };
+        }
+        for (const [rel, entry] of Object.entries(partitionEntries)) {
+          this.index.entries[rel] = entry;
+        }
+        // Monolithic ETag is still the fast-path fingerprint — fetch it
+        // via HEAD so the sidecar stays consistent.
+        indexETag = null;
+      } else {
+        // Partition files missing (old writer) — fall back to monolithic.
+        indexETag = await this.pullIndex({ forceRemote: true, signal });
+      }
+    } else {
+      indexETag = await this.pullIndex({ forceRemote: true, signal });
+    }
     tracePhase("pullChanged.pullIndex", indexStart);
 
     // Build list of files that need pulling
@@ -922,13 +1020,12 @@ export class S3CacheSyncService implements DatastoreSyncService {
     const downloadStart = Date.now();
     let pulled = 0;
     const failures: Array<{ file: string; error: unknown }> = [];
-    for (let i = 0; i < toPull.length; i += MAX_CONCURRENCY) {
+    for (let i = 0; i < toPull.length; i += this.pullConcurrency) {
       throwIfAborted(signal);
-      const batch = toPull.slice(i, i + MAX_CONCURRENCY);
+      const batch = toPull.slice(i, i + this.pullConcurrency);
       const results = await Promise.allSettled(
         batch.map(async (rel) => {
           await this.pullFile(rel, signal);
-          // Store the pulled file's local mtime so subsequent pushes have a baseline
           try {
             const localPath = join(this.cachePath, rel);
             const stat = await Deno.stat(localPath);
@@ -1019,12 +1116,15 @@ export class S3CacheSyncService implements DatastoreSyncService {
     await this.markDirty();
     const localPath = assertSafePath(this.cachePath, relativePath);
     const data = await Deno.readFile(localPath);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const sha256 = Array.from(new Uint8Array(hashBuffer))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
     await retryWithBackoff(
       () => this.s3.putObject(relativePath, data, signal),
       { signal },
     );
 
-    // Update index with size and local mtime
     if (this.index) {
       const stat = await Deno.stat(localPath);
       this.index.entries[relativePath] = {
@@ -1032,6 +1132,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
         size: data.length,
         lastModified: new Date().toISOString(),
         localMtime: stat.mtime?.toISOString(),
+        sha256,
       };
     }
   }
@@ -1069,42 +1170,54 @@ export class S3CacheSyncService implements DatastoreSyncService {
     const indexETag = await this.pullIndex({ forceRemote: true, signal });
     tracePhase("pushChanged.pullIndex", indexStart);
 
-    // Build list of files that need pushing
+    // Build list of files that need pushing. When per-path dirty
+    // tracking is available and not bulk-invalidated, walk only the
+    // dirty directories instead of the entire cache.
     const walkStart = Date.now();
     const toPush: string[] = [];
-    try {
-      for await (
-        const entry of walk(this.cachePath, {
-          includeDirs: false,
-        })
-      ) {
-        const rel = relative(this.cachePath, entry.path);
-        // Skip internal metadata files (see isInternalCacheFile)
-        if (isInternalCacheFile(rel)) {
-          continue;
-        }
+    const useScopedWalk = !this.bulkInvalidated && this.dirtyPaths.size > 0;
 
-        // Check if file is new or has changed (size + mtime comparison)
-        const stat = await Deno.stat(entry.path);
-        const existing = this.index?.entries[rel];
-        if (existing && existing.size === stat.size) {
-          // Size matches — also check mtime if available
-          if (
-            existing.localMtime && stat.mtime &&
-            existing.localMtime === stat.mtime.toISOString()
-          ) {
-            continue; // Both size and mtime match — unchanged
+    if (useScopedWalk) {
+      for (const dirtyPath of this.dirtyPaths) {
+        const absPath = join(this.cachePath, dirtyPath);
+        try {
+          const stat = await Deno.stat(absPath);
+          if (stat.isFile) {
+            if (
+              !isInternalCacheFile(dirtyPath) &&
+              await this.fileNeedsPush(absPath, dirtyPath)
+            ) {
+              toPush.push(dirtyPath);
+            }
+          } else if (stat.isDirectory) {
+            for await (
+              const entry of walk(absPath, { includeDirs: false })
+            ) {
+              const rel = relative(this.cachePath, entry.path);
+              if (isInternalCacheFile(rel)) continue;
+              if (await this.fileNeedsPush(entry.path, rel)) {
+                toPush.push(rel);
+              }
+            }
           }
-          // If no localMtime recorded (old index format), fall back to size-only
-          if (!stat.mtime || existing.localMtime === undefined) {
-            continue;
-          }
+        } catch {
+          // Path may have been deleted between markDirty and push
         }
-
-        toPush.push(rel);
       }
-    } catch {
-      // Cache directory may not exist yet
+    } else {
+      try {
+        for await (
+          const entry of walk(this.cachePath, { includeDirs: false })
+        ) {
+          const rel = relative(this.cachePath, entry.path);
+          if (isInternalCacheFile(rel)) continue;
+          if (await this.fileNeedsPush(entry.path, rel)) {
+            toPush.push(rel);
+          }
+        }
+      } catch {
+        // Cache directory may not exist yet
+      }
     }
     tracePhase("pushChanged.walk", walkStart, `toPush=${toPush.length}`);
 
@@ -1112,9 +1225,9 @@ export class S3CacheSyncService implements DatastoreSyncService {
     const uploadStart = Date.now();
     let pushed = 0;
     const failures: Array<{ file: string; error: unknown }> = [];
-    for (let i = 0; i < toPush.length; i += MAX_CONCURRENCY) {
+    for (let i = 0; i < toPush.length; i += this.pushConcurrency) {
       throwIfAborted(signal);
-      const batch = toPush.slice(i, i + MAX_CONCURRENCY);
+      const batch = toPush.slice(i, i + this.pushConcurrency);
       const results = await Promise.allSettled(
         batch.map((rel) => this.pushFile(rel, signal)),
       );
@@ -1153,9 +1266,11 @@ export class S3CacheSyncService implements DatastoreSyncService {
         () => this.s3.putObject(".datastore-index.json", indexData, signal),
         { signal },
       );
-      // Also update the local cache
       await atomicWriteTextFile(this.indexPath, indexJson);
       this.indexMutated = false;
+
+      // Dual-write: partitioned index files (after monolithic for crash safety)
+      await this.writePartitionedIndex(this.index, signal);
       // Record the new index ETag as the verified-clean baseline so
       // the next `pushChanged` can take the fast path. The PutObject
       // response's ETag is bound to the bytes we just uploaded — it's
@@ -1231,5 +1346,168 @@ export class S3CacheSyncService implements DatastoreSyncService {
       }
     }
     return true;
+  }
+
+  /**
+   * Three-branch change detection for a single file during push walk:
+   * 1. Size differs → needs push
+   * 2. Same size + same mtime → skip (stat-only fast path)
+   * 3. Same size + different mtime → SHA-256 comparison when available
+   */
+  private async fileNeedsPush(
+    absPath: string,
+    rel: string,
+  ): Promise<boolean> {
+    const stat = await Deno.stat(absPath);
+    const existing = this.index?.entries[rel];
+    if (!existing) return true;
+
+    if (existing.size !== stat.size) return true;
+
+    // Same size — check mtime for fast-path skip
+    if (
+      existing.localMtime && stat.mtime &&
+      existing.localMtime === stat.mtime.toISOString()
+    ) {
+      return false;
+    }
+
+    // No mtime available or mtime not recorded — fall back to size-only
+    // for old index entries without sha256
+    if (!stat.mtime || existing.localMtime === undefined) {
+      return !existing.sha256;
+    }
+
+    // Same size, different mtime — hash if index has sha256
+    if (existing.sha256) {
+      const data = await Deno.readFile(absPath);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      const localHash = Array.from(new Uint8Array(hashBuffer))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+      return localHash !== existing.sha256;
+    }
+
+    // No sha256 in index, mtime differs → push
+    return true;
+  }
+
+  /**
+   * Groups index entries into partition buckets by model prefix.
+   * Path structure: data/{modelType-segments}/{modelId}/{dataName}/{version}/raw
+   * Partition key: segments up to (but not including) dataName, joined with --.
+   */
+  private static groupEntriesByPartition(
+    entries: Record<string, IndexEntry>,
+  ): Map<string, Record<string, IndexEntry>> {
+    const partitions = new Map<string, Record<string, IndexEntry>>();
+
+    for (const [rel, entry] of Object.entries(entries)) {
+      if (!rel.startsWith("data/")) continue;
+      const segments = rel.split("/");
+      if (segments.length < 4) continue;
+
+      // Strip trailing dataName/version/raw (3 segments) or just dataName (1)
+      const prefixEnd = segments.length >= 6
+        ? segments.length - 3
+        : segments.length - 1;
+      const key = segments.slice(0, prefixEnd).join("--");
+
+      let bucket = partitions.get(key);
+      if (!bucket) {
+        bucket = {};
+        partitions.set(key, bucket);
+      }
+      bucket[rel] = entry;
+    }
+
+    return partitions;
+  }
+
+  /** Derives a partition key from a SyncModelRef. */
+  private static partitionKeyFromModel(
+    modelType: string,
+    modelId: string,
+  ): string {
+    return `data--${modelType.replace(/\//g, "--")}--${modelId}`;
+  }
+
+  /** Writes partitioned index files to S3 alongside the monolithic index. */
+  private async writePartitionedIndex(
+    index: DatastoreIndex,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const partitions = S3CacheSyncService.groupEntriesByPartition(
+      index.entries,
+    );
+    if (partitions.size === 0) return;
+
+    const partitionKeys: string[] = [];
+    for (const [key, entries] of partitions) {
+      partitionKeys.push(key);
+      const partition: PartitionIndex = { version: 1, entries };
+      const data = new TextEncoder().encode(JSON.stringify(partition, null, 2));
+      try {
+        await retryWithBackoff(
+          () => this.s3.putObject(`_index/${key}.json`, data, signal),
+          { signal },
+        );
+      } catch {
+        // Non-fatal: partition files are an optimization. Old clients
+        // read monolithic. New clients fall back to monolithic on miss.
+      }
+    }
+
+    const meta: PartitionMeta = { version: 1, partitions: partitionKeys };
+    const metaData = new TextEncoder().encode(JSON.stringify(meta, null, 2));
+    try {
+      await retryWithBackoff(
+        () => this.s3.putObject("_index/_meta.json", metaData, signal),
+        { signal },
+      );
+    } catch {
+      // Non-fatal: _meta.json is advisory.
+    }
+  }
+
+  /**
+   * Reads partition files for specific models. Returns merged entries
+   * or null if any partition file is missing (triggers monolithic fallback).
+   * Does NOT affect the ETag chain — the monolithic index ETag remains
+   * the fast-path fingerprint.
+   */
+  private async pullPartitionedIndex(
+    models: ReadonlyArray<{ modelType: string; modelId: string }>,
+    signal?: AbortSignal,
+  ): Promise<Record<string, IndexEntry> | null> {
+    const merged: Record<string, IndexEntry> = {};
+
+    for (const model of models) {
+      const key = S3CacheSyncService.partitionKeyFromModel(
+        model.modelType,
+        model.modelId,
+      );
+      try {
+        const { data } = await this.s3.getObject(
+          `_index/${key}.json`,
+          signal,
+        );
+        const text = new TextDecoder().decode(data);
+        const partition = JSON.parse(text) as PartitionIndex;
+        if (partition.version !== 1) return null;
+        for (const [rel, entry] of Object.entries(partition.entries)) {
+          merged[rel] = entry;
+        }
+      } catch {
+        // Partition file missing (old writer) — fall back to monolithic
+        return null;
+      }
+    }
+
+    return merged;
+  }
+
+  capabilities(): SyncCapabilities {
+    return { scopedSync: true };
   }
 }
