@@ -98,6 +98,7 @@ export interface SyncContext {
 /** Capabilities advertised by a sync service implementation. */
 export interface SyncCapabilities {
   scopedSync: boolean;
+  lazyHydration?: boolean;
 }
 
 /** Optional flags passed to a sync operation. */
@@ -114,6 +115,8 @@ export interface DatastoreSyncOptions {
   relPath?: string;
   /** Scoped sync context provided by core when capabilities().scopedSync is true. */
   context?: SyncContext;
+  /** When true, skip downloading raw content files under data/ — pull only metadata.yaml, latest pointers, and non-data files. */
+  metadataOnly?: boolean;
 }
 
 /** Moves data between the local cache directory and the remote datastore. */
@@ -133,6 +136,11 @@ export interface DatastoreSyncService {
   markDirty(options?: DatastoreSyncOptions): Promise<void>;
   /** Advertises sync capabilities to the framework. */
   capabilities?(): SyncCapabilities;
+  /** Downloads a single file by its cache-relative path on demand. */
+  hydrateFile?(
+    relPath: string,
+    options?: DatastoreSyncOptions,
+  ): Promise<boolean>;
 }
 
 /** Factory that produces the datastore's lock, verifier, and sync service. */

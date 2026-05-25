@@ -115,6 +115,20 @@ export function isInternalCacheFile(rel: string): boolean {
 }
 
 /**
+ * Returns true for data-tier raw content files that should be skipped
+ * during the first lazy hydration pull. Only files under `data/` whose
+ * basename is `raw` are skipped — metadata.yaml, latest pointers, and
+ * everything outside the data/ prefix are always downloaded.
+ *
+ * Exported for unit tests; not part of the public extension API.
+ */
+export function isLazySkippable(rel: string): boolean {
+  if (!rel.startsWith("data/")) return false;
+  const base = rel.split("/").pop() ?? "";
+  return base === "raw";
+}
+
+/**
  * Strips S3's surrounding double-quotes from an ETag so two ETags from
  * different SDK paths (HeadObject vs. PutObject) can be compared byte-
  * for-byte. `undefined` passes through.
@@ -436,7 +450,10 @@ export class S3CacheSyncService implements DatastoreSyncService {
   constructor(
     s3: S3Client,
     cachePath: string,
-    options?: { pullConcurrency?: number; pushConcurrency?: number },
+    options?: {
+      pullConcurrency?: number;
+      pushConcurrency?: number;
+    },
   ) {
     this.s3 = s3;
     this.cachePath = cachePath;
@@ -983,14 +1000,26 @@ export class S3CacheSyncService implements DatastoreSyncService {
     }
     tracePhase("pullChanged.pullIndex", indexStart);
 
+    // Metadata-only pull: skip raw content files under data/ — download
+    // only metadata.yaml, latest pointers, and everything outside data/.
+    // Create parent dirs for skipped files so readdir works for the
+    // catalog walker.
+    const metadataOnly = !!options?.metadataOnly;
+
     // Build list of files that need pulling
     const walkStart = Date.now();
     const toPull: string[] = [];
+    const lazyDirsToCreate: Set<string> = new Set();
     for (const [rel, entry] of Object.entries(this.index?.entries ?? {})) {
       // Belt-and-suspenders: `scrubIndex` already removed internal
       // entries in `pullIndex`, but if anything re-adds a zombie
       // between the scrub and the walk, this guard still catches it.
       if (isInternalCacheFile(rel)) {
+        continue;
+      }
+      if (metadataOnly && isLazySkippable(rel)) {
+        const localPath = assertSafePath(this.cachePath, rel);
+        lazyDirsToCreate.add(dirname(localPath));
         continue;
       }
       const localPath = assertSafePath(this.cachePath, rel);
@@ -1013,6 +1042,9 @@ export class S3CacheSyncService implements DatastoreSyncService {
         // File doesn't exist locally — needs pull
       }
       toPull.push(rel);
+    }
+    for (const dir of lazyDirsToCreate) {
+      await ensureDir(dir);
     }
     tracePhase("pullChanged.walk", walkStart, `toPull=${toPull.length}`);
 
@@ -1531,6 +1563,24 @@ export class S3CacheSyncService implements DatastoreSyncService {
   }
 
   capabilities(): SyncCapabilities {
-    return { scopedSync: true };
+    return { scopedSync: true, lazyHydration: true };
+  }
+
+  async hydrateFile(
+    relPath: string,
+    options?: DatastoreSyncOptions,
+  ): Promise<boolean> {
+    try {
+      await this.pullFile(relPath, options?.signal);
+      return true;
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.name === "NotFound" || error.name === "NoSuchKey")
+      ) {
+        return false;
+      }
+      throw error;
+    }
   }
 }

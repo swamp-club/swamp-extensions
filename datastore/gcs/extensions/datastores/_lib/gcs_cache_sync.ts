@@ -112,6 +112,20 @@ export function isInternalCacheFile(rel: string): boolean {
 }
 
 /**
+ * Returns true for data-tier raw content files that should be skipped
+ * during the first lazy hydration pull. Only files under `data/` whose
+ * basename is `raw` are skipped — metadata.yaml, latest pointers, and
+ * everything outside the data/ prefix are always downloaded.
+ *
+ * Exported for unit tests; not part of the public extension API.
+ */
+export function isLazySkippable(rel: string): boolean {
+  if (!rel.startsWith("data/")) return false;
+  const base = rel.split("/").pop() ?? "";
+  return base === "raw";
+}
+
+/**
  * Rejects with `AbortError` if the signal is already aborted. Used at
  * phase boundaries so abort propagation doesn't have to ride on a
  * pending GCS call — the next boundary catches it first.
@@ -402,7 +416,10 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   constructor(
     gcs: GcsClient,
     cachePath: string,
-    options?: { pullConcurrency?: number; pushConcurrency?: number },
+    options?: {
+      pullConcurrency?: number;
+      pushConcurrency?: number;
+    },
   ) {
     this.gcs = gcs;
     this.cachePath = cachePath;
@@ -923,10 +940,22 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     }
     tracePhase("pullChanged.pullIndex", indexStart);
 
+    // Metadata-only pull: skip raw content files under data/ — download
+    // only metadata.yaml, latest pointers, and everything outside data/.
+    // Create parent dirs for skipped files so readdir works for the
+    // catalog walker.
+    const metadataOnly = !!options?.metadataOnly;
+
     const walkStart = Date.now();
     const toPull: string[] = [];
+    const lazyDirsToCreate: Set<string> = new Set();
     for (const [rel, entry] of Object.entries(this.index?.entries ?? {})) {
       if (isInternalCacheFile(rel)) {
+        continue;
+      }
+      if (metadataOnly && isLazySkippable(rel)) {
+        const localPath = assertSafePath(this.cachePath, rel);
+        lazyDirsToCreate.add(dirname(localPath));
         continue;
       }
       const localPath = assertSafePath(this.cachePath, rel);
@@ -945,6 +974,9 @@ export class GcsCacheSyncService implements DatastoreSyncService {
         // File doesn't exist locally — needs pull
       }
       toPull.push(rel);
+    }
+    for (const dir of lazyDirsToCreate) {
+      await ensureDir(dir);
     }
     tracePhase("pullChanged.walk", walkStart, `toPull=${toPull.length}`);
 
@@ -1355,6 +1387,21 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   }
 
   capabilities(): SyncCapabilities {
-    return { scopedSync: true };
+    return { scopedSync: true, lazyHydration: true };
+  }
+
+  async hydrateFile(
+    relPath: string,
+    options?: DatastoreSyncOptions,
+  ): Promise<boolean> {
+    try {
+      await this.pullFile(relPath, options?.signal);
+      return true;
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return false;
+      }
+      throw error;
+    }
   }
 }

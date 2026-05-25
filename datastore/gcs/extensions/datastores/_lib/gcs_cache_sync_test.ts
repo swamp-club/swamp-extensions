@@ -33,6 +33,7 @@ import { join } from "jsr:@std/path@1";
 import {
   GcsCacheSyncService,
   isInternalCacheFile,
+  isLazySkippable,
   isRetryableError,
   retryWithBackoff,
 } from "./gcs_cache_sync.ts";
@@ -2567,7 +2568,7 @@ Deno.test("pullChanged: scoped pull falls back to monolithic when partition miss
 Deno.test("capabilities: returns scopedSync true", () => {
   const mock = createMockGcsClient();
   const service = new GcsCacheSyncService(mock, "/tmp/unused");
-  assertEquals(service.capabilities(), { scopedSync: true });
+  assertEquals(service.capabilities().scopedSync, true);
 });
 
 Deno.test("configurable concurrency: respects custom pullConcurrency", async () => {
@@ -2906,4 +2907,251 @@ Deno.test("#436 test 5: scoped pull for dirty model A gets updated data after pa
     await Deno.remove(cachePath, { recursive: true });
     await Deno.remove(readerCachePath, { recursive: true });
   }
+});
+
+// -- Lazy hydration (Issue #440) -------------------------------------------
+
+// -- isLazySkippable unit tests --------------------------------------------
+
+Deno.test("isLazySkippable: skips data/*/raw files", () => {
+  assert(isLazySkippable("data/aws/ec2/vpc/abc/state-main/1/raw"));
+  assert(isLazySkippable("data/gcp/compute/instance/xyz/state-main/2/raw"));
+});
+
+Deno.test("isLazySkippable: allows metadata.yaml under data/", () => {
+  assertEquals(
+    isLazySkippable("data/aws/ec2/vpc/abc/state-main/1/metadata.yaml"),
+    false,
+  );
+});
+
+Deno.test("isLazySkippable: allows latest pointer under data/", () => {
+  assertEquals(
+    isLazySkippable("data/aws/ec2/vpc/abc/state-main/latest"),
+    false,
+  );
+});
+
+Deno.test("isLazySkippable: allows non-data paths", () => {
+  assertEquals(isLazySkippable("outputs/my-output/1/raw"), false);
+  assertEquals(isLazySkippable("workflow-runs/run-1/result.yaml"), false);
+  assertEquals(isLazySkippable("definitions-evaluated/model-a.yaml"), false);
+});
+
+// -- Lazy pullChanged tests ------------------------------------------------
+
+Deno.test("pullChanged: metadataOnly skips raw files", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-lazy-" });
+  try {
+    const mock = createMockGcsClient();
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    const entries: Record<
+      string,
+      { key: string; size: number; lastModified: string }
+    > = {
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+        size: 5,
+        lastModified: new Date().toISOString(),
+      },
+      "data/aws/ec2/vpc/abc/state-main/1/raw": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/raw",
+        size: 1000,
+        lastModified: new Date().toISOString(),
+      },
+      "data/aws/ec2/vpc/abc/state-main/latest": {
+        key: "data/aws/ec2/vpc/abc/state-main/latest",
+        size: 3,
+        lastModified: new Date().toISOString(),
+      },
+      "outputs/my-output/1/result.yaml": {
+        key: "outputs/my-output/1/result.yaml",
+        size: 10,
+        lastModified: new Date().toISOString(),
+      },
+    };
+
+    mock.storage.set(".datastore-index.json", encodeIndex(entries));
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+      new TextEncoder().encode("meta!"),
+    );
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/raw",
+      new TextEncoder().encode("x".repeat(1000)),
+    );
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/latest",
+      new TextEncoder().encode("1\n"),
+    );
+    mock.storage.set(
+      "outputs/my-output/1/result.yaml",
+      new TextEncoder().encode("result: ok"),
+    );
+
+    const pulled = await service.pullChanged({ metadataOnly: true });
+    assertEquals(
+      pulled,
+      3,
+      "should pull metadata.yaml, latest, and output — skip raw",
+    );
+
+    // Verify raw was NOT downloaded
+    const rawGets = mock.gets.filter((k) =>
+      k === "data/aws/ec2/vpc/abc/state-main/1/raw"
+    );
+    assertEquals(rawGets.length, 0, "raw file should not be fetched");
+
+    // Verify metadata.yaml WAS downloaded
+    const metaExists = await Deno.stat(
+      join(cachePath, "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml"),
+    ).then(() => true).catch(() => false);
+    assert(metaExists, "metadata.yaml should exist locally");
+
+    // Verify parent dir for raw was created
+    const rawParentExists = await Deno.stat(
+      join(cachePath, "data/aws/ec2/vpc/abc/state-main/1"),
+    ).then((s) => s.isDirectory).catch(() => false);
+    assert(rawParentExists, "parent directory for raw should be created");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pullChanged: without metadataOnly downloads everything including raw", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-lazy-sub-" });
+  try {
+    const mock = createMockGcsClient();
+
+    const entries: Record<
+      string,
+      { key: string; size: number; lastModified: string }
+    > = {
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+        size: 5,
+        lastModified: new Date().toISOString(),
+      },
+      "data/aws/ec2/vpc/abc/state-main/1/raw": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/raw",
+        size: 4,
+        lastModified: new Date().toISOString(),
+      },
+    };
+
+    mock.storage.set(".datastore-index.json", encodeIndex(entries));
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+      new TextEncoder().encode("meta!"),
+    );
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/raw",
+      new TextEncoder().encode("data"),
+    );
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    const pulled = await service.pullChanged();
+    assertEquals(
+      pulled,
+      2,
+      "without metadataOnly should download ALL files including raw",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pullChanged: full strategy (default) downloads raw files", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-full-" });
+  try {
+    const mock = createMockGcsClient();
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    const entries: Record<
+      string,
+      { key: string; size: number; lastModified: string }
+    > = {
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+        size: 5,
+        lastModified: new Date().toISOString(),
+      },
+      "data/aws/ec2/vpc/abc/state-main/1/raw": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/raw",
+        size: 4,
+        lastModified: new Date().toISOString(),
+      },
+    };
+
+    mock.storage.set(".datastore-index.json", encodeIndex(entries));
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+      new TextEncoder().encode("meta!"),
+    );
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/raw",
+      new TextEncoder().encode("data"),
+    );
+
+    const pulled = await service.pullChanged();
+    assertEquals(pulled, 2, "full strategy should download all files");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// -- hydrateFile tests -----------------------------------------------------
+
+Deno.test("hydrateFile: downloads a single file on demand", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-hydrate-" });
+  try {
+    const mock = createMockGcsClient();
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    const rawContent = new TextEncoder().encode("file-content-here");
+    mock.storage.set("data/aws/ec2/vpc/abc/state-main/1/raw", rawContent);
+
+    const result = await service.hydrateFile(
+      "data/aws/ec2/vpc/abc/state-main/1/raw",
+    );
+    assertEquals(result, true, "hydrateFile should return true on success");
+
+    const content = await Deno.readTextFile(
+      join(cachePath, "data/aws/ec2/vpc/abc/state-main/1/raw"),
+    );
+    assertEquals(content, "file-content-here");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("hydrateFile: returns false for missing file", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-hydrate-404-" });
+  try {
+    const mock = createMockGcsClient();
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    const result = await service.hydrateFile(
+      "data/aws/ec2/vpc/abc/state-main/1/raw",
+    );
+    assertEquals(
+      result,
+      false,
+      "hydrateFile should return false for missing file",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// -- capabilities test -----------------------------------------------------
+
+Deno.test("capabilities: returns lazyHydration: true", () => {
+  const mock = createMockGcsClient();
+  const service = new GcsCacheSyncService(mock, "/tmp/dummy");
+  const caps = service.capabilities();
+  assertEquals(caps.scopedSync, true);
+  assertEquals(caps.lazyHydration, true);
 });
