@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -165,7 +166,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Classroom UserProfiles.GuardianInvitations. Registered at `@swamp/gcp/classroom/userprofiles-guardianinvitations`. */
 export const model = {
   type: "@swamp/gcp/classroom/userprofiles-guardianinvitations",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -219,6 +220,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -424,6 +430,62 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List guardianInvitations resources",
+      arguments: z.object({
+        invitedEmailAddress: z.string().describe(
+          "If specified, only results with the specified `invited_email_address` are returned.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Maximum number of items to return. Zero or unspecified indicates that the server may assign a maximum. The server may return fewer than the specified number of results.",
+        ).optional(),
+        states: z.string().describe(
+          "If specified, only results with the specified `state` values are returned. Otherwise, results with a `state` of `PENDING` are returned.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["studentId"] !== undefined) {
+          params["studentId"] = String(g["studentId"]);
+        }
+        if (args["invitedEmailAddress"] !== undefined) {
+          params["invitedEmailAddress"] = String(args["invitedEmailAddress"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["states"] !== undefined) {
+          params["states"] = String(args["states"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "guardianInvitations",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

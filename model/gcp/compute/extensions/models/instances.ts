@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -212,7 +213,6 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   confidentialInstanceConfig: z.object({
     confidentialInstanceType: z.enum([
-      "CCA",
       "CONFIDENTIAL_INSTANCE_TYPE_UNSPECIFIED",
       "SEV",
       "SEV_SNP",
@@ -268,7 +268,6 @@ const GlobalArgsSchema = z.object({
     guestOsFeatures: z.array(z.object({
       type: z.enum([
         "BARE_METAL_LINUX_COMPATIBLE",
-        "CCA_CAPABLE",
         "FEATURE_TYPE_UNSPECIFIED",
         "GVNIC",
         "IDPF",
@@ -284,7 +283,7 @@ const GlobalArgsSchema = z.object({
         "VIRTIO_SCSI_MULTIQUEUE",
         "WINDOWS",
       ]).describe(
-        "The ID of a supported feature. To add multiple values, use commas to separate values. Set to one or more of the following values: - VIRTIO_SCSI_MULTIQUEUE - WINDOWS - MULTI_IP_SUBNET - UEFI_COMPATIBLE - GVNIC - SEV_CAPABLE - SUSPEND_RESUME_COMPATIBLE - SEV_LIVE_MIGRATABLE_V2 - SEV_SNP_CAPABLE - TDX_CAPABLE - IDPF - SNP_SVSM_CAPABLE - CCA_CAPABLE For more information, see Enabling guest operating system features.",
+        "The ID of a supported feature. To add multiple values, use commas to separate values. Set to one or more of the following values: - VIRTIO_SCSI_MULTIQUEUE - WINDOWS - MULTI_IP_SUBNET - UEFI_COMPATIBLE - GVNIC - SEV_CAPABLE - SUSPEND_RESUME_COMPATIBLE - SEV_LIVE_MIGRATABLE_V2 - SEV_SNP_CAPABLE - TDX_CAPABLE - IDPF - SNP_SVSM_CAPABLE For more information, see Enabling guest operating system features.",
       ).optional(),
     })).describe(
       "A list of features to enable on the guest operating system. Applicable only for bootable images. Read Enabling guest operating system features to see a list of available options.",
@@ -306,7 +305,9 @@ const GlobalArgsSchema = z.object({
       diskSizeGb: z.string().describe(
         "Specifies the size of the disk in base-2 GB. The size must be at least 10 GB. If you specify a sourceImage, which is required for boot disks, the default size is the size of the sourceImage. If you do not specify a sourceImage, the default disk size is 500 GB.",
       ).optional(),
-      diskType: z.string().optional(),
+      diskType: z.string().describe(
+        "Specifies the disk type to use to create the instance. If not specified, the default is pd-standard, specified using the full URL. For example: https://www.googleapis.com/compute/v1/projects/project/zones/zone/diskTypes/pd-standard For a full list of acceptable values, seePersistent disk types. If you specify this field when creating a VM, you can provide either the full or partial URL. For example, the following values are valid: - https://www.googleapis.com/compute/v1/projects/project/zones/zone/diskTypes/diskType - projects/project/zones/zone/diskTypes/diskType - zones/zone/diskTypes/diskType If you specify this field when creating or updating an instance template or all-instances configuration, specify the type of the disk, not the URL. For example: pd-standard.",
+      ).optional(),
       enableConfidentialCompute: z.boolean().describe(
         "Whether this disk is using confidential compute mode.",
       ).optional(),
@@ -333,7 +334,7 @@ const GlobalArgsSchema = z.object({
         "Required for each regional disk associated with the instance. Specify the URLs of the zones where the disk should be replicated to. You must provide exactly two replica zones, and one zone must be the same as the instance zone.",
       ).optional(),
       resourceManagerTags: z.record(z.string(), z.string()).describe(
-        "Input only. Resource manager tags to be bound to the disk. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/{tag_value_id}` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
+        "Input only. Resource manager tags to be bound to the disk. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/456` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
       ).optional(),
       resourcePolicies: z.array(z.string()).describe(
         "Resource policies applied to this disk for automatic snapshot creations. Specified using the full or partial URL. For instance template, specify only the resource policy name.",
@@ -657,9 +658,6 @@ const GlobalArgsSchema = z.object({
     queueCount: z.number().int().describe(
       "The networking queue count that's specified by users for the network interface. Both Rx and Tx queues will be set to this number. It'll be empty if not specified by the users.",
     ).optional(),
-    serviceClassId: z.string().describe(
-      "Optional. Producer Service's Service class Id for the region of this network interface. Can only be used with network_attachment. It is not possible to use on its own however, network_attachment can be used without service_class_id.",
-    ).optional(),
     stackType: z.enum(["IPV4_IPV6", "IPV4_ONLY", "IPV6_ONLY"]).describe(
       "The stack type for this network interface. To assign only IPv4 addresses, use IPV4_ONLY. To assign both IPv4 and IPv6 addresses, useIPV4_IPV6. If not specified, IPV4_ONLY is used. This field can be both set at instance creation and update network interface operations.",
     ).optional(),
@@ -687,7 +685,7 @@ const GlobalArgsSchema = z.object({
       'A Duration represents a fixed-length span of time represented as a count of seconds and fractions of seconds at nanosecond resolution. It is independent of any calendar and concepts like "day" or "month". Range is approximately 10,000 years.',
     ).optional(),
     resourceManagerTags: z.record(z.string(), z.string()).describe(
-      "Input only. Resource manager tags to be bound to the instance. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/{tag_value_id}` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
+      "Input only. Resource manager tags to be bound to the instance. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/456` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
     ).optional(),
   }).describe("Additional instance params.").optional(),
   privateIpv6GoogleAccess: z.enum([
@@ -1038,7 +1036,6 @@ const StateSchema = z.object({
     nicType: z.string(),
     parentNicName: z.string(),
     queueCount: z.number(),
-    serviceClassId: z.string(),
     stackType: z.string(),
     subnetwork: z.string(),
     vlan: z.number(),
@@ -1196,7 +1193,6 @@ const InputsSchema = z.object({
   ).optional(),
   confidentialInstanceConfig: z.object({
     confidentialInstanceType: z.enum([
-      "CCA",
       "CONFIDENTIAL_INSTANCE_TYPE_UNSPECIFIED",
       "SEV",
       "SEV_SNP",
@@ -1252,7 +1248,6 @@ const InputsSchema = z.object({
     guestOsFeatures: z.array(z.object({
       type: z.enum([
         "BARE_METAL_LINUX_COMPATIBLE",
-        "CCA_CAPABLE",
         "FEATURE_TYPE_UNSPECIFIED",
         "GVNIC",
         "IDPF",
@@ -1268,7 +1263,7 @@ const InputsSchema = z.object({
         "VIRTIO_SCSI_MULTIQUEUE",
         "WINDOWS",
       ]).describe(
-        "The ID of a supported feature. To add multiple values, use commas to separate values. Set to one or more of the following values: - VIRTIO_SCSI_MULTIQUEUE - WINDOWS - MULTI_IP_SUBNET - UEFI_COMPATIBLE - GVNIC - SEV_CAPABLE - SUSPEND_RESUME_COMPATIBLE - SEV_LIVE_MIGRATABLE_V2 - SEV_SNP_CAPABLE - TDX_CAPABLE - IDPF - SNP_SVSM_CAPABLE - CCA_CAPABLE For more information, see Enabling guest operating system features.",
+        "The ID of a supported feature. To add multiple values, use commas to separate values. Set to one or more of the following values: - VIRTIO_SCSI_MULTIQUEUE - WINDOWS - MULTI_IP_SUBNET - UEFI_COMPATIBLE - GVNIC - SEV_CAPABLE - SUSPEND_RESUME_COMPATIBLE - SEV_LIVE_MIGRATABLE_V2 - SEV_SNP_CAPABLE - TDX_CAPABLE - IDPF - SNP_SVSM_CAPABLE For more information, see Enabling guest operating system features.",
       ).optional(),
     })).describe(
       "A list of features to enable on the guest operating system. Applicable only for bootable images. Read Enabling guest operating system features to see a list of available options.",
@@ -1290,7 +1285,9 @@ const InputsSchema = z.object({
       diskSizeGb: z.string().describe(
         "Specifies the size of the disk in base-2 GB. The size must be at least 10 GB. If you specify a sourceImage, which is required for boot disks, the default size is the size of the sourceImage. If you do not specify a sourceImage, the default disk size is 500 GB.",
       ).optional(),
-      diskType: z.string().optional(),
+      diskType: z.string().describe(
+        "Specifies the disk type to use to create the instance. If not specified, the default is pd-standard, specified using the full URL. For example: https://www.googleapis.com/compute/v1/projects/project/zones/zone/diskTypes/pd-standard For a full list of acceptable values, seePersistent disk types. If you specify this field when creating a VM, you can provide either the full or partial URL. For example, the following values are valid: - https://www.googleapis.com/compute/v1/projects/project/zones/zone/diskTypes/diskType - projects/project/zones/zone/diskTypes/diskType - zones/zone/diskTypes/diskType If you specify this field when creating or updating an instance template or all-instances configuration, specify the type of the disk, not the URL. For example: pd-standard.",
+      ).optional(),
       enableConfidentialCompute: z.boolean().describe(
         "Whether this disk is using confidential compute mode.",
       ).optional(),
@@ -1317,7 +1314,7 @@ const InputsSchema = z.object({
         "Required for each regional disk associated with the instance. Specify the URLs of the zones where the disk should be replicated to. You must provide exactly two replica zones, and one zone must be the same as the instance zone.",
       ).optional(),
       resourceManagerTags: z.record(z.string(), z.string()).describe(
-        "Input only. Resource manager tags to be bound to the disk. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/{tag_value_id}` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
+        "Input only. Resource manager tags to be bound to the disk. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/456` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
       ).optional(),
       resourcePolicies: z.array(z.string()).describe(
         "Resource policies applied to this disk for automatic snapshot creations. Specified using the full or partial URL. For instance template, specify only the resource policy name.",
@@ -1641,9 +1638,6 @@ const InputsSchema = z.object({
     queueCount: z.number().int().describe(
       "The networking queue count that's specified by users for the network interface. Both Rx and Tx queues will be set to this number. It'll be empty if not specified by the users.",
     ).optional(),
-    serviceClassId: z.string().describe(
-      "Optional. Producer Service's Service class Id for the region of this network interface. Can only be used with network_attachment. It is not possible to use on its own however, network_attachment can be used without service_class_id.",
-    ).optional(),
     stackType: z.enum(["IPV4_IPV6", "IPV4_ONLY", "IPV6_ONLY"]).describe(
       "The stack type for this network interface. To assign only IPv4 addresses, use IPV4_ONLY. To assign both IPv4 and IPv6 addresses, useIPV4_IPV6. If not specified, IPV4_ONLY is used. This field can be both set at instance creation and update network interface operations.",
     ).optional(),
@@ -1671,7 +1665,7 @@ const InputsSchema = z.object({
       'A Duration represents a fixed-length span of time represented as a count of seconds and fractions of seconds at nanosecond resolution. It is independent of any calendar and concepts like "day" or "month". Range is approximately 10,000 years.',
     ).optional(),
     resourceManagerTags: z.record(z.string(), z.string()).describe(
-      "Input only. Resource manager tags to be bound to the instance. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/{tag_value_id}` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
+      "Input only. Resource manager tags to be bound to the instance. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/456` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
     ).optional(),
   }).describe("Additional instance params.").optional(),
   privateIpv6GoogleAccess: z.enum([
@@ -1852,7 +1846,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine Instances. Registered at `@swamp/gcp/compute/instances`. */
 export const model = {
   type: "@swamp/gcp/compute/instances",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1969,6 +1963,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2369,6 +2368,66 @@ export const model = {
         }
       },
     },
+    list: {
+      description: "List instances resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "A filter expression that filters resources listed in the response. Most",
+        ).optional(),
+        maxResults: z.number().describe(
+          "The maximum number of results per page that should be returned.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Sorts list results by a certain order. By default, results",
+        ).optional(),
+        returnPartialSuccess: z.boolean().describe(
+          "Opt-in for partial success behavior which provides partial results in case",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["zone"] !== undefined) params["zone"] = String(g["zone"]);
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["returnPartialSuccess"] !== undefined) {
+          params["returnPartialSuccess"] = String(args["returnPartialSuccess"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
     add_access_config: {
       description: "add access config",
       arguments: z.object({
@@ -2474,7 +2533,6 @@ export const model = {
         nicType: z.any().optional(),
         parentNicName: z.any().optional(),
         queueCount: z.any().optional(),
-        serviceClassId: z.any().optional(),
         stackType: z.any().optional(),
         subnetwork: z.any().optional(),
         vlan: z.any().optional(),
@@ -2541,9 +2599,6 @@ export const model = {
         }
         if (args["queueCount"] !== undefined) {
           body["queueCount"] = args["queueCount"];
-        }
-        if (args["serviceClassId"] !== undefined) {
-          body["serviceClassId"] = args["serviceClassId"];
         }
         if (args["stackType"] !== undefined) {
           body["stackType"] = args["stackType"];
@@ -4547,7 +4602,6 @@ export const model = {
         nicType: z.any().optional(),
         parentNicName: z.any().optional(),
         queueCount: z.any().optional(),
-        serviceClassId: z.any().optional(),
         stackType: z.any().optional(),
         subnetwork: z.any().optional(),
         vlan: z.any().optional(),
@@ -4616,9 +4670,6 @@ export const model = {
         }
         if (args["queueCount"] !== undefined) {
           body["queueCount"] = args["queueCount"];
-        }
-        if (args["serviceClassId"] !== undefined) {
-          body["serviceClassId"] = args["serviceClassId"];
         }
         if (args["stackType"] !== undefined) {
           body["stackType"] = args["stackType"];

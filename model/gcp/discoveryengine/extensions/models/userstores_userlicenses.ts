@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -31,9 +32,6 @@ const LIST_CONFIG = {
     "parent",
   ],
   "parameters": {
-    "filter": {
-      "location": "query",
-    },
     "orderBy": {
       "location": "query",
     },
@@ -81,7 +79,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Discovery Engine UserStores.UserLicenses. Registered at `@swamp/gcp/discoveryengine/userstores-userlicenses`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/userstores-userlicenses",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -155,6 +153,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -253,6 +256,56 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List userLicenses resources",
+      arguments: z.object({
+        orderBy: z.string().describe(
+          'Optional. The order in which the UserLicenses are listed. The value must be a comma-separated list of fields. Default sorting order is ascending. To specify descending order for a field, append a " desc" suffix. Redundant space characters in the syntax are insignificant. Supported fields (only `user_principal` is supported for now): * `user_principal` If not set, the default ordering is by `user_principal`. Examples: * `user_principal` to order by `user_principal` in ascending order. * `user_principal desc` to order by `user_principal` in descending order.',
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Requested page size. Server may return fewer items than requested. If unspecified, defaults to 10. The maximum value is 50; values above 50 will be coerced to 50. If this field is negative, an INVALID_ARGUMENT error is returned.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "userLicenses",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

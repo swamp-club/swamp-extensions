@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud Firebase Data Connect Services.
  *
- * A Firebase SQL Connect service.
+ * A Firebase Data Connect service.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -165,7 +166,7 @@ const GlobalArgsSchema = z.object({
     "Optional. Labels as key value pairs.",
   ).optional(),
   name: z.string().describe(
-    "Identifier. The relative resource name of the Firebase SQL Connect service, in the format: ` projects/{project}/locations/{location}/services/{service} ` Note that the service ID is specific to Firebase SQL Connect and does not correspond to any of the instance IDs of the underlying data source connections.",
+    "Identifier. The relative resource name of the Firebase Data Connect service, in the format: ` projects/{project}/locations/{location}/services/{service} ` Note that the service ID is specific to Firebase Data Connect and does not correspond to any of the instance IDs of the underlying data source connections.",
   ).optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -203,7 +204,7 @@ const InputsSchema = z.object({
     "Optional. Labels as key value pairs.",
   ).optional(),
   name: z.string().describe(
-    "Identifier. The relative resource name of the Firebase SQL Connect service, in the format: ` projects/{project}/locations/{location}/services/{service} ` Note that the service ID is specific to Firebase SQL Connect and does not correspond to any of the instance IDs of the underlying data source connections.",
+    "Identifier. The relative resource name of the Firebase Data Connect service, in the format: ` projects/{project}/locations/{location}/services/{service} ` Note that the service ID is specific to Firebase Data Connect and does not correspond to any of the instance IDs of the underlying data source connections.",
   ).optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -219,7 +220,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Firebase Data Connect Services. Registered at `@swamp/gcp/firebasedataconnect/services`. */
 export const model = {
   type: "@swamp/gcp/firebasedataconnect/services",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -301,12 +302,17 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "A Firebase SQL Connect service.",
+      description: "A Firebase Data Connect service.",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -535,6 +541,60 @@ export const model = {
         }
       },
     },
+    list: {
+      description: "List services resources",
+      arguments: z.object({
+        filter: z.string().describe("Optional. Filtering results.").optional(),
+        orderBy: z.string().describe(
+          "Optional. Hint for how to order the results.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Requested page size. Server may return fewer items than requested. If unspecified, server will pick an appropriate default.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "services",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
     execute_graphql: {
       description: "execute graphql",
       arguments: z.object({
@@ -615,74 +675,6 @@ export const model = {
             "id":
               "firebasedataconnect.projects.locations.services.executeGraphqlRead",
             "path": "v1/{+name}:executeGraphqlRead",
-            "httpMethod": "POST",
-            "parameterOrder": ["name"],
-            "parameters": { "name": { "location": "path", "required": true } },
-          },
-          params,
-          body,
-        );
-        return { result };
-      },
-    },
-    generate_query: {
-      description: "generate query",
-      arguments: z.object({
-        prompt: z.any().optional(),
-        schemas: z.any().optional(),
-      }),
-      execute: async (args: Record<string, unknown>, context: any) => {
-        const g = context.globalArgs;
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
-        if (g["name"] !== undefined) {
-          params["name"] = buildResourceName(
-            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
-            String(g["name"]),
-          );
-        }
-        const body: Record<string, unknown> = {};
-        if (args["prompt"] !== undefined) body["prompt"] = args["prompt"];
-        if (args["schemas"] !== undefined) body["schemas"] = args["schemas"];
-        const result = await createResource(
-          BASE_URL,
-          {
-            "id":
-              "firebasedataconnect.projects.locations.services.generateQuery",
-            "path": "v1/{+name}:generateQuery",
-            "httpMethod": "POST",
-            "parameterOrder": ["name"],
-            "parameters": { "name": { "location": "path", "required": true } },
-          },
-          params,
-          body,
-        );
-        return { result };
-      },
-    },
-    generate_schema: {
-      description: "generate schema",
-      arguments: z.object({
-        prompt: z.any().optional(),
-      }),
-      execute: async (args: Record<string, unknown>, context: any) => {
-        const g = context.globalArgs;
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
-        if (g["name"] !== undefined) {
-          params["name"] = buildResourceName(
-            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
-            String(g["name"]),
-          );
-        }
-        const body: Record<string, unknown> = {};
-        if (args["prompt"] !== undefined) body["prompt"] = args["prompt"];
-        const result = await createResource(
-          BASE_URL,
-          {
-            "id":
-              "firebasedataconnect.projects.locations.services.generateSchema",
-            "path": "v1/{+name}:generateSchema",
             "httpMethod": "POST",
             "parameterOrder": ["name"],
             "parameters": { "name": { "location": "path", "required": true } },

@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -692,7 +693,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Storage JSON Objects. Registered at `@swamp/gcp/storage/objects`. */
 export const model = {
   type: "@swamp/gcp/storage/objects",
-  version: "2026.05.22.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -746,6 +747,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.22.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1118,6 +1124,124 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List objects resources",
+      arguments: z.object({
+        delimiter: z.string().describe(
+          "Returns results in a directory-like mode. items will contain only objects whose names, aside from the prefix, do not contain delimiter. Objects whose names, aside from the prefix, contain delimiter will have their name, truncated after the delimiter, returned in prefixes. Duplicate prefixes are omitted.",
+        ).optional(),
+        endOffset: z.string().describe(
+          "Filter results to objects whose names are lexicographically before endOffset. If startOffset is also set, the objects listed will have names between startOffset (inclusive) and endOffset (exclusive).",
+        ).optional(),
+        filter: z.string().describe(
+          "Filter the returned objects. Currently only supported for the contexts field. If delimiter is set, the returned prefixes are exempt from this filter.",
+        ).optional(),
+        includeFoldersAsPrefixes: z.boolean().describe(
+          "Only applicable if delimiter is set to '/'. If true, will also include folders and managed folders (besides objects) in the returned prefixes.",
+        ).optional(),
+        includeTrailingDelimiter: z.boolean().describe(
+          "If true, objects that end in exactly one instance of delimiter will have their metadata included in items in addition to prefixes.",
+        ).optional(),
+        matchGlob: z.string().describe(
+          "Filter results to objects and prefixes that match this glob pattern.",
+        ).optional(),
+        maxResults: z.number().describe(
+          "Maximum number of items plus prefixes to return in a single page of responses. As duplicate prefixes are omitted, fewer total results may be returned than requested. The service will use this parameter or 1,000 items, whichever is smaller.",
+        ).optional(),
+        prefix: z.string().describe(
+          "Filter results to objects whose names begin with this prefix.",
+        ).optional(),
+        projection: z.string().describe(
+          "Set of properties to return. Defaults to noAcl.",
+        ).optional(),
+        softDeleted: z.boolean().describe(
+          "If true, only soft-deleted object versions will be listed. The default is false. For more information, see [Soft Delete](https://cloud.google.com/storage/docs/soft-delete).",
+        ).optional(),
+        startOffset: z.string().describe(
+          "Filter results to objects whose names are lexicographically equal to or after startOffset. If endOffset is also set, the objects listed will have names between startOffset (inclusive) and endOffset (exclusive).",
+        ).optional(),
+        userProject: z.string().describe(
+          "The project to be billed for this request. Required for Requester Pays buckets.",
+        ).optional(),
+        versions: z.boolean().describe(
+          "If true, lists all versions of an object as distinct results. The default is false. For more information, see [Object Versioning](https://cloud.google.com/storage/docs/object-versioning).",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["bucket"] !== undefined) params["bucket"] = String(g["bucket"]);
+        if (args["delimiter"] !== undefined) {
+          params["delimiter"] = String(args["delimiter"]);
+        }
+        if (args["endOffset"] !== undefined) {
+          params["endOffset"] = String(args["endOffset"]);
+        }
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["includeFoldersAsPrefixes"] !== undefined) {
+          params["includeFoldersAsPrefixes"] = String(
+            args["includeFoldersAsPrefixes"],
+          );
+        }
+        if (args["includeTrailingDelimiter"] !== undefined) {
+          params["includeTrailingDelimiter"] = String(
+            args["includeTrailingDelimiter"],
+          );
+        }
+        if (args["matchGlob"] !== undefined) {
+          params["matchGlob"] = String(args["matchGlob"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["prefix"] !== undefined) {
+          params["prefix"] = String(args["prefix"]);
+        }
+        if (args["projection"] !== undefined) {
+          params["projection"] = String(args["projection"]);
+        }
+        if (args["softDeleted"] !== undefined) {
+          params["softDeleted"] = String(args["softDeleted"]);
+        }
+        if (args["startOffset"] !== undefined) {
+          params["startOffset"] = String(args["startOffset"]);
+        }
+        if (args["userProject"] !== undefined) {
+          params["userProject"] = String(args["userProject"]);
+        }
+        if (args["versions"] !== undefined) {
+          params["versions"] = String(args["versions"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     bulk_restore: {

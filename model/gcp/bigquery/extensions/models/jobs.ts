@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -430,14 +431,8 @@ const GlobalArgsSchema = z.object({
           collation: z.unknown().describe(
             "Optional. Field collation can be set only when the type of field is STRING. The following values are supported: * 'und:ci': undetermined locale, case insensitive. * '': empty string. Default to case-sensitive behavior.",
           ).optional(),
-          dataGovernanceTagsInfo: z.unknown().describe(
-            "Optional. Specifies the data governance tags on this field. This field works with other column-level security fields as follows: - Precedence: If a data governance tag is attached to a column, it takes precedence over the policy tag attached to the column. However, if a data policy is attached to a column, it takes precedence over the data governance tag. - Patching behavior (how this field behaves during a `Table.patch` schema update): - Unset: If the `data_governance_tags_info` field is omitted from the update request, the existing tags on the column are preserved. - Empty Field: To clear data governance tags from a column, send the `data_governance_tags_info` field as an empty object. This will remove all tags from the column. - Updating tags: To replace existing tag, send the field with the new tag.",
-          ).optional(),
           dataPolicies: z.unknown().describe(
             "Optional. Data policies attached to this field, used for field-level access control.",
-          ).optional(),
-          dataPolicyList: z.unknown().describe(
-            "A list of data policy options. For more information, see [Mask data by applying data policies to a column](https://docs.cloud.google.com/bigquery/docs/column-data-masking#data-policies-on-column).",
           ).optional(),
           defaultValueExpression: z.unknown().describe(
             "Optional. A SQL expression to specify the [default value] (https://cloud.google.com/bigquery/docs/default-values) for this field.",
@@ -1272,9 +1267,6 @@ const GlobalArgsSchema = z.object({
           "Provides error statistics for the query job across all AI function calls.",
         ).optional(),
         functionStats: z.array(z.object({
-          cacheStats: z.unknown().describe(
-            "Provides cache statistics for a GenAi function call.",
-          ).optional(),
           costOptimizationStats: z.unknown().describe(
             "Provides cost optimization statistics for a GenAi function call.",
           ).optional(),
@@ -1523,17 +1515,6 @@ const GlobalArgsSchema = z.object({
         })).describe(
           "Output only. Standalone query stage performance insights, for exploring potential improvements.",
         ).optional(),
-        tableChangeInsights: z.array(z.object({
-          metadataCacheNotUsedButUsedPreviously: z.unknown().describe(
-            "Output only. True if the table's column metadata index was not used in the current job, but was used in a previous job with the same query hash.",
-          ).optional(),
-          metadataCacheStalenessInsight: z.unknown().describe(
-            "Column Metadata Index staleness detailed infnormation.",
-          ).optional(),
-          tableReference: z.unknown().optional(),
-        })).describe(
-          "Output only. Performance insights for table-level attributes that changed compared to previous runs.",
-        ).optional(),
       }).describe("Performance insights for the job.").optional(),
       queryInfo: z.object({
         optimizationDetails: z.record(z.string(), z.string()).describe(
@@ -1685,14 +1666,8 @@ const GlobalArgsSchema = z.object({
           collation: z.unknown().describe(
             "Optional. Field collation can be set only when the type of field is STRING. The following values are supported: * 'und:ci': undetermined locale, case insensitive. * '': empty string. Default to case-sensitive behavior.",
           ).optional(),
-          dataGovernanceTagsInfo: z.unknown().describe(
-            "Optional. Specifies the data governance tags on this field. This field works with other column-level security fields as follows: - Precedence: If a data governance tag is attached to a column, it takes precedence over the policy tag attached to the column. However, if a data policy is attached to a column, it takes precedence over the data governance tag. - Patching behavior (how this field behaves during a `Table.patch` schema update): - Unset: If the `data_governance_tags_info` field is omitted from the update request, the existing tags on the column are preserved. - Empty Field: To clear data governance tags from a column, send the `data_governance_tags_info` field as an empty object. This will remove all tags from the column. - Updating tags: To replace existing tag, send the field with the new tag.",
-          ).optional(),
           dataPolicies: z.unknown().describe(
             "Optional. Data policies attached to this field, used for field-level access control.",
-          ).optional(),
-          dataPolicyList: z.unknown().describe(
-            "A list of data policy options. For more information, see [Mask data by applying data policies to a column](https://docs.cloud.google.com/bigquery/docs/column-data-masking#data-policies-on-column).",
           ).optional(),
           defaultValueExpression: z.unknown().describe(
             "Optional. A SQL expression to specify the [default value] (https://cloud.google.com/bigquery/docs/default-values) for this field.",
@@ -2161,9 +2136,7 @@ const StateSchema = z.object({
         fields: z.array(z.object({
           categories: z.unknown(),
           collation: z.unknown(),
-          dataGovernanceTagsInfo: z.unknown(),
           dataPolicies: z.unknown(),
-          dataPolicyList: z.unknown(),
           defaultValueExpression: z.unknown(),
           description: z.unknown(),
           fields: z.unknown(),
@@ -2422,7 +2395,6 @@ const StateSchema = z.object({
           errors: z.array(z.unknown()),
         }),
         functionStats: z.array(z.object({
-          cacheStats: z.unknown(),
           costOptimizationStats: z.unknown(),
           errorStats: z.unknown(),
           functionName: z.unknown(),
@@ -2513,11 +2485,6 @@ const StateSchema = z.object({
           slotContention: z.unknown(),
           stageId: z.unknown(),
         })),
-        tableChangeInsights: z.array(z.object({
-          metadataCacheNotUsedButUsedPreviously: z.unknown(),
-          metadataCacheStalenessInsight: z.unknown(),
-          tableReference: z.unknown(),
-        })),
       }),
       queryInfo: z.object({
         optimizationDetails: z.record(z.string(), z.unknown()),
@@ -2578,9 +2545,7 @@ const StateSchema = z.object({
         fields: z.array(z.object({
           categories: z.unknown(),
           collation: z.unknown(),
-          dataGovernanceTagsInfo: z.unknown(),
           dataPolicies: z.unknown(),
-          dataPolicyList: z.unknown(),
           defaultValueExpression: z.unknown(),
           description: z.unknown(),
           fields: z.unknown(),
@@ -3029,14 +2994,8 @@ const InputsSchema = z.object({
           collation: z.unknown().describe(
             "Optional. Field collation can be set only when the type of field is STRING. The following values are supported: * 'und:ci': undetermined locale, case insensitive. * '': empty string. Default to case-sensitive behavior.",
           ).optional(),
-          dataGovernanceTagsInfo: z.unknown().describe(
-            "Optional. Specifies the data governance tags on this field. This field works with other column-level security fields as follows: - Precedence: If a data governance tag is attached to a column, it takes precedence over the policy tag attached to the column. However, if a data policy is attached to a column, it takes precedence over the data governance tag. - Patching behavior (how this field behaves during a `Table.patch` schema update): - Unset: If the `data_governance_tags_info` field is omitted from the update request, the existing tags on the column are preserved. - Empty Field: To clear data governance tags from a column, send the `data_governance_tags_info` field as an empty object. This will remove all tags from the column. - Updating tags: To replace existing tag, send the field with the new tag.",
-          ).optional(),
           dataPolicies: z.unknown().describe(
             "Optional. Data policies attached to this field, used for field-level access control.",
-          ).optional(),
-          dataPolicyList: z.unknown().describe(
-            "A list of data policy options. For more information, see [Mask data by applying data policies to a column](https://docs.cloud.google.com/bigquery/docs/column-data-masking#data-policies-on-column).",
           ).optional(),
           defaultValueExpression: z.unknown().describe(
             "Optional. A SQL expression to specify the [default value] (https://cloud.google.com/bigquery/docs/default-values) for this field.",
@@ -3871,9 +3830,6 @@ const InputsSchema = z.object({
           "Provides error statistics for the query job across all AI function calls.",
         ).optional(),
         functionStats: z.array(z.object({
-          cacheStats: z.unknown().describe(
-            "Provides cache statistics for a GenAi function call.",
-          ).optional(),
           costOptimizationStats: z.unknown().describe(
             "Provides cost optimization statistics for a GenAi function call.",
           ).optional(),
@@ -4122,17 +4078,6 @@ const InputsSchema = z.object({
         })).describe(
           "Output only. Standalone query stage performance insights, for exploring potential improvements.",
         ).optional(),
-        tableChangeInsights: z.array(z.object({
-          metadataCacheNotUsedButUsedPreviously: z.unknown().describe(
-            "Output only. True if the table's column metadata index was not used in the current job, but was used in a previous job with the same query hash.",
-          ).optional(),
-          metadataCacheStalenessInsight: z.unknown().describe(
-            "Column Metadata Index staleness detailed infnormation.",
-          ).optional(),
-          tableReference: z.unknown().optional(),
-        })).describe(
-          "Output only. Performance insights for table-level attributes that changed compared to previous runs.",
-        ).optional(),
       }).describe("Performance insights for the job.").optional(),
       queryInfo: z.object({
         optimizationDetails: z.record(z.string(), z.string()).describe(
@@ -4284,14 +4229,8 @@ const InputsSchema = z.object({
           collation: z.unknown().describe(
             "Optional. Field collation can be set only when the type of field is STRING. The following values are supported: * 'und:ci': undetermined locale, case insensitive. * '': empty string. Default to case-sensitive behavior.",
           ).optional(),
-          dataGovernanceTagsInfo: z.unknown().describe(
-            "Optional. Specifies the data governance tags on this field. This field works with other column-level security fields as follows: - Precedence: If a data governance tag is attached to a column, it takes precedence over the policy tag attached to the column. However, if a data policy is attached to a column, it takes precedence over the data governance tag. - Patching behavior (how this field behaves during a `Table.patch` schema update): - Unset: If the `data_governance_tags_info` field is omitted from the update request, the existing tags on the column are preserved. - Empty Field: To clear data governance tags from a column, send the `data_governance_tags_info` field as an empty object. This will remove all tags from the column. - Updating tags: To replace existing tag, send the field with the new tag.",
-          ).optional(),
           dataPolicies: z.unknown().describe(
             "Optional. Data policies attached to this field, used for field-level access control.",
-          ).optional(),
-          dataPolicyList: z.unknown().describe(
-            "A list of data policy options. For more information, see [Mask data by applying data policies to a column](https://docs.cloud.google.com/bigquery/docs/column-data-masking#data-policies-on-column).",
           ).optional(),
           defaultValueExpression: z.unknown().describe(
             "Optional. A SQL expression to specify the [default value] (https://cloud.google.com/bigquery/docs/default-values) for this field.",
@@ -4644,7 +4583,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud BigQuery Jobs. Registered at `@swamp/gcp/bigquery/jobs`. */
 export const model = {
   type: "@swamp/gcp/bigquery/jobs",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -4708,6 +4647,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -4874,6 +4818,81 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List jobs resources",
+      arguments: z.object({
+        allUsers: z.boolean().describe(
+          "Whether to display jobs owned by all users in the project. Default False.",
+        ).optional(),
+        maxCreationTime: z.string().describe(
+          "Max value for job creation time, in milliseconds since the POSIX epoch. If set, only jobs created before or at this timestamp are returned.",
+        ).optional(),
+        maxResults: z.number().describe(
+          "The maximum number of results to return in a single response page. Leverage the page tokens to iterate through the entire collection.",
+        ).optional(),
+        minCreationTime: z.string().describe(
+          "Min value for job creation time, in milliseconds since the POSIX epoch. If set, only jobs created after or at this timestamp are returned.",
+        ).optional(),
+        parentJobId: z.string().describe(
+          "If set, show only child jobs of the specified parent. Otherwise, show all top-level jobs.",
+        ).optional(),
+        projection: z.string().describe(
+          "Restrict information returned to a set of selected fields",
+        ).optional(),
+        stateFilter: z.string().describe("Filter for job state").optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["allUsers"] !== undefined) {
+          params["allUsers"] = String(args["allUsers"]);
+        }
+        if (args["maxCreationTime"] !== undefined) {
+          params["maxCreationTime"] = String(args["maxCreationTime"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["minCreationTime"] !== undefined) {
+          params["minCreationTime"] = String(args["minCreationTime"]);
+        }
+        if (args["parentJobId"] !== undefined) {
+          params["parentJobId"] = String(args["parentJobId"]);
+        }
+        if (args["projection"] !== undefined) {
+          params["projection"] = String(args["projection"]);
+        }
+        if (args["stateFilter"] !== undefined) {
+          params["stateFilter"] = String(args["stateFilter"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "jobs",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     cancel: {

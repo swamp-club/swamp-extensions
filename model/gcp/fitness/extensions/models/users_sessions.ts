@@ -19,6 +19,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -193,7 +194,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Fitness Users.Sessions. Registered at `@swamp/gcp/fitness/users-sessions`. */
 export const model = {
   type: "@swamp/gcp/fitness/users-sessions",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -247,6 +248,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -447,6 +453,66 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List sessions resources",
+      arguments: z.object({
+        activityType: z.number().describe(
+          "If non-empty, only sessions with these activity types should be returned.",
+        ).optional(),
+        endTime: z.string().describe(
+          "An RFC3339 timestamp. Only sessions starting before endTime and ending after startTime up to (endTime + 1 day) will be included in the response. If this time is omitted but startTime is specified, all sessions ending after startTime to the end of time will be returned.",
+        ).optional(),
+        includeDeleted: z.boolean().describe(
+          "If true, and if both startTime and endTime are omitted, session deletions will be returned.",
+        ).optional(),
+        startTime: z.string().describe(
+          "An RFC3339 timestamp. Only sessions starting before endTime and ending after startTime up to (endTime + 1 day) will be included in the response. If this time is omitted but endTime is specified, all sessions starting before endTime and ending after the start of time up to (endTime + 1 day) will be returned.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["userId"] !== undefined) params["userId"] = String(g["userId"]);
+        if (args["activityType"] !== undefined) {
+          params["activityType"] = String(args["activityType"]);
+        }
+        if (args["endTime"] !== undefined) {
+          params["endTime"] = String(args["endTime"]);
+        }
+        if (args["includeDeleted"] !== undefined) {
+          params["includeDeleted"] = String(args["includeDeleted"]);
+        }
+        if (args["startTime"] !== undefined) {
+          params["startTime"] = String(args["startTime"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "deletedSession",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

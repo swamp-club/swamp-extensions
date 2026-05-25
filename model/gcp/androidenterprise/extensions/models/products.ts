@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -44,6 +45,36 @@ const GET_CONFIG = {
     "productId": {
       "location": "path",
       "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "androidenterprise.products.list",
+  "path": "androidenterprise/v1/enterprises/{enterpriseId}/products",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "enterpriseId",
+  ],
+  "parameters": {
+    "approved": {
+      "location": "query",
+    },
+    "enterpriseId": {
+      "location": "path",
+      "required": true,
+    },
+    "language": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "query": {
+      "location": "query",
+    },
+    "token": {
+      "location": "query",
     },
   },
 } as const;
@@ -126,7 +157,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Play EMM Products. Registered at `@swamp/gcp/androidenterprise/products`. */
 export const model = {
   type: "@swamp/gcp/androidenterprise/products",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -185,6 +216,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -285,6 +321,74 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List products resources",
+      arguments: z.object({
+        approved: z.boolean().describe(
+          'Specifies whether to search among all products (false) or among only products that have been approved (true). Only "true" is supported, and should be specified.',
+        ).optional(),
+        language: z.string().describe(
+          'The BCP47 tag for the user\'s preferred language (e.g. "en-US", "de"). Results are returned in the language best matching the preferred language.',
+        ).optional(),
+        maxResults: z.number().describe(
+          "Defines how many results the list operation should return. The default number depends on the resource collection.",
+        ).optional(),
+        query: z.string().describe(
+          "The search query as typed in the Google Play store search box. If omitted, all approved apps will be returned (using the pagination parameters), including apps that are not available in the store (e.g. unpublished apps).",
+        ).optional(),
+        token: z.string().describe(
+          "Defines the token of the page to return, usually taken from TokenPagination. This can only be used if token paging is enabled.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["enterpriseId"] !== undefined) {
+          params["enterpriseId"] = String(g["enterpriseId"]);
+        }
+        if (args["approved"] !== undefined) {
+          params["approved"] = String(args["approved"]);
+        }
+        if (args["language"] !== undefined) {
+          params["language"] = String(args["language"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["query"] !== undefined) {
+          params["query"] = String(args["query"]);
+        }
+        if (args["token"] !== undefined) {
+          params["token"] = String(args["token"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "product",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     approve: {

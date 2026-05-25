@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -570,7 +571,7 @@ const GlobalArgsSchema = z.object({
       "TIME_ZONE_RESOLUTION_END_USER",
       "TIME_ZONE_RESOLUTION_ADVERTISER",
     ]).describe(
-      "Required. The mechanism used to determine which timezone to use for this day and time targeting setting. For Demand Gen line items, this field is always `TIME_ZONE_RESOLUTION_ADVERTISER`.",
+      "Required. The mechanism used to determine which timezone to use for this day and time targeting setting. For demand gen line items, this field is always TIME_ZONE_RESOLUTION_ADVERTISER.",
     ).optional(),
   }).describe(
     "Representation of a segment of time defined on a specific day of the week and with a start and end time. The time represented by `start_hour` must be before the time represented by `end_hour`.",
@@ -777,7 +778,6 @@ const GlobalArgsSchema = z.object({
       "GEO_REGION_TYPE_COMMUNE",
       "GEO_REGION_TYPE_COLLOQUIAL_AREA",
       "GEO_REGION_TYPE_POST_TOWN",
-      "GEO_REGION_TYPE_WARD",
     ]).describe("Output only. The type of geographic region targeting.")
       .optional(),
     negative: z.boolean().describe(
@@ -819,7 +819,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   keywordDetails: z.object({
     exemptedPolicyNames: z.array(z.string()).describe(
-      "Optional. The policy names to exempt the keyword from. When attempting to target a keyword that violates a policy, the error returned will include the name of the relevant policy. Use that name in this field to exempt the targeted keyword from the policy. This field is only applicable for positively-targeted keywords assigned to Demand Gen resources. Retrieval and management of Demand Gen resources is currently in beta. This field is only available to allowlisted users.",
+      "Optional. The policy names to exempt the keyword from. This field is only applicable for Demand Gen keywords, which are positively targeted.",
     ).optional(),
     keyword: z.string().describe(
       "Required. The keyword, for example `car insurance`. Positive keyword cannot be offensive word. Must be UTF-8 encoded with a maximum size of 255 bytes. Maximum number of characters is 80. Maximum number of words is 10.",
@@ -2237,7 +2237,7 @@ const InputsSchema = z.object({
       "TIME_ZONE_RESOLUTION_END_USER",
       "TIME_ZONE_RESOLUTION_ADVERTISER",
     ]).describe(
-      "Required. The mechanism used to determine which timezone to use for this day and time targeting setting. For Demand Gen line items, this field is always `TIME_ZONE_RESOLUTION_ADVERTISER`.",
+      "Required. The mechanism used to determine which timezone to use for this day and time targeting setting. For demand gen line items, this field is always TIME_ZONE_RESOLUTION_ADVERTISER.",
     ).optional(),
   }).describe(
     "Representation of a segment of time defined on a specific day of the week and with a start and end time. The time represented by `start_hour` must be before the time represented by `end_hour`.",
@@ -2444,7 +2444,6 @@ const InputsSchema = z.object({
       "GEO_REGION_TYPE_COMMUNE",
       "GEO_REGION_TYPE_COLLOQUIAL_AREA",
       "GEO_REGION_TYPE_POST_TOWN",
-      "GEO_REGION_TYPE_WARD",
     ]).describe("Output only. The type of geographic region targeting.")
       .optional(),
     negative: z.boolean().describe(
@@ -2486,7 +2485,7 @@ const InputsSchema = z.object({
   ).optional(),
   keywordDetails: z.object({
     exemptedPolicyNames: z.array(z.string()).describe(
-      "Optional. The policy names to exempt the keyword from. When attempting to target a keyword that violates a policy, the error returned will include the name of the relevant policy. Use that name in this field to exempt the targeted keyword from the policy. This field is only applicable for positively-targeted keywords assigned to Demand Gen resources. Retrieval and management of Demand Gen resources is currently in beta. This field is only available to allowlisted users.",
+      "Optional. The policy names to exempt the keyword from. This field is only applicable for Demand Gen keywords, which are positively targeted.",
     ).optional(),
     keyword: z.string().describe(
       "Required. The keyword, for example `car insurance`. Positive keyword cannot be offensive word. Must be UTF-8 encoded with a maximum size of 255 bytes. Maximum number of characters is 80. Maximum number of words is 10.",
@@ -3193,7 +3192,7 @@ const InputsSchema = z.object({
 export const model = {
   type:
     "@swamp/gcp/displayvideo/advertisers-adgroups-targetingtypes-assignedtargetingoptions",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3277,6 +3276,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -3635,6 +3639,68 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List assignedTargetingOptions resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          'Optional. Allows filtering by assigned targeting option fields. Supported syntax: * Filter expressions are made up of one or more restrictions. * Restrictions can be combined by the logical operator `OR`. * A restriction has the form of `{field} {operator} {value}`. * All fields must use the `EQUALS (=)` operator. Supported fields: * `assignedTargetingOptionId` Examples: * `AssignedTargetingOption` resources with ID 1 or 2: `assignedTargetingOptionId="1" OR assignedTargetingOptionId="2"` The length of this field should be no more than 500 characters. Reference our [filter `LIST` requests](/display-video/api/guides/how-tos/filters) guide for more information.',
+        ).optional(),
+        orderBy: z.string().describe(
+          'Optional. Field by which to sort the list. Acceptable values are: * `assignedTargetingOptionId` (default) The default sorting order is ascending. To specify descending order for a field, a suffix "desc" should be added to the field name. Example: `assignedTargetingOptionId desc`.',
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Requested page size. Must be between `1` and `5000`. If unspecified will default to `100`. Returns error code `INVALID_ARGUMENT` if an invalid value is specified.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["advertiserId"] !== undefined) {
+          params["advertiserId"] = String(g["advertiserId"]);
+        }
+        if (g["adGroupId"] !== undefined) {
+          params["adGroupId"] = String(g["adGroupId"]);
+        }
+        if (g["targetingType"] !== undefined) {
+          params["targetingType"] = String(g["targetingType"]);
+        }
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "assignedTargetingOptions",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

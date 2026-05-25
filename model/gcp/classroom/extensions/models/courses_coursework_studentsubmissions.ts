@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -75,6 +76,41 @@ const PATCH_CONFIG = {
       "required": true,
     },
     "updateMask": {
+      "location": "query",
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "classroom.courses.courseWork.studentSubmissions.list",
+  "path": "v1/courses/{courseId}/courseWork/{courseWorkId}/studentSubmissions",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "courseId",
+    "courseWorkId",
+  ],
+  "parameters": {
+    "courseId": {
+      "location": "path",
+      "required": true,
+    },
+    "courseWorkId": {
+      "location": "path",
+      "required": true,
+    },
+    "late": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "states": {
+      "location": "query",
+    },
+    "userId": {
       "location": "query",
     },
   },
@@ -498,7 +534,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Classroom Courses.CourseWork.StudentSubmissions. Registered at `@swamp/gcp/classroom/courses-coursework-studentsubmissions`. */
 export const model = {
   type: "@swamp/gcp/classroom/courses-coursework-studentsubmissions",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -552,6 +588,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -754,6 +795,69 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List studentSubmissions resources",
+      arguments: z.object({
+        late: z.string().describe(
+          "Requested lateness value. If specified, returned student submissions are restricted by the requested value. If unspecified, submissions are returned regardless of `late` value.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Maximum number of items to return. Zero or unspecified indicates that the server may assign a maximum. The server may return fewer than the specified number of results.",
+        ).optional(),
+        states: z.string().describe(
+          "Requested submission states. If specified, returned student submissions match one of the specified submission states.",
+        ).optional(),
+        userId: z.string().describe(
+          'Optional argument to restrict returned student work to those owned by the student with the specified identifier. The identifier can be one of the following: * the numeric identifier for the user * the email address of the user * the string literal `"me"`, indicating the requesting user',
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["courseId"] !== undefined) {
+          params["courseId"] = String(g["courseId"]);
+        }
+        if (g["courseWorkId"] !== undefined) {
+          params["courseWorkId"] = String(g["courseWorkId"]);
+        }
+        if (args["late"] !== undefined) params["late"] = String(args["late"]);
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["states"] !== undefined) {
+          params["states"] = String(args["states"]);
+        }
+        if (args["userId"] !== undefined) {
+          params["userId"] = String(args["userId"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "studentSubmissions",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.id?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     modify_attachments: {

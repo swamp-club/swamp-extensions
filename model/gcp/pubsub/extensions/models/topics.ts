@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -348,7 +349,7 @@ const GlobalArgsSchema = z.object({
   }).describe("Settings for validating messages published against a schema.")
     .optional(),
   tags: z.record(z.string(), z.string()).describe(
-    'Optional. Input only. Immutable. Tag keys/values directly bound to this resource. For example: "123/environment": "production", "123/costCenter": "marketing" See https://{$universe.dns_names.final_documentation_domain}/pubsub/docs/tags for more information on using tags with Pub/Sub resources.',
+    'Optional. Input only. Immutable. Tag keys/values directly bound to this resource. For example: "123/environment": "production", "123/costCenter": "marketing"',
   ).optional(),
   topic: z.object({
     ingestionDataSourceSettings: z.object({
@@ -595,7 +596,7 @@ const GlobalArgsSchema = z.object({
         "Output only. An output-only field indicating the state of the topic.",
       ).optional(),
     tags: z.record(z.string(), z.string()).describe(
-      'Optional. Input only. Immutable. Tag keys/values directly bound to this resource. For example: "123/environment": "production", "123/costCenter": "marketing" See https://{$universe.dns_names.final_documentation_domain}/pubsub/docs/tags for more information on using tags with Pub/Sub resources.',
+      'Optional. Input only. Immutable. Tag keys/values directly bound to this resource. For example: "123/environment": "production", "123/costCenter": "marketing"',
     ).optional(),
   }).describe("A topic resource.").optional(),
   updateMask: z.string().describe(
@@ -929,7 +930,7 @@ const InputsSchema = z.object({
   }).describe("Settings for validating messages published against a schema.")
     .optional(),
   tags: z.record(z.string(), z.string()).describe(
-    'Optional. Input only. Immutable. Tag keys/values directly bound to this resource. For example: "123/environment": "production", "123/costCenter": "marketing" See https://{$universe.dns_names.final_documentation_domain}/pubsub/docs/tags for more information on using tags with Pub/Sub resources.',
+    'Optional. Input only. Immutable. Tag keys/values directly bound to this resource. For example: "123/environment": "production", "123/costCenter": "marketing"',
   ).optional(),
   topic: z.object({
     ingestionDataSourceSettings: z.object({
@@ -1176,7 +1177,7 @@ const InputsSchema = z.object({
         "Output only. An output-only field indicating the state of the topic.",
       ).optional(),
     tags: z.record(z.string(), z.string()).describe(
-      'Optional. Input only. Immutable. Tag keys/values directly bound to this resource. For example: "123/environment": "production", "123/costCenter": "marketing" See https://{$universe.dns_names.final_documentation_domain}/pubsub/docs/tags for more information on using tags with Pub/Sub resources.',
+      'Optional. Input only. Immutable. Tag keys/values directly bound to this resource. For example: "123/environment": "production", "123/costCenter": "marketing"',
     ).optional(),
   }).describe("A topic resource.").optional(),
   updateMask: z.string().describe(
@@ -1187,7 +1188,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Pub/Sub Topics. Registered at `@swamp/gcp/pubsub/topics`. */
 export const model = {
   type: "@swamp/gcp/pubsub/topics",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1276,6 +1277,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1520,6 +1526,47 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List topics resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "Optional. Maximum number of topics to return.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "topics",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     get_iam_policy: {

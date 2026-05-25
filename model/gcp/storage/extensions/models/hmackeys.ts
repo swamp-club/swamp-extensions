@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -228,7 +229,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Storage JSON HmacKeys. Registered at `@swamp/gcp/storage/hmackeys`. */
 export const model = {
   type: "@swamp/gcp/storage/hmackeys",
-  version: "2026.05.22.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -282,6 +283,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.22.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -500,6 +506,65 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List hmacKeys resources",
+      arguments: z.object({
+        maxResults: z.number().describe(
+          "Maximum number of items to return in a single page of responses. The service uses this parameter or 250 items, whichever is smaller. The max number of items per page will also be limited by the number of distinct service accounts in the response. If the number of service accounts in a single response is too high, the page will truncated and a next page token will be returned.",
+        ).optional(),
+        serviceAccountEmail: z.string().describe(
+          "If present, only keys for the given service account are returned.",
+        ).optional(),
+        showDeletedKeys: z.boolean().describe(
+          "Whether or not to show keys in the DELETED state.",
+        ).optional(),
+        userProject: z.string().describe(
+          "The project to be billed for this request.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["serviceAccountEmail"] !== undefined) {
+          params["serviceAccountEmail"] = String(args["serviceAccountEmail"]);
+        }
+        if (args["showDeletedKeys"] !== undefined) {
+          params["showDeletedKeys"] = String(args["showDeletedKeys"]);
+        }
+        if (args["userProject"] !== undefined) {
+          params["userProject"] = String(args["userProject"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

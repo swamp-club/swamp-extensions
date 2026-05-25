@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -40,6 +41,81 @@ const GET_CONFIG = {
     "name": {
       "location": "path",
       "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "integrations.projects.locations.products.integrations.executions.list",
+  "path": "v1/{+parent}/executions",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "filterParams.customFilter": {
+      "location": "query",
+    },
+    "filterParams.endTime": {
+      "location": "query",
+    },
+    "filterParams.eventStatuses": {
+      "location": "query",
+    },
+    "filterParams.executionId": {
+      "location": "query",
+    },
+    "filterParams.parameterKey": {
+      "location": "query",
+    },
+    "filterParams.parameterPairKey": {
+      "location": "query",
+    },
+    "filterParams.parameterPairValue": {
+      "location": "query",
+    },
+    "filterParams.parameterType": {
+      "location": "query",
+    },
+    "filterParams.parameterValue": {
+      "location": "query",
+    },
+    "filterParams.startTime": {
+      "location": "query",
+    },
+    "filterParams.taskStatuses": {
+      "location": "query",
+    },
+    "filterParams.workflowName": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+    "readMask": {
+      "location": "query",
+    },
+    "refreshAcl": {
+      "location": "query",
+    },
+    "snapshotMetadataWithoutParams": {
+      "location": "query",
+    },
+    "truncateParams": {
+      "location": "query",
     },
   },
 } as const;
@@ -332,7 +408,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Application Integration Products.Integrations.Executions. Registered at `@swamp/gcp/integrations/products-integrations-executions`. */
 export const model = {
   type: "@swamp/gcp/integrations/products-integrations-executions",
-  version: "2026.05.19.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -376,6 +452,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -470,6 +551,146 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List executions resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          'Optional. Standard filter field, we support filtering on following fields: workflow_name: the name of the integration. CreateTimestamp: the execution created time. event_execution_state: the state of the executions. execution_id: the id of the execution. trigger_id: the id of the trigger. parameter_type: the type of the parameters involved in the execution. All fields support for EQUALS, in additional: CreateTimestamp support for LESS_THAN, GREATER_THAN ParameterType support for HAS For example: "parameter_type" HAS \\"string\\" Also supports operators like AND, OR, NOT For example, trigger_id=\\"id1\\" AND workflow_name=\\"testWorkflow\\"',
+        ).optional(),
+        filterParams_customFilter: z.string().describe(
+          "Optional user-provided custom filter.",
+        ).optional(),
+        filterParams_endTime: z.string().describe("End timestamp.").optional(),
+        filterParams_eventStatuses: z.string().describe(
+          "List of possible event statuses.",
+        ).optional(),
+        filterParams_executionId: z.string().describe("Execution id.")
+          .optional(),
+        filterParams_parameterPairKey: z.string().describe(
+          "Param key in the key value pair filter.",
+        ).optional(),
+        filterParams_parameterPairValue: z.string().describe(
+          "Param value in the key value pair filter.",
+        ).optional(),
+        filterParams_parameterType: z.string().describe("Param type.")
+          .optional(),
+        filterParams_startTime: z.string().describe("Start timestamp.")
+          .optional(),
+        filterParams_workflowName: z.string().describe("Workflow name.")
+          .optional(),
+        orderBy: z.string().describe(
+          'Optional. The results would be returned in order you specified here. Currently supporting "create_time".',
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The size of entries in the response.",
+        ).optional(),
+        readMask: z.string().describe(
+          "Optional. View mask for the response data. If set, only the field specified will be returned as part of the result. If not set, all fields in Execution will be filled and returned. Supported fields: trigger_id execution_method create_time update_time execution_details execution_details.state execution_details.execution_snapshots execution_details.attempt_stats execution_details.event_execution_snapshots_size request_parameters cloud_logging_details snapshot_number replay_info",
+        ).optional(),
+        refreshAcl: z.boolean().describe(
+          "Optional. If true, the service will use the most recent acl information to list event execution infos and renew the acl cache. Note that fetching the most recent acl is synchronous, so it will increase RPC call latency.",
+        ).optional(),
+        snapshotMetadataWithoutParams: z.boolean().describe(
+          "Optional. If true, the service will provide execution info with snapshot metadata only i.e. without event parameters.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["filterParams_customFilter"] !== undefined) {
+          params["filterParams.customFilter"] = String(
+            args["filterParams_customFilter"],
+          );
+        }
+        if (args["filterParams_endTime"] !== undefined) {
+          params["filterParams.endTime"] = String(args["filterParams_endTime"]);
+        }
+        if (args["filterParams_eventStatuses"] !== undefined) {
+          params["filterParams.eventStatuses"] = String(
+            args["filterParams_eventStatuses"],
+          );
+        }
+        if (args["filterParams_executionId"] !== undefined) {
+          params["filterParams.executionId"] = String(
+            args["filterParams_executionId"],
+          );
+        }
+        if (args["filterParams_parameterPairKey"] !== undefined) {
+          params["filterParams.parameterPairKey"] = String(
+            args["filterParams_parameterPairKey"],
+          );
+        }
+        if (args["filterParams_parameterPairValue"] !== undefined) {
+          params["filterParams.parameterPairValue"] = String(
+            args["filterParams_parameterPairValue"],
+          );
+        }
+        if (args["filterParams_parameterType"] !== undefined) {
+          params["filterParams.parameterType"] = String(
+            args["filterParams_parameterType"],
+          );
+        }
+        if (args["filterParams_startTime"] !== undefined) {
+          params["filterParams.startTime"] = String(
+            args["filterParams_startTime"],
+          );
+        }
+        if (args["filterParams_workflowName"] !== undefined) {
+          params["filterParams.workflowName"] = String(
+            args["filterParams_workflowName"],
+          );
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["readMask"] !== undefined) {
+          params["readMask"] = String(args["readMask"]);
+        }
+        if (args["refreshAcl"] !== undefined) {
+          params["refreshAcl"] = String(args["refreshAcl"]);
+        }
+        if (args["snapshotMetadataWithoutParams"] !== undefined) {
+          params["snapshotMetadataWithoutParams"] = String(
+            args["snapshotMetadataWithoutParams"],
+          );
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "executionInfos",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     download: {

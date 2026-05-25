@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -113,16 +114,6 @@ const LIST_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
-  action: z.object({
-    redirectAction: z.object({
-      queryParams: z.record(z.string(), z.string()).describe(
-        "The query params to be added to the redirect path.",
-      ).optional(),
-      relativePath: z.string().describe("The relative path to redirect to.")
-        .optional(),
-    }).describe("The redirect action to be taken when the chart is clicked.")
-      .optional(),
-  }).describe("The action to be taken when the chart is clicked.").optional(),
   chartVisualizationType: z.enum([
     "CHART_VISUALIZATION_TYPE_UNSPECIFIED",
     "BAR",
@@ -218,12 +209,6 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  action: z.object({
-    redirectAction: z.object({
-      queryParams: z.record(z.string(), z.unknown()),
-      relativePath: z.string(),
-    }),
-  }).optional(),
   chartType: z.string().optional(),
   chartVisualizationType: z.string().optional(),
   createTime: z.string().optional(),
@@ -270,16 +255,6 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  action: z.object({
-    redirectAction: z.object({
-      queryParams: z.record(z.string(), z.string()).describe(
-        "The query params to be added to the redirect path.",
-      ).optional(),
-      relativePath: z.string().describe("The relative path to redirect to.")
-        .optional(),
-    }).describe("The redirect action to be taken when the chart is clicked.")
-      .optional(),
-  }).describe("The action to be taken when the chart is clicked.").optional(),
   chartVisualizationType: z.enum([
     "CHART_VISUALIZATION_TYPE_UNSPECIFIED",
     "BAR",
@@ -377,7 +352,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Contact Center AI Insights Dashboards.Charts. Registered at `@swamp/gcp/contactcenterinsights/dashboards-charts`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/dashboards-charts",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -470,6 +445,14 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "Removed: action",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { action: _action, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -494,7 +477,6 @@ export const model = {
           String(g["location"] ?? "")
         }`;
         const body: Record<string, unknown> = {};
-        if (g["action"] !== undefined) body["action"] = g["action"];
         if (g["chartVisualizationType"] !== undefined) {
           body["chartVisualizationType"] = g["chartVisualizationType"];
         }
@@ -603,7 +585,6 @@ export const model = {
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
-        if (g["action"] !== undefined) body["action"] = g["action"];
         if (g["chartVisualizationType"] !== undefined) {
           body["chartVisualizationType"] = g["chartVisualizationType"];
         }

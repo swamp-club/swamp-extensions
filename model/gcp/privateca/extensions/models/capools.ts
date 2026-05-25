@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -143,9 +144,6 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe("The configuration used for encrypting data at rest.").optional(),
   issuancePolicy: z.object({
-    allowRequesterSpecifiedNotBeforeTime: z.boolean().describe(
-      "Optional. If set to true, allows requesters to specify the requested_not_before_time field when creating a Certificate. Certificates requested with this option enabled will have a 'not_before_time' equal to the value specified in the request. The 'not_after_time' will be adjusted to preserve the requested lifetime. The maximum time that a certificate can be backdated with these options is 48 hours in the past. This option cannot be set if backdate_duration is set.",
-    ).optional(),
     allowedIssuanceModes: z.object({
       allowConfigBasedIssuance: z.boolean().describe(
         "Optional. When true, allows callers to create Certificates by specifying a CertificateConfig.",
@@ -413,7 +411,6 @@ const StateSchema = z.object({
     cloudKmsKey: z.string(),
   }).optional(),
   issuancePolicy: z.object({
-    allowRequesterSpecifiedNotBeforeTime: z.boolean(),
     allowedIssuanceModes: z.object({
       allowConfigBasedIssuance: z.boolean(),
       allowCsrBasedIssuance: z.boolean(),
@@ -517,9 +514,6 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe("The configuration used for encrypting data at rest.").optional(),
   issuancePolicy: z.object({
-    allowRequesterSpecifiedNotBeforeTime: z.boolean().describe(
-      "Optional. If set to true, allows requesters to specify the requested_not_before_time field when creating a Certificate. Certificates requested with this option enabled will have a 'not_before_time' equal to the value specified in the request. The 'not_after_time' will be adjusted to preserve the requested lifetime. The maximum time that a certificate can be backdated with these options is 48 hours in the past. This option cannot be set if backdate_duration is set.",
-    ).optional(),
     allowedIssuanceModes: z.object({
       allowConfigBasedIssuance: z.boolean().describe(
         "Optional. When true, allows callers to create Certificates by specifying a CertificateConfig.",
@@ -785,7 +779,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Certificate Authority CaPools. Registered at `@swamp/gcp/privateca/capools`. */
 export const model = {
   type: "@swamp/gcp/privateca/capools",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -864,6 +858,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1107,6 +1106,62 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List caPools resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Optional. Only include resources that match the filter in the response.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Optional. Specify how the results should be sorted.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Limit on the number of CaPools to include in the response. Further CaPools can subsequently be obtained by including the ListCaPoolsResponse.next_page_token in a subsequent request. If unspecified, the server will pick an appropriate default.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "caPools",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     fetch_ca_certs: {

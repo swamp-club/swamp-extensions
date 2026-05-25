@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -678,7 +679,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Campaign Manager 360 PlacementGroups. Registered at `@swamp/gcp/dfareporting/placementgroups`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/placementgroups",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -732,6 +733,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1035,6 +1041,145 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List placementGroups resources",
+      arguments: z.object({
+        activeStatus: z.string().describe(
+          "Select only placements with these active statuses.",
+        ).optional(),
+        advertiserIds: z.string().describe(
+          "Select only placement groups that belong to these advertisers.",
+        ).optional(),
+        campaignIds: z.string().describe(
+          "Select only placement groups that belong to these campaigns.",
+        ).optional(),
+        contentCategoryIds: z.string().describe(
+          "Select only placement groups that are associated with these content categories.",
+        ).optional(),
+        directorySiteIds: z.string().describe(
+          "Select only placement groups that are associated with these directory sites.",
+        ).optional(),
+        ids: z.string().describe("Select only placement groups with these IDs.")
+          .optional(),
+        maxEndDate: z.string().describe(
+          'Select only placements or placement groups whose end date is on or before the specified maxEndDate. The date should be formatted as "yyyy-MM-dd".',
+        ).optional(),
+        maxResults: z.number().describe("Maximum number of results to return.")
+          .optional(),
+        maxStartDate: z.string().describe(
+          'Select only placements or placement groups whose start date is on or before the specified maxStartDate. The date should be formatted as "yyyy-MM-dd".',
+        ).optional(),
+        minEndDate: z.string().describe(
+          'Select only placements or placement groups whose end date is on or after the specified minEndDate. The date should be formatted as "yyyy-MM-dd".',
+        ).optional(),
+        minStartDate: z.string().describe(
+          'Select only placements or placement groups whose start date is on or after the specified minStartDate. The date should be formatted as "yyyy-MM-dd".',
+        ).optional(),
+        placementGroupType: z.string().describe(
+          "Select only placement groups belonging with this group type. A package is a simple group of placements that acts as a single pricing point for a group of tags. A roadblock is a group of placements that not only acts as a single pricing point but also assumes that all the tags in it will be served at the same time. A roadblock requires one of its assigned placements to be marked as primary for reporting.",
+        ).optional(),
+        placementStrategyIds: z.string().describe(
+          "Select only placement groups that are associated with these placement strategies.",
+        ).optional(),
+        pricingTypes: z.string().describe(
+          "Select only placement groups with these pricing types.",
+        ).optional(),
+        searchString: z.string().describe(
+          'Allows searching for placement groups by name or ID. Wildcards (*) are allowed. For example, "placement*2015" will return placement groups with names like "placement group June 2015", "placement group May 2015", or simply "placements 2015". Most of the searches also add wildcards implicitly at the start and the end of the search string. For example, a search string of "placementgroup" will match placement groups with name "my placementgroup", "placementgroup 2015", or simply "placementgroup".',
+        ).optional(),
+        siteIds: z.string().describe(
+          "Select only placement groups that are associated with these sites.",
+        ).optional(),
+        sortField: z.string().describe("Field by which to sort the list.")
+          .optional(),
+        sortOrder: z.string().describe("Order of sorted results.").optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["profileId"] !== undefined) {
+          params["profileId"] = String(g["profileId"]);
+        }
+        if (args["activeStatus"] !== undefined) {
+          params["activeStatus"] = String(args["activeStatus"]);
+        }
+        if (args["advertiserIds"] !== undefined) {
+          params["advertiserIds"] = String(args["advertiserIds"]);
+        }
+        if (args["campaignIds"] !== undefined) {
+          params["campaignIds"] = String(args["campaignIds"]);
+        }
+        if (args["contentCategoryIds"] !== undefined) {
+          params["contentCategoryIds"] = String(args["contentCategoryIds"]);
+        }
+        if (args["directorySiteIds"] !== undefined) {
+          params["directorySiteIds"] = String(args["directorySiteIds"]);
+        }
+        if (args["ids"] !== undefined) params["ids"] = String(args["ids"]);
+        if (args["maxEndDate"] !== undefined) {
+          params["maxEndDate"] = String(args["maxEndDate"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["maxStartDate"] !== undefined) {
+          params["maxStartDate"] = String(args["maxStartDate"]);
+        }
+        if (args["minEndDate"] !== undefined) {
+          params["minEndDate"] = String(args["minEndDate"]);
+        }
+        if (args["minStartDate"] !== undefined) {
+          params["minStartDate"] = String(args["minStartDate"]);
+        }
+        if (args["placementGroupType"] !== undefined) {
+          params["placementGroupType"] = String(args["placementGroupType"]);
+        }
+        if (args["placementStrategyIds"] !== undefined) {
+          params["placementStrategyIds"] = String(args["placementStrategyIds"]);
+        }
+        if (args["pricingTypes"] !== undefined) {
+          params["pricingTypes"] = String(args["pricingTypes"]);
+        }
+        if (args["searchString"] !== undefined) {
+          params["searchString"] = String(args["searchString"]);
+        }
+        if (args["siteIds"] !== undefined) {
+          params["siteIds"] = String(args["siteIds"]);
+        }
+        if (args["sortField"] !== undefined) {
+          params["sortField"] = String(args["sortField"]);
+        }
+        if (args["sortOrder"] !== undefined) {
+          params["sortOrder"] = String(args["sortOrder"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "placementGroups",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.id?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

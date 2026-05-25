@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -244,7 +245,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud YouTube Data ThirdPartyLinks. Registered at `@swamp/gcp/youtube/thirdpartylinks`. */
 export const model = {
   type: "@swamp/gcp/youtube/thirdpartylinks",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -298,6 +299,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -518,6 +524,61 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List thirdPartyLinks resources",
+      arguments: z.object({
+        externalChannelId: z.string().describe(
+          "Channel ID to which changes should be applied, for delegation.",
+        ).optional(),
+        linkingToken: z.string().describe(
+          "Get a third party link with the given linking token.",
+        ).optional(),
+        part: z.string().describe(
+          "The *part* parameter specifies the thirdPartyLink resource parts that the API response will include. Supported values are linkingToken, status, and snippet.",
+        ).optional(),
+        type: z.string().describe("Get a third party link of the given type.")
+          .optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["part"] !== undefined) params["part"] = String(g["part"]);
+        if (args["externalChannelId"] !== undefined) {
+          params["externalChannelId"] = String(args["externalChannelId"]);
+        }
+        if (args["linkingToken"] !== undefined) {
+          params["linkingToken"] = String(args["linkingToken"]);
+        }
+        if (args["part"] !== undefined) params["part"] = String(args["part"]);
+        if (args["type"] !== undefined) params["type"] = String(args["type"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

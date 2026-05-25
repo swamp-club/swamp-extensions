@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -141,7 +142,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Error Reporting GroupStats. Registered at `@swamp/gcp/clouderrorreporting/groupstats`. */
 export const model = {
   type: "@swamp/gcp/clouderrorreporting/groupstats",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -195,6 +196,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -297,6 +303,110 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List groupStats resources",
+      arguments: z.object({
+        alignment: z.string().describe(
+          "Optional. The alignment of the timed counts to be returned. Default is `ALIGNMENT_EQUAL_AT_END`.",
+        ).optional(),
+        alignmentTime: z.string().describe(
+          "Optional. Time where the timed counts shall be aligned if rounded alignment is chosen. Default is 00:00 UTC.",
+        ).optional(),
+        groupId: z.string().describe(
+          "Optional. List all ErrorGroupStats with these IDs. The `group_id` is a unique identifier for a particular error group. The identifier is derived from key parts of the error-log content and is treated as Service Data. For information about how Service Data is handled, see [Google Cloud Privacy Notice] (https://cloud.google.com/terms/cloud-privacy-notice).",
+        ).optional(),
+        order: z.string().describe(
+          "Optional. The sort order in which the results are returned. Default is `COUNT_DESC`.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of results to return per response. Default is 20.",
+        ).optional(),
+        serviceFilter_resourceType: z.string().describe(
+          "Optional. The exact value to match against [`ServiceContext.resource_type`](/error-reporting/reference/rest/v1beta1/ServiceContext#FIELDS.resource_type).",
+        ).optional(),
+        serviceFilter_service: z.string().describe(
+          "Optional. The exact value to match against [`ServiceContext.service`](/error-reporting/reference/rest/v1beta1/ServiceContext#FIELDS.service).",
+        ).optional(),
+        serviceFilter_version: z.string().describe(
+          "Optional. The exact value to match against [`ServiceContext.version`](/error-reporting/reference/rest/v1beta1/ServiceContext#FIELDS.version).",
+        ).optional(),
+        timeRange_period: z.string().describe(
+          "Restricts the query to the specified time range.",
+        ).optional(),
+        timedCountDuration: z.string().describe(
+          "Optional. The preferred duration for a single returned TimedCount. If not set, no timed counts are returned.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["projectName"] !== undefined) {
+          params["projectName"] = String(g["projectName"]);
+        }
+        if (args["alignment"] !== undefined) {
+          params["alignment"] = String(args["alignment"]);
+        }
+        if (args["alignmentTime"] !== undefined) {
+          params["alignmentTime"] = String(args["alignmentTime"]);
+        }
+        if (args["groupId"] !== undefined) {
+          params["groupId"] = String(args["groupId"]);
+        }
+        if (args["order"] !== undefined) {
+          params["order"] = String(args["order"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["serviceFilter_resourceType"] !== undefined) {
+          params["serviceFilter.resourceType"] = String(
+            args["serviceFilter_resourceType"],
+          );
+        }
+        if (args["serviceFilter_service"] !== undefined) {
+          params["serviceFilter.service"] = String(
+            args["serviceFilter_service"],
+          );
+        }
+        if (args["serviceFilter_version"] !== undefined) {
+          params["serviceFilter.version"] = String(
+            args["serviceFilter_version"],
+          );
+        }
+        if (args["timeRange_period"] !== undefined) {
+          params["timeRange.period"] = String(args["timeRange_period"]);
+        }
+        if (args["timedCountDuration"] !== undefined) {
+          params["timedCountDuration"] = String(args["timedCountDuration"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "errorGroupStats",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

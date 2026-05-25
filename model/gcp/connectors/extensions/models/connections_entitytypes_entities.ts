@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -181,7 +182,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Connectors Connections.EntityTypes.Entities. Registered at `@swamp/gcp/connectors/connections-entitytypes-entities`. */
 export const model = {
   type: "@swamp/gcp/connectors/connections-entitytypes-entities",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -240,6 +241,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -467,6 +473,76 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List entities resources",
+      arguments: z.object({
+        conditions: z.string().describe(
+          "Conditions to be used when listing entities. From a proto standpoint, There are no restrictions on what can be passed using this field. The connector documentation should have information about what format of filters/conditions are supported.",
+        ).optional(),
+        executionConfig_headers: z.string().describe(
+          'headers to be used for the request. For example: headers:\'{"x-integration-connectors-managed-connection-id":"conn-id","x-integration-connectors-runtime-config":"runtime-cfg"}\'',
+        ).optional(),
+        pageSize: z.number().describe(
+          "Number of entity rows to return. Defaults page size = 25. Max page size = 200.",
+        ).optional(),
+        sortBy: z.string().describe(
+          "List of 'sort_by' columns to use when returning the results.",
+        ).optional(),
+        sortOrder: z.string().describe(
+          "List of 'sort_order' columns to use when returning the results.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["conditions"] !== undefined) {
+          params["conditions"] = String(args["conditions"]);
+        }
+        if (args["executionConfig_headers"] !== undefined) {
+          params["executionConfig.headers"] = String(
+            args["executionConfig_headers"],
+          );
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["sortBy"] !== undefined) {
+          params["sortBy"] = String(args["sortBy"]);
+        }
+        if (args["sortOrder"] !== undefined) {
+          params["sortOrder"] = String(args["sortOrder"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "entities",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     update_entities_with_conditions: {

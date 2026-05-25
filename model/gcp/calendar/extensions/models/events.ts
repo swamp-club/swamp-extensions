@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -245,9 +246,6 @@ const GlobalArgsSchema = z.object({
   attendees: z.array(z.object({
     additionalGuests: z.number().int().describe(
       "Number of additional guests. Optional. The default is 0.",
-    ).optional(),
-    asyncOperation: z.string().describe(
-      'If present, indicates the status of an asynchronous operation ongoing for this attendee (e.g. listing of members of large attendee groups). Read-only. The default is to not be present. Possible values are: - "inProgress" - The asynchronous operation is in progress. - (not present) - Otherwise.',
     ).optional(),
     comment: z.string().describe("The attendee's response comment. Optional.")
       .optional(),
@@ -630,7 +628,6 @@ const StateSchema = z.object({
   })).optional(),
   attendees: z.array(z.object({
     additionalGuests: z.number(),
-    asyncOperation: z.string(),
     comment: z.string(),
     displayName: z.string(),
     email: z.string(),
@@ -814,9 +811,6 @@ const InputsSchema = z.object({
   attendees: z.array(z.object({
     additionalGuests: z.number().int().describe(
       "Number of additional guests. Optional. The default is 0.",
-    ).optional(),
-    asyncOperation: z.string().describe(
-      'If present, indicates the status of an asynchronous operation ongoing for this attendee (e.g. listing of members of large attendee groups). Read-only. The default is to not be present. Possible values are: - "inProgress" - The asynchronous operation is in progress. - (not present) - Otherwise.',
     ).optional(),
     comment: z.string().describe("The attendee's response comment. Optional.")
       .optional(),
@@ -1191,7 +1185,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Calendar Events. Registered at `@swamp/gcp/calendar/events`. */
 export const model = {
   type: "@swamp/gcp/calendar/events",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1245,6 +1239,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1630,6 +1629,149 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List events resources",
+      arguments: z.object({
+        alwaysIncludeEmail: z.boolean().describe("Deprecated and ignored.")
+          .optional(),
+        eventTypes: z.string().describe(
+          "Event types to return. Optional. This parameter can be repeated multiple times to return events of different types. If unset, returns all event types.",
+        ).optional(),
+        iCalUID: z.string().describe(
+          "Specifies an event ID in the iCalendar format to be provided in the response. Optional. Use this if you want to search for an event by its iCalendar ID.",
+        ).optional(),
+        maxAttendees: z.number().describe(
+          "The maximum number of attendees to include in the response. If there are more than the specified number of attendees, only the participant is returned. Optional.",
+        ).optional(),
+        maxResults: z.number().describe(
+          "Maximum number of events returned on one result page. The number of events in the resulting page may be less than this value, or none at all, even if there are more events matching the query. Incomplete pages can be detected by a non-empty nextPageToken field in the response. By default the value is 250 events. The page size can never be larger than 2500 events. Optional.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "The order of the events returned in the result. Optional. The default is an unspecified, stable order.",
+        ).optional(),
+        privateExtendedProperty: z.string().describe(
+          "Extended properties constraint specified as propertyName=value. Matches only private properties. This parameter might be repeated multiple times to return events that match all given constraints.",
+        ).optional(),
+        q: z.string().describe(
+          "Free text search terms to find events that match these terms in the following fields:",
+        ).optional(),
+        sharedExtendedProperty: z.string().describe(
+          "Extended properties constraint specified as propertyName=value. Matches only shared properties. This parameter might be repeated multiple times to return events that match all given constraints.",
+        ).optional(),
+        showDeleted: z.boolean().describe(
+          'Whether to include deleted events (with status equals "cancelled") in the result. Cancelled instances of recurring events (but not the underlying recurring event) will still be included if showDeleted and singleEvents are both False. If showDeleted and singleEvents are both True, only single instances of deleted events (but not the underlying recurring events) are returned. Optional. The default is False.',
+        ).optional(),
+        showHiddenInvitations: z.boolean().describe(
+          "Whether to include hidden invitations in the result. Optional. The default is False.",
+        ).optional(),
+        singleEvents: z.boolean().describe(
+          "Whether to expand recurring events into instances and only return single one-off events and instances of recurring events, but not the underlying recurring events themselves. Optional. The default is False.",
+        ).optional(),
+        syncToken: z.string().describe(
+          "Token obtained from the nextSyncToken field returned on the last page of results from the previous list request. It makes the result of this list request contain only entries that have changed since then. All events deleted since the previous list request will always be in the result set and it is not allowed to set showDeleted to False.",
+        ).optional(),
+        timeMax: z.string().describe(
+          "Upper bound (exclusive) for an event's start time to filter by. Optional. The default is not to filter by start time. Must be an RFC3339 timestamp with mandatory time zone offset, for example, 2011-06-03T10:00:00-07:00, 2011-06-03T10:00:00Z. Milliseconds may be provided but are ignored. If timeMin is set, timeMax must be greater than timeMin.",
+        ).optional(),
+        timeMin: z.string().describe(
+          "Lower bound (exclusive) for an event's end time to filter by. Optional. The default is not to filter by end time. Must be an RFC3339 timestamp with mandatory time zone offset, for example, 2011-06-03T10:00:00-07:00, 2011-06-03T10:00:00Z. Milliseconds may be provided but are ignored. If timeMax is set, timeMin must be smaller than timeMax.",
+        ).optional(),
+        timeZone: z.string().describe(
+          "Time zone used in the response. Optional. The default is the time zone of the calendar.",
+        ).optional(),
+        updatedMin: z.string().describe(
+          "Lower bound for an event's last modification time (as a RFC3339 timestamp) to filter by. When specified, entries deleted since this time will always be included regardless of showDeleted. Optional. The default is not to filter by last modification time.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["calendarId"] !== undefined) {
+          params["calendarId"] = String(g["calendarId"]);
+        }
+        if (args["alwaysIncludeEmail"] !== undefined) {
+          params["alwaysIncludeEmail"] = String(args["alwaysIncludeEmail"]);
+        }
+        if (args["eventTypes"] !== undefined) {
+          params["eventTypes"] = String(args["eventTypes"]);
+        }
+        if (args["iCalUID"] !== undefined) {
+          params["iCalUID"] = String(args["iCalUID"]);
+        }
+        if (args["maxAttendees"] !== undefined) {
+          params["maxAttendees"] = String(args["maxAttendees"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["privateExtendedProperty"] !== undefined) {
+          params["privateExtendedProperty"] = String(
+            args["privateExtendedProperty"],
+          );
+        }
+        if (args["q"] !== undefined) params["q"] = String(args["q"]);
+        if (args["sharedExtendedProperty"] !== undefined) {
+          params["sharedExtendedProperty"] = String(
+            args["sharedExtendedProperty"],
+          );
+        }
+        if (args["showDeleted"] !== undefined) {
+          params["showDeleted"] = String(args["showDeleted"]);
+        }
+        if (args["showHiddenInvitations"] !== undefined) {
+          params["showHiddenInvitations"] = String(
+            args["showHiddenInvitations"],
+          );
+        }
+        if (args["singleEvents"] !== undefined) {
+          params["singleEvents"] = String(args["singleEvents"]);
+        }
+        if (args["syncToken"] !== undefined) {
+          params["syncToken"] = String(args["syncToken"]);
+        }
+        if (args["timeMax"] !== undefined) {
+          params["timeMax"] = String(args["timeMax"]);
+        }
+        if (args["timeMin"] !== undefined) {
+          params["timeMin"] = String(args["timeMin"]);
+        }
+        if (args["timeZone"] !== undefined) {
+          params["timeZone"] = String(args["timeZone"]);
+        }
+        if (args["updatedMin"] !== undefined) {
+          params["updatedMin"] = String(args["updatedMin"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "defaultReminders",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     import: {

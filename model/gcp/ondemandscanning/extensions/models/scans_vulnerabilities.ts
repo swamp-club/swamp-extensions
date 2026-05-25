@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -55,19 +56,6 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   advisoryPublishTime: z.string().optional(),
-  aiSkillAnalysis: z.object({
-    findings: z.array(z.object({
-      category: z.string(),
-      location: z.object({
-        filePath: z.string(),
-        lineNumber: z.string(),
-      }),
-      scanner: z.string(),
-      severity: z.string(),
-    })),
-    maxSeverity: z.string(),
-    skillName: z.string(),
-  }).optional(),
   attestation: z.object({
     jwts: z.array(z.object({
       compactJwt: z.string(),
@@ -564,7 +552,6 @@ const StateSchema = z.object({
     cvssScore: z.number(),
     cvssV2: z.object({
       attackComplexity: z.string(),
-      attackRequirements: z.string(),
       attackVector: z.string(),
       authentication: z.string(),
       availabilityImpact: z.string(),
@@ -575,18 +562,11 @@ const StateSchema = z.object({
       integrityImpact: z.string(),
       privilegesRequired: z.string(),
       scope: z.string(),
-      subsequentSystemAvailabilityImpact: z.string(),
-      subsequentSystemConfidentialityImpact: z.string(),
-      subsequentSystemIntegrityImpact: z.string(),
       userInteraction: z.string(),
-      vulnerableSystemAvailabilityImpact: z.string(),
-      vulnerableSystemConfidentialityImpact: z.string(),
-      vulnerableSystemIntegrityImpact: z.string(),
     }),
     cvssVersion: z.string(),
     cvssv3: z.object({
       attackComplexity: z.string(),
-      attackRequirements: z.string(),
       attackVector: z.string(),
       authentication: z.string(),
       availabilityImpact: z.string(),
@@ -597,13 +577,7 @@ const StateSchema = z.object({
       integrityImpact: z.string(),
       privilegesRequired: z.string(),
       scope: z.string(),
-      subsequentSystemAvailabilityImpact: z.string(),
-      subsequentSystemConfidentialityImpact: z.string(),
-      subsequentSystemIntegrityImpact: z.string(),
       userInteraction: z.string(),
-      vulnerableSystemAvailabilityImpact: z.string(),
-      vulnerableSystemConfidentialityImpact: z.string(),
-      vulnerableSystemIntegrityImpact: z.string(),
     }),
     effectiveSeverity: z.string(),
     extraDetails: z.string(),
@@ -693,7 +667,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud On-Demand Scanning Scans.Vulnerabilities. Registered at `@swamp/gcp/ondemandscanning/scans-vulnerabilities`. */
 export const model = {
   type: "@swamp/gcp/ondemandscanning/scans-vulnerabilities",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -815,6 +789,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -911,6 +890,50 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List vulnerabilities resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "The number of vulnerabilities to retrieve.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "occurrences",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

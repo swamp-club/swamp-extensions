@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -93,7 +94,7 @@ const InputsSchema = z.object({
 export const model = {
   type:
     "@swamp/gcp/businessprofileperformance/searchkeywords-impressions-monthly",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -147,6 +148,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -245,6 +251,96 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List monthly resources",
+      arguments: z.object({
+        monthlyRange_endMonth_day: z.number().describe(
+          "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+        ).optional(),
+        monthlyRange_endMonth_month: z.number().describe(
+          "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+        ).optional(),
+        monthlyRange_endMonth_year: z.number().describe(
+          "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+        ).optional(),
+        monthlyRange_startMonth_day: z.number().describe(
+          "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+        ).optional(),
+        monthlyRange_startMonth_month: z.number().describe(
+          "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+        ).optional(),
+        monthlyRange_startMonth_year: z.number().describe(
+          "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The number of results requested. The default page size is 100. Page size can be set to a maximum of 100.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["monthlyRange_endMonth_day"] !== undefined) {
+          params["monthlyRange.endMonth.day"] = String(
+            args["monthlyRange_endMonth_day"],
+          );
+        }
+        if (args["monthlyRange_endMonth_month"] !== undefined) {
+          params["monthlyRange.endMonth.month"] = String(
+            args["monthlyRange_endMonth_month"],
+          );
+        }
+        if (args["monthlyRange_endMonth_year"] !== undefined) {
+          params["monthlyRange.endMonth.year"] = String(
+            args["monthlyRange_endMonth_year"],
+          );
+        }
+        if (args["monthlyRange_startMonth_day"] !== undefined) {
+          params["monthlyRange.startMonth.day"] = String(
+            args["monthlyRange_startMonth_day"],
+          );
+        }
+        if (args["monthlyRange_startMonth_month"] !== undefined) {
+          params["monthlyRange.startMonth.month"] = String(
+            args["monthlyRange_startMonth_month"],
+          );
+        }
+        if (args["monthlyRange_startMonth_year"] !== undefined) {
+          params["monthlyRange.startMonth.year"] = String(
+            args["monthlyRange_startMonth_year"],
+          );
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "searchKeywordsCounts",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -208,7 +209,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Network Security AddressGroups. Registered at `@swamp/gcp/networksecurity/addressgroups`. */
 export const model = {
   type: "@swamp/gcp/networksecurity/addressgroups",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -262,6 +263,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -500,6 +506,54 @@ export const model = {
         }
       },
     },
+    list: {
+      description: "List addressGroups resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "Maximum number of AddressGroups to return per call.",
+        ).optional(),
+        returnPartialSuccess: z.boolean().describe(
+          "Optional. If true, allow partial responses for multi-regional Aggregated List requests.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["returnPartialSuccess"] !== undefined) {
+          params["returnPartialSuccess"] = String(args["returnPartialSuccess"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "addressGroups",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
     add_items: {
       description: "add items",
       arguments: z.object({
@@ -633,51 +687,6 @@ export const model = {
           },
           params,
           {},
-        );
-        return { result };
-      },
-    },
-    test_iam_permissions: {
-      description: "test iam permissions",
-      arguments: z.object({
-        permissions: z.any().optional(),
-      }),
-      execute: async (args: Record<string, unknown>, context: any) => {
-        const g = context.globalArgs;
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
-            /\.\./g,
-            "_",
-          ).replace(/\0/g, ""),
-        );
-        if (!content) {
-          throw new Error("No existing state found - run create or get first");
-        }
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        params["resource"] = existing["name"]?.toString() ??
-          g["name"]?.toString() ?? "";
-        const body: Record<string, unknown> = {};
-        if (args["permissions"] !== undefined) {
-          body["permissions"] = args["permissions"];
-        }
-        const result = await createResource(
-          BASE_URL,
-          {
-            "id":
-              "networksecurity.organizations.locations.addressGroups.testIamPermissions",
-            "path": "v1/{+resource}:testIamPermissions",
-            "httpMethod": "POST",
-            "parameterOrder": ["resource"],
-            "parameters": {
-              "resource": { "location": "path", "required": true },
-            },
-          },
-          params,
-          body,
         );
         return { result };
       },

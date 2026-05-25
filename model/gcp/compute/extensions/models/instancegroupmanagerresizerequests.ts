@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -199,7 +200,7 @@ const GlobalArgsSchema = z.object({
         "[Output Only] The array of errors encountered while processing this operation.",
       ).optional(),
     }).describe(
-      "Output only. Fatal errors encountered during the queueing or provisioning phases of the ResizeRequest that caused the transition to the FAILED state. Contrary to the last_attempt errors, this field is final and errors are never removed from here, as the ResizeRequest is not going to retry.",
+      "Output only. [Output only] Fatal errors encountered during the queueing or provisioning phases of the ResizeRequest that caused the transition to the FAILED state. Contrary to the last_attempt errors, this field is final and errors are never removed from here, as the ResizeRequest is not going to retry.",
     ).optional(),
     lastAttempt: z.object({
       error: z.object({
@@ -225,7 +226,7 @@ const GlobalArgsSchema = z.object({
     }).optional(),
   }).optional(),
   zone: z.string().describe(
-    "Output only. The URL of a zone where the resize request is located. Populated only for zonal resize requests.",
+    "Output only. [Output Only] The URL of azone where the resize request is located. Populated only for zonal resize requests.",
   ).optional(),
   instanceGroupManager: z.string().describe(
     "The name of the managed instance group to which the resize request will be added. Name should conform to RFC1035 or be a resource ID.",
@@ -241,7 +242,6 @@ const StateSchema = z.object({
   id: z.string().optional(),
   kind: z.string().optional(),
   name: z.string(),
-  region: z.string().optional(),
   requestedRunDuration: z.object({
     nanos: z.number(),
     seconds: z.string(),
@@ -314,7 +314,7 @@ const InputsSchema = z.object({
         "[Output Only] The array of errors encountered while processing this operation.",
       ).optional(),
     }).describe(
-      "Output only. Fatal errors encountered during the queueing or provisioning phases of the ResizeRequest that caused the transition to the FAILED state. Contrary to the last_attempt errors, this field is final and errors are never removed from here, as the ResizeRequest is not going to retry.",
+      "Output only. [Output only] Fatal errors encountered during the queueing or provisioning phases of the ResizeRequest that caused the transition to the FAILED state. Contrary to the last_attempt errors, this field is final and errors are never removed from here, as the ResizeRequest is not going to retry.",
     ).optional(),
     lastAttempt: z.object({
       error: z.object({
@@ -340,7 +340,7 @@ const InputsSchema = z.object({
     }).optional(),
   }).optional(),
   zone: z.string().describe(
-    "Output only. The URL of a zone where the resize request is located. Populated only for zonal resize requests.",
+    "Output only. [Output Only] The URL of azone where the resize request is located. Populated only for zonal resize requests.",
   ).optional(),
   instanceGroupManager: z.string().describe(
     "The name of the managed instance group to which the resize request will be added. Name should conform to RFC1035 or be a resource ID.",
@@ -353,7 +353,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine InstanceGroupManagerResizeRequests. Registered at `@swamp/gcp/compute/instancegroupmanagerresizerequests`. */
 export const model = {
   type: "@swamp/gcp/compute/instancegroupmanagerresizerequests",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -447,6 +447,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -652,6 +657,69 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List instanceGroupManagerResizeRequests resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "A filter expression that filters resources listed in the response. Most",
+        ).optional(),
+        maxResults: z.number().describe(
+          "The maximum number of results per page that should be returned.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Sorts list results by a certain order. By default, results",
+        ).optional(),
+        returnPartialSuccess: z.boolean().describe(
+          "Opt-in for partial success behavior which provides partial results in case",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["zone"] !== undefined) params["zone"] = String(g["zone"]);
+        if (g["instanceGroupManager"] !== undefined) {
+          params["instanceGroupManager"] = String(g["instanceGroupManager"]);
+        }
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["returnPartialSuccess"] !== undefined) {
+          params["returnPartialSuccess"] = String(args["returnPartialSuccess"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     cancel: {

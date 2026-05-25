@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -156,10 +157,7 @@ const GlobalArgsSchema = z.object({
     dbHome: z.object({
       database: z.object({
         adminPassword: z.string().describe(
-          "Optional. The password for the default ADMIN user. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
-        ).optional(),
-        adminPasswordSecretVersion: z.string().describe(
-          "Optional. The resource name of a secret version in Secret Manager which contains the database admin user's password. Format: projects/{project}/secrets/{secret}/versions/{version}. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
+          "Optional. The password for the default ADMIN user.",
         ).optional(),
         characterSet: z.string().describe(
           "Optional. The character set for the database. The default is AL32UTF8.",
@@ -259,10 +257,7 @@ const GlobalArgsSchema = z.object({
           ]).describe("Output only. State of the Database.").optional(),
         }).describe("The properties of a Database.").optional(),
         tdeWalletPassword: z.string().describe(
-          "Optional. The TDE wallet password for the database. Note: Only one of `tde_wallet_password_secret_version` or `tde_wallet_password` can be populated.",
-        ).optional(),
-        tdeWalletPasswordSecretVersion: z.string().describe(
-          "Optional. The resource name of a secret version in Secret Manager which contains the TDE wallet password for the database. Format: projects/{project}/secrets/{secret}/versions/{version}. Note: Only one of `tde_wallet_password_secret_version` or `tde_wallet_password` can be populated.",
+          "Optional. The TDE wallet password for the database.",
         ).optional(),
       }).describe(
         "Details of the Database resource. https://docs.oracle.com/en-us/iaas/api/#/en/database/20160918/Database/",
@@ -373,7 +368,6 @@ const StateSchema = z.object({
     dbHome: z.object({
       database: z.object({
         adminPassword: z.string(),
-        adminPasswordSecretVersion: z.string(),
         characterSet: z.string(),
         createTime: z.string(),
         databaseId: z.string(),
@@ -405,7 +399,6 @@ const StateSchema = z.object({
           state: z.string(),
         }),
         tdeWalletPassword: z.string(),
-        tdeWalletPasswordSecretVersion: z.string(),
       }),
       dbVersion: z.string(),
       displayName: z.string(),
@@ -481,10 +474,7 @@ const InputsSchema = z.object({
     dbHome: z.object({
       database: z.object({
         adminPassword: z.string().describe(
-          "Optional. The password for the default ADMIN user. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
-        ).optional(),
-        adminPasswordSecretVersion: z.string().describe(
-          "Optional. The resource name of a secret version in Secret Manager which contains the database admin user's password. Format: projects/{project}/secrets/{secret}/versions/{version}. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
+          "Optional. The password for the default ADMIN user.",
         ).optional(),
         characterSet: z.string().describe(
           "Optional. The character set for the database. The default is AL32UTF8.",
@@ -584,10 +574,7 @@ const InputsSchema = z.object({
           ]).describe("Output only. State of the Database.").optional(),
         }).describe("The properties of a Database.").optional(),
         tdeWalletPassword: z.string().describe(
-          "Optional. The TDE wallet password for the database. Note: Only one of `tde_wallet_password_secret_version` or `tde_wallet_password` can be populated.",
-        ).optional(),
-        tdeWalletPasswordSecretVersion: z.string().describe(
-          "Optional. The resource name of a secret version in Secret Manager which contains the TDE wallet password for the database. Format: projects/{project}/secrets/{secret}/versions/{version}. Note: Only one of `tde_wallet_password_secret_version` or `tde_wallet_password` can be populated.",
+          "Optional. The TDE wallet password for the database.",
         ).optional(),
       }).describe(
         "Details of the Database resource. https://docs.oracle.com/en-us/iaas/api/#/en/database/20160918/Database/",
@@ -679,7 +666,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud DbSystems. Registered at `@swamp/gcp/oracledatabase/dbsystems`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/dbsystems",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -753,6 +740,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -937,6 +929,62 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List dbSystems resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Optional. An expression for filtering the results of the request.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Optional. An expression for ordering the results of the request.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of items to return. If unspecified, at most 50 DbSystems will be returned. The maximum value is 1000; values above 1000 will be coerced to 1000.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "dbSystems",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

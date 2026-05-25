@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -373,7 +374,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Recommendations AI (Beta) Catalogs.CatalogItems. Registered at `@swamp/gcp/recommendationengine/catalogs-catalogitems`. */
 export const model = {
   type: "@swamp/gcp/recommendationengine/catalogs-catalogitems",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -549,6 +550,24 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description:
+        "Removed: type, version, upgrades, globalArguments, inputsSchema, resources, methods",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          type: _type,
+          version: _version,
+          upgrades: _upgrades,
+          globalArguments: _globalArguments,
+          inputsSchema: _inputsSchema,
+          resources: _resources,
+          methods: _methods,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
+    {
+      toVersion: "2026.05.25.1",
       description:
         "Removed: type, version, upgrades, globalArguments, inputsSchema, resources, methods",
       upgradeAttributes: (old: Record<string, unknown>) => {
@@ -824,6 +843,56 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List catalogItems resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Optional. Use of this field is not supported by version v1beta1.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Maximum number of results to return per page. If zero, the service will choose a reasonable default.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "catalogItems",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     import: {

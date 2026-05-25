@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -87,7 +88,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Managed Service for Apache Kafka SchemaRegistries.Subjects. Registered at `@swamp/gcp/managedkafka/schemaregistries-subjects`. */
 export const model = {
   type: "@swamp/gcp/managedkafka/schemaregistries-subjects",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -146,6 +147,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -273,6 +279,56 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List subjects resources",
+      arguments: z.object({
+        deleted: z.boolean().describe(
+          "Optional. If true, the response will include soft-deleted subjects. The default is false.",
+        ).optional(),
+        subjectPrefix: z.string().describe(
+          "Optional. The context to filter the subjects by, in the format of `:.{context}:`. If unset, all subjects in the registry are returned. Set to empty string or add as '?subjectPrefix=' at the end of this request to list subjects in the default context.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["deleted"] !== undefined) {
+          params["deleted"] = String(args["deleted"]);
+        }
+        if (args["subjectPrefix"] !== undefined) {
+          params["subjectPrefix"] = String(args["subjectPrefix"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "extensions",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     lookup_version: {

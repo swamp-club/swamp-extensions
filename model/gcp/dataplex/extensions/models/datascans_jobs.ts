@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -43,6 +44,30 @@ const GET_CONFIG = {
     },
     "view": {
       "location": "query",
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "dataplex.projects.locations.dataScans.jobs.list",
+  "path": "v1/{+parent}/jobs",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
     },
   },
 } as const;
@@ -96,9 +121,6 @@ const StateSchema = z.object({
         encoding: z.string(),
         typeInferenceDisabled: z.boolean(),
       }),
-      unstructuredDataOptions: z.object({
-        semanticInferenceEnabled: z.boolean(),
-      }),
     }),
   }).optional(),
   dataDocumentationResult: z.object({
@@ -119,6 +141,14 @@ const StateSchema = z.object({
         }),
         sources: z.array(z.unknown()),
         type: z.string(),
+      })),
+      tableResults: z.array(z.object({
+        name: z.string(),
+        overview: z.string(),
+        queries: z.array(z.unknown()),
+        schema: z.object({
+          fields: z.unknown(),
+        }),
       })),
     }),
     tableResult: z.object({
@@ -183,7 +213,6 @@ const StateSchema = z.object({
     includeFields: z.object({
       fieldNames: z.array(z.string()),
     }),
-    mode: z.string(),
     postScanActions: z.object({
       bigqueryExport: z.object({
         resultsTable: z.string(),
@@ -239,7 +268,6 @@ const StateSchema = z.object({
       passed: z.boolean(),
       passedCount: z.string(),
       rule: z.object({
-        attributes: z.record(z.string(), z.unknown()),
         column: z.string(),
         debugQueries: z.array(z.unknown()),
         description: z.string(),
@@ -259,9 +287,6 @@ const StateSchema = z.object({
         rowConditionExpectation: z.object({
           sqlExpression: z.unknown(),
         }),
-        ruleSource: z.object({
-          rulePathElements: z.unknown(),
-        }),
         setExpectation: z.object({
           values: z.unknown(),
         }),
@@ -279,12 +304,6 @@ const StateSchema = z.object({
         tableConditionExpectation: z.object({
           sqlExpression: z.unknown(),
         }),
-        templateReference: z.object({
-          name: z.unknown(),
-          resolvedSql: z.unknown(),
-          ruleTemplate: z.unknown(),
-          values: z.unknown(),
-        }),
         threshold: z.number(),
         uniquenessExpectation: z.object({}),
       }),
@@ -300,8 +319,6 @@ const StateSchema = z.object({
   }).optional(),
   dataQualitySpec: z.object({
     catalogPublishingEnabled: z.boolean(),
-    enableCatalogBasedRules: z.boolean(),
-    filter: z.string(),
     postScanActions: z.object({
       bigqueryExport: z.object({
         resultsTable: z.string(),
@@ -319,7 +336,6 @@ const StateSchema = z.object({
     }),
     rowFilter: z.string(),
     rules: z.array(z.object({
-      attributes: z.record(z.string(), z.unknown()),
       column: z.string(),
       debugQueries: z.array(z.object({
         description: z.unknown(),
@@ -342,9 +358,6 @@ const StateSchema = z.object({
       rowConditionExpectation: z.object({
         sqlExpression: z.string(),
       }),
-      ruleSource: z.object({
-        rulePathElements: z.array(z.unknown()),
-      }),
       setExpectation: z.object({
         values: z.array(z.unknown()),
       }),
@@ -362,18 +375,6 @@ const StateSchema = z.object({
       tableConditionExpectation: z.object({
         sqlExpression: z.string(),
       }),
-      templateReference: z.object({
-        name: z.string(),
-        resolvedSql: z.string(),
-        ruleTemplate: z.object({
-          capabilities: z.unknown(),
-          dimension: z.unknown(),
-          inputParameters: z.unknown(),
-          name: z.unknown(),
-          sqlCollection: z.unknown(),
-        }),
-        values: z.record(z.string(), z.unknown()),
-      }),
       threshold: z.number(),
       uniquenessExpectation: z.object({}),
     })),
@@ -382,7 +383,6 @@ const StateSchema = z.object({
   endTime: z.string().optional(),
   message: z.string().optional(),
   name: z.string(),
-  partialFailureMessage: z.string().optional(),
   startTime: z.string().optional(),
   state: z.string().optional(),
   type: z.string().optional(),
@@ -401,7 +401,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dataplex DataScans.Jobs. Registered at `@swamp/gcp/dataplex/datascans-jobs`. */
 export const model = {
   type: "@swamp/gcp/dataplex/datascans-jobs",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -498,6 +498,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -591,32 +596,54 @@ export const model = {
         }
       },
     },
-    cancel: {
-      description: "cancel",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, unknown>, context: any) => {
+    list: {
+      description: "List jobs resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Optional. An expression for filtering the results of the ListDataScanJobs request.If unspecified, all datascan jobs will be returned. Multiple filters can be applied (with AND, OR logical operators). Filters are case-sensitive.Allowed fields are: start_time end_timestart_time and end_time expect RFC-3339 formatted strings (e.g. 2018-10-08T18:30:00-07:00).For instance, 'start_time > 2018-10-08T00:00:00.123456789Z AND end_time < 2018-10-09T00:00:00.123456789Z' limits results to DataScanJobs between specified start and end times.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Maximum number of DataScanJobs to return. The service may return fewer than this value. If unspecified, at most 10 DataScanJobs will be returned. The maximum value is 1000; values above 1000 will be coerced to 1000.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["name"] !== undefined) {
-          params["name"] = buildResourceName(
-            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
-            String(g["name"]),
-          );
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
         }
-        const result = await createResource(
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
           BASE_URL,
-          {
-            "id": "dataplex.projects.locations.dataScans.jobs.cancel",
-            "path": "v1/{+name}:cancel",
-            "httpMethod": "POST",
-            "parameterOrder": ["name"],
-            "parameters": { "name": { "location": "path", "required": true } },
-          },
+          LIST_CONFIG,
           params,
-          {},
+          "dataScanJobs",
+          (args.maxPages as number | undefined) ?? 10,
         );
-        return { result };
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     generate_data_quality_rules: {

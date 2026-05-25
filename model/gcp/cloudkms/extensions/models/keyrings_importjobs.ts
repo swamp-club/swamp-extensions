@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -40,9 +41,6 @@ const GET_CONFIG = {
     "name": {
       "location": "path",
       "required": true,
-    },
-    "publicKeyFormat": {
-      "location": "query",
     },
   },
 } as const;
@@ -132,9 +130,6 @@ const GlobalArgsSchema = z.object({
     "RSA_OAEP_4096_SHA256_AES_256",
     "RSA_OAEP_3072_SHA256",
     "RSA_OAEP_4096_SHA256",
-    "HPKE_KEM_ML_KEM_768_HKDF_SHA256_AES_256_GCM",
-    "HPKE_KEM_ML_KEM_1024_HKDF_SHA256_AES_256_GCM",
-    "HPKE_KEM_XWING_HKDF_SHA256_AES_256_GCM",
   ]).describe(
     "Required. Immutable. The wrapping method to be used for incoming key material.",
   ).optional(),
@@ -149,11 +144,8 @@ const GlobalArgsSchema = z.object({
     "Required. Immutable. The protection level of the ImportJob. This must match the protection_level of the version_template on the CryptoKey you attempt to import into.",
   ).optional(),
   publicKey: z.object({
-    data: z.string().describe(
-      "Output only. Contains the public key, formatted according to the PublicKey.PublicKeyFormat specified in the KeyManagementService.GetImportJob request.",
-    ).optional(),
     pem: z.string().describe(
-      "The public key, encoded in PEM format. For more information, see the [RFC 7468](https://tools.ietf.org/html/rfc7468) sections for [General Considerations](https://tools.ietf.org/html/rfc7468#section-2) and [Textual Encoding of Subject Public Key Info] (https://tools.ietf.org/html/rfc7468#section-13). This field gets populated by default for RSA-based import methods, if no public_key_format is specified in the request. If you want to retrieve the wrapping key of an ImportJob in some other format, use KeyManagementService.GetImportJob and set the public_key_format to the desired public key format.",
+      "The public key, encoded in PEM format. For more information, see the [RFC 7468](https://tools.ietf.org/html/rfc7468) sections for [General Considerations](https://tools.ietf.org/html/rfc7468#section-2) and [Textual Encoding of Subject Public Key Info] (https://tools.ietf.org/html/rfc7468#section-13).",
     ).optional(),
   }).describe(
     "The public key component of the wrapping key. For details of the type of key this public key corresponds to, see the ImportMethod.",
@@ -185,10 +177,8 @@ const StateSchema = z.object({
   name: z.string(),
   protectionLevel: z.string().optional(),
   publicKey: z.object({
-    data: z.string(),
     pem: z.string(),
   }).optional(),
-  publicKeyFormat: z.string().optional(),
   state: z.string().optional(),
 }).passthrough();
 
@@ -232,9 +222,6 @@ const InputsSchema = z.object({
     "RSA_OAEP_4096_SHA256_AES_256",
     "RSA_OAEP_3072_SHA256",
     "RSA_OAEP_4096_SHA256",
-    "HPKE_KEM_ML_KEM_768_HKDF_SHA256_AES_256_GCM",
-    "HPKE_KEM_ML_KEM_1024_HKDF_SHA256_AES_256_GCM",
-    "HPKE_KEM_XWING_HKDF_SHA256_AES_256_GCM",
   ]).describe(
     "Required. Immutable. The wrapping method to be used for incoming key material.",
   ).optional(),
@@ -249,11 +236,8 @@ const InputsSchema = z.object({
     "Required. Immutable. The protection level of the ImportJob. This must match the protection_level of the version_template on the CryptoKey you attempt to import into.",
   ).optional(),
   publicKey: z.object({
-    data: z.string().describe(
-      "Output only. Contains the public key, formatted according to the PublicKey.PublicKeyFormat specified in the KeyManagementService.GetImportJob request.",
-    ).optional(),
     pem: z.string().describe(
-      "The public key, encoded in PEM format. For more information, see the [RFC 7468](https://tools.ietf.org/html/rfc7468) sections for [General Considerations](https://tools.ietf.org/html/rfc7468#section-2) and [Textual Encoding of Subject Public Key Info] (https://tools.ietf.org/html/rfc7468#section-13). This field gets populated by default for RSA-based import methods, if no public_key_format is specified in the request. If you want to retrieve the wrapping key of an ImportJob in some other format, use KeyManagementService.GetImportJob and set the public_key_format to the desired public key format.",
+      "The public key, encoded in PEM format. For more information, see the [RFC 7468](https://tools.ietf.org/html/rfc7468) sections for [General Considerations](https://tools.ietf.org/html/rfc7468#section-2) and [Textual Encoding of Subject Public Key Info] (https://tools.ietf.org/html/rfc7468#section-13).",
     ).optional(),
   }).describe(
     "The public key component of the wrapping key. For details of the type of key this public key corresponds to, see the ImportMethod.",
@@ -269,7 +253,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Key Management Service (KMS) KeyRings.ImportJobs. Registered at `@swamp/gcp/cloudkms/keyrings-importjobs`. */
 export const model = {
   type: "@swamp/gcp/cloudkms/keyrings-importjobs",
-  version: "2026.05.25.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -333,6 +317,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -500,6 +489,62 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List importJobs resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Optional. Only include resources that match the filter in the response. For more information, see [Sorting and filtering list results](https://cloud.google.com/kms/docs/sorting-and-filtering).",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Optional. Specify how the results should be sorted. If not specified, the results will be sorted in the default order. For more information, see [Sorting and filtering list results](https://cloud.google.com/kms/docs/sorting-and-filtering).",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Optional limit on the number of ImportJobs to include in the response. Further ImportJobs can subsequently be obtained by including the ListImportJobsResponse.next_page_token in a subsequent request. If unspecified, the server will pick an appropriate default.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "importJobs",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     get_iam_policy: {

@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -137,7 +138,7 @@ const GlobalArgsSchema = z.object({
       "Required. The canonical or raw alphanumeric classification label ID. Maps to the ID field of the Google Drive Label resource.",
     ).optional(),
   })).describe(
-    "Classification Label values on the message. Available Classification Label schemas can be queried using the Google Drive Labels API. Each classification label ID must be unique. If duplicate IDs are provided, only one will be retained, and the selection is arbitrary. Only used for Google Workspace accounts. There's a limit of 20 Classification Label values per request. If the Classification Label values exceeds the maximum allowed number, the request fails.",
+    "Classification Label values on the message. Available Classification Label schemas can be queried using the Google Drive Labels API. Each classification label ID must be unique. If duplicate IDs are provided, only one will be retained, and the selection is arbitrary. Only used for Google Workspace accounts.",
   ).optional(),
   historyId: z.string().describe(
     "The ID of the last history record that modified this message.",
@@ -253,7 +254,7 @@ const InputsSchema = z.object({
       "Required. The canonical or raw alphanumeric classification label ID. Maps to the ID field of the Google Drive Label resource.",
     ).optional(),
   })).describe(
-    "Classification Label values on the message. Available Classification Label schemas can be queried using the Google Drive Labels API. Each classification label ID must be unique. If duplicate IDs are provided, only one will be retained, and the selection is arbitrary. Only used for Google Workspace accounts. There's a limit of 20 Classification Label values per request. If the Classification Label values exceeds the maximum allowed number, the request fails.",
+    "Classification Label values on the message. Available Classification Label schemas can be queried using the Google Drive Labels API. Each classification label ID must be unique. If duplicate IDs are provided, only one will be retained, and the selection is arbitrary. Only used for Google Workspace accounts.",
   ).optional(),
   historyId: z.string().describe(
     "The ID of the last history record that modified this message.",
@@ -322,7 +323,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gmail Users.Messages. Registered at `@swamp/gcp/gmail/users-messages`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-messages",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -396,6 +397,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -578,6 +584,64 @@ export const model = {
         }
       },
     },
+    list: {
+      description: "List messages resources",
+      arguments: z.object({
+        includeSpamTrash: z.boolean().describe(
+          "Include messages from `SPAM` and `TRASH` in the results.",
+        ).optional(),
+        labelIds: z.string().describe(
+          "Only return messages with labels that match all of the specified label IDs. Messages in a thread might have labels that other messages in the same thread don't have. To learn more, see [Manage labels on messages and threads](https://developers.google.com/workspace/gmail/api/guides/labels#manage_labels_on_messages_threads).",
+        ).optional(),
+        maxResults: z.number().describe(
+          "Maximum number of messages to return. This field defaults to 100. The maximum allowed value for this field is 500.",
+        ).optional(),
+        q: z.string().describe(
+          'Only return messages matching the specified query. Supports the same query format as the Gmail search box. For example, `"from:someuser@example.com rfc822msgid: is:unread"`. Parameter cannot be used when accessing the api using the gmail.metadata scope.',
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["userId"] !== undefined) params["userId"] = String(g["userId"]);
+        if (args["includeSpamTrash"] !== undefined) {
+          params["includeSpamTrash"] = String(args["includeSpamTrash"]);
+        }
+        if (args["labelIds"] !== undefined) {
+          params["labelIds"] = String(args["labelIds"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["q"] !== undefined) params["q"] = String(args["q"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "messages",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.id?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
     batch_delete: {
       description: "batch delete",
       arguments: z.object({
@@ -610,10 +674,8 @@ export const model = {
     batch_modify: {
       description: "batch modify",
       arguments: z.object({
-        addClassificationLabels: z.any().optional(),
         addLabelIds: z.any().optional(),
         ids: z.any().optional(),
-        removeClassificationLabelIds: z.any().optional(),
         removeLabelIds: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
@@ -622,17 +684,10 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         if (g["userId"] !== undefined) params["userId"] = String(g["userId"]);
         const body: Record<string, unknown> = {};
-        if (args["addClassificationLabels"] !== undefined) {
-          body["addClassificationLabels"] = args["addClassificationLabels"];
-        }
         if (args["addLabelIds"] !== undefined) {
           body["addLabelIds"] = args["addLabelIds"];
         }
         if (args["ids"] !== undefined) body["ids"] = args["ids"];
-        if (args["removeClassificationLabelIds"] !== undefined) {
-          body["removeClassificationLabelIds"] =
-            args["removeClassificationLabelIds"];
-        }
         if (args["removeLabelIds"] !== undefined) {
           body["removeLabelIds"] = args["removeLabelIds"];
         }
@@ -715,9 +770,7 @@ export const model = {
     modify: {
       description: "modify",
       arguments: z.object({
-        addClassificationLabels: z.any().optional(),
         addLabelIds: z.any().optional(),
-        removeClassificationLabelIds: z.any().optional(),
         removeLabelIds: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
@@ -727,15 +780,8 @@ export const model = {
         if (g["userId"] !== undefined) params["userId"] = String(g["userId"]);
         if (g["id"] !== undefined) params["id"] = String(g["id"]);
         const body: Record<string, unknown> = {};
-        if (args["addClassificationLabels"] !== undefined) {
-          body["addClassificationLabels"] = args["addClassificationLabels"];
-        }
         if (args["addLabelIds"] !== undefined) {
           body["addLabelIds"] = args["addLabelIds"];
-        }
-        if (args["removeClassificationLabelIds"] !== undefined) {
-          body["removeClassificationLabelIds"] =
-            args["removeClassificationLabelIds"];
         }
         if (args["removeLabelIds"] !== undefined) {
           body["removeLabelIds"] = args["removeLabelIds"];

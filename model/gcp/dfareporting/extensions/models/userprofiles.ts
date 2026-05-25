@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -36,6 +37,14 @@ const GET_CONFIG = {
       "required": true,
     },
   },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "dfareporting.userProfiles.list",
+  "path": "userprofiles",
+  "httpMethod": "GET",
+  "parameterOrder": [],
+  "parameters": {},
 } as const;
 
 const GlobalArgsSchema = z.object({
@@ -64,7 +73,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Campaign Manager 360 UserProfiles. Registered at `@swamp/gcp/dfareporting/userprofiles`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/userprofiles",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -118,6 +127,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

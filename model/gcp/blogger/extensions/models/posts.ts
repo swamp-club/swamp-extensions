@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud blogger Posts.
+ * Swamp extension model for Google Cloud Blogger Posts.
  *
  * Gets a post by blog id and post id
  *
@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -488,10 +489,10 @@ const InputsSchema = z.object({
   isDraft: z.string().describe("The isDraft for this resource").optional(),
 });
 
-/** Swamp extension model for Google Cloud blogger Posts. Registered at `@swamp/gcp/blogger/posts`. */
+/** Swamp extension model for Google Cloud Blogger Posts. Registered at `@swamp/gcp/blogger/posts`. */
 export const model = {
   type: "@swamp/gcp/blogger/posts",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -550,6 +551,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -801,6 +807,81 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List posts resources",
+      arguments: z.object({
+        endDate: z.string().optional(),
+        fetchBodies: z.boolean().optional(),
+        fetchImages: z.boolean().optional(),
+        labels: z.string().optional(),
+        maxResults: z.number().optional(),
+        orderBy: z.string().optional(),
+        sortOption: z.string().describe("Sort direction applied to post list.")
+          .optional(),
+        startDate: z.string().optional(),
+        status: z.string().optional(),
+        view: z.string().optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["blogId"] !== undefined) params["blogId"] = String(g["blogId"]);
+        if (args["endDate"] !== undefined) {
+          params["endDate"] = String(args["endDate"]);
+        }
+        if (args["fetchBodies"] !== undefined) {
+          params["fetchBodies"] = String(args["fetchBodies"]);
+        }
+        if (args["fetchImages"] !== undefined) {
+          params["fetchImages"] = String(args["fetchImages"]);
+        }
+        if (args["labels"] !== undefined) {
+          params["labels"] = String(args["labels"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["sortOption"] !== undefined) {
+          params["sortOption"] = String(args["sortOption"]);
+        }
+        if (args["startDate"] !== undefined) {
+          params["startDate"] = String(args["startDate"]);
+        }
+        if (args["status"] !== undefined) {
+          params["status"] = String(args["status"]);
+        }
+        if (args["view"] !== undefined) params["view"] = String(args["view"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     get_by_path: {

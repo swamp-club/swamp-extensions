@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Agent Platform Models.
+ * Swamp extension model for Google Cloud Vertex AI Models.
  *
  * A trained machine learning Model.
  *
@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -75,6 +76,36 @@ const DELETE_CONFIG = {
     "name": {
       "location": "path",
       "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "aiplatform.projects.locations.models.list",
+  "path": "v1/{+parent}/models",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+    "readMask": {
+      "location": "query",
     },
   },
 } as const;
@@ -1648,10 +1679,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Agent Platform Models. Registered at `@swamp/gcp/aiplatform/models`. */
+/** Swamp extension model for Google Cloud Vertex AI Models. Registered at `@swamp/gcp/aiplatform/models`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/models",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1730,6 +1761,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1996,10 +2032,69 @@ export const model = {
         }
       },
     },
+    list: {
+      description: "List models resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          'An expression for filtering the results of the request. For field names both snake_case and camelCase are supported. * `model` supports = and !=. `model` represents the Model ID, i.e. the last segment of the Model\'s resource name. * `display_name` supports = and != * `labels` supports general map functions that is: * `labels.key=value` - key:value equality * `labels.key:* or labels:key - key existence * A key including a space must be quoted. `labels."a key"`. * `base_model_name` only supports = Some examples: * `model=1234` * `displayName="myDisplayName"` * `labels.myKey="myValue"` * `baseModelName="text-bison"`',
+        ).optional(),
+        orderBy: z.string().describe(
+          'A comma-separated list of fields to order by, sorted in ascending order. Use "desc" after a field name for descending. Supported fields: * `display_name` * `create_time` * `update_time` Example: `display_name, create_time desc`.',
+        ).optional(),
+        pageSize: z.number().describe("The standard list page size.")
+          .optional(),
+        readMask: z.string().describe("Mask specifying which fields to read.")
+          .optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["readMask"] !== undefined) {
+          params["readMask"] = String(args["readMask"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "models",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
     copy: {
       description: "copy",
       arguments: z.object({
-        customServiceAccount: z.any().optional(),
         encryptionSpec: z.any().optional(),
         modelId: z.any().optional(),
         parentModel: z.any().optional(),
@@ -2013,9 +2108,6 @@ export const model = {
           String(g["location"] ?? "")
         }`;
         const body: Record<string, unknown> = {};
-        if (args["customServiceAccount"] !== undefined) {
-          body["customServiceAccount"] = args["customServiceAccount"];
-        }
         if (args["encryptionSpec"] !== undefined) {
           body["encryptionSpec"] = args["encryptionSpec"];
         }

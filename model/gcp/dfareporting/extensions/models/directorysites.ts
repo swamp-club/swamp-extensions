@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -296,7 +297,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Campaign Manager 360 DirectorySites. Registered at `@swamp/gcp/dfareporting/directorysites`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/directorysites",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -350,6 +351,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -500,6 +506,103 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List directorySites resources",
+      arguments: z.object({
+        acceptsInStreamVideoPlacements: z.boolean().describe(
+          "This search filter is no longer supported and will have no effect on the results returned.",
+        ).optional(),
+        acceptsInterstitialPlacements: z.boolean().describe(
+          "This search filter is no longer supported and will have no effect on the results returned.",
+        ).optional(),
+        acceptsPublisherPaidPlacements: z.boolean().describe(
+          "Select only directory sites that accept publisher paid placements. This field can be left blank.",
+        ).optional(),
+        active: z.boolean().describe(
+          "Select only active directory sites. Leave blank to retrieve both active and inactive directory sites.",
+        ).optional(),
+        dfpNetworkCode: z.string().describe(
+          "Select only directory sites with this Ad Manager network code.",
+        ).optional(),
+        ids: z.string().describe("Select only directory sites with these IDs.")
+          .optional(),
+        maxResults: z.number().describe("Maximum number of results to return.")
+          .optional(),
+        searchString: z.string().describe(
+          'Allows searching for objects by name, ID or URL. Wildcards (*) are allowed. For example, "directory site*2015" will return objects with names like "directory site June 2015", "directory site April 2015", or simply "directory site 2015". Most of the searches also add wildcards implicitly at the start and the end of the search string. For example, a search string of "directory site" will match objects with name "my directory site", "directory site 2015" or simply, "directory site".',
+        ).optional(),
+        sortField: z.string().describe("Field by which to sort the list.")
+          .optional(),
+        sortOrder: z.string().describe("Order of sorted results.").optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["profileId"] !== undefined) {
+          params["profileId"] = String(g["profileId"]);
+        }
+        if (args["acceptsInStreamVideoPlacements"] !== undefined) {
+          params["acceptsInStreamVideoPlacements"] = String(
+            args["acceptsInStreamVideoPlacements"],
+          );
+        }
+        if (args["acceptsInterstitialPlacements"] !== undefined) {
+          params["acceptsInterstitialPlacements"] = String(
+            args["acceptsInterstitialPlacements"],
+          );
+        }
+        if (args["acceptsPublisherPaidPlacements"] !== undefined) {
+          params["acceptsPublisherPaidPlacements"] = String(
+            args["acceptsPublisherPaidPlacements"],
+          );
+        }
+        if (args["active"] !== undefined) {
+          params["active"] = String(args["active"]);
+        }
+        if (args["dfpNetworkCode"] !== undefined) {
+          params["dfpNetworkCode"] = String(args["dfpNetworkCode"]);
+        }
+        if (args["ids"] !== undefined) params["ids"] = String(args["ids"]);
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["searchString"] !== undefined) {
+          params["searchString"] = String(args["searchString"]);
+        }
+        if (args["sortField"] !== undefined) {
+          params["sortField"] = String(args["sortField"]);
+        }
+        if (args["sortOrder"] !== undefined) {
+          params["sortOrder"] = String(args["sortOrder"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "directorySites",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.id?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

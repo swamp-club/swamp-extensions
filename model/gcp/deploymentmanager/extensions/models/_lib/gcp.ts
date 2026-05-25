@@ -691,6 +691,53 @@ export async function readViaList(
 }
 
 /**
+ * Lists GCP resources by paginating through a list endpoint.
+ * Returns all items collected across pages.
+ */
+export async function listResources(
+  baseUrl: string,
+  config: GcpMethodConfig,
+  params: Record<string, string>,
+  arrayField: string,
+  maxPages: number = 10,
+): Promise<{ items: any[]; nextPageToken?: string }> {
+  const allItems: any[] = [];
+  let baseUrlBuilt = buildUrl(baseUrl, config, params);
+  if (!baseUrlBuilt.includes("fields=")) {
+    baseUrlBuilt += (baseUrlBuilt.includes("?") ? "&" : "?") + "fields=*";
+  }
+  let url = baseUrlBuilt;
+  let lastNextPageToken: string | undefined;
+
+  for (let page = 0; page < maxPages; page++) {
+    const resp = await request("GET", url);
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`List failed (${resp.status}): ${text}`);
+    }
+
+    const data = await resp.json();
+    const items = data[arrayField];
+    if (Array.isArray(items)) {
+      allItems.push(...items);
+    }
+
+    if (!data.nextPageToken) {
+      lastNextPageToken = undefined;
+      break;
+    }
+    lastNextPageToken = data.nextPageToken;
+    const separator = baseUrlBuilt.includes("?") ? "&" : "?";
+    url = `${baseUrlBuilt}${separator}pageToken=${
+      encodeURIComponent(data.nextPageToken)
+    }`;
+  }
+
+  return { items: allItems, nextPageToken: lastNextPageToken };
+}
+
+/**
  * Tries to read a resource, returning null if not found (404).
  */
 export async function tryReadResource(

@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -36,6 +37,21 @@ const GET_CONFIG = {
       "location": "path",
       "required": true,
     },
+    "profileId": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "dfareporting.operatingSystems.list",
+  "path": "userprofiles/{+profileId}/operatingSystems",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "profileId",
+  ],
+  "parameters": {
     "profileId": {
       "location": "path",
       "required": true,
@@ -66,7 +82,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Campaign Manager 360 OperatingSystems. Registered at `@swamp/gcp/dfareporting/operatingsystems`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/operatingsystems",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -120,6 +136,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

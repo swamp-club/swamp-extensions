@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -73,6 +74,27 @@ const DELETE_CONFIG = {
   ],
   "parameters": {
     "name": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "androidmanagement.enterprises.policies.list",
+  "path": "v1/{+parent}/policies",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
       "location": "path",
       "required": true,
     },
@@ -365,11 +387,6 @@ const GlobalArgsSchema = z.object({
   ]).describe(
     "Whether auto date, time, and time zone are enabled on a company-owned device. If this is set, then autoTimeRequired is ignored.",
   ).optional(),
-  autofillPolicy: z.enum([
-    "AUTOFILL_POLICY_UNSPECIFIED",
-    "AUTOFILL_USER_CHOICE",
-    "AUTOFILL_DISABLED",
-  ]).describe("Optional. The policy for the autofill service.").optional(),
   bluetoothConfigDisabled: z.boolean().describe(
     "Whether configuring bluetooth is disabled.",
   ).optional(),
@@ -1519,7 +1536,6 @@ const StateSchema = z.object({
   assistContentPolicy: z.string().optional(),
   autoDateAndTimeZone: z.string().optional(),
   autoTimeRequired: z.boolean().optional(),
-  autofillPolicy: z.string().optional(),
   blockApplicationsEnabled: z.boolean().optional(),
   bluetoothConfigDisabled: z.boolean().optional(),
   bluetoothContactSharingDisabled: z.boolean().optional(),
@@ -2137,11 +2153,6 @@ const InputsSchema = z.object({
   ]).describe(
     "Whether auto date, time, and time zone are enabled on a company-owned device. If this is set, then autoTimeRequired is ignored.",
   ).optional(),
-  autofillPolicy: z.enum([
-    "AUTOFILL_POLICY_UNSPECIFIED",
-    "AUTOFILL_USER_CHOICE",
-    "AUTOFILL_DISABLED",
-  ]).describe("Optional. The policy for the autofill service.").optional(),
   bluetoothConfigDisabled: z.boolean().describe(
     "Whether configuring bluetooth is disabled.",
   ).optional(),
@@ -3226,7 +3237,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Android Management Enterprises.Policies. Registered at `@swamp/gcp/androidmanagement/enterprises-policies`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-policies",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3313,6 +3324,14 @@ export const model = {
       toVersion: "2026.05.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "Removed: autofillPolicy",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { autofillPolicy: _autofillPolicy, ...rest } = old;
+        return rest;
+      },
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -3413,9 +3432,6 @@ export const model = {
         }
         if (g["autoDateAndTimeZone"] !== undefined) {
           body["autoDateAndTimeZone"] = g["autoDateAndTimeZone"];
-        }
-        if (g["autofillPolicy"] !== undefined) {
-          body["autofillPolicy"] = g["autofillPolicy"];
         }
         if (g["bluetoothConfigDisabled"] !== undefined) {
           body["bluetoothConfigDisabled"] = g["bluetoothConfigDisabled"];
@@ -3739,6 +3755,48 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List policies resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "The requested page size. The actual page size may be fixed to a min or max value.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "policies",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     modify_policy_applications: {

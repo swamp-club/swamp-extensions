@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -78,8 +79,8 @@ const LIST_CONFIG = {
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
-    "Identifier. Example format: properties/1234/firebaseLinks/5678",
-  ).optional(),
+    "Instance name for this resource (used as the unique identifier in the factory pattern)",
+  ),
   project: z.string().describe(
     "Immutable. Firebase project resource name. When creating a FirebaseLink, you may provide this resource name using either a project number or project ID. Once this resource has been created, returned FirebaseLinks will always have a project_name that contains a project number. Format: 'projects/{project number}' Example: 'projects/1234'",
   ).optional(),
@@ -97,9 +98,7 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().describe(
-    "Identifier. Example format: properties/1234/firebaseLinks/5678",
-  ).optional(),
+  name: z.string().optional(),
   project: z.string().describe(
     "Immutable. Firebase project resource name. When creating a FirebaseLink, you may provide this resource name using either a project number or project ID. Once this resource has been created, returned FirebaseLinks will always have a project_name that contains a project number. Format: 'projects/{project number}' Example: 'projects/1234'",
   ).optional(),
@@ -111,7 +110,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Analytics Admin Properties.FirebaseLinks. Registered at `@swamp/gcp/analyticsadmin/properties-firebaselinks`. */
 export const model = {
   type: "@swamp/gcp/analyticsadmin/properties-firebaselinks",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -183,6 +182,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -205,7 +209,6 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         const body: Record<string, unknown> = {};
-        if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["project"] !== undefined) body["project"] = g["project"];
         const result = await createResource(
           BASE_URL,
@@ -223,8 +226,10 @@ export const model = {
             matchValue: String(g["name"] ?? ""),
           },
         ) as StateData;
-        const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
-          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -250,11 +255,10 @@ export const model = {
           "name",
           args.identifier,
         ) as StateData;
-        const instanceName =
-          ((result.name ?? g.name)?.toString() ?? args.identifier).replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = (g.name?.toString() ?? args.identifier).replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -345,6 +349,48 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List firebaseLinks resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "The maximum number of resources to return. The service may return fewer than this value, even if there are additional pages. If unspecified, at most 50 resources will be returned. The maximum value is 200; (higher values will be coerced to the maximum)",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "firebaseLinks",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

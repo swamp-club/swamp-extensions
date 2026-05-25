@@ -19,6 +19,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -64,6 +65,30 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "classroom.userProfiles.guardians.list",
+  "path": "v1/userProfiles/{studentId}/guardians",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "studentId",
+  ],
+  "parameters": {
+    "invitedEmailAddress": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "studentId": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -99,7 +124,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Classroom UserProfiles.Guardians. Registered at `@swamp/gcp/classroom/userprofiles-guardians`. */
 export const model = {
   type: "@swamp/gcp/classroom/userprofiles-guardians",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -153,6 +178,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -284,6 +314,56 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List guardians resources",
+      arguments: z.object({
+        invitedEmailAddress: z.string().describe(
+          "Filter results by the email address that the original invitation was sent to, resulting in this guardian link. This filter can only be used by domain administrators.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Maximum number of items to return. Zero or unspecified indicates that the server may assign a maximum. The server may return fewer than the specified number of results.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["studentId"] !== undefined) {
+          params["studentId"] = String(g["studentId"]);
+        }
+        if (args["invitedEmailAddress"] !== undefined) {
+          params["invitedEmailAddress"] = String(args["invitedEmailAddress"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "guardians",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -277,7 +278,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Books Volumes.Mybooks. Registered at `@swamp/gcp/books/volumes-mybooks`. */
 export const model = {
   type: "@swamp/gcp/books/volumes-mybooks",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -336,6 +337,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -429,6 +435,81 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List mybooks resources",
+      arguments: z.object({
+        acquireMethod: z.string().describe("How the book was acquired")
+          .optional(),
+        country: z.string().describe(
+          "ISO-3166-1 code to override the IP-based location.",
+        ).optional(),
+        locale: z.string().describe(
+          "ISO-639-1 language and ISO-3166-1 country code. Ex:'en_US'. Used for generating recommendations.",
+        ).optional(),
+        maxResults: z.number().describe("Maximum number of results to return.")
+          .optional(),
+        processingState: z.string().describe(
+          "The processing state of the user uploaded volumes to be returned. Applicable only if the UPLOADED is specified in the acquireMethod.",
+        ).optional(),
+        source: z.string().describe(
+          "String to identify the originator of this request.",
+        ).optional(),
+        startIndex: z.number().describe(
+          "Index of the first result to return (starts at 0)",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["acquireMethod"] !== undefined) {
+          params["acquireMethod"] = String(args["acquireMethod"]);
+        }
+        if (args["country"] !== undefined) {
+          params["country"] = String(args["country"]);
+        }
+        if (args["locale"] !== undefined) {
+          params["locale"] = String(args["locale"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["processingState"] !== undefined) {
+          params["processingState"] = String(args["processingState"]);
+        }
+        if (args["source"] !== undefined) {
+          params["source"] = String(args["source"]);
+        }
+        if (args["startIndex"] !== undefined) {
+          params["startIndex"] = String(args["startIndex"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

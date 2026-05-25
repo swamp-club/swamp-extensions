@@ -19,6 +19,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -103,6 +104,27 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "androidpublisher.edits.listings.list",
+  "path":
+    "androidpublisher/v3/applications/{packageName}/edits/{editId}/listings",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "packageName",
+    "editId",
+  ],
+  "parameters": {
+    "editId": {
+      "location": "path",
+      "required": true,
+    },
+    "packageName": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -146,7 +168,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Play Android Developer Edits.Listings. Registered at `@swamp/gcp/androidpublisher/edits-listings`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/edits-listings",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -200,6 +222,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -64,6 +65,33 @@ const PATCH_CONFIG = {
     },
     "updateMask": {
       "location": "query",
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "cloudidentity.devices.deviceUsers.clientStates.list",
+  "path": "v1/{+parent}/clientStates",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "customer": {
+      "location": "query",
+    },
+    "filter": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
     },
   },
 } as const;
@@ -212,7 +240,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Identity Devices.DeviceUsers.ClientStates. Registered at `@swamp/gcp/cloudidentity/devices-deviceusers-clientstates`. */
 export const model = {
   type: "@swamp/gcp/cloudidentity/devices-deviceusers-clientstates",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -266,6 +294,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -430,6 +463,60 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List clientStates resources",
+      arguments: z.object({
+        customer: z.string().describe(
+          "Optional. [Resource name](https://cloud.google.com/apis/design/resource_names) of the customer. If you're using this API for your own organization, use `customers/my_customer` If you're using this API to manage another organization, use `customers/{customer}`, where customer is the customer to whom the device belongs.",
+        ).optional(),
+        filter: z.string().describe(
+          "Optional. Additional restrictions when fetching list of client states.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Optional. Order specification for client states in the response.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["customer"] !== undefined) {
+          params["customer"] = String(args["customer"]);
+        }
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "clientStates",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

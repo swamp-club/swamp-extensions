@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/netapp"
-version: "2026.05.24.1"
+version: "2026.05.25.1"
 description: "Google Cloud netapp infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: locations, activedirectories, backuppolicies, backupvaults, backupvaults_backups, hostgroups, kmsconfigs, storagepools, storagepools_backupconfigs, volumes, volumes_quotarules, volumes_replications, volumes_snapshots
+  - Updated: locations, activedirectories, backuppolicies, backupvaults, backupvaults_backups, hostgroups, kmsconfigs, storagepools, volumes, volumes_quotarules, volumes_replications, volumes_snapshots
 models:
   - activedirectories.ts
   - backuppolicies.ts
@@ -21,7 +21,6 @@ models:
   - kmsconfigs.ts
   - locations.ts
   - storagepools.ts
-  - storagepools_backupconfigs.ts
   - volumes.ts
   - volumes_quotarules.ts
   - volumes_replications.ts

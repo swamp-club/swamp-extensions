@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -37,6 +38,21 @@ const GET_CONFIG = {
   ],
   "parameters": {
     "name": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "managedkafka.projects.locations.schemaRegistries.contexts.list",
+  "path": "v1/{+parent}/contexts",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "parent": {
       "location": "path",
       "required": true,
     },
@@ -69,7 +85,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Managed Service for Apache Kafka SchemaRegistries.Contexts. Registered at `@swamp/gcp/managedkafka/schemaregistries-contexts`. */
 export const model = {
   type: "@swamp/gcp/managedkafka/schemaregistries-contexts",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -128,6 +144,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

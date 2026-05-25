@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -64,7 +65,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Digital Asset Links Statements. Registered at `@swamp/gcp/digitalassetlinks/statements`. */
 export const model = {
   type: "@swamp/gcp/digitalassetlinks/statements",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -118,6 +119,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -212,6 +218,79 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List statements resources",
+      arguments: z.object({
+        relation: z.string().describe(
+          "Use only associations that match the specified relation. See the [`Statement`](#Statement) message for a detailed definition of relation strings. For a query to match a statement, one of the following must be true: * both the query's and the statement's relation strings match exactly, or * the query's relation string is empty or missing. Example: A query with relation `delegate_permission/common.handle_all_urls` matches an asset link with relation `delegate_permission/common.handle_all_urls`.",
+        ).optional(),
+        returnRelationExtensions: z.boolean().describe(
+          "Whether to return any relation_extensions payloads specified in the source digital asset links statements. If this is set to `false` (default), relation_extensions specified will not be returned, even if they are specified in the DAL statement file. If set to `true`, the API will propagate relation_extensions associated with each statement's relation type, if specified in the DAL statement file.",
+        ).optional(),
+        source_androidApp_certificate_sha256Fingerprint: z.string().describe(
+          "The uppercase SHA-265 fingerprint of the certificate. From the PEM certificate, it can be acquired like this: $ keytool -printcert -file $CERTFILE | grep SHA256: SHA256: 14:6D:E9:83:C5:73:06:50:D8:EE:B9:95:2F:34:FC:64:16:A0:83: \\ 42:E6:1D:BE:A8:8A:04:96:B2:3F:CF:44:E5 or like this: $ openssl x509 -in $CERTFILE -noout -fingerprint -sha256 SHA256 Fingerprint=14:6D:E9:83:C5:73:06:50:D8:EE:B9:95:2F:34:FC:64: \\ 16:A0:83:42:E6:1D:BE:A8:8A:04:96:B2:3F:CF:44:E5 In this example, the contents of this field would be `14:6D:E9:83:C5:73: 06:50:D8:EE:B9:95:2F:34:FC:64:16:A0:83:42:E6:1D:BE:A8:8A:04:96:B2:3F:CF: 44:E5`. If these tools are not available to you, you can convert the PEM certificate into the DER format, compute the SHA-256 hash of that string and represent the result as a hexstring (that is, uppercase hexadecimal representations of each octet, separated by colons).",
+        ).optional(),
+        source_androidApp_packageName: z.string().describe(
+          "Android App assets are naturally identified by their Java package name. For example, the Google Maps app uses the package name `com.google.android.apps.maps`. REQUIRED",
+        ).optional(),
+        source_web_site: z.string().describe(
+          'Web assets are identified by a URL that contains only the scheme, hostname and port parts. The format is http[s]://[:] Hostnames must be fully qualified: they must end in a single period ("`.`"). Only the schemes "http" and "https" are currently allowed. Port numbers are given as a decimal number, and they must be omitted if the standard port numbers are used: 80 for http and 443 for https. We call this limited URL the "site". All URLs that share the same scheme, hostname and port are considered to be a part of the site and thus belong to the web asset. Example: the asset with the site `https://www.google.com` contains all these URLs: * `https://www.google.com/` * `https://www.google.com:443/` * `https://www.google.com/foo` * `https://www.google.com/foo?bar` * `https://www.google.com/foo#bar` * `https://user@password:www.google.com/` But it does not contain these URLs: * `http://www.google.com/` (wrong scheme) * `https://google.com/` (hostname does not match) * `https://www.google.com:444/` (port does not match) REQUIRED',
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["relation"] !== undefined) {
+          params["relation"] = String(args["relation"]);
+        }
+        if (args["returnRelationExtensions"] !== undefined) {
+          params["returnRelationExtensions"] = String(
+            args["returnRelationExtensions"],
+          );
+        }
+        if (
+          args["source_androidApp_certificate_sha256Fingerprint"] !== undefined
+        ) {
+          params["source.androidApp.certificate.sha256Fingerprint"] = String(
+            args["source_androidApp_certificate_sha256Fingerprint"],
+          );
+        }
+        if (args["source_androidApp_packageName"] !== undefined) {
+          params["source.androidApp.packageName"] = String(
+            args["source_androidApp_packageName"],
+          );
+        }
+        if (args["source_web_site"] !== undefined) {
+          params["source.web.site"] = String(args["source_web_site"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "statements",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

@@ -709,6 +709,92 @@ When the resource no longer exists, sync writes:
 
 ---
 
+## 13a. List Factory Method
+
+Resources with a `list` (or `aggregatedList` / `listAll`) method in the
+Discovery Document gain a `list` factory method that paginates through the list
+endpoint and writes one data artifact per returned item.
+
+### When the list method is generated
+
+A resource gets a `list` method when **both** conditions are met:
+
+1. `methodConfigs.list` exists (the Discovery Document has a list-like method)
+2. `listResponseArrayField` is set (the list response schema has a top-level
+   array property whose items are objects, not primitives)
+
+Resources where the list endpoint is `aggregatedList` with a nested-map response
+(e.g., Compute `networkEdgeSecurityServices`) do not get a list method because
+the response array field detection finds no top-level object array.
+
+### List metadata extraction
+
+During `buildGcpParsedResource()`, two additional fields are populated:
+
+- **`listQueryParams`** — query parameters from the list method (excluding
+  pagination internals like `pageToken`, deprecated parameters, and API-wide
+  params like `alt`, `key`, `fields`). Each entry has `name`, `type`,
+  `description`, and `required`.
+- **`listResponseArrayField`** — the property name in the list response that
+  contains the resource array (e.g., `"files"` for Drive, `"items"` for
+  Compute). Only arrays whose items have `type: "object"` or `properties` are
+  considered — this filters out primitive arrays like `unreachables`.
+
+### Generated method shape
+
+```typescript
+list: {
+  description: "List <resource> resources",
+  arguments: z.object({
+    // One optional argument per list query param (filter, q, pageSize, etc.)
+    filter: z.string().describe("...").optional(),
+    maxResults: z.number().describe("...").optional(),
+    // Control pagination depth
+    maxPages: z.number().describe("Maximum number of pages to fetch (default: 10)").optional(),
+  }),
+  execute: async (args, context) => {
+    // 1. Build params from globalArgs (project, parent/zone) + method args
+    // 2. Call listResources(BASE_URL, LIST_CONFIG, params, arrayField, maxPages)
+    // 3. Write each item as a separate data artifact named by primary identifier
+    // 4. Return { dataHandles: [...], result: { count, nextPageToken } }
+  },
+}
+```
+
+### Runtime helper
+
+The `listResources()` function in `_lib/gcp.ts` paginates through the list
+endpoint and collects all items:
+
+```typescript
+listResources(baseUrl, config, params, arrayField, maxPages?)
+  → { items: any[], nextPageToken?: string }
+```
+
+Unlike `readViaList()` (which searches for a single item by filter),
+`listResources()` returns the full collection. It appends `fields=*` only when
+the caller hasn't supplied their own `fields` parameter.
+
+### Data artifact naming
+
+Each returned item becomes a data artifact named by its primary identifier field
+(e.g., `id` for Drive files, `name` for Compute instances). Names are sanitized
+with `wrapWithSanitize()` to comply with the data artifact naming contract.
+Items without a primary identifier fall back to their array index.
+
+### Fan-out pattern
+
+The list method enables the swamp fan-out pattern: list resources, then
+reference individual results via CEL:
+
+```bash
+swamp model method run my-drive list --input q='"FOLDER_ID" in parents'
+# Each file becomes a data artifact accessible via:
+# data.latest("my-drive", "<file-name>").attributes.modifiedTime
+```
+
+---
+
 ## 14. Zod Schema Generation
 
 Each generated model contains three Zod schemas. The Zod generation reuses the

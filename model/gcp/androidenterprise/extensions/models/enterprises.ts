@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -34,6 +35,21 @@ const GET_CONFIG = {
   "parameters": {
     "enterpriseId": {
       "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "androidenterprise.enterprises.list",
+  "path": "androidenterprise/v1/enterprises",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "domain",
+  ],
+  "parameters": {
+    "domain": {
+      "location": "query",
       "required": true,
     },
   },
@@ -69,7 +85,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Play EMM Enterprises. Registered at `@swamp/gcp/androidenterprise/enterprises`. */
 export const model = {
   type: "@swamp/gcp/androidenterprise/enterprises",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -123,6 +139,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -215,6 +236,48 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List enterprises resources",
+      arguments: z.object({
+        domain: z.string().describe(
+          "Required. The exact primary domain name of the enterprise to look up.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["domain"] !== undefined) params["domain"] = String(g["domain"]);
+        if (args["domain"] !== undefined) {
+          params["domain"] = String(args["domain"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "enterprise",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     acknowledge_notification_set: {

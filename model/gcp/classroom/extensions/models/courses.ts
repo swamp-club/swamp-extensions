@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -168,9 +169,6 @@ const GlobalArgsSchema = z.object({
   id: z.string().describe(
     "Identifier for this course assigned by Classroom. When creating a course, you may optionally set this identifier to an alias string in the request to create a corresponding alias. The `id` is still assigned by Classroom and cannot be updated after the course is created. Specifying this field in a course update mask results in an error.",
   ).optional(),
-  levels: z.string().describe(
-    'Optional. Levels for the course. Examples: "9th grade", "Middle school", "4th - 5th", "K-2", "3000". If set, this field must be a valid UTF-8 string and fewer than 1000 characters. This field can only be cleared using the `PatchCourse` method.',
-  ).optional(),
   name: z.string().describe(
     'Name of the course. For example, "10th Grade Biology". The name is required. It must be between 1 and 750 characters and a valid UTF-8 string.',
   ).optional(),
@@ -250,7 +248,6 @@ const StateSchema = z.object({
   }).optional(),
   guardiansEnabled: z.boolean().optional(),
   id: z.string(),
-  levels: z.string().optional(),
   name: z.string().optional(),
   ownerId: z.string().optional(),
   room: z.string().optional(),
@@ -332,9 +329,6 @@ const InputsSchema = z.object({
   id: z.string().describe(
     "Identifier for this course assigned by Classroom. When creating a course, you may optionally set this identifier to an alias string in the request to create a corresponding alias. The `id` is still assigned by Classroom and cannot be updated after the course is created. Specifying this field in a course update mask results in an error.",
   ).optional(),
-  levels: z.string().describe(
-    'Optional. Levels for the course. Examples: "9th grade", "Middle school", "4th - 5th", "K-2", "3000". If set, this field must be a valid UTF-8 string and fewer than 1000 characters. This field can only be cleared using the `PatchCourse` method.',
-  ).optional(),
   name: z.string().describe(
     'Name of the course. For example, "10th Grade Biology". The name is required. It must be between 1 and 750 characters and a valid UTF-8 string.',
   ).optional(),
@@ -368,7 +362,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Classroom Courses. Registered at `@swamp/gcp/classroom/courses`. */
 export const model = {
   type: "@swamp/gcp/classroom/courses",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -456,6 +450,14 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "Removed: levels",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { levels: _levels, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -505,7 +507,6 @@ export const model = {
           body["guardiansEnabled"] = g["guardiansEnabled"];
         }
         if (g["id"] !== undefined) body["id"] = g["id"];
-        if (g["levels"] !== undefined) body["levels"] = g["levels"];
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["ownerId"] !== undefined) body["ownerId"] = g["ownerId"];
         if (g["room"] !== undefined) body["room"] = g["room"];
@@ -621,7 +622,6 @@ export const model = {
         if (g["guardiansEnabled"] !== undefined) {
           body["guardiansEnabled"] = g["guardiansEnabled"];
         }
-        if (g["levels"] !== undefined) body["levels"] = g["levels"];
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["ownerId"] !== undefined) body["ownerId"] = g["ownerId"];
         if (g["room"] !== undefined) body["room"] = g["room"];
@@ -734,6 +734,65 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List courses resources",
+      arguments: z.object({
+        courseStates: z.string().describe(
+          "Restricts returned courses to those in one of the specified states The default value is ACTIVE, ARCHIVED, PROVISIONED, DECLINED.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Maximum number of items to return. Zero or unspecified indicates that the server may assign a maximum. The server may return fewer than the specified number of results.",
+        ).optional(),
+        studentId: z.string().describe(
+          'Restricts returned courses to those having a student with the specified identifier. The identifier can be one of the following: * the numeric identifier for the user * the email address of the user * the string literal `"me"`, indicating the requesting user',
+        ).optional(),
+        teacherId: z.string().describe(
+          'Restricts returned courses to those having a teacher with the specified identifier. The identifier can be one of the following: * the numeric identifier for the user * the email address of the user * the string literal `"me"`, indicating the requesting user',
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["courseStates"] !== undefined) {
+          params["courseStates"] = String(args["courseStates"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["studentId"] !== undefined) {
+          params["studentId"] = String(args["studentId"]);
+        }
+        if (args["teacherId"] !== undefined) {
+          params["teacherId"] = String(args["teacherId"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "courses",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.id?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     get_grading_period_settings: {

@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud blogger Pages.
+ * Swamp extension model for Google Cloud Blogger Pages.
  *
  * Gets a page by blog id and page id.
  *
@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -251,10 +252,10 @@ const InputsSchema = z.object({
   isDraft: z.string().describe("The isDraft for this resource").optional(),
 });
 
-/** Swamp extension model for Google Cloud blogger Pages. Registered at `@swamp/gcp/blogger/pages`. */
+/** Swamp extension model for Google Cloud Blogger Pages. Registered at `@swamp/gcp/blogger/pages`. */
 export const model = {
   type: "@swamp/gcp/blogger/pages",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -308,6 +309,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -539,6 +545,56 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List pages resources",
+      arguments: z.object({
+        fetchBodies: z.boolean().optional(),
+        maxResults: z.number().optional(),
+        status: z.string().optional(),
+        view: z.string().optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["blogId"] !== undefined) params["blogId"] = String(g["blogId"]);
+        if (args["fetchBodies"] !== undefined) {
+          params["fetchBodies"] = String(args["fetchBodies"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["status"] !== undefined) {
+          params["status"] = String(args["status"]);
+        }
+        if (args["view"] !== undefined) params["view"] = String(args["view"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     publish: {

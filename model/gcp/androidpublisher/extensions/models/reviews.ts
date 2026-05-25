@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -40,6 +41,33 @@ const GET_CONFIG = {
     "reviewId": {
       "location": "path",
       "required": true,
+    },
+    "translationLanguage": {
+      "location": "query",
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "androidpublisher.reviews.list",
+  "path": "androidpublisher/v3/applications/{packageName}/reviews",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "packageName",
+  ],
+  "parameters": {
+    "maxResults": {
+      "location": "query",
+    },
+    "packageName": {
+      "location": "path",
+      "required": true,
+    },
+    "startIndex": {
+      "location": "query",
+    },
+    "token": {
+      "location": "query",
     },
     "translationLanguage": {
       "location": "query",
@@ -105,7 +133,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Play Android Developer Reviews. Registered at `@swamp/gcp/androidpublisher/reviews`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/reviews",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -159,6 +187,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -258,6 +291,67 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List reviews resources",
+      arguments: z.object({
+        maxResults: z.number().describe(
+          "How many results the list operation should return.",
+        ).optional(),
+        startIndex: z.number().describe(
+          "The index of the first element to return.",
+        ).optional(),
+        token: z.string().describe(
+          "Pagination token. If empty, list starts at the first review.",
+        ).optional(),
+        translationLanguage: z.string().describe("Language localization code.")
+          .optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["packageName"] !== undefined) {
+          params["packageName"] = String(g["packageName"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["startIndex"] !== undefined) {
+          params["startIndex"] = String(args["startIndex"]);
+        }
+        if (args["token"] !== undefined) {
+          params["token"] = String(args["token"]);
+        }
+        if (args["translationLanguage"] !== undefined) {
+          params["translationLanguage"] = String(args["translationLanguage"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "reviews",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     reply: {

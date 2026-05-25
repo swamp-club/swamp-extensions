@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -42,6 +43,39 @@ const GET_CONFIG = {
     "reportId": {
       "location": "path",
       "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "youtubereporting.jobs.reports.list",
+  "path": "v1/jobs/{jobId}/reports",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "jobId",
+  ],
+  "parameters": {
+    "createdAfter": {
+      "location": "query",
+    },
+    "jobId": {
+      "location": "path",
+      "required": true,
+    },
+    "onBehalfOfContentOwner": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "startTimeAtOrAfter": {
+      "location": "query",
+    },
+    "startTimeBefore": {
+      "location": "query",
     },
   },
 } as const;
@@ -71,7 +105,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud YouTube Reporting Jobs.Reports. Registered at `@swamp/gcp/youtubereporting/jobs-reports`. */
 export const model = {
   type: "@swamp/gcp/youtubereporting/jobs-reports",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -125,6 +159,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -222,6 +261,74 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List reports resources",
+      arguments: z.object({
+        createdAfter: z.string().describe(
+          "If set, only reports created after the specified date/time are returned.",
+        ).optional(),
+        onBehalfOfContentOwner: z.string().describe(
+          "The content owner's external ID on which behalf the user is acting on. If not set, the user is acting for himself (his own channel).",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Requested page size. Server may return fewer report types than requested. If unspecified, server will pick an appropriate default.",
+        ).optional(),
+        startTimeAtOrAfter: z.string().describe(
+          "If set, only reports whose start time is greater than or equal the specified date/time are returned.",
+        ).optional(),
+        startTimeBefore: z.string().describe(
+          "If set, only reports whose start time is smaller than the specified date/time are returned.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["jobId"] !== undefined) params["jobId"] = String(g["jobId"]);
+        if (args["createdAfter"] !== undefined) {
+          params["createdAfter"] = String(args["createdAfter"]);
+        }
+        if (args["onBehalfOfContentOwner"] !== undefined) {
+          params["onBehalfOfContentOwner"] = String(
+            args["onBehalfOfContentOwner"],
+          );
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["startTimeAtOrAfter"] !== undefined) {
+          params["startTimeAtOrAfter"] = String(args["startTimeAtOrAfter"]);
+        }
+        if (args["startTimeBefore"] !== undefined) {
+          params["startTimeBefore"] = String(args["startTimeBefore"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "reports",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

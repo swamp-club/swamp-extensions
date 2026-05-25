@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -123,16 +124,6 @@ const LIST_CONFIG = {
 
 const GlobalArgsSchema = z.object({
   dataPolicy: z.object({
-    dataGovernanceTag: z.object({
-      key: z.string().describe(
-        "Optional. Tag keys are globally unique. Tag key is expected to be in the namespaced format, for example `parent-id/pii` where `parent-id` is the ID of the parent organization or project resource for this tag key.",
-      ).optional(),
-      value: z.string().describe(
-        "Optional. Specifies the tag value as the short name, for example `sensitive`.",
-      ).optional(),
-    }).describe(
-      "Data Governance tag This is a namespaced name specifying the key and the value. For example: `project-id/pii/sensitive`.",
-    ).optional(),
     dataMaskingPolicy: z.object({
       predefinedExpression: z.enum([
         "PREDEFINED_EXPRESSION_UNSPECIFIED",
@@ -176,16 +167,6 @@ const GlobalArgsSchema = z.object({
   }).describe("Represents the label-policy binding.").optional(),
   dataPolicyId: z.string().describe(
     "Output only. User-assigned (human readable) ID of the data policy that needs to be unique within a project. Used as {data_policy_id} in part of the resource name.",
-  ).optional(),
-  dataGovernanceTag: z.object({
-    key: z.string().describe(
-      "Optional. Tag keys are globally unique. Tag key is expected to be in the namespaced format, for example `parent-id/pii` where `parent-id` is the ID of the parent organization or project resource for this tag key.",
-    ).optional(),
-    value: z.string().describe(
-      "Optional. Specifies the tag value as the short name, for example `sensitive`.",
-    ).optional(),
-  }).describe(
-    "Data Governance tag This is a namespaced name specifying the key and the value. For example: `project-id/pii/sensitive`.",
   ).optional(),
   dataMaskingPolicy: z.object({
     predefinedExpression: z.enum([
@@ -230,10 +211,6 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  dataGovernanceTag: z.object({
-    key: z.string(),
-    value: z.string(),
-  }).optional(),
   dataMaskingPolicy: z.object({
     predefinedExpression: z.string(),
     routine: z.string(),
@@ -251,16 +228,6 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   dataPolicy: z.object({
-    dataGovernanceTag: z.object({
-      key: z.string().describe(
-        "Optional. Tag keys are globally unique. Tag key is expected to be in the namespaced format, for example `parent-id/pii` where `parent-id` is the ID of the parent organization or project resource for this tag key.",
-      ).optional(),
-      value: z.string().describe(
-        "Optional. Specifies the tag value as the short name, for example `sensitive`.",
-      ).optional(),
-    }).describe(
-      "Data Governance tag This is a namespaced name specifying the key and the value. For example: `project-id/pii/sensitive`.",
-    ).optional(),
     dataMaskingPolicy: z.object({
       predefinedExpression: z.enum([
         "PREDEFINED_EXPRESSION_UNSPECIFIED",
@@ -304,16 +271,6 @@ const InputsSchema = z.object({
   }).describe("Represents the label-policy binding.").optional(),
   dataPolicyId: z.string().describe(
     "Output only. User-assigned (human readable) ID of the data policy that needs to be unique within a project. Used as {data_policy_id} in part of the resource name.",
-  ).optional(),
-  dataGovernanceTag: z.object({
-    key: z.string().describe(
-      "Optional. Tag keys are globally unique. Tag key is expected to be in the namespaced format, for example `parent-id/pii` where `parent-id` is the ID of the parent organization or project resource for this tag key.",
-    ).optional(),
-    value: z.string().describe(
-      "Optional. Specifies the tag value as the short name, for example `sensitive`.",
-    ).optional(),
-  }).describe(
-    "Data Governance tag This is a namespaced name specifying the key and the value. For example: `project-id/pii/sensitive`.",
   ).optional(),
   dataMaskingPolicy: z.object({
     predefinedExpression: z.enum([
@@ -360,7 +317,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud BigQuery Data Policy DataPolicies. Registered at `@swamp/gcp/bigquerydatapolicy/datapolicies`. */
 export const model = {
   type: "@swamp/gcp/bigquerydatapolicy/datapolicies",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -529,6 +486,14 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "Removed: dataGovernanceTag",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { dataGovernanceTag: _dataGovernanceTag, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -649,9 +614,6 @@ export const model = {
         if (g["dataPolicyId"] !== undefined) {
           body["dataPolicyId"] = g["dataPolicyId"];
         }
-        if (g["dataGovernanceTag"] !== undefined) {
-          body["dataGovernanceTag"] = g["dataGovernanceTag"];
-        }
         if (g["dataMaskingPolicy"] !== undefined) {
           body["dataMaskingPolicy"] = g["dataMaskingPolicy"];
         }
@@ -764,6 +726,56 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List dataPolicies resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          'Optional. Filters the data policies by policy tags that they are associated with. Currently filter only supports "policy_tag" based filtering and OR based predicates. Sample filter can be "policy_tag: projects/1/locations/us/taxonomies/2/policyTags/3". You may also use wildcard such as "policy_tag: projects/1/locations/us/taxonomies/2*". Please note that OR predicates cannot be used with wildcard filters.',
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of data policies to return. Must be a value between 1 and 1000. If not set, defaults to 50.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "dataPolicies",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     add_grantees: {

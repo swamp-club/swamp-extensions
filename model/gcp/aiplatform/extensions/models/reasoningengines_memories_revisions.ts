@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Agent Platform ReasoningEngines.Memories.Revisions.
+ * Swamp extension model for Google Cloud Vertex AI ReasoningEngines.Memories.Revisions.
  *
  * A revision of a Memory.
  *
@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -43,6 +44,31 @@ const GET_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id":
+    "aiplatform.projects.locations.reasoningEngines.memories.revisions.list",
+  "path": "v1/{+parent}/revisions",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -56,14 +82,11 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   expireTime: z.string().optional(),
   extractedMemories: z.array(z.object({
-    context: z.string(),
     fact: z.string(),
-    structuredData: z.record(z.string(), z.unknown()),
   })).optional(),
   fact: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  structuredData: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -75,10 +98,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Agent Platform ReasoningEngines.Memories.Revisions. Registered at `@swamp/gcp/aiplatform/reasoningengines-memories-revisions`. */
+/** Swamp extension model for Google Cloud Vertex AI ReasoningEngines.Memories.Revisions. Registered at `@swamp/gcp/aiplatform/reasoningengines-memories-revisions`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines-memories-revisions",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -157,6 +180,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -250,6 +278,55 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List revisions resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Optional. The standard list filter. More detail in [AIP-160](https://google.aip.dev/160). Supported fields (equality match only): * `labels`",
+        ).optional(),
+        pageSize: z.number().describe("Optional. The standard list page size.")
+          .optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "memoryRevisions",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

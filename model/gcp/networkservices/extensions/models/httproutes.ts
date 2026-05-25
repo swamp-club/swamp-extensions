@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -60,9 +61,6 @@ const INSERT_CONFIG = {
     "parent": {
       "location": "path",
       "required": true,
-    },
-    "requestId": {
-      "location": "query",
     },
   },
 } as const;
@@ -108,9 +106,6 @@ const LIST_CONFIG = {
     "parent",
   ],
   "parameters": {
-    "filter": {
-      "location": "query",
-    },
     "pageSize": {
       "location": "query",
     },
@@ -368,8 +363,6 @@ const GlobalArgsSchema = z.object({
   httpRouteId: z.string().describe(
     "Required. Short name of the HttpRoute resource to be created.",
   ).optional(),
-  requestId: z.string().describe("Optional. Idempotent request UUID.")
-    .optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
@@ -715,8 +708,6 @@ const InputsSchema = z.object({
   httpRouteId: z.string().describe(
     "Required. Short name of the HttpRoute resource to be created.",
   ).optional(),
-  requestId: z.string().describe("Optional. Idempotent request UUID.")
-    .optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
@@ -725,7 +716,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Network Services HttpRoutes. Registered at `@swamp/gcp/networkservices/httproutes`. */
 export const model = {
   type: "@swamp/gcp/networkservices/httproutes",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -813,6 +804,14 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "Removed: requestId",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { requestId: _requestId, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -849,7 +848,6 @@ export const model = {
         if (g["httpRouteId"] !== undefined) {
           body["httpRouteId"] = g["httpRouteId"];
         }
-        if (g["requestId"] !== undefined) body["requestId"] = g["requestId"];
         if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
             `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
@@ -1050,6 +1048,56 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List httpRoutes resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "Maximum number of HttpRoutes to return per call.",
+        ).optional(),
+        returnPartialSuccess: z.boolean().describe(
+          "Optional. If true, allow partial responses for multi-regional Aggregated List requests. Otherwise if one of the locations is down or unreachable, the Aggregated List request will fail.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["returnPartialSuccess"] !== undefined) {
+          params["returnPartialSuccess"] = String(args["returnPartialSuccess"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "httpRoutes",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

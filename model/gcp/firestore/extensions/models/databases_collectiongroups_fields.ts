@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -62,6 +63,30 @@ const PATCH_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "firestore.projects.databases.collectionGroups.fields.list",
+  "path": "v1/{+parent}/fields",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   indexConfig: z.object({
     ancestorField: z.string().describe(
@@ -90,9 +115,6 @@ const GlobalArgsSchema = z.object({
         order: z.unknown().describe(
           "Indicates that this field supports ordering by the specified order or comparing using =,!=, , >=.",
         ).optional(),
-        searchConfig: z.unknown().describe(
-          "The configuration for how to index a field for search.",
-        ).optional(),
         vectorConfig: z.unknown().describe(
           "The index configuration to support vector search operations",
         ).optional(),
@@ -113,15 +135,6 @@ const GlobalArgsSchema = z.object({
       ]).describe(
         "Indexes with a collection query scope specified allow queries against a collection that is the child of a specific document, specified at query time, and that has the same collection ID. Indexes with a collection group query scope specified allow queries against all collections descended from a specific document, specified at query time, and that have the same collection ID as this index.",
       ).optional(),
-      searchIndexOptions: z.object({
-        textLanguage: z.string().describe(
-          "Optional. The language to use for text search indexes. Used as the default language if not overridden at the document level by specifying the `text_language_override_field`. The language is specified as a BCP 47 language code. For indexes with MONGODB_COMPATIBLE_API ApiScope: If unspecified, the default language is English. For indexes with `ANY_API` ApiScope: If unspecified, the default behavior is autodetect.",
-        ).optional(),
-        textLanguageOverrideFieldPath: z.string().describe(
-          'Optional. The field in the document that specifies which language to use for that specific document. If unspecified, the language is taken from the "language" field if it exists or from `text_language` if it does not.',
-        ).optional(),
-      }).describe("Options for search indexes at the definition level.")
-        .optional(),
       shardCount: z.number().int().describe(
         "Optional. The number of shards for the index.",
       ).optional(),
@@ -142,13 +155,10 @@ const GlobalArgsSchema = z.object({
     "Required. A field name of the form: `projects/{project_id}/databases/{database_id}/collectionGroups/{collection_id}/fields/{field_path}` A field path can be a simple field name, e.g. `address` or a path to fields within `map_value`, e.g. `address.city`, or a special field path. The only valid special field is `*`, which represents any field. Field paths can be quoted using `` ` `` (backtick). The only character that must be escaped within a quoted field path is the backtick character itself, escaped using a backslash. Special characters in field paths that must be quoted include: `*`, `.`, `` ` `` (backtick), `[`, `]`, as well as any ascii symbolic characters. Examples: `` `address.city` `` represents a field named `address.city`, not the map key `city` in the field `address`. `` `*` `` represents a field named `*`, not any field. A special `Field` contains the default indexing settings for all fields. This field's resource name is: `projects/{project_id}/databases/{database_id}/collectionGroups/__default__/fields/*` Indexes defined on this `Field` will be applied to all fields which do not have their own `Field` index configuration.",
   ).optional(),
   ttlConfig: z.object({
-    expirationOffset: z.string().describe(
-      "Optional. The offset, relative to the timestamp value from the TTL-enabled field, used to determine the document's expiration time. `expiration_offset.seconds` must be between 0 and 2,147,483,647 inclusive. Values more precise than seconds are rejected. If unset, defaults to 0, in which case the expiration time is the same as the timestamp value from the TTL-enabled field.",
-    ).optional(),
     state: z.enum(["STATE_UNSPECIFIED", "CREATING", "ACTIVE", "NEEDS_REPAIR"])
       .describe("Output only. The state of the TTL configuration.").optional(),
   }).describe(
-    "The TTL (time-to-live) configuration for documents that have this `Field` set. A timestamp stored in a TTL-enabled field will be used to determine the expiration time of the document. The expiration time is the sum of the timestamp value and the `expiration_offset`. For Enterprise edition databases, the timestamp value may alternatively be stored in an array value in the TTL-enabled field. An expiration time in the past indicates that the document is eligible for immediate expiration. Using any other data type or leaving the field absent will disable expiration for the individual document.",
+    "The TTL (time-to-live) configuration for documents that have this `Field` set. Storing a timestamp value into a TTL-enabled field will be treated as the document's absolute expiration time. For Enterprise edition databases, the timestamp value may also be stored in an array value in the TTL-enabled field. Timestamp values in the past indicate that the document is eligible for immediate expiration. Using any other data type or leaving the field absent will disable expiration for the individual document.",
   ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
@@ -165,16 +175,11 @@ const StateSchema = z.object({
         arrayConfig: z.unknown(),
         fieldPath: z.unknown(),
         order: z.unknown(),
-        searchConfig: z.unknown(),
         vectorConfig: z.unknown(),
       })),
       multikey: z.boolean(),
       name: z.string(),
       queryScope: z.string(),
-      searchIndexOptions: z.object({
-        textLanguage: z.string(),
-        textLanguageOverrideFieldPath: z.string(),
-      }),
       shardCount: z.number(),
       state: z.string(),
       unique: z.boolean(),
@@ -184,7 +189,6 @@ const StateSchema = z.object({
   }).optional(),
   name: z.string(),
   ttlConfig: z.object({
-    expirationOffset: z.string(),
     state: z.string(),
   }).optional(),
 }).passthrough();
@@ -219,9 +223,6 @@ const InputsSchema = z.object({
         order: z.unknown().describe(
           "Indicates that this field supports ordering by the specified order or comparing using =,!=, , >=.",
         ).optional(),
-        searchConfig: z.unknown().describe(
-          "The configuration for how to index a field for search.",
-        ).optional(),
         vectorConfig: z.unknown().describe(
           "The index configuration to support vector search operations",
         ).optional(),
@@ -242,15 +243,6 @@ const InputsSchema = z.object({
       ]).describe(
         "Indexes with a collection query scope specified allow queries against a collection that is the child of a specific document, specified at query time, and that has the same collection ID. Indexes with a collection group query scope specified allow queries against all collections descended from a specific document, specified at query time, and that have the same collection ID as this index.",
       ).optional(),
-      searchIndexOptions: z.object({
-        textLanguage: z.string().describe(
-          "Optional. The language to use for text search indexes. Used as the default language if not overridden at the document level by specifying the `text_language_override_field`. The language is specified as a BCP 47 language code. For indexes with MONGODB_COMPATIBLE_API ApiScope: If unspecified, the default language is English. For indexes with `ANY_API` ApiScope: If unspecified, the default behavior is autodetect.",
-        ).optional(),
-        textLanguageOverrideFieldPath: z.string().describe(
-          'Optional. The field in the document that specifies which language to use for that specific document. If unspecified, the language is taken from the "language" field if it exists or from `text_language` if it does not.',
-        ).optional(),
-      }).describe("Options for search indexes at the definition level.")
-        .optional(),
       shardCount: z.number().int().describe(
         "Optional. The number of shards for the index.",
       ).optional(),
@@ -271,13 +263,10 @@ const InputsSchema = z.object({
     "Required. A field name of the form: `projects/{project_id}/databases/{database_id}/collectionGroups/{collection_id}/fields/{field_path}` A field path can be a simple field name, e.g. `address` or a path to fields within `map_value`, e.g. `address.city`, or a special field path. The only valid special field is `*`, which represents any field. Field paths can be quoted using `` ` `` (backtick). The only character that must be escaped within a quoted field path is the backtick character itself, escaped using a backslash. Special characters in field paths that must be quoted include: `*`, `.`, `` ` `` (backtick), `[`, `]`, as well as any ascii symbolic characters. Examples: `` `address.city` `` represents a field named `address.city`, not the map key `city` in the field `address`. `` `*` `` represents a field named `*`, not any field. A special `Field` contains the default indexing settings for all fields. This field's resource name is: `projects/{project_id}/databases/{database_id}/collectionGroups/__default__/fields/*` Indexes defined on this `Field` will be applied to all fields which do not have their own `Field` index configuration.",
   ).optional(),
   ttlConfig: z.object({
-    expirationOffset: z.string().describe(
-      "Optional. The offset, relative to the timestamp value from the TTL-enabled field, used to determine the document's expiration time. `expiration_offset.seconds` must be between 0 and 2,147,483,647 inclusive. Values more precise than seconds are rejected. If unset, defaults to 0, in which case the expiration time is the same as the timestamp value from the TTL-enabled field.",
-    ).optional(),
     state: z.enum(["STATE_UNSPECIFIED", "CREATING", "ACTIVE", "NEEDS_REPAIR"])
       .describe("Output only. The state of the TTL configuration.").optional(),
   }).describe(
-    "The TTL (time-to-live) configuration for documents that have this `Field` set. A timestamp stored in a TTL-enabled field will be used to determine the expiration time of the document. The expiration time is the sum of the timestamp value and the `expiration_offset`. For Enterprise edition databases, the timestamp value may alternatively be stored in an array value in the TTL-enabled field. An expiration time in the past indicates that the document is eligible for immediate expiration. Using any other data type or leaving the field absent will disable expiration for the individual document.",
+    "The TTL (time-to-live) configuration for documents that have this `Field` set. Storing a timestamp value into a TTL-enabled field will be treated as the document's absolute expiration time. For Enterprise edition databases, the timestamp value may also be stored in an array value in the TTL-enabled field. Timestamp values in the past indicate that the document is eligible for immediate expiration. Using any other data type or leaving the field absent will disable expiration for the individual document.",
   ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
@@ -287,7 +276,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Firestore Databases.CollectionGroups.Fields. Registered at `@swamp/gcp/firestore/databases-collectiongroups-fields`. */
 export const model = {
   type: "@swamp/gcp/firestore/databases-collectiongroups-fields",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -371,6 +360,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -518,6 +512,55 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List fields resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "The filter to apply to list results. Currently, FirestoreAdmin.ListFields only supports listing fields that have been explicitly overridden. To issue this query, call FirestoreAdmin.ListFields with a filter that includes `indexConfig.usesAncestorConfig:false` or `ttlConfig:*`.",
+        ).optional(),
+        pageSize: z.number().describe("The number of results to return.")
+          .optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "fields",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

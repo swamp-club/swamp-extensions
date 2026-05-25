@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -311,7 +312,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud YouTube Data ChannelSections. Registered at `@swamp/gcp/youtube/channelsections`. */
 export const model = {
   type: "@swamp/gcp/youtube/channelsections",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -365,6 +366,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -587,6 +593,68 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List channelSections resources",
+      arguments: z.object({
+        channelId: z.string().describe(
+          "Return the ChannelSections owned by the specified channel ID.",
+        ).optional(),
+        id: z.string().describe(
+          "Return the ChannelSections with the given IDs for Stubby or Apiary.",
+        ).optional(),
+        mine: z.boolean().describe(
+          "Return the ChannelSections owned by the authenticated user.",
+        ).optional(),
+        onBehalfOfContentOwner: z.string().describe(
+          "*Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwner* parameter indicates that the request's authorization credentials identify a YouTube CMS user who is acting on behalf of the content owner specified in the parameter value. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and get access to all their video and channel data, without having to provide authentication credentials for each individual channel. The CMS account that the user authenticates with must be linked to the specified YouTube content owner.",
+        ).optional(),
+        part: z.string().describe(
+          "The *part* parameter specifies a comma-separated list of one or more channelSection resource properties that the API response will include. The part names that you can include in the parameter value are id, snippet, and contentDetails. If the parameter identifies a property that contains child properties, the child properties will be included in the response. For example, in a channelSection resource, the snippet property contains other properties, such as a display title for the channelSection. If you set *part=snippet*, the API response will also contain all of those nested properties.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["part"] !== undefined) params["part"] = String(g["part"]);
+        if (args["channelId"] !== undefined) {
+          params["channelId"] = String(args["channelId"]);
+        }
+        if (args["id"] !== undefined) params["id"] = String(args["id"]);
+        if (args["mine"] !== undefined) params["mine"] = String(args["mine"]);
+        if (args["onBehalfOfContentOwner"] !== undefined) {
+          params["onBehalfOfContentOwner"] = String(
+            args["onBehalfOfContentOwner"],
+          );
+        }
+        if (args["part"] !== undefined) params["part"] = String(args["part"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

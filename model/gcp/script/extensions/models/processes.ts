@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -92,7 +93,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Apps Script Processes. Registered at `@swamp/gcp/script/processes`. */
 export const model = {
   type: "@swamp/gcp/script/processes",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -146,6 +147,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -240,6 +246,119 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List processes resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "The maximum number of returned processes per page of results. Defaults to 50.",
+        ).optional(),
+        userProcessFilter_deploymentId: z.string().describe(
+          "Optional field used to limit returned processes to those originating from projects with a specific deployment ID.",
+        ).optional(),
+        userProcessFilter_endTime: z.string().describe(
+          "Optional field used to limit returned processes to those that completed on or before the given timestamp.",
+        ).optional(),
+        userProcessFilter_functionName: z.string().describe(
+          "Optional field used to limit returned processes to those originating from a script function with the given function name.",
+        ).optional(),
+        userProcessFilter_projectName: z.string().describe(
+          "Optional field used to limit returned processes to those originating from projects with project names containing a specific string.",
+        ).optional(),
+        userProcessFilter_scriptId: z.string().describe(
+          "Optional field used to limit returned processes to those originating from projects with a specific script ID.",
+        ).optional(),
+        userProcessFilter_startTime: z.string().describe(
+          "Optional field used to limit returned processes to those that were started on or after the given timestamp.",
+        ).optional(),
+        userProcessFilter_statuses: z.string().describe(
+          "Optional field used to limit returned processes to those having one of the specified process statuses.",
+        ).optional(),
+        userProcessFilter_types: z.string().describe(
+          "Optional field used to limit returned processes to those having one of the specified process types.",
+        ).optional(),
+        userProcessFilter_userAccessLevels: z.string().describe(
+          "Optional field used to limit returned processes to those having one of the specified user access levels.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["userProcessFilter_deploymentId"] !== undefined) {
+          params["userProcessFilter.deploymentId"] = String(
+            args["userProcessFilter_deploymentId"],
+          );
+        }
+        if (args["userProcessFilter_endTime"] !== undefined) {
+          params["userProcessFilter.endTime"] = String(
+            args["userProcessFilter_endTime"],
+          );
+        }
+        if (args["userProcessFilter_functionName"] !== undefined) {
+          params["userProcessFilter.functionName"] = String(
+            args["userProcessFilter_functionName"],
+          );
+        }
+        if (args["userProcessFilter_projectName"] !== undefined) {
+          params["userProcessFilter.projectName"] = String(
+            args["userProcessFilter_projectName"],
+          );
+        }
+        if (args["userProcessFilter_scriptId"] !== undefined) {
+          params["userProcessFilter.scriptId"] = String(
+            args["userProcessFilter_scriptId"],
+          );
+        }
+        if (args["userProcessFilter_startTime"] !== undefined) {
+          params["userProcessFilter.startTime"] = String(
+            args["userProcessFilter_startTime"],
+          );
+        }
+        if (args["userProcessFilter_statuses"] !== undefined) {
+          params["userProcessFilter.statuses"] = String(
+            args["userProcessFilter_statuses"],
+          );
+        }
+        if (args["userProcessFilter_types"] !== undefined) {
+          params["userProcessFilter.types"] = String(
+            args["userProcessFilter_types"],
+          );
+        }
+        if (args["userProcessFilter_userAccessLevels"] !== undefined) {
+          params["userProcessFilter.userAccessLevels"] = String(
+            args["userProcessFilter_userAccessLevels"],
+          );
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "processes",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     list_script_processes: {

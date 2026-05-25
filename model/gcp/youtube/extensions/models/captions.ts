@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -284,7 +285,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud YouTube Data Captions. Registered at `@swamp/gcp/youtube/captions`. */
 export const model = {
   type: "@swamp/gcp/youtube/captions",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -338,6 +339,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -562,6 +568,73 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List captions resources",
+      arguments: z.object({
+        id: z.string().describe(
+          "Returns the captions with the given IDs for Stubby or Apiary.",
+        ).optional(),
+        onBehalfOf: z.string().describe(
+          "ID of the Google+ Page for the channel that the request is on behalf of.",
+        ).optional(),
+        onBehalfOfContentOwner: z.string().describe(
+          "*Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwner* parameter indicates that the request's authorization credentials identify a YouTube CMS user who is acting on behalf of the content owner specified in the parameter value. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and get access to all their video and channel data, without having to provide authentication credentials for each individual channel. The actual CMS account that the user authenticates with must be linked to the specified YouTube content owner.",
+        ).optional(),
+        part: z.string().describe(
+          "The *part* parameter specifies a comma-separated list of one or more caption resource parts that the API response will include. The part names that you can include in the parameter value are id and snippet.",
+        ).optional(),
+        videoId: z.string().describe(
+          "Returns the captions for the specified video.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["part"] !== undefined) params["part"] = String(g["part"]);
+        if (g["videoId"] !== undefined) {
+          params["videoId"] = String(g["videoId"]);
+        }
+        if (args["id"] !== undefined) params["id"] = String(args["id"]);
+        if (args["onBehalfOf"] !== undefined) {
+          params["onBehalfOf"] = String(args["onBehalfOf"]);
+        }
+        if (args["onBehalfOfContentOwner"] !== undefined) {
+          params["onBehalfOfContentOwner"] = String(
+            args["onBehalfOfContentOwner"],
+          );
+        }
+        if (args["part"] !== undefined) params["part"] = String(args["part"]);
+        if (args["videoId"] !== undefined) {
+          params["videoId"] = String(args["videoId"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     download: {

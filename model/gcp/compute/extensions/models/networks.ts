@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -329,7 +330,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine Networks. Registered at `@swamp/gcp/compute/networks`. */
 export const model = {
   type: "@swamp/gcp/compute/networks",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -413,6 +414,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -662,6 +668,65 @@ export const model = {
         }
       },
     },
+    list: {
+      description: "List networks resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "A filter expression that filters resources listed in the response. Most",
+        ).optional(),
+        maxResults: z.number().describe(
+          "The maximum number of results per page that should be returned.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Sorts list results by a certain order. By default, results",
+        ).optional(),
+        returnPartialSuccess: z.boolean().describe(
+          "Opt-in for partial success behavior which provides partial results in case",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["returnPartialSuccess"] !== undefined) {
+          params["returnPartialSuccess"] = String(args["returnPartialSuccess"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
     add_peering: {
       description: "add peering",
       arguments: z.object({
@@ -704,51 +769,6 @@ export const model = {
           {
             "id": "compute.networks.addPeering",
             "path": "projects/{project}/global/networks/{network}/addPeering",
-            "httpMethod": "POST",
-            "parameterOrder": ["project", "network"],
-            "parameters": {
-              "network": { "location": "path", "required": true },
-              "project": { "location": "path", "required": true },
-              "requestId": { "location": "query" },
-            },
-          },
-          params,
-          body,
-        );
-        return { result };
-      },
-    },
-    cancel_request_remove_peering: {
-      description: "cancel request remove peering",
-      arguments: z.object({
-        name: z.any().optional(),
-      }),
-      execute: async (args: Record<string, unknown>, context: any) => {
-        const g = context.globalArgs;
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
-            /\.\./g,
-            "_",
-          ).replace(/\0/g, ""),
-        );
-        if (!content) {
-          throw new Error("No existing state found - run create or get first");
-        }
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        params["network"] = existing["name"]?.toString() ??
-          g["name"]?.toString() ?? "";
-        const body: Record<string, unknown> = {};
-        if (args["name"] !== undefined) body["name"] = args["name"];
-        const result = await createResource(
-          BASE_URL,
-          {
-            "id": "compute.networks.cancelRequestRemovePeering",
-            "path":
-              "projects/{project}/global/networks/{network}/cancelRequestRemovePeering",
             "httpMethod": "POST",
             "parameterOrder": ["project", "network"],
             "parameters": {

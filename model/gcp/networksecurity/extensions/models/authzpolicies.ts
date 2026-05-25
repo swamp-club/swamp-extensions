@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -202,9 +203,6 @@ const GlobalArgsSchema = z.object({
         paths: z.unknown().describe(
           "Optional. A list of paths to match against. The match can be one of exact, prefix, suffix, or contains (substring match). Matches are always case sensitive unless the ignoreCase is set. Limited to 10 paths per Authorization Policy. Note that this path match includes the query parameters. For gRPC services, this should be a fully-qualified name of the form /package.service/method.",
         ).optional(),
-        snis: z.unknown().describe(
-          "Optional. A list of SNIs to match against. The match can be one of exact, prefix, suffix, or contains (substring match). If there is no SNI (i.e. plaintext HTTP traffic), the request will be denied. Matches are always case sensitive unless the ignoreCase is set. Limited to 10 SNIs per Authorization Policy.",
-        ).optional(),
       })).describe(
         "Optional. Describes the negated properties of the targets of a request. Matches requests for operations that do not match the criteria specified in this field. At least one of operations or notOperations must be specified.",
       ).optional(),
@@ -223,9 +221,6 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         paths: z.unknown().describe(
           "Optional. A list of paths to match against. The match can be one of exact, prefix, suffix, or contains (substring match). Matches are always case sensitive unless the ignoreCase is set. Limited to 10 paths per Authorization Policy. Note that this path match includes the query parameters. For gRPC services, this should be a fully-qualified name of the form /package.service/method.",
-        ).optional(),
-        snis: z.unknown().describe(
-          "Optional. A list of SNIs to match against. The match can be one of exact, prefix, suffix, or contains (substring match). If there is no SNI (i.e. plaintext HTTP traffic), the request will be denied. Matches are always case sensitive unless the ignoreCase is set. Limited to 10 SNIs per Authorization Policy.",
         ).optional(),
       })).describe(
         "Optional. Describes properties of one or more targets of a request. At least one of operations or notOperations must be specified. Limited to 1 operation. A match occurs when ANY operation (in operations or notOperations) matches. Within an operation, the match follows AND semantics across fields and OR semantics within a field, i.e. a match occurs when ANY path matches AND ANY header matches and ANY method matches.",
@@ -244,89 +239,6 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Required. Identifier. Name of the `AuthzPolicy` resource in the following format: `projects/{project}/locations/{location}/authzPolicies/{authz_policy}`.",
   ).optional(),
-  networkRules: z.array(z.object({
-    from: z.object({
-      notSources: z.array(z.object({
-        ipBlocks: z.unknown().describe(
-          "Optional. A list of IP addresses or IP address ranges to match against the source IP address of the request. Limited to 10 ip_blocks per Authorization Policy",
-        ).optional(),
-        principals: z.unknown().describe(
-          "Optional. A list of identities derived from the client's certificate. This field will not match on a request unless frontend mutual TLS is enabled for the forwarding rule or Gateway and the client certificate has been successfully validated by mTLS. Each identity is a string whose value is matched against a list of URI SANs, DNS Name SANs, or the common name in the client's certificate. A match happens when any principal matches with the rule. Limited to 50 principals per Authorization Policy for regional internal Application Load Balancers, regional external Application Load Balancers, cross-region internal Application Load Balancers, and Cloud Service Mesh. This field is not supported for global external Application Load Balancers.",
-        ).optional(),
-        resources: z.unknown().describe(
-          "Optional. A list of resources to match against the resource of the source VM of a request. Limited to 10 resources per Authorization Policy.",
-        ).optional(),
-      })).describe(
-        "Optional. Describes the negated properties of request sources. Matches requests from sources that do not match the criteria specified in this field. At least one of sources or notSources must be specified.",
-      ).optional(),
-      sources: z.array(z.object({
-        ipBlocks: z.unknown().describe(
-          "Optional. A list of IP addresses or IP address ranges to match against the source IP address of the request. Limited to 10 ip_blocks per Authorization Policy",
-        ).optional(),
-        principals: z.unknown().describe(
-          "Optional. A list of identities derived from the client's certificate. This field will not match on a request unless frontend mutual TLS is enabled for the forwarding rule or Gateway and the client certificate has been successfully validated by mTLS. Each identity is a string whose value is matched against a list of URI SANs, DNS Name SANs, or the common name in the client's certificate. A match happens when any principal matches with the rule. Limited to 50 principals per Authorization Policy for regional internal Application Load Balancers, regional external Application Load Balancers, cross-region internal Application Load Balancers, and Cloud Service Mesh. This field is not supported for global external Application Load Balancers.",
-        ).optional(),
-        resources: z.unknown().describe(
-          "Optional. A list of resources to match against the resource of the source VM of a request. Limited to 10 resources per Authorization Policy.",
-        ).optional(),
-      })).describe(
-        "Optional. Describes the properties of a request's sources. At least one of sources or notSources must be specified. Limited to 1 source. A match occurs when ANY source (in sources or notSources) matches the request. Within a single source, the match follows AND semantics across fields and OR semantics within a single field, i.e. a match occurs when ANY principal matches AND ANY ipBlocks match.",
-      ).optional(),
-    }).describe("Describes properties of one or more sources of a request.")
-      .optional(),
-    to: z.object({
-      notOperations: z.array(z.object({
-        headerSet: z.unknown().describe(
-          "Describes a set of HTTP headers to match against.",
-        ).optional(),
-        hosts: z.unknown().describe(
-          "Optional. A list of HTTP Hosts to match against. The match can be one of exact, prefix, suffix, or contains (substring match). Matches are always case sensitive unless the ignoreCase is set. Limited to 10 hosts per Authorization Policy.",
-        ).optional(),
-        mcp: z.unknown().describe(
-          "Describes a set of MCP protocol attributes to match against for a given MCP request.",
-        ).optional(),
-        methods: z.unknown().describe(
-          "Optional. A list of HTTP methods to match against. Each entry must be a valid HTTP method name (GET, PUT, POST, HEAD, PATCH, DELETE, OPTIONS). It only allows exact match and is always case sensitive. Limited to 10 methods per Authorization Policy.",
-        ).optional(),
-        paths: z.unknown().describe(
-          "Optional. A list of paths to match against. The match can be one of exact, prefix, suffix, or contains (substring match). Matches are always case sensitive unless the ignoreCase is set. Limited to 10 paths per Authorization Policy. Note that this path match includes the query parameters. For gRPC services, this should be a fully-qualified name of the form /package.service/method.",
-        ).optional(),
-        snis: z.unknown().describe(
-          "Optional. A list of SNIs to match against. The match can be one of exact, prefix, suffix, or contains (substring match). If there is no SNI (i.e. plaintext HTTP traffic), the request will be denied. Matches are always case sensitive unless the ignoreCase is set. Limited to 10 SNIs per Authorization Policy.",
-        ).optional(),
-      })).describe(
-        "Optional. Describes the negated properties of the targets of a request. Matches requests for operations that do not match the criteria specified in this field. At least one of operations or notOperations must be specified.",
-      ).optional(),
-      operations: z.array(z.object({
-        headerSet: z.unknown().describe(
-          "Describes a set of HTTP headers to match against.",
-        ).optional(),
-        hosts: z.unknown().describe(
-          "Optional. A list of HTTP Hosts to match against. The match can be one of exact, prefix, suffix, or contains (substring match). Matches are always case sensitive unless the ignoreCase is set. Limited to 10 hosts per Authorization Policy.",
-        ).optional(),
-        mcp: z.unknown().describe(
-          "Describes a set of MCP protocol attributes to match against for a given MCP request.",
-        ).optional(),
-        methods: z.unknown().describe(
-          "Optional. A list of HTTP methods to match against. Each entry must be a valid HTTP method name (GET, PUT, POST, HEAD, PATCH, DELETE, OPTIONS). It only allows exact match and is always case sensitive. Limited to 10 methods per Authorization Policy.",
-        ).optional(),
-        paths: z.unknown().describe(
-          "Optional. A list of paths to match against. The match can be one of exact, prefix, suffix, or contains (substring match). Matches are always case sensitive unless the ignoreCase is set. Limited to 10 paths per Authorization Policy. Note that this path match includes the query parameters. For gRPC services, this should be a fully-qualified name of the form /package.service/method.",
-        ).optional(),
-        snis: z.unknown().describe(
-          "Optional. A list of SNIs to match against. The match can be one of exact, prefix, suffix, or contains (substring match). If there is no SNI (i.e. plaintext HTTP traffic), the request will be denied. Matches are always case sensitive unless the ignoreCase is set. Limited to 10 SNIs per Authorization Policy.",
-        ).optional(),
-      })).describe(
-        "Optional. Describes properties of one or more targets of a request. At least one of operations or notOperations must be specified. Limited to 1 operation. A match occurs when ANY operation (in operations or notOperations) matches. Within an operation, the match follows AND semantics across fields and OR semantics within a field, i.e. a match occurs when ANY path matches AND ANY header matches and ANY method matches.",
-      ).optional(),
-    }).describe("Describes properties of one or more targets of a request.")
-      .optional(),
-    when: z.string().describe(
-      "Optional. CEL expression that describes the conditions to be satisfied for the action. The result of the CEL expression is ANDed with the from and to. Refer to the CEL language reference for a list of available attributes.",
-    ).optional(),
-  })).describe(
-    "Optional. A list of authorization network rules to match against the incoming request. A policy match occurs when at least one network rule matches the request. At least one network rule is required for Allow or Deny Action if no HTTP rules are provided. Network rules are mutually exclusive with HTTP rules. Limited to 5 rules.",
-  ).optional(),
   policyProfile: z.enum([
     "POLICY_PROFILE_UNSPECIFIED",
     "REQUEST_AUTHZ",
@@ -341,10 +253,10 @@ const GlobalArgsSchema = z.object({
       "EXTERNAL_MANAGED",
       "INTERNAL_SELF_MANAGED",
     ]).describe(
-      "Optional. All gateways and forwarding rules referenced by this policy and extensions must share the same load balancing scheme. Required only when targeting forwarding rules. If targeting Secure Web Proxy, this field must be `INTERNAL_MANAGED` or not specified. Must not be specified when targeting Agent Gateway. Supported values: `INTERNAL_MANAGED` and `EXTERNAL_MANAGED`. For more information, refer to [Backend services overview](https://cloud.google.com/load-balancing/docs/backend-service).",
+      "Optional. All gateways and forwarding rules referenced by this policy and extensions must share the same load balancing scheme. Supported values: `INTERNAL_MANAGED` and `EXTERNAL_MANAGED`. For more information, refer to [Backend services overview](https://cloud.google.com/load-balancing/docs/backend-service).",
     ).optional(),
     resources: z.array(z.string()).describe(
-      "Required. A list of references to the Forwarding Rules, Secure Web Proxy Gateways, or Agent Gateways on which this policy will be applied.",
+      "Required. A list of references to the Forwarding Rules on which this policy will be applied.",
     ).optional(),
   }).describe(
     "Specifies the set of targets to which this policy should be applied to.",
@@ -390,7 +302,6 @@ const StateSchema = z.object({
         mcp: z.unknown(),
         methods: z.unknown(),
         paths: z.unknown(),
-        snis: z.unknown(),
       })),
       operations: z.array(z.object({
         headerSet: z.unknown(),
@@ -398,46 +309,12 @@ const StateSchema = z.object({
         mcp: z.unknown(),
         methods: z.unknown(),
         paths: z.unknown(),
-        snis: z.unknown(),
       })),
     }),
     when: z.string(),
   })).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  networkRules: z.array(z.object({
-    from: z.object({
-      notSources: z.array(z.object({
-        ipBlocks: z.unknown(),
-        principals: z.unknown(),
-        resources: z.unknown(),
-      })),
-      sources: z.array(z.object({
-        ipBlocks: z.unknown(),
-        principals: z.unknown(),
-        resources: z.unknown(),
-      })),
-    }),
-    to: z.object({
-      notOperations: z.array(z.object({
-        headerSet: z.unknown(),
-        hosts: z.unknown(),
-        mcp: z.unknown(),
-        methods: z.unknown(),
-        paths: z.unknown(),
-        snis: z.unknown(),
-      })),
-      operations: z.array(z.object({
-        headerSet: z.unknown(),
-        hosts: z.unknown(),
-        mcp: z.unknown(),
-        methods: z.unknown(),
-        paths: z.unknown(),
-        snis: z.unknown(),
-      })),
-    }),
-    when: z.string(),
-  })).optional(),
   policyProfile: z.string().optional(),
   target: z.object({
     loadBalancingScheme: z.string(),
@@ -517,9 +394,6 @@ const InputsSchema = z.object({
         paths: z.unknown().describe(
           "Optional. A list of paths to match against. The match can be one of exact, prefix, suffix, or contains (substring match). Matches are always case sensitive unless the ignoreCase is set. Limited to 10 paths per Authorization Policy. Note that this path match includes the query parameters. For gRPC services, this should be a fully-qualified name of the form /package.service/method.",
         ).optional(),
-        snis: z.unknown().describe(
-          "Optional. A list of SNIs to match against. The match can be one of exact, prefix, suffix, or contains (substring match). If there is no SNI (i.e. plaintext HTTP traffic), the request will be denied. Matches are always case sensitive unless the ignoreCase is set. Limited to 10 SNIs per Authorization Policy.",
-        ).optional(),
       })).describe(
         "Optional. Describes the negated properties of the targets of a request. Matches requests for operations that do not match the criteria specified in this field. At least one of operations or notOperations must be specified.",
       ).optional(),
@@ -538,9 +412,6 @@ const InputsSchema = z.object({
         ).optional(),
         paths: z.unknown().describe(
           "Optional. A list of paths to match against. The match can be one of exact, prefix, suffix, or contains (substring match). Matches are always case sensitive unless the ignoreCase is set. Limited to 10 paths per Authorization Policy. Note that this path match includes the query parameters. For gRPC services, this should be a fully-qualified name of the form /package.service/method.",
-        ).optional(),
-        snis: z.unknown().describe(
-          "Optional. A list of SNIs to match against. The match can be one of exact, prefix, suffix, or contains (substring match). If there is no SNI (i.e. plaintext HTTP traffic), the request will be denied. Matches are always case sensitive unless the ignoreCase is set. Limited to 10 SNIs per Authorization Policy.",
         ).optional(),
       })).describe(
         "Optional. Describes properties of one or more targets of a request. At least one of operations or notOperations must be specified. Limited to 1 operation. A match occurs when ANY operation (in operations or notOperations) matches. Within an operation, the match follows AND semantics across fields and OR semantics within a field, i.e. a match occurs when ANY path matches AND ANY header matches and ANY method matches.",
@@ -559,89 +430,6 @@ const InputsSchema = z.object({
   name: z.string().describe(
     "Required. Identifier. Name of the `AuthzPolicy` resource in the following format: `projects/{project}/locations/{location}/authzPolicies/{authz_policy}`.",
   ).optional(),
-  networkRules: z.array(z.object({
-    from: z.object({
-      notSources: z.array(z.object({
-        ipBlocks: z.unknown().describe(
-          "Optional. A list of IP addresses or IP address ranges to match against the source IP address of the request. Limited to 10 ip_blocks per Authorization Policy",
-        ).optional(),
-        principals: z.unknown().describe(
-          "Optional. A list of identities derived from the client's certificate. This field will not match on a request unless frontend mutual TLS is enabled for the forwarding rule or Gateway and the client certificate has been successfully validated by mTLS. Each identity is a string whose value is matched against a list of URI SANs, DNS Name SANs, or the common name in the client's certificate. A match happens when any principal matches with the rule. Limited to 50 principals per Authorization Policy for regional internal Application Load Balancers, regional external Application Load Balancers, cross-region internal Application Load Balancers, and Cloud Service Mesh. This field is not supported for global external Application Load Balancers.",
-        ).optional(),
-        resources: z.unknown().describe(
-          "Optional. A list of resources to match against the resource of the source VM of a request. Limited to 10 resources per Authorization Policy.",
-        ).optional(),
-      })).describe(
-        "Optional. Describes the negated properties of request sources. Matches requests from sources that do not match the criteria specified in this field. At least one of sources or notSources must be specified.",
-      ).optional(),
-      sources: z.array(z.object({
-        ipBlocks: z.unknown().describe(
-          "Optional. A list of IP addresses or IP address ranges to match against the source IP address of the request. Limited to 10 ip_blocks per Authorization Policy",
-        ).optional(),
-        principals: z.unknown().describe(
-          "Optional. A list of identities derived from the client's certificate. This field will not match on a request unless frontend mutual TLS is enabled for the forwarding rule or Gateway and the client certificate has been successfully validated by mTLS. Each identity is a string whose value is matched against a list of URI SANs, DNS Name SANs, or the common name in the client's certificate. A match happens when any principal matches with the rule. Limited to 50 principals per Authorization Policy for regional internal Application Load Balancers, regional external Application Load Balancers, cross-region internal Application Load Balancers, and Cloud Service Mesh. This field is not supported for global external Application Load Balancers.",
-        ).optional(),
-        resources: z.unknown().describe(
-          "Optional. A list of resources to match against the resource of the source VM of a request. Limited to 10 resources per Authorization Policy.",
-        ).optional(),
-      })).describe(
-        "Optional. Describes the properties of a request's sources. At least one of sources or notSources must be specified. Limited to 1 source. A match occurs when ANY source (in sources or notSources) matches the request. Within a single source, the match follows AND semantics across fields and OR semantics within a single field, i.e. a match occurs when ANY principal matches AND ANY ipBlocks match.",
-      ).optional(),
-    }).describe("Describes properties of one or more sources of a request.")
-      .optional(),
-    to: z.object({
-      notOperations: z.array(z.object({
-        headerSet: z.unknown().describe(
-          "Describes a set of HTTP headers to match against.",
-        ).optional(),
-        hosts: z.unknown().describe(
-          "Optional. A list of HTTP Hosts to match against. The match can be one of exact, prefix, suffix, or contains (substring match). Matches are always case sensitive unless the ignoreCase is set. Limited to 10 hosts per Authorization Policy.",
-        ).optional(),
-        mcp: z.unknown().describe(
-          "Describes a set of MCP protocol attributes to match against for a given MCP request.",
-        ).optional(),
-        methods: z.unknown().describe(
-          "Optional. A list of HTTP methods to match against. Each entry must be a valid HTTP method name (GET, PUT, POST, HEAD, PATCH, DELETE, OPTIONS). It only allows exact match and is always case sensitive. Limited to 10 methods per Authorization Policy.",
-        ).optional(),
-        paths: z.unknown().describe(
-          "Optional. A list of paths to match against. The match can be one of exact, prefix, suffix, or contains (substring match). Matches are always case sensitive unless the ignoreCase is set. Limited to 10 paths per Authorization Policy. Note that this path match includes the query parameters. For gRPC services, this should be a fully-qualified name of the form /package.service/method.",
-        ).optional(),
-        snis: z.unknown().describe(
-          "Optional. A list of SNIs to match against. The match can be one of exact, prefix, suffix, or contains (substring match). If there is no SNI (i.e. plaintext HTTP traffic), the request will be denied. Matches are always case sensitive unless the ignoreCase is set. Limited to 10 SNIs per Authorization Policy.",
-        ).optional(),
-      })).describe(
-        "Optional. Describes the negated properties of the targets of a request. Matches requests for operations that do not match the criteria specified in this field. At least one of operations or notOperations must be specified.",
-      ).optional(),
-      operations: z.array(z.object({
-        headerSet: z.unknown().describe(
-          "Describes a set of HTTP headers to match against.",
-        ).optional(),
-        hosts: z.unknown().describe(
-          "Optional. A list of HTTP Hosts to match against. The match can be one of exact, prefix, suffix, or contains (substring match). Matches are always case sensitive unless the ignoreCase is set. Limited to 10 hosts per Authorization Policy.",
-        ).optional(),
-        mcp: z.unknown().describe(
-          "Describes a set of MCP protocol attributes to match against for a given MCP request.",
-        ).optional(),
-        methods: z.unknown().describe(
-          "Optional. A list of HTTP methods to match against. Each entry must be a valid HTTP method name (GET, PUT, POST, HEAD, PATCH, DELETE, OPTIONS). It only allows exact match and is always case sensitive. Limited to 10 methods per Authorization Policy.",
-        ).optional(),
-        paths: z.unknown().describe(
-          "Optional. A list of paths to match against. The match can be one of exact, prefix, suffix, or contains (substring match). Matches are always case sensitive unless the ignoreCase is set. Limited to 10 paths per Authorization Policy. Note that this path match includes the query parameters. For gRPC services, this should be a fully-qualified name of the form /package.service/method.",
-        ).optional(),
-        snis: z.unknown().describe(
-          "Optional. A list of SNIs to match against. The match can be one of exact, prefix, suffix, or contains (substring match). If there is no SNI (i.e. plaintext HTTP traffic), the request will be denied. Matches are always case sensitive unless the ignoreCase is set. Limited to 10 SNIs per Authorization Policy.",
-        ).optional(),
-      })).describe(
-        "Optional. Describes properties of one or more targets of a request. At least one of operations or notOperations must be specified. Limited to 1 operation. A match occurs when ANY operation (in operations or notOperations) matches. Within an operation, the match follows AND semantics across fields and OR semantics within a field, i.e. a match occurs when ANY path matches AND ANY header matches and ANY method matches.",
-      ).optional(),
-    }).describe("Describes properties of one or more targets of a request.")
-      .optional(),
-    when: z.string().describe(
-      "Optional. CEL expression that describes the conditions to be satisfied for the action. The result of the CEL expression is ANDed with the from and to. Refer to the CEL language reference for a list of available attributes.",
-    ).optional(),
-  })).describe(
-    "Optional. A list of authorization network rules to match against the incoming request. A policy match occurs when at least one network rule matches the request. At least one network rule is required for Allow or Deny Action if no HTTP rules are provided. Network rules are mutually exclusive with HTTP rules. Limited to 5 rules.",
-  ).optional(),
   policyProfile: z.enum([
     "POLICY_PROFILE_UNSPECIFIED",
     "REQUEST_AUTHZ",
@@ -656,10 +444,10 @@ const InputsSchema = z.object({
       "EXTERNAL_MANAGED",
       "INTERNAL_SELF_MANAGED",
     ]).describe(
-      "Optional. All gateways and forwarding rules referenced by this policy and extensions must share the same load balancing scheme. Required only when targeting forwarding rules. If targeting Secure Web Proxy, this field must be `INTERNAL_MANAGED` or not specified. Must not be specified when targeting Agent Gateway. Supported values: `INTERNAL_MANAGED` and `EXTERNAL_MANAGED`. For more information, refer to [Backend services overview](https://cloud.google.com/load-balancing/docs/backend-service).",
+      "Optional. All gateways and forwarding rules referenced by this policy and extensions must share the same load balancing scheme. Supported values: `INTERNAL_MANAGED` and `EXTERNAL_MANAGED`. For more information, refer to [Backend services overview](https://cloud.google.com/load-balancing/docs/backend-service).",
     ).optional(),
     resources: z.array(z.string()).describe(
-      "Required. A list of references to the Forwarding Rules, Secure Web Proxy Gateways, or Agent Gateways on which this policy will be applied.",
+      "Required. A list of references to the Forwarding Rules on which this policy will be applied.",
     ).optional(),
   }).describe(
     "Specifies the set of targets to which this policy should be applied to.",
@@ -678,7 +466,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Network Security AuthzPolicies. Registered at `@swamp/gcp/networksecurity/authzpolicies`. */
 export const model = {
   type: "@swamp/gcp/networksecurity/authzpolicies",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -770,6 +558,14 @@ export const model = {
       description: "Added: networkRules",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "Removed: networkRules",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { networkRules: _networkRules, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -804,9 +600,6 @@ export const model = {
         if (g["httpRules"] !== undefined) body["httpRules"] = g["httpRules"];
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["name"] !== undefined) body["name"] = g["name"];
-        if (g["networkRules"] !== undefined) {
-          body["networkRules"] = g["networkRules"];
-        }
         if (g["policyProfile"] !== undefined) {
           body["policyProfile"] = g["policyProfile"];
         }
@@ -914,9 +707,6 @@ export const model = {
         }
         if (g["httpRules"] !== undefined) body["httpRules"] = g["httpRules"];
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
-        if (g["networkRules"] !== undefined) {
-          body["networkRules"] = g["networkRules"];
-        }
         if (g["target"] !== undefined) body["target"] = g["target"];
         for (const key of Object.keys(existing)) {
           if (
@@ -1020,6 +810,60 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List authzPolicies resources",
+      arguments: z.object({
+        filter: z.string().describe("Optional. Filtering results.").optional(),
+        orderBy: z.string().describe(
+          "Optional. Hint for how to order the results.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Requested page size. The server might return fewer items than requested. If unspecified, the server picks an appropriate default.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "authzPolicies",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     get_iam_policy: {

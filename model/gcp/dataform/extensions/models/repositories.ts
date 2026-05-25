@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -144,10 +145,7 @@ const GlobalArgsSchema = z.object({
       "Optional. The name of the Secret Manager secret version to use as an authentication token for Git operations. Must be in the format `projects/*/secrets/*/versions/*`.",
     ).optional(),
     defaultBranch: z.string().describe(
-      "Optional. The Git remote's default branch name. If not set `main` will be used.",
-    ).optional(),
-    effectiveDefaultBranch: z.string().describe(
-      "Output only. The Git remote's effective default branch name. This is the default branch name of the Git remote if it is set, otherwise it is `main`.",
+      "Required. The Git remote's default branch name.",
     ).optional(),
     sshAuthenticationConfig: z.object({
       hostPublicKey: z.string().describe(
@@ -214,7 +212,6 @@ const StateSchema = z.object({
   gitRemoteSettings: z.object({
     authenticationTokenSecretVersion: z.string(),
     defaultBranch: z.string(),
-    effectiveDefaultBranch: z.string(),
     sshAuthenticationConfig: z.object({
       hostPublicKey: z.string(),
       userPrivateKeySecretVersion: z.string(),
@@ -256,10 +253,7 @@ const InputsSchema = z.object({
       "Optional. The name of the Secret Manager secret version to use as an authentication token for Git operations. Must be in the format `projects/*/secrets/*/versions/*`.",
     ).optional(),
     defaultBranch: z.string().describe(
-      "Optional. The Git remote's default branch name. If not set `main` will be used.",
-    ).optional(),
-    effectiveDefaultBranch: z.string().describe(
-      "Output only. The Git remote's effective default branch name. This is the default branch name of the Git remote if it is set, otherwise it is `main`.",
+      "Required. The Git remote's default branch name.",
     ).optional(),
     sshAuthenticationConfig: z.object({
       hostPublicKey: z.string().describe(
@@ -319,7 +313,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dataform Repositories. Registered at `@swamp/gcp/dataform/repositories`. */
 export const model = {
   type: "@swamp/gcp/dataform/repositories",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -393,6 +387,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -668,6 +667,61 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List repositories resources",
+      arguments: z.object({
+        filter: z.string().describe("Optional. Filter for the returned list.")
+          .optional(),
+        orderBy: z.string().describe(
+          "Optional. This field only supports ordering by `name`. If unspecified, the server will choose the ordering. If specified, the default order is ascending for the `name` field.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Maximum number of repositories to return. The server may return fewer items than requested. If unspecified, the server will pick an appropriate default.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "repositories",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     commit: {

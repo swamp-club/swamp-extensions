@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -225,7 +226,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Apigee Developers.Apps. Registered at `@swamp/gcp/apigee/developers-apps`. */
 export const model = {
   type: "@swamp/gcp/apigee/developers-apps",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -279,6 +280,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -528,6 +534,66 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List apps resources",
+      arguments: z.object({
+        count: z.string().describe(
+          "Number of developer apps to return in the API call. Use with the `startKey` parameter to provide more targeted filtering. The limit is 1000.",
+        ).optional(),
+        expand: z.boolean().describe(
+          "Optional. Specifies whether to expand the results. Set to `true` to expand the results. This query parameter is not valid if you use the `count` or `startKey` query parameters. **Note**: If set to `true`, the `apigee.developerapps.get` permission is required.",
+        ).optional(),
+        shallowExpand: z.boolean().describe(
+          "Optional. Specifies whether to expand the results in shallow mode. Set to `true` to expand the results in shallow mode. **Note**: If set to `true`, the `apigee.developerapps.get` permission is required.",
+        ).optional(),
+        startKey: z.string().describe(
+          "**Note**: Must be used in conjunction with the `count` parameter. Name of the developer app from which to start displaying the list of developer apps. For example, if you're returning 50 developer apps at a time (using the `count` query parameter), you can view developer apps 50-99 by entering the name of the 50th developer app. The developer app name is case sensitive.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["count"] !== undefined) {
+          params["count"] = String(args["count"]);
+        }
+        if (args["expand"] !== undefined) {
+          params["expand"] = String(args["expand"]);
+        }
+        if (args["shallowExpand"] !== undefined) {
+          params["shallowExpand"] = String(args["shallowExpand"]);
+        }
+        if (args["startKey"] !== undefined) {
+          params["startKey"] = String(args["startKey"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "app",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     attributes: {

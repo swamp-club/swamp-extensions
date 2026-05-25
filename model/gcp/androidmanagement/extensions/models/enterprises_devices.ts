@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -85,6 +86,27 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "androidmanagement.enterprises.devices.list",
+  "path": "v1/{+parent}/devices",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   apiLevel: z.number().int().describe(
     "The API level of the Android platform version running on the device.",
@@ -143,14 +165,8 @@ const GlobalArgsSchema = z.object({
       "The SHA-256 hash of the app's APK file, which can be used to verify the app hasn't been modified. Each byte of the hash value is represented as a two-digit hexadecimal number.",
     ).optional(),
     signingKeyCertFingerprints: z.array(z.string()).describe(
-      "Deprecated. Use signingKeyCerts instead. The SHA-1 hash of each android.content.pm.Signature (https://developer.android.com/reference/android/content/pm/Signature.html) associated with the app package. Each byte of each hash value is represented as a two-digit hexadecimal number.",
+      "The SHA-1 hash of each android.content.pm.Signature (https://developer.android.com/reference/android/content/pm/Signature.html) associated with the app package. Each byte of each hash value is represented as a two-digit hexadecimal number.",
     ).optional(),
-    signingKeyCerts: z.array(z.object({
-      signingKeyCertFingerprintSha256: z.string().describe(
-        "Required. The SHA-256 hash value of the signing key certificate of the app. This must be a valid SHA-256 hash value, i.e. 32 bytes.",
-      ).optional(),
-    })).describe("Output only. Signing key certificates of the app.")
-      .optional(),
     state: z.enum(["APPLICATION_STATE_UNSPECIFIED", "REMOVED", "INSTALLED"])
       .describe("Application state.").optional(),
     userFacingType: z.enum([
@@ -794,9 +810,6 @@ const StateSchema = z.object({
     packageName: z.string(),
     packageSha256Hash: z.string(),
     signingKeyCertFingerprints: z.array(z.string()),
-    signingKeyCerts: z.array(z.object({
-      signingKeyCertFingerprintSha256: z.string(),
-    })),
     state: z.string(),
     userFacingType: z.string(),
     versionCode: z.number(),
@@ -1041,14 +1054,8 @@ const InputsSchema = z.object({
       "The SHA-256 hash of the app's APK file, which can be used to verify the app hasn't been modified. Each byte of the hash value is represented as a two-digit hexadecimal number.",
     ).optional(),
     signingKeyCertFingerprints: z.array(z.string()).describe(
-      "Deprecated. Use signingKeyCerts instead. The SHA-1 hash of each android.content.pm.Signature (https://developer.android.com/reference/android/content/pm/Signature.html) associated with the app package. Each byte of each hash value is represented as a two-digit hexadecimal number.",
+      "The SHA-1 hash of each android.content.pm.Signature (https://developer.android.com/reference/android/content/pm/Signature.html) associated with the app package. Each byte of each hash value is represented as a two-digit hexadecimal number.",
     ).optional(),
-    signingKeyCerts: z.array(z.object({
-      signingKeyCertFingerprintSha256: z.string().describe(
-        "Required. The SHA-256 hash value of the signing key certificate of the app. This must be a valid SHA-256 hash value, i.e. 32 bytes.",
-      ).optional(),
-    })).describe("Output only. Signing key certificates of the app.")
-      .optional(),
     state: z.enum(["APPLICATION_STATE_UNSPECIFIED", "REMOVED", "INSTALLED"])
       .describe("Application state.").optional(),
     userFacingType: z.enum([
@@ -1674,7 +1681,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Android Management Enterprises.Devices. Registered at `@swamp/gcp/androidmanagement/enterprises-devices`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-devices",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1733,6 +1740,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2007,6 +2019,48 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List devices resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "The requested page size. If unspecified, at most 10 devices will be returned. The maximum value is 100; values above 100 will be coerced to 100. The limits can change over time.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "devices",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     issue_command: {

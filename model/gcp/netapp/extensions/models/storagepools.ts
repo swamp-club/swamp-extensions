@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -154,7 +155,7 @@ const GlobalArgsSchema = z.object({
     "Optional. Flag indicating if the pool is NFS LDAP enabled or not.",
   ).optional(),
   mode: z.enum(["MODE_UNSPECIFIED", "DEFAULT", "ONTAP"]).describe(
-    "Optional. Mode of the storage pool. This field is used to control whether the user can perform ONTAP operations on the storage pool using the GCNV ONTAP Mode APIs. If not specified during creation, it defaults to `DEFAULT`.",
+    "Optional. Mode of the storage pool. This field is used to control whether the user can perform the ONTAP operations on the storage pool using the GCNV ONTAP Mode APIs. If not specified during creation, it defaults to `DEFAULT`.",
   ).optional(),
   name: z.string().describe("Identifier. Name of the storage pool").optional(),
   network: z.string().describe(
@@ -272,7 +273,7 @@ const InputsSchema = z.object({
     "Optional. Flag indicating if the pool is NFS LDAP enabled or not.",
   ).optional(),
   mode: z.enum(["MODE_UNSPECIFIED", "DEFAULT", "ONTAP"]).describe(
-    "Optional. Mode of the storage pool. This field is used to control whether the user can perform ONTAP operations on the storage pool using the GCNV ONTAP Mode APIs. If not specified during creation, it defaults to `DEFAULT`.",
+    "Optional. Mode of the storage pool. This field is used to control whether the user can perform the ONTAP operations on the storage pool using the GCNV ONTAP Mode APIs. If not specified during creation, it defaults to `DEFAULT`.",
   ).optional(),
   name: z.string().describe("Identifier. Name of the storage pool").optional(),
   network: z.string().describe(
@@ -324,7 +325,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud NetApp StoragePools. Registered at `@swamp/gcp/netapp/storagepools`. */
 export const model = {
   type: "@swamp/gcp/netapp/storagepools",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -421,6 +422,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -751,42 +757,58 @@ export const model = {
         }
       },
     },
-    restore_volume: {
-      description: "restore volume",
+    list: {
+      description: "List storagePools resources",
       arguments: z.object({
-        backupSource: z.any().optional(),
-        ontapVolumeTarget: z.any().optional(),
+        filter: z.string().describe("Optional. List filter.").optional(),
+        orderBy: z.string().describe(
+          'Optional. Sort results. Supported values are "name", "name desc" or "" (unsorted).',
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of items to return.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["name"] !== undefined) {
-          params["name"] = buildResourceName(
-            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
-            String(g["name"]),
-          );
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
         }
-        const body: Record<string, unknown> = {};
-        if (args["backupSource"] !== undefined) {
-          body["backupSource"] = args["backupSource"];
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
         }
-        if (args["ontapVolumeTarget"] !== undefined) {
-          body["ontapVolumeTarget"] = args["ontapVolumeTarget"];
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
         }
-        const result = await createResource(
+        const { items, nextPageToken } = await listResources(
           BASE_URL,
-          {
-            "id": "netapp.projects.locations.storagePools.restoreVolume",
-            "path": "v1/{+name}:restoreVolume",
-            "httpMethod": "POST",
-            "parameterOrder": ["name"],
-            "parameters": { "name": { "location": "path", "required": true } },
-          },
+          LIST_CONFIG,
           params,
-          body,
+          "storagePools",
+          (args.maxPages as number | undefined) ?? 10,
         );
-        return { result };
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     switch: {
@@ -813,48 +835,6 @@ export const model = {
           },
           params,
           {},
-        );
-        return { result };
-      },
-    },
-    update_backup_config: {
-      description: "update backup config",
-      arguments: z.object({
-        backupConfig: z.any().optional(),
-        updateMask: z.any().optional(),
-        volumeUuid: z.any().optional(),
-      }),
-      execute: async (args: Record<string, unknown>, context: any) => {
-        const g = context.globalArgs;
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
-        if (g["name"] !== undefined) {
-          params["name"] = buildResourceName(
-            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
-            String(g["name"]),
-          );
-        }
-        const body: Record<string, unknown> = {};
-        if (args["backupConfig"] !== undefined) {
-          body["backupConfig"] = args["backupConfig"];
-        }
-        if (args["updateMask"] !== undefined) {
-          body["updateMask"] = args["updateMask"];
-        }
-        if (args["volumeUuid"] !== undefined) {
-          body["volumeUuid"] = args["volumeUuid"];
-        }
-        const result = await createResource(
-          BASE_URL,
-          {
-            "id": "netapp.projects.locations.storagePools.updateBackupConfig",
-            "path": "v1/{+name}:updateBackupConfig",
-            "httpMethod": "POST",
-            "parameterOrder": ["name"],
-            "parameters": { "name": { "location": "path", "required": true } },
-          },
-          params,
-          body,
         );
         return { result };
       },

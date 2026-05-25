@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -119,9 +120,6 @@ const GlobalArgsSchema = z.object({
   id: z.string().describe(
     "The ID of the resource, including the project number, bucket name and anywhere cache ID.",
   ).optional(),
-  ingestOnWrite: z.boolean().describe(
-    "Specifies whether objects are ingested into the cache upon write.",
-  ).optional(),
   pendingUpdate: z.boolean().describe(
     "True if the cache instance has an active Update long-running operation.",
   ).optional(),
@@ -144,7 +142,6 @@ const StateSchema = z.object({
   bucket: z.string().optional(),
   createTime: z.string().optional(),
   id: z.string().optional(),
-  ingestOnWrite: z.boolean().optional(),
   kind: z.string().optional(),
   pendingUpdate: z.boolean().optional(),
   selfLink: z.string().optional(),
@@ -172,9 +169,6 @@ const InputsSchema = z.object({
   id: z.string().describe(
     "The ID of the resource, including the project number, bucket name and anywhere cache ID.",
   ).optional(),
-  ingestOnWrite: z.boolean().describe(
-    "Specifies whether objects are ingested into the cache upon write.",
-  ).optional(),
   pendingUpdate: z.boolean().describe(
     "True if the cache instance has an active Update long-running operation.",
   ).optional(),
@@ -194,7 +188,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Storage JSON AnywhereCaches. Registered at `@swamp/gcp/storage/anywherecaches`. */
 export const model = {
   type: "@swamp/gcp/storage/anywherecaches",
-  version: "2026.05.22.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -277,6 +271,14 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "Removed: ingestOnWrite",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { ingestOnWrite: _ingestOnWrite, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -306,9 +308,6 @@ export const model = {
         }
         if (g["createTime"] !== undefined) body["createTime"] = g["createTime"];
         if (g["id"] !== undefined) body["id"] = g["id"];
-        if (g["ingestOnWrite"] !== undefined) {
-          body["ingestOnWrite"] = g["ingestOnWrite"];
-        }
         if (g["pendingUpdate"] !== undefined) {
           body["pendingUpdate"] = g["pendingUpdate"];
         }
@@ -404,9 +403,6 @@ export const model = {
         }
         if (g["createTime"] !== undefined) body["createTime"] = g["createTime"];
         if (g["id"] !== undefined) body["id"] = g["id"];
-        if (g["ingestOnWrite"] !== undefined) {
-          body["ingestOnWrite"] = g["ingestOnWrite"];
-        }
         if (g["pendingUpdate"] !== undefined) {
           body["pendingUpdate"] = g["pendingUpdate"];
         }
@@ -490,6 +486,48 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List anywhereCaches resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "Maximum number of items to return in a single page of responses. Maximum 1000.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["bucket"] !== undefined) params["bucket"] = String(g["bucket"]);
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     disable: {

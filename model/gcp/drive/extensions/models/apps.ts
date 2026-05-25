@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -34,6 +35,24 @@ const GET_CONFIG = {
     "appId": {
       "location": "path",
       "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "drive.apps.list",
+  "path": "apps",
+  "httpMethod": "GET",
+  "parameterOrder": [],
+  "parameters": {
+    "appFilterExtensions": {
+      "location": "query",
+    },
+    "appFilterMimeTypes": {
+      "location": "query",
+    },
+    "languageCode": {
+      "location": "query",
     },
   },
 } as const;
@@ -84,7 +103,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Drive Apps. Registered at `@swamp/gcp/drive/apps`. */
 export const model = {
   type: "@swamp/gcp/drive/apps",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -138,6 +157,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -230,6 +254,59 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List apps resources",
+      arguments: z.object({
+        appFilterExtensions: z.string().describe(
+          "A comma-separated list of file extensions to limit returned results. All results within the given app query scope which can open any of the given file extensions are included in the response. If `appFilterMimeTypes` are provided as well, the result is a union of the two resulting app lists.",
+        ).optional(),
+        appFilterMimeTypes: z.string().describe(
+          "A comma-separated list of file extensions to limit returned results. All results within the given app query scope which can open any of the given MIME types will be included in the response. If `appFilterExtensions` are provided as well, the result is a union of the two resulting app lists.",
+        ).optional(),
+        languageCode: z.string().describe(
+          "A language or locale code, as defined by BCP 47, with some extensions from Unicode's LDML format (http://www.unicode.org/reports/tr35/).",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["appFilterExtensions"] !== undefined) {
+          params["appFilterExtensions"] = String(args["appFilterExtensions"]);
+        }
+        if (args["appFilterMimeTypes"] !== undefined) {
+          params["appFilterMimeTypes"] = String(args["appFilterMimeTypes"]);
+        }
+        if (args["languageCode"] !== undefined) {
+          params["languageCode"] = String(args["languageCode"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -213,7 +214,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Apigee Environments.Queries. Registered at `@swamp/gcp/apigee/environments-queries`. */
 export const model = {
   type: "@swamp/gcp/apigee/environments-queries",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -267,6 +268,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -424,6 +430,76 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List queries resources",
+      arguments: z.object({
+        dataset: z.string().describe(
+          "Filter response list by dataset. Example: `api`, `mint`",
+        ).optional(),
+        from: z.string().describe(
+          "Filter response list by returning asynchronous queries that created after this date time. Time must be in ISO date-time format like '2011-12-03T10:15:30Z'.",
+        ).optional(),
+        inclQueriesWithoutReport: z.string().describe(
+          "Flag to include asynchronous queries that don't have a report denifition.",
+        ).optional(),
+        status: z.string().describe(
+          "Filter response list by asynchronous query status.",
+        ).optional(),
+        submittedBy: z.string().describe(
+          "Filter response list by user who submitted queries.",
+        ).optional(),
+        to: z.string().describe(
+          "Filter response list by returning asynchronous queries that created before this date time. Time must be in ISO date-time format like '2011-12-03T10:16:30Z'.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["dataset"] !== undefined) {
+          params["dataset"] = String(args["dataset"]);
+        }
+        if (args["from"] !== undefined) params["from"] = String(args["from"]);
+        if (args["inclQueriesWithoutReport"] !== undefined) {
+          params["inclQueriesWithoutReport"] = String(
+            args["inclQueriesWithoutReport"],
+          );
+        }
+        if (args["status"] !== undefined) {
+          params["status"] = String(args["status"]);
+        }
+        if (args["submittedBy"] !== undefined) {
+          params["submittedBy"] = String(args["submittedBy"]);
+        }
+        if (args["to"] !== undefined) params["to"] = String(args["to"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "queries",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     get_result: {

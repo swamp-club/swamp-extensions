@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -135,10 +136,7 @@ const LIST_CONFIG = {
 
 const GlobalArgsSchema = z.object({
   adminPassword: z.string().describe(
-    "Optional. Immutable. The password for the default ADMIN user. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
-  ).optional(),
-  adminPasswordSecretVersion: z.string().describe(
-    "Optional. Immutable. The resource name of a secret version in Secret Manager which contains the database admin user's password. Format: projects/{project}/secrets/{secret}/versions/{version}. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
+    "Optional. Immutable. The password for the default ADMIN user.",
   ).optional(),
   cidr: z.string().describe(
     "Optional. Immutable. The subnet CIDR range for the Autonomous Database.",
@@ -424,7 +422,6 @@ const GlobalArgsSchema = z.object({
       "LOCAL_DISASTER_RECOVERY_TYPE_UNSPECIFIED",
       "ADG",
       "BACKUP_BASED",
-      "NOT_AVAILABLE",
     ]).describe(
       "Output only. This field indicates the local disaster recovery (DR) type of an Autonomous Database.",
     ).optional(),
@@ -674,7 +671,6 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   adminPassword: z.string().optional(),
-  adminPasswordSecretVersion: z.string().optional(),
   cidr: z.string().optional(),
   createTime: z.string().optional(),
   database: z.string().optional(),
@@ -828,10 +824,7 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   adminPassword: z.string().describe(
-    "Optional. Immutable. The password for the default ADMIN user. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
-  ).optional(),
-  adminPasswordSecretVersion: z.string().describe(
-    "Optional. Immutable. The resource name of a secret version in Secret Manager which contains the database admin user's password. Format: projects/{project}/secrets/{secret}/versions/{version}. Note: Only one of `admin_password_secret_version` or `admin_password` can be populated.",
+    "Optional. Immutable. The password for the default ADMIN user.",
   ).optional(),
   cidr: z.string().describe(
     "Optional. Immutable. The subnet CIDR range for the Autonomous Database.",
@@ -1117,7 +1110,6 @@ const InputsSchema = z.object({
       "LOCAL_DISASTER_RECOVERY_TYPE_UNSPECIFIED",
       "ADG",
       "BACKUP_BASED",
-      "NOT_AVAILABLE",
     ]).describe(
       "Output only. This field indicates the local disaster recovery (DR) type of an Autonomous Database.",
     ).optional(),
@@ -1368,7 +1360,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud AutonomousDatabases. Registered at `@swamp/gcp/oracledatabase/autonomousdatabases`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/autonomousdatabases",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1462,6 +1454,17 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "Removed: adminPasswordSecretVersion",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          adminPasswordSecretVersion: _adminPasswordSecretVersion,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1488,9 +1491,6 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["adminPassword"] !== undefined) {
           body["adminPassword"] = g["adminPassword"];
-        }
-        if (g["adminPasswordSecretVersion"] !== undefined) {
-          body["adminPasswordSecretVersion"] = g["adminPasswordSecretVersion"];
         }
         if (g["cidr"] !== undefined) body["cidr"] = g["cidr"];
         if (g["database"] !== undefined) body["database"] = g["database"];
@@ -1707,6 +1707,62 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List autonomousDatabases resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Optional. An expression for filtering the results of the request.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Optional. An expression for ordering the results of the request.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of items to return. If unspecified, at most 50 Autonomous Database will be returned. The maximum value is 1000; values above 1000 will be coerced to 1000.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "autonomousDatabases",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     failover: {

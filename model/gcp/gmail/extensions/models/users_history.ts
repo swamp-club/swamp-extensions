@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -215,7 +216,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gmail Users.History. Registered at `@swamp/gcp/gmail/users-history`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-history",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -274,6 +275,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -373,6 +379,66 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List history resources",
+      arguments: z.object({
+        historyTypes: z.string().describe(
+          "History types to be returned by the function",
+        ).optional(),
+        labelId: z.string().describe(
+          "Only return messages with a label matching the ID.",
+        ).optional(),
+        maxResults: z.number().describe(
+          "Maximum number of history records to return. This field defaults to 100. The maximum allowed value for this field is 500.",
+        ).optional(),
+        startHistoryId: z.string().describe(
+          "Required. Returns history records after the specified `startHistoryId`. The supplied `startHistoryId` should be obtained from the `historyId` of a message, thread, or previous `list` response. History IDs increase chronologically but are not contiguous with random gaps in between valid IDs. Supplying an invalid or out of date `startHistoryId` typically returns an `HTTP 404` error code. A `historyId` is typically valid for at least a week, but in some rare circumstances may be valid for only a few hours. If you receive an `HTTP 404` error response, your application should perform a full sync. If you receive no `nextPageToken` in the response, there are no updates to retrieve and you can store the returned `historyId` for a future request.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["userId"] !== undefined) params["userId"] = String(g["userId"]);
+        if (args["historyTypes"] !== undefined) {
+          params["historyTypes"] = String(args["historyTypes"]);
+        }
+        if (args["labelId"] !== undefined) {
+          params["labelId"] = String(args["labelId"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["startHistoryId"] !== undefined) {
+          params["startHistoryId"] = String(args["startHistoryId"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "history",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

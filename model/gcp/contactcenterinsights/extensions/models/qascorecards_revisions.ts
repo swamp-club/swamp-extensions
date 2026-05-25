@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -209,7 +210,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Contact Center AI Insights QaScorecards.Revisions. Registered at `@swamp/gcp/contactcenterinsights/qascorecards-revisions`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/qascorecards-revisions",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -268,6 +269,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -454,6 +460,62 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List revisions resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Optional. A filter to reduce results to a specific subset. Useful for querying scorecard revisions with specific properties.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of scorecard revisions to return in the response. If the value is zero, the service will select a default size. A call might return fewer objects than requested. A non-empty `next_page_token` in the response indicates that more data is available.",
+        ).optional(),
+        qaScorecardSources: z.string().describe(
+          "Optional. The source of scorecards are based on how those Scorecards were created, e.g., a customer-defined scorecard, a predefined scorecard, etc. This field is used to retrieve Scorecards Revisions from Scorecards of one or more sources.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["qaScorecardSources"] !== undefined) {
+          params["qaScorecardSources"] = String(args["qaScorecardSources"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "qaScorecardRevisions",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     deploy: {

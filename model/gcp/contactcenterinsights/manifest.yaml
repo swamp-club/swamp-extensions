@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/contactcenterinsights"
-version: "2026.05.24.1"
+version: "2026.05.25.1"
 description: "Google Cloud contactcenterinsights infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: analysisrules, assessmentrules, authorizedviewsets, authorizedviewsets_authorizedviews, authorizedviewsets_authorizedviews_conversations, authorizedviewsets_authorizedviews_conversations_assessments, authorizedviewsets_authorizedviews_conversations_assessments_notes, authorizedviewsets_authorizedviews_conversations_feedbacklabels, autolabelingrules, conversations, conversations_analyses, conversations_assessments, conversations_assessments_notes, conversations_feedbacklabels, dashboards, dashboards_charts, datasets, datasets_conversations, datasets_conversations_feedbacklabels, diagnostics, issuemodels, issuemodels_issues, phrasematchers, qaquestiontags, qascorecards, qascorecards_revisions, qascorecards_revisions_qaquestions, views
+  - Updated: analysisrules, assessmentrules, authorizedviewsets, authorizedviewsets_authorizedviews, authorizedviewsets_authorizedviews_conversations, authorizedviewsets_authorizedviews_conversations_assessments, authorizedviewsets_authorizedviews_conversations_assessments_notes, authorizedviewsets_authorizedviews_conversations_feedbacklabels, autolabelingrules, conversations, conversations_analyses, conversations_assessments, conversations_assessments_notes, conversations_feedbacklabels, dashboards, dashboards_charts, datasets, datasets_conversations, datasets_conversations_feedbacklabels, issuemodels, issuemodels_issues, phrasematchers, qaquestiontags, qascorecards, qascorecards_revisions, qascorecards_revisions_qaquestions, views
 models:
   - analysisrules.ts
   - assessmentrules.ts
@@ -32,7 +32,6 @@ models:
   - datasets.ts
   - datasets_conversations.ts
   - datasets_conversations_feedbacklabels.ts
-  - diagnostics.ts
   - issuemodels.ts
   - issuemodels_issues.ts
   - phrasematchers.ts

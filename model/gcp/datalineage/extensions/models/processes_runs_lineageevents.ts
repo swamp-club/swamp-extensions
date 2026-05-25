@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -107,18 +108,7 @@ const GlobalArgsSchema = z.object({
     "Optional. The end of the transformation which resulted in this lineage event. For streaming scenarios, it should be the end of the period from which the lineage is being reported.",
   ).optional(),
   links: z.array(z.object({
-    dependencyInfo: z.object({
-      dependencyType: z.enum([
-        "DEPENDENCY_TYPE_UNSPECIFIED",
-        "EXACT_COPY",
-        "OTHER",
-      ]).describe("Required. Type of dependency.").optional(),
-    }).describe("Dependency info describes how one entity depends on another.")
-      .optional(),
     source: z.object({
-      field: z.array(z.string()).describe(
-        'Optional. Field path within the entity. Each nesting level should be a separate value in the repeated field. The order matters. Must be empty for asset level lineage For example to address "salary.net" subfield where "salary" is a column and "net" is a proto field two values in the `field` should be reported, the first is "salary" and the second is "net". Each field length is limited to 500 characters. Maximum supported nesting level is 20.',
-      ).optional(),
       fullyQualifiedName: z.string().describe(
         "Required. [Fully Qualified Name (FQN)](https://cloud.google.com/dataplex/docs/fully-qualified-names) of the entity.",
       ).optional(),
@@ -126,9 +116,6 @@ const GlobalArgsSchema = z.object({
       "The soft reference to everything you can attach a lineage event to.",
     ).optional(),
     target: z.object({
-      field: z.array(z.string()).describe(
-        'Optional. Field path within the entity. Each nesting level should be a separate value in the repeated field. The order matters. Must be empty for asset level lineage For example to address "salary.net" subfield where "salary" is a column and "net" is a proto field two values in the `field` should be reported, the first is "salary" and the second is "net". Each field length is limited to 500 characters. Maximum supported nesting level is 20.',
-      ).optional(),
       fullyQualifiedName: z.string().describe(
         "Required. [Fully Qualified Name (FQN)](https://cloud.google.com/dataplex/docs/fully-qualified-names) of the entity.",
       ).optional(),
@@ -155,15 +142,10 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   endTime: z.string().optional(),
   links: z.array(z.object({
-    dependencyInfo: z.object({
-      dependencyType: z.string(),
-    }),
     source: z.object({
-      field: z.array(z.string()),
       fullyQualifiedName: z.string(),
     }),
     target: z.object({
-      field: z.array(z.string()),
       fullyQualifiedName: z.string(),
     }),
   })).optional(),
@@ -178,18 +160,7 @@ const InputsSchema = z.object({
     "Optional. The end of the transformation which resulted in this lineage event. For streaming scenarios, it should be the end of the period from which the lineage is being reported.",
   ).optional(),
   links: z.array(z.object({
-    dependencyInfo: z.object({
-      dependencyType: z.enum([
-        "DEPENDENCY_TYPE_UNSPECIFIED",
-        "EXACT_COPY",
-        "OTHER",
-      ]).describe("Required. Type of dependency.").optional(),
-    }).describe("Dependency info describes how one entity depends on another.")
-      .optional(),
     source: z.object({
-      field: z.array(z.string()).describe(
-        'Optional. Field path within the entity. Each nesting level should be a separate value in the repeated field. The order matters. Must be empty for asset level lineage For example to address "salary.net" subfield where "salary" is a column and "net" is a proto field two values in the `field` should be reported, the first is "salary" and the second is "net". Each field length is limited to 500 characters. Maximum supported nesting level is 20.',
-      ).optional(),
       fullyQualifiedName: z.string().describe(
         "Required. [Fully Qualified Name (FQN)](https://cloud.google.com/dataplex/docs/fully-qualified-names) of the entity.",
       ).optional(),
@@ -197,9 +168,6 @@ const InputsSchema = z.object({
       "The soft reference to everything you can attach a lineage event to.",
     ).optional(),
     target: z.object({
-      field: z.array(z.string()).describe(
-        'Optional. Field path within the entity. Each nesting level should be a separate value in the repeated field. The order matters. Must be empty for asset level lineage For example to address "salary.net" subfield where "salary" is a column and "net" is a proto field two values in the `field` should be reported, the first is "salary" and the second is "net". Each field length is limited to 500 characters. Maximum supported nesting level is 20.',
-      ).optional(),
       fullyQualifiedName: z.string().describe(
         "Required. [Fully Qualified Name (FQN)](https://cloud.google.com/dataplex/docs/fully-qualified-names) of the entity.",
       ).optional(),
@@ -226,7 +194,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Data Lineage Processes.Runs.LineageEvents. Registered at `@swamp/gcp/datalineage/processes-runs-lineageevents`. */
 export const model = {
   type: "@swamp/gcp/datalineage/processes-runs-lineageevents",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -300,6 +268,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -476,6 +449,50 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List lineageEvents resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "The maximum number of lineage events to return. The service may return fewer events than this value. If unspecified, at most 50 events are returned. The maximum value is 100; values greater than 100 are cut to 100.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "lineageEvents",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

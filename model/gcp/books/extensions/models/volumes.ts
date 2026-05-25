@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -52,6 +53,60 @@ const GET_CONFIG = {
     "volumeId": {
       "location": "path",
       "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "books.volumes.list",
+  "path": "books/v1/volumes",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "q",
+  ],
+  "parameters": {
+    "download": {
+      "location": "query",
+    },
+    "filter": {
+      "location": "query",
+    },
+    "langRestrict": {
+      "location": "query",
+    },
+    "libraryRestrict": {
+      "location": "query",
+    },
+    "maxAllowedMaturityRating": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "partner": {
+      "location": "query",
+    },
+    "printType": {
+      "location": "query",
+    },
+    "projection": {
+      "location": "query",
+    },
+    "q": {
+      "location": "query",
+      "required": true,
+    },
+    "showPreorders": {
+      "location": "query",
+    },
+    "source": {
+      "location": "query",
+    },
+    "startIndex": {
+      "location": "query",
     },
   },
 } as const;
@@ -280,7 +335,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Books Volumes. Registered at `@swamp/gcp/books/volumes`. */
 export const model = {
   type: "@swamp/gcp/books/volumes",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -339,6 +394,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -430,6 +490,118 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List volumes resources",
+      arguments: z.object({
+        download: z.string().describe(
+          "Restrict to volumes by download availability.",
+        ).optional(),
+        filter: z.string().describe("Filter search results.").optional(),
+        langRestrict: z.string().describe(
+          "Restrict results to books with this language code.",
+        ).optional(),
+        libraryRestrict: z.string().describe(
+          "Restrict search to this user's library.",
+        ).optional(),
+        maxAllowedMaturityRating: z.string().describe(
+          "The maximum allowed maturity rating of returned recommendations. Books with a higher maturity rating are filtered out.",
+        ).optional(),
+        maxResults: z.number().describe("Maximum number of results to return.")
+          .optional(),
+        orderBy: z.string().describe("Sort search results.").optional(),
+        partner: z.string().describe(
+          "Restrict and brand results for partner ID.",
+        ).optional(),
+        printType: z.string().describe("Restrict to books or magazines.")
+          .optional(),
+        projection: z.string().describe(
+          "Restrict information returned to a set of selected fields.",
+        ).optional(),
+        q: z.string().describe("Full-text search query string.").optional(),
+        showPreorders: z.boolean().describe(
+          "Set to true to show books available for preorder. Defaults to false.",
+        ).optional(),
+        source: z.string().describe(
+          "String to identify the originator of this request.",
+        ).optional(),
+        startIndex: z.number().describe(
+          "Index of the first result to return (starts at 0)",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["q"] !== undefined) params["q"] = String(g["q"]);
+        if (args["download"] !== undefined) {
+          params["download"] = String(args["download"]);
+        }
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["langRestrict"] !== undefined) {
+          params["langRestrict"] = String(args["langRestrict"]);
+        }
+        if (args["libraryRestrict"] !== undefined) {
+          params["libraryRestrict"] = String(args["libraryRestrict"]);
+        }
+        if (args["maxAllowedMaturityRating"] !== undefined) {
+          params["maxAllowedMaturityRating"] = String(
+            args["maxAllowedMaturityRating"],
+          );
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["partner"] !== undefined) {
+          params["partner"] = String(args["partner"]);
+        }
+        if (args["printType"] !== undefined) {
+          params["printType"] = String(args["printType"]);
+        }
+        if (args["projection"] !== undefined) {
+          params["projection"] = String(args["projection"]);
+        }
+        if (args["q"] !== undefined) params["q"] = String(args["q"]);
+        if (args["showPreorders"] !== undefined) {
+          params["showPreorders"] = String(args["showPreorders"]);
+        }
+        if (args["source"] !== undefined) {
+          params["source"] = String(args["source"]);
+        }
+        if (args["startIndex"] !== undefined) {
+          params["startIndex"] = String(args["startIndex"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -310,7 +311,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Calendar CalendarList. Registered at `@swamp/gcp/calendar/calendarlist`. */
 export const model = {
   type: "@swamp/gcp/calendar/calendarlist",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -364,6 +365,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -636,6 +642,71 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List calendarList resources",
+      arguments: z.object({
+        maxResults: z.number().describe(
+          "Maximum number of entries returned on one result page. By default the value is 100 entries. The page size can never be larger than 250 entries. Optional.",
+        ).optional(),
+        minAccessRole: z.string().describe(
+          "The minimum access role for the user in the returned entries. Optional. The default is no restriction.",
+        ).optional(),
+        showDeleted: z.boolean().describe(
+          "Whether to include deleted calendar list entries in the result. Optional. The default is False.",
+        ).optional(),
+        showHidden: z.boolean().describe(
+          "Whether to show hidden entries. Optional. The default is False.",
+        ).optional(),
+        syncToken: z.string().describe(
+          "Token obtained from the nextSyncToken field returned on the last page of results from the previous list request. It makes the result of this list request contain only entries that have changed since then. If only read-only fields such as calendar properties or ACLs have changed, the entry won't be returned. All entries deleted and hidden since the previous list request will always be in the result set and it is not allowed to set showDeleted neither showHidden to False.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["minAccessRole"] !== undefined) {
+          params["minAccessRole"] = String(args["minAccessRole"]);
+        }
+        if (args["showDeleted"] !== undefined) {
+          params["showDeleted"] = String(args["showDeleted"]);
+        }
+        if (args["showHidden"] !== undefined) {
+          params["showHidden"] = String(args["showHidden"]);
+        }
+        if (args["syncToken"] !== undefined) {
+          params["syncToken"] = String(args["syncToken"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     watch: {

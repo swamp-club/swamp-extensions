@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -69,7 +70,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Vertex AI Search for commerce Catalogs.GenerativeQuestions. Registered at `@swamp/gcp/retail/catalogs-generativequestions`. */
 export const model = {
   type: "@swamp/gcp/retail/catalogs-generativequestions",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -123,6 +124,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

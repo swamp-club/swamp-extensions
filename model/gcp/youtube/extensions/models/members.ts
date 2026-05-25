@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -96,7 +97,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud YouTube Data Members. Registered at `@swamp/gcp/youtube/members`. */
 export const model = {
   type: "@swamp/gcp/youtube/members",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -150,6 +151,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -247,6 +253,70 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List members resources",
+      arguments: z.object({
+        filterByMemberChannelId: z.string().describe(
+          "Comma separated list of channel IDs. Only data about members that are part of this list will be included in the response.",
+        ).optional(),
+        hasAccessToLevel: z.string().describe(
+          "Filter members in the results set to the ones that have access to a level.",
+        ).optional(),
+        maxResults: z.number().describe(
+          "The *maxResults* parameter specifies the maximum number of items that should be returned in the result set.",
+        ).optional(),
+        mode: z.string().describe(
+          "Parameter that specifies which channel members to return.",
+        ).optional(),
+        part: z.string().describe(
+          "The *part* parameter specifies the member resource parts that the API response will include. Set the parameter value to snippet.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["part"] !== undefined) params["part"] = String(g["part"]);
+        if (args["filterByMemberChannelId"] !== undefined) {
+          params["filterByMemberChannelId"] = String(
+            args["filterByMemberChannelId"],
+          );
+        }
+        if (args["hasAccessToLevel"] !== undefined) {
+          params["hasAccessToLevel"] = String(args["hasAccessToLevel"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["mode"] !== undefined) params["mode"] = String(args["mode"]);
+        if (args["part"] !== undefined) params["part"] = String(args["part"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

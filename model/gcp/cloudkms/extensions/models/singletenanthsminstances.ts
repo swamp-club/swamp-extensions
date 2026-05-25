@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -93,9 +94,6 @@ const LIST_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
-  keyPortabilityEnabled: z.boolean().describe(
-    "Optional. Immutable. Indicates whether key portability is enabled for the SingleTenantHsmInstance. This can only be set at creation time. Key portability features are disabled by default and not yet available in GA.",
-  ).optional(),
   name: z.string().describe(
     "Identifier. The resource name for this SingleTenantHsmInstance in the format `projects/*/locations/*/singleTenantHsmInstances/*`.",
   ).optional(),
@@ -122,7 +120,6 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   deleteTime: z.string().optional(),
   disableTime: z.string().optional(),
-  keyPortabilityEnabled: z.boolean().optional(),
   name: z.string(),
   quorumAuth: z.object({
     requiredApproverCount: z.number(),
@@ -136,9 +133,6 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  keyPortabilityEnabled: z.boolean().describe(
-    "Optional. Immutable. Indicates whether key portability is enabled for the SingleTenantHsmInstance. This can only be set at creation time. Key portability features are disabled by default and not yet available in GA.",
-  ).optional(),
   name: z.string().describe(
     "Identifier. The resource name for this SingleTenantHsmInstance in the format `projects/*/locations/*/singleTenantHsmInstances/*`.",
   ).optional(),
@@ -164,7 +158,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Key Management Service (KMS) SingleTenantHsmInstances. Registered at `@swamp/gcp/cloudkms/singletenanthsminstances`. */
 export const model = {
   type: "@swamp/gcp/cloudkms/singletenanthsminstances",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -247,6 +241,14 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "Removed: keyPortabilityEnabled",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { keyPortabilityEnabled: _keyPortabilityEnabled, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -275,9 +277,6 @@ export const model = {
           String(g["location"] ?? "")
         }`;
         const body: Record<string, unknown> = {};
-        if (g["keyPortabilityEnabled"] !== undefined) {
-          body["keyPortabilityEnabled"] = g["keyPortabilityEnabled"];
-        }
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["quorumAuth"] !== undefined) body["quorumAuth"] = g["quorumAuth"];
         if (g["singleTenantHsmInstanceId"] !== undefined) {
@@ -404,6 +403,68 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List singleTenantHsmInstances resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Optional. Only include resources that match the filter in the response. For more information, see [Sorting and filtering list results](https://cloud.google.com/kms/docs/sorting-and-filtering).",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Optional. Specify how the results should be sorted. If not specified, the results will be sorted in the default order. For more information, see [Sorting and filtering list results](https://cloud.google.com/kms/docs/sorting-and-filtering).",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Optional limit on the number of SingleTenantHsmInstances to include in the response. Further SingleTenantHsmInstances can subsequently be obtained by including the ListSingleTenantHsmInstancesResponse.next_page_token in a subsequent request. If unspecified, the server will pick an appropriate default.",
+        ).optional(),
+        showDeleted: z.boolean().describe(
+          "Optional. If set to true, HsmManagement.ListSingleTenantHsmInstances will also return SingleTenantHsmInstances in DELETED state.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["showDeleted"] !== undefined) {
+          params["showDeleted"] = String(args["showDeleted"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "singleTenantHsmInstances",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

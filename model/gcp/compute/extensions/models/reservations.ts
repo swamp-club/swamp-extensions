@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -225,10 +226,6 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "This reservation type is specified by total resource amounts (e.g. total count of CPUs) and can account for multiple instance SKUs. In other words, one can create instances of varying shapes against this reservation.",
   ).optional(),
-  confidentialComputeType: z.enum([
-    "CONFIDENTIAL_COMPUTE_TYPE_TDX",
-    "CONFIDENTIAL_COMPUTE_TYPE_UNSPECIFIED",
-  ]).optional(),
   deleteAfterDuration: z.object({
     nanos: z.number().int().describe(
       "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
@@ -384,7 +381,6 @@ const StateSchema = z.object({
     workloadType: z.string(),
   }).optional(),
   commitment: z.string().optional(),
-  confidentialComputeType: z.string().optional(),
   creationTimestamp: z.string().optional(),
   deleteAfterDuration: z.object({
     nanos: z.number(),
@@ -525,10 +521,6 @@ const InputsSchema = z.object({
   }).describe(
     "This reservation type is specified by total resource amounts (e.g. total count of CPUs) and can account for multiple instance SKUs. In other words, one can create instances of varying shapes against this reservation.",
   ).optional(),
-  confidentialComputeType: z.enum([
-    "CONFIDENTIAL_COMPUTE_TYPE_TDX",
-    "CONFIDENTIAL_COMPUTE_TYPE_UNSPECIFIED",
-  ]).optional(),
   deleteAfterDuration: z.object({
     nanos: z.number().int().describe(
       "Span of time that's a fraction of a second at nanosecond resolution. Durations less than one second are represented with a 0 `seconds` field and a positive `nanos` field. Must be from 0 to 999,999,999 inclusive.",
@@ -666,7 +658,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine Reservations. Registered at `@swamp/gcp/compute/reservations`. */
 export const model = {
   type: "@swamp/gcp/compute/reservations",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -779,6 +771,15 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "Removed: confidentialComputeType",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { confidentialComputeType: _confidentialComputeType, ...rest } =
+          old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -810,9 +811,6 @@ export const model = {
         }
         if (g["aggregateReservation"] !== undefined) {
           body["aggregateReservation"] = g["aggregateReservation"];
-        }
-        if (g["confidentialComputeType"] !== undefined) {
-          body["confidentialComputeType"] = g["confidentialComputeType"];
         }
         if (g["deleteAfterDuration"] !== undefined) {
           body["deleteAfterDuration"] = g["deleteAfterDuration"];
@@ -953,9 +951,6 @@ export const model = {
         }
         if (g["aggregateReservation"] !== undefined) {
           body["aggregateReservation"] = g["aggregateReservation"];
-        }
-        if (g["confidentialComputeType"] !== undefined) {
-          body["confidentialComputeType"] = g["confidentialComputeType"];
         }
         if (g["deleteAfterDuration"] !== undefined) {
           body["deleteAfterDuration"] = g["deleteAfterDuration"];
@@ -1109,6 +1104,66 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List reservations resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "A filter expression that filters resources listed in the response. Most",
+        ).optional(),
+        maxResults: z.number().describe(
+          "The maximum number of results per page that should be returned.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Sorts list results by a certain order. By default, results",
+        ).optional(),
+        returnPartialSuccess: z.boolean().describe(
+          "Opt-in for partial success behavior which provides partial results in case",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["zone"] !== undefined) params["zone"] = String(g["zone"]);
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["returnPartialSuccess"] !== undefined) {
+          params["returnPartialSuccess"] = String(args["returnPartialSuccess"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     get_iam_policy: {

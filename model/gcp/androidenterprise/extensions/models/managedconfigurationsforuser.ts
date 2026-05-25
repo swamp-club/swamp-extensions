@@ -19,6 +19,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -93,6 +94,27 @@ const DELETE_CONFIG = {
       "required": true,
     },
     "managedConfigurationForUserId": {
+      "location": "path",
+      "required": true,
+    },
+    "userId": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "androidenterprise.managedconfigurationsforuser.list",
+  "path":
+    "androidenterprise/v1/enterprises/{enterpriseId}/users/{userId}/managedConfigurationsForUser",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "enterpriseId",
+    "userId",
+  ],
+  "parameters": {
+    "enterpriseId": {
       "location": "path",
       "required": true,
     },
@@ -237,7 +259,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Play EMM Managedconfigurationsforuser. Registered at `@swamp/gcp/androidenterprise/managedconfigurationsforuser`. */
 export const model = {
   type: "@swamp/gcp/androidenterprise/managedconfigurationsforuser",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -296,6 +318,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

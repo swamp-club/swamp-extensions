@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -193,7 +194,6 @@ const GlobalArgsSchema = z.object({
     "POSTGRES_16",
     "POSTGRES_17",
     "POSTGRES_18",
-    "POSTGRES_19",
     "SQLSERVER_2019_STANDARD",
     "SQLSERVER_2019_ENTERPRISE",
     "SQLSERVER_2019_EXPRESS",
@@ -655,13 +655,8 @@ const GlobalArgsSchema = z.object({
         'Time in UTC when the "deny maintenance period" starts on start_date and ends on end_date. The time is in format: HH:mm:SS, i.e., 00:00:00',
       ).optional(),
     })).describe("Deny maintenance periods").optional(),
-    edition: z.enum([
-      "EDITION_UNSPECIFIED",
-      "ENTERPRISE",
-      "ENTERPRISE_PLUS",
-      "DEVELOPER",
-    ]).describe("Optional. The edition type of the Cloud SQL instance.")
-      .optional(),
+    edition: z.enum(["EDITION_UNSPECIFIED", "ENTERPRISE", "ENTERPRISE_PLUS"])
+      .describe("Optional. The edition of the instance.").optional(),
     enableDataplexIntegration: z.boolean().describe(
       "Optional. By default, Cloud SQL instances have schema extraction disabled for Dataplex. When this parameter is set to true, schema extraction for Dataplex on Cloud SQL instances is activated.",
     ).optional(),
@@ -867,24 +862,24 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     performanceCaptureConfig: z.object({
       enabled: z.boolean().describe(
-        "Optional. Enables or disables the performance capture feature.",
+        "Optional. Enable or disable the Performance Capture feature.",
       ).optional(),
       probeThreshold: z.number().int().describe(
-        "Optional. Specifies the minimum number of consecutive probe threshold that triggers performance capture.",
+        "Optional. The minimum number of consecutive readings above threshold that triggers instance state capture.",
       ).optional(),
       probingIntervalSeconds: z.number().int().describe(
-        "Optional. Specifies the interval in seconds between consecutive probes that check if any trigger condition thresholds have been reached.",
+        "Optional. The time interval in seconds between any two probes.",
       ).optional(),
       runningThreadsThreshold: z.number().int().describe(
-        "Optional. Specifies the minimum number of MySQL `Threads_running` to trigger the performance capture on the primary instance.",
+        "Optional. The minimum number of server threads running to trigger the capture on primary.",
       ).optional(),
       secondsBehindSourceThreshold: z.number().int().describe(
-        "Optional. Specifies the minimum number of seconds replica must be lagging behind primary instance to trigger the performance capture on replica.",
+        "Optional. The minimum number of seconds replica must be lagging behind primary to trigger capture on replica.",
       ).optional(),
       transactionDurationThreshold: z.number().int().describe(
-        "Optional. Specifies the amount of time in seconds that a transaction needs to have been open before the watcher starts recording it.",
+        "Optional. The amount of time in seconds that a transaction needs to have been open before the watcher starts recording it.",
       ).optional(),
-    }).describe("Performance capture configuration.").optional(),
+    }).describe("Performance Capture configuration.").optional(),
     pricingPlan: z.enum(["SQL_PRICING_PLAN_UNSPECIFIED", "PACKAGE", "PER_USE"])
       .describe(
         "The pricing plan for this instance. This can be either `PER_USE` or `PACKAGE`. Only `PER_USE` is supported for Second Generation instances.",
@@ -986,7 +981,6 @@ const GlobalArgsSchema = z.object({
       "LEGAL_ISSUE",
       "OPERATIONAL_ISSUE",
       "KMS_KEY_ISSUE",
-      "PROJECT_ABUSE",
     ]),
   ).describe(
     "If the instance state is SUSPENDED, the reason for the suspension.",
@@ -1394,7 +1388,6 @@ const InputsSchema = z.object({
     "POSTGRES_16",
     "POSTGRES_17",
     "POSTGRES_18",
-    "POSTGRES_19",
     "SQLSERVER_2019_STANDARD",
     "SQLSERVER_2019_ENTERPRISE",
     "SQLSERVER_2019_EXPRESS",
@@ -1856,13 +1849,8 @@ const InputsSchema = z.object({
         'Time in UTC when the "deny maintenance period" starts on start_date and ends on end_date. The time is in format: HH:mm:SS, i.e., 00:00:00',
       ).optional(),
     })).describe("Deny maintenance periods").optional(),
-    edition: z.enum([
-      "EDITION_UNSPECIFIED",
-      "ENTERPRISE",
-      "ENTERPRISE_PLUS",
-      "DEVELOPER",
-    ]).describe("Optional. The edition type of the Cloud SQL instance.")
-      .optional(),
+    edition: z.enum(["EDITION_UNSPECIFIED", "ENTERPRISE", "ENTERPRISE_PLUS"])
+      .describe("Optional. The edition of the instance.").optional(),
     enableDataplexIntegration: z.boolean().describe(
       "Optional. By default, Cloud SQL instances have schema extraction disabled for Dataplex. When this parameter is set to true, schema extraction for Dataplex on Cloud SQL instances is activated.",
     ).optional(),
@@ -2068,24 +2056,24 @@ const InputsSchema = z.object({
     ).optional(),
     performanceCaptureConfig: z.object({
       enabled: z.boolean().describe(
-        "Optional. Enables or disables the performance capture feature.",
+        "Optional. Enable or disable the Performance Capture feature.",
       ).optional(),
       probeThreshold: z.number().int().describe(
-        "Optional. Specifies the minimum number of consecutive probe threshold that triggers performance capture.",
+        "Optional. The minimum number of consecutive readings above threshold that triggers instance state capture.",
       ).optional(),
       probingIntervalSeconds: z.number().int().describe(
-        "Optional. Specifies the interval in seconds between consecutive probes that check if any trigger condition thresholds have been reached.",
+        "Optional. The time interval in seconds between any two probes.",
       ).optional(),
       runningThreadsThreshold: z.number().int().describe(
-        "Optional. Specifies the minimum number of MySQL `Threads_running` to trigger the performance capture on the primary instance.",
+        "Optional. The minimum number of server threads running to trigger the capture on primary.",
       ).optional(),
       secondsBehindSourceThreshold: z.number().int().describe(
-        "Optional. Specifies the minimum number of seconds replica must be lagging behind primary instance to trigger the performance capture on replica.",
+        "Optional. The minimum number of seconds replica must be lagging behind primary to trigger capture on replica.",
       ).optional(),
       transactionDurationThreshold: z.number().int().describe(
-        "Optional. Specifies the amount of time in seconds that a transaction needs to have been open before the watcher starts recording it.",
+        "Optional. The amount of time in seconds that a transaction needs to have been open before the watcher starts recording it.",
       ).optional(),
-    }).describe("Performance capture configuration.").optional(),
+    }).describe("Performance Capture configuration.").optional(),
     pricingPlan: z.enum(["SQL_PRICING_PLAN_UNSPECIFIED", "PACKAGE", "PER_USE"])
       .describe(
         "The pricing plan for this instance. This can be either `PER_USE` or `PACKAGE`. Only `PER_USE` is supported for Second Generation instances.",
@@ -2187,7 +2175,6 @@ const InputsSchema = z.object({
       "LEGAL_ISSUE",
       "OPERATIONAL_ISSUE",
       "KMS_KEY_ISSUE",
-      "PROJECT_ABUSE",
     ]),
   ).describe(
     "If the instance state is SUSPENDED, the reason for the suspension.",
@@ -2203,7 +2190,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud SQL Admin Instances. Registered at `@swamp/gcp/sqladmin/instances`. */
 export const model = {
   type: "@swamp/gcp/sqladmin/instances",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2312,6 +2299,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2703,6 +2695,53 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List instances resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "A filter expression that filters resources listed in the response. The expression is in the form of field:value. For example, 'instanceType:CLOUD_SQL_INSTANCE'. Fields can be nested as needed as per their JSON representation, such as 'settings.userLabels.auto_start:true'. Multiple filter queries are space-separated. For example. 'state:RUNNABLE instanceType:CLOUD_SQL_INSTANCE'. By default, each expression is an AND expression. However, you can include AND and OR expressions explicitly.",
+        ).optional(),
+        maxResults: z.number().describe(
+          "The maximum number of instances to return. The service may return fewer than this value. If unspecified, at most 500 instances are returned. The maximum value is 1000; values above 1000 are coerced to 1000.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     acquire_ssrs_lease: {

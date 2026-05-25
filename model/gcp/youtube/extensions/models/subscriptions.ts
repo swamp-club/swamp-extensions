@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -526,7 +527,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud YouTube Data Subscriptions. Registered at `@swamp/gcp/youtube/subscriptions`. */
 export const model = {
   type: "@swamp/gcp/youtube/subscriptions",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -580,6 +581,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -748,6 +754,103 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List subscriptions resources",
+      arguments: z.object({
+        channelId: z.string().describe(
+          "Return the subscriptions of the given channel owner.",
+        ).optional(),
+        forChannelId: z.string().describe(
+          "Return the subscriptions to the subset of these channels that the authenticated user is subscribed to.",
+        ).optional(),
+        id: z.string().describe(
+          "Return the subscriptions with the given IDs for Stubby or Apiary.",
+        ).optional(),
+        maxResults: z.number().describe(
+          "The *maxResults* parameter specifies the maximum number of items that should be returned in the result set.",
+        ).optional(),
+        mine: z.boolean().describe(
+          "Flag for returning the subscriptions of the authenticated user.",
+        ).optional(),
+        myRecentSubscribers: z.boolean().optional(),
+        mySubscribers: z.boolean().describe(
+          "Return the subscribers of the given channel owner.",
+        ).optional(),
+        onBehalfOfContentOwner: z.string().describe(
+          "*Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwner* parameter indicates that the request's authorization credentials identify a YouTube CMS user who is acting on behalf of the content owner specified in the parameter value. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and get access to all their video and channel data, without having to provide authentication credentials for each individual channel. The CMS account that the user authenticates with must be linked to the specified YouTube content owner.",
+        ).optional(),
+        onBehalfOfContentOwnerChannel: z.string().describe(
+          "This parameter can only be used in a properly authorized request. *Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwnerChannel* parameter specifies the YouTube channel ID of the channel to which a video is being added. This parameter is required when a request specifies a value for the onBehalfOfContentOwner parameter, and it can only be used in conjunction with that parameter. In addition, the request must be authorized using a CMS account that is linked to the content owner that the onBehalfOfContentOwner parameter specifies. Finally, the channel that the onBehalfOfContentOwnerChannel parameter value specifies must be linked to the content owner that the onBehalfOfContentOwner parameter specifies. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and perform actions on behalf of the channel specified in the parameter value, without having to provide authentication credentials for each separate channel.",
+        ).optional(),
+        order: z.string().describe("The order of the returned subscriptions")
+          .optional(),
+        part: z.string().describe(
+          "The *part* parameter specifies a comma-separated list of one or more subscription resource properties that the API response will include. If the parameter identifies a property that contains child properties, the child properties will be included in the response. For example, in a subscription resource, the snippet property contains other properties, such as a display title for the subscription. If you set *part=snippet*, the API response will also contain all of those nested properties.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["part"] !== undefined) params["part"] = String(g["part"]);
+        if (args["channelId"] !== undefined) {
+          params["channelId"] = String(args["channelId"]);
+        }
+        if (args["forChannelId"] !== undefined) {
+          params["forChannelId"] = String(args["forChannelId"]);
+        }
+        if (args["id"] !== undefined) params["id"] = String(args["id"]);
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["mine"] !== undefined) params["mine"] = String(args["mine"]);
+        if (args["myRecentSubscribers"] !== undefined) {
+          params["myRecentSubscribers"] = String(args["myRecentSubscribers"]);
+        }
+        if (args["mySubscribers"] !== undefined) {
+          params["mySubscribers"] = String(args["mySubscribers"]);
+        }
+        if (args["onBehalfOfContentOwner"] !== undefined) {
+          params["onBehalfOfContentOwner"] = String(
+            args["onBehalfOfContentOwner"],
+          );
+        }
+        if (args["onBehalfOfContentOwnerChannel"] !== undefined) {
+          params["onBehalfOfContentOwnerChannel"] = String(
+            args["onBehalfOfContentOwnerChannel"],
+          );
+        }
+        if (args["order"] !== undefined) {
+          params["order"] = String(args["order"]);
+        }
+        if (args["part"] !== undefined) params["part"] = String(args["part"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

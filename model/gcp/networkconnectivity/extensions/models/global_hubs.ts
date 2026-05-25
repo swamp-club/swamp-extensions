@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -149,14 +150,10 @@ const GlobalArgsSchema = z.object({
   policyMode: z.enum(["POLICY_MODE_UNSPECIFIED", "PRESET"]).describe(
     "Optional. The policy mode of this hub. This field can be either PRESET or CUSTOM. If unspecified, the policy_mode defaults to PRESET.",
   ).optional(),
-  presetTopology: z.enum([
-    "PRESET_TOPOLOGY_UNSPECIFIED",
-    "MESH",
-    "STAR",
-    "HYBRID_INSPECTION",
-  ]).describe(
-    "Optional. The topology implemented in this hub. Currently, this field is only used when policy_mode = PRESET. The available preset topologies are MESH and STAR. If preset_topology is unspecified and policy_mode = PRESET, the preset_topology defaults to MESH. When policy_mode = CUSTOM, the preset_topology is set to PRESET_TOPOLOGY_UNSPECIFIED.",
-  ).optional(),
+  presetTopology: z.enum(["PRESET_TOPOLOGY_UNSPECIFIED", "MESH", "STAR"])
+    .describe(
+      "Optional. The topology implemented in this hub. Currently, this field is only used when policy_mode = PRESET. The available preset topologies are MESH and STAR. If preset_topology is unspecified and policy_mode = PRESET, the preset_topology defaults to MESH. When policy_mode = CUSTOM, the preset_topology is set to PRESET_TOPOLOGY_UNSPECIFIED.",
+    ).optional(),
   spokeSummary: z.object({
     spokeStateCounts: z.array(z.object({
       count: z.string().describe(
@@ -205,7 +202,6 @@ const GlobalArgsSchema = z.object({
         "INTERCONNECT_ATTACHMENT",
         "ROUTER_APPLIANCE",
         "VPC_NETWORK",
-        "GATEWAY",
         "PRODUCER_VPC_NETWORK",
       ]).describe("Output only. The type of the spokes.").optional(),
     })).describe(
@@ -274,14 +270,10 @@ const InputsSchema = z.object({
   policyMode: z.enum(["POLICY_MODE_UNSPECIFIED", "PRESET"]).describe(
     "Optional. The policy mode of this hub. This field can be either PRESET or CUSTOM. If unspecified, the policy_mode defaults to PRESET.",
   ).optional(),
-  presetTopology: z.enum([
-    "PRESET_TOPOLOGY_UNSPECIFIED",
-    "MESH",
-    "STAR",
-    "HYBRID_INSPECTION",
-  ]).describe(
-    "Optional. The topology implemented in this hub. Currently, this field is only used when policy_mode = PRESET. The available preset topologies are MESH and STAR. If preset_topology is unspecified and policy_mode = PRESET, the preset_topology defaults to MESH. When policy_mode = CUSTOM, the preset_topology is set to PRESET_TOPOLOGY_UNSPECIFIED.",
-  ).optional(),
+  presetTopology: z.enum(["PRESET_TOPOLOGY_UNSPECIFIED", "MESH", "STAR"])
+    .describe(
+      "Optional. The topology implemented in this hub. Currently, this field is only used when policy_mode = PRESET. The available preset topologies are MESH and STAR. If preset_topology is unspecified and policy_mode = PRESET, the preset_topology defaults to MESH. When policy_mode = CUSTOM, the preset_topology is set to PRESET_TOPOLOGY_UNSPECIFIED.",
+    ).optional(),
   spokeSummary: z.object({
     spokeStateCounts: z.array(z.object({
       count: z.string().describe(
@@ -330,7 +322,6 @@ const InputsSchema = z.object({
         "INTERCONNECT_ATTACHMENT",
         "ROUTER_APPLIANCE",
         "VPC_NETWORK",
-        "GATEWAY",
         "PRODUCER_VPC_NETWORK",
       ]).describe("Output only. The type of the spokes.").optional(),
     })).describe(
@@ -352,7 +343,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Network Connectivity Global.Hubs. Registered at `@swamp/gcp/networkconnectivity/global-hubs`. */
 export const model = {
   type: "@swamp/gcp/networkconnectivity/global-hubs",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -421,6 +412,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -688,6 +684,61 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List hubs resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "An expression that filters the list of results.",
+        ).optional(),
+        orderBy: z.string().describe("Sort the results by a certain order.")
+          .optional(),
+        pageSize: z.number().describe(
+          "The maximum number of results per page to return.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "hubs",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     accept_spoke: {

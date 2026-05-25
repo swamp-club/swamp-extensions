@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -190,9 +191,6 @@ const GlobalArgsSchema = z.object({
     }).describe("SSL configuration.").optional(),
   }).describe("Client connection configuration").optional(),
   connectionPoolConfig: z.object({
-    authproxyPoolerCount: z.number().int().describe(
-      "Output only. The number of running AuthProxy poolers per instance.",
-    ).optional(),
     enabled: z.boolean().describe(
       "Optional. Whether to enable Managed Connection Pool (MCP).",
     ).optional(),
@@ -350,9 +348,6 @@ const GlobalArgsSchema = z.object({
     ip: z.string().describe(
       'Output only. The private IP address of the VM e.g. "10.57.0.34".',
     ).optional(),
-    isHotStandby: z.boolean().describe(
-      "Output only. Indicates whether the node set up to be configured as a hot standby.",
-    ).optional(),
     state: z.string().describe(
       "Output only. Determined by state of the compute VM and postgres-service health. Compute VM state can have values listed in https://cloud.google.com/compute/docs/instances/instance-life-cycle and postgres-service health can have values: HEALTHY and UNHEALTHY.",
     ).optional(),
@@ -384,7 +379,6 @@ const StateSchema = z.object({
     }),
   }).optional(),
   connectionPoolConfig: z.object({
-    authproxyPoolerCount: z.number(),
     enabled: z.boolean(),
     flags: z.record(z.string(), z.unknown()),
     poolerCount: z.number(),
@@ -417,7 +411,6 @@ const StateSchema = z.object({
   nodes: z.array(z.object({
     id: z.string(),
     ip: z.string(),
-    isHotStandby: z.boolean(),
     state: z.string(),
     zoneId: z.string(),
   })).optional(),
@@ -465,7 +458,6 @@ const StateSchema = z.object({
   writableNode: z.object({
     id: z.string(),
     ip: z.string(),
-    isHotStandby: z.boolean(),
     state: z.string(),
     zoneId: z.string(),
   }).optional(),
@@ -510,9 +502,6 @@ const InputsSchema = z.object({
     }).describe("SSL configuration.").optional(),
   }).describe("Client connection configuration").optional(),
   connectionPoolConfig: z.object({
-    authproxyPoolerCount: z.number().int().describe(
-      "Output only. The number of running AuthProxy poolers per instance.",
-    ).optional(),
     enabled: z.boolean().describe(
       "Optional. Whether to enable Managed Connection Pool (MCP).",
     ).optional(),
@@ -670,9 +659,6 @@ const InputsSchema = z.object({
     ip: z.string().describe(
       'Output only. The private IP address of the VM e.g. "10.57.0.34".',
     ).optional(),
-    isHotStandby: z.boolean().describe(
-      "Output only. Indicates whether the node set up to be configured as a hot standby.",
-    ).optional(),
     state: z.string().describe(
       "Output only. Determined by state of the compute VM and postgres-service health. Compute VM state can have values listed in https://cloud.google.com/compute/docs/instances/instance-life-cycle and postgres-service health can have values: HEALTHY and UNHEALTHY.",
     ).optional(),
@@ -695,7 +681,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud AlloyDB Clusters.Instances. Registered at `@swamp/gcp/alloydb/clusters-instances`. */
 export const model = {
   type: "@swamp/gcp/alloydb/clusters-instances",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -774,6 +760,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1111,6 +1102,60 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List instances resources",
+      arguments: z.object({
+        filter: z.string().describe("Optional. Filtering results").optional(),
+        orderBy: z.string().describe(
+          "Optional. Hint for how to order the results",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Requested page size. Server may return fewer items than requested. If unspecified, server will pick an appropriate default.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "instances",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     createsecondary: {

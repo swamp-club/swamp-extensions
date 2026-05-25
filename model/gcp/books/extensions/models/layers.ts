@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -41,6 +42,33 @@ const GET_CONFIG = {
     "summaryId": {
       "location": "path",
       "required": true,
+    },
+    "volumeId": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "books.layers.list",
+  "path": "books/v1/volumes/{volumeId}/layersummary",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "volumeId",
+  ],
+  "parameters": {
+    "contentVersion": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "source": {
+      "location": "query",
     },
     "volumeId": {
       "location": "path",
@@ -80,7 +108,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Books Layers. Registered at `@swamp/gcp/books/layers`. */
 export const model = {
   type: "@swamp/gcp/books/layers",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -134,6 +162,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -233,6 +266,61 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List layers resources",
+      arguments: z.object({
+        contentVersion: z.string().describe(
+          "The content version for the requested volume.",
+        ).optional(),
+        maxResults: z.number().describe("Maximum number of results to return")
+          .optional(),
+        source: z.string().describe(
+          "String to identify the originator of this request.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["volumeId"] !== undefined) {
+          params["volumeId"] = String(g["volumeId"]);
+        }
+        if (args["contentVersion"] !== undefined) {
+          params["contentVersion"] = String(args["contentVersion"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["source"] !== undefined) {
+          params["source"] = String(args["source"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

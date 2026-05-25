@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -108,7 +109,7 @@ const GlobalArgsSchema = z.object({
           "All the operations being applied for this constraint.",
         ).optional(),
         name: z.string().describe(
-          "Immutable. Name of the constraint. This is unique within the organization. The name must be of the form: * `organizations/{organization_id}/customConstraints/{custom_constraint_id}` Example: `organizations/123/customConstraints/custom.createOnlyE2TypeVms` The max length is 71 characters and the minimum length is 1. Note that the prefix `organizations/{organization_id}/customConstraints/custom.` is not counted.",
+          "Immutable. Name of the constraint. This is unique within the organization. Format of the name should be * `organizations/{organization_id}/customConstraints/{custom_constraint_id}` Example: `organizations/123/customConstraints/custom.createOnlyE2TypeVms` The max length is 71 characters and the minimum length is 1. Note that the prefix `organizations/{organization_id}/customConstraints/custom.` is not counted.",
         ).optional(),
         resourceTypes: z.array(z.unknown()).describe(
           "Immutable. The resource instance type on which this policy applies. Format will be of the form: `/` Example: * `compute.googleapis.com/Instance`.",
@@ -129,7 +130,7 @@ const GlobalArgsSchema = z.object({
       policy: z.object({
         alternate: z.object({
           launch: z.unknown().describe(
-            "Reference to the launch that will be used while audit logging and to control the launch. Set only in the alternate policy.",
+            "Reference to the launch that will be used while audit logging and to control the launch. Should be set only in the alternate policy.",
           ).optional(),
           spec: z.unknown().describe(
             "Defines a Google Cloud policy specification that is used to specify constraints for configurations of Google Cloud resources.",
@@ -295,7 +296,7 @@ const InputsSchema = z.object({
           "All the operations being applied for this constraint.",
         ).optional(),
         name: z.string().describe(
-          "Immutable. Name of the constraint. This is unique within the organization. The name must be of the form: * `organizations/{organization_id}/customConstraints/{custom_constraint_id}` Example: `organizations/123/customConstraints/custom.createOnlyE2TypeVms` The max length is 71 characters and the minimum length is 1. Note that the prefix `organizations/{organization_id}/customConstraints/custom.` is not counted.",
+          "Immutable. Name of the constraint. This is unique within the organization. Format of the name should be * `organizations/{organization_id}/customConstraints/{custom_constraint_id}` Example: `organizations/123/customConstraints/custom.createOnlyE2TypeVms` The max length is 71 characters and the minimum length is 1. Note that the prefix `organizations/{organization_id}/customConstraints/custom.` is not counted.",
         ).optional(),
         resourceTypes: z.array(z.unknown()).describe(
           "Immutable. The resource instance type on which this policy applies. Format will be of the form: `/` Example: * `compute.googleapis.com/Instance`.",
@@ -316,7 +317,7 @@ const InputsSchema = z.object({
       policy: z.object({
         alternate: z.object({
           launch: z.unknown().describe(
-            "Reference to the launch that will be used while audit logging and to control the launch. Set only in the alternate policy.",
+            "Reference to the launch that will be used while audit logging and to control the launch. Should be set only in the alternate policy.",
           ).optional(),
           spec: z.unknown().describe(
             "Defines a Google Cloud policy specification that is used to specify constraints for configurations of Google Cloud resources.",
@@ -408,7 +409,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Policy Simulator OrgPolicyViolationsPreviews. Registered at `@swamp/gcp/policysimulator/orgpolicyviolationspreviews`. */
 export const model = {
   type: "@swamp/gcp/policysimulator/orgpolicyviolationspreviews",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -487,6 +488,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -634,6 +640,48 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List orgPolicyViolationsPreviews resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "Optional. The maximum number of items to return. The service may return fewer than this value. If unspecified, at most 5 items will be returned. The maximum value is 10; values above 10 will be coerced to 10.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "orgPolicyViolationsPreviews",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

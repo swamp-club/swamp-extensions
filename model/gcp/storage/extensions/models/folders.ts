@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -205,7 +206,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Storage JSON Folders. Registered at `@swamp/gcp/storage/folders`. */
 export const model = {
   type: "@swamp/gcp/storage/folders",
-  version: "2026.05.22.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -259,6 +260,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.22.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -431,6 +437,72 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List folders resources",
+      arguments: z.object({
+        delimiter: z.string().describe(
+          "Returns results in a directory-like mode. The only supported value is '/'. If set, items will only contain folders that either exactly match the prefix, or are one level below the prefix.",
+        ).optional(),
+        endOffset: z.string().describe(
+          "Filter results to folders whose names are lexicographically before endOffset. If startOffset is also set, the folders listed will have names between startOffset (inclusive) and endOffset (exclusive).",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Maximum number of items to return in a single page of responses.",
+        ).optional(),
+        prefix: z.string().describe(
+          "Filter results to folders whose paths begin with this prefix. If set, the value must either be an empty string or end with a '/'.",
+        ).optional(),
+        startOffset: z.string().describe(
+          "Filter results to folders whose names are lexicographically equal to or after startOffset. If endOffset is also set, the folders listed will have names between startOffset (inclusive) and endOffset (exclusive).",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["bucket"] !== undefined) params["bucket"] = String(g["bucket"]);
+        if (args["delimiter"] !== undefined) {
+          params["delimiter"] = String(args["delimiter"]);
+        }
+        if (args["endOffset"] !== undefined) {
+          params["endOffset"] = String(args["endOffset"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["prefix"] !== undefined) {
+          params["prefix"] = String(args["prefix"]);
+        }
+        if (args["startOffset"] !== undefined) {
+          params["startOffset"] = String(args["startOffset"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     rename: {

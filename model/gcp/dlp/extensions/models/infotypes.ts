@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -85,7 +86,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Sensitive Data Protection (DLP) InfoTypes. Registered at `@swamp/gcp/dlp/infotypes`. */
 export const model = {
   type: "@swamp/gcp/dlp/infotypes",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -139,6 +140,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -232,6 +238,64 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List infoTypes resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "filter to only return infoTypes supported by certain parts of the API. Defaults to supported_by=INSPECT.",
+        ).optional(),
+        languageCode: z.string().describe(
+          "BCP-47 language code for localized infoType friendly names. If omitted, or if localized strings are not available, en-US strings will be returned.",
+        ).optional(),
+        locationId: z.string().describe("Deprecated. This field has no effect.")
+          .optional(),
+        parent: z.string().describe(
+          "The parent resource name. The format of this value is as follows: `locations/{location_id}`",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["languageCode"] !== undefined) {
+          params["languageCode"] = String(args["languageCode"]);
+        }
+        if (args["locationId"] !== undefined) {
+          params["locationId"] = String(args["locationId"]);
+        }
+        if (args["parent"] !== undefined) {
+          params["parent"] = String(args["parent"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "infoTypes",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud Firebase Data Connect Services.Schemas.
  *
- * The application schema of a Firebase SQL Connect service.
+ * The application schema of a Firebase Data Connect service.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -177,7 +178,7 @@ const GlobalArgsSchema = z.object({
         "Required. Name of the PostgreSQL database.",
       ).optional(),
       ephemeral: z.boolean().describe(
-        "Output only. Ephemeral is true if this SQL Connect service is served from temporary in-memory emulation of Postgres. While Cloud SQL is being provisioned, the SQL Connect service provides the ephemeral service to help developers get started. Once the Cloud SQL is provisioned, SQL Connect service will transfer its data on a best-effort basis to the Cloud SQL instance. WARNING: Ephemeral data sources will expire after 24 hour. The data will be lost if they aren't transferred to the Cloud SQL instance. WARNING: When `ephemeral=true`, mutations to the database are not guaranteed to be durably persisted, even if an OK status code is returned. All or parts of the data may be lost or reverted to earlier versions.",
+        "Output only. Ephemeral is true if this data connect service is served from temporary in-memory emulation of Postgres. While Cloud SQL is being provisioned, the data connect service provides the ephemeral service to help developers get started. Once the Cloud SQL is provisioned, Data Connect service will transfer its data on a best-effort basis to the Cloud SQL instance. WARNING: Ephemeral data sources will expire after 24 hour. The data will be lost if they aren't transferred to the Cloud SQL instance. WARNING: When `ephemeral=true`, mutations to the database are not guaranteed to be durably persisted, even if an OK status code is returned. All or parts of the data may be lost or reverted to earlier versions.",
       ).optional(),
       schema: z.string().describe(
         'Optional. User-configured PostgreSQL schema. Defaults to "public" if not specified.',
@@ -186,7 +187,7 @@ const GlobalArgsSchema = z.object({
         "SQL_SCHEMA_MIGRATION_UNSPECIFIED",
         "MIGRATE_COMPATIBLE",
       ]).describe(
-        "Optional. Configure how to perform automatic PostgreSQL schema migration before deploying the FDC schema. This is an additive-only operation.",
+        "Optional. Configure how to perform Postgresql schema migration.",
       ).optional(),
       schemaValidation: z.enum([
         "SQL_SCHEMA_VALIDATION_UNSPECIFIED",
@@ -194,7 +195,7 @@ const GlobalArgsSchema = z.object({
         "STRICT",
         "COMPATIBLE",
       ]).describe(
-        "Optional. Configure how much PostgreSQL schema validation to perform against the live database before deploying the FDC schema.",
+        "Optional. Configure how much Postgresql schema validation to perform.",
       ).optional(),
       unlinked: z.boolean().describe(
         "No Postgres data source is linked. If set, don't allow `database` and `schema_validation` to be configured.",
@@ -291,7 +292,7 @@ const InputsSchema = z.object({
         "Required. Name of the PostgreSQL database.",
       ).optional(),
       ephemeral: z.boolean().describe(
-        "Output only. Ephemeral is true if this SQL Connect service is served from temporary in-memory emulation of Postgres. While Cloud SQL is being provisioned, the SQL Connect service provides the ephemeral service to help developers get started. Once the Cloud SQL is provisioned, SQL Connect service will transfer its data on a best-effort basis to the Cloud SQL instance. WARNING: Ephemeral data sources will expire after 24 hour. The data will be lost if they aren't transferred to the Cloud SQL instance. WARNING: When `ephemeral=true`, mutations to the database are not guaranteed to be durably persisted, even if an OK status code is returned. All or parts of the data may be lost or reverted to earlier versions.",
+        "Output only. Ephemeral is true if this data connect service is served from temporary in-memory emulation of Postgres. While Cloud SQL is being provisioned, the data connect service provides the ephemeral service to help developers get started. Once the Cloud SQL is provisioned, Data Connect service will transfer its data on a best-effort basis to the Cloud SQL instance. WARNING: Ephemeral data sources will expire after 24 hour. The data will be lost if they aren't transferred to the Cloud SQL instance. WARNING: When `ephemeral=true`, mutations to the database are not guaranteed to be durably persisted, even if an OK status code is returned. All or parts of the data may be lost or reverted to earlier versions.",
       ).optional(),
       schema: z.string().describe(
         'Optional. User-configured PostgreSQL schema. Defaults to "public" if not specified.',
@@ -300,7 +301,7 @@ const InputsSchema = z.object({
         "SQL_SCHEMA_MIGRATION_UNSPECIFIED",
         "MIGRATE_COMPATIBLE",
       ]).describe(
-        "Optional. Configure how to perform automatic PostgreSQL schema migration before deploying the FDC schema. This is an additive-only operation.",
+        "Optional. Configure how to perform Postgresql schema migration.",
       ).optional(),
       schemaValidation: z.enum([
         "SQL_SCHEMA_VALIDATION_UNSPECIFIED",
@@ -308,7 +309,7 @@ const InputsSchema = z.object({
         "STRICT",
         "COMPATIBLE",
       ]).describe(
-        "Optional. Configure how much PostgreSQL schema validation to perform against the live database before deploying the FDC schema.",
+        "Optional. Configure how much Postgresql schema validation to perform.",
       ).optional(),
       unlinked: z.boolean().describe(
         "No Postgres data source is linked. If set, don't allow `database` and `schema_validation` to be configured.",
@@ -348,7 +349,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Firebase Data Connect Services.Schemas. Registered at `@swamp/gcp/firebasedataconnect/services-schemas`. */
 export const model = {
   type: "@swamp/gcp/firebasedataconnect/services-schemas",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -430,12 +431,17 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "The application schema of a Firebase SQL Connect service.",
+      description: "The application schema of a Firebase Data Connect service.",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -670,6 +676,60 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List schemas resources",
+      arguments: z.object({
+        filter: z.string().describe("Optional. Filtering results.").optional(),
+        orderBy: z.string().describe(
+          "Optional. Hint for how to order the results.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Requested page size. Server may return fewer items than requested. If unspecified, server will pick an appropriate default.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "schemas",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

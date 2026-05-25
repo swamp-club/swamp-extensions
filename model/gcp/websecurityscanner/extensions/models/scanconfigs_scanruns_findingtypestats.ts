@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -65,7 +66,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Web Security Scanner ScanConfigs.ScanRuns.FindingTypeStats. Registered at `@swamp/gcp/websecurityscanner/scanconfigs-scanruns-findingtypestats`. */
 export const model = {
   type: "@swamp/gcp/websecurityscanner/scanconfigs-scanruns-findingtypestats",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -119,6 +120,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

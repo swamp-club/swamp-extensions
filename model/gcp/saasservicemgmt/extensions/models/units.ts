@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud App Lifecycle Manager Units.
+ * Swamp extension model for Google Cloud SaaS Runtime Units.
  *
  * A unit of deployment that has its lifecycle via a CRUD API using an actuation engine under the hood (e.g. based on Terraform, Helm or a custom implementation provided by a service producer). A building block of a SaaS Tenant.
  *
@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -204,7 +205,6 @@ const StateSchema = z.object({
     unit: z.string(),
   })).optional(),
   etag: z.string().optional(),
-  flagRevisions: z.array(z.string()).optional(),
   inputVariables: z.array(z.object({
     type: z.string(),
     value: z.string(),
@@ -278,10 +278,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud App Lifecycle Manager Units. Registered at `@swamp/gcp/saasservicemgmt/units`. */
+/** Swamp extension model for Google Cloud SaaS Runtime Units. Registered at `@swamp/gcp/saasservicemgmt/units`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/units",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -355,6 +355,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -596,6 +601,62 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List units resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Filter the list as specified in https://google.aip.dev/160.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Order results as specified in https://google.aip.dev/132.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "The maximum number of units to send per page.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "units",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

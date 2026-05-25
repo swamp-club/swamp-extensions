@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -500,7 +501,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud YouTube Data CommentThreads. Registered at `@swamp/gcp/youtube/commentthreads`. */
 export const model = {
   type: "@swamp/gcp/youtube/commentthreads",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -559,6 +560,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -694,6 +700,104 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List commentThreads resources",
+      arguments: z.object({
+        allThreadsRelatedToChannelId: z.string().describe(
+          "Returns the comment threads of all videos of the channel and the channel comments as well.",
+        ).optional(),
+        channelId: z.string().describe(
+          "Returns the comment threads for all the channel comments (ie does not include comments left on videos).",
+        ).optional(),
+        id: z.string().describe(
+          "Returns the comment threads with the given IDs for Stubby or Apiary.",
+        ).optional(),
+        maxResults: z.number().describe(
+          "The *maxResults* parameter specifies the maximum number of items that should be returned in the result set.",
+        ).optional(),
+        moderationStatus: z.string().describe(
+          "Limits the returned comment threads to those with the specified moderation status. Not compatible with the 'id' filter. Valid values: published, heldForReview, likelySpam.",
+        ).optional(),
+        order: z.string().optional(),
+        part: z.string().describe(
+          "The *part* parameter specifies a comma-separated list of one or more commentThread resource properties that the API response will include.",
+        ).optional(),
+        postId: z.string().describe(
+          "Returns the comment threads of the specified post.",
+        ).optional(),
+        searchTerms: z.string().describe(
+          "Limits the returned comment threads to those matching the specified key words. Not compatible with the 'id' filter.",
+        ).optional(),
+        textFormat: z.string().describe(
+          "The requested text format for the returned comments.",
+        ).optional(),
+        videoId: z.string().describe(
+          "Returns the comment threads of the specified video.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["part"] !== undefined) params["part"] = String(g["part"]);
+        if (args["allThreadsRelatedToChannelId"] !== undefined) {
+          params["allThreadsRelatedToChannelId"] = String(
+            args["allThreadsRelatedToChannelId"],
+          );
+        }
+        if (args["channelId"] !== undefined) {
+          params["channelId"] = String(args["channelId"]);
+        }
+        if (args["id"] !== undefined) params["id"] = String(args["id"]);
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["moderationStatus"] !== undefined) {
+          params["moderationStatus"] = String(args["moderationStatus"]);
+        }
+        if (args["order"] !== undefined) {
+          params["order"] = String(args["order"]);
+        }
+        if (args["part"] !== undefined) params["part"] = String(args["part"]);
+        if (args["postId"] !== undefined) {
+          params["postId"] = String(args["postId"]);
+        }
+        if (args["searchTerms"] !== undefined) {
+          params["searchTerms"] = String(args["searchTerms"]);
+        }
+        if (args["textFormat"] !== undefined) {
+          params["textFormat"] = String(args["textFormat"]);
+        }
+        if (args["videoId"] !== undefined) {
+          params["videoId"] = String(args["videoId"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

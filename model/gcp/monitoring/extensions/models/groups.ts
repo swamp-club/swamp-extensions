@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -174,7 +175,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Monitoring Groups. Registered at `@swamp/gcp/monitoring/groups`. */
 export const model = {
   type: "@swamp/gcp/monitoring/groups",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -228,6 +229,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -439,6 +445,66 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List groups resources",
+      arguments: z.object({
+        ancestorsOfGroup: z.string().describe(
+          "A group name. The format is: projects/[PROJECT_ID_OR_NUMBER]/groups/[GROUP_ID] Returns groups that are ancestors of the specified group. The groups are returned in order, starting with the immediate parent and ending with the most distant ancestor. If the specified group has no immediate parent, the results are empty.",
+        ).optional(),
+        childrenOfGroup: z.string().describe(
+          "A group name. The format is: projects/[PROJECT_ID_OR_NUMBER]/groups/[GROUP_ID] Returns groups whose parent_name field contains the group name. If no groups have this parent, the results are empty.",
+        ).optional(),
+        descendantsOfGroup: z.string().describe(
+          "A group name. The format is: projects/[PROJECT_ID_OR_NUMBER]/groups/[GROUP_ID] Returns the descendants of the specified group. This is a superset of the results returned by the children_of_group filter, and includes children-of-children, and so forth.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "A positive number that is the maximum number of results to return.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) params["name"] = String(g["name"]);
+        if (args["ancestorsOfGroup"] !== undefined) {
+          params["ancestorsOfGroup"] = String(args["ancestorsOfGroup"]);
+        }
+        if (args["childrenOfGroup"] !== undefined) {
+          params["childrenOfGroup"] = String(args["childrenOfGroup"]);
+        }
+        if (args["descendantsOfGroup"] !== undefined) {
+          params["descendantsOfGroup"] = String(args["descendantsOfGroup"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "group",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

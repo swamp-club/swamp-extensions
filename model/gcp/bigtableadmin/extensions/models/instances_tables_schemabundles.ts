@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -135,7 +136,7 @@ const GlobalArgsSchema = z.object({
     protoDescriptors: z.string().describe(
       "Required. Contains a protobuf-serialized [google.protobuf.FileDescriptorSet](https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/descriptor.proto), which could include multiple proto files. To generate it, [install](https://grpc.io/docs/protoc-installation/) and run `protoc` with `--include_imports` and `--descriptor_set_out`. For example, to generate for moon/shot/app.proto, run ` $protoc --proto_path=/app_path --proto_path=/lib_path \\ --include_imports \\ --descriptor_set_out=descriptors.pb \\ moon/shot/app.proto ` For more details, see protobuffer [self description](https://developers.google.com/protocol-buffers/docs/techniques#self-description).",
     ).optional(),
-  }).describe("Represents a collection of protobuf schemas.").optional(),
+  }).describe("Represents a protobuf schema.").optional(),
   schemaBundleId: z.string().describe(
     "Required. The unique ID to use for the schema bundle, which will become the final component of the schema bundle's resource name.",
   ).optional(),
@@ -162,7 +163,7 @@ const InputsSchema = z.object({
     protoDescriptors: z.string().describe(
       "Required. Contains a protobuf-serialized [google.protobuf.FileDescriptorSet](https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/descriptor.proto), which could include multiple proto files. To generate it, [install](https://grpc.io/docs/protoc-installation/) and run `protoc` with `--include_imports` and `--descriptor_set_out`. For example, to generate for moon/shot/app.proto, run ` $protoc --proto_path=/app_path --proto_path=/lib_path \\ --include_imports \\ --descriptor_set_out=descriptors.pb \\ moon/shot/app.proto ` For more details, see protobuffer [self description](https://developers.google.com/protocol-buffers/docs/techniques#self-description).",
     ).optional(),
-  }).describe("Represents a collection of protobuf schemas.").optional(),
+  }).describe("Represents a protobuf schema.").optional(),
   schemaBundleId: z.string().describe(
     "Required. The unique ID to use for the schema bundle, which will become the final component of the schema bundle's resource name.",
   ).optional(),
@@ -174,7 +175,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Bigtable Admin Instances.Tables.SchemaBundles. Registered at `@swamp/gcp/bigtableadmin/instances-tables-schemabundles`. */
 export const model = {
   type: "@swamp/gcp/bigtableadmin/instances-tables-schemabundles",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -243,6 +244,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -471,6 +477,54 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List schemaBundles resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "The maximum number of schema bundles to return. If the value is positive, the server may return at most this value. If unspecified, the server will return the maximum allowed page size.",
+        ).optional(),
+        view: z.string().describe(
+          "Optional. The resource_view to be applied to the returned SchemaBundles' fields. Defaults to NAME_ONLY.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["view"] !== undefined) params["view"] = String(args["view"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "schemaBundles",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     get_iam_policy: {

@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -320,7 +321,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Tasks Tasks. Registered at `@swamp/gcp/tasks/tasks`. */
 export const model = {
   type: "@swamp/gcp/tasks/tasks",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -374,6 +375,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -615,6 +621,104 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List tasks resources",
+      arguments: z.object({
+        completedMax: z.string().describe(
+          "Upper bound for a task's completion date (as a RFC 3339 timestamp) to filter by. Optional. The default is not to filter by completion date.",
+        ).optional(),
+        completedMin: z.string().describe(
+          "Lower bound for a task's completion date (as a RFC 3339 timestamp) to filter by. Optional. The default is not to filter by completion date.",
+        ).optional(),
+        dueMax: z.string().describe(
+          "Upper bound for a task's due date (as a RFC 3339 timestamp) to filter by. Optional. The default is not to filter by due date.",
+        ).optional(),
+        dueMin: z.string().describe(
+          "Lower bound for a task's due date (as a RFC 3339 timestamp) to filter by. Optional. The default is not to filter by due date.",
+        ).optional(),
+        maxResults: z.number().describe(
+          "Maximum number of tasks returned on one page. Optional. The default is 20 (max allowed: 100).",
+        ).optional(),
+        showAssigned: z.boolean().describe(
+          "Optional. Flag indicating whether tasks assigned to the current user are returned in the result. Optional. The default is False.",
+        ).optional(),
+        showCompleted: z.boolean().describe(
+          "Flag indicating whether completed tasks are returned in the result. Note that showHidden must also be True to show tasks completed in first party clients, such as the web UI and Google's mobile apps. Optional. The default is True.",
+        ).optional(),
+        showDeleted: z.boolean().describe(
+          "Flag indicating whether deleted tasks are returned in the result. Optional. The default is False.",
+        ).optional(),
+        showHidden: z.boolean().describe(
+          "Flag indicating whether hidden tasks are returned in the result. Optional. The default is False.",
+        ).optional(),
+        updatedMin: z.string().describe(
+          "Lower bound for a task's last modification time (as a RFC 3339 timestamp) to filter by. Optional. The default is not to filter by last modification time.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["tasklist"] !== undefined) {
+          params["tasklist"] = String(g["tasklist"]);
+        }
+        if (args["completedMax"] !== undefined) {
+          params["completedMax"] = String(args["completedMax"]);
+        }
+        if (args["completedMin"] !== undefined) {
+          params["completedMin"] = String(args["completedMin"]);
+        }
+        if (args["dueMax"] !== undefined) {
+          params["dueMax"] = String(args["dueMax"]);
+        }
+        if (args["dueMin"] !== undefined) {
+          params["dueMin"] = String(args["dueMin"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["showAssigned"] !== undefined) {
+          params["showAssigned"] = String(args["showAssigned"]);
+        }
+        if (args["showCompleted"] !== undefined) {
+          params["showCompleted"] = String(args["showCompleted"]);
+        }
+        if (args["showDeleted"] !== undefined) {
+          params["showDeleted"] = String(args["showDeleted"]);
+        }
+        if (args["showHidden"] !== undefined) {
+          params["showHidden"] = String(args["showHidden"]);
+        }
+        if (args["updatedMin"] !== undefined) {
+          params["updatedMin"] = String(args["updatedMin"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     clear: {

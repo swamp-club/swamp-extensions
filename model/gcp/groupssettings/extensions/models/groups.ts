@@ -139,9 +139,6 @@ const GlobalArgsSchema = z.object({
   whoCanAdd: z.string().describe(
     "Deprecated. This is merged into the new whoCanModerateMembers setting. Permissions to add members. Possible values are: - ALL_MEMBERS_CAN_ADD: Managers and members can directly add new members. - ALL_MANAGERS_CAN_ADD: Only managers can directly add new members. this includes the group's owner. - ALL_OWNERS_CAN_ADD: Only owners can directly add new members. - NONE_CAN_ADD: No one can directly add new members.",
   ).optional(),
-  whoCanAddExternalMembers: z.string().describe(
-    "Specifies who can add external members. UPDATE and PATCH requests ignore this field if allowExternalMembers is false. Possible values are: - ONLY_ADMINS_CAN_ADD_EXTERNAL_MEMBERS - END_USERS_CAN_ADD_EXTERNAL_MEMBERS",
-  ).optional(),
   whoCanAddReferences: z.string().describe(
     'Deprecated. This functionality is no longer supported in the Google Groups UI. The value is always "NONE".',
   ).optional(),
@@ -275,7 +272,6 @@ const StateSchema = z.object({
   showInGroupDirectory: z.string().optional(),
   spamModerationLevel: z.string().optional(),
   whoCanAdd: z.string().optional(),
-  whoCanAddExternalMembers: z.string().optional(),
   whoCanAddReferences: z.string().optional(),
   whoCanApproveMembers: z.string().optional(),
   whoCanApproveMessages: z.string().optional(),
@@ -399,9 +395,6 @@ const InputsSchema = z.object({
   whoCanAdd: z.string().describe(
     "Deprecated. This is merged into the new whoCanModerateMembers setting. Permissions to add members. Possible values are: - ALL_MEMBERS_CAN_ADD: Managers and members can directly add new members. - ALL_MANAGERS_CAN_ADD: Only managers can directly add new members. this includes the group's owner. - ALL_OWNERS_CAN_ADD: Only owners can directly add new members. - NONE_CAN_ADD: No one can directly add new members.",
   ).optional(),
-  whoCanAddExternalMembers: z.string().describe(
-    "Specifies who can add external members. UPDATE and PATCH requests ignore this field if allowExternalMembers is false. Possible values are: - ONLY_ADMINS_CAN_ADD_EXTERNAL_MEMBERS - END_USERS_CAN_ADD_EXTERNAL_MEMBERS",
-  ).optional(),
   whoCanAddReferences: z.string().describe(
     'Deprecated. This functionality is no longer supported in the Google Groups UI. The value is always "NONE".',
   ).optional(),
@@ -509,7 +502,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Groups Settings Groups. Registered at `@swamp/gcp/groupssettings/groups`. */
 export const model = {
   type: "@swamp/gcp/groupssettings/groups",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -593,6 +586,15 @@ export const model = {
       toVersion: "2026.05.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "Removed: whoCanAddExternalMembers",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { whoCanAddExternalMembers: _whoCanAddExternalMembers, ...rest } =
+          old;
+        return rest;
+      },
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -731,9 +733,6 @@ export const model = {
           body["spamModerationLevel"] = g["spamModerationLevel"];
         }
         if (g["whoCanAdd"] !== undefined) body["whoCanAdd"] = g["whoCanAdd"];
-        if (g["whoCanAddExternalMembers"] !== undefined) {
-          body["whoCanAddExternalMembers"] = g["whoCanAddExternalMembers"];
-        }
         if (g["whoCanAddReferences"] !== undefined) {
           body["whoCanAddReferences"] = g["whoCanAddReferences"];
         }

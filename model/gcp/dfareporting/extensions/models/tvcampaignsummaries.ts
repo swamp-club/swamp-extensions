@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -77,7 +78,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Campaign Manager 360 TvCampaignSummaries. Registered at `@swamp/gcp/dfareporting/tvcampaignsummaries`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/tvcampaignsummaries",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -131,6 +132,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -233,6 +239,66 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List tvCampaignSummaries resources",
+      arguments: z.object({
+        accountId: z.string().describe(
+          "Required. Account ID associated with this request.",
+        ).optional(),
+        countryDartId: z.string().describe(
+          "Optional. Country Dart ID. If not specified, defaults to 256 (US).",
+        ).optional(),
+        name: z.string().describe(
+          "Required. Search string to filter the list of TV campaign summaries. Matches any substring. Required field.",
+        ).optional(),
+        tvDataProvider: z.string().describe(
+          "Optional. TV data provider. If not specified, defaults to `COMSCORE_NATIONAL_US`.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["profileId"] !== undefined) {
+          params["profileId"] = String(g["profileId"]);
+        }
+        if (args["accountId"] !== undefined) {
+          params["accountId"] = String(args["accountId"]);
+        }
+        if (args["countryDartId"] !== undefined) {
+          params["countryDartId"] = String(args["countryDartId"]);
+        }
+        if (args["name"] !== undefined) params["name"] = String(args["name"]);
+        if (args["tvDataProvider"] !== undefined) {
+          params["tvDataProvider"] = String(args["tvDataProvider"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "tvCampaignSummaries",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

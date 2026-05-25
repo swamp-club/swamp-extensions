@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -134,22 +135,11 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Identifier. The resource name of the backup. Format: `projects/{project_id}/locations/{location}/backupVaults/{backup_vault_id}/backups/{backup_id}`.",
   ).optional(),
-  ontapSource: z.object({
-    snapshotUuid: z.string().describe(
-      "Optional. The UUID of the ONTAP source snapshot.",
-    ).optional(),
-    storagePool: z.string().describe(
-      "Required. Name of the storage pool. This must be specified for creating backups for ONTAP mode volumes. Format: `projects/{projects_id}/locations/{location}/storagePools/{storage_pool_id}`",
-    ).optional(),
-    volumeUuid: z.string().describe(
-      "Required. The UUID of the ONTAP source volume.",
-    ).optional(),
-  }).describe("Represents ONTAP source details.").optional(),
   sourceSnapshot: z.string().describe(
     "If specified, backup will be created from the given snapshot. If not specified, there will be a new snapshot taken to initiate the backup creation. Format: `projects/{project_id}/locations/{location}/volumes/{volume_id}/snapshots/{snapshot_id}`",
   ).optional(),
   sourceVolume: z.string().describe(
-    "The resource name of the volume that this backup belongs to. You must provide either `source_volume` or `ontap_source`. Format: `projects/{project_id}/locations/{location}/volumes/{volume_id}`",
+    "Volume full name of this backup belongs to. Either source_volume or ontap_source should be provided. Format: `projects/{projects_id}/locations/{location}/volumes/{volume_id}`",
   ).optional(),
   backupId: z.string().describe(
     "Required. The ID to use for the backup. The ID must be unique within the specified backupVault. Must contain only letters, numbers and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum.",
@@ -168,11 +158,6 @@ const StateSchema = z.object({
   enforcedRetentionEndTime: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  ontapSource: z.object({
-    snapshotUuid: z.string(),
-    storagePool: z.string(),
-    volumeUuid: z.string(),
-  }).optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
   sourceSnapshot: z.string().optional(),
@@ -194,22 +179,11 @@ const InputsSchema = z.object({
   name: z.string().describe(
     "Identifier. The resource name of the backup. Format: `projects/{project_id}/locations/{location}/backupVaults/{backup_vault_id}/backups/{backup_id}`.",
   ).optional(),
-  ontapSource: z.object({
-    snapshotUuid: z.string().describe(
-      "Optional. The UUID of the ONTAP source snapshot.",
-    ).optional(),
-    storagePool: z.string().describe(
-      "Required. Name of the storage pool. This must be specified for creating backups for ONTAP mode volumes. Format: `projects/{projects_id}/locations/{location}/storagePools/{storage_pool_id}`",
-    ).optional(),
-    volumeUuid: z.string().describe(
-      "Required. The UUID of the ONTAP source volume.",
-    ).optional(),
-  }).describe("Represents ONTAP source details.").optional(),
   sourceSnapshot: z.string().describe(
     "If specified, backup will be created from the given snapshot. If not specified, there will be a new snapshot taken to initiate the backup creation. Format: `projects/{project_id}/locations/{location}/volumes/{volume_id}/snapshots/{snapshot_id}`",
   ).optional(),
   sourceVolume: z.string().describe(
-    "The resource name of the volume that this backup belongs to. You must provide either `source_volume` or `ontap_source`. Format: `projects/{project_id}/locations/{location}/volumes/{volume_id}`",
+    "Volume full name of this backup belongs to. Either source_volume or ontap_source should be provided. Format: `projects/{projects_id}/locations/{location}/volumes/{volume_id}`",
   ).optional(),
   backupId: z.string().describe(
     "Required. The ID to use for the backup. The ID must be unique within the specified backupVault. Must contain only letters, numbers and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum.",
@@ -222,7 +196,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud NetApp BackupVaults.Backups. Registered at `@swamp/gcp/netapp/backupvaults-backups`. */
 export const model = {
   type: "@swamp/gcp/netapp/backupvaults-backups",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -299,6 +273,14 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "Removed: ontapSource",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { ontapSource: _ontapSource, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -331,9 +313,6 @@ export const model = {
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["name"] !== undefined) body["name"] = g["name"];
-        if (g["ontapSource"] !== undefined) {
-          body["ontapSource"] = g["ontapSource"];
-        }
         if (g["sourceSnapshot"] !== undefined) {
           body["sourceSnapshot"] = g["sourceSnapshot"];
         }
@@ -445,9 +424,6 @@ export const model = {
           body["description"] = g["description"];
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
-        if (g["ontapSource"] !== undefined) {
-          body["ontapSource"] = g["ontapSource"];
-        }
         if (g["sourceSnapshot"] !== undefined) {
           body["sourceSnapshot"] = g["sourceSnapshot"];
         }
@@ -563,6 +539,62 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List backups resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "The standard list filter. If specified, backups will be returned based on the attribute name that matches the filter expression. If empty, then no backups are filtered out. See https://google.aip.dev/160",
+        ).optional(),
+        orderBy: z.string().describe(
+          'Sort results. Supported values are "name", "name desc" or "" (unsorted).',
+        ).optional(),
+        pageSize: z.number().describe(
+          "The maximum number of items to return. The service may return fewer than this value. The maximum value is 1000; values above 1000 will be coerced to 1000.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "backups",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

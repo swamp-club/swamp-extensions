@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -64,6 +65,37 @@ const DELETE_CONFIG = {
     "name": {
       "location": "path",
       "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id":
+    "contactcenterinsights.projects.locations.authorizedViewSets.authorizedViews.conversations.list",
+  "path": "v1/{+parent}/conversations",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+    "view": {
+      "location": "query",
     },
   },
 } as const;
@@ -205,8 +237,6 @@ const StateSchema = z.object({
       deploymentId: z.string(),
       displayName: z.string(),
       dispositionCode: z.string(),
-      entrySubagentDisplayName: z.string(),
-      entrySubagentId: z.string(),
       location: z.string(),
       team: z.string(),
       teams: z.array(z.string()),
@@ -249,26 +279,6 @@ const StateSchema = z.object({
       source: z.string(),
       title: z.string(),
       uri: z.string(),
-    }),
-    cesEndSessionAnnotation: z.object({
-      endSession: z.object({
-        metadata: z.record(z.string(), z.unknown()),
-      }),
-    }),
-    cesTurnAnnotation: z.object({
-      messages: z.array(z.object({
-        chunks: z.unknown(),
-        eventTime: z.unknown(),
-        role: z.unknown(),
-      })),
-      rootSpan: z.object({
-        attributes: z.record(z.string(), z.unknown()),
-        childSpans: z.array(z.unknown()),
-        duration: z.string(),
-        endTime: z.string(),
-        name: z.string(),
-        startTime: z.string(),
-      }),
     }),
     conversationSummarizationSuggestion: z.object({
       answerRecord: z.string(),
@@ -370,7 +380,7 @@ const InputsSchema = z.object({
 export const model = {
   type:
     "@swamp/gcp/contactcenterinsights/authorizedviewsets-authorizedviews-conversations",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -454,6 +464,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -578,6 +593,66 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List conversations resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "A filter to reduce results to a specific subset. Useful for querying conversations with specific properties.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Optional. The attribute by which to order conversations in the response. If empty, conversations will be ordered by descending creation time. Supported values are one of the following: * create_time * customer_satisfaction_rating * duration * latest_analysis * start_time * turn_count The default sort order is ascending. To specify order, append `asc` or `desc` (`create_time desc`). For more details, see [Google AIPs Ordering](https://google.aip.dev/132#ordering).",
+        ).optional(),
+        pageSize: z.number().describe(
+          "The maximum number of conversations to return in the response. A valid page size ranges from 0 to 100,000 inclusive. If the page size is zero or unspecified, a default page size of 100 will be chosen. Note that a call might return fewer results than the requested page size.",
+        ).optional(),
+        view: z.string().describe(
+          "The level of details of the conversation. Default is `BASIC`.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["view"] !== undefined) params["view"] = String(args["view"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "conversations",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     calculate_stats: {

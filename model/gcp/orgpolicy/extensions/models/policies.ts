@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -121,7 +122,7 @@ const LIST_CONFIG = {
 const GlobalArgsSchema = z.object({
   alternate: z.object({
     launch: z.string().describe(
-      "Reference to the launch that will be used while audit logging and to control the launch. Set only in the alternate policy.",
+      "Reference to the launch that will be used while audit logging and to control the launch. Should be set only in the alternate policy.",
     ).optional(),
     spec: z.object({
       etag: z.string().describe(
@@ -387,7 +388,7 @@ type StateData = z.infer<typeof StateSchema>;
 const InputsSchema = z.object({
   alternate: z.object({
     launch: z.string().describe(
-      "Reference to the launch that will be used while audit logging and to control the launch. Set only in the alternate policy.",
+      "Reference to the launch that will be used while audit logging and to control the launch. Should be set only in the alternate policy.",
     ).optional(),
     spec: z.object({
       etag: z.string().describe(
@@ -577,7 +578,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Organization Policy Policies. Registered at `@swamp/gcp/orgpolicy/policies`. */
 export const model = {
   type: "@swamp/gcp/orgpolicy/policies",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -656,6 +657,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -878,6 +884,48 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List policies resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "Size of the pages to be returned. This is currently unsupported and will be ignored. The server may at any point start using this field to limit page size.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "policies",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     get_effective_policy: {

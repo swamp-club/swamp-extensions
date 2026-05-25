@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -46,6 +47,67 @@ const GET_CONFIG = {
       "location": "query",
     },
     "source": {
+      "location": "query",
+    },
+    "volumeId": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "books.layers.volumeAnnotations.list",
+  "path": "books/v1/volumes/{volumeId}/layers/{layerId}",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "volumeId",
+    "layerId",
+    "contentVersion",
+  ],
+  "parameters": {
+    "contentVersion": {
+      "location": "query",
+      "required": true,
+    },
+    "endOffset": {
+      "location": "query",
+    },
+    "endPosition": {
+      "location": "query",
+    },
+    "layerId": {
+      "location": "path",
+      "required": true,
+    },
+    "locale": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "showDeleted": {
+      "location": "query",
+    },
+    "source": {
+      "location": "query",
+    },
+    "startOffset": {
+      "location": "query",
+    },
+    "startPosition": {
+      "location": "query",
+    },
+    "updatedMax": {
+      "location": "query",
+    },
+    "updatedMin": {
+      "location": "query",
+    },
+    "volumeAnnotationsVersion": {
       "location": "query",
     },
     "volumeId": {
@@ -107,7 +169,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Books Layers.VolumeAnnotations. Registered at `@swamp/gcp/books/layers-volumeannotations`. */
 export const model = {
   type: "@swamp/gcp/books/layers-volumeannotations",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -161,6 +223,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -268,6 +335,123 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List volumeAnnotations resources",
+      arguments: z.object({
+        contentVersion: z.string().describe(
+          "The content version for the requested volume.",
+        ).optional(),
+        endOffset: z.string().describe(
+          "The end offset to end retrieving data from.",
+        ).optional(),
+        endPosition: z.string().describe(
+          "The end position to end retrieving data from.",
+        ).optional(),
+        locale: z.string().describe(
+          "The locale information for the data. ISO-639-1 language and ISO-3166-1 country code. Ex: 'en_US'.",
+        ).optional(),
+        maxResults: z.number().describe("Maximum number of results to return")
+          .optional(),
+        showDeleted: z.boolean().describe(
+          "Set to true to return deleted annotations. updatedMin must be in the request to use this. Defaults to false.",
+        ).optional(),
+        source: z.string().describe(
+          "String to identify the originator of this request.",
+        ).optional(),
+        startOffset: z.string().describe(
+          "The start offset to start retrieving data from.",
+        ).optional(),
+        startPosition: z.string().describe(
+          "The start position to start retrieving data from.",
+        ).optional(),
+        updatedMax: z.string().describe(
+          "RFC 3339 timestamp to restrict to items updated prior to this timestamp (exclusive).",
+        ).optional(),
+        updatedMin: z.string().describe(
+          "RFC 3339 timestamp to restrict to items updated since this timestamp (inclusive).",
+        ).optional(),
+        volumeAnnotationsVersion: z.string().describe(
+          "The version of the volume annotations that you are requesting.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["volumeId"] !== undefined) {
+          params["volumeId"] = String(g["volumeId"]);
+        }
+        if (g["layerId"] !== undefined) {
+          params["layerId"] = String(g["layerId"]);
+        }
+        if (g["contentVersion"] !== undefined) {
+          params["contentVersion"] = String(g["contentVersion"]);
+        }
+        if (args["contentVersion"] !== undefined) {
+          params["contentVersion"] = String(args["contentVersion"]);
+        }
+        if (args["endOffset"] !== undefined) {
+          params["endOffset"] = String(args["endOffset"]);
+        }
+        if (args["endPosition"] !== undefined) {
+          params["endPosition"] = String(args["endPosition"]);
+        }
+        if (args["locale"] !== undefined) {
+          params["locale"] = String(args["locale"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["showDeleted"] !== undefined) {
+          params["showDeleted"] = String(args["showDeleted"]);
+        }
+        if (args["source"] !== undefined) {
+          params["source"] = String(args["source"]);
+        }
+        if (args["startOffset"] !== undefined) {
+          params["startOffset"] = String(args["startOffset"]);
+        }
+        if (args["startPosition"] !== undefined) {
+          params["startPosition"] = String(args["startPosition"]);
+        }
+        if (args["updatedMax"] !== undefined) {
+          params["updatedMax"] = String(args["updatedMax"]);
+        }
+        if (args["updatedMin"] !== undefined) {
+          params["updatedMin"] = String(args["updatedMin"]);
+        }
+        if (args["volumeAnnotationsVersion"] !== undefined) {
+          params["volumeAnnotationsVersion"] = String(
+            args["volumeAnnotationsVersion"],
+          );
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

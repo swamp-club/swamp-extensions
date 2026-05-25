@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -68,6 +69,36 @@ const DELETE_CONFIG = {
       "required": true,
     },
     "version": {
+      "location": "query",
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "cloudsearch.indexing.datasources.items.list",
+  "path": "v1/indexing/{+name}/items",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "name",
+  ],
+  "parameters": {
+    "brief": {
+      "location": "query",
+    },
+    "connectorName": {
+      "location": "query",
+    },
+    "debugOptions.enableDebugging": {
+      "location": "query",
+    },
+    "name": {
+      "location": "path",
+      "required": true,
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
       "location": "query",
     },
   },
@@ -216,7 +247,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Search Indexing.Datasources.Items. Registered at `@swamp/gcp/cloudsearch/indexing-datasources-items`. */
 export const model = {
   type: "@swamp/gcp/cloudsearch/indexing-datasources-items",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -275,6 +306,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -395,6 +431,68 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List items resources",
+      arguments: z.object({
+        brief: z.boolean().describe(
+          "When set to true, the indexing system only populates the following fields: name, version, queue. metadata.hash, metadata.title, metadata.sourceRepositoryURL, metadata.objectType, metadata.createTime, metadata.updateTime, metadata.contentLanguage, metadata.mimeType, structured_data.hash, content.hash, itemType, itemStatus.code, itemStatus.processingError.code, itemStatus.repositoryError.type, If this value is false, then all the fields are populated in Item.",
+        ).optional(),
+        connectorName: z.string().describe(
+          "The name of connector making this call. Format: datasources/{source_id}/connectors/{ID}",
+        ).optional(),
+        debugOptions_enableDebugging: z.boolean().describe(
+          "If you are asked by Google to help with debugging, set this field. Otherwise, ignore this field.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Maximum number of items to fetch in a request. The max value is 1000 when brief is true. The max value is 10 if brief is false. The default value is 10",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) params["name"] = String(g["name"]);
+        if (args["brief"] !== undefined) {
+          params["brief"] = String(args["brief"]);
+        }
+        if (args["connectorName"] !== undefined) {
+          params["connectorName"] = String(args["connectorName"]);
+        }
+        if (args["debugOptions_enableDebugging"] !== undefined) {
+          params["debugOptions.enableDebugging"] = String(
+            args["debugOptions_enableDebugging"],
+          );
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     index: {

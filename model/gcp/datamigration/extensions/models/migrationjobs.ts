@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -290,15 +291,6 @@ const GlobalArgsSchema = z.object({
       "MAX",
     ]).describe("Initial dump parallelism level.").optional(),
   }).describe("Performance configuration definition.").optional(),
-  postgresHomogeneousConfig: z.object({
-    isNativeLogical: z.boolean().describe(
-      "Required. Whether the migration is native logical.",
-    ).optional(),
-    maxAdditionalSubscriptions: z.number().int().describe(
-      "Optional. Maximum number of additional subscriptions to use for the migration job.",
-    ).optional(),
-  }).describe("Configuration for PostgreSQL to PostgreSQL migrations.")
-    .optional(),
   postgresToSqlserverConfig: z.object({
     postgresSourceConfig: z.object({
       skipFullDump: z.boolean().describe(
@@ -535,10 +527,6 @@ const StateSchema = z.object({
     dumpParallelLevel: z.string(),
   }).optional(),
   phase: z.string().optional(),
-  postgresHomogeneousConfig: z.object({
-    isNativeLogical: z.boolean(),
-    maxAdditionalSubscriptions: z.number(),
-  }).optional(),
   postgresToSqlserverConfig: z.object({
     postgresSourceConfig: z.object({
       skipFullDump: z.boolean(),
@@ -756,15 +744,6 @@ const InputsSchema = z.object({
       "MAX",
     ]).describe("Initial dump parallelism level.").optional(),
   }).describe("Performance configuration definition.").optional(),
-  postgresHomogeneousConfig: z.object({
-    isNativeLogical: z.boolean().describe(
-      "Required. Whether the migration is native logical.",
-    ).optional(),
-    maxAdditionalSubscriptions: z.number().int().describe(
-      "Optional. Maximum number of additional subscriptions to use for the migration job.",
-    ).optional(),
-  }).describe("Configuration for PostgreSQL to PostgreSQL migrations.")
-    .optional(),
   postgresToSqlserverConfig: z.object({
     postgresSourceConfig: z.object({
       skipFullDump: z.boolean().describe(
@@ -935,7 +914,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Database Migration MigrationJobs. Registered at `@swamp/gcp/datamigration/migrationjobs`. */
 export const model = {
   type: "@swamp/gcp/datamigration/migrationjobs",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1029,6 +1008,17 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "Removed: postgresHomogeneousConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          postgresHomogeneousConfig: _postgresHomogeneousConfig,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1090,9 +1080,6 @@ export const model = {
         }
         if (g["performanceConfig"] !== undefined) {
           body["performanceConfig"] = g["performanceConfig"];
-        }
-        if (g["postgresHomogeneousConfig"] !== undefined) {
-          body["postgresHomogeneousConfig"] = g["postgresHomogeneousConfig"];
         }
         if (g["postgresToSqlserverConfig"] !== undefined) {
           body["postgresToSqlserverConfig"] = g["postgresToSqlserverConfig"];
@@ -1256,9 +1243,6 @@ export const model = {
         if (g["performanceConfig"] !== undefined) {
           body["performanceConfig"] = g["performanceConfig"];
         }
-        if (g["postgresHomogeneousConfig"] !== undefined) {
-          body["postgresHomogeneousConfig"] = g["postgresHomogeneousConfig"];
-        }
         if (g["postgresToSqlserverConfig"] !== undefined) {
           body["postgresToSqlserverConfig"] = g["postgresToSqlserverConfig"];
         }
@@ -1393,6 +1377,62 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List migrationJobs resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          'Optional. A filter expression that filters migration jobs listed in the response. The expression must specify the field name, a comparison operator, and the value that you want to use for filtering. The value must be a string, a number, or a boolean. The comparison operator must be either =, !=, >, or <. For example, list migration jobs created this year by specifying **createTime %gt; 2020-01-01T00:00:00.000000000Z.** You can also filter nested fields. For example, you could specify **reverseSshConnectivity.vmIp = "1.2.3.4"** to select all migration jobs connecting through the specific SSH tunnel bastion.',
+        ).optional(),
+        orderBy: z.string().describe(
+          'Optional. Sort the results based on the migration job name. Valid values are: "name", "name asc", and "name desc".',
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of migration jobs to return. The service may return fewer than this value. If unspecified, at most 50 migration jobs will be returned. The maximum value is 1000; values above 1000 are coerced to 1000.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "migrationJobs",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     demote_destination: {

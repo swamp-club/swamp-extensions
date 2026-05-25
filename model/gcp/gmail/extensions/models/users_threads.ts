@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -63,6 +64,36 @@ const DELETE_CONFIG = {
     "id": {
       "location": "path",
       "required": true,
+    },
+    "userId": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "gmail.users.threads.list",
+  "path": "gmail/v1/users/{userId}/threads",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "userId",
+  ],
+  "parameters": {
+    "includeSpamTrash": {
+      "location": "query",
+    },
+    "labelIds": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "q": {
+      "location": "query",
     },
     "userId": {
       "location": "path",
@@ -121,7 +152,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gmail Users.Threads. Registered at `@swamp/gcp/gmail/users-threads`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-threads",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -180,6 +211,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -305,6 +341,64 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List threads resources",
+      arguments: z.object({
+        includeSpamTrash: z.boolean().describe(
+          "Include threads from `SPAM` and `TRASH` in the results.",
+        ).optional(),
+        labelIds: z.string().describe(
+          "Only return threads with labels that match all of the specified label IDs.",
+        ).optional(),
+        maxResults: z.number().describe(
+          "Maximum number of threads to return. This field defaults to 100. The maximum allowed value for this field is 500.",
+        ).optional(),
+        q: z.string().describe(
+          'Only return threads matching the specified query. Supports the same query format as the Gmail search box. For example, `"from:someuser@example.com rfc822msgid: is:unread"`. Parameter cannot be used when accessing the api using the gmail.metadata scope.',
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["userId"] !== undefined) params["userId"] = String(g["userId"]);
+        if (args["includeSpamTrash"] !== undefined) {
+          params["includeSpamTrash"] = String(args["includeSpamTrash"]);
+        }
+        if (args["labelIds"] !== undefined) {
+          params["labelIds"] = String(args["labelIds"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["q"] !== undefined) params["q"] = String(args["q"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "threads",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.id?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     modify: {
