@@ -270,9 +270,6 @@ const GlobalArgsSchema = z.object({
     inputVariableMapping: z.record(z.string(), z.string()).describe(
       "Optional. The mapping of the app variables names to the Dialogflow session parameters names to be sent to the Dialogflow agent as input.",
     ).optional(),
-    languageCodeVariable: z.string().describe(
-      "Optional. The name of the variable that contains the language code to be used for the Dialogflow session. If unspecified, the default language code of the Dialogflow agent will be used.",
-    ).optional(),
     outputVariableMapping: z.record(z.string(), z.string()).describe(
       "Optional. The mapping of the Dialogflow session parameters names to the app variables names to be sent back to the CES agent after the Dialogflow agent execution ends.",
     ).optional(),
@@ -391,7 +388,6 @@ const StateSchema = z.object({
     environmentId: z.string(),
     flowId: z.string(),
     inputVariableMapping: z.record(z.string(), z.unknown()),
-    languageCodeVariable: z.string(),
     outputVariableMapping: z.record(z.string(), z.unknown()),
     respectResponseInterruptionSettings: z.boolean(),
   }).optional(),
@@ -563,9 +559,6 @@ const InputsSchema = z.object({
     inputVariableMapping: z.record(z.string(), z.string()).describe(
       "Optional. The mapping of the app variables names to the Dialogflow session parameters names to be sent to the Dialogflow agent as input.",
     ).optional(),
-    languageCodeVariable: z.string().describe(
-      "Optional. The name of the variable that contains the language code to be used for the Dialogflow session. If unspecified, the default language code of the Dialogflow agent will be used.",
-    ).optional(),
     outputVariableMapping: z.record(z.string(), z.string()).describe(
       "Optional. The mapping of the Dialogflow session parameters names to the app variables names to be sent back to the CES agent after the Dialogflow agent execution ends.",
     ).optional(),
@@ -631,7 +624,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Agents. Registered at `@swamp/gcp/ces/apps-agents`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-agents",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -705,6 +698,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

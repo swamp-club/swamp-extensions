@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/dataproc"
-version: "2026.05.24.1"
+version: "2026.05.25.1"
 description: "Google Cloud dataproc infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: autoscalingpolicies, batches, sessiontemplates, sessions, workflowtemplates, clusters, clusters_nodegroups, jobs
+  - Updated: batches, sessions
 models:
   - autoscalingpolicies.ts
   - batches.ts

@@ -655,9 +655,6 @@ const GlobalArgsSchema = z.object({
     }).describe("Represents a select subset of an OpenAPI 3.0 schema object.")
       .optional(),
     name: z.string().describe("Required. The name of the MCP tool.").optional(),
-    nameOverride: z.string().describe(
-      "Optional. The name override of the MCP tool. This is populated if the name was overridden by a Toolset override.",
-    ).optional(),
     outputSchema: z.object({
       additionalProperties: z.string().describe("Circular reference to Schema")
         .optional(),
@@ -726,10 +723,6 @@ const GlobalArgsSchema = z.object({
         "Required. The name of [Service Directory](https://cloud.google.com/service-directory) service. Format: `projects/{project}/locations/{location}/namespaces/{namespace}/services/{service}`. Location of the service directory must be the same as the location of the app.",
       ).optional(),
     }).describe("Configuration for tools using Service Directory.").optional(),
-    state: z.enum(["STATE_UNSPECIFIED", "ACTIVE", "INACTIVE", "STALE"])
-      .describe(
-        "Output only. The dynamic availability state of the tool on the external server.",
-      ).optional(),
     tlsConfig: z.object({
       caCerts: z.array(z.object({
         cert: z.string().describe(
@@ -845,11 +838,6 @@ const GlobalArgsSchema = z.object({
     pythonCode: z.string().describe(
       "Optional. The Python code to execute for the tool.",
     ).optional(),
-    serviceDirectoryConfig: z.object({
-      service: z.string().describe(
-        "Required. The name of [Service Directory](https://cloud.google.com/service-directory) service. Format: `projects/{project}/locations/{location}/namespaces/{namespace}/services/{service}`. Location of the service directory must be the same as the location of the app.",
-      ).optional(),
-    }).describe("Configuration for tools using Service Directory.").optional(),
   }).describe("A Python function tool.").optional(),
   remoteAgentTool: z.object({
     agentCard: z.object({
@@ -949,12 +937,6 @@ const GlobalArgsSchema = z.object({
         pythonCode: z.string().describe(
           "Optional. The Python code to execute for the tool.",
         ).optional(),
-        serviceDirectoryConfig: z.object({
-          service: z.string().describe(
-            "Required. The name of [Service Directory](https://cloud.google.com/service-directory) service. Format: `projects/{project}/locations/{location}/namespaces/{namespace}/services/{service}`. Location of the service directory must be the same as the location of the app.",
-          ).optional(),
-        }).describe("Configuration for tools using Service Directory.")
-          .optional(),
       }).describe("A Python function tool.").optional(),
       pythonScript: z.string().describe(
         "Deprecated: Use `python_function` instead.",
@@ -1283,7 +1265,6 @@ const StateSchema = z.object({
       uniqueItems: z.boolean(),
     }),
     name: z.string(),
-    nameOverride: z.string(),
     outputSchema: z.object({
       additionalProperties: z.string(),
       anyOf: z.array(z.string()),
@@ -1309,7 +1290,6 @@ const StateSchema = z.object({
     serviceDirectoryConfig: z.object({
       service: z.string(),
     }),
-    state: z.string(),
     tlsConfig: z.object({
       caCerts: z.array(z.object({
         cert: z.string(),
@@ -1360,9 +1340,6 @@ const StateSchema = z.object({
     description: z.string(),
     name: z.string(),
     pythonCode: z.string(),
-    serviceDirectoryConfig: z.object({
-      service: z.string(),
-    }),
   }).optional(),
   remoteAgentTool: z.object({
     agentCard: z.object({
@@ -1408,9 +1385,6 @@ const StateSchema = z.object({
         description: z.string(),
         name: z.string(),
         pythonCode: z.string(),
-        serviceDirectoryConfig: z.object({
-          service: z.string(),
-        }),
       }),
       pythonScript: z.string(),
       sourceToolName: z.string(),
@@ -1975,9 +1949,6 @@ const InputsSchema = z.object({
     }).describe("Represents a select subset of an OpenAPI 3.0 schema object.")
       .optional(),
     name: z.string().describe("Required. The name of the MCP tool.").optional(),
-    nameOverride: z.string().describe(
-      "Optional. The name override of the MCP tool. This is populated if the name was overridden by a Toolset override.",
-    ).optional(),
     outputSchema: z.object({
       additionalProperties: z.string().describe("Circular reference to Schema")
         .optional(),
@@ -2046,10 +2017,6 @@ const InputsSchema = z.object({
         "Required. The name of [Service Directory](https://cloud.google.com/service-directory) service. Format: `projects/{project}/locations/{location}/namespaces/{namespace}/services/{service}`. Location of the service directory must be the same as the location of the app.",
       ).optional(),
     }).describe("Configuration for tools using Service Directory.").optional(),
-    state: z.enum(["STATE_UNSPECIFIED", "ACTIVE", "INACTIVE", "STALE"])
-      .describe(
-        "Output only. The dynamic availability state of the tool on the external server.",
-      ).optional(),
     tlsConfig: z.object({
       caCerts: z.array(z.object({
         cert: z.string().describe(
@@ -2165,11 +2132,6 @@ const InputsSchema = z.object({
     pythonCode: z.string().describe(
       "Optional. The Python code to execute for the tool.",
     ).optional(),
-    serviceDirectoryConfig: z.object({
-      service: z.string().describe(
-        "Required. The name of [Service Directory](https://cloud.google.com/service-directory) service. Format: `projects/{project}/locations/{location}/namespaces/{namespace}/services/{service}`. Location of the service directory must be the same as the location of the app.",
-      ).optional(),
-    }).describe("Configuration for tools using Service Directory.").optional(),
   }).describe("A Python function tool.").optional(),
   remoteAgentTool: z.object({
     agentCard: z.object({
@@ -2269,12 +2231,6 @@ const InputsSchema = z.object({
         pythonCode: z.string().describe(
           "Optional. The Python code to execute for the tool.",
         ).optional(),
-        serviceDirectoryConfig: z.object({
-          service: z.string().describe(
-            "Required. The name of [Service Directory](https://cloud.google.com/service-directory) service. Format: `projects/{project}/locations/{location}/namespaces/{namespace}/services/{service}`. Location of the service directory must be the same as the location of the app.",
-          ).optional(),
-        }).describe("Configuration for tools using Service Directory.")
-          .optional(),
       }).describe("A Python function tool.").optional(),
       pythonScript: z.string().describe(
         "Deprecated: Use `python_function` instead.",
@@ -2396,7 +2352,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Tools. Registered at `@swamp/gcp/ces/apps-tools`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-tools",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -2499,6 +2455,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
