@@ -967,22 +967,17 @@ export class S3CacheSyncService implements DatastoreSyncService {
     const signal = options?.signal;
     throwIfAborted(signal);
 
+    const skipFastPath = this.lazyPullActive && !options?.metadataOnly;
     const fastStart = Date.now();
-    const fastResult = await this.tryFastPullChanged(signal);
+    const fastResult = skipFastPath
+      ? null
+      : await this.tryFastPullChanged(signal);
     tracePhase(
       "pullChanged.fastpath",
       fastStart,
-      fastResult === 0 ? "hit" : "miss",
+      skipFastPath ? "skip(lazy→full)" : fastResult === 0 ? "hit" : "miss",
     );
-    if (fastResult !== null) {
-      if (!options?.metadataOnly && this.lazyPullActive) {
-        this.lazyPullActive = false;
-        await this.writeSyncState(
-          this.buildV2State({ lazyPullActive: false }),
-        );
-      }
-      return fastResult;
-    }
+    if (fastResult !== null) return fastResult;
 
     const indexStart = Date.now();
     const models = options?.context?.models;

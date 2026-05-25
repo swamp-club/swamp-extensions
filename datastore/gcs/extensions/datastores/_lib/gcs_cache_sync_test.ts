@@ -3280,8 +3280,16 @@ Deno.test("lazyPullActive clears after full pull, restoring normal push behavior
       "lazyPullActive should be true after metadataOnly pull",
     );
 
-    // Full pull — clears the flag
-    await svc.pullChanged();
+    // Verify raw is NOT on disk yet
+    const rawMissing = await Deno.stat(
+      join(cachePath, "data/aws/ec2/vpc/abc/state-main/1/raw"),
+    ).then(() => false).catch(() => true);
+    assert(rawMissing, "raw should be absent after lazy pull");
+
+    // Full pull — must download raw and clear the flag
+    const pulled = await svc.pullChanged();
+    assertEquals(pulled, 1, "full pull must download the missing raw file");
+
     const text2 = await Deno.readTextFile(
       join(cachePath, ".datastore-sync-state.json"),
     );
@@ -3290,6 +3298,16 @@ Deno.test("lazyPullActive clears after full pull, restoring normal push behavior
       sidecar2.lazyPullActive,
       false,
       "lazyPullActive should be false after full pull",
+    );
+
+    // Verify raw IS on disk now
+    const rawContent = await Deno.readTextFile(
+      join(cachePath, "data/aws/ec2/vpc/abc/state-main/1/raw"),
+    );
+    assertEquals(
+      rawContent,
+      "data",
+      "raw file must be downloaded by full pull",
     );
   } finally {
     await Deno.remove(cachePath, { recursive: true });
