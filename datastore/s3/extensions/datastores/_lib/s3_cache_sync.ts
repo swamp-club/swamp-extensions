@@ -1269,8 +1269,18 @@ export class S3CacheSyncService implements DatastoreSyncService {
       await atomicWriteTextFile(this.indexPath, indexJson);
       this.indexMutated = false;
 
-      // Dual-write: partitioned index files (after monolithic for crash safety)
-      await this.writePartitionedIndex(this.index, signal);
+      // Dual-write: partitioned index files (after monolithic for crash safety).
+      // Only write partitions whose data changed during this push.
+      const dirtyPartitionKeys = new Set<string>();
+      for (const rel of toPush) {
+        const key = S3CacheSyncService.partitionKeyFromPath(rel);
+        if (key) dirtyPartitionKeys.add(key);
+      }
+      await this.writePartitionedIndex(
+        this.index,
+        signal,
+        dirtyPartitionKeys.size > 0 ? dirtyPartitionKeys : undefined,
+      );
       // Record the new index ETag as the verified-clean baseline so
       // the next `pushChanged` can take the fast path. The PutObject
       // response's ETag is bound to the bytes we just uploaded — it's
@@ -1393,6 +1403,20 @@ export class S3CacheSyncService implements DatastoreSyncService {
   }
 
   /**
+   * Derives a partition key from a relative data path, or undefined if the
+   * path is not a data entry (non-data/ prefix or too few segments).
+   */
+  private static partitionKeyFromPath(rel: string): string | undefined {
+    if (!rel.startsWith("data/")) return undefined;
+    const segments = rel.split("/");
+    if (segments.length < 4) return undefined;
+    const prefixEnd = segments.length >= 6
+      ? segments.length - 3
+      : segments.length - 1;
+    return segments.slice(0, prefixEnd).join("--");
+  }
+
+  /**
    * Groups index entries into partition buckets by model prefix.
    * Path structure: data/{modelType-segments}/{modelId}/{dataName}/{version}/raw
    * Partition key: segments up to (but not including) dataName, joined with --.
@@ -1403,15 +1427,8 @@ export class S3CacheSyncService implements DatastoreSyncService {
     const partitions = new Map<string, Record<string, IndexEntry>>();
 
     for (const [rel, entry] of Object.entries(entries)) {
-      if (!rel.startsWith("data/")) continue;
-      const segments = rel.split("/");
-      if (segments.length < 4) continue;
-
-      // Strip trailing dataName/version/raw (3 segments) or just dataName (1)
-      const prefixEnd = segments.length >= 6
-        ? segments.length - 3
-        : segments.length - 1;
-      const key = segments.slice(0, prefixEnd).join("--");
+      const key = S3CacheSyncService.partitionKeyFromPath(rel);
+      if (!key) continue;
 
       let bucket = partitions.get(key);
       if (!bucket) {
@@ -1436,6 +1453,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
   private async writePartitionedIndex(
     index: DatastoreIndex,
     signal?: AbortSignal,
+    dirtyKeys?: Set<string>,
   ): Promise<void> {
     const partitions = S3CacheSyncService.groupEntriesByPartition(
       index.entries,
@@ -1447,6 +1465,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
 
     for (const [key, entries] of partitions) {
       partitionKeys.push(key);
+      if (dirtyKeys && !dirtyKeys.has(key)) continue;
       const partition: PartitionIndex = { version: 1, entries };
       const data = new TextEncoder().encode(JSON.stringify(partition, null, 2));
       writes.push(
