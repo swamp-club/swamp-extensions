@@ -1043,7 +1043,9 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       await this.writeSyncState(
         this.buildV2State({ lazyPullActive: true }),
       );
-    } else if (this.lazyPullActive) {
+    } else if (
+      this.lazyPullActive && !options?.context?.models?.length
+    ) {
       this.lazyPullActive = false;
       await this.writeSyncState(
         this.buildV2State({ lazyPullActive: false }),

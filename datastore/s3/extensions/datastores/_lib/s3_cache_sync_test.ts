@@ -3602,45 +3602,6 @@ Deno.test("pullChanged: without metadataOnly downloads everything including raw"
   }
 });
 
-Deno.test("pullChanged: full strategy (default) downloads raw files", async () => {
-  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-full-" });
-  try {
-    const mock = createMockS3Client();
-    const service = new S3CacheSyncService(mock, cachePath);
-
-    const entries: Record<
-      string,
-      { key: string; size: number; lastModified: string }
-    > = {
-      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml": {
-        key: "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
-        size: 5,
-        lastModified: new Date().toISOString(),
-      },
-      "data/aws/ec2/vpc/abc/state-main/1/raw": {
-        key: "data/aws/ec2/vpc/abc/state-main/1/raw",
-        size: 4,
-        lastModified: new Date().toISOString(),
-      },
-    };
-
-    mock.storage.set(".datastore-index.json", encodeIndex(entries));
-    mock.storage.set(
-      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
-      new TextEncoder().encode("meta!"),
-    );
-    mock.storage.set(
-      "data/aws/ec2/vpc/abc/state-main/1/raw",
-      new TextEncoder().encode("data"),
-    );
-
-    const pulled = await service.pullChanged();
-    assertEquals(pulled, 2, "full strategy should download all files");
-  } finally {
-    await Deno.remove(cachePath, { recursive: true });
-  }
-});
-
 // -- hydrateFile tests -----------------------------------------------------
 
 Deno.test("hydrateFile: downloads a single file on demand", async () => {
@@ -3896,6 +3857,72 @@ Deno.test("lazyPullActive persists across process restarts", async () => {
     assert(
       "data/aws/ec2/vpc/abc/state-main/1/raw" in idx.entries,
       "remote raw must survive push from fresh process after lazy pull",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("scoped pull does not clear lazyPullActive", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-lazyscoped-" });
+  try {
+    const mock = createMockS3Client();
+    const modelId = "abc-model-id";
+
+    const entries: Record<
+      string,
+      { key: string; size: number; lastModified: string }
+    > = {
+      [`data/aws/ec2/vpc/${modelId}/state-main/1/metadata.yaml`]: {
+        key: `data/aws/ec2/vpc/${modelId}/state-main/1/metadata.yaml`,
+        size: 5,
+        lastModified: new Date().toISOString(),
+      },
+      [`data/aws/ec2/vpc/${modelId}/state-main/1/raw`]: {
+        key: `data/aws/ec2/vpc/${modelId}/state-main/1/raw`,
+        size: 4,
+        lastModified: new Date().toISOString(),
+      },
+      "data/aws/ec2/vpc/other-model/state-main/1/raw": {
+        key: "data/aws/ec2/vpc/other-model/state-main/1/raw",
+        size: 100,
+        lastModified: new Date().toISOString(),
+      },
+    };
+
+    mock.storage.set(".datastore-index.json", encodeIndex(entries));
+    mock.storage.set(
+      `data/aws/ec2/vpc/${modelId}/state-main/1/metadata.yaml`,
+      new TextEncoder().encode("meta!"),
+    );
+    mock.storage.set(
+      `data/aws/ec2/vpc/${modelId}/state-main/1/raw`,
+      new TextEncoder().encode("data"),
+    );
+    mock.storage.set(
+      "data/aws/ec2/vpc/other-model/state-main/1/raw",
+      new TextEncoder().encode("x".repeat(100)),
+    );
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+
+    // Lazy pull
+    await svc.pullChanged({ metadataOnly: true });
+    const sidecar1 = await readSidecar(cachePath);
+    assertEquals(
+      (sidecar1 as Record<string, unknown>)?.lazyPullActive,
+      true,
+    );
+
+    // Scoped pull for one model — must NOT clear lazyPullActive
+    await svc.pullChanged({
+      context: { models: [{ modelType: "aws/ec2/vpc", modelId }] },
+    });
+    const sidecar2 = await readSidecar(cachePath);
+    assertEquals(
+      (sidecar2 as Record<string, unknown>)?.lazyPullActive,
+      true,
+      "scoped pull must not clear lazyPullActive",
     );
   } finally {
     await Deno.remove(cachePath, { recursive: true });
