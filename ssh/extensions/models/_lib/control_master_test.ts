@@ -237,11 +237,10 @@ Deno.test("safeFleetDir: macOS TMPDIR triggers /tmp fallback for longer fleet na
 
 Deno.test("safeFleetDir: Linux XDG threshold — boundary fleet stays on XDG", async () => {
   const linuxEnv = { XDG_RUNTIME_DIR: "/run/user/1000" };
-  // base = "/run/user/1000/swamp-ssh" (24 chars) + "/" + fleet + "/" + 17 (filename) <= 104
-  // max fleet = 104 - 24 - 1 - 1 - 17 = 61 chars
-  // but safeFleetDir budget = 104 - 1 - 17 = 86, and dir = 24 + 1 + fleet
-  // so fleet <= 86 - 25 = 61 chars
-  const maxFleet = "a".repeat(61);
+  // budget = 103 - 1 - 17 = 85 (max dir length)
+  // dir = "/run/user/1000/swamp-ssh/" (25 chars) + fleet
+  // max fleet = 85 - 25 = 60 chars
+  const maxFleet = "a".repeat(60);
   const dir = await safeFleetDir(maxFleet, linuxEnv);
   assert(
     dir.startsWith("/run/user/1000/swamp-ssh/"),
@@ -251,7 +250,7 @@ Deno.test("safeFleetDir: Linux XDG threshold — boundary fleet stays on XDG", a
 
 Deno.test("safeFleetDir: Linux XDG threshold — one char over triggers /tmp fallback", async () => {
   const linuxEnv = { XDG_RUNTIME_DIR: "/run/user/1000" };
-  const overFleet = "a".repeat(62);
+  const overFleet = "a".repeat(61);
   const dir = await safeFleetDir(overFleet, linuxEnv);
   assert(
     dir.startsWith("/tmp/swamp-ssh/"),
@@ -259,7 +258,7 @@ Deno.test("safeFleetDir: Linux XDG threshold — one char over triggers /tmp fal
   );
 });
 
-Deno.test("safeFleetDir: controlPath and ensureControlDir agree on directory", async () => {
+Deno.test("safeFleetDir: agrees with controlPath's directory", async () => {
   const env = { XDG_RUNTIME_DIR: "/run/user/1000" };
   const fleet = "my-app";
   const dir = await safeFleetDir(fleet, env);

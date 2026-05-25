@@ -35,8 +35,10 @@
 
 import type { EffectiveHost } from "./hosts.ts";
 
-// macOS sockaddr_un.sun_path is 104 bytes; Linux is 108. Use the smaller.
-const UNIX_SOCKET_MAX = 104;
+// macOS sockaddr_un.sun_path is 104 bytes including the null terminator;
+// the max usable string length is 103. Linux is 108 (107 usable). Use the
+// smaller.
+const UNIX_SOCKET_MAX = 103;
 // 12 hex chars = 48 bits. Birthday-bound collision at ~2^24 (16M) sockets
 // per fleet — safe for per-machine naming.
 const HASH_CHARS = 12;
