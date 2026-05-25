@@ -427,6 +427,7 @@ interface DatastoreSyncStateV2 {
   localDirty: boolean;
   dirtyPaths: string[];
   bulkInvalidated: boolean;
+  lazyPullActive: boolean;
 }
 
 type DatastoreSyncState = DatastoreSyncStateV1 | DatastoreSyncStateV2;
@@ -446,6 +447,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
   private indexMutated = false;
   private dirtyPaths: Set<string> = new Set();
   private bulkInvalidated = false;
+  private lazyPullActive = false;
 
   constructor(
     s3: S3Client,
@@ -490,6 +492,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
             this.dirtyPaths = new Set(v2.dirtyPaths);
           }
           this.bulkInvalidated = !!v2.bulkInvalidated;
+          this.lazyPullActive = !!v2.lazyPullActive;
         } else if (parsed.version === 1) {
           this.syncState = parsed as DatastoreSyncStateV1;
         }
@@ -514,7 +517,10 @@ export class S3CacheSyncService implements DatastoreSyncService {
   /** Build a v2 sidecar snapshot from current in-memory state. */
   private buildV2State(
     overrides?: Partial<
-      Pick<DatastoreSyncStateV2, "localDirty" | "bulkInvalidated">
+      Pick<
+        DatastoreSyncStateV2,
+        "localDirty" | "bulkInvalidated" | "lazyPullActive"
+      >
     >,
   ): DatastoreSyncStateV2 {
     const current = this.syncState;
@@ -525,6 +531,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
       localDirty: overrides?.localDirty ?? current?.localDirty ?? false,
       dirtyPaths: [...this.dirtyPaths],
       bulkInvalidated: overrides?.bulkInvalidated ?? this.bulkInvalidated,
+      lazyPullActive: overrides?.lazyPullActive ?? this.lazyPullActive,
     };
   }
 
@@ -620,6 +627,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
       localDirty: false,
       dirtyPaths: [],
       bulkInvalidated: false,
+      lazyPullActive: this.lazyPullActive,
     });
   }
 
@@ -966,7 +974,15 @@ export class S3CacheSyncService implements DatastoreSyncService {
       fastStart,
       fastResult === 0 ? "hit" : "miss",
     );
-    if (fastResult !== null) return fastResult;
+    if (fastResult !== null) {
+      if (!options?.metadataOnly && this.lazyPullActive) {
+        this.lazyPullActive = false;
+        await this.writeSyncState(
+          this.buildV2State({ lazyPullActive: false }),
+        );
+      }
+      return fastResult;
+    }
 
     const indexStart = Date.now();
     const models = options?.context?.models;
@@ -1127,6 +1143,18 @@ export class S3CacheSyncService implements DatastoreSyncService {
         // a failure — the sidecar is a fast-path optimization, and a
         // missed update only costs one slow-path sync next time.
       }
+    }
+
+    if (metadataOnly) {
+      this.lazyPullActive = true;
+      await this.writeSyncState(
+        this.buildV2State({ lazyPullActive: true }),
+      );
+    } else if (this.lazyPullActive) {
+      this.lazyPullActive = false;
+      await this.writeSyncState(
+        this.buildV2State({ lazyPullActive: false }),
+      );
     }
 
     return pulled;
@@ -1377,6 +1405,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
    */
   private async localHasAllRemoteEntries(): Promise<boolean> {
     if (!this.index) return false;
+    if (this.lazyPullActive) return false;
     for (const [rel, entry] of Object.entries(this.index.entries)) {
       if (isInternalCacheFile(rel)) continue;
       try {

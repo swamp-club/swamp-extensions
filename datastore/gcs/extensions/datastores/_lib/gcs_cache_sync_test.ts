@@ -3155,3 +3155,202 @@ Deno.test("capabilities: returns lazyHydration: true", () => {
   assertEquals(caps.scopedSync, true);
   assertEquals(caps.lazyHydration, true);
 });
+
+// -- lazyPullActive: push safety after lazy pull ---------------------------
+
+Deno.test("pushChanged after metadataOnly pull preserves remote entries in index", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-lazypush-" });
+  try {
+    const mock = createMockGcsClient();
+
+    const entries: Record<
+      string,
+      { key: string; size: number; lastModified: string }
+    > = {
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+        size: 5,
+        lastModified: new Date().toISOString(),
+      },
+      "data/aws/ec2/vpc/abc/state-main/1/raw": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/raw",
+        size: 1000,
+        lastModified: new Date().toISOString(),
+      },
+      "data/aws/ec2/vpc/abc/state-main/latest": {
+        key: "data/aws/ec2/vpc/abc/state-main/latest",
+        size: 3,
+        lastModified: new Date().toISOString(),
+      },
+    };
+
+    mock.storage.set(".datastore-index.json", encodeIndex(entries));
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+      new TextEncoder().encode("meta!"),
+    );
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/raw",
+      new TextEncoder().encode("x".repeat(1000)),
+    );
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/latest",
+      new TextEncoder().encode("1\n"),
+    );
+
+    // Lazy pull — skips raw
+    const svc = new GcsCacheSyncService(mock, cachePath);
+    await svc.pullChanged({ metadataOnly: true });
+
+    // Write a new local file
+    await seedFile(
+      cachePath,
+      "data/aws/ec2/vpc/new/state-main/1/raw",
+      "new-data",
+    );
+    await svc.markDirty();
+
+    // Push — must NOT drop the remote raw entry
+    await svc.pushChanged();
+
+    // Verify: the remote index still has ALL original entries plus the new one
+    const indexPut = mock.puts.filter((p) => p.key === ".datastore-index.json")
+      .pop();
+    assertExists(indexPut, "index should have been written");
+    const idx = decodeIndex(indexPut.body);
+    assert(
+      "data/aws/ec2/vpc/abc/state-main/1/raw" in idx.entries,
+      "remote raw entry must be preserved after push",
+    );
+    assert(
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml" in idx.entries,
+      "metadata entry must be preserved",
+    );
+    assert(
+      "data/aws/ec2/vpc/new/state-main/1/raw" in idx.entries,
+      "new file must appear in index",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("lazyPullActive clears after full pull, restoring normal push behavior", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-lazyclear-" });
+  try {
+    const mock = createMockGcsClient();
+
+    const entries: Record<
+      string,
+      { key: string; size: number; lastModified: string }
+    > = {
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+        size: 5,
+        lastModified: new Date().toISOString(),
+      },
+      "data/aws/ec2/vpc/abc/state-main/1/raw": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/raw",
+        size: 4,
+        lastModified: new Date().toISOString(),
+      },
+    };
+
+    mock.storage.set(".datastore-index.json", encodeIndex(entries));
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+      new TextEncoder().encode("meta!"),
+    );
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/raw",
+      new TextEncoder().encode("data"),
+    );
+
+    const svc = new GcsCacheSyncService(mock, cachePath);
+
+    // Lazy pull
+    await svc.pullChanged({ metadataOnly: true });
+    const text1 = await Deno.readTextFile(
+      join(cachePath, ".datastore-sync-state.json"),
+    );
+    const sidecar1 = JSON.parse(text1);
+    assertEquals(
+      sidecar1.lazyPullActive,
+      true,
+      "lazyPullActive should be true after metadataOnly pull",
+    );
+
+    // Full pull — clears the flag
+    await svc.pullChanged();
+    const text2 = await Deno.readTextFile(
+      join(cachePath, ".datastore-sync-state.json"),
+    );
+    const sidecar2 = JSON.parse(text2);
+    assertEquals(
+      sidecar2.lazyPullActive,
+      false,
+      "lazyPullActive should be false after full pull",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("lazyPullActive persists across process restarts", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-lazypersist-" });
+  try {
+    const mock = createMockGcsClient();
+
+    const entries: Record<
+      string,
+      { key: string; size: number; lastModified: string }
+    > = {
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+        size: 5,
+        lastModified: new Date().toISOString(),
+      },
+      "data/aws/ec2/vpc/abc/state-main/1/raw": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/raw",
+        size: 1000,
+        lastModified: new Date().toISOString(),
+      },
+    };
+
+    mock.storage.set(".datastore-index.json", encodeIndex(entries));
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+      new TextEncoder().encode("meta!"),
+    );
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/raw",
+      new TextEncoder().encode("x".repeat(1000)),
+    );
+
+    // Process 1: lazy pull
+    const svc1 = new GcsCacheSyncService(mock, cachePath);
+    await svc1.pullChanged({ metadataOnly: true });
+
+    // Process 2: fresh instance, push
+    const svc2 = new GcsCacheSyncService(mock, cachePath);
+    await seedFile(
+      cachePath,
+      "data/aws/ec2/vpc/new/state-main/1/raw",
+      "new",
+    );
+    await svc2.markDirty();
+    await svc2.pushChanged();
+
+    // Verify remote index preserves original raw entry
+    const indexPut = mock.puts.filter((p) => p.key === ".datastore-index.json")
+      .pop();
+    assertExists(indexPut);
+    const idx = decodeIndex(indexPut.body);
+    assert(
+      "data/aws/ec2/vpc/abc/state-main/1/raw" in idx.entries,
+      "remote raw must survive push from fresh process after lazy pull",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
