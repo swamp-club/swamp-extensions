@@ -115,6 +115,20 @@ export function isInternalCacheFile(rel: string): boolean {
 }
 
 /**
+ * Returns true for data-tier raw content files that should be skipped
+ * during the first lazy hydration pull. Only files under `data/` whose
+ * basename is `raw` are skipped — metadata.yaml, latest pointers, and
+ * everything outside the data/ prefix are always downloaded.
+ *
+ * Exported for unit tests; not part of the public extension API.
+ */
+export function isLazySkippable(rel: string): boolean {
+  const parts = rel.split("/");
+  return parts.length >= 3 && parts[0] === "data" &&
+    parts[parts.length - 1] === "raw";
+}
+
+/**
  * Strips S3's surrounding double-quotes from an ETag so two ETags from
  * different SDK paths (HeadObject vs. PutObject) can be compared byte-
  * for-byte. `undefined` passes through.
@@ -413,6 +427,7 @@ interface DatastoreSyncStateV2 {
   localDirty: boolean;
   dirtyPaths: string[];
   bulkInvalidated: boolean;
+  lazyPullActive: boolean;
 }
 
 type DatastoreSyncState = DatastoreSyncStateV1 | DatastoreSyncStateV2;
@@ -432,11 +447,15 @@ export class S3CacheSyncService implements DatastoreSyncService {
   private indexMutated = false;
   private dirtyPaths: Set<string> = new Set();
   private bulkInvalidated = false;
+  private lazyPullActive = false;
 
   constructor(
     s3: S3Client,
     cachePath: string,
-    options?: { pullConcurrency?: number; pushConcurrency?: number },
+    options?: {
+      pullConcurrency?: number;
+      pushConcurrency?: number;
+    },
   ) {
     this.s3 = s3;
     this.cachePath = cachePath;
@@ -473,6 +492,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
             this.dirtyPaths = new Set(v2.dirtyPaths);
           }
           this.bulkInvalidated = !!v2.bulkInvalidated;
+          this.lazyPullActive = !!v2.lazyPullActive;
         } else if (parsed.version === 1) {
           this.syncState = parsed as DatastoreSyncStateV1;
         }
@@ -497,7 +517,10 @@ export class S3CacheSyncService implements DatastoreSyncService {
   /** Build a v2 sidecar snapshot from current in-memory state. */
   private buildV2State(
     overrides?: Partial<
-      Pick<DatastoreSyncStateV2, "localDirty" | "bulkInvalidated">
+      Pick<
+        DatastoreSyncStateV2,
+        "localDirty" | "bulkInvalidated" | "lazyPullActive"
+      >
     >,
   ): DatastoreSyncStateV2 {
     const current = this.syncState;
@@ -508,6 +531,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
       localDirty: overrides?.localDirty ?? current?.localDirty ?? false,
       dirtyPaths: [...this.dirtyPaths],
       bulkInvalidated: overrides?.bulkInvalidated ?? this.bulkInvalidated,
+      lazyPullActive: overrides?.lazyPullActive ?? this.lazyPullActive,
     };
   }
 
@@ -603,6 +627,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
       localDirty: false,
       dirtyPaths: [],
       bulkInvalidated: false,
+      lazyPullActive: this.lazyPullActive,
     });
   }
 
@@ -942,12 +967,15 @@ export class S3CacheSyncService implements DatastoreSyncService {
     const signal = options?.signal;
     throwIfAborted(signal);
 
+    const skipFastPath = this.lazyPullActive && !options?.metadataOnly;
     const fastStart = Date.now();
-    const fastResult = await this.tryFastPullChanged(signal);
+    const fastResult = skipFastPath
+      ? null
+      : await this.tryFastPullChanged(signal);
     tracePhase(
       "pullChanged.fastpath",
       fastStart,
-      fastResult === 0 ? "hit" : "miss",
+      skipFastPath ? "skip(lazy→full)" : fastResult === 0 ? "hit" : "miss",
     );
     if (fastResult !== null) return fastResult;
 
@@ -983,14 +1011,26 @@ export class S3CacheSyncService implements DatastoreSyncService {
     }
     tracePhase("pullChanged.pullIndex", indexStart);
 
+    // Metadata-only pull: skip raw content files under data/ — download
+    // only metadata.yaml, latest pointers, and everything outside data/.
+    // Create parent dirs for skipped files so readdir works for the
+    // catalog walker.
+    const metadataOnly = !!options?.metadataOnly;
+
     // Build list of files that need pulling
     const walkStart = Date.now();
     const toPull: string[] = [];
+    const lazyDirsToCreate: Set<string> = new Set();
     for (const [rel, entry] of Object.entries(this.index?.entries ?? {})) {
       // Belt-and-suspenders: `scrubIndex` already removed internal
       // entries in `pullIndex`, but if anything re-adds a zombie
       // between the scrub and the walk, this guard still catches it.
       if (isInternalCacheFile(rel)) {
+        continue;
+      }
+      if (metadataOnly && isLazySkippable(rel)) {
+        const localPath = assertSafePath(this.cachePath, rel);
+        lazyDirsToCreate.add(dirname(localPath));
         continue;
       }
       const localPath = assertSafePath(this.cachePath, rel);
@@ -1014,6 +1054,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
       }
       toPull.push(rel);
     }
+    await Promise.all([...lazyDirsToCreate].map((d) => ensureDir(d)));
     tracePhase("pullChanged.walk", walkStart, `toPull=${toPull.length}`);
 
     // Download concurrently in batches
@@ -1095,6 +1136,20 @@ export class S3CacheSyncService implements DatastoreSyncService {
         // a failure — the sidecar is a fast-path optimization, and a
         // missed update only costs one slow-path sync next time.
       }
+    }
+
+    if (metadataOnly) {
+      this.lazyPullActive = true;
+      await this.writeSyncState(
+        this.buildV2State({ lazyPullActive: true }),
+      );
+    } else if (
+      this.lazyPullActive && !options?.context?.models?.length
+    ) {
+      this.lazyPullActive = false;
+      await this.writeSyncState(
+        this.buildV2State({ lazyPullActive: false }),
+      );
     }
 
     return pulled;
@@ -1345,6 +1400,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
    */
   private async localHasAllRemoteEntries(): Promise<boolean> {
     if (!this.index) return false;
+    if (this.lazyPullActive) return false;
     for (const [rel, entry] of Object.entries(this.index.entries)) {
       if (isInternalCacheFile(rel)) continue;
       try {
@@ -1531,6 +1587,24 @@ export class S3CacheSyncService implements DatastoreSyncService {
   }
 
   capabilities(): SyncCapabilities {
-    return { scopedSync: true };
+    return { scopedSync: true, lazyHydration: true };
+  }
+
+  async hydrateFile(
+    relPath: string,
+    options?: DatastoreSyncOptions,
+  ): Promise<boolean> {
+    try {
+      await this.pullFile(relPath, options?.signal);
+      return true;
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.name === "NotFound" || error.name === "NoSuchKey")
+      ) {
+        return false;
+      }
+      throw error;
+    }
   }
 }

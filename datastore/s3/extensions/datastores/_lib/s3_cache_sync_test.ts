@@ -33,6 +33,7 @@ import { join } from "jsr:@std/path@1";
 import { ensureDir } from "jsr:@std/fs@1";
 import {
   isInternalCacheFile,
+  isLazySkippable,
   isRetryableError,
   retryWithBackoff,
   S3CacheSyncService,
@@ -3120,7 +3121,7 @@ Deno.test("pullChanged: scoped pull falls back to monolithic when partition miss
 Deno.test("capabilities: returns scopedSync true", () => {
   const mock = createMockS3Client();
   const service = new S3CacheSyncService(mock, "/tmp/unused");
-  assertEquals(service.capabilities(), { scopedSync: true });
+  assertEquals(service.capabilities().scopedSync, true);
 });
 
 Deno.test("configurable concurrency: constructor accepts custom values", async () => {
@@ -3440,5 +3441,490 @@ Deno.test("#436 test 5: scoped pull for dirty model A gets updated data after pa
   } finally {
     await Deno.remove(cachePath, { recursive: true });
     await Deno.remove(readerCachePath, { recursive: true });
+  }
+});
+
+// -- Lazy hydration (Issue #440) -------------------------------------------
+
+// -- isLazySkippable unit tests --------------------------------------------
+
+Deno.test("isLazySkippable: skips data/*/raw files", () => {
+  assert(isLazySkippable("data/aws/ec2/vpc/abc/state-main/1/raw"));
+  assert(isLazySkippable("data/gcp/compute/instance/xyz/state-main/2/raw"));
+});
+
+Deno.test("isLazySkippable: allows metadata.yaml under data/", () => {
+  assertEquals(
+    isLazySkippable("data/aws/ec2/vpc/abc/state-main/1/metadata.yaml"),
+    false,
+  );
+});
+
+Deno.test("isLazySkippable: allows latest pointer under data/", () => {
+  assertEquals(
+    isLazySkippable("data/aws/ec2/vpc/abc/state-main/latest"),
+    false,
+  );
+});
+
+Deno.test("isLazySkippable: allows non-data paths", () => {
+  assertEquals(isLazySkippable("outputs/my-output/1/raw"), false);
+  assertEquals(isLazySkippable("workflow-runs/run-1/result.yaml"), false);
+  assertEquals(isLazySkippable("definitions-evaluated/model-a.yaml"), false);
+});
+
+Deno.test("isLazySkippable: rejects degenerate data/raw (insufficient depth)", () => {
+  assertEquals(isLazySkippable("data/raw"), false);
+});
+
+// -- Lazy pullChanged tests ------------------------------------------------
+
+Deno.test("pullChanged: metadataOnly skips raw files", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-lazy-" });
+  try {
+    const mock = createMockS3Client();
+    const service = new S3CacheSyncService(mock, cachePath);
+
+    const entries: Record<
+      string,
+      { key: string; size: number; lastModified: string }
+    > = {
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+        size: 5,
+        lastModified: new Date().toISOString(),
+      },
+      "data/aws/ec2/vpc/abc/state-main/1/raw": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/raw",
+        size: 1000,
+        lastModified: new Date().toISOString(),
+      },
+      "data/aws/ec2/vpc/abc/state-main/latest": {
+        key: "data/aws/ec2/vpc/abc/state-main/latest",
+        size: 3,
+        lastModified: new Date().toISOString(),
+      },
+      "outputs/my-output/1/result.yaml": {
+        key: "outputs/my-output/1/result.yaml",
+        size: 10,
+        lastModified: new Date().toISOString(),
+      },
+    };
+
+    mock.storage.set(".datastore-index.json", encodeIndex(entries));
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+      new TextEncoder().encode("meta!"),
+    );
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/raw",
+      new TextEncoder().encode("x".repeat(1000)),
+    );
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/latest",
+      new TextEncoder().encode("1\n"),
+    );
+    mock.storage.set(
+      "outputs/my-output/1/result.yaml",
+      new TextEncoder().encode("result: ok"),
+    );
+
+    const pulled = await service.pullChanged({ metadataOnly: true });
+    assertEquals(
+      pulled,
+      3,
+      "should pull metadata.yaml, latest, and output — skip raw",
+    );
+
+    // Verify raw was NOT downloaded
+    const rawGets = mock.gets.filter((k) =>
+      k === "data/aws/ec2/vpc/abc/state-main/1/raw"
+    );
+    assertEquals(rawGets.length, 0, "raw file should not be fetched");
+
+    // Verify metadata.yaml WAS downloaded
+    const metaExists = await Deno.stat(
+      join(cachePath, "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml"),
+    ).then(() => true).catch(() => false);
+    assert(metaExists, "metadata.yaml should exist locally");
+
+    // Verify parent dir for raw was created
+    const rawParentExists = await Deno.stat(
+      join(cachePath, "data/aws/ec2/vpc/abc/state-main/1"),
+    ).then((s) => s.isDirectory).catch(() => false);
+    assert(rawParentExists, "parent directory for raw should be created");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pullChanged: without metadataOnly downloads everything including raw", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-lazy-sub-" });
+  try {
+    const mock = createMockS3Client();
+
+    const entries: Record<
+      string,
+      { key: string; size: number; lastModified: string }
+    > = {
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+        size: 5,
+        lastModified: new Date().toISOString(),
+      },
+      "data/aws/ec2/vpc/abc/state-main/1/raw": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/raw",
+        size: 4,
+        lastModified: new Date().toISOString(),
+      },
+    };
+
+    mock.storage.set(".datastore-index.json", encodeIndex(entries));
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+      new TextEncoder().encode("meta!"),
+    );
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/raw",
+      new TextEncoder().encode("data"),
+    );
+
+    const service = new S3CacheSyncService(mock, cachePath);
+
+    const pulled = await service.pullChanged();
+    assertEquals(
+      pulled,
+      2,
+      "without metadataOnly should download ALL files including raw",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// -- hydrateFile tests -----------------------------------------------------
+
+Deno.test("hydrateFile: downloads a single file on demand", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-hydrate-" });
+  try {
+    const mock = createMockS3Client();
+    const service = new S3CacheSyncService(mock, cachePath);
+
+    const rawContent = new TextEncoder().encode("file-content-here");
+    mock.storage.set("data/aws/ec2/vpc/abc/state-main/1/raw", rawContent);
+
+    const result = await service.hydrateFile(
+      "data/aws/ec2/vpc/abc/state-main/1/raw",
+    );
+    assertEquals(result, true, "hydrateFile should return true on success");
+
+    const content = await Deno.readTextFile(
+      join(cachePath, "data/aws/ec2/vpc/abc/state-main/1/raw"),
+    );
+    assertEquals(content, "file-content-here");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("hydrateFile: returns false for missing file", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-hydrate-404-" });
+  try {
+    const mock = createMockS3Client();
+    const service = new S3CacheSyncService(mock, cachePath);
+
+    const result = await service.hydrateFile(
+      "data/aws/ec2/vpc/abc/state-main/1/raw",
+    );
+    assertEquals(
+      result,
+      false,
+      "hydrateFile should return false for missing file",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// -- capabilities test -----------------------------------------------------
+
+Deno.test("capabilities: returns lazyHydration: true", () => {
+  const mock = createMockS3Client();
+  const service = new S3CacheSyncService(mock, "/tmp/dummy");
+  const caps = service.capabilities();
+  assertEquals(caps.scopedSync, true);
+  assertEquals(caps.lazyHydration, true);
+});
+
+// -- lazyPullActive: push safety after lazy pull ---------------------------
+
+Deno.test("pushChanged after metadataOnly pull preserves remote entries in index", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-lazypush-" });
+  try {
+    const mock = createMockS3Client();
+
+    const entries: Record<
+      string,
+      { key: string; size: number; lastModified: string }
+    > = {
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+        size: 5,
+        lastModified: new Date().toISOString(),
+      },
+      "data/aws/ec2/vpc/abc/state-main/1/raw": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/raw",
+        size: 1000,
+        lastModified: new Date().toISOString(),
+      },
+      "data/aws/ec2/vpc/abc/state-main/latest": {
+        key: "data/aws/ec2/vpc/abc/state-main/latest",
+        size: 3,
+        lastModified: new Date().toISOString(),
+      },
+    };
+
+    mock.storage.set(".datastore-index.json", encodeIndex(entries));
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+      new TextEncoder().encode("meta!"),
+    );
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/raw",
+      new TextEncoder().encode("x".repeat(1000)),
+    );
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/latest",
+      new TextEncoder().encode("1\n"),
+    );
+
+    // Lazy pull — skips raw
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged({ metadataOnly: true });
+
+    // Write a new local file
+    await seedFile(
+      cachePath,
+      "data/aws/ec2/vpc/new/state-main/1/raw",
+      "new-data",
+    );
+    await svc.markDirty();
+
+    // Push — must NOT drop the remote raw entry
+    await svc.pushChanged();
+
+    // Verify: the remote index still has ALL original entries plus the new one
+    const indexPut = mock.puts.filter((p) => p.key === ".datastore-index.json")
+      .pop();
+    assertExists(indexPut, "index should have been written");
+    const idx = decodeIndex(indexPut.body);
+    assert(
+      "data/aws/ec2/vpc/abc/state-main/1/raw" in idx.entries,
+      "remote raw entry must be preserved after push",
+    );
+    assert(
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml" in idx.entries,
+      "metadata entry must be preserved",
+    );
+    assert(
+      "data/aws/ec2/vpc/new/state-main/1/raw" in idx.entries,
+      "new file must appear in index",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("lazyPullActive clears after full pull, restoring normal push behavior", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-lazyclear-" });
+  try {
+    const mock = createMockS3Client();
+
+    const entries: Record<
+      string,
+      { key: string; size: number; lastModified: string }
+    > = {
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+        size: 5,
+        lastModified: new Date().toISOString(),
+      },
+      "data/aws/ec2/vpc/abc/state-main/1/raw": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/raw",
+        size: 4,
+        lastModified: new Date().toISOString(),
+      },
+    };
+
+    mock.storage.set(".datastore-index.json", encodeIndex(entries));
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+      new TextEncoder().encode("meta!"),
+    );
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/raw",
+      new TextEncoder().encode("data"),
+    );
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+
+    // Lazy pull
+    await svc.pullChanged({ metadataOnly: true });
+    const sidecar1 = await readSidecar(cachePath);
+    assertEquals(
+      (sidecar1 as Record<string, unknown>)?.lazyPullActive,
+      true,
+      "lazyPullActive should be true after metadataOnly pull",
+    );
+
+    // Verify raw is NOT on disk yet
+    const rawMissing = await Deno.stat(
+      join(cachePath, "data/aws/ec2/vpc/abc/state-main/1/raw"),
+    ).then(() => false).catch(() => true);
+    assert(rawMissing, "raw should be absent after lazy pull");
+
+    // Full pull — must download raw and clear the flag
+    const pulled = await svc.pullChanged();
+    assertEquals(pulled, 1, "full pull must download the missing raw file");
+
+    const sidecar2 = await readSidecar(cachePath);
+    assertEquals(
+      (sidecar2 as Record<string, unknown>)?.lazyPullActive,
+      false,
+      "lazyPullActive should be false after full pull",
+    );
+
+    // Verify raw IS on disk now
+    const rawContent = await Deno.readTextFile(
+      join(cachePath, "data/aws/ec2/vpc/abc/state-main/1/raw"),
+    );
+    assertEquals(
+      rawContent,
+      "data",
+      "raw file must be downloaded by full pull",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("lazyPullActive persists across process restarts", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-lazypersist-" });
+  try {
+    const mock = createMockS3Client();
+
+    const entries: Record<
+      string,
+      { key: string; size: number; lastModified: string }
+    > = {
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+        size: 5,
+        lastModified: new Date().toISOString(),
+      },
+      "data/aws/ec2/vpc/abc/state-main/1/raw": {
+        key: "data/aws/ec2/vpc/abc/state-main/1/raw",
+        size: 1000,
+        lastModified: new Date().toISOString(),
+      },
+    };
+
+    mock.storage.set(".datastore-index.json", encodeIndex(entries));
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/metadata.yaml",
+      new TextEncoder().encode("meta!"),
+    );
+    mock.storage.set(
+      "data/aws/ec2/vpc/abc/state-main/1/raw",
+      new TextEncoder().encode("x".repeat(1000)),
+    );
+
+    // Process 1: lazy pull
+    const svc1 = new S3CacheSyncService(mock, cachePath);
+    await svc1.pullChanged({ metadataOnly: true });
+
+    // Process 2: fresh instance, push
+    const svc2 = new S3CacheSyncService(mock, cachePath);
+    await seedFile(cachePath, "data/aws/ec2/vpc/new/state-main/1/raw", "new");
+    await svc2.markDirty();
+    await svc2.pushChanged();
+
+    // Verify remote index preserves original raw entry
+    const indexPut = mock.puts.filter((p) => p.key === ".datastore-index.json")
+      .pop();
+    assertExists(indexPut);
+    const idx = decodeIndex(indexPut.body);
+    assert(
+      "data/aws/ec2/vpc/abc/state-main/1/raw" in idx.entries,
+      "remote raw must survive push from fresh process after lazy pull",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("scoped pull does not clear lazyPullActive", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-lazyscoped-" });
+  try {
+    const mock = createMockS3Client();
+    const modelId = "abc-model-id";
+
+    const entries: Record<
+      string,
+      { key: string; size: number; lastModified: string }
+    > = {
+      [`data/aws/ec2/vpc/${modelId}/state-main/1/metadata.yaml`]: {
+        key: `data/aws/ec2/vpc/${modelId}/state-main/1/metadata.yaml`,
+        size: 5,
+        lastModified: new Date().toISOString(),
+      },
+      [`data/aws/ec2/vpc/${modelId}/state-main/1/raw`]: {
+        key: `data/aws/ec2/vpc/${modelId}/state-main/1/raw`,
+        size: 4,
+        lastModified: new Date().toISOString(),
+      },
+      "data/aws/ec2/vpc/other-model/state-main/1/raw": {
+        key: "data/aws/ec2/vpc/other-model/state-main/1/raw",
+        size: 100,
+        lastModified: new Date().toISOString(),
+      },
+    };
+
+    mock.storage.set(".datastore-index.json", encodeIndex(entries));
+    mock.storage.set(
+      `data/aws/ec2/vpc/${modelId}/state-main/1/metadata.yaml`,
+      new TextEncoder().encode("meta!"),
+    );
+    mock.storage.set(
+      `data/aws/ec2/vpc/${modelId}/state-main/1/raw`,
+      new TextEncoder().encode("data"),
+    );
+    mock.storage.set(
+      "data/aws/ec2/vpc/other-model/state-main/1/raw",
+      new TextEncoder().encode("x".repeat(100)),
+    );
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+
+    // Lazy pull
+    await svc.pullChanged({ metadataOnly: true });
+    const sidecar1 = await readSidecar(cachePath);
+    assertEquals(
+      (sidecar1 as Record<string, unknown>)?.lazyPullActive,
+      true,
+    );
+
+    // Scoped pull for one model — must NOT clear lazyPullActive
+    await svc.pullChanged({
+      context: { models: [{ modelType: "aws/ec2/vpc", modelId }] },
+    });
+    const sidecar2 = await readSidecar(cachePath);
+    assertEquals(
+      (sidecar2 as Record<string, unknown>)?.lazyPullActive,
+      true,
+      "scoped pull must not clear lazyPullActive",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
   }
 });

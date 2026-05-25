@@ -112,6 +112,20 @@ export function isInternalCacheFile(rel: string): boolean {
 }
 
 /**
+ * Returns true for data-tier raw content files that should be skipped
+ * during the first lazy hydration pull. Only files under `data/` whose
+ * basename is `raw` are skipped — metadata.yaml, latest pointers, and
+ * everything outside the data/ prefix are always downloaded.
+ *
+ * Exported for unit tests; not part of the public extension API.
+ */
+export function isLazySkippable(rel: string): boolean {
+  const parts = rel.split("/");
+  return parts.length >= 3 && parts[0] === "data" &&
+    parts[parts.length - 1] === "raw";
+}
+
+/**
  * Rejects with `AbortError` if the signal is already aborted. Used at
  * phase boundaries so abort propagation doesn't have to ride on a
  * pending GCS call — the next boundary catches it first.
@@ -380,6 +394,7 @@ interface DatastoreSyncStateV2 {
   localDirty: boolean;
   dirtyPaths: string[];
   bulkInvalidated: boolean;
+  lazyPullActive: boolean;
 }
 
 type DatastoreSyncState = DatastoreSyncStateV1 | DatastoreSyncStateV2;
@@ -398,11 +413,15 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   private indexMutated = false;
   private dirtyPaths: Set<string> = new Set();
   private bulkInvalidated = false;
+  private lazyPullActive = false;
 
   constructor(
     gcs: GcsClient,
     cachePath: string,
-    options?: { pullConcurrency?: number; pushConcurrency?: number },
+    options?: {
+      pullConcurrency?: number;
+      pushConcurrency?: number;
+    },
   ) {
     this.gcs = gcs;
     this.cachePath = cachePath;
@@ -438,6 +457,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
             this.dirtyPaths = new Set(v2.dirtyPaths);
           }
           this.bulkInvalidated = !!v2.bulkInvalidated;
+          this.lazyPullActive = !!v2.lazyPullActive;
         } else if (parsed.version === 1) {
           this.syncState = parsed as DatastoreSyncStateV1;
         }
@@ -462,7 +482,10 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   /** Build a v2 sidecar snapshot from current in-memory state. */
   private buildV2State(
     overrides?: Partial<
-      Pick<DatastoreSyncStateV2, "localDirty" | "bulkInvalidated">
+      Pick<
+        DatastoreSyncStateV2,
+        "localDirty" | "bulkInvalidated" | "lazyPullActive"
+      >
     >,
   ): DatastoreSyncStateV2 {
     const current = this.syncState;
@@ -473,6 +496,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       localDirty: overrides?.localDirty ?? current?.localDirty ?? false,
       dirtyPaths: [...this.dirtyPaths],
       bulkInvalidated: overrides?.bulkInvalidated ?? this.bulkInvalidated,
+      lazyPullActive: overrides?.lazyPullActive ?? this.lazyPullActive,
     };
   }
 
@@ -563,6 +587,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       localDirty: false,
       dirtyPaths: [],
       bulkInvalidated: false,
+      lazyPullActive: this.lazyPullActive,
     });
   }
 
@@ -888,12 +913,15 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     const signal = options?.signal;
     throwIfAborted(signal);
 
+    const skipFastPath = this.lazyPullActive && !options?.metadataOnly;
     const fastStart = Date.now();
-    const fastResult = await this.tryFastPullChanged(signal);
+    const fastResult = skipFastPath
+      ? null
+      : await this.tryFastPullChanged(signal);
     tracePhase(
       "pullChanged.fastpath",
       fastStart,
-      fastResult === 0 ? "hit" : "miss",
+      skipFastPath ? "skip(lazy→full)" : fastResult === 0 ? "hit" : "miss",
     );
     if (fastResult !== null) return fastResult;
 
@@ -923,10 +951,22 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     }
     tracePhase("pullChanged.pullIndex", indexStart);
 
+    // Metadata-only pull: skip raw content files under data/ — download
+    // only metadata.yaml, latest pointers, and everything outside data/.
+    // Create parent dirs for skipped files so readdir works for the
+    // catalog walker.
+    const metadataOnly = !!options?.metadataOnly;
+
     const walkStart = Date.now();
     const toPull: string[] = [];
+    const lazyDirsToCreate: Set<string> = new Set();
     for (const [rel, entry] of Object.entries(this.index?.entries ?? {})) {
       if (isInternalCacheFile(rel)) {
+        continue;
+      }
+      if (metadataOnly && isLazySkippable(rel)) {
+        const localPath = assertSafePath(this.cachePath, rel);
+        lazyDirsToCreate.add(dirname(localPath));
         continue;
       }
       const localPath = assertSafePath(this.cachePath, rel);
@@ -946,6 +986,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       }
       toPull.push(rel);
     }
+    await Promise.all([...lazyDirsToCreate].map((d) => ensureDir(d)));
     tracePhase("pullChanged.walk", walkStart, `toPull=${toPull.length}`);
 
     const downloadStart = Date.now();
@@ -995,6 +1036,20 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       } catch {
         // Non-fatal: sidecar update is opportunistic.
       }
+    }
+
+    if (metadataOnly) {
+      this.lazyPullActive = true;
+      await this.writeSyncState(
+        this.buildV2State({ lazyPullActive: true }),
+      );
+    } else if (
+      this.lazyPullActive && !options?.context?.models?.length
+    ) {
+      this.lazyPullActive = false;
+      await this.writeSyncState(
+        this.buildV2State({ lazyPullActive: false }),
+      );
     }
 
     return pulled;
@@ -1204,6 +1259,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
    */
   private async localHasAllRemoteEntries(): Promise<boolean> {
     if (!this.index) return false;
+    if (this.lazyPullActive) return false;
     for (const [rel, entry] of Object.entries(this.index.entries)) {
       if (isInternalCacheFile(rel)) continue;
       const localPath = assertSafePath(this.cachePath, rel);
@@ -1355,6 +1411,21 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   }
 
   capabilities(): SyncCapabilities {
-    return { scopedSync: true };
+    return { scopedSync: true, lazyHydration: true };
+  }
+
+  async hydrateFile(
+    relPath: string,
+    options?: DatastoreSyncOptions,
+  ): Promise<boolean> {
+    try {
+      await this.pullFile(relPath, options?.signal);
+      return true;
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return false;
+      }
+      throw error;
+    }
   }
 }
