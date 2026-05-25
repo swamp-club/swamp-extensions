@@ -1160,7 +1160,16 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       await atomicWriteTextFile(this.indexPath, indexJson);
       this.indexMutated = false;
 
-      await this.writePartitionedIndex(this.index, signal);
+      const dirtyPartitionKeys = new Set<string>();
+      for (const rel of toPush) {
+        const key = GcsCacheSyncService.partitionKeyFromPath(rel);
+        if (key) dirtyPartitionKeys.add(key);
+      }
+      await this.writePartitionedIndex(
+        this.index,
+        signal,
+        dirtyPartitionKeys.size > 0 ? dirtyPartitionKeys : undefined,
+      );
 
       if (
         putResult.generation && putResult.generation !== "0" &&
@@ -1241,20 +1250,24 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     return true;
   }
 
+  private static partitionKeyFromPath(rel: string): string | undefined {
+    if (!rel.startsWith("data/")) return undefined;
+    const segments = rel.split("/");
+    if (segments.length < 4) return undefined;
+    const prefixEnd = segments.length >= 6
+      ? segments.length - 3
+      : segments.length - 1;
+    return segments.slice(0, prefixEnd).join("--");
+  }
+
   private static groupEntriesByPartition(
     entries: Record<string, IndexEntry>,
   ): Map<string, Record<string, IndexEntry>> {
     const partitions = new Map<string, Record<string, IndexEntry>>();
 
     for (const [rel, entry] of Object.entries(entries)) {
-      if (!rel.startsWith("data/")) continue;
-      const segments = rel.split("/");
-      if (segments.length < 4) continue;
-
-      const prefixEnd = segments.length >= 6
-        ? segments.length - 3
-        : segments.length - 1;
-      const key = segments.slice(0, prefixEnd).join("--");
+      const key = GcsCacheSyncService.partitionKeyFromPath(rel);
+      if (!key) continue;
 
       let bucket = partitions.get(key);
       if (!bucket) {
@@ -1277,6 +1290,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   private async writePartitionedIndex(
     index: DatastoreIndex,
     signal?: AbortSignal,
+    dirtyKeys?: Set<string>,
   ): Promise<void> {
     const partitions = GcsCacheSyncService.groupEntriesByPartition(
       index.entries,
@@ -1287,6 +1301,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     const writes: Array<Promise<unknown>> = [];
     for (const [key, entries] of partitions) {
       partitionKeys.push(key);
+      if (dirtyKeys && !dirtyKeys.has(key)) continue;
       const partition: PartitionIndex = { version: 1, entries };
       const data = new TextEncoder().encode(JSON.stringify(partition, null, 2));
       writes.push(

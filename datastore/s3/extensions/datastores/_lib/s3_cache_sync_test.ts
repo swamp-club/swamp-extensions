@@ -3147,3 +3147,298 @@ Deno.test("configurable concurrency: constructor accepts custom values", async (
     await Deno.remove(cachePath, { recursive: true });
   }
 });
+
+// -- Issue #436: Only write dirty partition files on push --
+// Tests 1-5 prove partition writes are reduced AND nothing breaks when
+// partitions are skipped.
+
+/** Seeds N models with filesPerModel files each, returns model IDs. */
+async function seedModels(
+  cachePath: string,
+  n: number,
+  filesPerModel: number,
+): Promise<string[]> {
+  const ids: string[] = [];
+  for (let i = 0; i < n; i++) {
+    const id = `model-${String(i).padStart(3, "0")}`;
+    ids.push(id);
+    for (let j = 0; j < filesPerModel; j++) {
+      await seedFile(
+        cachePath,
+        `data/aws/ec2/vpc/${id}/state-main/${j + 1}/raw`,
+        `${id}-data-${j}`,
+      );
+    }
+  }
+  return ids;
+}
+
+// Test 1: Scoped push writes only dirty partitions
+Deno.test("#436 test 1: scoped push with 1000 files across 50 models writes only 1 dirty partition", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-436-t1-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+    const service = new S3CacheSyncService(mock, cachePath);
+
+    // Seed 1000 files across 50 models (20 files each)
+    const ids = await seedModels(cachePath, 50, 20);
+
+    // Initial push — baseline, all 50 partitions written
+    await service.pushChanged();
+    const baselinePuts = mock.puts.filter(
+      (p) =>
+        p.key.startsWith("_index/") && p.key.endsWith(".json") &&
+        p.key !== "_index/_meta.json",
+    );
+    assertEquals(
+      baselinePuts.length,
+      50,
+      "baseline push must write all 50 partition files",
+    );
+
+    // Modify 1 file in model-000 only
+    await service.markDirty({
+      relPath: `data/aws/ec2/vpc/${ids[0]}/state-main/1/raw`,
+    });
+    await seedFile(
+      cachePath,
+      `data/aws/ec2/vpc/${ids[0]}/state-main/1/raw`,
+      "modified-data",
+    );
+
+    mock.puts.length = 0;
+    await service.pushChanged();
+
+    const putKeys = mock.puts.map((p) => p.key);
+
+    // Monolithic index must be written
+    assert(
+      putKeys.includes(".datastore-index.json"),
+      "monolithic index must be written",
+    );
+
+    // Count _index/ PUTs: should be exactly 2 (1 partition + 1 _meta.json)
+    const indexPuts = putKeys.filter((k) => k.startsWith("_index/"));
+    assertEquals(
+      indexPuts.length,
+      2,
+      `expected 2 _index/ PUTs (1 partition + 1 meta), got ${indexPuts.length}: ${
+        JSON.stringify(indexPuts)
+      }`,
+    );
+
+    // The 1 partition must be model-000's
+    const partitionPuts = indexPuts.filter((k) => k !== "_index/_meta.json");
+    assertEquals(partitionPuts.length, 1);
+    assertEquals(
+      partitionPuts[0],
+      `_index/data--aws--ec2--vpc--${ids[0]}.json`,
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// Test 2: Bulk push writes all partition files (backward compat)
+Deno.test("#436 test 2: bulk push (bulkInvalidated) writes all partition files", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-436-t2-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+    const service = new S3CacheSyncService(mock, cachePath);
+
+    await seedModels(cachePath, 10, 5);
+
+    // Bulk markDirty (no relPath) → bulkInvalidated → all partitions written
+    await service.markDirty();
+
+    mock.puts.length = 0;
+    await service.pushChanged();
+
+    const partitionPuts = mock.puts.filter(
+      (p) =>
+        p.key.startsWith("_index/") && p.key.endsWith(".json") &&
+        p.key !== "_index/_meta.json",
+    );
+    assertEquals(
+      partitionPuts.length,
+      10,
+      `bulk push must write all 10 partition files, got ${partitionPuts.length}`,
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// Test 3: _meta.json always complete after scoped push
+Deno.test("#436 test 3: _meta.json lists ALL 50 partition keys after scoped push of 1", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-436-t3-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+    const service = new S3CacheSyncService(mock, cachePath);
+
+    const ids = await seedModels(cachePath, 50, 20);
+    await service.pushChanged();
+
+    // Modify 1 model only
+    await service.markDirty({
+      relPath: `data/aws/ec2/vpc/${ids[7]}/state-main/1/raw`,
+    });
+    await seedFile(
+      cachePath,
+      `data/aws/ec2/vpc/${ids[7]}/state-main/1/raw`,
+      "changed",
+    );
+
+    mock.puts.length = 0;
+    await service.pushChanged();
+
+    const metaPut = mock.puts.find((p) => p.key === "_index/_meta.json");
+    assertExists(metaPut, "_meta.json PUT must exist");
+    const meta = JSON.parse(new TextDecoder().decode(metaPut!.body));
+    assertEquals(meta.version, 1);
+    assertEquals(
+      meta.partitions.length,
+      50,
+      `_meta.json must list all 50 partitions, got ${meta.partitions.length}`,
+    );
+
+    // Verify every model ID appears in the partition list
+    const expectedKeys = ids.map((id) => `data--aws--ec2--vpc--${id}`).sort();
+    assertEquals(
+      [...meta.partitions].sort(),
+      expectedKeys,
+      "_meta.json partition keys must match all model IDs",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// Test 4 (critical): Scoped pull for non-dirty model after dirty-only write
+Deno.test("#436 test 4: scoped pull for non-dirty model B works after only model A's partition was rewritten", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-436-t4-" });
+  const readerCachePath = await Deno.makeTempDir({
+    prefix: "s3sync-436-t4-reader-",
+  });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+
+    // Writer: push 50 models (all partitions written)
+    const writer = new S3CacheSyncService(mock, cachePath);
+    const ids = await seedModels(cachePath, 50, 20);
+    await writer.pushChanged();
+
+    // Writer: modify model A (ids[0]) and push — only partition A rewritten
+    await writer.markDirty({
+      relPath: `data/aws/ec2/vpc/${ids[0]}/state-main/1/raw`,
+    });
+    await seedFile(
+      cachePath,
+      `data/aws/ec2/vpc/${ids[0]}/state-main/1/raw`,
+      "model-a-updated",
+    );
+    await writer.pushChanged();
+
+    // Reader: scoped pull for model B (ids[25]) — partition B was NOT
+    // rewritten in the second push. It must still be valid from the
+    // first push.
+    const reader = new S3CacheSyncService(mock, readerCachePath);
+    mock.gets.length = 0;
+    const pulled = await reader.pullChanged({
+      context: {
+        models: [{ modelType: "aws/ec2/vpc", modelId: ids[25] }],
+      },
+    });
+
+    // Reader must have read partition B's file, not monolithic
+    const partitionKey = `data--aws--ec2--vpc--${ids[25]}`;
+    assert(
+      mock.gets.includes(`_index/${partitionKey}.json`),
+      "reader must read model B's partition file",
+    );
+    assertEquals(
+      mock.gets.includes(".datastore-index.json"),
+      false,
+      "reader must NOT fall back to monolithic for non-dirty model B",
+    );
+
+    // Reader must have received model B's files
+    assertEquals(
+      pulled,
+      20,
+      "reader must pull all 20 files for model B from its (first-push) partition",
+    );
+
+    // Verify model B's data is correct
+    const localFile = await Deno.readTextFile(
+      join(readerCachePath, `data/aws/ec2/vpc/${ids[25]}/state-main/1/raw`),
+    );
+    assertEquals(
+      localFile,
+      `${ids[25]}-data-0`,
+      "model B's data must be intact from the first push",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+    await Deno.remove(readerCachePath, { recursive: true });
+  }
+});
+
+// Test 5: Scoped pull for dirty model after dirty-only write
+Deno.test("#436 test 5: scoped pull for dirty model A gets updated data after partition rewrite", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-436-t5-" });
+  const readerCachePath = await Deno.makeTempDir({
+    prefix: "s3sync-436-t5-reader-",
+  });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+
+    // Writer: push 10 models
+    const writer = new S3CacheSyncService(mock, cachePath);
+    const ids = await seedModels(cachePath, 10, 5);
+    await writer.pushChanged();
+
+    // Writer: modify model A (ids[0]) and push
+    await writer.markDirty({
+      relPath: `data/aws/ec2/vpc/${ids[0]}/state-main/1/raw`,
+    });
+    await seedFile(
+      cachePath,
+      `data/aws/ec2/vpc/${ids[0]}/state-main/1/raw`,
+      "UPDATED-model-a",
+    );
+    await writer.pushChanged();
+
+    // Reader: scoped pull for model A — partition A was rewritten
+    const reader = new S3CacheSyncService(mock, readerCachePath);
+    const pulled = await reader.pullChanged({
+      context: {
+        models: [{ modelType: "aws/ec2/vpc", modelId: ids[0] }],
+      },
+    });
+
+    assertEquals(
+      pulled,
+      5,
+      "reader must pull all 5 files for model A",
+    );
+
+    // Verify the updated content was pulled
+    const localFile = await Deno.readTextFile(
+      join(readerCachePath, `data/aws/ec2/vpc/${ids[0]}/state-main/1/raw`),
+    );
+    assertEquals(
+      localFile,
+      "UPDATED-model-a",
+      "reader must get the updated data for model A",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+    await Deno.remove(readerCachePath, { recursive: true });
+  }
+});
