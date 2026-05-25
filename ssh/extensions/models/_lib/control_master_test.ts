@@ -152,7 +152,11 @@ Deno.test("controlPath: macOS TMPDIR falls back to /tmp for longer fleet names",
     TMPDIR: "/var/folders/jb/r4b9t72s2xjf38ljdqy8hm9w0000gn/T",
   };
   // Fleet name long enough to exceed 104 bytes on macOS TMPDIR
-  const p = await controlPath("production-us-east-1-web-servers", sshHost(), macEnv);
+  const p = await controlPath(
+    "production-us-east-1-web-servers",
+    sshHost(),
+    macEnv,
+  );
   assert(p.length <= 104, `full path too long (${p.length}): ${p}`);
   assert(
     p.startsWith("/tmp/swamp-ssh/"),
