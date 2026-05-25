@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -149,7 +150,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Chrome Management Customers.Telemetry.Events. Registered at `@swamp/gcp/chromemanagement/customers-telemetry-events`. */
 export const model = {
   type: "@swamp/gcp/chromemanagement/customers-telemetry-events",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -203,6 +204,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -301,6 +307,60 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List events resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          'Optional. Only include resources that match the filter. Although this parameter is currently optional, this parameter will be required- please specify at least 1 event type. Supported filter fields: - device_id - user_id - device_org_unit_id - user_org_unit_id - timestamp - event_type The "timestamp" filter accepts either the Unix Epoch milliseconds format or the RFC3339 UTC "Zulu" format with nanosecond resolution and up to nine fractional digits. Both formats should be surrounded by simple double quotes. Examples: "2014-10-02T15:01:23Z", "2014-10-02T15:01:23.045123456Z", "1679283943823".',
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Maximum number of results to return. Default value is 100. Maximum value is 1000.",
+        ).optional(),
+        readMask: z.string().describe(
+          "Required. Read mask to specify which fields to return. Although currently required, this field will become optional, while the filter parameter with an event type will be come required. Supported read_mask paths are: - device - user - audio_severe_underrun_event - usb_peripherals_event - https_latency_change_event - network_state_change_event - wifi_signal_strength_event - vpn_connection_state_change_event - app_install_event - app_uninstall_event - app_launch_event - os_crash_event - external_displays_event",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["readMask"] !== undefined) {
+          params["readMask"] = String(args["readMask"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "telemetryEvents",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

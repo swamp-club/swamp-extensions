@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -73,7 +74,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud GiVersions. Registered at `@swamp/gcp/oracledatabase/giversions`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/giversions",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -127,6 +128,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -226,6 +232,56 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List giVersions resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          'Optional. An expression for filtering the results of the request. Only the shape, gcp_oracle_zone and gi_version fields are supported in this format: `shape="{shape}"`.',
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of items to return. If unspecified, a maximum of 50 Oracle Grid Infrastructure (GI) versions will be returned. The maximum value is 1000; values above 1000 will be reset to 1000.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "giVersions",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

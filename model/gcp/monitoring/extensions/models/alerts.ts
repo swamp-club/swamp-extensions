@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -37,6 +38,33 @@ const GET_CONFIG = {
   ],
   "parameters": {
     "name": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "monitoring.projects.alerts.list",
+  "path": "v3/{+parent}/alerts",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
       "location": "path",
       "required": true,
     },
@@ -92,7 +120,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Monitoring Alerts. Registered at `@swamp/gcp/monitoring/alerts`. */
 export const model = {
   type: "@swamp/gcp/monitoring/alerts",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -151,6 +179,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -245,6 +278,62 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List alerts resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Optional. An alert is returned if there is a match on any fields belonging to the alert or its subfields.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Optional. A comma-separated list of fields in Alert to use for sorting. The default sort direction is ascending. To specify descending order for a field, add a desc modifier. The following fields are supported: open_time close_timeFor example, close_time desc, open_time will return the alerts closed most recently, with ties broken in the order of older alerts listed first.If the field is not set, the results are sorted by open_time desc.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of results to return in a single response. If not set to a positive number, at most 50 alerts will be returned. The maximum value is 1000; values above 1000 will be coerced to 1000.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "alerts",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

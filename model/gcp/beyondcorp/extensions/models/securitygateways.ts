@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -210,7 +211,7 @@ const GlobalArgsSchema = z.object({
     apiGateway: z.object({
       resourceOverride: z.object({
         path: z.string().describe(
-          "Optional. Contains the URI path fragment where HTTP request is sent.",
+          "Required. Contains the URI path fragment where HTTP request is sent.",
         ).optional(),
       }).describe("API operation descriptor.").optional(),
     }).describe(
@@ -341,7 +342,7 @@ const InputsSchema = z.object({
     apiGateway: z.object({
       resourceOverride: z.object({
         path: z.string().describe(
-          "Optional. Contains the URI path fragment where HTTP request is sent.",
+          "Required. Contains the URI path fragment where HTTP request is sent.",
         ).optional(),
       }).describe("API operation descriptor.").optional(),
     }).describe(
@@ -362,7 +363,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud BeyondCorp SecurityGateways. Registered at `@swamp/gcp/beyondcorp/securitygateways`. */
 export const model = {
   type: "@swamp/gcp/beyondcorp/securitygateways",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -436,6 +437,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -702,6 +708,62 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List securityGateways resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          'Optional. A filter specifying constraints of a list operation. All fields in the SecurityGateway message are supported. For example, the following query will return the SecurityGateway with displayName "test-security-gateway" For more information, please refer to https://google.aip.dev/160.',
+        ).optional(),
+        orderBy: z.string().describe(
+          "Optional. Specifies the ordering of results. See [Sorting order](https://cloud.google.com/apis/design/design_patterns#sorting_order) for more information.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of items to return. If not specified, a default value of 50 will be used by the service. Regardless of the page_size value, the response may include a partial list and a caller should only rely on response's next_page_token to determine if there are more instances left to be queried.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "securityGateways",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     get_iam_policy: {

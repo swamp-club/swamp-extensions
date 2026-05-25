@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -297,7 +298,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Fact Check Tools Pages. Registered at `@swamp/gcp/factchecktools/pages`. */
 export const model = {
   type: "@swamp/gcp/factchecktools/pages",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -351,6 +352,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -573,6 +584,62 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List pages resources",
+      arguments: z.object({
+        offset: z.number().describe(
+          "An integer that specifies the current offset (that is, starting result location) in search results. This field is only considered if `page_token` is unset, and if the request is not for a specific URL. For example, 0 means to return results starting from the first matching result, and 10 means to return from the 11th result.",
+        ).optional(),
+        organization: z.string().describe(
+          'The organization for which we want to fetch markups for. For instance, "site.com". Cannot be specified along with an URL.',
+        ).optional(),
+        pageSize: z.number().describe(
+          "The pagination size. We will return up to that many results. Defaults to 10 if not set. Has no effect if a URL is requested.",
+        ).optional(),
+        url: z.string().describe(
+          "The URL from which to get `ClaimReview` markup. There will be at most one result. If markup is associated with a more canonical version of the URL provided, we will return that URL instead. Cannot be specified along with an organization.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["offset"] !== undefined) {
+          params["offset"] = String(args["offset"]);
+        }
+        if (args["organization"] !== undefined) {
+          params["organization"] = String(args["organization"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["url"] !== undefined) params["url"] = String(args["url"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "claimReviewMarkupPages",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -164,9 +165,6 @@ const GlobalArgsSchema = z.object({
     "Unconditionally routes all read/write requests to a specific cluster. This option preserves read-your-writes consistency but does not improve availability.",
   ).optional(),
   standardIsolation: z.object({
-    memoryConfig: z.object({}).describe(
-      "If set, eligible single-row requests (currently limited to ReadRows) using this app profile will be routed to the memory layer. All eligible writes populate the memory layer. MemoryConfig can only be set if the AppProfile uses single cluster routing and the configured cluster has a memory layer enabled.",
-    ).optional(),
     priority: z.enum([
       "PRIORITY_UNSPECIFIED",
       "PRIORITY_LOW",
@@ -205,7 +203,6 @@ const StateSchema = z.object({
     clusterId: z.string(),
   }).optional(),
   standardIsolation: z.object({
-    memoryConfig: z.object({}),
     priority: z.string(),
   }).optional(),
 }).passthrough();
@@ -249,9 +246,6 @@ const InputsSchema = z.object({
     "Unconditionally routes all read/write requests to a specific cluster. This option preserves read-your-writes consistency but does not improve availability.",
   ).optional(),
   standardIsolation: z.object({
-    memoryConfig: z.object({}).describe(
-      "If set, eligible single-row requests (currently limited to ReadRows) using this app profile will be routed to the memory layer. All eligible writes populate the memory layer. MemoryConfig can only be set if the AppProfile uses single cluster routing and the configured cluster has a memory layer enabled.",
-    ).optional(),
     priority: z.enum([
       "PRIORITY_UNSPECIFIED",
       "PRIORITY_LOW",
@@ -276,7 +270,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Bigtable Admin Instances.AppProfiles. Registered at `@swamp/gcp/bigtableadmin/instances-appprofiles`. */
 export const model = {
   type: "@swamp/gcp/bigtableadmin/instances-appprofiles",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -350,6 +344,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -606,6 +605,50 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List appProfiles resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "Maximum number of results per page. A page_size of zero lets the server choose the number of items to return. A page_size which is strictly positive will return at most that many items. A negative page_size will cause an error. Following the first request, subsequent paginated calls are not required to pass a page_size. If a page_size is set in subsequent calls, it must match the page_size given in the first request.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "appProfiles",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

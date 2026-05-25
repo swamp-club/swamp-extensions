@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -269,7 +270,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud VMware Engine NetworkPolicies. Registered at `@swamp/gcp/vmwareengine/networkpolicies`. */
 export const model = {
   type: "@swamp/gcp/vmwareengine/networkpolicies",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -338,6 +339,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -588,6 +594,62 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List networkPolicies resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          'A filter expression that matches resources returned in the response. The expression must specify the field name, a comparison operator, and the value that you want to use for filtering. The value must be a string, a number, or a boolean. The comparison operator must be `=`, `!=`, `>`, or `<`. For example, if you are filtering a list of network policies, you can exclude the ones named `example-policy` by specifying `name != "example-policy"`. To filter on multiple expressions, provide each separate expression within parentheses. For example: ``` (name = "example-policy") (createTime > "2021-04-12T08:15:10.40Z") ``` By default, each expression is an `AND` expression. However, you can include `AND` and `OR` expressions explicitly. For example: ``` (name = "example-policy-1") AND (createTime > "2021-04-12T08:15:10.40Z") OR (name = "example-policy-2") ```',
+        ).optional(),
+        orderBy: z.string().describe(
+          'Sorts list results by a certain order. By default, returned results are ordered by `name` in ascending order. You can also sort results in descending order based on the `name` value using `orderBy="name desc"`. Currently, only ordering by `name` is supported.',
+        ).optional(),
+        pageSize: z.number().describe(
+          "The maximum number of network policies to return in one page. The service may return fewer than this value. The maximum value is coerced to 1000. The default value of this field is 500.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "networkPolicies",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     fetch_external_addresses: {

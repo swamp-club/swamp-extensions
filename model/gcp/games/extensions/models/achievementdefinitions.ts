@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -48,7 +49,6 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  achievementLifecycleState: z.string().optional(),
   achievementType: z.string().optional(),
   description: z.string().optional(),
   experiencePoints: z.string().optional(),
@@ -73,7 +73,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Play Games Services AchievementDefinitions. Registered at `@swamp/gcp/games/achievementdefinitions`. */
 export const model = {
   type: "@swamp/gcp/games/achievementdefinitions",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -142,6 +142,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -237,6 +247,52 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List achievementDefinitions resources",
+      arguments: z.object({
+        language: z.string().describe(
+          "The preferred language to use for strings returned by this method.",
+        ).optional(),
+        maxResults: z.number().describe(
+          "The maximum number of achievement resources to return in the response, used for paging. For any response, the actual number of achievement resources returned may be less than the specified `maxResults`.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["language"] !== undefined) {
+          params["language"] = String(args["language"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

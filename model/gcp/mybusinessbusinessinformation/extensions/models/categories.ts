@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -80,7 +81,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud My Business Business Information Categories. Registered at `@swamp/gcp/mybusinessbusinessinformation/categories`. */
 export const model = {
   type: "@swamp/gcp/mybusinessbusinessinformation/categories",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -134,6 +135,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -228,6 +239,68 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List categories resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Optional. Filter string from user. The only field that supported is `displayName`. Eg: `filter=displayName=foo`.",
+        ).optional(),
+        languageCode: z.string().describe(
+          "Required. The BCP 47 code of language.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. How many categories to fetch per page. Default is 100, minimum is 1, and maximum page size is 100.",
+        ).optional(),
+        regionCode: z.string().describe(
+          "Required. The ISO 3166-1 alpha-2 country code.",
+        ).optional(),
+        view: z.string().describe(
+          "Required. Specifies which parts to the Category resource should be returned in the response.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["languageCode"] !== undefined) {
+          params["languageCode"] = String(args["languageCode"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["regionCode"] !== undefined) {
+          params["regionCode"] = String(args["regionCode"]);
+        }
+        if (args["view"] !== undefined) params["view"] = String(args["view"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "categories",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     batch_get: {

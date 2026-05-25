@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -261,7 +262,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Campaign Manager 360 AdvertiserLandingPages. Registered at `@swamp/gcp/dfareporting/advertiserlandingpages`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/advertiserlandingpages",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -315,6 +316,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -513,6 +519,91 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List advertiserLandingPages resources",
+      arguments: z.object({
+        advertiserIds: z.string().describe(
+          "Select only landing pages that belong to these advertisers.",
+        ).optional(),
+        archived: z.boolean().describe(
+          "Select only archived landing pages. Don't set this field to select both archived and non-archived landing pages.",
+        ).optional(),
+        campaignIds: z.string().describe(
+          "Select only landing pages that are associated with these campaigns.",
+        ).optional(),
+        ids: z.string().describe("Select only landing pages with these IDs.")
+          .optional(),
+        maxResults: z.number().describe("Maximum number of results to return.")
+          .optional(),
+        searchString: z.string().describe(
+          'Allows searching for landing pages by name or ID. Wildcards (*) are allowed. For example, "landingpage*2017" will return landing pages with names like "landingpage July 2017", "landingpage March 2017", or simply "landingpage 2017". Most of the searches also add wildcards implicitly at the start and the end of the search string. For example, a search string of "landingpage" will match campaigns with name "my landingpage", "landingpage 2015", or simply "landingpage".',
+        ).optional(),
+        sortField: z.string().describe("Field by which to sort the list.")
+          .optional(),
+        sortOrder: z.string().describe("Order of sorted results.").optional(),
+        subaccountId: z.string().describe(
+          "Select only landing pages that belong to this subaccount.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["profileId"] !== undefined) {
+          params["profileId"] = String(g["profileId"]);
+        }
+        if (args["advertiserIds"] !== undefined) {
+          params["advertiserIds"] = String(args["advertiserIds"]);
+        }
+        if (args["archived"] !== undefined) {
+          params["archived"] = String(args["archived"]);
+        }
+        if (args["campaignIds"] !== undefined) {
+          params["campaignIds"] = String(args["campaignIds"]);
+        }
+        if (args["ids"] !== undefined) params["ids"] = String(args["ids"]);
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["searchString"] !== undefined) {
+          params["searchString"] = String(args["searchString"]);
+        }
+        if (args["sortField"] !== undefined) {
+          params["sortField"] = String(args["sortField"]);
+        }
+        if (args["sortOrder"] !== undefined) {
+          params["sortOrder"] = String(args["sortOrder"]);
+        }
+        if (args["subaccountId"] !== undefined) {
+          params["subaccountId"] = String(args["subaccountId"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "landingPages",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.id?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -630,14 +631,8 @@ const GlobalArgsSchema = z.object({
     "Exfiltration represents a data exfiltration attempt from one or more sources to one or more targets. The `sources` attribute lists the sources of the exfiltrated data. The `targets` attribute lists the destinations the data was copied to.",
   ).optional(),
   externalExposure: z.object({
-    backendBucket: z.string().describe(
-      'The full resource name of the load balancer backend bucket, for example, "//compute.googleapis.com/projects/{project-id}/global/backendBuckets/{name}"',
-    ).optional(),
     backendService: z.string().describe(
       'The full resource name of load balancer backend service, for example, "//compute.googleapis.com/projects/{project-id}/global/backendServices/{name}".',
-    ).optional(),
-    exposedApplication: z.string().describe(
-      'The name and version of the exposed web application, for example, "Jenkins 2.184".',
     ).optional(),
     exposedEndpoint: z.string().describe(
       'The resource which is running the exposed service, for example, "//compute.googleapis.com/projects/{project-id}/zones/{zone}/instances/{instance}.”',
@@ -648,23 +643,8 @@ const GlobalArgsSchema = z.object({
     forwardingRule: z.string().describe(
       'The full resource name of the forwarding rule, for example, "//compute.googleapis.com/projects/{project-id}/global/forwardingRules/{forwarding-rule-name}".',
     ).optional(),
-    hostnameUri: z.string().describe(
-      'Hostname of the exposed application, for example, "https://test-app.a.run.app/"',
-    ).optional(),
-    httpResponse: z.array(z.object({
-      path: z.string().describe(
-        'The http path for which response code was returned by web application, for example, "https://test-app.a.run.app/test".',
-      ).optional(),
-      statusCode: z.string().describe(
-        "The http response code returned by the web application, for example, 200.",
-      ).optional(),
-    })).describe("The http response returned by the web application.")
-      .optional(),
     instanceGroup: z.string().describe(
       'The full resource name of the instance group, for example, "//compute.googleapis.com/projects/{project-id}/global/instanceGroups/{name}".',
-    ).optional(),
-    internalBackendService: z.string().describe(
-      'The full resource name of load balancer backend service in the internal project having resource exposed via PSC, for example, "//compute.googleapis.com/projects/{project-id}/global/backendServices/{name}".',
     ).optional(),
     loadBalancerFirewallPolicy: z.string().describe(
       'The full resource name of the load balancer firewall policy, for example, "//compute.googleapis.com/projects/{project-id}/global/firewallPolicies/{policy-name}".',
@@ -672,20 +652,11 @@ const GlobalArgsSchema = z.object({
     networkEndpointGroup: z.string().describe(
       'The full resource name of the network endpoint group, for example, "//compute.googleapis.com/projects/{project-id}/global/networkEndpointGroups/{name}".',
     ).optional(),
-    networkIngressFirewallPolicy: z.string().describe(
-      'The full resource name of the network ingress firewall policy, for example, "//compute.googleapis.com/projects/{project-id}/global/firewallPolicies/{name}".',
-    ).optional(),
     privateIpAddress: z.string().describe(
       "Private IP address of the exposed endpoint.",
     ).optional(),
     privatePort: z.string().describe(
       "Port number associated with private IP address.",
-    ).optional(),
-    pscNetworkAttachment: z.string().describe(
-      'The full resource name of the PSC (Private Service Connect) network attachment that network interface controller is attached to, for example, "//compute.googleapis.com/projects/{project-id}/regions/{region}/networkAttachments/{name}"',
-    ).optional(),
-    pscServiceAttachment: z.string().describe(
-      'The full resource name of the PSC (Private Service Connect) service attachment that the load balancer network endpoint group targets, for example, "//compute.googleapis.com/projects/{project-id}/regions/{region}/serviceAttachments/{name}"',
     ).optional(),
     publicIpAddress: z.string().describe(
       "Public IP address of the exposed endpoint.",
@@ -815,7 +786,6 @@ const GlobalArgsSchema = z.object({
     "SENSITIVE_DATA_RISK",
     "CHOKEPOINT",
     "EXTERNAL_EXPOSURE",
-    "SECRET",
   ]).describe("The class of the finding.").optional(),
   groupMemberships: z.array(z.object({
     groupId: z.string().describe("ID of the group.").optional(),
@@ -2189,26 +2159,15 @@ const StateSchema = z.object({
       totalExfiltratedBytes: z.string(),
     }),
     externalExposure: z.object({
-      backendBucket: z.string(),
       backendService: z.string(),
-      exposedApplication: z.string(),
       exposedEndpoint: z.string(),
       exposedService: z.string(),
       forwardingRule: z.string(),
-      hostnameUri: z.string(),
-      httpResponse: z.array(z.object({
-        path: z.string(),
-        statusCode: z.string(),
-      })),
       instanceGroup: z.string(),
-      internalBackendService: z.string(),
       loadBalancerFirewallPolicy: z.string(),
       networkEndpointGroup: z.string(),
-      networkIngressFirewallPolicy: z.string(),
       privateIpAddress: z.string(),
       privatePort: z.string(),
-      pscNetworkAttachment: z.string(),
-      pscServiceAttachment: z.string(),
       publicIpAddress: z.string(),
       publicPort: z.string(),
       serviceFirewallPolicy: z.string(),
@@ -3203,14 +3162,8 @@ const InputsSchema = z.object({
     "Exfiltration represents a data exfiltration attempt from one or more sources to one or more targets. The `sources` attribute lists the sources of the exfiltrated data. The `targets` attribute lists the destinations the data was copied to.",
   ).optional(),
   externalExposure: z.object({
-    backendBucket: z.string().describe(
-      'The full resource name of the load balancer backend bucket, for example, "//compute.googleapis.com/projects/{project-id}/global/backendBuckets/{name}"',
-    ).optional(),
     backendService: z.string().describe(
       'The full resource name of load balancer backend service, for example, "//compute.googleapis.com/projects/{project-id}/global/backendServices/{name}".',
-    ).optional(),
-    exposedApplication: z.string().describe(
-      'The name and version of the exposed web application, for example, "Jenkins 2.184".',
     ).optional(),
     exposedEndpoint: z.string().describe(
       'The resource which is running the exposed service, for example, "//compute.googleapis.com/projects/{project-id}/zones/{zone}/instances/{instance}.”',
@@ -3221,23 +3174,8 @@ const InputsSchema = z.object({
     forwardingRule: z.string().describe(
       'The full resource name of the forwarding rule, for example, "//compute.googleapis.com/projects/{project-id}/global/forwardingRules/{forwarding-rule-name}".',
     ).optional(),
-    hostnameUri: z.string().describe(
-      'Hostname of the exposed application, for example, "https://test-app.a.run.app/"',
-    ).optional(),
-    httpResponse: z.array(z.object({
-      path: z.string().describe(
-        'The http path for which response code was returned by web application, for example, "https://test-app.a.run.app/test".',
-      ).optional(),
-      statusCode: z.string().describe(
-        "The http response code returned by the web application, for example, 200.",
-      ).optional(),
-    })).describe("The http response returned by the web application.")
-      .optional(),
     instanceGroup: z.string().describe(
       'The full resource name of the instance group, for example, "//compute.googleapis.com/projects/{project-id}/global/instanceGroups/{name}".',
-    ).optional(),
-    internalBackendService: z.string().describe(
-      'The full resource name of load balancer backend service in the internal project having resource exposed via PSC, for example, "//compute.googleapis.com/projects/{project-id}/global/backendServices/{name}".',
     ).optional(),
     loadBalancerFirewallPolicy: z.string().describe(
       'The full resource name of the load balancer firewall policy, for example, "//compute.googleapis.com/projects/{project-id}/global/firewallPolicies/{policy-name}".',
@@ -3245,20 +3183,11 @@ const InputsSchema = z.object({
     networkEndpointGroup: z.string().describe(
       'The full resource name of the network endpoint group, for example, "//compute.googleapis.com/projects/{project-id}/global/networkEndpointGroups/{name}".',
     ).optional(),
-    networkIngressFirewallPolicy: z.string().describe(
-      'The full resource name of the network ingress firewall policy, for example, "//compute.googleapis.com/projects/{project-id}/global/firewallPolicies/{name}".',
-    ).optional(),
     privateIpAddress: z.string().describe(
       "Private IP address of the exposed endpoint.",
     ).optional(),
     privatePort: z.string().describe(
       "Port number associated with private IP address.",
-    ).optional(),
-    pscNetworkAttachment: z.string().describe(
-      'The full resource name of the PSC (Private Service Connect) network attachment that network interface controller is attached to, for example, "//compute.googleapis.com/projects/{project-id}/regions/{region}/networkAttachments/{name}"',
-    ).optional(),
-    pscServiceAttachment: z.string().describe(
-      'The full resource name of the PSC (Private Service Connect) service attachment that the load balancer network endpoint group targets, for example, "//compute.googleapis.com/projects/{project-id}/regions/{region}/serviceAttachments/{name}"',
     ).optional(),
     publicIpAddress: z.string().describe(
       "Public IP address of the exposed endpoint.",
@@ -3388,7 +3317,6 @@ const InputsSchema = z.object({
     "SENSITIVE_DATA_RISK",
     "CHOKEPOINT",
     "EXTERNAL_EXPOSURE",
-    "SECRET",
   ]).describe("The class of the finding.").optional(),
   groupMemberships: z.array(z.object({
     groupId: z.string().describe("ID of the group.").optional(),
@@ -4554,7 +4482,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Security Command Center Sources.Findings. Registered at `@swamp/gcp/securitycenter/sources-findings`. */
 export const model = {
   type: "@swamp/gcp/securitycenter/sources-findings",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -4651,6 +4579,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -4937,6 +4870,66 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List findings resources",
+      arguments: z.object({
+        fieldMask: z.string().describe(
+          "A field mask to specify the Finding fields to be listed in the response. An empty field mask will list all fields.",
+        ).optional(),
+        filter: z.string().describe(
+          'Expression that defines the filter to apply across findings. The expression is a list of one or more restrictions combined via logical operators `AND` and `OR`. Parentheses are supported, and `OR` has higher precedence than `AND`. Restrictions have the form ` ` and may have a `-` character in front of them to indicate negation. Examples include: * name * source_properties.a_property * security_marks.marks.marka The supported operators are: * `=` for all value types. * `>`, `<`, `>=`, `<=` for integer values. * `:`, meaning substring matching, for strings. The supported value types are: * string literals in quotes. * integer literals without quotes. * boolean literals `true` and `false` without quotes. The following field and operator combinations are supported: * name: `=` * parent: `=`, `:` * resource_name: `=`, `:` * state: `=`, `:` * category: `=`, `:` * external_uri: `=`, `:` * event_time: `=`, `>`, `<`, `>=`, `<=` Usage: This should be milliseconds since epoch or an RFC3339 string. Examples: `event_time = "2019-06-10T16:07:18-07:00"` `event_time = 1560208038000` * severity: `=`, `:` * workflow_state: `=`, `:` * security_marks.marks: `=`, `:` * source_properties: `=`, `:`, `>`, `<`, `>=`, `<=` For example, `source_properties.size = 100` is a valid filter string. Use a partial match on the empty string to filter based on a property existing: `source_properties.my_property : ""` Use a negated partial match on the empty string to filter based on a property not existing: `-source_properties.my_property : ""` * resource: * resource.name: `=`, `:` * resource.parent_name: `=`, `:` * resource.parent_display_name: `=`, `:` * resource.project_name: `=`, `:` * resource.project_display_name: `=`, `:` * resource.type: `=`, `:` * resource.folders.resource_folder: `=`, `:` * resource.display_name: `=`, `:`',
+        ).optional(),
+        orderBy: z.string().describe(
+          'Expression that defines what fields and order to use for sorting. The string value should follow SQL syntax: comma separated list of fields. For example: "name,resource_properties.a_property". The default sorting order is ascending. To specify descending order for a field, a suffix " desc" should be appended to the field name. For example: "name desc,source_properties.a_property". Redundant space characters in the syntax are insignificant. "name desc,source_properties.a_property" and " name desc , source_properties.a_property " are equivalent. The following fields are supported: name parent state category resource_name event_time source_properties security_marks.marks',
+        ).optional(),
+        pageSize: z.number().describe(
+          "The maximum number of results to return in a single response. Default is 10, minimum is 1, maximum is 1000.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["fieldMask"] !== undefined) {
+          params["fieldMask"] = String(args["fieldMask"]);
+        }
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "listFindingsResults",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     group: {

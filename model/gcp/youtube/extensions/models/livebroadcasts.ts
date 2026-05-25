@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -702,7 +703,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud YouTube Data LiveBroadcasts. Registered at `@swamp/gcp/youtube/livebroadcasts`. */
 export const model = {
   type: "@swamp/gcp/youtube/livebroadcasts",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -756,6 +757,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -987,6 +993,86 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List liveBroadcasts resources",
+      arguments: z.object({
+        broadcastStatus: z.string().describe(
+          "Return broadcasts with a certain status, e.g. active broadcasts.",
+        ).optional(),
+        broadcastType: z.string().describe(
+          "Return only broadcasts with the selected type.",
+        ).optional(),
+        id: z.string().describe(
+          "Return broadcasts with the given ids from Stubby or Apiary.",
+        ).optional(),
+        maxResults: z.number().describe(
+          "The *maxResults* parameter specifies the maximum number of items that should be returned in the result set.",
+        ).optional(),
+        mine: z.boolean().optional(),
+        onBehalfOfContentOwner: z.string().describe(
+          "*Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwner* parameter indicates that the request's authorization credentials identify a YouTube CMS user who is acting on behalf of the content owner specified in the parameter value. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and get access to all their video and channel data, without having to provide authentication credentials for each individual channel. The CMS account that the user authenticates with must be linked to the specified YouTube content owner.",
+        ).optional(),
+        onBehalfOfContentOwnerChannel: z.string().describe(
+          "This parameter can only be used in a properly authorized request. *Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwnerChannel* parameter specifies the YouTube channel ID of the channel to which a video is being added. This parameter is required when a request specifies a value for the onBehalfOfContentOwner parameter, and it can only be used in conjunction with that parameter. In addition, the request must be authorized using a CMS account that is linked to the content owner that the onBehalfOfContentOwner parameter specifies. Finally, the channel that the onBehalfOfContentOwnerChannel parameter value specifies must be linked to the content owner that the onBehalfOfContentOwner parameter specifies. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and perform actions on behalf of the channel specified in the parameter value, without having to provide authentication credentials for each separate channel.",
+        ).optional(),
+        part: z.string().describe(
+          "The *part* parameter specifies a comma-separated list of one or more liveBroadcast resource properties that the API response will include. The part names that you can include in the parameter value are id, snippet, contentDetails, status and statistics.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["part"] !== undefined) params["part"] = String(g["part"]);
+        if (args["broadcastStatus"] !== undefined) {
+          params["broadcastStatus"] = String(args["broadcastStatus"]);
+        }
+        if (args["broadcastType"] !== undefined) {
+          params["broadcastType"] = String(args["broadcastType"]);
+        }
+        if (args["id"] !== undefined) params["id"] = String(args["id"]);
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["mine"] !== undefined) params["mine"] = String(args["mine"]);
+        if (args["onBehalfOfContentOwner"] !== undefined) {
+          params["onBehalfOfContentOwner"] = String(
+            args["onBehalfOfContentOwner"],
+          );
+        }
+        if (args["onBehalfOfContentOwnerChannel"] !== undefined) {
+          params["onBehalfOfContentOwnerChannel"] = String(
+            args["onBehalfOfContentOwnerChannel"],
+          );
+        }
+        if (args["part"] !== undefined) params["part"] = String(args["part"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     bind: {

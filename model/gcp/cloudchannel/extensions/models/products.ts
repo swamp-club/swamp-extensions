@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -72,7 +73,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Channel Products. Registered at `@swamp/gcp/cloudchannel/products`. */
 export const model = {
   type: "@swamp/gcp/cloudchannel/products",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -126,6 +127,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -220,6 +231,58 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List products resources",
+      arguments: z.object({
+        account: z.string().describe(
+          "Required. The resource name of the reseller account. Format: accounts/{account_id}.",
+        ).optional(),
+        languageCode: z.string().describe(
+          'Optional. The BCP-47 language code. For example, "en-US". The response will localize in the corresponding language code, if specified. The default value is "en-US".',
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Requested page size. Server might return fewer results than requested. If unspecified, returns at most 100 Products. The maximum value is 1000; the server will coerce values above 1000.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["account"] !== undefined) {
+          params["account"] = String(args["account"]);
+        }
+        if (args["languageCode"] !== undefined) {
+          params["languageCode"] = String(args["languageCode"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "products",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

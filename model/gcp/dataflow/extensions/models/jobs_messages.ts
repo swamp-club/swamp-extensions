@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -92,7 +93,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dataflow Jobs.Messages. Registered at `@swamp/gcp/dataflow/jobs-messages`. */
 export const model = {
   type: "@swamp/gcp/dataflow/jobs-messages",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -146,6 +147,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -245,6 +251,72 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List messages resources",
+      arguments: z.object({
+        endTime: z.string().describe(
+          "Return only messages with timestamps < end_time. The default is now (i.e. return up to the latest messages available).",
+        ).optional(),
+        location: z.string().describe(
+          "The [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints) that contains the job specified by job_id.",
+        ).optional(),
+        minimumImportance: z.string().describe(
+          "Filter to only get messages with importance >= level",
+        ).optional(),
+        pageSize: z.number().describe(
+          "If specified, determines the maximum number of messages to return. If unspecified, the service may choose an appropriate default, or may return an arbitrarily large number of results.",
+        ).optional(),
+        startTime: z.string().describe(
+          "If specified, return only messages with timestamps >= start_time. The default is the job creation time (i.e. beginning of messages).",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["jobId"] !== undefined) params["jobId"] = String(g["jobId"]);
+        if (args["endTime"] !== undefined) {
+          params["endTime"] = String(args["endTime"]);
+        }
+        if (args["location"] !== undefined) {
+          params["location"] = String(args["location"]);
+        }
+        if (args["minimumImportance"] !== undefined) {
+          params["minimumImportance"] = String(args["minimumImportance"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["startTime"] !== undefined) {
+          params["startTime"] = String(args["startTime"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "autoscalingEvents",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -198,7 +199,6 @@ const GlobalArgsSchema = z.object({
     "CREATIVE_AUTHORING_SOURCE_REMBRAND",
     "CREATIVE_AUTHORING_SOURCE_TRACKTO_STUDIO",
     "CREATIVE_AUTHORING_SOURCE_BORNLOGIC",
-    "CREATIVE_AUTHORING_SOURCE_BEGEN_AI",
   ]).describe(
     "Source application where creative was authored. Presently, only DBM authored creatives will have this field set. Applicable to all creative types.",
   ).optional(),
@@ -1828,7 +1828,6 @@ const InputsSchema = z.object({
     "CREATIVE_AUTHORING_SOURCE_REMBRAND",
     "CREATIVE_AUTHORING_SOURCE_TRACKTO_STUDIO",
     "CREATIVE_AUTHORING_SOURCE_BORNLOGIC",
-    "CREATIVE_AUTHORING_SOURCE_BEGEN_AI",
   ]).describe(
     "Source application where creative was authored. Presently, only DBM authored creatives will have this field set. Applicable to all creative types.",
   ).optional(),
@@ -3027,7 +3026,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Campaign Manager 360 Creatives. Registered at `@swamp/gcp/dfareporting/creatives`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/creatives",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3106,6 +3105,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -3603,6 +3607,127 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List creatives resources",
+      arguments: z.object({
+        active: z.boolean().describe(
+          "Select only active creatives. Leave blank to select active and inactive creatives.",
+        ).optional(),
+        advertiserId: z.string().describe(
+          "Select only creatives with this advertiser ID.",
+        ).optional(),
+        archived: z.boolean().describe(
+          "Select only archived creatives. Leave blank to select archived and unarchived creatives.",
+        ).optional(),
+        campaignId: z.string().describe(
+          "Select only creatives with this campaign ID.",
+        ).optional(),
+        companionCreativeIds: z.string().describe(
+          "Select only in-stream video creatives with these companion IDs.",
+        ).optional(),
+        creativeFieldIds: z.string().describe(
+          "Select only creatives with these creative field IDs.",
+        ).optional(),
+        ids: z.string().describe("Select only creatives with these IDs.")
+          .optional(),
+        maxResults: z.number().describe("Maximum number of results to return.")
+          .optional(),
+        renderingIds: z.string().describe(
+          "Select only creatives with these rendering IDs.",
+        ).optional(),
+        searchString: z.string().describe(
+          'Allows searching for objects by name or ID. Wildcards (*) are allowed. For example, "creative*2015" will return objects with names like "creative June 2015", "creative April 2015", or simply "creative 2015". Most of the searches also add wildcards implicitly at the start and the end of the search string. For example, a search string of "creative" will match objects with name "my creative", "creative 2015", or simply "creative".',
+        ).optional(),
+        sizeIds: z.string().describe(
+          "Select only creatives with these size IDs.",
+        ).optional(),
+        sortField: z.string().describe("Field by which to sort the list.")
+          .optional(),
+        sortOrder: z.string().describe("Order of sorted results.").optional(),
+        studioCreativeId: z.string().describe(
+          "Select only creatives corresponding to this Studio creative ID.",
+        ).optional(),
+        types: z.string().describe(
+          "Select only creatives with these creative types.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["profileId"] !== undefined) {
+          params["profileId"] = String(g["profileId"]);
+        }
+        if (args["active"] !== undefined) {
+          params["active"] = String(args["active"]);
+        }
+        if (args["advertiserId"] !== undefined) {
+          params["advertiserId"] = String(args["advertiserId"]);
+        }
+        if (args["archived"] !== undefined) {
+          params["archived"] = String(args["archived"]);
+        }
+        if (args["campaignId"] !== undefined) {
+          params["campaignId"] = String(args["campaignId"]);
+        }
+        if (args["companionCreativeIds"] !== undefined) {
+          params["companionCreativeIds"] = String(args["companionCreativeIds"]);
+        }
+        if (args["creativeFieldIds"] !== undefined) {
+          params["creativeFieldIds"] = String(args["creativeFieldIds"]);
+        }
+        if (args["ids"] !== undefined) params["ids"] = String(args["ids"]);
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["renderingIds"] !== undefined) {
+          params["renderingIds"] = String(args["renderingIds"]);
+        }
+        if (args["searchString"] !== undefined) {
+          params["searchString"] = String(args["searchString"]);
+        }
+        if (args["sizeIds"] !== undefined) {
+          params["sizeIds"] = String(args["sizeIds"]);
+        }
+        if (args["sortField"] !== undefined) {
+          params["sortField"] = String(args["sortField"]);
+        }
+        if (args["sortOrder"] !== undefined) {
+          params["sortOrder"] = String(args["sortOrder"]);
+        }
+        if (args["studioCreativeId"] !== undefined) {
+          params["studioCreativeId"] = String(args["studioCreativeId"]);
+        }
+        if (args["types"] !== undefined) {
+          params["types"] = String(args["types"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "creatives",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.id?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

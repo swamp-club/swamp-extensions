@@ -119,6 +119,8 @@ export function generateGcpExtensionModel(
   const hasActionMethods = resource.actionMethods.length > 0;
   const hasIdempotentCreate = resource.handlers.create &&
     resource.methodConfigs.list && resource.methodConfigs.insert;
+  const hasListFactory = !!(resource.methodConfigs.list &&
+    resource.listResponseArrayField);
   const helperImports: string[] = [];
   if (resource.handlers.create || hasActionMethods) {
     helperImports.push("createResource");
@@ -126,6 +128,7 @@ export function generateGcpExtensionModel(
   if (resource.handlers.delete) helperImports.push("deleteResource");
   helperImports.push("getProjectId");
   helperImports.push("isResourceNotFoundError");
+  if (hasListFactory) helperImports.push("listResources");
   if (resource.listOnly) {
     helperImports.push("readViaList");
   } else {
@@ -205,9 +208,11 @@ export function generateGcpExtensionModel(
   ) {
     usedConfigs.add("get");
   }
-  // LIST_CONFIG is used in sync for listOnly resources and in create for idempotency
+  // LIST_CONFIG is used in sync for listOnly resources, in create for idempotency,
+  // and in the list factory method
   if (
-    resource.methodConfigs.list && (resource.listOnly || hasIdempotentCreate)
+    resource.methodConfigs.list &&
+    (resource.listOnly || hasIdempotentCreate || hasListFactory)
   ) {
     usedConfigs.add("list");
   }
@@ -1075,6 +1080,127 @@ export function generateGcpExtensionModel(
     lines.push(`    },`);
   }
 
+  // --- list factory method ---
+  if (hasListFactory) {
+    const arrayField = resource.listResponseArrayField!;
+    const primaryId = resource.primaryIdentifier[0] || "name";
+
+    lines.push(`    list: {`);
+    lines.push(
+      `      description: "List ${singularName} resources",`,
+    );
+
+    // Build arguments schema from list query parameters
+    lines.push(`      arguments: z.object({`);
+    for (const param of resource.listQueryParams ?? []) {
+      const safeParamName = safeIdent(param.name);
+      let zodType: string;
+      switch (param.type) {
+        case "boolean":
+          zodType = "z.boolean()";
+          break;
+        case "integer":
+          zodType = "z.number()";
+          break;
+        default:
+          zodType = "z.string()";
+      }
+      const desc = param.description
+        ? `.describe(${
+          JSON.stringify(param.description.split("\n")[0].trim())
+        })`
+        : "";
+      lines.push(`        ${safeParamName}: ${zodType}${desc}.optional(),`);
+    }
+    lines.push(
+      `        maxPages: z.number().describe("Maximum number of pages to fetch (default: 10)").optional(),`,
+    );
+    lines.push(`      }),`);
+
+    // Determine if globalArgs are needed for path params
+    const listConfig = resource.methodConfigs.list!;
+    const listNonProjectParams = listConfig.parameterOrder.filter(
+      (p) => p !== "project" && p !== "projectId",
+    );
+    const listNeedsG = listNonProjectParams.length > 0;
+
+    lines.push(
+      `      execute: async (args: Record<string, unknown>, context: any) => {`,
+    );
+    if (listNeedsG) {
+      lines.push(`        const g = context.globalArgs;`);
+    }
+    lines.push(`        const projectId = await getProjectId();`);
+    lines.push(
+      `        const params: Record<string, string> = { project: projectId };`,
+    );
+
+    // Add path parameters from list config's parameterOrder
+    for (const paramName of listConfig.parameterOrder) {
+      if (paramName === "project" || paramName === "projectId") continue;
+      const parentLikeParams = new Set(["parent", "ownerName"]);
+      if (parentLikeParams.has(paramName) && shouldConstructParent) {
+        lines.push(
+          `        params[${JSON.stringify(paramName)}] = ${parentExpr};`,
+        );
+      } else if (
+        parentLikeParams.has(paramName) && resource.domainProperties["parent"]
+      ) {
+        lines.push(
+          `        if (g["parent"] !== undefined) params[${
+            JSON.stringify(paramName)
+          }] = String(g["parent"]);`,
+        );
+      } else {
+        lines.push(
+          `        if (g[${
+            JSON.stringify(safeIdent(paramName))
+          }] !== undefined) params[${JSON.stringify(paramName)}] = String(g[${
+            JSON.stringify(safeIdent(paramName))
+          }]);`,
+        );
+      }
+    }
+
+    // Add query parameters from method arguments
+    for (const param of resource.listQueryParams ?? []) {
+      const safeParamName = safeIdent(param.name);
+      lines.push(
+        `        if (args[${
+          JSON.stringify(safeParamName)
+        }] !== undefined) params[${JSON.stringify(param.name)}] = String(args[${
+          JSON.stringify(safeParamName)
+        }]);`,
+      );
+    }
+
+    lines.push(
+      `        const { items, nextPageToken } = await listResources(BASE_URL, LIST_CONFIG, params, ${
+        JSON.stringify(arrayField)
+      }, (args.maxPages as number | undefined) ?? 10);`,
+    );
+    lines.push(`        const dataHandles = [];`);
+    lines.push(`        for (let i = 0; i < items.length; i++) {`);
+    lines.push(`          const item = items[i] as StateData;`);
+    lines.push(
+      `          const instanceName = ${
+        wrapWithSanitize(
+          `item.${primaryId}?.toString() ?? String(i)`,
+        )
+      };`,
+    );
+    lines.push(
+      `          const handle = await context.writeResource("state", instanceName, item);`,
+    );
+    lines.push(`          dataHandles.push(handle);`);
+    lines.push(`        }`);
+    lines.push(
+      `        return { dataHandles, result: { count: items.length, nextPageToken } };`,
+    );
+    lines.push(`      },`);
+    lines.push(`    },`);
+  }
+
   // --- action methods (start, stop, reboot, etc.) ---
   for (const action of resource.actionMethods) {
     // Convert camelCase to readable: "setMachineType" → "set machine type"
@@ -1089,9 +1215,10 @@ export function generateGcpExtensionModel(
     );
 
     // Avoid name collisions with CRUD methods
-    const safeName = ["create", "get", "update", "delete", "sync"].includes(
-        methodName,
-      )
+    const safeName = ["create", "get", "update", "delete", "sync", "list"]
+        .includes(
+          methodName,
+        )
       ? `action_${methodName}`
       : methodName;
 

@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -117,23 +118,6 @@ const GlobalArgsSchema = z.object({
     order: z.enum(["ORDER_UNSPECIFIED", "ASCENDING", "DESCENDING"]).describe(
       "Indicates that this field supports ordering by the specified order or comparing using =,!=, , >=.",
     ).optional(),
-    searchConfig: z.object({
-      geoSpec: z.object({
-        geoJsonIndexingDisabled: z.boolean().describe(
-          "Optional. Disables geoJSON indexing for the field. By default, geoJSON points are indexed. Firestore GeoPoints are indexed regardless of this value.",
-        ).optional(),
-      }).describe(
-        "The specification for how to build a geo search index for a field.",
-      ).optional(),
-      textSpec: z.object({
-        indexSpecs: z.array(z.unknown()).describe(
-          "Required. Specifications for how the field should be indexed. Repeated so that the field can be indexed in multiple ways.",
-        ).optional(),
-      }).describe(
-        "The specification for how to build a text search index for a field.",
-      ).optional(),
-    }).describe("The configuration for how to index a field for search.")
-      .optional(),
     vectorConfig: z.object({
       dimension: z.number().int().describe(
         "Required. The vector dimension this configuration applies to. The resulting index will only include vectors of this dimension, and can be used for vector search with the same dimension.",
@@ -157,14 +141,6 @@ const GlobalArgsSchema = z.object({
   ]).describe(
     "Indexes with a collection query scope specified allow queries against a collection that is the child of a specific document, specified at query time, and that has the same collection ID. Indexes with a collection group query scope specified allow queries against all collections descended from a specific document, specified at query time, and that have the same collection ID as this index.",
   ).optional(),
-  searchIndexOptions: z.object({
-    textLanguage: z.string().describe(
-      "Optional. The language to use for text search indexes. Used as the default language if not overridden at the document level by specifying the `text_language_override_field`. The language is specified as a BCP 47 language code. For indexes with MONGODB_COMPATIBLE_API ApiScope: If unspecified, the default language is English. For indexes with `ANY_API` ApiScope: If unspecified, the default behavior is autodetect.",
-    ).optional(),
-    textLanguageOverrideFieldPath: z.string().describe(
-      'Optional. The field in the document that specifies which language to use for that specific document. If unspecified, the language is taken from the "language" field if it exists or from `text_language` if it does not.',
-    ).optional(),
-  }).describe("Options for search indexes at the definition level.").optional(),
   shardCount: z.number().int().describe(
     "Optional. The number of shards for the index.",
   ).optional(),
@@ -183,14 +159,6 @@ const StateSchema = z.object({
     arrayConfig: z.string(),
     fieldPath: z.string(),
     order: z.string(),
-    searchConfig: z.object({
-      geoSpec: z.object({
-        geoJsonIndexingDisabled: z.boolean(),
-      }),
-      textSpec: z.object({
-        indexSpecs: z.array(z.unknown()),
-      }),
-    }),
     vectorConfig: z.object({
       dimension: z.number(),
       flat: z.object({}),
@@ -199,10 +167,6 @@ const StateSchema = z.object({
   multikey: z.boolean().optional(),
   name: z.string(),
   queryScope: z.string().optional(),
-  searchIndexOptions: z.object({
-    textLanguage: z.string(),
-    textLanguageOverrideFieldPath: z.string(),
-  }).optional(),
   shardCount: z.number().optional(),
   state: z.string().optional(),
   unique: z.boolean().optional(),
@@ -226,23 +190,6 @@ const InputsSchema = z.object({
     order: z.enum(["ORDER_UNSPECIFIED", "ASCENDING", "DESCENDING"]).describe(
       "Indicates that this field supports ordering by the specified order or comparing using =,!=, , >=.",
     ).optional(),
-    searchConfig: z.object({
-      geoSpec: z.object({
-        geoJsonIndexingDisabled: z.boolean().describe(
-          "Optional. Disables geoJSON indexing for the field. By default, geoJSON points are indexed. Firestore GeoPoints are indexed regardless of this value.",
-        ).optional(),
-      }).describe(
-        "The specification for how to build a geo search index for a field.",
-      ).optional(),
-      textSpec: z.object({
-        indexSpecs: z.array(z.unknown()).describe(
-          "Required. Specifications for how the field should be indexed. Repeated so that the field can be indexed in multiple ways.",
-        ).optional(),
-      }).describe(
-        "The specification for how to build a text search index for a field.",
-      ).optional(),
-    }).describe("The configuration for how to index a field for search.")
-      .optional(),
     vectorConfig: z.object({
       dimension: z.number().int().describe(
         "Required. The vector dimension this configuration applies to. The resulting index will only include vectors of this dimension, and can be used for vector search with the same dimension.",
@@ -266,14 +213,6 @@ const InputsSchema = z.object({
   ]).describe(
     "Indexes with a collection query scope specified allow queries against a collection that is the child of a specific document, specified at query time, and that has the same collection ID. Indexes with a collection group query scope specified allow queries against all collections descended from a specific document, specified at query time, and that have the same collection ID as this index.",
   ).optional(),
-  searchIndexOptions: z.object({
-    textLanguage: z.string().describe(
-      "Optional. The language to use for text search indexes. Used as the default language if not overridden at the document level by specifying the `text_language_override_field`. The language is specified as a BCP 47 language code. For indexes with MONGODB_COMPATIBLE_API ApiScope: If unspecified, the default language is English. For indexes with `ANY_API` ApiScope: If unspecified, the default behavior is autodetect.",
-    ).optional(),
-    textLanguageOverrideFieldPath: z.string().describe(
-      'Optional. The field in the document that specifies which language to use for that specific document. If unspecified, the language is taken from the "language" field if it exists or from `text_language` if it does not.',
-    ).optional(),
-  }).describe("Options for search indexes at the definition level.").optional(),
   shardCount: z.number().int().describe(
     "Optional. The number of shards for the index.",
   ).optional(),
@@ -288,7 +227,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Firestore Databases.CollectionGroups.Indexes. Registered at `@swamp/gcp/firestore/databases-collectiongroups-indexes`. */
 export const model = {
   type: "@swamp/gcp/firestore/databases-collectiongroups-indexes",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -381,6 +320,14 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "Removed: searchIndexOptions",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { searchIndexOptions: _searchIndexOptions, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -414,9 +361,6 @@ export const model = {
         if (g["fields"] !== undefined) body["fields"] = g["fields"];
         if (g["multikey"] !== undefined) body["multikey"] = g["multikey"];
         if (g["queryScope"] !== undefined) body["queryScope"] = g["queryScope"];
-        if (g["searchIndexOptions"] !== undefined) {
-          body["searchIndexOptions"] = g["searchIndexOptions"];
-        }
         if (g["shardCount"] !== undefined) body["shardCount"] = g["shardCount"];
         if (g["unique"] !== undefined) body["unique"] = g["unique"];
         if (g["name"] !== undefined) {
@@ -570,6 +514,54 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List indexes resources",
+      arguments: z.object({
+        filter: z.string().describe("The filter to apply to list results.")
+          .optional(),
+        pageSize: z.number().describe("The number of results to return.")
+          .optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "indexes",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -887,7 +888,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Campaign Manager 360 TargetingTemplates. Registered at `@swamp/gcp/dfareporting/targetingtemplates`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/targetingtemplates",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -941,6 +942,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1191,6 +1197,74 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List targetingTemplates resources",
+      arguments: z.object({
+        advertiserId: z.string().describe(
+          "Select only targeting templates with this advertiser ID.",
+        ).optional(),
+        ids: z.string().describe(
+          "Select only targeting templates with these IDs.",
+        ).optional(),
+        maxResults: z.number().describe("Maximum number of results to return.")
+          .optional(),
+        searchString: z.string().describe(
+          'Allows searching for objects by name or ID. Wildcards (*) are allowed. For example, "template*2015" will return objects with names like "template June 2015", "template April 2015", or simply "template 2015". Most of the searches also add wildcards implicitly at the start and the end of the search string. For example, a search string of "template" will match objects with name "my template", "template 2015", or simply "template".',
+        ).optional(),
+        sortField: z.string().describe("Field by which to sort the list.")
+          .optional(),
+        sortOrder: z.string().describe("Order of sorted results.").optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["profileId"] !== undefined) {
+          params["profileId"] = String(g["profileId"]);
+        }
+        if (args["advertiserId"] !== undefined) {
+          params["advertiserId"] = String(args["advertiserId"]);
+        }
+        if (args["ids"] !== undefined) params["ids"] = String(args["ids"]);
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["searchString"] !== undefined) {
+          params["searchString"] = String(args["searchString"]);
+        }
+        if (args["sortField"] !== undefined) {
+          params["sortField"] = String(args["sortField"]);
+        }
+        if (args["sortOrder"] !== undefined) {
+          params["sortOrder"] = String(args["sortOrder"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "targetingTemplates",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.id?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -133,9 +134,6 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       networkUri: z.string().describe(
         "Optional. Network URI to connect workload to.",
-      ).optional(),
-      resourceManagerTags: z.record(z.string(), z.string()).describe(
-        "Optional. Associates Resource Manager tags with the workload nodes. There is a max limit of 30 tags. Keys and values can be either in numeric format, such as tagKeys/{tag_key_id} and tagValues/{tag_value_id}, or in namespaced format, such as {org_id|project_id}/{tag_key_short_name} and {tag_value_short_name}.",
       ).optional(),
       serviceAccount: z.string().describe(
         "Optional. Service account that used to execute workload.",
@@ -321,7 +319,6 @@ const StateSchema = z.object({
       kmsKey: z.string(),
       networkTags: z.array(z.string()),
       networkUri: z.string(),
-      resourceManagerTags: z.record(z.string(), z.unknown()),
       serviceAccount: z.string(),
       stagingBucket: z.string(),
       subnetworkUri: z.string(),
@@ -423,9 +420,6 @@ const InputsSchema = z.object({
       ).optional(),
       networkUri: z.string().describe(
         "Optional. Network URI to connect workload to.",
-      ).optional(),
-      resourceManagerTags: z.record(z.string(), z.string()).describe(
-        "Optional. Associates Resource Manager tags with the workload nodes. There is a max limit of 30 tags. Keys and values can be either in numeric format, such as tagKeys/{tag_key_id} and tagValues/{tag_value_id}, or in namespaced format, such as {org_id|project_id}/{tag_key_short_name} and {tag_value_short_name}.",
       ).optional(),
       serviceAccount: z.string().describe(
         "Optional. Service account that used to execute workload.",
@@ -602,7 +596,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dataproc Sessions. Registered at `@swamp/gcp/dataproc/sessions`. */
 export const model = {
   type: "@swamp/gcp/dataproc/sessions",
-  version: "2026.05.25.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -681,6 +675,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -884,6 +883,56 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List sessions resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          'Optional. A filter for the sessions to return in the response.A filter is a logical expression constraining the values of various fields in each session resource. Filters are case sensitive, and may contain multiple clauses combined with logical operators (AND, OR). Supported fields are session_id, session_uuid, state, create_time, and labels.Example: state = ACTIVE and create_time < "2023-01-01T00:00:00Z" is a filter for sessions in an ACTIVE state that were created before 2023-01-01. state = ACTIVE and labels.environment=production is a filter for sessions in an ACTIVE state that have a production environment label.See https://google.aip.dev/assets/misc/ebnf-filtering.txt for a detailed description of the filter syntax and a list of supported comparators.',
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of sessions to return in each response. The service may return fewer than this value.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "sessions",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     terminate: {

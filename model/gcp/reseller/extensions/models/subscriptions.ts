@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -392,7 +393,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Workspace Reseller Subscriptions. Registered at `@swamp/gcp/reseller/subscriptions`. */
 export const model = {
   type: "@swamp/gcp/reseller/subscriptions",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -446,6 +447,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -662,6 +673,64 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List subscriptions resources",
+      arguments: z.object({
+        customerAuthToken: z.string().describe(
+          "The `customerAuthToken` query string is required when creating a resold account that transfers a direct customer's subscription or transfers another reseller customer's subscription to your reseller management. This is a hexadecimal authentication token needed to complete the subscription transfer. For more information, see the administrator help center.",
+        ).optional(),
+        customerId: z.string().describe(
+          "This can be either the customer's primary domain name or the customer's unique identifier. If the domain name for a customer changes, the old domain name cannot be used to access the customer, but the customer's unique identifier (as returned by the API) can always be used. We recommend storing the unique identifier in your systems where applicable.",
+        ).optional(),
+        customerNamePrefix: z.string().describe(
+          "When retrieving all of your subscriptions and filtering for specific customers, you can enter a prefix for a customer name. Using an example customer group that includes `exam.com`, `example20.com` and `example.com`: - `exa` -- Returns all customer names that start with 'exa' which could include `exam.com`, `example20.com`, and `example.com`. A name prefix is similar to using a regular expression's asterisk, exa*. - `example` -- Returns `example20.com` and `example.com`.",
+        ).optional(),
+        maxResults: z.number().describe(
+          "When retrieving a large list, the `maxResults` is the maximum number of results per page. The `nextPageToken` value takes you to the next page. The default is 20.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["customerAuthToken"] !== undefined) {
+          params["customerAuthToken"] = String(args["customerAuthToken"]);
+        }
+        if (args["customerId"] !== undefined) {
+          params["customerId"] = String(args["customerId"]);
+        }
+        if (args["customerNamePrefix"] !== undefined) {
+          params["customerNamePrefix"] = String(args["customerNamePrefix"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "subscriptions",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     activate: {

@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -30,9 +31,6 @@ const LIST_CONFIG = {
   "parameterOrder": [],
   "parameters": {
     "pageToken": {
-      "location": "query",
-    },
-    "requestOptions.clientDisplayLanguageCode": {
       "location": "query",
     },
     "requestOptions.debugOptions.enableDebugging": {
@@ -88,7 +86,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Search Query.Sources. Registered at `@swamp/gcp/cloudsearch/query-sources`. */
 export const model = {
   type: "@swamp/gcp/cloudsearch/query-sources",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -162,6 +160,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -256,6 +264,72 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List sources resources",
+      arguments: z.object({
+        requestOptions_debugOptions_enableDebugging: z.boolean().describe(
+          "If you are asked by Google to help with debugging, set this field. Otherwise, ignore this field.",
+        ).optional(),
+        requestOptions_languageCode: z.string().describe(
+          'The BCP-47 language code, such as "en-US" or "sr-Latn". For more information, see http://www.unicode.org/reports/tr35/#Unicode_locale_identifier. For translations. Set this field using the language set in browser or for the page. In the event that the user\'s language preference is known, set this field to the known user language. When specified, the documents in search results are biased towards the specified language. The Suggest API uses this field as a hint to make better third-party autocomplete predictions.',
+        ).optional(),
+        requestOptions_searchApplicationId: z.string().describe(
+          "The ID generated when you create a search application using the [admin console](https://support.google.com/a/answer/9043922).",
+        ).optional(),
+        requestOptions_timeZone: z.string().describe(
+          'Current user\'s time zone id, such as "America/Los_Angeles" or "Australia/Sydney". These IDs are defined by [Unicode Common Locale Data Repository (CLDR)](http://cldr.unicode.org/) project, and currently available in the file [timezone.xml](http://unicode.org/repos/cldr/trunk/common/bcp47/timezone.xml). This field is used to correctly interpret date and time queries. If this field is not specified, the default time zone (UTC) is used.',
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["requestOptions_debugOptions_enableDebugging"] !== undefined) {
+          params["requestOptions.debugOptions.enableDebugging"] = String(
+            args["requestOptions_debugOptions_enableDebugging"],
+          );
+        }
+        if (args["requestOptions_languageCode"] !== undefined) {
+          params["requestOptions.languageCode"] = String(
+            args["requestOptions_languageCode"],
+          );
+        }
+        if (args["requestOptions_searchApplicationId"] !== undefined) {
+          params["requestOptions.searchApplicationId"] = String(
+            args["requestOptions_searchApplicationId"],
+          );
+        }
+        if (args["requestOptions_timeZone"] !== undefined) {
+          params["requestOptions.timeZone"] = String(
+            args["requestOptions_timeZone"],
+          );
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "sources",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

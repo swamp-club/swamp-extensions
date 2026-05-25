@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud BigQuery Data Transfer TransferConfigs.TransferResources.
  *
- * Resource (table/partition) that is being transferred.
+ * Resource(table/partition) that is being transferred.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -38,6 +39,31 @@ const GET_CONFIG = {
   ],
   "parameters": {
     "name": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id":
+    "bigquerydatatransfer.projects.locations.transferConfigs.transferResources.list",
+  "path": "v1/{+parent}/transferResources",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
       "location": "path",
       "required": true,
     },
@@ -107,7 +133,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud BigQuery Data Transfer TransferConfigs.TransferResources. Registered at `@swamp/gcp/bigquerydatatransfer/transferconfigs-transferresources`. */
 export const model = {
   type: "@swamp/gcp/bigquerydatatransfer/transferconfigs-transferresources",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -184,12 +210,17 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Resource (table/partition) that is being transferred.",
+      description: "Resource(table/partition) that is being transferred.",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -274,6 +305,56 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List transferResources resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          'Optional. Filter for the transfer resources. Currently supported filters include: * Resource name: `name` - Wildcard supported * Resource type: `type` * Resource destination: `destination` * Latest resource state: `latest_status_detail.state` * Last update time: `update_time` - RFC-3339 format * Parent table name: `hierarchy_detail.partition_detail.table` Multiple filters can be applied using the `AND/OR` operator. Examples: * `name="*123" AND (type="TABLE" OR latest_status_detail.state="SUCCEEDED")` * `update_time >= "2012-04-21T11:30:00-04:00` * `hierarchy_detail.partition_detail.table = "table1"`',
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of transfer resources to return. The maximum value is 1000; values above 1000 will be coerced to 1000. The default page size is the maximum value of 1000 results.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "transferResources",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

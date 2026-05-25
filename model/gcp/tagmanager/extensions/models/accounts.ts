@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -53,6 +54,21 @@ const UPDATE_CONFIG = {
     "path": {
       "location": "path",
       "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "tagmanager.accounts.list",
+  "path": "tagmanager/v2/accounts",
+  "httpMethod": "GET",
+  "parameterOrder": [],
+  "parameters": {
+    "includeGoogleTags": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
     },
   },
 } as const;
@@ -125,7 +141,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Tag Manager Accounts. Registered at `@swamp/gcp/tagmanager/accounts`. */
 export const model = {
   type: "@swamp/gcp/tagmanager/accounts",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -179,6 +195,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -326,6 +352,46 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List accounts resources",
+      arguments: z.object({
+        includeGoogleTags: z.boolean().describe(
+          "Also retrieve accounts associated with Google Tag when true.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["includeGoogleTags"] !== undefined) {
+          params["includeGoogleTags"] = String(args["includeGoogleTags"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "account",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

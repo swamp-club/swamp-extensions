@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -143,7 +144,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe("A capacity configuration of a Kafka cluster.").optional(),
   config: z.record(z.string(), z.string()).describe(
-    "Optional. Reserved for future use. This field is meant for worker config overrides, but is unsupported for now.",
+    "Optional. Configurations for the worker that are overridden from the defaults. The key of the map is a Kafka Connect worker property name, for example: `exactly.once.source.support`.",
   ).optional(),
   gcpConfig: z.object({
     accessConfig: z.object({
@@ -226,7 +227,7 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe("A capacity configuration of a Kafka cluster.").optional(),
   config: z.record(z.string(), z.string()).describe(
-    "Optional. Reserved for future use. This field is meant for worker config overrides, but is unsupported for now.",
+    "Optional. Configurations for the worker that are overridden from the defaults. The key of the map is a Kafka Connect worker property name, for example: `exactly.once.source.support`.",
   ).optional(),
   gcpConfig: z.object({
     accessConfig: z.object({
@@ -274,7 +275,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Managed Service for Apache Kafka ConnectClusters. Registered at `@swamp/gcp/managedkafka/connectclusters`. */
 export const model = {
   type: "@swamp/gcp/managedkafka/connectclusters",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -353,6 +354,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -612,6 +618,62 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List connectClusters resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Optional. Filter expression for the result.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Optional. Order by fields for the result.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of Connect clusters to return. The service may return fewer than this value. If unspecified, server will pick an appropriate default.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "connectClusters",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

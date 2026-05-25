@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -88,7 +89,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud BigQuery Tabledata. Registered at `@swamp/gcp/bigquery/tabledata`. */
 export const model = {
   type: "@swamp/gcp/bigquery/tabledata",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -142,6 +143,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -251,6 +257,78 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List tabledata resources",
+      arguments: z.object({
+        formatOptions_timestampOutputFormat: z.string().describe(
+          "Optional. The API output format for a timestamp. This offers more explicit control over the timestamp output format as compared to the existing `use_int64_timestamp` option.",
+        ).optional(),
+        formatOptions_useInt64Timestamp: z.boolean().describe(
+          "Optional. Output timestamp as usec int64. Default is false.",
+        ).optional(),
+        maxResults: z.number().describe("Row limit of the table.").optional(),
+        selectedFields: z.string().describe(
+          'Subset of fields to return, supports select into sub fields. Example: selected_fields = "a,e.d.f";',
+        ).optional(),
+        startIndex: z.string().describe("Start row index of the table.")
+          .optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["datasetId"] !== undefined) {
+          params["datasetId"] = String(g["datasetId"]);
+        }
+        if (g["tableId"] !== undefined) {
+          params["tableId"] = String(g["tableId"]);
+        }
+        if (args["formatOptions_timestampOutputFormat"] !== undefined) {
+          params["formatOptions.timestampOutputFormat"] = String(
+            args["formatOptions_timestampOutputFormat"],
+          );
+        }
+        if (args["formatOptions_useInt64Timestamp"] !== undefined) {
+          params["formatOptions.useInt64Timestamp"] = String(
+            args["formatOptions_useInt64Timestamp"],
+          );
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["selectedFields"] !== undefined) {
+          params["selectedFields"] = String(args["selectedFields"]);
+        }
+        if (args["startIndex"] !== undefined) {
+          params["startIndex"] = String(args["startIndex"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "rows",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     insert_all: {

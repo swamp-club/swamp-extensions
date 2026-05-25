@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud Google Play Android Developer Generatedapks.
  *
- * Download metadata for split, standalone and universal APKs, as well as asset pack slices, signed with a given key. Next ID: 10
+ * Download metadata for split, standalone and universal APKs, as well as asset pack slices, signed with a given key.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -124,16 +125,6 @@ const StateSchema = z.object({
       variantNumber: z.number(),
     })),
   }).optional(),
-  unprotectedGeneratedSplitApks: z.array(z.object({
-    downloadId: z.string(),
-    moduleName: z.string(),
-    splitId: z.string(),
-    variantId: z.number(),
-  })).optional(),
-  unprotectedGeneratedStandaloneApks: z.array(z.object({
-    downloadId: z.string(),
-    variantId: z.number(),
-  })).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -145,7 +136,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Play Android Developer Generatedapks. Registered at `@swamp/gcp/androidpublisher/generatedapks`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/generatedapks",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -224,6 +215,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -334,6 +335,47 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List generatedapks resources",
+      arguments: z.object({
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["packageName"] !== undefined) {
+          params["packageName"] = String(g["packageName"]);
+        }
+        if (g["versionCode"] !== undefined) {
+          params["versionCode"] = String(g["versionCode"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "generatedApks",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     download: {

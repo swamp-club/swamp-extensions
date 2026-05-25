@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud App Lifecycle Manager Tenants.
+ * Swamp extension model for Google Cloud SaaS Runtime Tenants.
  *
  * Tenant represents the service producer side of an instance of the service created based on a request from a consumer. In a typical scenario a Tenant has a one-to-one mapping with a resource given out to a service consumer. Example: tenant: name: "projects/svc1/locations/loc/tenants/inst-068afff8" consumer_resource: "projects/gshoe/locations/loc/shoes/black-shoe"
  *
@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -150,7 +151,7 @@ const GlobalArgsSchema = z.object({
     "Optional. Annotations is an unstructured key-value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/user-guide/annotations",
   ).optional(),
   consumerResource: z.string().describe(
-    "Optional. Immutable. A reference to the consumer resource this SaaS Tenant is representing. The relationship with a consumer resource can be used by App Lifecycle Manager for retrieving consumer-defined settings and policies such as maintenance policies (using Unified Maintenance Policy API).",
+    "Optional. Immutable. A reference to the consumer resource this SaaS Tenant is representing. The relationship with a consumer resource can be used by SaaS Runtime for retrieving consumer-defined settings and policies such as maintenance policies (using Unified Maintenance Policy API).",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. The labels on the resource, which can be used for categorization. similar to Kubernetes resource labels.",
@@ -159,7 +160,7 @@ const GlobalArgsSchema = z.object({
     'Identifier. The resource name (full URI of the resource) following the standard naming scheme: "projects/{project}/locations/{location}/tenants/{tenant}"',
   ).optional(),
   saas: z.string().describe(
-    "Required. Immutable. A reference to the Saas that defines the product (managed service) that the producer wants to manage with App Lifecycle Manager. Part of the App Lifecycle Manager common data model.",
+    "Required. Immutable. A reference to the Saas that defines the product (managed service) that the producer wants to manage with SaaS Runtime. Part of the SaaS Runtime common data model.",
   ).optional(),
   requestId: z.string().describe(
     "An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -190,7 +191,7 @@ const InputsSchema = z.object({
     "Optional. Annotations is an unstructured key-value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/user-guide/annotations",
   ).optional(),
   consumerResource: z.string().describe(
-    "Optional. Immutable. A reference to the consumer resource this SaaS Tenant is representing. The relationship with a consumer resource can be used by App Lifecycle Manager for retrieving consumer-defined settings and policies such as maintenance policies (using Unified Maintenance Policy API).",
+    "Optional. Immutable. A reference to the consumer resource this SaaS Tenant is representing. The relationship with a consumer resource can be used by SaaS Runtime for retrieving consumer-defined settings and policies such as maintenance policies (using Unified Maintenance Policy API).",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. The labels on the resource, which can be used for categorization. similar to Kubernetes resource labels.",
@@ -199,7 +200,7 @@ const InputsSchema = z.object({
     'Identifier. The resource name (full URI of the resource) following the standard naming scheme: "projects/{project}/locations/{location}/tenants/{tenant}"',
   ).optional(),
   saas: z.string().describe(
-    "Required. Immutable. A reference to the Saas that defines the product (managed service) that the producer wants to manage with App Lifecycle Manager. Part of the App Lifecycle Manager common data model.",
+    "Required. Immutable. A reference to the Saas that defines the product (managed service) that the producer wants to manage with SaaS Runtime. Part of the SaaS Runtime common data model.",
   ).optional(),
   requestId: z.string().describe(
     "An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -211,10 +212,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud App Lifecycle Manager Tenants. Registered at `@swamp/gcp/saasservicemgmt/tenants`. */
+/** Swamp extension model for Google Cloud SaaS Runtime Tenants. Registered at `@swamp/gcp/saasservicemgmt/tenants`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/tenants",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -288,6 +289,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -522,6 +528,62 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List tenants resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Filter the list as specified in https://google.aip.dev/160.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Order results as specified in https://google.aip.dev/132.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "The maximum number of tenants to send per page.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "tenants",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

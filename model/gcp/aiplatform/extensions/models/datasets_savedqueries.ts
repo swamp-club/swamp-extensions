@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Agent Platform Datasets.SavedQueries.
+ * Swamp extension model for Google Cloud Vertex AI Datasets.SavedQueries.
  *
  * A SavedQuery is a view of the dataset. It references a subset of annotations by problem type and filters.
  *
@@ -19,6 +19,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -100,10 +101,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Agent Platform Datasets.SavedQueries. Registered at `@swamp/gcp/aiplatform/datasets-savedqueries`. */
+/** Swamp extension model for Google Cloud Vertex AI Datasets.SavedQueries. Registered at `@swamp/gcp/aiplatform/datasets-savedqueries`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/datasets-savedqueries",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -177,6 +178,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -304,6 +310,64 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List savedQueries resources",
+      arguments: z.object({
+        filter: z.string().describe("The standard list filter.").optional(),
+        orderBy: z.string().describe(
+          'A comma-separated list of fields to order by, sorted in ascending order. Use "desc" after a field name for descending.',
+        ).optional(),
+        pageSize: z.number().describe("The standard list page size.")
+          .optional(),
+        readMask: z.string().describe("Mask specifying which fields to read.")
+          .optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["readMask"] !== undefined) {
+          params["readMask"] = String(args["readMask"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "savedQueries",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

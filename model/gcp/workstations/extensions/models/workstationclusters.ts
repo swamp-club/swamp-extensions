@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -186,12 +187,6 @@ const GlobalArgsSchema = z.object({
   tags: z.record(z.string(), z.string()).describe(
     'Optional. Input only. Immutable. Tag keys/values directly bound to this resource. For example: "123/environment": "production", "123/costCenter": "marketing"',
   ).optional(),
-  workstationAuthorizationUrl: z.string().describe(
-    "Optional. Specifies the redirect URL for unauthorized requests received by workstation VMs in this cluster. Redirects to this endpoint will send a base64 encoded `state` query param containing the target workstation name and original request hostname. The endpoint is responsible for retrieving a token using `GenerateAccessToken` and redirecting back to the original hostname with the token.",
-  ).optional(),
-  workstationLaunchUrl: z.string().describe(
-    "Optional. Specifies the launch URL for workstations in this cluster. Requests sent to unstarted workstations will be redirected to this URL. Requests redirected to the launch endpoint will be sent with a `workstation` and `project` query parameter containing the full workstation resource name and project ID, respectively. The launch endpoint is responsible for starting the workstation, polling it until it reaches `STATE_RUNNING`, and then issuing a redirect to the workstation's host URL.",
-  ).optional(),
   workstationClusterId: z.string().describe(
     "Required. ID to use for the workstation cluster.",
   ).optional(),
@@ -233,8 +228,6 @@ const StateSchema = z.object({
   tags: z.record(z.string(), z.unknown()).optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
-  workstationAuthorizationUrl: z.string().optional(),
-  workstationLaunchUrl: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -286,12 +279,6 @@ const InputsSchema = z.object({
   tags: z.record(z.string(), z.string()).describe(
     'Optional. Input only. Immutable. Tag keys/values directly bound to this resource. For example: "123/environment": "production", "123/costCenter": "marketing"',
   ).optional(),
-  workstationAuthorizationUrl: z.string().describe(
-    "Optional. Specifies the redirect URL for unauthorized requests received by workstation VMs in this cluster. Redirects to this endpoint will send a base64 encoded `state` query param containing the target workstation name and original request hostname. The endpoint is responsible for retrieving a token using `GenerateAccessToken` and redirecting back to the original hostname with the token.",
-  ).optional(),
-  workstationLaunchUrl: z.string().describe(
-    "Optional. Specifies the launch URL for workstations in this cluster. Requests sent to unstarted workstations will be redirected to this URL. Requests redirected to the launch endpoint will be sent with a `workstation` and `project` query parameter containing the full workstation resource name and project ID, respectively. The launch endpoint is responsible for starting the workstation, polling it until it reaches `STATE_RUNNING`, and then issuing a redirect to the workstation's host URL.",
-  ).optional(),
   workstationClusterId: z.string().describe(
     "Required. ID to use for the workstation cluster.",
   ).optional(),
@@ -303,7 +290,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Workstations WorkstationClusters. Registered at `@swamp/gcp/workstations/workstationclusters`. */
 export const model = {
   type: "@swamp/gcp/workstations/workstationclusters",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -411,6 +398,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "Removed: workstationAuthorizationUrl, workstationLaunchUrl",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          workstationAuthorizationUrl: _workstationAuthorizationUrl,
+          workstationLaunchUrl: _workstationLaunchUrl,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -455,13 +454,6 @@ export const model = {
         }
         if (g["subnetwork"] !== undefined) body["subnetwork"] = g["subnetwork"];
         if (g["tags"] !== undefined) body["tags"] = g["tags"];
-        if (g["workstationAuthorizationUrl"] !== undefined) {
-          body["workstationAuthorizationUrl"] =
-            g["workstationAuthorizationUrl"];
-        }
-        if (g["workstationLaunchUrl"] !== undefined) {
-          body["workstationLaunchUrl"] = g["workstationLaunchUrl"];
-        }
         if (g["workstationClusterId"] !== undefined) {
           body["workstationClusterId"] = g["workstationClusterId"];
         }
@@ -571,13 +563,6 @@ export const model = {
         if (g["privateClusterConfig"] !== undefined) {
           body["privateClusterConfig"] = g["privateClusterConfig"];
         }
-        if (g["workstationAuthorizationUrl"] !== undefined) {
-          body["workstationAuthorizationUrl"] =
-            g["workstationAuthorizationUrl"];
-        }
-        if (g["workstationLaunchUrl"] !== undefined) {
-          body["workstationLaunchUrl"] = g["workstationLaunchUrl"];
-        }
         for (const key of Object.keys(existing)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
@@ -680,6 +665,56 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List workstationClusters resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Optional. Filter the WorkstationClusters to be listed. Possible filters are described in https://google.aip.dev/160.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Maximum number of items to return.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "workstationClusters",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

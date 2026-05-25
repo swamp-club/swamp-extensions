@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -105,7 +106,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Error Reporting Events. Registered at `@swamp/gcp/clouderrorreporting/events`. */
 export const model = {
   type: "@swamp/gcp/clouderrorreporting/events",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -159,6 +160,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -261,6 +267,86 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List events resources",
+      arguments: z.object({
+        groupId: z.string().describe(
+          "Required. The group for which events shall be returned. The `group_id` is a unique identifier for a particular error group. The identifier is derived from key parts of the error-log content and is treated as Service Data. For information about how Service Data is handled, see [Google Cloud Privacy Notice](https://cloud.google.com/terms/cloud-privacy-notice).",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of results to return per response.",
+        ).optional(),
+        serviceFilter_resourceType: z.string().describe(
+          "Optional. The exact value to match against [`ServiceContext.resource_type`](/error-reporting/reference/rest/v1beta1/ServiceContext#FIELDS.resource_type).",
+        ).optional(),
+        serviceFilter_service: z.string().describe(
+          "Optional. The exact value to match against [`ServiceContext.service`](/error-reporting/reference/rest/v1beta1/ServiceContext#FIELDS.service).",
+        ).optional(),
+        serviceFilter_version: z.string().describe(
+          "Optional. The exact value to match against [`ServiceContext.version`](/error-reporting/reference/rest/v1beta1/ServiceContext#FIELDS.version).",
+        ).optional(),
+        timeRange_period: z.string().describe(
+          "Restricts the query to the specified time range.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["projectName"] !== undefined) {
+          params["projectName"] = String(g["projectName"]);
+        }
+        if (args["groupId"] !== undefined) {
+          params["groupId"] = String(args["groupId"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["serviceFilter_resourceType"] !== undefined) {
+          params["serviceFilter.resourceType"] = String(
+            args["serviceFilter_resourceType"],
+          );
+        }
+        if (args["serviceFilter_service"] !== undefined) {
+          params["serviceFilter.service"] = String(
+            args["serviceFilter_service"],
+          );
+        }
+        if (args["serviceFilter_version"] !== undefined) {
+          params["serviceFilter.version"] = String(
+            args["serviceFilter_version"],
+          );
+        }
+        if (args["timeRange_period"] !== undefined) {
+          params["timeRange.period"] = String(args["timeRange_period"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "errorEvents",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     report: {

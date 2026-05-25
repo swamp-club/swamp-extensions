@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -61,6 +62,36 @@ const DELETE_CONFIG = {
       "required": true,
     },
     "source": {
+      "location": "query",
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "ces.projects.locations.apps.conversations.list",
+  "path": "v1/{+parent}/conversations",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+    "source": {
+      "location": "query",
+    },
+    "sources": {
       "location": "query",
     },
   },
@@ -153,7 +184,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Conversations. Registered at `@swamp/gcp/ces/apps-conversations`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-conversations",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -217,6 +248,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -342,6 +378,68 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List conversations resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Optional. Filter to be applied when listing the conversations. See https://google.aip.dev/160 for more details.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Requested page size. Server may return fewer items than requested. If unspecified, server will pick an appropriate default.",
+        ).optional(),
+        source: z.string().describe(
+          "Optional. Indicate the source of the conversation. If not set, Source.Live will be applied by default. Will be deprecated in favor of `sources` field.",
+        ).optional(),
+        sources: z.string().describe(
+          "Optional. Indicate the sources of the conversations. If not set, all available sources will be applied by default.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["source"] !== undefined) {
+          params["source"] = String(args["source"]);
+        }
+        if (args["sources"] !== undefined) {
+          params["sources"] = String(args["sources"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "conversations",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     batch_delete: {

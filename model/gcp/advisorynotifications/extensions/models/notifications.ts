@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -42,6 +43,33 @@ const GET_CONFIG = {
     "name": {
       "location": "path",
       "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "advisorynotifications.organizations.locations.notifications.list",
+  "path": "v1/{+parent}/notifications",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "languageCode": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+    "view": {
+      "location": "query",
     },
   },
 } as const;
@@ -98,7 +126,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Advisory Notifications Notifications. Registered at `@swamp/gcp/advisorynotifications/notifications`. */
 export const model = {
   type: "@swamp/gcp/advisorynotifications/notifications",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -157,6 +185,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -251,6 +284,58 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List notifications resources",
+      arguments: z.object({
+        languageCode: z.string().describe(
+          'ISO code for requested localization language. If unset, will be interpereted as "en". If the requested language is valid, but not supported for this notification, English will be returned with an "Not applicable" LocalizationState. If the ISO code is invalid (i.e. not a real language), this RPC will throw an error.',
+        ).optional(),
+        pageSize: z.number().describe(
+          "The maximum number of notifications to return. The service may return fewer than this value. If unspecified or equal to 0, at most 50 notifications will be returned. The maximum value is 50; values above 50 will be coerced to 50.",
+        ).optional(),
+        view: z.string().describe(
+          "Specifies which parts of the notification resource should be returned in the response.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["languageCode"] !== undefined) {
+          params["languageCode"] = String(args["languageCode"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["view"] !== undefined) params["view"] = String(args["view"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "notifications",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -47,6 +48,35 @@ const GET_CONFIG = {
     "managedZone": {
       "location": "path",
       "required": true,
+    },
+    "project": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "dns.dnsKeys.list",
+  "path": "dns/v1/projects/{project}/managedZones/{managedZone}/dnsKeys",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "project",
+    "managedZone",
+  ],
+  "parameters": {
+    "digestType": {
+      "location": "query",
+    },
+    "managedZone": {
+      "location": "path",
+      "required": true,
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
     },
     "project": {
       "location": "path",
@@ -87,7 +117,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud DNS DnsKeys. Registered at `@swamp/gcp/dns/dnskeys`. */
 export const model = {
   type: "@swamp/gcp/dns/dnskeys",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -141,6 +171,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -240,6 +275,56 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List dnsKeys resources",
+      arguments: z.object({
+        digestType: z.string().describe(
+          "An optional comma-separated list of digest types to compute and display for key signing keys. If omitted, the recommended digest type is computed and displayed.",
+        ).optional(),
+        maxResults: z.number().describe(
+          "Optional. Maximum number of results to be returned. If unspecified, the server decides how many results to return.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["managedZone"] !== undefined) {
+          params["managedZone"] = String(g["managedZone"]);
+        }
+        if (args["digestType"] !== undefined) {
+          params["digestType"] = String(args["digestType"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "dnsKeys",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

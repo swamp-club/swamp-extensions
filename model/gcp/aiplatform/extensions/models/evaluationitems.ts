@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Agent Platform EvaluationItems.
+ * Swamp extension model for Google Cloud Vertex AI EvaluationItems.
  *
  * EvaluationItem is a single evaluation request or result. The content of an EvaluationItem is immutable - it cannot be updated once created. EvaluationItems can be deleted when no longer needed.
  *
@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -709,10 +710,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Agent Platform EvaluationItems. Registered at `@swamp/gcp/aiplatform/evaluationitems`. */
+/** Swamp extension model for Google Cloud Vertex AI EvaluationItems. Registered at `@swamp/gcp/aiplatform/evaluationitems`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/evaluationitems",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -791,6 +792,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -979,6 +985,62 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List evaluationItems resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Optional. Filter expression that matches a subset of the EvaluationItems to show. For field names both snake_case and camelCase are supported. For more information about filter syntax, see [AIP-160](https://google.aip.dev/160).",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Optional. A comma-separated list of fields to order by, sorted in ascending order by default. Use `desc` after a field name for descending.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of Evaluation Items to return.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "evaluationItems",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

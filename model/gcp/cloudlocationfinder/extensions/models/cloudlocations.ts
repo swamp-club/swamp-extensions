@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -38,6 +39,30 @@ const GET_CONFIG = {
   ],
   "parameters": {
     "name": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "cloudlocationfinder.projects.locations.cloudLocations.list",
+  "path": "v1/{+parent}/cloudLocations",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
       "location": "path",
       "required": true,
     },
@@ -75,7 +100,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Location Finder CloudLocations. Registered at `@swamp/gcp/cloudlocationfinder/cloudlocations`. */
 export const model = {
   type: "@swamp/gcp/cloudlocationfinder/cloudlocations",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -134,6 +159,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -227,6 +257,56 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List cloudLocations resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Optional. A filter expression that filters resources listed in the response. The expression is in the form of field=value. For example, 'cloud_location_type=CLOUD_LOCATION_TYPE_REGION'. Multiple filter queries are space-separated. For example, 'cloud_location_type=CLOUD_LOCATION_TYPE_REGION territory_code=\"US\"' By default, each expression is an AND expression. However, you can include AND and OR expressions explicitly.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of cloud locations to return per page. The service might return fewer cloud locations than this value. If unspecified, server will pick an appropriate default.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "cloudLocations",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     search: {

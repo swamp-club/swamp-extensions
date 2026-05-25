@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -183,22 +184,9 @@ const StateSchema = z.object({
       canRemoveMyDriveParent: z.boolean(),
       canRename: z.boolean(),
       canShare: z.boolean(),
-      canStartApproval: z.boolean(),
       canTrash: z.boolean(),
       canTrashChildren: z.boolean(),
       canUntrash: z.boolean(),
-    }),
-    clientEncryptionDetails: z.object({
-      decryptionMetadata: z.object({
-        aes256GcmChunkSize: z.string(),
-        encryptionResourceKeyHash: z.string(),
-        jwt: z.string(),
-        kaclsId: z.string(),
-        kaclsName: z.string(),
-        keyFormat: z.string(),
-        wrappedKey: z.string(),
-      }),
-      encryptionState: z.string(),
     }),
     contentHints: z.object({
       indexableText: z.string(),
@@ -461,7 +449,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Drive Changes. Registered at `@swamp/gcp/drive/changes`. */
 export const model = {
   type: "@swamp/gcp/drive/changes",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -545,6 +533,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -646,6 +639,110 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List changes resources",
+      arguments: z.object({
+        driveId: z.string().describe(
+          "The shared drive from which changes will be returned. If specified the change IDs will be reflective of the shared drive; use the combined drive ID and change ID as an identifier.",
+        ).optional(),
+        includeCorpusRemovals: z.boolean().describe(
+          "Whether changes should include the file resource if the file is still accessible by the user at the time of the request, even when a file was removed from the list of changes and there will be no further change entries for this file.",
+        ).optional(),
+        includeItemsFromAllDrives: z.boolean().describe(
+          "Whether both My Drive and shared drive items should be included in results.",
+        ).optional(),
+        includeLabels: z.string().describe(
+          "A comma-separated list of IDs of labels to include in the `labelInfo` part of the response.",
+        ).optional(),
+        includePermissionsForView: z.string().describe(
+          "Specifies which additional view's permissions to include in the response. Only 'published' is supported.",
+        ).optional(),
+        includeRemoved: z.boolean().describe(
+          "Whether to include changes indicating that items have been removed from the list of changes, for example by deletion or loss of access.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "The maximum number of changes to return per page.",
+        ).optional(),
+        restrictToMyDrive: z.boolean().describe(
+          "Whether to restrict the results to changes inside the My Drive hierarchy. This omits changes to files such as those in the Application Data folder or shared files which have not been added to My Drive.",
+        ).optional(),
+        spaces: z.string().describe(
+          "A comma-separated list of spaces to query within the corpora. Supported values are 'drive' and 'appDataFolder'.",
+        ).optional(),
+        supportsAllDrives: z.boolean().describe(
+          "Whether the requesting application supports both My Drives and shared drives.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["pageToken"] !== undefined) {
+          params["pageToken"] = String(g["pageToken"]);
+        }
+        if (args["driveId"] !== undefined) {
+          params["driveId"] = String(args["driveId"]);
+        }
+        if (args["includeCorpusRemovals"] !== undefined) {
+          params["includeCorpusRemovals"] = String(
+            args["includeCorpusRemovals"],
+          );
+        }
+        if (args["includeItemsFromAllDrives"] !== undefined) {
+          params["includeItemsFromAllDrives"] = String(
+            args["includeItemsFromAllDrives"],
+          );
+        }
+        if (args["includeLabels"] !== undefined) {
+          params["includeLabels"] = String(args["includeLabels"]);
+        }
+        if (args["includePermissionsForView"] !== undefined) {
+          params["includePermissionsForView"] = String(
+            args["includePermissionsForView"],
+          );
+        }
+        if (args["includeRemoved"] !== undefined) {
+          params["includeRemoved"] = String(args["includeRemoved"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["restrictToMyDrive"] !== undefined) {
+          params["restrictToMyDrive"] = String(args["restrictToMyDrive"]);
+        }
+        if (args["spaces"] !== undefined) {
+          params["spaces"] = String(args["spaces"]);
+        }
+        if (args["supportsAllDrives"] !== undefined) {
+          params["supportsAllDrives"] = String(args["supportsAllDrives"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "changes",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     get_start_page_token: {

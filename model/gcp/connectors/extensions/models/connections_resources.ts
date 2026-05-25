@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -41,6 +42,30 @@ const GET_CONFIG = {
       "location": "query",
     },
     "name": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "connectors.projects.locations.connections.resources.list",
+  "path": "v2/{+parent}/resources",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "executionConfig.headers": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
       "location": "path",
       "required": true,
     },
@@ -75,7 +100,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Connectors Connections.Resources. Registered at `@swamp/gcp/connectors/connections-resources`. */
 export const model = {
   type: "@swamp/gcp/connectors/connections-resources",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -134,6 +159,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -227,6 +257,57 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List resources resources",
+      arguments: z.object({
+        executionConfig_headers: z.string().describe(
+          'headers to be used for the request. For example: headers:\'{"x-integration-connectors-managed-connection-id":"conn-id","x-integration-connectors-runtime-config":"runtime-cfg"}\'',
+        ).optional(),
+        pageSize: z.number().describe("Optional. Page size for the request.")
+          .optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["executionConfig_headers"] !== undefined) {
+          params["executionConfig.headers"] = String(
+            args["executionConfig_headers"],
+          );
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "resources",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     get_resource_post: {

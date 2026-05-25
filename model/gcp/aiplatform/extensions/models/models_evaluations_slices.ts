@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Agent Platform Models.Evaluations.Slices.
+ * Swamp extension model for Google Cloud Vertex AI Models.Evaluations.Slices.
  *
  * A collection of metrics calculated by comparing Model's predictions on a slice of the test data against ground truth annotations.
  *
@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -40,6 +41,33 @@ const GET_CONFIG = {
     "name": {
       "location": "path",
       "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "aiplatform.projects.locations.models.evaluations.slices.list",
+  "path": "v1/{+parent}/slices",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+    "readMask": {
+      "location": "query",
     },
   },
 } as const;
@@ -87,10 +115,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Agent Platform Models.Evaluations.Slices. Registered at `@swamp/gcp/aiplatform/models-evaluations-slices`. */
+/** Swamp extension model for Google Cloud Vertex AI Models.Evaluations.Slices. Registered at `@swamp/gcp/aiplatform/models-evaluations-slices`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/models-evaluations-slices",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -164,6 +192,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -258,6 +291,60 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List slices resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "The standard list filter. * `slice.dimension` - for =.",
+        ).optional(),
+        pageSize: z.number().describe("The standard list page size.")
+          .optional(),
+        readMask: z.string().describe("Mask specifying which fields to read.")
+          .optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["readMask"] !== undefined) {
+          params["readMask"] = String(args["readMask"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "modelEvaluationSlices",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     batch_import: {

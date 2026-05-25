@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -56,6 +57,30 @@ const DELETE_CONFIG = {
       "required": true,
     },
     "customerId": {
+      "location": "query",
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "alertcenter.alerts.list",
+  "path": "v1beta1/alerts",
+  "httpMethod": "GET",
+  "parameterOrder": [],
+  "parameters": {
+    "customerId": {
+      "location": "query",
+    },
+    "filter": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
       "location": "query",
     },
   },
@@ -100,7 +125,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Workspace Alert Center Alerts. Registered at `@swamp/gcp/alertcenter/alerts`. */
 export const model = {
   type: "@swamp/gcp/alertcenter/alerts",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -154,6 +179,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -273,6 +308,64 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List alerts resources",
+      arguments: z.object({
+        customerId: z.string().describe(
+          'Optional. The unique identifier of the Google Workspace account of the customer the alerts are associated with. The `customer_id` must have the initial "C" stripped (for example, `046psxkn`). Inferred from the caller identity if not provided. [Find your customer ID](https://support.google.com/cloudidentity/answer/10070793).',
+        ).optional(),
+        filter: z.string().describe(
+          "Optional. A query string for filtering alert results. For more details, see [Query filters](https://developers.google.com/workspace/admin/alertcenter/guides/query-filters) and [Supported query filter fields](https://developers.google.com/workspace/admin/alertcenter/reference/filter-fields#alerts.list).",
+        ).optional(),
+        orderBy: z.string().describe(
+          'Optional. The sort order of the list results. If not specified results may be returned in arbitrary order. You can sort the results in descending order based on the creation timestamp using `order_by="create_time desc"`. Currently, supported sorting are `create_time asc`, `create_time desc`, `update_time desc`',
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The requested page size. Server may return fewer items than requested. If unspecified, server picks an appropriate default.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["customerId"] !== undefined) {
+          params["customerId"] = String(args["customerId"]);
+        }
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "alerts",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     batch_delete: {

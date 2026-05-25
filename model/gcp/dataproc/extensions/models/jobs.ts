@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -92,6 +93,41 @@ const DELETE_CONFIG = {
     "jobId": {
       "location": "path",
       "required": true,
+    },
+    "projectId": {
+      "location": "path",
+      "required": true,
+    },
+    "region": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "dataproc.projects.regions.jobs.list",
+  "path": "v1/projects/{projectId}/regions/{region}/jobs",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "projectId",
+    "region",
+  ],
+  "parameters": {
+    "clusterName": {
+      "location": "query",
+    },
+    "filter": {
+      "location": "query",
+    },
+    "jobStateMatcher": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
     },
     "projectId": {
       "location": "path",
@@ -1332,7 +1368,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dataproc Jobs. Registered at `@swamp/gcp/dataproc/jobs`. */
 export const model = {
   type: "@swamp/gcp/dataproc/jobs",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1386,6 +1422,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1594,6 +1635,66 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List jobs resources",
+      arguments: z.object({
+        clusterName: z.string().describe(
+          "Optional. If set, the returned jobs list includes only jobs that were submitted to the named cluster.",
+        ).optional(),
+        filter: z.string().describe(
+          'Optional. A filter constraining the jobs to list. Filters are case-sensitive and have the following syntax:field = value AND field = value ...where field is status.state or insertTime, or labels.[KEY], and [KEY] is a label key. value can be * to match all values. status.state can be either ACTIVE or NON_ACTIVE. Allows insertTime to be a timestamp in RFC 3339 format in double quotes, such as 2025-01-01T00:00:00Z. Only the logical AND operator is supported; space-separated items are treated as having an implicit AND operator.Example filter:status.state = ACTIVE AND labels.env = staging AND labels.starred = * AND insertTime <= "2025-01-01T00:00:00Z"',
+        ).optional(),
+        jobStateMatcher: z.string().describe(
+          "Optional. Specifies enumerated categories of jobs to list. (default = match ALL jobs).If filter is provided, jobStateMatcher will be ignored.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The number of results to return in each response.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["region"] !== undefined) params["region"] = String(g["region"]);
+        if (args["clusterName"] !== undefined) {
+          params["clusterName"] = String(args["clusterName"]);
+        }
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["jobStateMatcher"] !== undefined) {
+          params["jobStateMatcher"] = String(args["jobStateMatcher"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "jobs",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     cancel: {

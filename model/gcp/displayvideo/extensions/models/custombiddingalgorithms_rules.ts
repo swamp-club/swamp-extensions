@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -182,7 +183,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Display & Video 360 CustomBiddingAlgorithms.Rules. Registered at `@swamp/gcp/displayvideo/custombiddingalgorithms-rules`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/custombiddingalgorithms-rules",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -236,6 +237,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -393,6 +399,70 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List rules resources",
+      arguments: z.object({
+        advertiserId: z.string().describe(
+          "The ID of the advertiser that owns the parent custom bidding algorithm.",
+        ).optional(),
+        orderBy: z.string().describe(
+          'Field by which to sort the list. Acceptable values are: * `createTime desc` (default) The default sorting order is descending. To specify ascending order for a field, the suffix "desc" should be removed. Example: `createTime`.',
+        ).optional(),
+        pageSize: z.number().describe(
+          "Requested page size. Must be between `1` and `200`. If unspecified will default to `100`. Returns error code `INVALID_ARGUMENT` if an invalid value is specified.",
+        ).optional(),
+        partnerId: z.string().describe(
+          "The ID of the partner that owns the parent custom bidding algorithm.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["customBiddingAlgorithmId"] !== undefined) {
+          params["customBiddingAlgorithmId"] = String(
+            g["customBiddingAlgorithmId"],
+          );
+        }
+        if (args["advertiserId"] !== undefined) {
+          params["advertiserId"] = String(args["advertiserId"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["partnerId"] !== undefined) {
+          params["partnerId"] = String(args["partnerId"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "customBiddingRules",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

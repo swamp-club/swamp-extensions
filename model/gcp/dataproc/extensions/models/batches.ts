@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -137,9 +138,6 @@ const GlobalArgsSchema = z.object({
       networkUri: z.string().describe(
         "Optional. Network URI to connect workload to.",
       ).optional(),
-      resourceManagerTags: z.record(z.string(), z.string()).describe(
-        "Optional. Associates Resource Manager tags with the workload nodes. There is a max limit of 30 tags. Keys and values can be either in numeric format, such as tagKeys/{tag_key_id} and tagValues/{tag_value_id}, or in namespaced format, such as {org_id|project_id}/{tag_key_short_name} and {tag_value_short_name}.",
-      ).optional(),
       serviceAccount: z.string().describe(
         "Optional. Service account that used to execute workload.",
       ).optional(),
@@ -190,27 +188,6 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "A configuration for running an Apache PySpark (https://spark.apache.org/docs/latest/api/python/getting_started/quickstart.html) batch workload.",
   ).optional(),
-  pysparkNotebookBatch: z.object({
-    archiveUris: z.array(z.string()).describe(
-      "Optional. HCFS URIs of archives to be extracted into the working directory of each executor. Supported file types:.jar,.tar,.tar.gz,.tgz, and.zip.",
-    ).optional(),
-    fileUris: z.array(z.string()).describe(
-      "Optional. HCFS URIs of files to be placed in the working directory of each executor",
-    ).optional(),
-    jarFileUris: z.array(z.string()).describe(
-      "Optional. HCFS URIs of jar files to be added to the Spark CLASSPATH.",
-    ).optional(),
-    notebookFileUri: z.string().describe(
-      "Required. The HCFS URI of the notebook file to execute.",
-    ).optional(),
-    params: z.record(z.string(), z.string()).describe(
-      "Optional. The parameters to pass to the notebook.",
-    ).optional(),
-    pythonFileUris: z.array(z.string()).describe(
-      "Optional. HCFS URIs of Python files to pass to the PySpark framework.",
-    ).optional(),
-  }).describe("A configuration for running a PySpark Notebook batch workload.")
-    .optional(),
   runtimeConfig: z.object({
     autotuningConfig: z.object({
       scenarios: z.array(
@@ -399,7 +376,6 @@ const StateSchema = z.object({
       kmsKey: z.string(),
       networkTags: z.array(z.string()),
       networkUri: z.string(),
-      resourceManagerTags: z.record(z.string(), z.unknown()),
       serviceAccount: z.string(),
       stagingBucket: z.string(),
       subnetworkUri: z.string(),
@@ -421,14 +397,6 @@ const StateSchema = z.object({
     fileUris: z.array(z.string()),
     jarFileUris: z.array(z.string()),
     mainPythonFileUri: z.string(),
-    pythonFileUris: z.array(z.string()),
-  }).optional(),
-  pysparkNotebookBatch: z.object({
-    archiveUris: z.array(z.string()),
-    fileUris: z.array(z.string()),
-    jarFileUris: z.array(z.string()),
-    notebookFileUri: z.string(),
-    params: z.record(z.string(), z.unknown()),
     pythonFileUris: z.array(z.string()),
   }).optional(),
   runtimeConfig: z.object({
@@ -532,9 +500,6 @@ const InputsSchema = z.object({
       networkUri: z.string().describe(
         "Optional. Network URI to connect workload to.",
       ).optional(),
-      resourceManagerTags: z.record(z.string(), z.string()).describe(
-        "Optional. Associates Resource Manager tags with the workload nodes. There is a max limit of 30 tags. Keys and values can be either in numeric format, such as tagKeys/{tag_key_id} and tagValues/{tag_value_id}, or in namespaced format, such as {org_id|project_id}/{tag_key_short_name} and {tag_value_short_name}.",
-      ).optional(),
       serviceAccount: z.string().describe(
         "Optional. Service account that used to execute workload.",
       ).optional(),
@@ -585,27 +550,6 @@ const InputsSchema = z.object({
   }).describe(
     "A configuration for running an Apache PySpark (https://spark.apache.org/docs/latest/api/python/getting_started/quickstart.html) batch workload.",
   ).optional(),
-  pysparkNotebookBatch: z.object({
-    archiveUris: z.array(z.string()).describe(
-      "Optional. HCFS URIs of archives to be extracted into the working directory of each executor. Supported file types:.jar,.tar,.tar.gz,.tgz, and.zip.",
-    ).optional(),
-    fileUris: z.array(z.string()).describe(
-      "Optional. HCFS URIs of files to be placed in the working directory of each executor",
-    ).optional(),
-    jarFileUris: z.array(z.string()).describe(
-      "Optional. HCFS URIs of jar files to be added to the Spark CLASSPATH.",
-    ).optional(),
-    notebookFileUri: z.string().describe(
-      "Required. The HCFS URI of the notebook file to execute.",
-    ).optional(),
-    params: z.record(z.string(), z.string()).describe(
-      "Optional. The parameters to pass to the notebook.",
-    ).optional(),
-    pythonFileUris: z.array(z.string()).describe(
-      "Optional. HCFS URIs of Python files to pass to the PySpark framework.",
-    ).optional(),
-  }).describe("A configuration for running a PySpark Notebook batch workload.")
-    .optional(),
   runtimeConfig: z.object({
     autotuningConfig: z.object({
       scenarios: z.array(
@@ -785,7 +729,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dataproc Batches. Registered at `@swamp/gcp/dataproc/batches`. */
 export const model = {
   type: "@swamp/gcp/dataproc/batches",
-  version: "2026.05.25.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -891,6 +835,14 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.2",
+      description: "Removed: pysparkNotebookBatch",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { pysparkNotebookBatch: _pysparkNotebookBatch, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -924,9 +876,6 @@ export const model = {
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["pysparkBatch"] !== undefined) {
           body["pysparkBatch"] = g["pysparkBatch"];
-        }
-        if (g["pysparkNotebookBatch"] !== undefined) {
-          body["pysparkNotebookBatch"] = g["pysparkNotebookBatch"];
         }
         if (g["runtimeConfig"] !== undefined) {
           body["runtimeConfig"] = g["runtimeConfig"];
@@ -1094,6 +1043,62 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List batches resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          'Optional. A filter for the batches to return in the response.A filter is a logical expression constraining the values of various fields in each batch resource. Filters are case sensitive, and may contain multiple clauses combined with logical operators (AND/OR). Supported fields are batch_id, batch_uuid, state, create_time, and labels.e.g. state = RUNNING and create_time < "2023-01-01T00:00:00Z" filters for batches in state RUNNING that were created before 2023-01-01. state = RUNNING and labels.environment=production filters for batches in state in a RUNNING state that have a production environment label.See https://google.aip.dev/assets/misc/ebnf-filtering.txt for a detailed description of the filter syntax and a list of supported comparisons.',
+        ).optional(),
+        orderBy: z.string().describe(
+          "Optional. Field(s) on which to sort the list of batches.Currently the only supported sort orders are unspecified (empty) and create_time desc to sort by most recently created batches first.See https://google.aip.dev/132#ordering for more details.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of batches to return in each response. The service may return fewer than this value. The default page size is 20; the maximum page size is 1000.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "batches",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     analyze: {

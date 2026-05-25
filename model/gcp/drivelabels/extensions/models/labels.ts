@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -1023,7 +1024,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Drive Labels Labels. Registered at `@swamp/gcp/drivelabels/labels`. */
 export const model = {
   type: "@swamp/gcp/drivelabels/labels",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1082,6 +1083,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1272,6 +1283,80 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List labels resources",
+      arguments: z.object({
+        customer: z.string().describe(
+          "The customer to scope this list request to. For example: `customers/abcd1234`. If unset, will return all labels within the current customer.",
+        ).optional(),
+        languageCode: z.string().describe(
+          "The BCP-47 language code to use for evaluating localized field labels. When not specified, values in the default configured language are used.",
+        ).optional(),
+        minimumRole: z.string().describe(
+          "Specifies the level of access the user must have on the returned labels. The minimum role a user must have on a label. Defaults to `READER`.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Maximum number of labels to return per page. Default: 50. Max: 200.",
+        ).optional(),
+        publishedOnly: z.boolean().describe(
+          "Whether to include only published labels in the results. * When `true`, only the current published label revisions are returned. Disabled labels are included. Returned label resource names reference the published revision (`labels/{id}/{revision_id}`). * When `false`, the current label revisions are returned, which might not be published. Returned label resource names don't reference a specific revision (`labels/{id}`).",
+        ).optional(),
+        useAdminAccess: z.boolean().describe(
+          "Set to `true` in order to use the user's admin credentials. This will return all labels within the customer.",
+        ).optional(),
+        view: z.string().describe(
+          "When specified, only certain fields belonging to the indicated view are returned.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["customer"] !== undefined) {
+          params["customer"] = String(args["customer"]);
+        }
+        if (args["languageCode"] !== undefined) {
+          params["languageCode"] = String(args["languageCode"]);
+        }
+        if (args["minimumRole"] !== undefined) {
+          params["minimumRole"] = String(args["minimumRole"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["publishedOnly"] !== undefined) {
+          params["publishedOnly"] = String(args["publishedOnly"]);
+        }
+        if (args["useAdminAccess"] !== undefined) {
+          params["useAdminAccess"] = String(args["useAdminAccess"]);
+        }
+        if (args["view"] !== undefined) params["view"] = String(args["view"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "labels",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     delta: {

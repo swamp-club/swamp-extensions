@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -220,25 +221,12 @@ const GlobalArgsSchema = z.object({
       }).describe(
         "Configuration for NetworkPolicy. This only tracks whether the addon is enabled or not on the Master, it does not track whether network policy is enabled for the nodes.",
       ).optional(),
-      nodeReadinessConfig: z.object({
-        enabled: z.boolean().describe(
-          "Optional. Whether the GKE Node Readiness Controller is enabled for this cluster.",
-        ).optional(),
-      }).describe("Configuration for the GKE Node Readiness Controller.")
-        .optional(),
       parallelstoreCsiDriverConfig: z.object({
         enabled: z.boolean().describe(
           "Whether the Cloud Storage Parallelstore CSI driver is enabled for this cluster.",
         ).optional(),
       }).describe(
         "Configuration for the Cloud Storage Parallelstore CSI driver.",
-      ).optional(),
-      podSnapshotConfig: z.object({
-        enabled: z.boolean().describe(
-          "Whether or not the Pod Snapshots feature is enabled.",
-        ).optional(),
-      }).describe(
-        "PodSnapshotConfig is the configuration for GKE Pod Snapshots feature.",
       ).optional(),
       rayOperatorConfig: z.object({
         enabled: z.boolean().describe(
@@ -265,11 +253,6 @@ const GlobalArgsSchema = z.object({
           "Optional. Indicates whether Slice Controller is enabled in the cluster.",
         ).optional(),
       }).describe("Configuration for the Slice Controller.").optional(),
-      slurmOperatorConfig: z.object({
-        enabled: z.boolean().describe(
-          "When enabled, it runs a Slurm Operator that manages the set of compute pods for Slurm Cluster.",
-        ).optional(),
-      }).describe("Configuration for the Slurm Operator.").optional(),
       statefulHaConfig: z.object({
         enabled: z.boolean().describe(
           "Whether the Stateful HA add-on is enabled for this cluster.",
@@ -934,45 +917,6 @@ const GlobalArgsSchema = z.object({
         ).describe(
           "Exceptions to maintenance window. Non-emergency maintenance should not occur in these windows.",
         ).optional(),
-        recurringMaintenanceWindow: z.object({
-          delayUntil: z.object({
-            day: z.unknown().describe(
-              "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
-            ).optional(),
-            month: z.unknown().describe(
-              "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
-            ).optional(),
-            year: z.unknown().describe(
-              "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
-            ).optional(),
-          }).describe(
-            "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
-          ).optional(),
-          recurrence: z.string().describe(
-            "Required. An RRULE (https://tools.ietf.org/html/rfc5545#section-3.8.5.3) for how this window recurs. For example, to have something repeat every weekday, you'd use: `FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR` To repeat some window daily (equivalent to the DailyMaintenanceWindow): `FREQ=DAILY` For the first weekend of every month: `FREQ=MONTHLY;BYSETPOS=1;BYDAY=SA,SU` The FREQ values of HOURLY, MINUTELY, and SECONDLY are not supported.",
-          ).optional(),
-          windowDuration: z.string().describe(
-            "Required. Duration of the window.",
-          ).optional(),
-          windowStartTime: z.object({
-            hours: z.unknown().describe(
-              'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
-            ).optional(),
-            minutes: z.unknown().describe(
-              "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
-            ).optional(),
-            nanos: z.unknown().describe(
-              "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
-            ).optional(),
-            seconds: z.unknown().describe(
-              "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
-            ).optional(),
-          }).describe(
-            "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
-          ).optional(),
-        }).describe(
-          "Represents an arbitrary window of time that recurs. Will replace RecurringTimeWindow.",
-        ).optional(),
         recurringWindow: z.object({
           recurrence: z.string().describe(
             "An RRULE (https://tools.ietf.org/html/rfc5545#section-3.8.5.3) for how this window recurs. They go on for the span of time between the start and end time. For example, to have something repeat every weekday, you'd use: `FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR` To repeat some window daily (equivalent to the DailyMaintenanceWindow): `FREQ=DAILY` For the first weekend of every month: `FREQ=MONTHLY;BYSETPOS=1;BYDAY=SA,SU` This specifies how frequently the window starts. Eg, if you wanted to have a 9-5 UTC-4 window every weekday, you'd use something like: ` start time = 2019-01-01T09:00:00-0400 end time = 2019-01-01T17:00:00-0400 recurrence = FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR ` Windows can span multiple days. Eg, to make the window encompass every weekend from midnight Saturday till the last minute of Sunday UTC: ` start time = 2019-01-05T00:00:00Z end time = 2019-01-07T23:59:00Z recurrence = FREQ=WEEKLY;BYDAY=SA ` Note the start and end time's specific dates are largely arbitrary except to specify duration of the window and when it first starts. The FREQ values of HOURLY, MINUTELY, and SECONDLY are not supported.",
@@ -1309,7 +1253,7 @@ const GlobalArgsSchema = z.object({
           "Disk size in GB. Replaces NodeConfig.disk_size_gb",
         ).optional(),
       }).describe(
-        "BootDisk specifies the boot disk configuration for node pools.",
+        "BootDisk specifies the boot disk configuration for nodepools.",
       ).optional(),
       bootDiskKmsKey: z.string().describe(
         "The Customer Managed Encryption Key used to encrypt the boot disk attached to each node in the node pool. This should be of the form projects/[KEY_PROJECT_ID]/locations/[LOCATION]/keyRings/[RING_NAME]/cryptoKeys/[KEY_NAME]. For more information about protecting resources with Cloud KMS Keys please see: https://cloud.google.com/compute/docs/disks/customer-managed-encryption",
@@ -1576,26 +1520,6 @@ const GlobalArgsSchema = z.object({
         ]).describe(
           "cgroup_mode specifies the cgroup mode to be used on the node.",
         ).optional(),
-        customNodeInit: z.object({
-          initScript: z.object({
-            args: z.unknown().describe(
-              "Optional. The optional arguments line to be passed to the init script.",
-            ).optional(),
-            gcpSecretManagerSecretUri: z.unknown().describe(
-              "The resource name of the secret manager secret hosting the init script. Both global and regional secrets are supported with format below: Global secret: projects/{project}/secrets/{secret}/versions/{version} Regional secret: projects/{project}/locations/{location}/secrets/{secret}/versions/{version} Example: projects/1234567890/secrets/script_1/versions/1. Accept version number only, not support version alias. User can't configure both gcp_secret_manager_secret_uri and gcs_uri.",
-            ).optional(),
-            gcsGeneration: z.unknown().describe(
-              'The generation of the init script stored in Gloud Storage. This is the required field to identify the version of the init script. User can get the genetaion from `gcloud storage objects describe gs://BUCKET_NAME/OBJECT_NAME --format="value(generation)"` or from the "Version history" tab of the object in the Cloud Console UI.',
-            ).optional(),
-            gcsUri: z.unknown().describe(
-              "The Cloud Storage URI for storing the init script. Format: gs://BUCKET_NAME/OBJECT_NAME The service account on the node pool must have read access to the object. User can't configure both gcs_uri and gcp_secret_manager_secret_uri.",
-            ).optional(),
-          }).describe(
-            "InitScript provide a simply bash script to be executed on the node.",
-          ).optional(),
-        }).describe(
-          "Support for running custom init code while bootstrapping nodes.",
-        ).optional(),
         hugepages: z.object({
           hugepageSize1g: z.number().int().describe(
             "Optional. Amount of 1G hugepages",
@@ -1698,7 +1622,7 @@ const GlobalArgsSchema = z.object({
           "LoggingVariantConfig specifies the behaviour of the logging component.",
         ).optional(),
       }).describe(
-        "NodePoolLoggingConfig specifies logging configuration for node pools.",
+        "NodePoolLoggingConfig specifies logging configuration for nodepools.",
       ).optional(),
       machineType: z.string().describe(
         "The name of a Google Compute Engine [machine type](https://cloud.google.com/compute/docs/machine-types) If unspecified, the default machine type is `e2-medium`.",
@@ -1846,15 +1770,6 @@ const GlobalArgsSchema = z.object({
     }).describe(
       "Parameters that describe the nodes in a cluster. GKE Autopilot clusters do not recognize parameters in `NodeConfig`. Use AutoprovisioningNodePoolDefaults instead.",
     ).optional(),
-    nodeCreationConfig: z.object({
-      nodeCreationMode: z.enum([
-        "MODE_UNSPECIFIED",
-        "VIA_KUBELET",
-        "VIA_CONTROL_PLANE",
-      ]).describe("The mode of node creation.").optional(),
-    }).describe(
-      "NodeCreationConfig defines the settings of node creation mode.",
-    ).optional(),
     nodeIpv4CidrSize: z.number().int().describe(
       "Output only. The size of the address space on each node for hosting containers. This is provisioned from within the `container_ipv4_cidr` range. This field will only be set when cluster is in route-based network mode.",
     ).optional(),
@@ -1873,26 +1788,6 @@ const GlobalArgsSchema = z.object({
           "CGROUP_MODE_V2",
         ]).describe(
           "cgroup_mode specifies the cgroup mode to be used on the node.",
-        ).optional(),
-        customNodeInit: z.object({
-          initScript: z.object({
-            args: z.unknown().describe(
-              "Optional. The optional arguments line to be passed to the init script.",
-            ).optional(),
-            gcpSecretManagerSecretUri: z.unknown().describe(
-              "The resource name of the secret manager secret hosting the init script. Both global and regional secrets are supported with format below: Global secret: projects/{project}/secrets/{secret}/versions/{version} Regional secret: projects/{project}/locations/{location}/secrets/{secret}/versions/{version} Example: projects/1234567890/secrets/script_1/versions/1. Accept version number only, not support version alias. User can't configure both gcp_secret_manager_secret_uri and gcs_uri.",
-            ).optional(),
-            gcsGeneration: z.unknown().describe(
-              'The generation of the init script stored in Gloud Storage. This is the required field to identify the version of the init script. User can get the genetaion from `gcloud storage objects describe gs://BUCKET_NAME/OBJECT_NAME --format="value(generation)"` or from the "Version history" tab of the object in the Cloud Console UI.',
-            ).optional(),
-            gcsUri: z.unknown().describe(
-              "The Cloud Storage URI for storing the init script. Format: gs://BUCKET_NAME/OBJECT_NAME The service account on the node pool must have read access to the object. User can't configure both gcs_uri and gcp_secret_manager_secret_uri.",
-            ).optional(),
-          }).describe(
-            "InitScript provide a simply bash script to be executed on the node.",
-          ).optional(),
-        }).describe(
-          "Support for running custom init code while bootstrapping nodes.",
         ).optional(),
         hugepages: z.object({
           hugepageSize1g: z.number().int().describe(
@@ -2165,7 +2060,7 @@ const GlobalArgsSchema = z.object({
             "LoggingVariantConfig specifies the behaviour of the logging component.",
           ).optional(),
         }).describe(
-          "NodePoolLoggingConfig specifies logging configuration for node pools.",
+          "NodePoolLoggingConfig specifies logging configuration for nodepools.",
         ).optional(),
         nodeKubeletConfig: z.object({
           allowedUnsafeSysctls: z.array(z.unknown()).describe(
@@ -2318,7 +2213,7 @@ const GlobalArgsSchema = z.object({
           "Denotes that nodes belonging to this node pool are Autopilot nodes.",
         ).optional(),
       }).describe(
-        "AutopilotConfig contains configuration of autopilot feature for this node pool.",
+        "AutopilotConfig contains configuration of autopilot feature for this nodepool.",
       ).optional(),
       autoscaling: z.object({
         autoprovisioned: z.boolean().describe(
@@ -2331,7 +2226,7 @@ const GlobalArgsSchema = z.object({
           "LOCATION_POLICY_UNSPECIFIED",
           "BALANCED",
           "ANY",
-        ]).describe("Location policy used when scaling up a node pool.")
+        ]).describe("Location policy used when scaling up a nodepool.")
           .optional(),
         maxNodeCount: z.number().int().describe(
           "Maximum number of nodes for one location in the node pool. Must be >= min_node_count. There has to be enough quota to scale up the cluster.",
@@ -2398,7 +2293,7 @@ const GlobalArgsSchema = z.object({
             "Disk size in GB. Replaces NodeConfig.disk_size_gb",
           ).optional(),
         }).describe(
-          "BootDisk specifies the boot disk configuration for node pools.",
+          "BootDisk specifies the boot disk configuration for nodepools.",
         ).optional(),
         bootDiskKmsKey: z.string().describe(
           "The Customer Managed Encryption Key used to encrypt the boot disk attached to each node in the node pool. This should be of the form projects/[KEY_PROJECT_ID]/locations/[LOCATION]/keyRings/[RING_NAME]/cryptoKeys/[KEY_NAME]. For more information about protecting resources with Cloud KMS Keys please see: https://cloud.google.com/compute/docs/disks/customer-managed-encryption",
@@ -2564,9 +2459,6 @@ const GlobalArgsSchema = z.object({
           cgroupMode: z.unknown().describe(
             "cgroup_mode specifies the cgroup mode to be used on the node.",
           ).optional(),
-          customNodeInit: z.unknown().describe(
-            "Support for running custom init code while bootstrapping nodes.",
-          ).optional(),
           hugepages: z.unknown().describe(
             "Hugepages amount in both 2m and 1g size",
           ).optional(),
@@ -2609,7 +2501,7 @@ const GlobalArgsSchema = z.object({
             "LoggingVariantConfig specifies the behaviour of the logging component.",
           ).optional(),
         }).describe(
-          "NodePoolLoggingConfig specifies logging configuration for node pools.",
+          "NodePoolLoggingConfig specifies logging configuration for nodepools.",
         ).optional(),
         machineType: z.string().describe(
           "The name of a Google Compute Engine [machine type](https://cloud.google.com/compute/docs/machine-types) If unspecified, the default machine type is `e2-medium`.",
@@ -2736,21 +2628,6 @@ const GlobalArgsSchema = z.object({
       locations: z.array(z.string()).describe(
         "The list of Google Compute Engine [zones](https://cloud.google.com/compute/docs/zones#available) in which the NodePool's nodes should be located. If this value is unspecified during node pool creation, the [Cluster.Locations](https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/projects.locations.clusters#Cluster.FIELDS.locations) value will be used, instead. Warning: changing node pool locations will result in nodes being added and/or removed.",
       ).optional(),
-      maintenancePolicy: z.object({
-        exclusionUntilEndOfSupport: z.object({
-          enabled: z.unknown().describe(
-            "Optional. Indicates whether the exclusion is enabled.",
-          ).optional(),
-          endTime: z.unknown().describe(
-            "Output only. The end time of the maintenance exclusion. It is output only. It is the cluster control plane version's end of support time, or end of extended support time when the cluster is on extended support channel.",
-          ).optional(),
-          startTime: z.unknown().describe(
-            "Output only. The start time of the maintenance exclusion. It is output only. It is the exclusion creation time.",
-          ).optional(),
-        }).describe("Defines the maintenance exclusion for the node pool.")
-          .optional(),
-      }).describe("Defines the maintenance policy for the node pool.")
-        .optional(),
       management: z.object({
         autoRepair: z.boolean().describe(
           "A flag that specifies whether the node auto-repair is enabled for the node pool. If enabled, the nodes in this node pool will be monitored and, if they fail health checks too many times, an automatic repair action will be triggered.",
@@ -2778,9 +2655,6 @@ const GlobalArgsSchema = z.object({
       }).describe("Constraints applied to pods.").optional(),
       name: z.string().describe("The name of the node pool.").optional(),
       networkConfig: z.object({
-        acceleratorNetworkProfile: z.string().describe(
-          'Immutable. The accelerator network profile for the node pool. For now the only valid value is "auto". If specified, the network configuration of the nodes in this node pool will be managed by this profile for the supported machine types, zone, etc.',
-        ).optional(),
         additionalNodeNetworkConfigs: z.array(z.unknown()).describe(
           "We specify the additional node networks for this node pool using this list. Each node network corresponds to an additional interface",
         ).optional(),
@@ -2824,17 +2698,11 @@ const GlobalArgsSchema = z.object({
         ).optional(),
       }).describe("Parameters for node pool-level network config.").optional(),
       nodeDrainConfig: z.object({
-        graceTerminationDuration: z.string().describe(
-          "The duration of the grace termination period for node drain.",
-        ).optional(),
-        pdbTimeoutDuration: z.string().describe(
-          "The duration of the PDB timeout period for node drain.",
-        ).optional(),
         respectPdbDuringNodePoolDeletion: z.boolean().describe(
           "Whether to respect PDB during node pool deletion.",
         ).optional(),
       }).describe(
-        "NodeDrainConfig contains the node drain related configurations for this node pool.",
+        "NodeDrainConfig contains the node drain related configurations for this nodepool.",
       ).optional(),
       placementPolicy: z.object({
         policyName: z.string().describe(
@@ -2854,7 +2722,7 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       queuedProvisioning: z.object({
         enabled: z.boolean().describe(
-          "Denotes that this node pool is QRM specific, meaning nodes can be only obtained through queuing via the Cluster Autoscaler ProvisioningRequest API.",
+          "Denotes that this nodepool is QRM specific, meaning nodes can be only obtained through queuing via the Cluster Autoscaler ProvisioningRequest API.",
         ).optional(),
       }).describe(
         "QueuedProvisioning defines the queued provisioning used by the node pool.",
@@ -3283,25 +3151,12 @@ const GlobalArgsSchema = z.object({
       }).describe(
         "Configuration for NetworkPolicy. This only tracks whether the addon is enabled or not on the Master, it does not track whether network policy is enabled for the nodes.",
       ).optional(),
-      nodeReadinessConfig: z.object({
-        enabled: z.boolean().describe(
-          "Optional. Whether the GKE Node Readiness Controller is enabled for this cluster.",
-        ).optional(),
-      }).describe("Configuration for the GKE Node Readiness Controller.")
-        .optional(),
       parallelstoreCsiDriverConfig: z.object({
         enabled: z.boolean().describe(
           "Whether the Cloud Storage Parallelstore CSI driver is enabled for this cluster.",
         ).optional(),
       }).describe(
         "Configuration for the Cloud Storage Parallelstore CSI driver.",
-      ).optional(),
-      podSnapshotConfig: z.object({
-        enabled: z.boolean().describe(
-          "Whether or not the Pod Snapshots feature is enabled.",
-        ).optional(),
-      }).describe(
-        "PodSnapshotConfig is the configuration for GKE Pod Snapshots feature.",
       ).optional(),
       rayOperatorConfig: z.object({
         enabled: z.boolean().describe(
@@ -3328,11 +3183,6 @@ const GlobalArgsSchema = z.object({
           "Optional. Indicates whether Slice Controller is enabled in the cluster.",
         ).optional(),
       }).describe("Configuration for the Slice Controller.").optional(),
-      slurmOperatorConfig: z.object({
-        enabled: z.boolean().describe(
-          "When enabled, it runs a Slurm Operator that manages the set of compute pods for Slurm Cluster.",
-        ).optional(),
-      }).describe("Configuration for the Slurm Operator.").optional(),
       statefulHaConfig: z.object({
         enabled: z.boolean().describe(
           "Whether the Stateful HA add-on is enabled for this cluster.",
@@ -3947,15 +3797,6 @@ const GlobalArgsSchema = z.object({
       ]).describe("Network tier configuration.").optional(),
     }).describe("NetworkTierConfig contains network tier information.")
       .optional(),
-    desiredNodeCreationConfig: z.object({
-      nodeCreationMode: z.enum([
-        "MODE_UNSPECIFIED",
-        "VIA_KUBELET",
-        "VIA_CONTROL_PLANE",
-      ]).describe("The mode of node creation.").optional(),
-    }).describe(
-      "NodeCreationConfig defines the settings of node creation mode.",
-    ).optional(),
     desiredNodeKubeletConfig: z.object({
       allowedUnsafeSysctls: z.array(z.string()).describe(
         "Optional. Defines a comma-separated allowlist of unsafe sysctls or sysctl patterns (ending in `*`). The unsafe namespaced sysctl groups are `kernel.shm*`, `kernel.msg*`, `kernel.sem`, `fs.mqueue.*`, and `net.*`. Leaving this allowlist empty means they cannot be set on Pods. To allow certain sysctls or sysctl patterns to be set on Pods, list them separated by commas. For example: `kernel.msg*,net.ipv4.route.min_pmtu`. See https://kubernetes.io/docs/tasks/administer-cluster/sysctl-cluster/ for more details.",
@@ -4257,26 +4098,6 @@ const GlobalArgsSchema = z.object({
       ]).describe(
         "cgroup_mode specifies the cgroup mode to be used on the node.",
       ).optional(),
-      customNodeInit: z.object({
-        initScript: z.object({
-          args: z.array(z.unknown()).describe(
-            "Optional. The optional arguments line to be passed to the init script.",
-          ).optional(),
-          gcpSecretManagerSecretUri: z.string().describe(
-            "The resource name of the secret manager secret hosting the init script. Both global and regional secrets are supported with format below: Global secret: projects/{project}/secrets/{secret}/versions/{version} Regional secret: projects/{project}/locations/{location}/secrets/{secret}/versions/{version} Example: projects/1234567890/secrets/script_1/versions/1. Accept version number only, not support version alias. User can't configure both gcp_secret_manager_secret_uri and gcs_uri.",
-          ).optional(),
-          gcsGeneration: z.string().describe(
-            'The generation of the init script stored in Gloud Storage. This is the required field to identify the version of the init script. User can get the genetaion from `gcloud storage objects describe gs://BUCKET_NAME/OBJECT_NAME --format="value(generation)"` or from the "Version history" tab of the object in the Cloud Console UI.',
-          ).optional(),
-          gcsUri: z.string().describe(
-            "The Cloud Storage URI for storing the init script. Format: gs://BUCKET_NAME/OBJECT_NAME The service account on the node pool must have read access to the object. User can't configure both gcs_uri and gcp_secret_manager_secret_uri.",
-          ).optional(),
-        }).describe(
-          "InitScript provide a simply bash script to be executed on the node.",
-        ).optional(),
-      }).describe(
-        "Support for running custom init code while bootstrapping nodes.",
-      ).optional(),
       hugepages: z.object({
         hugepageSize1g: z.number().int().describe(
           "Optional. Amount of 1G hugepages",
@@ -4372,7 +4193,7 @@ const GlobalArgsSchema = z.object({
         "Is autoscaling enabled for this node pool.",
       ).optional(),
       locationPolicy: z.enum(["LOCATION_POLICY_UNSPECIFIED", "BALANCED", "ANY"])
-        .describe("Location policy used when scaling up a node pool.")
+        .describe("Location policy used when scaling up a nodepool.")
         .optional(),
       maxNodeCount: z.number().int().describe(
         "Maximum number of nodes for one location in the node pool. Must be >= min_node_count. There has to be enough quota to scale up the cluster.",
@@ -4400,7 +4221,7 @@ const GlobalArgsSchema = z.object({
         "LoggingVariantConfig specifies the behaviour of the logging component.",
       ).optional(),
     }).describe(
-      "NodePoolLoggingConfig specifies logging configuration for node pools.",
+      "NodePoolLoggingConfig specifies logging configuration for nodepools.",
     ).optional(),
     desiredNodeVersion: z.string().describe(
       'The Kubernetes version to change the nodes to (typically an upgrade). Users may specify either explicit versions offered by Kubernetes Engine or version aliases, which have the following behavior: - "latest": picks the highest valid Kubernetes version - "1.X": picks the highest valid patch+gke.N patch in the 1.X version - "1.X.Y": picks the highest valid gke.N patch in the 1.X.Y version - "1.X.Y-gke.N": picks an explicit Kubernetes version - "-": picks the Kubernetes master version',
@@ -4725,13 +4546,7 @@ const StateSchema = z.object({
     networkPolicyConfig: z.object({
       disabled: z.boolean(),
     }),
-    nodeReadinessConfig: z.object({
-      enabled: z.boolean(),
-    }),
     parallelstoreCsiDriverConfig: z.object({
-      enabled: z.boolean(),
-    }),
-    podSnapshotConfig: z.object({
       enabled: z.boolean(),
     }),
     rayOperatorConfig: z.object({
@@ -4744,9 +4559,6 @@ const StateSchema = z.object({
       }),
     }),
     sliceControllerConfig: z.object({
-      enabled: z.boolean(),
-    }),
-    slurmOperatorConfig: z.object({
       enabled: z.boolean(),
     }),
     statefulHaConfig: z.object({
@@ -4994,21 +4806,6 @@ const StateSchema = z.object({
         startTime: z.string(),
       }),
       maintenanceExclusions: z.record(z.string(), z.unknown()),
-      recurringMaintenanceWindow: z.object({
-        delayUntil: z.object({
-          day: z.number(),
-          month: z.number(),
-          year: z.number(),
-        }),
-        recurrence: z.string(),
-        windowDuration: z.string(),
-        windowStartTime: z.object({
-          hours: z.number(),
-          minutes: z.number(),
-          nanos: z.number(),
-          seconds: z.number(),
-        }),
-      }),
       recurringWindow: z.object({
         recurrence: z.string(),
         window: z.object({
@@ -5232,14 +5029,6 @@ const StateSchema = z.object({
         enablePtpKvmTimeSync: z.boolean(),
       }),
       cgroupMode: z.string(),
-      customNodeInit: z.object({
-        initScript: z.object({
-          args: z.array(z.unknown()),
-          gcpSecretManagerSecretUri: z.string(),
-          gcsGeneration: z.string(),
-          gcsUri: z.string(),
-        }),
-      }),
       hugepages: z.object({
         hugepageSize1g: z.number(),
         hugepageSize2m: z.number(),
@@ -5333,9 +5122,6 @@ const StateSchema = z.object({
       mode: z.string(),
     }),
   }).optional(),
-  nodeCreationConfig: z.object({
-    nodeCreationMode: z.string(),
-  }).optional(),
   nodeIpv4CidrSize: z.number().optional(),
   nodePoolAutoConfig: z.object({
     linuxNodeConfig: z.object({
@@ -5343,14 +5129,6 @@ const StateSchema = z.object({
         enablePtpKvmTimeSync: z.boolean(),
       }),
       cgroupMode: z.string(),
-      customNodeInit: z.object({
-        initScript: z.object({
-          args: z.array(z.unknown()),
-          gcpSecretManagerSecretUri: z.string(),
-          gcsGeneration: z.string(),
-          gcsUri: z.string(),
-        }),
-      }),
       hugepages: z.object({
         hugepageSize1g: z.number(),
         hugepageSize2m: z.number(),
@@ -5655,9 +5433,6 @@ const StateSchema = z.object({
           enablePtpKvmTimeSync: z.unknown(),
         }),
         cgroupMode: z.string(),
-        customNodeInit: z.object({
-          initScript: z.unknown(),
-        }),
         hugepages: z.object({
           hugepageSize1g: z.unknown(),
           hugepageSize2m: z.unknown(),
@@ -5741,13 +5516,6 @@ const StateSchema = z.object({
     initialNodeCount: z.number(),
     instanceGroupUrls: z.array(z.string()),
     locations: z.array(z.string()),
-    maintenancePolicy: z.object({
-      exclusionUntilEndOfSupport: z.object({
-        enabled: z.boolean(),
-        endTime: z.string(),
-        startTime: z.string(),
-      }),
-    }),
     management: z.object({
       autoRepair: z.boolean(),
       autoUpgrade: z.boolean(),
@@ -5761,7 +5529,6 @@ const StateSchema = z.object({
     }),
     name: z.string(),
     networkConfig: z.object({
-      acceleratorNetworkProfile: z.string(),
       additionalNodeNetworkConfigs: z.array(z.object({
         network: z.unknown(),
         subnetwork: z.unknown(),
@@ -5789,8 +5556,6 @@ const StateSchema = z.object({
       subnetwork: z.string(),
     }),
     nodeDrainConfig: z.object({
-      graceTerminationDuration: z.string(),
-      pdbTimeoutDuration: z.string(),
       respectPdbDuringNodePoolDeletion: z.boolean(),
     }),
     placementPolicy: z.object({
@@ -6021,25 +5786,12 @@ const InputsSchema = z.object({
       }).describe(
         "Configuration for NetworkPolicy. This only tracks whether the addon is enabled or not on the Master, it does not track whether network policy is enabled for the nodes.",
       ).optional(),
-      nodeReadinessConfig: z.object({
-        enabled: z.boolean().describe(
-          "Optional. Whether the GKE Node Readiness Controller is enabled for this cluster.",
-        ).optional(),
-      }).describe("Configuration for the GKE Node Readiness Controller.")
-        .optional(),
       parallelstoreCsiDriverConfig: z.object({
         enabled: z.boolean().describe(
           "Whether the Cloud Storage Parallelstore CSI driver is enabled for this cluster.",
         ).optional(),
       }).describe(
         "Configuration for the Cloud Storage Parallelstore CSI driver.",
-      ).optional(),
-      podSnapshotConfig: z.object({
-        enabled: z.boolean().describe(
-          "Whether or not the Pod Snapshots feature is enabled.",
-        ).optional(),
-      }).describe(
-        "PodSnapshotConfig is the configuration for GKE Pod Snapshots feature.",
       ).optional(),
       rayOperatorConfig: z.object({
         enabled: z.boolean().describe(
@@ -6066,11 +5818,6 @@ const InputsSchema = z.object({
           "Optional. Indicates whether Slice Controller is enabled in the cluster.",
         ).optional(),
       }).describe("Configuration for the Slice Controller.").optional(),
-      slurmOperatorConfig: z.object({
-        enabled: z.boolean().describe(
-          "When enabled, it runs a Slurm Operator that manages the set of compute pods for Slurm Cluster.",
-        ).optional(),
-      }).describe("Configuration for the Slurm Operator.").optional(),
       statefulHaConfig: z.object({
         enabled: z.boolean().describe(
           "Whether the Stateful HA add-on is enabled for this cluster.",
@@ -6735,45 +6482,6 @@ const InputsSchema = z.object({
         ).describe(
           "Exceptions to maintenance window. Non-emergency maintenance should not occur in these windows.",
         ).optional(),
-        recurringMaintenanceWindow: z.object({
-          delayUntil: z.object({
-            day: z.unknown().describe(
-              "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
-            ).optional(),
-            month: z.unknown().describe(
-              "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
-            ).optional(),
-            year: z.unknown().describe(
-              "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
-            ).optional(),
-          }).describe(
-            "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
-          ).optional(),
-          recurrence: z.string().describe(
-            "Required. An RRULE (https://tools.ietf.org/html/rfc5545#section-3.8.5.3) for how this window recurs. For example, to have something repeat every weekday, you'd use: `FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR` To repeat some window daily (equivalent to the DailyMaintenanceWindow): `FREQ=DAILY` For the first weekend of every month: `FREQ=MONTHLY;BYSETPOS=1;BYDAY=SA,SU` The FREQ values of HOURLY, MINUTELY, and SECONDLY are not supported.",
-          ).optional(),
-          windowDuration: z.string().describe(
-            "Required. Duration of the window.",
-          ).optional(),
-          windowStartTime: z.object({
-            hours: z.unknown().describe(
-              'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
-            ).optional(),
-            minutes: z.unknown().describe(
-              "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
-            ).optional(),
-            nanos: z.unknown().describe(
-              "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
-            ).optional(),
-            seconds: z.unknown().describe(
-              "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
-            ).optional(),
-          }).describe(
-            "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
-          ).optional(),
-        }).describe(
-          "Represents an arbitrary window of time that recurs. Will replace RecurringTimeWindow.",
-        ).optional(),
         recurringWindow: z.object({
           recurrence: z.string().describe(
             "An RRULE (https://tools.ietf.org/html/rfc5545#section-3.8.5.3) for how this window recurs. They go on for the span of time between the start and end time. For example, to have something repeat every weekday, you'd use: `FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR` To repeat some window daily (equivalent to the DailyMaintenanceWindow): `FREQ=DAILY` For the first weekend of every month: `FREQ=MONTHLY;BYSETPOS=1;BYDAY=SA,SU` This specifies how frequently the window starts. Eg, if you wanted to have a 9-5 UTC-4 window every weekday, you'd use something like: ` start time = 2019-01-01T09:00:00-0400 end time = 2019-01-01T17:00:00-0400 recurrence = FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR ` Windows can span multiple days. Eg, to make the window encompass every weekend from midnight Saturday till the last minute of Sunday UTC: ` start time = 2019-01-05T00:00:00Z end time = 2019-01-07T23:59:00Z recurrence = FREQ=WEEKLY;BYDAY=SA ` Note the start and end time's specific dates are largely arbitrary except to specify duration of the window and when it first starts. The FREQ values of HOURLY, MINUTELY, and SECONDLY are not supported.",
@@ -7110,7 +6818,7 @@ const InputsSchema = z.object({
           "Disk size in GB. Replaces NodeConfig.disk_size_gb",
         ).optional(),
       }).describe(
-        "BootDisk specifies the boot disk configuration for node pools.",
+        "BootDisk specifies the boot disk configuration for nodepools.",
       ).optional(),
       bootDiskKmsKey: z.string().describe(
         "The Customer Managed Encryption Key used to encrypt the boot disk attached to each node in the node pool. This should be of the form projects/[KEY_PROJECT_ID]/locations/[LOCATION]/keyRings/[RING_NAME]/cryptoKeys/[KEY_NAME]. For more information about protecting resources with Cloud KMS Keys please see: https://cloud.google.com/compute/docs/disks/customer-managed-encryption",
@@ -7377,26 +7085,6 @@ const InputsSchema = z.object({
         ]).describe(
           "cgroup_mode specifies the cgroup mode to be used on the node.",
         ).optional(),
-        customNodeInit: z.object({
-          initScript: z.object({
-            args: z.unknown().describe(
-              "Optional. The optional arguments line to be passed to the init script.",
-            ).optional(),
-            gcpSecretManagerSecretUri: z.unknown().describe(
-              "The resource name of the secret manager secret hosting the init script. Both global and regional secrets are supported with format below: Global secret: projects/{project}/secrets/{secret}/versions/{version} Regional secret: projects/{project}/locations/{location}/secrets/{secret}/versions/{version} Example: projects/1234567890/secrets/script_1/versions/1. Accept version number only, not support version alias. User can't configure both gcp_secret_manager_secret_uri and gcs_uri.",
-            ).optional(),
-            gcsGeneration: z.unknown().describe(
-              'The generation of the init script stored in Gloud Storage. This is the required field to identify the version of the init script. User can get the genetaion from `gcloud storage objects describe gs://BUCKET_NAME/OBJECT_NAME --format="value(generation)"` or from the "Version history" tab of the object in the Cloud Console UI.',
-            ).optional(),
-            gcsUri: z.unknown().describe(
-              "The Cloud Storage URI for storing the init script. Format: gs://BUCKET_NAME/OBJECT_NAME The service account on the node pool must have read access to the object. User can't configure both gcs_uri and gcp_secret_manager_secret_uri.",
-            ).optional(),
-          }).describe(
-            "InitScript provide a simply bash script to be executed on the node.",
-          ).optional(),
-        }).describe(
-          "Support for running custom init code while bootstrapping nodes.",
-        ).optional(),
         hugepages: z.object({
           hugepageSize1g: z.number().int().describe(
             "Optional. Amount of 1G hugepages",
@@ -7499,7 +7187,7 @@ const InputsSchema = z.object({
           "LoggingVariantConfig specifies the behaviour of the logging component.",
         ).optional(),
       }).describe(
-        "NodePoolLoggingConfig specifies logging configuration for node pools.",
+        "NodePoolLoggingConfig specifies logging configuration for nodepools.",
       ).optional(),
       machineType: z.string().describe(
         "The name of a Google Compute Engine [machine type](https://cloud.google.com/compute/docs/machine-types) If unspecified, the default machine type is `e2-medium`.",
@@ -7647,15 +7335,6 @@ const InputsSchema = z.object({
     }).describe(
       "Parameters that describe the nodes in a cluster. GKE Autopilot clusters do not recognize parameters in `NodeConfig`. Use AutoprovisioningNodePoolDefaults instead.",
     ).optional(),
-    nodeCreationConfig: z.object({
-      nodeCreationMode: z.enum([
-        "MODE_UNSPECIFIED",
-        "VIA_KUBELET",
-        "VIA_CONTROL_PLANE",
-      ]).describe("The mode of node creation.").optional(),
-    }).describe(
-      "NodeCreationConfig defines the settings of node creation mode.",
-    ).optional(),
     nodeIpv4CidrSize: z.number().int().describe(
       "Output only. The size of the address space on each node for hosting containers. This is provisioned from within the `container_ipv4_cidr` range. This field will only be set when cluster is in route-based network mode.",
     ).optional(),
@@ -7674,26 +7353,6 @@ const InputsSchema = z.object({
           "CGROUP_MODE_V2",
         ]).describe(
           "cgroup_mode specifies the cgroup mode to be used on the node.",
-        ).optional(),
-        customNodeInit: z.object({
-          initScript: z.object({
-            args: z.unknown().describe(
-              "Optional. The optional arguments line to be passed to the init script.",
-            ).optional(),
-            gcpSecretManagerSecretUri: z.unknown().describe(
-              "The resource name of the secret manager secret hosting the init script. Both global and regional secrets are supported with format below: Global secret: projects/{project}/secrets/{secret}/versions/{version} Regional secret: projects/{project}/locations/{location}/secrets/{secret}/versions/{version} Example: projects/1234567890/secrets/script_1/versions/1. Accept version number only, not support version alias. User can't configure both gcp_secret_manager_secret_uri and gcs_uri.",
-            ).optional(),
-            gcsGeneration: z.unknown().describe(
-              'The generation of the init script stored in Gloud Storage. This is the required field to identify the version of the init script. User can get the genetaion from `gcloud storage objects describe gs://BUCKET_NAME/OBJECT_NAME --format="value(generation)"` or from the "Version history" tab of the object in the Cloud Console UI.',
-            ).optional(),
-            gcsUri: z.unknown().describe(
-              "The Cloud Storage URI for storing the init script. Format: gs://BUCKET_NAME/OBJECT_NAME The service account on the node pool must have read access to the object. User can't configure both gcs_uri and gcp_secret_manager_secret_uri.",
-            ).optional(),
-          }).describe(
-            "InitScript provide a simply bash script to be executed on the node.",
-          ).optional(),
-        }).describe(
-          "Support for running custom init code while bootstrapping nodes.",
         ).optional(),
         hugepages: z.object({
           hugepageSize1g: z.number().int().describe(
@@ -7966,7 +7625,7 @@ const InputsSchema = z.object({
             "LoggingVariantConfig specifies the behaviour of the logging component.",
           ).optional(),
         }).describe(
-          "NodePoolLoggingConfig specifies logging configuration for node pools.",
+          "NodePoolLoggingConfig specifies logging configuration for nodepools.",
         ).optional(),
         nodeKubeletConfig: z.object({
           allowedUnsafeSysctls: z.array(z.unknown()).describe(
@@ -8119,7 +7778,7 @@ const InputsSchema = z.object({
           "Denotes that nodes belonging to this node pool are Autopilot nodes.",
         ).optional(),
       }).describe(
-        "AutopilotConfig contains configuration of autopilot feature for this node pool.",
+        "AutopilotConfig contains configuration of autopilot feature for this nodepool.",
       ).optional(),
       autoscaling: z.object({
         autoprovisioned: z.boolean().describe(
@@ -8132,7 +7791,7 @@ const InputsSchema = z.object({
           "LOCATION_POLICY_UNSPECIFIED",
           "BALANCED",
           "ANY",
-        ]).describe("Location policy used when scaling up a node pool.")
+        ]).describe("Location policy used when scaling up a nodepool.")
           .optional(),
         maxNodeCount: z.number().int().describe(
           "Maximum number of nodes for one location in the node pool. Must be >= min_node_count. There has to be enough quota to scale up the cluster.",
@@ -8199,7 +7858,7 @@ const InputsSchema = z.object({
             "Disk size in GB. Replaces NodeConfig.disk_size_gb",
           ).optional(),
         }).describe(
-          "BootDisk specifies the boot disk configuration for node pools.",
+          "BootDisk specifies the boot disk configuration for nodepools.",
         ).optional(),
         bootDiskKmsKey: z.string().describe(
           "The Customer Managed Encryption Key used to encrypt the boot disk attached to each node in the node pool. This should be of the form projects/[KEY_PROJECT_ID]/locations/[LOCATION]/keyRings/[RING_NAME]/cryptoKeys/[KEY_NAME]. For more information about protecting resources with Cloud KMS Keys please see: https://cloud.google.com/compute/docs/disks/customer-managed-encryption",
@@ -8365,9 +8024,6 @@ const InputsSchema = z.object({
           cgroupMode: z.unknown().describe(
             "cgroup_mode specifies the cgroup mode to be used on the node.",
           ).optional(),
-          customNodeInit: z.unknown().describe(
-            "Support for running custom init code while bootstrapping nodes.",
-          ).optional(),
           hugepages: z.unknown().describe(
             "Hugepages amount in both 2m and 1g size",
           ).optional(),
@@ -8410,7 +8066,7 @@ const InputsSchema = z.object({
             "LoggingVariantConfig specifies the behaviour of the logging component.",
           ).optional(),
         }).describe(
-          "NodePoolLoggingConfig specifies logging configuration for node pools.",
+          "NodePoolLoggingConfig specifies logging configuration for nodepools.",
         ).optional(),
         machineType: z.string().describe(
           "The name of a Google Compute Engine [machine type](https://cloud.google.com/compute/docs/machine-types) If unspecified, the default machine type is `e2-medium`.",
@@ -8537,21 +8193,6 @@ const InputsSchema = z.object({
       locations: z.array(z.string()).describe(
         "The list of Google Compute Engine [zones](https://cloud.google.com/compute/docs/zones#available) in which the NodePool's nodes should be located. If this value is unspecified during node pool creation, the [Cluster.Locations](https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/projects.locations.clusters#Cluster.FIELDS.locations) value will be used, instead. Warning: changing node pool locations will result in nodes being added and/or removed.",
       ).optional(),
-      maintenancePolicy: z.object({
-        exclusionUntilEndOfSupport: z.object({
-          enabled: z.unknown().describe(
-            "Optional. Indicates whether the exclusion is enabled.",
-          ).optional(),
-          endTime: z.unknown().describe(
-            "Output only. The end time of the maintenance exclusion. It is output only. It is the cluster control plane version's end of support time, or end of extended support time when the cluster is on extended support channel.",
-          ).optional(),
-          startTime: z.unknown().describe(
-            "Output only. The start time of the maintenance exclusion. It is output only. It is the exclusion creation time.",
-          ).optional(),
-        }).describe("Defines the maintenance exclusion for the node pool.")
-          .optional(),
-      }).describe("Defines the maintenance policy for the node pool.")
-        .optional(),
       management: z.object({
         autoRepair: z.boolean().describe(
           "A flag that specifies whether the node auto-repair is enabled for the node pool. If enabled, the nodes in this node pool will be monitored and, if they fail health checks too many times, an automatic repair action will be triggered.",
@@ -8579,9 +8220,6 @@ const InputsSchema = z.object({
       }).describe("Constraints applied to pods.").optional(),
       name: z.string().describe("The name of the node pool.").optional(),
       networkConfig: z.object({
-        acceleratorNetworkProfile: z.string().describe(
-          'Immutable. The accelerator network profile for the node pool. For now the only valid value is "auto". If specified, the network configuration of the nodes in this node pool will be managed by this profile for the supported machine types, zone, etc.',
-        ).optional(),
         additionalNodeNetworkConfigs: z.array(z.unknown()).describe(
           "We specify the additional node networks for this node pool using this list. Each node network corresponds to an additional interface",
         ).optional(),
@@ -8625,17 +8263,11 @@ const InputsSchema = z.object({
         ).optional(),
       }).describe("Parameters for node pool-level network config.").optional(),
       nodeDrainConfig: z.object({
-        graceTerminationDuration: z.string().describe(
-          "The duration of the grace termination period for node drain.",
-        ).optional(),
-        pdbTimeoutDuration: z.string().describe(
-          "The duration of the PDB timeout period for node drain.",
-        ).optional(),
         respectPdbDuringNodePoolDeletion: z.boolean().describe(
           "Whether to respect PDB during node pool deletion.",
         ).optional(),
       }).describe(
-        "NodeDrainConfig contains the node drain related configurations for this node pool.",
+        "NodeDrainConfig contains the node drain related configurations for this nodepool.",
       ).optional(),
       placementPolicy: z.object({
         policyName: z.string().describe(
@@ -8655,7 +8287,7 @@ const InputsSchema = z.object({
       ).optional(),
       queuedProvisioning: z.object({
         enabled: z.boolean().describe(
-          "Denotes that this node pool is QRM specific, meaning nodes can be only obtained through queuing via the Cluster Autoscaler ProvisioningRequest API.",
+          "Denotes that this nodepool is QRM specific, meaning nodes can be only obtained through queuing via the Cluster Autoscaler ProvisioningRequest API.",
         ).optional(),
       }).describe(
         "QueuedProvisioning defines the queued provisioning used by the node pool.",
@@ -9084,25 +8716,12 @@ const InputsSchema = z.object({
       }).describe(
         "Configuration for NetworkPolicy. This only tracks whether the addon is enabled or not on the Master, it does not track whether network policy is enabled for the nodes.",
       ).optional(),
-      nodeReadinessConfig: z.object({
-        enabled: z.boolean().describe(
-          "Optional. Whether the GKE Node Readiness Controller is enabled for this cluster.",
-        ).optional(),
-      }).describe("Configuration for the GKE Node Readiness Controller.")
-        .optional(),
       parallelstoreCsiDriverConfig: z.object({
         enabled: z.boolean().describe(
           "Whether the Cloud Storage Parallelstore CSI driver is enabled for this cluster.",
         ).optional(),
       }).describe(
         "Configuration for the Cloud Storage Parallelstore CSI driver.",
-      ).optional(),
-      podSnapshotConfig: z.object({
-        enabled: z.boolean().describe(
-          "Whether or not the Pod Snapshots feature is enabled.",
-        ).optional(),
-      }).describe(
-        "PodSnapshotConfig is the configuration for GKE Pod Snapshots feature.",
       ).optional(),
       rayOperatorConfig: z.object({
         enabled: z.boolean().describe(
@@ -9129,11 +8748,6 @@ const InputsSchema = z.object({
           "Optional. Indicates whether Slice Controller is enabled in the cluster.",
         ).optional(),
       }).describe("Configuration for the Slice Controller.").optional(),
-      slurmOperatorConfig: z.object({
-        enabled: z.boolean().describe(
-          "When enabled, it runs a Slurm Operator that manages the set of compute pods for Slurm Cluster.",
-        ).optional(),
-      }).describe("Configuration for the Slurm Operator.").optional(),
       statefulHaConfig: z.object({
         enabled: z.boolean().describe(
           "Whether the Stateful HA add-on is enabled for this cluster.",
@@ -9748,15 +9362,6 @@ const InputsSchema = z.object({
       ]).describe("Network tier configuration.").optional(),
     }).describe("NetworkTierConfig contains network tier information.")
       .optional(),
-    desiredNodeCreationConfig: z.object({
-      nodeCreationMode: z.enum([
-        "MODE_UNSPECIFIED",
-        "VIA_KUBELET",
-        "VIA_CONTROL_PLANE",
-      ]).describe("The mode of node creation.").optional(),
-    }).describe(
-      "NodeCreationConfig defines the settings of node creation mode.",
-    ).optional(),
     desiredNodeKubeletConfig: z.object({
       allowedUnsafeSysctls: z.array(z.string()).describe(
         "Optional. Defines a comma-separated allowlist of unsafe sysctls or sysctl patterns (ending in `*`). The unsafe namespaced sysctl groups are `kernel.shm*`, `kernel.msg*`, `kernel.sem`, `fs.mqueue.*`, and `net.*`. Leaving this allowlist empty means they cannot be set on Pods. To allow certain sysctls or sysctl patterns to be set on Pods, list them separated by commas. For example: `kernel.msg*,net.ipv4.route.min_pmtu`. See https://kubernetes.io/docs/tasks/administer-cluster/sysctl-cluster/ for more details.",
@@ -10058,26 +9663,6 @@ const InputsSchema = z.object({
       ]).describe(
         "cgroup_mode specifies the cgroup mode to be used on the node.",
       ).optional(),
-      customNodeInit: z.object({
-        initScript: z.object({
-          args: z.array(z.unknown()).describe(
-            "Optional. The optional arguments line to be passed to the init script.",
-          ).optional(),
-          gcpSecretManagerSecretUri: z.string().describe(
-            "The resource name of the secret manager secret hosting the init script. Both global and regional secrets are supported with format below: Global secret: projects/{project}/secrets/{secret}/versions/{version} Regional secret: projects/{project}/locations/{location}/secrets/{secret}/versions/{version} Example: projects/1234567890/secrets/script_1/versions/1. Accept version number only, not support version alias. User can't configure both gcp_secret_manager_secret_uri and gcs_uri.",
-          ).optional(),
-          gcsGeneration: z.string().describe(
-            'The generation of the init script stored in Gloud Storage. This is the required field to identify the version of the init script. User can get the genetaion from `gcloud storage objects describe gs://BUCKET_NAME/OBJECT_NAME --format="value(generation)"` or from the "Version history" tab of the object in the Cloud Console UI.',
-          ).optional(),
-          gcsUri: z.string().describe(
-            "The Cloud Storage URI for storing the init script. Format: gs://BUCKET_NAME/OBJECT_NAME The service account on the node pool must have read access to the object. User can't configure both gcs_uri and gcp_secret_manager_secret_uri.",
-          ).optional(),
-        }).describe(
-          "InitScript provide a simply bash script to be executed on the node.",
-        ).optional(),
-      }).describe(
-        "Support for running custom init code while bootstrapping nodes.",
-      ).optional(),
       hugepages: z.object({
         hugepageSize1g: z.number().int().describe(
           "Optional. Amount of 1G hugepages",
@@ -10173,7 +9758,7 @@ const InputsSchema = z.object({
         "Is autoscaling enabled for this node pool.",
       ).optional(),
       locationPolicy: z.enum(["LOCATION_POLICY_UNSPECIFIED", "BALANCED", "ANY"])
-        .describe("Location policy used when scaling up a node pool.")
+        .describe("Location policy used when scaling up a nodepool.")
         .optional(),
       maxNodeCount: z.number().int().describe(
         "Maximum number of nodes for one location in the node pool. Must be >= min_node_count. There has to be enough quota to scale up the cluster.",
@@ -10201,7 +9786,7 @@ const InputsSchema = z.object({
         "LoggingVariantConfig specifies the behaviour of the logging component.",
       ).optional(),
     }).describe(
-      "NodePoolLoggingConfig specifies logging configuration for node pools.",
+      "NodePoolLoggingConfig specifies logging configuration for nodepools.",
     ).optional(),
     desiredNodeVersion: z.string().describe(
       'The Kubernetes version to change the nodes to (typically an upgrade). Users may specify either explicit versions offered by Kubernetes Engine or version aliases, which have the following behavior: - "latest": picks the highest valid Kubernetes version - "1.X": picks the highest valid patch+gke.N patch in the 1.X version - "1.X.Y": picks the highest valid gke.N patch in the 1.X.Y version - "1.X.Y-gke.N": picks an explicit Kubernetes version - "-": picks the Kubernetes master version',
@@ -10485,7 +10070,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Kubernetes Engine Clusters. Registered at `@swamp/gcp/container/clusters`. */
 export const model = {
   type: "@swamp/gcp/container/clusters",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -10594,6 +10179,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -10831,6 +10426,42 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List clusters resources",
+      arguments: z.object({
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "clusters",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     check_autopilot_compatibility: {

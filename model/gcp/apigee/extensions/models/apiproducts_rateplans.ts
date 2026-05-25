@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -370,7 +371,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Apigee Apiproducts.Rateplans. Registered at `@swamp/gcp/apigee/apiproducts-rateplans`. */
 export const model = {
   type: "@swamp/gcp/apigee/apiproducts-rateplans",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -432,6 +433,12 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description:
+        "Added: consumptionPricingType, currencyCode, description, displayName, endTime, fixedFeeFrequency, fixedRecurringFee, revenueShareRates, revenueShareType, setupFee, startTime, state, parent",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description:
         "Added: consumptionPricingType, currencyCode, description, displayName, endTime, fixedFeeFrequency, fixedRecurringFee, revenueShareRates, revenueShareType, setupFee, startTime, state, parent",
       upgradeAttributes: (old: Record<string, unknown>) => old,
@@ -718,6 +725,72 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List rateplans resources",
+      arguments: z.object({
+        count: z.number().describe(
+          "Number of rate plans to return in the API call. Use with the `startKey` parameter to provide more targeted filtering. The maximum limit is 1000. Defaults to 100.",
+        ).optional(),
+        expand: z.boolean().describe(
+          "Flag that specifies whether to expand the results. Set to `true` to get expanded details about each API. Defaults to `false`.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Name of the attribute used for sorting. Valid values include: * `name`: Name of the rate plan. * `state`: State of the rate plan (`DRAFT`, `PUBLISHED`). * `startTime`: Time when the rate plan becomes active. * `endTime`: Time when the rate plan expires. **Note**: Not supported by Apigee at this time.",
+        ).optional(),
+        startKey: z.string().describe(
+          "Name of the rate plan from which to start displaying the list of rate plans. If omitted, the list starts from the first item. For example, to view the rate plans from 51-150, set the value of `startKey` to the name of the 51st rate plan and set the value of `count` to 100.",
+        ).optional(),
+        state: z.string().describe(
+          "State of the rate plans (`DRAFT`, `PUBLISHED`) that you want to display.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["count"] !== undefined) {
+          params["count"] = String(args["count"]);
+        }
+        if (args["expand"] !== undefined) {
+          params["expand"] = String(args["expand"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["startKey"] !== undefined) {
+          params["startKey"] = String(args["startKey"]);
+        }
+        if (args["state"] !== undefined) {
+          params["state"] = String(args["state"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "ratePlans",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

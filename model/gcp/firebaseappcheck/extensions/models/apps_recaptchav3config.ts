@@ -107,7 +107,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Firebase App Check Apps.RecaptchaV3Config. Registered at `@swamp/gcp/firebaseappcheck/apps-recaptchav3config`. */
 export const model = {
   type: "@swamp/gcp/firebaseappcheck/apps-recaptchav3config",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -166,6 +166,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

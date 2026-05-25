@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -146,7 +147,7 @@ const GlobalArgsSchema = z.object({
         "Denotes that nodes belonging to this node pool are Autopilot nodes.",
       ).optional(),
     }).describe(
-      "AutopilotConfig contains configuration of autopilot feature for this node pool.",
+      "AutopilotConfig contains configuration of autopilot feature for this nodepool.",
     ).optional(),
     autoscaling: z.object({
       autoprovisioned: z.boolean().describe(
@@ -156,7 +157,7 @@ const GlobalArgsSchema = z.object({
         "Is autoscaling enabled for this node pool.",
       ).optional(),
       locationPolicy: z.enum(["LOCATION_POLICY_UNSPECIFIED", "BALANCED", "ANY"])
-        .describe("Location policy used when scaling up a node pool.")
+        .describe("Location policy used when scaling up a nodepool.")
         .optional(),
       maxNodeCount: z.number().int().describe(
         "Maximum number of nodes for one location in the node pool. Must be >= min_node_count. There has to be enough quota to scale up the cluster.",
@@ -282,7 +283,7 @@ const GlobalArgsSchema = z.object({
           "Disk size in GB. Replaces NodeConfig.disk_size_gb",
         ).optional(),
       }).describe(
-        "BootDisk specifies the boot disk configuration for node pools.",
+        "BootDisk specifies the boot disk configuration for nodepools.",
       ).optional(),
       bootDiskKmsKey: z.string().describe(
         "The Customer Managed Encryption Key used to encrypt the boot disk attached to each node in the node pool. This should be of the form projects/[KEY_PROJECT_ID]/locations/[LOCATION]/keyRings/[RING_NAME]/cryptoKeys/[KEY_NAME]. For more information about protecting resources with Cloud KMS Keys please see: https://cloud.google.com/compute/docs/disks/customer-managed-encryption",
@@ -549,26 +550,6 @@ const GlobalArgsSchema = z.object({
         ]).describe(
           "cgroup_mode specifies the cgroup mode to be used on the node.",
         ).optional(),
-        customNodeInit: z.object({
-          initScript: z.object({
-            args: z.unknown().describe(
-              "Optional. The optional arguments line to be passed to the init script.",
-            ).optional(),
-            gcpSecretManagerSecretUri: z.unknown().describe(
-              "The resource name of the secret manager secret hosting the init script. Both global and regional secrets are supported with format below: Global secret: projects/{project}/secrets/{secret}/versions/{version} Regional secret: projects/{project}/locations/{location}/secrets/{secret}/versions/{version} Example: projects/1234567890/secrets/script_1/versions/1. Accept version number only, not support version alias. User can't configure both gcp_secret_manager_secret_uri and gcs_uri.",
-            ).optional(),
-            gcsGeneration: z.unknown().describe(
-              'The generation of the init script stored in Gloud Storage. This is the required field to identify the version of the init script. User can get the genetaion from `gcloud storage objects describe gs://BUCKET_NAME/OBJECT_NAME --format="value(generation)"` or from the "Version history" tab of the object in the Cloud Console UI.',
-            ).optional(),
-            gcsUri: z.unknown().describe(
-              "The Cloud Storage URI for storing the init script. Format: gs://BUCKET_NAME/OBJECT_NAME The service account on the node pool must have read access to the object. User can't configure both gcs_uri and gcp_secret_manager_secret_uri.",
-            ).optional(),
-          }).describe(
-            "InitScript provide a simply bash script to be executed on the node.",
-          ).optional(),
-        }).describe(
-          "Support for running custom init code while bootstrapping nodes.",
-        ).optional(),
         hugepages: z.object({
           hugepageSize1g: z.number().int().describe(
             "Optional. Amount of 1G hugepages",
@@ -671,7 +652,7 @@ const GlobalArgsSchema = z.object({
           "LoggingVariantConfig specifies the behaviour of the logging component.",
         ).optional(),
       }).describe(
-        "NodePoolLoggingConfig specifies logging configuration for node pools.",
+        "NodePoolLoggingConfig specifies logging configuration for nodepools.",
       ).optional(),
       machineType: z.string().describe(
         "The name of a Google Compute Engine [machine type](https://cloud.google.com/compute/docs/machine-types) If unspecified, the default machine type is `e2-medium`.",
@@ -831,20 +812,6 @@ const GlobalArgsSchema = z.object({
     locations: z.array(z.string()).describe(
       "The list of Google Compute Engine [zones](https://cloud.google.com/compute/docs/zones#available) in which the NodePool's nodes should be located. If this value is unspecified during node pool creation, the [Cluster.Locations](https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/projects.locations.clusters#Cluster.FIELDS.locations) value will be used, instead. Warning: changing node pool locations will result in nodes being added and/or removed.",
     ).optional(),
-    maintenancePolicy: z.object({
-      exclusionUntilEndOfSupport: z.object({
-        enabled: z.boolean().describe(
-          "Optional. Indicates whether the exclusion is enabled.",
-        ).optional(),
-        endTime: z.string().describe(
-          "Output only. The end time of the maintenance exclusion. It is output only. It is the cluster control plane version's end of support time, or end of extended support time when the cluster is on extended support channel.",
-        ).optional(),
-        startTime: z.string().describe(
-          "Output only. The start time of the maintenance exclusion. It is output only. It is the exclusion creation time.",
-        ).optional(),
-      }).describe("Defines the maintenance exclusion for the node pool.")
-        .optional(),
-    }).describe("Defines the maintenance policy for the node pool.").optional(),
     management: z.object({
       autoRepair: z.boolean().describe(
         "A flag that specifies whether the node auto-repair is enabled for the node pool. If enabled, the nodes in this node pool will be monitored and, if they fail health checks too many times, an automatic repair action will be triggered.",
@@ -872,9 +839,6 @@ const GlobalArgsSchema = z.object({
     }).describe("Constraints applied to pods.").optional(),
     name: z.string().describe("The name of the node pool.").optional(),
     networkConfig: z.object({
-      acceleratorNetworkProfile: z.string().describe(
-        'Immutable. The accelerator network profile for the node pool. For now the only valid value is "auto". If specified, the network configuration of the nodes in this node pool will be managed by this profile for the supported machine types, zone, etc.',
-      ).optional(),
       additionalNodeNetworkConfigs: z.array(z.object({
         network: z.string().describe(
           "Name of the VPC where the additional interface belongs",
@@ -944,17 +908,11 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }).describe("Parameters for node pool-level network config.").optional(),
     nodeDrainConfig: z.object({
-      graceTerminationDuration: z.string().describe(
-        "The duration of the grace termination period for node drain.",
-      ).optional(),
-      pdbTimeoutDuration: z.string().describe(
-        "The duration of the PDB timeout period for node drain.",
-      ).optional(),
       respectPdbDuringNodePoolDeletion: z.boolean().describe(
         "Whether to respect PDB during node pool deletion.",
       ).optional(),
     }).describe(
-      "NodeDrainConfig contains the node drain related configurations for this node pool.",
+      "NodeDrainConfig contains the node drain related configurations for this nodepool.",
     ).optional(),
     placementPolicy: z.object({
       policyName: z.string().describe(
@@ -974,7 +932,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     queuedProvisioning: z.object({
       enabled: z.boolean().describe(
-        "Denotes that this node pool is QRM specific, meaning nodes can be only obtained through queuing via the Cluster Autoscaler ProvisioningRequest API.",
+        "Denotes that this nodepool is QRM specific, meaning nodes can be only obtained through queuing via the Cluster Autoscaler ProvisioningRequest API.",
       ).optional(),
     }).describe(
       "QueuedProvisioning defines the queued provisioning used by the node pool.",
@@ -1121,7 +1079,7 @@ const GlobalArgsSchema = z.object({
     sizeGb: z.string().describe(
       "Disk size in GB. Replaces NodeConfig.disk_size_gb",
     ).optional(),
-  }).describe("BootDisk specifies the boot disk configuration for node pools.")
+  }).describe("BootDisk specifies the boot disk configuration for nodepools.")
     .optional(),
   confidentialNodes: z.object({
     confidentialInstanceType: z.enum([
@@ -1391,26 +1349,6 @@ const GlobalArgsSchema = z.object({
       "CGROUP_MODE_V2",
     ]).describe("cgroup_mode specifies the cgroup mode to be used on the node.")
       .optional(),
-    customNodeInit: z.object({
-      initScript: z.object({
-        args: z.array(z.string()).describe(
-          "Optional. The optional arguments line to be passed to the init script.",
-        ).optional(),
-        gcpSecretManagerSecretUri: z.string().describe(
-          "The resource name of the secret manager secret hosting the init script. Both global and regional secrets are supported with format below: Global secret: projects/{project}/secrets/{secret}/versions/{version} Regional secret: projects/{project}/locations/{location}/secrets/{secret}/versions/{version} Example: projects/1234567890/secrets/script_1/versions/1. Accept version number only, not support version alias. User can't configure both gcp_secret_manager_secret_uri and gcs_uri.",
-        ).optional(),
-        gcsGeneration: z.string().describe(
-          'The generation of the init script stored in Gloud Storage. This is the required field to identify the version of the init script. User can get the genetaion from `gcloud storage objects describe gs://BUCKET_NAME/OBJECT_NAME --format="value(generation)"` or from the "Version history" tab of the object in the Cloud Console UI.',
-        ).optional(),
-        gcsUri: z.string().describe(
-          "The Cloud Storage URI for storing the init script. Format: gs://BUCKET_NAME/OBJECT_NAME The service account on the node pool must have read access to the object. User can't configure both gcs_uri and gcp_secret_manager_secret_uri.",
-        ).optional(),
-      }).describe(
-        "InitScript provide a simply bash script to be executed on the node.",
-      ).optional(),
-    }).describe(
-      "Support for running custom init code while bootstrapping nodes.",
-    ).optional(),
     hugepages: z.object({
       hugepageSize1g: z.number().int().describe(
         "Optional. Amount of 1G hugepages",
@@ -1495,7 +1433,7 @@ const GlobalArgsSchema = z.object({
       "LoggingVariantConfig specifies the behaviour of the logging component.",
     ).optional(),
   }).describe(
-    "NodePoolLoggingConfig specifies logging configuration for node pools.",
+    "NodePoolLoggingConfig specifies logging configuration for nodepools.",
   ).optional(),
   machineType: z.string().describe(
     "Optional. The desired [Google Compute Engine machine type](https://cloud.google.com/compute/docs/machine-types) for nodes in the node pool. Initiates an upgrade operation that migrates the nodes in the node pool to the specified machine type.",
@@ -1507,22 +1445,13 @@ const GlobalArgsSchema = z.object({
     "The name (project, location, cluster, node pool) of the node pool to update. Specified in the format `projects/*/locations/*/clusters/*/nodePools/*`.",
   ).optional(),
   nodeDrainConfig: z.object({
-    graceTerminationDuration: z.string().describe(
-      "The duration of the grace termination period for node drain.",
-    ).optional(),
-    pdbTimeoutDuration: z.string().describe(
-      "The duration of the PDB timeout period for node drain.",
-    ).optional(),
     respectPdbDuringNodePoolDeletion: z.boolean().describe(
       "Whether to respect PDB during node pool deletion.",
     ).optional(),
   }).describe(
-    "NodeDrainConfig contains the node drain related configurations for this node pool.",
+    "NodeDrainConfig contains the node drain related configurations for this nodepool.",
   ).optional(),
   nodeNetworkConfig: z.object({
-    acceleratorNetworkProfile: z.string().describe(
-      'Immutable. The accelerator network profile for the node pool. For now the only valid value is "auto". If specified, the network configuration of the nodes in this node pool will be managed by this profile for the supported machine types, zone, etc.',
-    ).optional(),
     additionalNodeNetworkConfigs: z.array(z.object({
       network: z.string().describe(
         "Name of the VPC where the additional interface belongs",
@@ -1595,7 +1524,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   queuedProvisioning: z.object({
     enabled: z.boolean().describe(
-      "Denotes that this node pool is QRM specific, meaning nodes can be only obtained through queuing via the Cluster Autoscaler ProvisioningRequest API.",
+      "Denotes that this nodepool is QRM specific, meaning nodes can be only obtained through queuing via the Cluster Autoscaler ProvisioningRequest API.",
     ).optional(),
   }).describe(
     "QueuedProvisioning defines the queued provisioning used by the node pool.",
@@ -1621,16 +1550,6 @@ const GlobalArgsSchema = z.object({
     tags: z.array(z.string()).describe("List of network tags.").optional(),
   }).describe(
     "Collection of Compute Engine network tags that can be applied to a node's underlying VM instance.",
-  ).optional(),
-  taintConfig: z.object({
-    architectureTaintBehavior: z.enum([
-      "ARCHITECTURE_TAINT_BEHAVIOR_UNSPECIFIED",
-      "NONE",
-      "ARM",
-    ]).describe("Optional. Controls architecture tainting behavior.")
-      .optional(),
-  }).describe(
-    "TaintConfig contains the configuration for the taints of the node pool.",
   ).optional(),
   taints: z.object({
     taints: z.array(z.object({
@@ -1856,14 +1775,6 @@ const StateSchema = z.object({
         enablePtpKvmTimeSync: z.boolean(),
       }),
       cgroupMode: z.string(),
-      customNodeInit: z.object({
-        initScript: z.object({
-          args: z.array(z.unknown()),
-          gcpSecretManagerSecretUri: z.string(),
-          gcsGeneration: z.string(),
-          gcsUri: z.string(),
-        }),
-      }),
       hugepages: z.object({
         hugepageSize1g: z.number(),
         hugepageSize2m: z.number(),
@@ -1961,13 +1872,6 @@ const StateSchema = z.object({
   initialNodeCount: z.number().optional(),
   instanceGroupUrls: z.array(z.string()).optional(),
   locations: z.array(z.string()).optional(),
-  maintenancePolicy: z.object({
-    exclusionUntilEndOfSupport: z.object({
-      enabled: z.boolean(),
-      endTime: z.string(),
-      startTime: z.string(),
-    }),
-  }).optional(),
   management: z.object({
     autoRepair: z.boolean(),
     autoUpgrade: z.boolean(),
@@ -1981,7 +1885,6 @@ const StateSchema = z.object({
   }).optional(),
   name: z.string(),
   networkConfig: z.object({
-    acceleratorNetworkProfile: z.string(),
     additionalNodeNetworkConfigs: z.array(z.object({
       network: z.string(),
       subnetwork: z.string(),
@@ -2011,8 +1914,6 @@ const StateSchema = z.object({
     subnetwork: z.string(),
   }).optional(),
   nodeDrainConfig: z.object({
-    graceTerminationDuration: z.string(),
-    pdbTimeoutDuration: z.string(),
     respectPdbDuringNodePoolDeletion: z.boolean(),
   }).optional(),
   placementPolicy: z.object({
@@ -2064,7 +1965,7 @@ const InputsSchema = z.object({
         "Denotes that nodes belonging to this node pool are Autopilot nodes.",
       ).optional(),
     }).describe(
-      "AutopilotConfig contains configuration of autopilot feature for this node pool.",
+      "AutopilotConfig contains configuration of autopilot feature for this nodepool.",
     ).optional(),
     autoscaling: z.object({
       autoprovisioned: z.boolean().describe(
@@ -2074,7 +1975,7 @@ const InputsSchema = z.object({
         "Is autoscaling enabled for this node pool.",
       ).optional(),
       locationPolicy: z.enum(["LOCATION_POLICY_UNSPECIFIED", "BALANCED", "ANY"])
-        .describe("Location policy used when scaling up a node pool.")
+        .describe("Location policy used when scaling up a nodepool.")
         .optional(),
       maxNodeCount: z.number().int().describe(
         "Maximum number of nodes for one location in the node pool. Must be >= min_node_count. There has to be enough quota to scale up the cluster.",
@@ -2200,7 +2101,7 @@ const InputsSchema = z.object({
           "Disk size in GB. Replaces NodeConfig.disk_size_gb",
         ).optional(),
       }).describe(
-        "BootDisk specifies the boot disk configuration for node pools.",
+        "BootDisk specifies the boot disk configuration for nodepools.",
       ).optional(),
       bootDiskKmsKey: z.string().describe(
         "The Customer Managed Encryption Key used to encrypt the boot disk attached to each node in the node pool. This should be of the form projects/[KEY_PROJECT_ID]/locations/[LOCATION]/keyRings/[RING_NAME]/cryptoKeys/[KEY_NAME]. For more information about protecting resources with Cloud KMS Keys please see: https://cloud.google.com/compute/docs/disks/customer-managed-encryption",
@@ -2467,26 +2368,6 @@ const InputsSchema = z.object({
         ]).describe(
           "cgroup_mode specifies the cgroup mode to be used on the node.",
         ).optional(),
-        customNodeInit: z.object({
-          initScript: z.object({
-            args: z.unknown().describe(
-              "Optional. The optional arguments line to be passed to the init script.",
-            ).optional(),
-            gcpSecretManagerSecretUri: z.unknown().describe(
-              "The resource name of the secret manager secret hosting the init script. Both global and regional secrets are supported with format below: Global secret: projects/{project}/secrets/{secret}/versions/{version} Regional secret: projects/{project}/locations/{location}/secrets/{secret}/versions/{version} Example: projects/1234567890/secrets/script_1/versions/1. Accept version number only, not support version alias. User can't configure both gcp_secret_manager_secret_uri and gcs_uri.",
-            ).optional(),
-            gcsGeneration: z.unknown().describe(
-              'The generation of the init script stored in Gloud Storage. This is the required field to identify the version of the init script. User can get the genetaion from `gcloud storage objects describe gs://BUCKET_NAME/OBJECT_NAME --format="value(generation)"` or from the "Version history" tab of the object in the Cloud Console UI.',
-            ).optional(),
-            gcsUri: z.unknown().describe(
-              "The Cloud Storage URI for storing the init script. Format: gs://BUCKET_NAME/OBJECT_NAME The service account on the node pool must have read access to the object. User can't configure both gcs_uri and gcp_secret_manager_secret_uri.",
-            ).optional(),
-          }).describe(
-            "InitScript provide a simply bash script to be executed on the node.",
-          ).optional(),
-        }).describe(
-          "Support for running custom init code while bootstrapping nodes.",
-        ).optional(),
         hugepages: z.object({
           hugepageSize1g: z.number().int().describe(
             "Optional. Amount of 1G hugepages",
@@ -2589,7 +2470,7 @@ const InputsSchema = z.object({
           "LoggingVariantConfig specifies the behaviour of the logging component.",
         ).optional(),
       }).describe(
-        "NodePoolLoggingConfig specifies logging configuration for node pools.",
+        "NodePoolLoggingConfig specifies logging configuration for nodepools.",
       ).optional(),
       machineType: z.string().describe(
         "The name of a Google Compute Engine [machine type](https://cloud.google.com/compute/docs/machine-types) If unspecified, the default machine type is `e2-medium`.",
@@ -2749,20 +2630,6 @@ const InputsSchema = z.object({
     locations: z.array(z.string()).describe(
       "The list of Google Compute Engine [zones](https://cloud.google.com/compute/docs/zones#available) in which the NodePool's nodes should be located. If this value is unspecified during node pool creation, the [Cluster.Locations](https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/projects.locations.clusters#Cluster.FIELDS.locations) value will be used, instead. Warning: changing node pool locations will result in nodes being added and/or removed.",
     ).optional(),
-    maintenancePolicy: z.object({
-      exclusionUntilEndOfSupport: z.object({
-        enabled: z.boolean().describe(
-          "Optional. Indicates whether the exclusion is enabled.",
-        ).optional(),
-        endTime: z.string().describe(
-          "Output only. The end time of the maintenance exclusion. It is output only. It is the cluster control plane version's end of support time, or end of extended support time when the cluster is on extended support channel.",
-        ).optional(),
-        startTime: z.string().describe(
-          "Output only. The start time of the maintenance exclusion. It is output only. It is the exclusion creation time.",
-        ).optional(),
-      }).describe("Defines the maintenance exclusion for the node pool.")
-        .optional(),
-    }).describe("Defines the maintenance policy for the node pool.").optional(),
     management: z.object({
       autoRepair: z.boolean().describe(
         "A flag that specifies whether the node auto-repair is enabled for the node pool. If enabled, the nodes in this node pool will be monitored and, if they fail health checks too many times, an automatic repair action will be triggered.",
@@ -2790,9 +2657,6 @@ const InputsSchema = z.object({
     }).describe("Constraints applied to pods.").optional(),
     name: z.string().describe("The name of the node pool.").optional(),
     networkConfig: z.object({
-      acceleratorNetworkProfile: z.string().describe(
-        'Immutable. The accelerator network profile for the node pool. For now the only valid value is "auto". If specified, the network configuration of the nodes in this node pool will be managed by this profile for the supported machine types, zone, etc.',
-      ).optional(),
       additionalNodeNetworkConfigs: z.array(z.object({
         network: z.string().describe(
           "Name of the VPC where the additional interface belongs",
@@ -2862,17 +2726,11 @@ const InputsSchema = z.object({
       ).optional(),
     }).describe("Parameters for node pool-level network config.").optional(),
     nodeDrainConfig: z.object({
-      graceTerminationDuration: z.string().describe(
-        "The duration of the grace termination period for node drain.",
-      ).optional(),
-      pdbTimeoutDuration: z.string().describe(
-        "The duration of the PDB timeout period for node drain.",
-      ).optional(),
       respectPdbDuringNodePoolDeletion: z.boolean().describe(
         "Whether to respect PDB during node pool deletion.",
       ).optional(),
     }).describe(
-      "NodeDrainConfig contains the node drain related configurations for this node pool.",
+      "NodeDrainConfig contains the node drain related configurations for this nodepool.",
     ).optional(),
     placementPolicy: z.object({
       policyName: z.string().describe(
@@ -2892,7 +2750,7 @@ const InputsSchema = z.object({
     ).optional(),
     queuedProvisioning: z.object({
       enabled: z.boolean().describe(
-        "Denotes that this node pool is QRM specific, meaning nodes can be only obtained through queuing via the Cluster Autoscaler ProvisioningRequest API.",
+        "Denotes that this nodepool is QRM specific, meaning nodes can be only obtained through queuing via the Cluster Autoscaler ProvisioningRequest API.",
       ).optional(),
     }).describe(
       "QueuedProvisioning defines the queued provisioning used by the node pool.",
@@ -3039,7 +2897,7 @@ const InputsSchema = z.object({
     sizeGb: z.string().describe(
       "Disk size in GB. Replaces NodeConfig.disk_size_gb",
     ).optional(),
-  }).describe("BootDisk specifies the boot disk configuration for node pools.")
+  }).describe("BootDisk specifies the boot disk configuration for nodepools.")
     .optional(),
   confidentialNodes: z.object({
     confidentialInstanceType: z.enum([
@@ -3309,26 +3167,6 @@ const InputsSchema = z.object({
       "CGROUP_MODE_V2",
     ]).describe("cgroup_mode specifies the cgroup mode to be used on the node.")
       .optional(),
-    customNodeInit: z.object({
-      initScript: z.object({
-        args: z.array(z.string()).describe(
-          "Optional. The optional arguments line to be passed to the init script.",
-        ).optional(),
-        gcpSecretManagerSecretUri: z.string().describe(
-          "The resource name of the secret manager secret hosting the init script. Both global and regional secrets are supported with format below: Global secret: projects/{project}/secrets/{secret}/versions/{version} Regional secret: projects/{project}/locations/{location}/secrets/{secret}/versions/{version} Example: projects/1234567890/secrets/script_1/versions/1. Accept version number only, not support version alias. User can't configure both gcp_secret_manager_secret_uri and gcs_uri.",
-        ).optional(),
-        gcsGeneration: z.string().describe(
-          'The generation of the init script stored in Gloud Storage. This is the required field to identify the version of the init script. User can get the genetaion from `gcloud storage objects describe gs://BUCKET_NAME/OBJECT_NAME --format="value(generation)"` or from the "Version history" tab of the object in the Cloud Console UI.',
-        ).optional(),
-        gcsUri: z.string().describe(
-          "The Cloud Storage URI for storing the init script. Format: gs://BUCKET_NAME/OBJECT_NAME The service account on the node pool must have read access to the object. User can't configure both gcs_uri and gcp_secret_manager_secret_uri.",
-        ).optional(),
-      }).describe(
-        "InitScript provide a simply bash script to be executed on the node.",
-      ).optional(),
-    }).describe(
-      "Support for running custom init code while bootstrapping nodes.",
-    ).optional(),
     hugepages: z.object({
       hugepageSize1g: z.number().int().describe(
         "Optional. Amount of 1G hugepages",
@@ -3413,7 +3251,7 @@ const InputsSchema = z.object({
       "LoggingVariantConfig specifies the behaviour of the logging component.",
     ).optional(),
   }).describe(
-    "NodePoolLoggingConfig specifies logging configuration for node pools.",
+    "NodePoolLoggingConfig specifies logging configuration for nodepools.",
   ).optional(),
   machineType: z.string().describe(
     "Optional. The desired [Google Compute Engine machine type](https://cloud.google.com/compute/docs/machine-types) for nodes in the node pool. Initiates an upgrade operation that migrates the nodes in the node pool to the specified machine type.",
@@ -3425,22 +3263,13 @@ const InputsSchema = z.object({
     "The name (project, location, cluster, node pool) of the node pool to update. Specified in the format `projects/*/locations/*/clusters/*/nodePools/*`.",
   ).optional(),
   nodeDrainConfig: z.object({
-    graceTerminationDuration: z.string().describe(
-      "The duration of the grace termination period for node drain.",
-    ).optional(),
-    pdbTimeoutDuration: z.string().describe(
-      "The duration of the PDB timeout period for node drain.",
-    ).optional(),
     respectPdbDuringNodePoolDeletion: z.boolean().describe(
       "Whether to respect PDB during node pool deletion.",
     ).optional(),
   }).describe(
-    "NodeDrainConfig contains the node drain related configurations for this node pool.",
+    "NodeDrainConfig contains the node drain related configurations for this nodepool.",
   ).optional(),
   nodeNetworkConfig: z.object({
-    acceleratorNetworkProfile: z.string().describe(
-      'Immutable. The accelerator network profile for the node pool. For now the only valid value is "auto". If specified, the network configuration of the nodes in this node pool will be managed by this profile for the supported machine types, zone, etc.',
-    ).optional(),
     additionalNodeNetworkConfigs: z.array(z.object({
       network: z.string().describe(
         "Name of the VPC where the additional interface belongs",
@@ -3513,7 +3342,7 @@ const InputsSchema = z.object({
   ).optional(),
   queuedProvisioning: z.object({
     enabled: z.boolean().describe(
-      "Denotes that this node pool is QRM specific, meaning nodes can be only obtained through queuing via the Cluster Autoscaler ProvisioningRequest API.",
+      "Denotes that this nodepool is QRM specific, meaning nodes can be only obtained through queuing via the Cluster Autoscaler ProvisioningRequest API.",
     ).optional(),
   }).describe(
     "QueuedProvisioning defines the queued provisioning used by the node pool.",
@@ -3539,16 +3368,6 @@ const InputsSchema = z.object({
     tags: z.array(z.string()).describe("List of network tags.").optional(),
   }).describe(
     "Collection of Compute Engine network tags that can be applied to a node's underlying VM instance.",
-  ).optional(),
-  taintConfig: z.object({
-    architectureTaintBehavior: z.enum([
-      "ARCHITECTURE_TAINT_BEHAVIOR_UNSPECIFIED",
-      "NONE",
-      "ARM",
-    ]).describe("Optional. Controls architecture tainting behavior.")
-      .optional(),
-  }).describe(
-    "TaintConfig contains the configuration for the taints of the node pool.",
   ).optional(),
   taints: z.object({
     taints: z.array(z.object({
@@ -3628,7 +3447,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Kubernetes Engine Clusters.NodePools. Registered at `@swamp/gcp/container/clusters-nodepools`. */
 export const model = {
   type: "@swamp/gcp/container/clusters-nodepools",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -3738,6 +3557,19 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "Removed: taintConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { taintConfig: _taintConfig, ...rest } = old;
+        return rest;
+      },
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -3926,9 +3758,6 @@ export const model = {
           body["storagePools"] = g["storagePools"];
         }
         if (g["tags"] !== undefined) body["tags"] = g["tags"];
-        if (g["taintConfig"] !== undefined) {
-          body["taintConfig"] = g["taintConfig"];
-        }
         if (g["taints"] !== undefined) body["taints"] = g["taints"];
         if (g["upgradeSettings"] !== undefined) {
           body["upgradeSettings"] = g["upgradeSettings"];
@@ -4048,6 +3877,42 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List nodePools resources",
+      arguments: z.object({
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "nodePools",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     complete_upgrade: {

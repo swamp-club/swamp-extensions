@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -157,9 +158,6 @@ const GlobalArgsSchema = z.object({
     .describe(
       "Name of the resource. The name must be 1-63 characters long, and comply with RFC1035. Specifically, the name must be 1-63 characters long and match the regular expression `[a-z]([-a-z0-9]*[a-z0-9])?` which means the first character must be a lowercase letter, and all following characters must be a dash, lowercase letter, or digit, except the last character, which cannot be a dash.",
     ).optional(),
-  postQuantumKeyExchange: z.enum(["DEFAULT", "DEFERRED", "ENABLED"]).describe(
-    "One of DEFAULT, ENABLED, orDEFERRED. Controls whether the load balancer negotiates X25519MLKEM768 key exchange when clients advertise support for it. When set to DEFAULT, or if no SSL Policy is attached to the target proxy, the load balancer disallows X25519MLKEM768 key exchange before October 2026, and allows it afterward. When set to ENABLED, the load balancer allows X25519MLKEM768 key exchange. When set toDEFERRED, the load balancer disallows X25519MLKEM768 key exchange until October 2027, and allows it afterward.",
-  ).optional(),
   profile: z.enum([
     "COMPATIBLE",
     "CUSTOM",
@@ -184,7 +182,6 @@ const StateSchema = z.object({
   kind: z.string().optional(),
   minTlsVersion: z.string().optional(),
   name: z.string(),
-  postQuantumKeyExchange: z.string().optional(),
   profile: z.string().optional(),
   region: z.string().optional(),
   selfLink: z.string().optional(),
@@ -217,9 +214,6 @@ const InputsSchema = z.object({
     .describe(
       "Name of the resource. The name must be 1-63 characters long, and comply with RFC1035. Specifically, the name must be 1-63 characters long and match the regular expression `[a-z]([-a-z0-9]*[a-z0-9])?` which means the first character must be a lowercase letter, and all following characters must be a dash, lowercase letter, or digit, except the last character, which cannot be a dash.",
     ).optional(),
-  postQuantumKeyExchange: z.enum(["DEFAULT", "DEFERRED", "ENABLED"]).describe(
-    "One of DEFAULT, ENABLED, orDEFERRED. Controls whether the load balancer negotiates X25519MLKEM768 key exchange when clients advertise support for it. When set to DEFAULT, or if no SSL Policy is attached to the target proxy, the load balancer disallows X25519MLKEM768 key exchange before October 2026, and allows it afterward. When set to ENABLED, the load balancer allows X25519MLKEM768 key exchange. When set toDEFERRED, the load balancer disallows X25519MLKEM768 key exchange until October 2027, and allows it afterward.",
-  ).optional(),
   profile: z.enum([
     "COMPATIBLE",
     "CUSTOM",
@@ -237,7 +231,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine SslPolicies. Registered at `@swamp/gcp/compute/sslpolicies`. */
 export const model = {
   type: "@swamp/gcp/compute/sslpolicies",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -336,6 +330,20 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "Removed: postQuantumKeyExchange",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { postQuantumKeyExchange: _postQuantumKeyExchange, ...rest } =
+          old;
+        return rest;
+      },
+    },
+    {
+      toVersion: "2026.05.25.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -370,9 +378,6 @@ export const model = {
           body["minTlsVersion"] = g["minTlsVersion"];
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
-        if (g["postQuantumKeyExchange"] !== undefined) {
-          body["postQuantumKeyExchange"] = g["postQuantumKeyExchange"];
-        }
         if (g["profile"] !== undefined) body["profile"] = g["profile"];
         if (g["requestId"] !== undefined) body["requestId"] = g["requestId"];
         if (g["name"] !== undefined) params["sslPolicy"] = String(g["name"]);
@@ -463,9 +468,6 @@ export const model = {
           body["minTlsVersion"] = g["minTlsVersion"];
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
-        if (g["postQuantumKeyExchange"] !== undefined) {
-          body["postQuantumKeyExchange"] = g["postQuantumKeyExchange"];
-        }
         if (g["profile"] !== undefined) body["profile"] = g["profile"];
         for (const key of Object.keys(existing)) {
           if (
@@ -567,6 +569,64 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List sslPolicies resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "A filter expression that filters resources listed in the response. Most",
+        ).optional(),
+        maxResults: z.number().describe(
+          "The maximum number of results per page that should be returned.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Sorts list results by a certain order. By default, results",
+        ).optional(),
+        returnPartialSuccess: z.boolean().describe(
+          "Opt-in for partial success behavior which provides partial results in case",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["returnPartialSuccess"] !== undefined) {
+          params["returnPartialSuccess"] = String(args["returnPartialSuccess"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     list_available_features: {

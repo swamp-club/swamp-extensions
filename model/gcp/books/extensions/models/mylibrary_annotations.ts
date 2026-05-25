@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -491,7 +492,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Books Mylibrary.Annotations. Registered at `@swamp/gcp/books/mylibrary-annotations`. */
 export const model = {
   type: "@swamp/gcp/books/mylibrary-annotations",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -545,6 +546,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -810,6 +821,90 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List annotations resources",
+      arguments: z.object({
+        contentVersion: z.string().describe(
+          "The content version for the requested volume.",
+        ).optional(),
+        layerId: z.string().describe("The layer ID to limit annotation by.")
+          .optional(),
+        layerIds: z.string().describe("The layer ID(s) to limit annotation by.")
+          .optional(),
+        maxResults: z.number().describe("Maximum number of results to return")
+          .optional(),
+        showDeleted: z.boolean().describe(
+          "Set to true to return deleted annotations. updatedMin must be in the request to use this. Defaults to false.",
+        ).optional(),
+        source: z.string().describe(
+          "String to identify the originator of this request.",
+        ).optional(),
+        updatedMax: z.string().describe(
+          "RFC 3339 timestamp to restrict to items updated prior to this timestamp (exclusive).",
+        ).optional(),
+        updatedMin: z.string().describe(
+          "RFC 3339 timestamp to restrict to items updated since this timestamp (inclusive).",
+        ).optional(),
+        volumeId: z.string().describe("The volume to restrict annotations to.")
+          .optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["contentVersion"] !== undefined) {
+          params["contentVersion"] = String(args["contentVersion"]);
+        }
+        if (args["layerId"] !== undefined) {
+          params["layerId"] = String(args["layerId"]);
+        }
+        if (args["layerIds"] !== undefined) {
+          params["layerIds"] = String(args["layerIds"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["showDeleted"] !== undefined) {
+          params["showDeleted"] = String(args["showDeleted"]);
+        }
+        if (args["source"] !== undefined) {
+          params["source"] = String(args["source"]);
+        }
+        if (args["updatedMax"] !== undefined) {
+          params["updatedMax"] = String(args["updatedMax"]);
+        }
+        if (args["updatedMin"] !== undefined) {
+          params["updatedMin"] = String(args["updatedMin"]);
+        }
+        if (args["volumeId"] !== undefined) {
+          params["volumeId"] = String(args["volumeId"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     summary: {

@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -409,9 +410,6 @@ const GlobalArgsSchema = z.object({
         cloudSqlInstance: z.unknown().describe(
           "For display only. Metadata associated with a Cloud SQL instance.",
         ).optional(),
-        datastreamPrivateConnection: z.unknown().describe(
-          "For display only. Metadata associated with a Private Connection.",
-        ).optional(),
         deliver: z.unknown().describe(
           'Details of the final state "deliver" and associated resource.',
         ).optional(),
@@ -420,9 +418,6 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         directVpcEgressConnection: z.unknown().describe(
           "For display only. Metadata associated with a serverless direct VPC egress connection.",
-        ).optional(),
-        dmsPrivateConnection: z.unknown().describe(
-          "For display only. Metadata associated with a Private Connection.",
         ).optional(),
         drop: z.unknown().describe(
           'Details of the final state "drop" and associated resource.',
@@ -601,9 +596,6 @@ const GlobalArgsSchema = z.object({
         cloudSqlInstance: z.unknown().describe(
           "For display only. Metadata associated with a Cloud SQL instance.",
         ).optional(),
-        datastreamPrivateConnection: z.unknown().describe(
-          "For display only. Metadata associated with a Private Connection.",
-        ).optional(),
         deliver: z.unknown().describe(
           'Details of the final state "deliver" and associated resource.',
         ).optional(),
@@ -612,9 +604,6 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         directVpcEgressConnection: z.unknown().describe(
           "For display only. Metadata associated with a serverless direct VPC egress connection.",
-        ).optional(),
-        dmsPrivateConnection: z.unknown().describe(
-          "For display only. Metadata associated with a Private Connection.",
         ).optional(),
         drop: z.unknown().describe(
           'Details of the final state "drop" and associated resource.',
@@ -927,11 +916,9 @@ const StateSchema = z.object({
         cloudFunction: z.unknown(),
         cloudRunRevision: z.unknown(),
         cloudSqlInstance: z.unknown(),
-        datastreamPrivateConnection: z.unknown(),
         deliver: z.unknown(),
         description: z.unknown(),
         directVpcEgressConnection: z.unknown(),
-        dmsPrivateConnection: z.unknown(),
         drop: z.unknown(),
         endpoint: z.unknown(),
         firewall: z.unknown(),
@@ -994,11 +981,9 @@ const StateSchema = z.object({
         cloudFunction: z.unknown(),
         cloudRunRevision: z.unknown(),
         cloudSqlInstance: z.unknown(),
-        datastreamPrivateConnection: z.unknown(),
         deliver: z.unknown(),
         description: z.unknown(),
         directVpcEgressConnection: z.unknown(),
-        dmsPrivateConnection: z.unknown(),
         drop: z.unknown(),
         endpoint: z.unknown(),
         firewall: z.unknown(),
@@ -1353,9 +1338,6 @@ const InputsSchema = z.object({
         cloudSqlInstance: z.unknown().describe(
           "For display only. Metadata associated with a Cloud SQL instance.",
         ).optional(),
-        datastreamPrivateConnection: z.unknown().describe(
-          "For display only. Metadata associated with a Private Connection.",
-        ).optional(),
         deliver: z.unknown().describe(
           'Details of the final state "deliver" and associated resource.',
         ).optional(),
@@ -1364,9 +1346,6 @@ const InputsSchema = z.object({
         ).optional(),
         directVpcEgressConnection: z.unknown().describe(
           "For display only. Metadata associated with a serverless direct VPC egress connection.",
-        ).optional(),
-        dmsPrivateConnection: z.unknown().describe(
-          "For display only. Metadata associated with a Private Connection.",
         ).optional(),
         drop: z.unknown().describe(
           'Details of the final state "drop" and associated resource.',
@@ -1545,9 +1524,6 @@ const InputsSchema = z.object({
         cloudSqlInstance: z.unknown().describe(
           "For display only. Metadata associated with a Cloud SQL instance.",
         ).optional(),
-        datastreamPrivateConnection: z.unknown().describe(
-          "For display only. Metadata associated with a Private Connection.",
-        ).optional(),
         deliver: z.unknown().describe(
           'Details of the final state "deliver" and associated resource.',
         ).optional(),
@@ -1556,9 +1532,6 @@ const InputsSchema = z.object({
         ).optional(),
         directVpcEgressConnection: z.unknown().describe(
           "For display only. Metadata associated with a serverless direct VPC egress connection.",
-        ).optional(),
-        dmsPrivateConnection: z.unknown().describe(
-          "For display only. Metadata associated with a Private Connection.",
         ).optional(),
         drop: z.unknown().describe(
           'Details of the final state "drop" and associated resource.',
@@ -1768,7 +1741,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Network Management Global.ConnectivityTests. Registered at `@swamp/gcp/networkmanagement/global-connectivitytests`. */
 export const model = {
   type: "@swamp/gcp/networkmanagement/global-connectivitytests",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1847,6 +1820,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2117,6 +2095,61 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List connectivityTests resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          'Lists the `ConnectivityTests` that match the filter expression. A filter expression filters the resources listed in the response. The expression must be of the form ` ` where operators: `<`, `>`, `<=`, `>=`, `!=`, `=`, `:` are supported (colon `:` represents a HAS operator which is roughly synonymous with equality). can refer to a proto or JSON field, or a synthetic field. Field names can be camelCase or snake_case. Examples: - Filter by name: name = "projects/proj-1/locations/global/connectivityTests/test-1 - Filter by labels: - Resources that have a key called `foo` labels.foo:* - Resources that have a key called `foo` whose value is `bar` labels.foo = bar',
+        ).optional(),
+        orderBy: z.string().describe("Field to use to sort the list.")
+          .optional(),
+        pageSize: z.number().describe(
+          "Number of `ConnectivityTests` to return.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "resources",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     get_iam_policy: {

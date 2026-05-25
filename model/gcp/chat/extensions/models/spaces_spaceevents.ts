@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -37,6 +38,30 @@ const GET_CONFIG = {
   ],
   "parameters": {
     "name": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "chat.spaces.spaceEvents.list",
+  "path": "v1/{+parent}/spaceEvents",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
       "location": "path",
       "required": true,
     },
@@ -226,7 +251,6 @@ const StateSchema = z.object({
           name: z.unknown(),
           type: z.unknown(),
         }),
-        silent: z.boolean(),
         slashCommand: z.object({
           commandId: z.unknown(),
         }),
@@ -313,7 +337,6 @@ const StateSchema = z.object({
           name: z.unknown(),
           type: z.unknown(),
         }),
-        silent: z.boolean(),
         slashCommand: z.object({
           commandId: z.unknown(),
         }),
@@ -400,7 +423,6 @@ const StateSchema = z.object({
           name: z.unknown(),
           type: z.unknown(),
         }),
-        silent: z.boolean(),
         slashCommand: z.object({
           commandId: z.unknown(),
         }),
@@ -583,7 +605,6 @@ const StateSchema = z.object({
         name: z.string(),
         type: z.string(),
       }),
-      silent: z.boolean(),
       slashCommand: z.object({
         commandId: z.string(),
       }),
@@ -815,7 +836,6 @@ const StateSchema = z.object({
         name: z.string(),
         type: z.string(),
       }),
-      silent: z.boolean(),
       slashCommand: z.object({
         commandId: z.string(),
       }),
@@ -1047,7 +1067,6 @@ const StateSchema = z.object({
         name: z.string(),
         type: z.string(),
       }),
-      silent: z.boolean(),
       slashCommand: z.object({
         commandId: z.string(),
       }),
@@ -1353,7 +1372,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Chat Spaces.SpaceEvents. Registered at `@swamp/gcp/chat/spaces-spaceevents`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces-spaceevents",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -1432,6 +1451,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1526,6 +1550,54 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List spaceEvents resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          'Required. A query filter. You must specify at least one event type (`event_type`) using the has `:` operator. To filter by multiple event types, use the `OR` operator. Omit batch event types in your filter. The request automatically returns any related batch events. For example, if you filter by new reactions (`google.workspace.chat.reaction.v1.created`), the server also returns batch new reactions events (`google.workspace.chat.reaction.v1.batchCreated`). For a list of supported event types, see the [`SpaceEvents` reference documentation](https://developers.google.com/workspace/chat/api/reference/rest/v1/spaces.spaceEvents#SpaceEvent.FIELDS.event_type). Optionally, you can also filter by start time (`start_time`) and end time (`end_time`): * `start_time`: Exclusive timestamp from which to start listing space events. You can list events that occurred up to 28 days ago. If unspecified, lists space events from the past 28 days. * `end_time`: Inclusive timestamp until which space events are listed. If unspecified, lists events up to the time of the request. To specify a start or end time, use the equals `=` operator and format in [RFC-3339](https://www.rfc-editor.org/rfc/rfc3339). To filter by both `start_time` and `end_time`, use the `AND` operator. For example, the following queries are valid: ``` start_time="2023-08-23T19:20:33+00:00" AND end_time="2023-08-23T19:21:54+00:00" ``` ``` start_time="2023-08-23T19:20:33+00:00" AND (event_types:"google.workspace.chat.space.v1.updated" OR event_types:"google.workspace.chat.message.v1.created") ``` The following queries are invalid: ``` start_time="2023-08-23T19:20:33+00:00" OR end_time="2023-08-23T19:21:54+00:00" ``` ``` event_types:"google.workspace.chat.space.v1.updated" AND event_types:"google.workspace.chat.message.v1.created" ``` Invalid queries are rejected by the server with an `INVALID_ARGUMENT` error.',
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of space events returned. The service might return fewer than this value. Negative values return an `INVALID_ARGUMENT` error.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "spaceEvents",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

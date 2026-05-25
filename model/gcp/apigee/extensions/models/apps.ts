@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -39,6 +40,57 @@ const GET_CONFIG = {
     "name": {
       "location": "path",
       "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "apigee.organizations.apps.list",
+  "path": "v1/{+parent}/apps",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "apiProduct": {
+      "location": "query",
+    },
+    "apptype": {
+      "location": "query",
+    },
+    "expand": {
+      "location": "query",
+    },
+    "filter": {
+      "location": "query",
+    },
+    "ids": {
+      "location": "query",
+    },
+    "includeCred": {
+      "location": "query",
+    },
+    "keyStatus": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+    "rows": {
+      "location": "query",
+    },
+    "startKey": {
+      "location": "query",
+    },
+    "status": {
+      "location": "query",
     },
   },
 } as const;
@@ -103,7 +155,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Apigee Apps. Registered at `@swamp/gcp/apigee/apps`. */
 export const model = {
   type: "@swamp/gcp/apigee/apps",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -157,6 +209,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -250,6 +307,102 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List apps resources",
+      arguments: z.object({
+        apiProduct: z.string().describe("API product.").optional(),
+        apptype: z.string().describe(
+          "Optional. 'apptype' is no longer available. Use a 'filter' instead.",
+        ).optional(),
+        expand: z.boolean().describe(
+          "Optional. Flag that specifies whether to return an expanded list of apps for the organization. Defaults to `false`.",
+        ).optional(),
+        filter: z.string().describe(
+          'Optional. The filter expression to be used to get the list of apps, where filtering can be done on developerEmail, apiProduct, consumerKey, status, appId, appName, appType and appGroup. Examples: "developerEmail=foo@bar.com", "appType=AppGroup", or "appType=Developer" "filter" is supported from ver 1.10.0 and above.',
+        ).optional(),
+        ids: z.string().describe(
+          "Optional. Comma-separated list of app IDs on which to filter.",
+        ).optional(),
+        includeCred: z.boolean().describe(
+          "Optional. Flag that specifies whether to include credentials in the response.",
+        ).optional(),
+        keyStatus: z.string().describe(
+          "Optional. Key status of the app. Valid values include `approved` or `revoked`. Defaults to `approved`.",
+        ).optional(),
+        pageSize: z.number().describe(
+          'Optional. Count of apps a single page can have in the response. If unspecified, at most 1000 apps will be returned. The maximum value is 1000; values above 1000 will be coerced to 1000. "page_size" is supported from ver 1.10.0 and above.',
+        ).optional(),
+        rows: z.string().describe(
+          "Optional. Maximum number of app IDs to return. Defaults to 1000, which is also the upper limit. To get more than 1000, use pagination with 'pageSize' and 'pageToken' parameters.",
+        ).optional(),
+        startKey: z.string().describe(
+          "Returns the list of apps starting from the specified app ID.",
+        ).optional(),
+        status: z.string().describe(
+          "Optional. Filter by the status of the app. Valid values are `approved` or `revoked`. Defaults to `approved`.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["apiProduct"] !== undefined) {
+          params["apiProduct"] = String(args["apiProduct"]);
+        }
+        if (args["apptype"] !== undefined) {
+          params["apptype"] = String(args["apptype"]);
+        }
+        if (args["expand"] !== undefined) {
+          params["expand"] = String(args["expand"]);
+        }
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["ids"] !== undefined) params["ids"] = String(args["ids"]);
+        if (args["includeCred"] !== undefined) {
+          params["includeCred"] = String(args["includeCred"]);
+        }
+        if (args["keyStatus"] !== undefined) {
+          params["keyStatus"] = String(args["keyStatus"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["rows"] !== undefined) params["rows"] = String(args["rows"]);
+        if (args["startKey"] !== undefined) {
+          params["startKey"] = String(args["startKey"]);
+        }
+        if (args["status"] !== undefined) {
+          params["status"] = String(args["status"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "app",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

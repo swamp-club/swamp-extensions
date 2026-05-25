@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -44,6 +45,27 @@ const GET_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "datastream.projects.locations.streams.objects.list",
+  "path": "v1/{+parent}/objects",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -62,9 +84,6 @@ const StateSchema = z.object({
       message: z.string(),
       reason: z.string(),
     })),
-    eventFilter: z.object({
-      sqlWhereClause: z.string(),
-    }),
     lastEndTime: z.string(),
     lastStartTime: z.string(),
     state: z.string(),
@@ -145,7 +164,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Datastream Streams.Objects. Registered at `@swamp/gcp/datastream/streams-objects`. */
 export const model = {
   type: "@swamp/gcp/datastream/streams-objects",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -219,6 +238,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -312,6 +336,50 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List objects resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "Optional. Maximum number of objects to return. Default is 50. The maximum value is 1000; values above 1000 will be coerced to 1000.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "streamObjects",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     lookup: {

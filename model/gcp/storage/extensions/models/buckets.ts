@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   request,
   updateResource,
@@ -1314,7 +1315,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Storage JSON Buckets. Registered at `@swamp/gcp/storage/buckets`. */
 export const model = {
   type: "@swamp/gcp/storage/buckets",
-  version: "2026.05.22.3",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1383,6 +1384,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.22.3",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1732,6 +1743,81 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List buckets resources",
+      arguments: z.object({
+        maxResults: z.number().describe(
+          "Maximum number of buckets to return in a single response. The service will use this parameter or 1,000 items, whichever is smaller.",
+        ).optional(),
+        prefix: z.string().describe(
+          "Filter results to buckets whose names begin with this prefix.",
+        ).optional(),
+        project: z.string().describe("A valid API project identifier.")
+          .optional(),
+        projection: z.string().describe(
+          "Set of properties to return. Defaults to noAcl.",
+        ).optional(),
+        returnPartialSuccess: z.boolean().describe(
+          "If true, return a list of bucket resource names for buckets that are in unreachable locations.",
+        ).optional(),
+        softDeleted: z.boolean().describe(
+          "If true, only soft-deleted bucket versions will be returned. The default is false. For more information, see [Soft Delete](https://cloud.google.com/storage/docs/soft-delete).",
+        ).optional(),
+        userProject: z.string().describe(
+          "The project to be billed for this request.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["prefix"] !== undefined) {
+          params["prefix"] = String(args["prefix"]);
+        }
+        if (args["project"] !== undefined) {
+          params["project"] = String(args["project"]);
+        }
+        if (args["projection"] !== undefined) {
+          params["projection"] = String(args["projection"]);
+        }
+        if (args["returnPartialSuccess"] !== undefined) {
+          params["returnPartialSuccess"] = String(args["returnPartialSuccess"]);
+        }
+        if (args["softDeleted"] !== undefined) {
+          params["softDeleted"] = String(args["softDeleted"]);
+        }
+        if (args["userProject"] !== undefined) {
+          params["userProject"] = String(args["userProject"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     get_iam_policy: {

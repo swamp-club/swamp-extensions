@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -269,9 +270,6 @@ const GlobalArgsSchema = z.object({
     containerMemory: z.string().describe(
       'Optional. Amount of memory provisioned for a Python UDF container instance. Format: {number}{unit} where unit is one of "M", "G", "Mi" and "Gi" (e.g. 1G, 512Mi). If not specified, the default value is 512Mi. For more information, see [Configure container limits for Python UDFs](https://cloud.google.com/bigquery/docs/user-defined-functions-python#configure-container-limits)',
     ).optional(),
-    containerRequestConcurrency: z.string().describe(
-      "Optional. Maximum number of requests that a Cloud Run instance can handle concurrently. If absent or if `0`, a default concurrency is used.",
-    ).optional(),
     maxBatchingRows: z.string().describe(
       "Optional. Maximum number of rows in each batch sent to the external runtime. If absent or if 0, BigQuery dynamically decides the number of rows in a batch.",
     ).optional(),
@@ -496,7 +494,6 @@ const StateSchema = z.object({
   externalRuntimeOptions: z.object({
     containerCpu: z.number(),
     containerMemory: z.string(),
-    containerRequestConcurrency: z.string(),
     maxBatchingRows: z.string(),
     runtimeConnection: z.string(),
     runtimeVersion: z.string(),
@@ -672,9 +669,6 @@ const InputsSchema = z.object({
     ).optional(),
     containerMemory: z.string().describe(
       'Optional. Amount of memory provisioned for a Python UDF container instance. Format: {number}{unit} where unit is one of "M", "G", "Mi" and "Gi" (e.g. 1G, 512Mi). If not specified, the default value is 512Mi. For more information, see [Configure container limits for Python UDFs](https://cloud.google.com/bigquery/docs/user-defined-functions-python#configure-container-limits)',
-    ).optional(),
-    containerRequestConcurrency: z.string().describe(
-      "Optional. Maximum number of requests that a Cloud Run instance can handle concurrently. If absent or if `0`, a default concurrency is used.",
     ).optional(),
     maxBatchingRows: z.string().describe(
       "Optional. Maximum number of rows in each batch sent to the external runtime. If absent or if 0, BigQuery dynamically decides the number of rows in a batch.",
@@ -868,7 +862,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud BigQuery Routines. Registered at `@swamp/gcp/bigquery/routines`. */
 export const model = {
   type: "@swamp/gcp/bigquery/routines",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -932,6 +926,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1245,6 +1244,62 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List routines resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "If set, then only the Routines matching this filter are returned. The supported format is `routineType:{RoutineType}`, where `{RoutineType}` is a RoutineType enum. For example: `routineType:SCALAR_FUNCTION`.",
+        ).optional(),
+        maxResults: z.number().describe(
+          "The maximum number of results to return in a single response page. Leverage the page tokens to iterate through the entire collection.",
+        ).optional(),
+        readMask: z.string().describe(
+          "If set, then only the Routine fields in the field mask, as well as project_id, dataset_id and routine_id, are returned in the response. If unset, then the following Routine fields are returned: etag, project_id, dataset_id, routine_id, routine_type, creation_time, last_modified_time, and language.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["datasetId"] !== undefined) {
+          params["datasetId"] = String(g["datasetId"]);
+        }
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["readMask"] !== undefined) {
+          params["readMask"] = String(args["readMask"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "routines",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     get_iam_policy: {

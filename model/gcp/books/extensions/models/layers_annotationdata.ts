@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -60,6 +61,61 @@ const GET_CONFIG = {
       "location": "query",
     },
     "source": {
+      "location": "query",
+    },
+    "volumeId": {
+      "location": "path",
+      "required": true,
+    },
+    "w": {
+      "location": "query",
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "books.layers.annotationData.list",
+  "path": "books/v1/volumes/{volumeId}/layers/{layerId}/data",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "volumeId",
+    "layerId",
+    "contentVersion",
+  ],
+  "parameters": {
+    "annotationDataId": {
+      "location": "query",
+    },
+    "contentVersion": {
+      "location": "query",
+      "required": true,
+    },
+    "h": {
+      "location": "query",
+    },
+    "layerId": {
+      "location": "path",
+      "required": true,
+    },
+    "locale": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "scale": {
+      "location": "query",
+    },
+    "source": {
+      "location": "query",
+    },
+    "updatedMax": {
+      "location": "query",
+    },
+    "updatedMin": {
       "location": "query",
     },
     "volumeId": {
@@ -119,7 +175,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Books Layers.AnnotationData. Registered at `@swamp/gcp/books/layers-annotationdata`. */
 export const model = {
   type: "@swamp/gcp/books/layers-annotationdata",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -178,6 +234,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -293,6 +354,104 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List annotationData resources",
+      arguments: z.object({
+        annotationDataId: z.string().describe(
+          "The list of Annotation Data Ids to retrieve. Pagination is ignored if this is set.",
+        ).optional(),
+        contentVersion: z.string().describe(
+          "The content version for the requested volume.",
+        ).optional(),
+        h: z.number().describe(
+          "The requested pixel height for any images. If height is provided width must also be provided.",
+        ).optional(),
+        locale: z.string().describe(
+          "The locale information for the data. ISO-639-1 language and ISO-3166-1 country code. Ex: 'en_US'.",
+        ).optional(),
+        maxResults: z.number().describe("Maximum number of results to return")
+          .optional(),
+        scale: z.number().describe("The requested scale for the image.")
+          .optional(),
+        source: z.string().describe(
+          "String to identify the originator of this request.",
+        ).optional(),
+        updatedMax: z.string().describe(
+          "RFC 3339 timestamp to restrict to items updated prior to this timestamp (exclusive).",
+        ).optional(),
+        updatedMin: z.string().describe(
+          "RFC 3339 timestamp to restrict to items updated since this timestamp (inclusive).",
+        ).optional(),
+        w: z.number().describe(
+          "The requested pixel width for any images. If width is provided height must also be provided.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["volumeId"] !== undefined) {
+          params["volumeId"] = String(g["volumeId"]);
+        }
+        if (g["layerId"] !== undefined) {
+          params["layerId"] = String(g["layerId"]);
+        }
+        if (g["contentVersion"] !== undefined) {
+          params["contentVersion"] = String(g["contentVersion"]);
+        }
+        if (args["annotationDataId"] !== undefined) {
+          params["annotationDataId"] = String(args["annotationDataId"]);
+        }
+        if (args["contentVersion"] !== undefined) {
+          params["contentVersion"] = String(args["contentVersion"]);
+        }
+        if (args["h"] !== undefined) params["h"] = String(args["h"]);
+        if (args["locale"] !== undefined) {
+          params["locale"] = String(args["locale"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["scale"] !== undefined) {
+          params["scale"] = String(args["scale"]);
+        }
+        if (args["source"] !== undefined) {
+          params["source"] = String(args["source"]);
+        }
+        if (args["updatedMax"] !== undefined) {
+          params["updatedMax"] = String(args["updatedMax"]);
+        }
+        if (args["updatedMin"] !== undefined) {
+          params["updatedMin"] = String(args["updatedMin"]);
+        }
+        if (args["w"] !== undefined) params["w"] = String(args["w"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

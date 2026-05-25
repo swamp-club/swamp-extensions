@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -69,107 +70,49 @@ const StateSchema = z.object({
   dependsOn: z.array(z.string()).optional(),
   description: z.string().optional(),
   inputSchema: z.object({
-    $comment: z.string(),
-    $defs: z.record(z.string(), z.unknown()),
-    $id: z.string(),
-    $ref: z.string(),
-    $schema: z.string(),
     additionalDetails: z.record(z.string(), z.unknown()),
-    additionalItems: z.string(),
-    additionalProperties: z.string(),
-    allOf: z.array(z.string()),
-    anyOf: z.array(z.string()),
-    const: z.string(),
-    contains: z.string(),
-    contentEncoding: z.string(),
-    contentMediaType: z.string(),
     default: z.string(),
-    definitions: z.record(z.string(), z.unknown()),
-    dependencies: z.record(z.string(), z.unknown()),
     description: z.string(),
-    else: z.string(),
     enum: z.array(z.string()),
-    examples: z.array(z.string()),
-    exclusiveMaximum: z.string(),
-    exclusiveMinimum: z.string(),
+    exclusiveMaximum: z.boolean(),
+    exclusiveMinimum: z.boolean(),
     format: z.string(),
-    if: z.string(),
     items: z.string(),
     jdbcType: z.string(),
     maxItems: z.number(),
     maxLength: z.number(),
-    maxProperties: z.number(),
     maximum: z.string(),
     minItems: z.number(),
     minLength: z.number(),
-    minProperties: z.number(),
     minimum: z.string(),
-    multipleOf: z.number(),
-    not: z.string(),
-    oneOf: z.array(z.string()),
     pattern: z.string(),
-    patternProperties: z.record(z.string(), z.unknown()),
     properties: z.record(z.string(), z.unknown()),
-    propertyNames: z.string(),
-    readOnly: z.boolean(),
     required: z.array(z.string()),
-    then: z.string(),
-    title: z.string(),
     type: z.array(z.string()),
     uniqueItems: z.boolean(),
-    writeOnly: z.boolean(),
   }).optional(),
   name: z.string(),
   outputSchema: z.object({
-    $comment: z.string(),
-    $defs: z.record(z.string(), z.unknown()),
-    $id: z.string(),
-    $ref: z.string(),
-    $schema: z.string(),
     additionalDetails: z.record(z.string(), z.unknown()),
-    additionalItems: z.string(),
-    additionalProperties: z.string(),
-    allOf: z.array(z.string()),
-    anyOf: z.array(z.string()),
-    const: z.string(),
-    contains: z.string(),
-    contentEncoding: z.string(),
-    contentMediaType: z.string(),
     default: z.string(),
-    definitions: z.record(z.string(), z.unknown()),
-    dependencies: z.record(z.string(), z.unknown()),
     description: z.string(),
-    else: z.string(),
     enum: z.array(z.string()),
-    examples: z.array(z.string()),
-    exclusiveMaximum: z.string(),
-    exclusiveMinimum: z.string(),
+    exclusiveMaximum: z.boolean(),
+    exclusiveMinimum: z.boolean(),
     format: z.string(),
-    if: z.string(),
     items: z.string(),
     jdbcType: z.string(),
     maxItems: z.number(),
     maxLength: z.number(),
-    maxProperties: z.number(),
     maximum: z.string(),
     minItems: z.number(),
     minLength: z.number(),
-    minProperties: z.number(),
     minimum: z.string(),
-    multipleOf: z.number(),
-    not: z.string(),
-    oneOf: z.array(z.string()),
     pattern: z.string(),
-    patternProperties: z.record(z.string(), z.unknown()),
     properties: z.record(z.string(), z.unknown()),
-    propertyNames: z.string(),
-    readOnly: z.boolean(),
     required: z.array(z.string()),
-    then: z.string(),
-    title: z.string(),
     type: z.array(z.string()),
     uniqueItems: z.boolean(),
-    writeOnly: z.boolean(),
   }).optional(),
 }).passthrough();
 
@@ -185,7 +128,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Connectors Connections.Tools. Registered at `@swamp/gcp/connectors/connections-tools`. */
 export const model = {
   type: "@swamp/gcp/connectors/connections-tools",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -259,6 +202,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -357,6 +305,56 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List tools resources",
+      arguments: z.object({
+        executionConfig_headers: z.string().describe(
+          'headers to be used for the request. For example: headers:\'{"x-integration-connectors-managed-connection-id":"conn-id","x-integration-connectors-runtime-config":"runtime-cfg"}\'',
+        ).optional(),
+        pageSize: z.number().describe("Page size.").optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["executionConfig_headers"] !== undefined) {
+          params["executionConfig.headers"] = String(
+            args["executionConfig_headers"],
+          );
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "tools",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     execute: {

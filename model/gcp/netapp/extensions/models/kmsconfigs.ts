@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -132,7 +133,7 @@ const GlobalArgsSchema = z.object({
   labels: z.record(z.string(), z.string()).describe("Labels as key value pairs")
     .optional(),
   name: z.string().describe(
-    "Identifier. Name of the `KmsConfig`. Format: `projects/{project}/locations/{location}/kmsConfigs/{kms_config}`",
+    "Identifier. Name of the KmsConfig. Format: `projects/{project}/locations/{location}/kmsConfigs/{kms_config}`",
   ).optional(),
   kmsConfigId: z.string().describe(
     "Required. Id of the requesting KmsConfig. Must be unique within the parent resource. Must contain only letters, numbers and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum.",
@@ -164,7 +165,7 @@ const InputsSchema = z.object({
   labels: z.record(z.string(), z.string()).describe("Labels as key value pairs")
     .optional(),
   name: z.string().describe(
-    "Identifier. Name of the `KmsConfig`. Format: `projects/{project}/locations/{location}/kmsConfigs/{kms_config}`",
+    "Identifier. Name of the KmsConfig. Format: `projects/{project}/locations/{location}/kmsConfigs/{kms_config}`",
   ).optional(),
   kmsConfigId: z.string().describe(
     "Required. Id of the requesting KmsConfig. Must be unique within the parent resource. Must contain only letters, numbers and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum.",
@@ -177,7 +178,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud NetApp KmsConfigs. Registered at `@swamp/gcp/netapp/kmsconfigs`. */
 export const model = {
   type: "@swamp/gcp/netapp/kmsconfigs",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -251,6 +252,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -509,6 +515,59 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List kmsConfigs resources",
+      arguments: z.object({
+        filter: z.string().describe("List filter.").optional(),
+        orderBy: z.string().describe(
+          'Sort results. Supported values are "name", "name desc" or "" (unsorted).',
+        ).optional(),
+        pageSize: z.number().describe("The maximum number of items to return.")
+          .optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "kmsConfigs",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     encrypt: {

@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -138,7 +139,6 @@ const GlobalArgsSchema = z.object({
     "AUTH_MODE_UNSPECIFIED",
     "AUTH_MODE_IAM_AUTH",
     "AUTH_MODE_DISABLED",
-    "AUTH_MODE_TOKEN_AUTH",
   ]).describe(
     "Optional. The authorization mode of the Redis cluster. If not provided, auth feature is disabled for the cluster.",
   ).optional(),
@@ -404,9 +404,6 @@ const GlobalArgsSchema = z.object({
     "REDIS_HIGHMEM_MEDIUM",
     "REDIS_HIGHMEM_XLARGE",
     "REDIS_STANDARD_SMALL",
-    "REDIS_HIGHCPU_MEDIUM",
-    "REDIS_STANDARD_LARGE",
-    "REDIS_HIGHMEM_2XLARGE",
   ]).describe(
     "Optional. The type of a redis node in the cluster. NodeType determines the underlying machine-type of a redis node.",
   ).optional(),
@@ -473,9 +470,6 @@ const GlobalArgsSchema = z.object({
         "REDIS_HIGHMEM_MEDIUM",
         "REDIS_HIGHMEM_XLARGE",
         "REDIS_STANDARD_SMALL",
-        "REDIS_HIGHCPU_MEDIUM",
-        "REDIS_STANDARD_LARGE",
-        "REDIS_HIGHMEM_2XLARGE",
       ]).describe("Target node type for redis cluster.").optional(),
       targetReplicaCount: z.number().int().describe(
         "Target number of replica nodes per shard.",
@@ -697,7 +691,6 @@ const InputsSchema = z.object({
     "AUTH_MODE_UNSPECIFIED",
     "AUTH_MODE_IAM_AUTH",
     "AUTH_MODE_DISABLED",
-    "AUTH_MODE_TOKEN_AUTH",
   ]).describe(
     "Optional. The authorization mode of the Redis cluster. If not provided, auth feature is disabled for the cluster.",
   ).optional(),
@@ -963,9 +956,6 @@ const InputsSchema = z.object({
     "REDIS_HIGHMEM_MEDIUM",
     "REDIS_HIGHMEM_XLARGE",
     "REDIS_STANDARD_SMALL",
-    "REDIS_HIGHCPU_MEDIUM",
-    "REDIS_STANDARD_LARGE",
-    "REDIS_HIGHMEM_2XLARGE",
   ]).describe(
     "Optional. The type of a redis node in the cluster. NodeType determines the underlying machine-type of a redis node.",
   ).optional(),
@@ -1032,9 +1022,6 @@ const InputsSchema = z.object({
         "REDIS_HIGHMEM_MEDIUM",
         "REDIS_HIGHMEM_XLARGE",
         "REDIS_STANDARD_SMALL",
-        "REDIS_HIGHCPU_MEDIUM",
-        "REDIS_STANDARD_LARGE",
-        "REDIS_HIGHMEM_2XLARGE",
       ]).describe("Target node type for redis cluster.").optional(),
       targetReplicaCount: z.number().int().describe(
         "Target number of replica nodes per shard.",
@@ -1079,7 +1066,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Cloud Memorystore for Redis Clusters. Registered at `@swamp/gcp/redis/clusters`. */
 export const model = {
   type: "@swamp/gcp/redis/clusters",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1158,6 +1145,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1542,48 +1534,48 @@ export const model = {
         }
       },
     },
-    add_token_auth_user: {
-      description: "add token auth user",
+    list: {
+      description: "List clusters resources",
       arguments: z.object({
-        tokenAuthUser: z.any().optional(),
+        pageSize: z.number().describe(
+          "The maximum number of items to return. If not specified, a default value of 1000 will be used by the service. Regardless of the page_size value, the response may include a partial list and a caller should only rely on response's `next_page_token` to determine if there are more clusters left to be queried.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
-            /\.\./g,
-            "_",
-          ).replace(/\0/g, ""),
-        );
-        if (!content) {
-          throw new Error("No existing state found - run create or get first");
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
         }
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        params["cluster"] = existing["name"]?.toString() ??
-          g["name"]?.toString() ?? "";
-        const body: Record<string, unknown> = {};
-        if (args["tokenAuthUser"] !== undefined) {
-          body["tokenAuthUser"] = args["tokenAuthUser"];
-        }
-        const result = await createResource(
+        const { items, nextPageToken } = await listResources(
           BASE_URL,
-          {
-            "id": "redis.projects.locations.clusters.addTokenAuthUser",
-            "path": "v1/{+cluster}:addTokenAuthUser",
-            "httpMethod": "POST",
-            "parameterOrder": ["cluster"],
-            "parameters": {
-              "cluster": { "location": "path", "required": true },
-            },
-          },
+          LIST_CONFIG,
           params,
-          body,
+          "clusters",
+          (args.maxPages as number | undefined) ?? 10,
         );
-        return { result };
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     backup: {

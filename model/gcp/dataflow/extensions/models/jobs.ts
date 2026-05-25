@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -320,9 +321,6 @@ const GlobalArgsSchema = z.object({
           "The resource to read the package from. The supported resource type is: Google Cloud Storage: storage.googleapis.com/{bucket} bucket.storage.googleapis.com/",
         ).optional(),
         name: z.unknown().describe("The name of the package.").optional(),
-        sha256: z.unknown().describe(
-          "Optional. The hex-encoded SHA256 checksum of the package. If the checksum is provided, the worker will verify the checksum of the package before using it. If the checksum does not match, the worker will fail to start.",
-        ).optional(),
       })).describe("Packages to be installed on workers.").optional(),
       poolArgs: z.record(z.string(), z.string()).describe(
         "Extra arguments for this worker pool.",
@@ -765,12 +763,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   runtimeUpdatableParams: z.object({
     acceptableBacklogDuration: z.string().describe(
-      "Optional. Deprecated: Use `latency_tier` instead. The backlog threshold duration in seconds for autoscaling. Value must be non-negative.",
+      "Optional. Deprecated: Use `autoscaling_tier` instead. The backlog threshold duration in seconds for autoscaling. Value must be non-negative.",
     ).optional(),
     autoscalingTier: z.string().describe(
-      'Optional. Deprecated: Use `latency_tier` instead. The backlog threshold tier for autoscaling. Value must be one of "low-latency", "medium-latency", or "high-latency".',
-    ).optional(),
-    latencyTier: z.string().describe(
       'Optional. The backlog threshold tier for autoscaling. Value must be one of "low-latency", "medium-latency", or "high-latency".',
     ).optional(),
     maxNumWorkers: z.number().int().describe(
@@ -908,7 +903,6 @@ const StateSchema = z.object({
       packages: z.array(z.object({
         location: z.unknown(),
         name: z.unknown(),
-        sha256: z.unknown(),
       })),
       poolArgs: z.record(z.string(), z.unknown()),
       sdkHarnessContainerImages: z.array(z.object({
@@ -1074,7 +1068,6 @@ const StateSchema = z.object({
   runtimeUpdatableParams: z.object({
     acceptableBacklogDuration: z.string(),
     autoscalingTier: z.string(),
-    latencyTier: z.string(),
     maxNumWorkers: z.number(),
     minNumWorkers: z.number(),
     workerUtilizationHint: z.number(),
@@ -1289,9 +1282,6 @@ const InputsSchema = z.object({
           "The resource to read the package from. The supported resource type is: Google Cloud Storage: storage.googleapis.com/{bucket} bucket.storage.googleapis.com/",
         ).optional(),
         name: z.unknown().describe("The name of the package.").optional(),
-        sha256: z.unknown().describe(
-          "Optional. The hex-encoded SHA256 checksum of the package. If the checksum is provided, the worker will verify the checksum of the package before using it. If the checksum does not match, the worker will fail to start.",
-        ).optional(),
       })).describe("Packages to be installed on workers.").optional(),
       poolArgs: z.record(z.string(), z.string()).describe(
         "Extra arguments for this worker pool.",
@@ -1734,12 +1724,9 @@ const InputsSchema = z.object({
   ).optional(),
   runtimeUpdatableParams: z.object({
     acceptableBacklogDuration: z.string().describe(
-      "Optional. Deprecated: Use `latency_tier` instead. The backlog threshold duration in seconds for autoscaling. Value must be non-negative.",
+      "Optional. Deprecated: Use `autoscaling_tier` instead. The backlog threshold duration in seconds for autoscaling. Value must be non-negative.",
     ).optional(),
     autoscalingTier: z.string().describe(
-      'Optional. Deprecated: Use `latency_tier` instead. The backlog threshold tier for autoscaling. Value must be one of "low-latency", "medium-latency", or "high-latency".',
-    ).optional(),
-    latencyTier: z.string().describe(
       'Optional. The backlog threshold tier for autoscaling. Value must be one of "low-latency", "medium-latency", or "high-latency".',
     ).optional(),
     maxNumWorkers: z.number().int().describe(
@@ -1824,7 +1811,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dataflow Jobs. Registered at `@swamp/gcp/dataflow/jobs`. */
 export const model = {
   type: "@swamp/gcp/dataflow/jobs",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1908,6 +1895,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2194,6 +2191,58 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List jobs resources",
+      arguments: z.object({
+        filter: z.string().describe("The kind of filter to use.").optional(),
+        location: z.string().describe(
+          "The [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints) that contains this job.",
+        ).optional(),
+        name: z.string().describe("Optional. The job name.").optional(),
+        pageSize: z.number().describe(
+          "If there are many jobs, limit response to at most this many. The actual number of jobs returned will be the lesser of max_responses and an unspecified server-defined limit.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["location"] !== undefined) {
+          params["location"] = String(args["location"]);
+        }
+        if (args["name"] !== undefined) params["name"] = String(args["name"]);
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "failedLocation",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     aggregated: {

@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud Google Drive Approvals.
  *
- * Metadata for an approval. An approval is a review or approve process for a Drive item.
+ * Metadata for an approval. An approval is a review/approve process for a Drive item.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -16,9 +16,9 @@
 
 import { z } from "npm:zod@4.3.6";
 import {
-  createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -40,6 +40,27 @@ const GET_CONFIG = {
     "fileId": {
       "location": "path",
       "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "drive.approvals.list",
+  "path": "files/{fileId}/approvals",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "fileId",
+  ],
+  "parameters": {
+    "fileId": {
+      "location": "path",
+      "required": true,
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
     },
   },
 } as const;
@@ -90,7 +111,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Drive Approvals. Registered at `@swamp/gcp/drive/approvals`. */
 export const model = {
   type: "@swamp/gcp/drive/approvals",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -167,13 +188,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
       description:
-        "Metadata for an approval. An approval is a review or approve process for a Dr...",
+        "Metadata for an approval. An approval is a review/approve process for a Drive...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -263,287 +289,46 @@ export const model = {
         }
       },
     },
-    approve: {
-      description: "approve",
+    list: {
+      description: "List approvals resources",
       arguments: z.object({
-        message: z.any().optional(),
+        pageSize: z.number().describe(
+          "The maximum number of Approvals to return. When not set, at most 100 Approvals will be returned.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
-            /\.\./g,
-            "_",
-          ).replace(/\0/g, ""),
-        );
-        if (!content) {
-          throw new Error("No existing state found - run create or get first");
+        if (g["fileId"] !== undefined) params["fileId"] = String(g["fileId"]);
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
         }
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        params["fileId"] = existing["fileId"]?.toString() ??
-          g["fileId"]?.toString() ?? "";
-        params["approvalId"] = existing["name"]?.toString() ??
-          g["name"]?.toString() ?? "";
-        const body: Record<string, unknown> = {};
-        if (args["message"] !== undefined) body["message"] = args["message"];
-        const result = await createResource(
+        const { items, nextPageToken } = await listResources(
           BASE_URL,
-          {
-            "id": "drive.approvals.approve",
-            "path": "files/{fileId}/approvals/{approvalId}:approve",
-            "httpMethod": "POST",
-            "parameterOrder": ["fileId", "approvalId"],
-            "parameters": {
-              "approvalId": { "location": "path", "required": true },
-              "fileId": { "location": "path", "required": true },
-            },
-          },
+          LIST_CONFIG,
           params,
-          body,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
         );
-        return { result };
-      },
-    },
-    cancel: {
-      description: "cancel",
-      arguments: z.object({
-        message: z.any().optional(),
-      }),
-      execute: async (args: Record<string, unknown>, context: any) => {
-        const g = context.globalArgs;
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
-            /\.\./g,
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
             "_",
-          ).replace(/\0/g, ""),
-        );
-        if (!content) {
-          throw new Error("No existing state found - run create or get first");
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
         }
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        params["fileId"] = existing["fileId"]?.toString() ??
-          g["fileId"]?.toString() ?? "";
-        params["approvalId"] = existing["name"]?.toString() ??
-          g["name"]?.toString() ?? "";
-        const body: Record<string, unknown> = {};
-        if (args["message"] !== undefined) body["message"] = args["message"];
-        const result = await createResource(
-          BASE_URL,
-          {
-            "id": "drive.approvals.cancel",
-            "path": "files/{fileId}/approvals/{approvalId}:cancel",
-            "httpMethod": "POST",
-            "parameterOrder": ["fileId", "approvalId"],
-            "parameters": {
-              "approvalId": { "location": "path", "required": true },
-              "fileId": { "location": "path", "required": true },
-            },
-          },
-          params,
-          body,
-        );
-        return { result };
-      },
-    },
-    comment: {
-      description: "comment",
-      arguments: z.object({
-        message: z.any().optional(),
-      }),
-      execute: async (args: Record<string, unknown>, context: any) => {
-        const g = context.globalArgs;
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
-            /\.\./g,
-            "_",
-          ).replace(/\0/g, ""),
-        );
-        if (!content) {
-          throw new Error("No existing state found - run create or get first");
-        }
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        params["fileId"] = existing["fileId"]?.toString() ??
-          g["fileId"]?.toString() ?? "";
-        params["approvalId"] = existing["name"]?.toString() ??
-          g["name"]?.toString() ?? "";
-        const body: Record<string, unknown> = {};
-        if (args["message"] !== undefined) body["message"] = args["message"];
-        const result = await createResource(
-          BASE_URL,
-          {
-            "id": "drive.approvals.comment",
-            "path": "files/{fileId}/approvals/{approvalId}:comment",
-            "httpMethod": "POST",
-            "parameterOrder": ["fileId", "approvalId"],
-            "parameters": {
-              "approvalId": { "location": "path", "required": true },
-              "fileId": { "location": "path", "required": true },
-            },
-          },
-          params,
-          body,
-        );
-        return { result };
-      },
-    },
-    decline: {
-      description: "decline",
-      arguments: z.object({
-        message: z.any().optional(),
-      }),
-      execute: async (args: Record<string, unknown>, context: any) => {
-        const g = context.globalArgs;
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
-            /\.\./g,
-            "_",
-          ).replace(/\0/g, ""),
-        );
-        if (!content) {
-          throw new Error("No existing state found - run create or get first");
-        }
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        params["fileId"] = existing["fileId"]?.toString() ??
-          g["fileId"]?.toString() ?? "";
-        params["approvalId"] = existing["name"]?.toString() ??
-          g["name"]?.toString() ?? "";
-        const body: Record<string, unknown> = {};
-        if (args["message"] !== undefined) body["message"] = args["message"];
-        const result = await createResource(
-          BASE_URL,
-          {
-            "id": "drive.approvals.decline",
-            "path": "files/{fileId}/approvals/{approvalId}:decline",
-            "httpMethod": "POST",
-            "parameterOrder": ["fileId", "approvalId"],
-            "parameters": {
-              "approvalId": { "location": "path", "required": true },
-              "fileId": { "location": "path", "required": true },
-            },
-          },
-          params,
-          body,
-        );
-        return { result };
-      },
-    },
-    reassign: {
-      description: "reassign",
-      arguments: z.object({
-        addReviewers: z.any().optional(),
-        message: z.any().optional(),
-        replaceReviewers: z.any().optional(),
-      }),
-      execute: async (args: Record<string, unknown>, context: any) => {
-        const g = context.globalArgs;
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
-            /\.\./g,
-            "_",
-          ).replace(/\0/g, ""),
-        );
-        if (!content) {
-          throw new Error("No existing state found - run create or get first");
-        }
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        params["fileId"] = existing["fileId"]?.toString() ??
-          g["fileId"]?.toString() ?? "";
-        params["approvalId"] = existing["name"]?.toString() ??
-          g["name"]?.toString() ?? "";
-        const body: Record<string, unknown> = {};
-        if (args["addReviewers"] !== undefined) {
-          body["addReviewers"] = args["addReviewers"];
-        }
-        if (args["message"] !== undefined) body["message"] = args["message"];
-        if (args["replaceReviewers"] !== undefined) {
-          body["replaceReviewers"] = args["replaceReviewers"];
-        }
-        const result = await createResource(
-          BASE_URL,
-          {
-            "id": "drive.approvals.reassign",
-            "path": "files/{fileId}/approvals/{approvalId}:reassign",
-            "httpMethod": "POST",
-            "parameterOrder": ["fileId", "approvalId"],
-            "parameters": {
-              "approvalId": { "location": "path", "required": true },
-              "fileId": { "location": "path", "required": true },
-            },
-          },
-          params,
-          body,
-        );
-        return { result };
-      },
-    },
-    start: {
-      description: "start",
-      arguments: z.object({
-        dueTime: z.any().optional(),
-        lockFile: z.any().optional(),
-        message: z.any().optional(),
-        reviewerEmails: z.any().optional(),
-      }),
-      execute: async (args: Record<string, unknown>, context: any) => {
-        const g = context.globalArgs;
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
-            /\.\./g,
-            "_",
-          ).replace(/\0/g, ""),
-        );
-        if (!content) {
-          throw new Error("No existing state found - run create or get first");
-        }
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        params["fileId"] = existing["name"]?.toString() ??
-          g["name"]?.toString() ?? "";
-        const body: Record<string, unknown> = {};
-        if (args["dueTime"] !== undefined) body["dueTime"] = args["dueTime"];
-        if (args["lockFile"] !== undefined) body["lockFile"] = args["lockFile"];
-        if (args["message"] !== undefined) body["message"] = args["message"];
-        if (args["reviewerEmails"] !== undefined) {
-          body["reviewerEmails"] = args["reviewerEmails"];
-        }
-        const result = await createResource(
-          BASE_URL,
-          {
-            "id": "drive.approvals.start",
-            "path": "files/{fileId}/approvals:start",
-            "httpMethod": "POST",
-            "parameterOrder": ["fileId"],
-            "parameters": {
-              "fileId": { "location": "path", "required": true },
-            },
-          },
-          params,
-          body,
-        );
-        return { result };
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

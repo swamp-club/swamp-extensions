@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -273,7 +274,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud App Engine Admin Applications.DomainMappings. Registered at `@swamp/gcp/appengine/applications-domainmappings`. */
 export const model = {
   type: "@swamp/gcp/appengine/applications-domainmappings",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -327,6 +328,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -600,6 +606,55 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List domainMappings resources",
+      arguments: z.object({
+        pageSize: z.number().describe("Maximum results to return per page.")
+          .optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["projectsId"] !== undefined) {
+          params["projectsId"] = String(g["projectsId"]);
+        }
+        if (g["locationsId"] !== undefined) {
+          params["locationsId"] = String(g["locationsId"]);
+        }
+        if (g["applicationsId"] !== undefined) {
+          params["applicationsId"] = String(g["applicationsId"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "domainMappings",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

@@ -16,9 +16,9 @@
 
 import { z } from "npm:zod@4.3.6";
 import {
-  createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -109,7 +109,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Backup and DR Service ResourceBackupConfigs. Registered at `@swamp/gcp/backupdr/resourcebackupconfigs`. */
 export const model = {
   type: "@swamp/gcp/backupdr/resourcebackupconfigs",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -188,6 +188,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -291,35 +296,58 @@ export const model = {
         }
       },
     },
-    fetch: {
-      description: "fetch",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, unknown>, context: any) => {
+    list: {
+      description: "List resourceBackupConfigs resources",
+      arguments: z.object({
+        filter: z.string().describe("Optional. Filtering results.").optional(),
+        orderBy: z.string().describe(
+          "Optional. Hint for how to order the results.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Requested page size. Server may return fewer items than requested. If unspecified, server will use 100 as default. Maximum value is 500 and values above 500 will be coerced to 500.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
         }`;
-        const result = await createResource(
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
           BASE_URL,
-          {
-            "id": "backupdr.projects.locations.resourceBackupConfigs.fetch",
-            "path": "v1/{+parent}/resourceBackupConfigs:fetch",
-            "httpMethod": "GET",
-            "parameterOrder": ["parent"],
-            "parameters": {
-              "filter": { "location": "query" },
-              "orderBy": { "location": "query" },
-              "pageSize": { "location": "query" },
-              "pageToken": { "location": "query" },
-              "parent": { "location": "path", "required": true },
-            },
-          },
+          LIST_CONFIG,
           params,
-          {},
+          "resourceBackupConfigs",
+          (args.maxPages as number | undefined) ?? 10,
         );
-        return { result };
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

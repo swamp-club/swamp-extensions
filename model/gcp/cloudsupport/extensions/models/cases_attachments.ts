@@ -18,25 +18,27 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
-  readResource,
+  listResources,
+  readViaList,
 } from "./_lib/gcp.ts";
-
-/** Construct the fully-qualified resource name from parent and short name. */
-function buildResourceName(parent: string, shortName: string): string {
-  return `${parent}/attachments/${shortName}`;
-}
 
 const BASE_URL = "https://cloudsupport.googleapis.com/";
 
-const GET_CONFIG = {
-  "id": "cloudsupport.cases.attachments.get",
-  "path": "v2/{+name}",
+const LIST_CONFIG = {
+  "id": "cloudsupport.cases.attachments.list",
+  "path": "v2/{+parent}/attachments",
   "httpMethod": "GET",
   "parameterOrder": [
-    "name",
+    "parent",
   ],
   "parameters": {
-    "name": {
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
       "location": "path",
       "required": true,
     },
@@ -78,7 +80,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Cloud Support Cases.Attachments. Registered at `@swamp/gcp/cloudsupport/cases-attachments`. */
 export const model = {
   type: "@swamp/gcp/cloudsupport/cases-attachments",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -135,6 +137,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -157,14 +164,13 @@ export const model = {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
-        params["name"] = buildResourceName(
-          String(g["parent"] ?? ""),
-          args.identifier,
-        );
-        const result = await readResource(
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        const result = await readViaList(
           BASE_URL,
-          GET_CONFIG,
+          LIST_CONFIG,
           params,
+          "name",
+          args.identifier,
         ) as StateData;
         const instanceName = (g.name?.toString() ?? args.identifier).replace(
           /[\/\\]/g,
@@ -199,16 +205,22 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         try {
           const params: Record<string, string> = { project: projectId };
-          const shortName = existing.name?.toString() ?? g["name"]?.toString();
-          if (!shortName) throw new Error("No identifier found");
-          params["name"] = buildResourceName(
-            String(g["parent"] ?? ""),
-            shortName,
-          );
-          const result = await readResource(
+          if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+          else if (existing["parent"]) {
+            params["parent"] = String(existing["parent"]);
+          }
+          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          if (!identifier) {
+            throw new Error(
+              "No identifier found in existing state or globalArgs",
+            );
+          }
+          const result = await readViaList(
             BASE_URL,
-            GET_CONFIG,
+            LIST_CONFIG,
             params,
+            "name",
+            identifier,
           ) as StateData;
           const handle = await context.writeResource(
             "state",
@@ -226,6 +238,48 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List attachments resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "The maximum number of attachments fetched with each request. If not provided, the default is 10. The maximum page size that will be returned is 100. The size of each page can be smaller than the requested page size and can include zero. For example, you could request 100 attachments on one page, receive 0, and then on the next page, receive 90.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "attachments",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/managedkafka"
-version: "2026.05.24.1"
+version: "2026.05.25.2"
 description: "Google Cloud managedkafka infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: locations, clusters, clusters_acls, clusters_consumergroups, clusters_topics, connectclusters, connectclusters_connectors, schemaregistries, schemaregistries_config, schemaregistries_contexts, schemaregistries_contexts_config, schemaregistries_contexts_mode, schemaregistries_contexts_schemas, schemaregistries_contexts_schemas_subjects, schemaregistries_contexts_schemas_types, schemaregistries_contexts_schemas_versions, schemaregistries_contexts_subjects, schemaregistries_contexts_subjects_versions, schemaregistries_contexts_subjects_versions_referencedby, schemaregistries_mode, schemaregistries_schemas, schemaregistries_schemas_subjects, schemaregistries_schemas_types, schemaregistries_schemas_versions, schemaregistries_subjects, schemaregistries_subjects_versions, schemaregistries_subjects_versions_referencedby
+  - Updated: schemaregistries_contexts, schemaregistries_contexts_schemas_types, schemaregistries_contexts_subjects_versions_referencedby, schemaregistries_schemas_types, schemaregistries_subjects_versions_referencedby
 models:
   - clusters.ts
   - clusters_acls.ts

@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -342,25 +343,25 @@ const GlobalArgsSchema = z.object({
     "Optional. Labels as key value pairs",
   ).optional(),
   largeCapacity: z.boolean().describe(
-    "Optional. Flag indicating if the volume will be a large capacity volume or a regular volume. This field is used for legacy FILE pools. For Unified pools, use the `large_capacity_config` field instead. This field and `large_capacity_config` are mutually exclusive.",
+    "Optional. Flag indicating if the volume will be a large capacity volume or a regular volume.",
   ).optional(),
   largeCapacityConfig: z.object({
     constituentCount: z.number().int().describe(
       "Optional. The number of internal constituents (e.g., FlexVols) for this large volume. The minimum number of constituents is 2.",
     ).optional(),
   }).describe(
-    "Configuration for a Large Capacity Volume. A Large Capacity Volume supports sizes ranging from 4.8 TiB to 20 PiB; it is composed of multiple internal constituents, and must be created in a large capacity pool.",
+    "Configuration for a Large Capacity Volume. A Large Capacity Volume supports sizes ranging from 4.8 TiB to 20 PiB, it is composed of multiple internal constituents, and must be created in a large capacity pool.",
   ).optional(),
   multipleEndpoints: z.boolean().describe(
     "Optional. Flag indicating if the volume will have an IP address per node for volumes supporting multiple IP endpoints. Only the volume with large_capacity will be allowed to have multiple endpoints.",
   ).optional(),
   name: z.string().describe("Identifier. Name of the volume").optional(),
   protocols: z.array(
-    z.enum(["PROTOCOLS_UNSPECIFIED", "NFSV3", "NFSV4", "SMB", "ISCSI", "NVME"]),
+    z.enum(["PROTOCOLS_UNSPECIFIED", "NFSV3", "NFSV4", "SMB", "ISCSI"]),
   ).describe("Required. Protocols required for the volume").optional(),
   restoreParameters: z.object({
     sourceBackup: z.string().describe(
-      "Full name of the backup resource. Format for standard backup: projects/{project}/locations/{location}/backupVaults/{backup_vault_id}/backups/{backup_id}. Format for BackupDR backup: projects/{project}/locations/{location}/backupVaults/{backup_vault}/dataSources/{data_source}/backups/{backup}",
+      "Full name of the backup resource. Format for standard backup: projects/{project}/locations/{location}/backupVaults/{backup_vault_id}/backups/{backup_id} Format for BackupDR backup: projects/{project}/locations/{location}/backupVaults/{backup_vault}/dataSources/{data_source}/backups/{backup}",
     ).optional(),
     sourceSnapshot: z.string().describe(
       "Full name of the snapshot resource. Format: projects/{project}/locations/{location}/volumes/{volume}/snapshots/{snapshot}",
@@ -848,25 +849,25 @@ const InputsSchema = z.object({
     "Optional. Labels as key value pairs",
   ).optional(),
   largeCapacity: z.boolean().describe(
-    "Optional. Flag indicating if the volume will be a large capacity volume or a regular volume. This field is used for legacy FILE pools. For Unified pools, use the `large_capacity_config` field instead. This field and `large_capacity_config` are mutually exclusive.",
+    "Optional. Flag indicating if the volume will be a large capacity volume or a regular volume.",
   ).optional(),
   largeCapacityConfig: z.object({
     constituentCount: z.number().int().describe(
       "Optional. The number of internal constituents (e.g., FlexVols) for this large volume. The minimum number of constituents is 2.",
     ).optional(),
   }).describe(
-    "Configuration for a Large Capacity Volume. A Large Capacity Volume supports sizes ranging from 4.8 TiB to 20 PiB; it is composed of multiple internal constituents, and must be created in a large capacity pool.",
+    "Configuration for a Large Capacity Volume. A Large Capacity Volume supports sizes ranging from 4.8 TiB to 20 PiB, it is composed of multiple internal constituents, and must be created in a large capacity pool.",
   ).optional(),
   multipleEndpoints: z.boolean().describe(
     "Optional. Flag indicating if the volume will have an IP address per node for volumes supporting multiple IP endpoints. Only the volume with large_capacity will be allowed to have multiple endpoints.",
   ).optional(),
   name: z.string().describe("Identifier. Name of the volume").optional(),
   protocols: z.array(
-    z.enum(["PROTOCOLS_UNSPECIFIED", "NFSV3", "NFSV4", "SMB", "ISCSI", "NVME"]),
+    z.enum(["PROTOCOLS_UNSPECIFIED", "NFSV3", "NFSV4", "SMB", "ISCSI"]),
   ).describe("Required. Protocols required for the volume").optional(),
   restoreParameters: z.object({
     sourceBackup: z.string().describe(
-      "Full name of the backup resource. Format for standard backup: projects/{project}/locations/{location}/backupVaults/{backup_vault_id}/backups/{backup_id}. Format for BackupDR backup: projects/{project}/locations/{location}/backupVaults/{backup_vault}/dataSources/{data_source}/backups/{backup}",
+      "Full name of the backup resource. Format for standard backup: projects/{project}/locations/{location}/backupVaults/{backup_vault_id}/backups/{backup_id} Format for BackupDR backup: projects/{project}/locations/{location}/backupVaults/{backup_vault}/dataSources/{data_source}/backups/{backup}",
     ).optional(),
     sourceSnapshot: z.string().describe(
       "Full name of the snapshot resource. Format: projects/{project}/locations/{location}/volumes/{volume}/snapshots/{snapshot}",
@@ -991,7 +992,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud NetApp Volumes. Registered at `@swamp/gcp/netapp/volumes`. */
 export const model = {
   type: "@swamp/gcp/netapp/volumes",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1083,6 +1084,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1470,6 +1476,59 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List volumes resources",
+      arguments: z.object({
+        filter: z.string().describe("Filtering results").optional(),
+        orderBy: z.string().describe("Hint for how to order the results")
+          .optional(),
+        pageSize: z.number().describe(
+          "Requested page size. Server may return fewer items than requested. If unspecified, the server will pick an appropriate default.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "volumes",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     establish_peering: {

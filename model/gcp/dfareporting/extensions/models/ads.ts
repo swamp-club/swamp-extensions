@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -1735,7 +1736,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Campaign Manager 360 Ads. Registered at `@swamp/gcp/dfareporting/ads`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/ads",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1794,6 +1795,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2167,6 +2173,161 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List ads resources",
+      arguments: z.object({
+        active: z.boolean().describe("Select only active ads.").optional(),
+        advertiserId: z.string().describe(
+          "Select only ads with this advertiser ID.",
+        ).optional(),
+        archived: z.boolean().describe("Select only archived ads.").optional(),
+        audienceSegmentIds: z.string().describe(
+          "Select only ads with these audience segment IDs.",
+        ).optional(),
+        campaignIds: z.string().describe(
+          "Select only ads with these campaign IDs.",
+        ).optional(),
+        compatibility: z.string().describe(
+          "Select default ads with the specified compatibility. Applicable when type is AD_SERVING_DEFAULT_AD. DISPLAY and DISPLAY_INTERSTITIAL refer to rendering either on desktop or on mobile devices for regular or interstitial ads, respectively. APP and APP_INTERSTITIAL are for rendering in mobile apps. IN_STREAM_VIDEO refers to rendering an in-stream video ads developed with the VAST standard.",
+        ).optional(),
+        creativeIds: z.string().describe(
+          "Select only ads with these creative IDs assigned.",
+        ).optional(),
+        creativeOptimizationConfigurationIds: z.string().describe(
+          "Select only ads with these creative optimization configuration IDs.",
+        ).optional(),
+        dynamicClickTracker: z.boolean().describe(
+          "Select only dynamic click trackers. Applicable when type is AD_SERVING_CLICK_TRACKER. If true, select dynamic click trackers. If false, select static click trackers. Leave unset to select both.",
+        ).optional(),
+        ids: z.string().describe("Select only ads with these IDs.").optional(),
+        landingPageIds: z.string().describe(
+          "Select only ads with these landing page IDs.",
+        ).optional(),
+        maxResults: z.number().describe("Maximum number of results to return.")
+          .optional(),
+        overriddenEventTagId: z.string().describe(
+          "Select only ads with this event tag override ID.",
+        ).optional(),
+        placementIds: z.string().describe(
+          "Select only ads with these placement IDs assigned.",
+        ).optional(),
+        remarketingListIds: z.string().describe(
+          "Select only ads whose list targeting expression use these remarketing list IDs.",
+        ).optional(),
+        searchString: z.string().describe(
+          'Allows searching for objects by name or ID. Wildcards (*) are allowed. For example, "ad*2015" will return objects with names like "ad June 2015", "ad April 2015", or simply "ad 2015". Most of the searches also add wildcards implicitly at the start and the end of the search string. For example, a search string of "ad" will match objects with name "my ad", "ad 2015", or simply "ad".',
+        ).optional(),
+        sizeIds: z.string().describe("Select only ads with these size IDs.")
+          .optional(),
+        sortField: z.string().describe("Field by which to sort the list.")
+          .optional(),
+        sortOrder: z.string().describe("Order of sorted results.").optional(),
+        sslCompliant: z.boolean().describe(
+          "Select only ads that are SSL-compliant.",
+        ).optional(),
+        sslRequired: z.boolean().describe("Select only ads that require SSL.")
+          .optional(),
+        type: z.string().describe("Select only ads with these types.")
+          .optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["profileId"] !== undefined) {
+          params["profileId"] = String(g["profileId"]);
+        }
+        if (args["active"] !== undefined) {
+          params["active"] = String(args["active"]);
+        }
+        if (args["advertiserId"] !== undefined) {
+          params["advertiserId"] = String(args["advertiserId"]);
+        }
+        if (args["archived"] !== undefined) {
+          params["archived"] = String(args["archived"]);
+        }
+        if (args["audienceSegmentIds"] !== undefined) {
+          params["audienceSegmentIds"] = String(args["audienceSegmentIds"]);
+        }
+        if (args["campaignIds"] !== undefined) {
+          params["campaignIds"] = String(args["campaignIds"]);
+        }
+        if (args["compatibility"] !== undefined) {
+          params["compatibility"] = String(args["compatibility"]);
+        }
+        if (args["creativeIds"] !== undefined) {
+          params["creativeIds"] = String(args["creativeIds"]);
+        }
+        if (args["creativeOptimizationConfigurationIds"] !== undefined) {
+          params["creativeOptimizationConfigurationIds"] = String(
+            args["creativeOptimizationConfigurationIds"],
+          );
+        }
+        if (args["dynamicClickTracker"] !== undefined) {
+          params["dynamicClickTracker"] = String(args["dynamicClickTracker"]);
+        }
+        if (args["ids"] !== undefined) params["ids"] = String(args["ids"]);
+        if (args["landingPageIds"] !== undefined) {
+          params["landingPageIds"] = String(args["landingPageIds"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["overriddenEventTagId"] !== undefined) {
+          params["overriddenEventTagId"] = String(args["overriddenEventTagId"]);
+        }
+        if (args["placementIds"] !== undefined) {
+          params["placementIds"] = String(args["placementIds"]);
+        }
+        if (args["remarketingListIds"] !== undefined) {
+          params["remarketingListIds"] = String(args["remarketingListIds"]);
+        }
+        if (args["searchString"] !== undefined) {
+          params["searchString"] = String(args["searchString"]);
+        }
+        if (args["sizeIds"] !== undefined) {
+          params["sizeIds"] = String(args["sizeIds"]);
+        }
+        if (args["sortField"] !== undefined) {
+          params["sortField"] = String(args["sortField"]);
+        }
+        if (args["sortOrder"] !== undefined) {
+          params["sortOrder"] = String(args["sortOrder"]);
+        }
+        if (args["sslCompliant"] !== undefined) {
+          params["sslCompliant"] = String(args["sslCompliant"]);
+        }
+        if (args["sslRequired"] !== undefined) {
+          params["sslRequired"] = String(args["sslRequired"]);
+        }
+        if (args["type"] !== undefined) params["type"] = String(args["type"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "ads",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.id?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

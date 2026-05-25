@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -117,6 +118,33 @@ const DELETE_CONFIG = {
     "profileId": {
       "location": "path",
       "required": true,
+    },
+    "webPropertyId": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "analytics.management.profiles.list",
+  "path":
+    "management/accounts/{accountId}/webproperties/{webPropertyId}/profiles",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "accountId",
+    "webPropertyId",
+  ],
+  "parameters": {
+    "accountId": {
+      "location": "path",
+      "required": true,
+    },
+    "max-results": {
+      "location": "query",
+    },
+    "start-index": {
+      "location": "query",
     },
     "webPropertyId": {
       "location": "path",
@@ -323,7 +351,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Analytics Management.Profiles. Registered at `@swamp/gcp/analytics/management-profiles`. */
 export const model = {
   type: "@swamp/gcp/analytics/management-profiles",
-  version: "2026.05.19.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -357,6 +385,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -440,6 +473,16 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "accountId": String(g["accountId"] ?? ""),
+              "webPropertyId": String(g["webPropertyId"] ?? ""),
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
@@ -680,6 +723,59 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List profiles resources",
+      arguments: z.object({
+        max_results: z.number().describe(
+          "The maximum number of views (profiles) to include in this response.",
+        ).optional(),
+        start_index: z.number().describe(
+          "An index of the first entity to retrieve. Use this parameter as a pagination mechanism along with the max-results parameter.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["accountId"] !== undefined) {
+          params["accountId"] = String(g["accountId"]);
+        }
+        if (g["webPropertyId"] !== undefined) {
+          params["webPropertyId"] = String(g["webPropertyId"]);
+        }
+        if (args["max_results"] !== undefined) {
+          params["max-results"] = String(args["max_results"]);
+        }
+        if (args["start_index"] !== undefined) {
+          params["start-index"] = String(args["start_index"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

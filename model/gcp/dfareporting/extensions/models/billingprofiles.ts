@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -55,6 +56,51 @@ const UPDATE_CONFIG = {
     "profileId": {
       "location": "path",
       "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "dfareporting.billingProfiles.list",
+  "path": "userprofiles/{+profileId}/billingProfiles",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "profileId",
+  ],
+  "parameters": {
+    "currency_code": {
+      "location": "query",
+    },
+    "ids": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "name": {
+      "location": "query",
+    },
+    "onlySuggestion": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "profileId": {
+      "location": "path",
+      "required": true,
+    },
+    "sortField": {
+      "location": "query",
+    },
+    "sortOrder": {
+      "location": "query",
+    },
+    "status": {
+      "location": "query",
+    },
+    "subaccountIds": {
+      "location": "query",
     },
   },
 } as const;
@@ -166,7 +212,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Campaign Manager 360 BillingProfiles. Registered at `@swamp/gcp/dfareporting/billingprofiles`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/billingprofiles",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -220,6 +266,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -406,6 +457,89 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List billingProfiles resources",
+      arguments: z.object({
+        currency_code: z.string().describe(
+          "Select only billing profile with currency.",
+        ).optional(),
+        ids: z.string().describe("Select only billing profile with these IDs.")
+          .optional(),
+        maxResults: z.number().describe("Maximum number of results to return.")
+          .optional(),
+        name: z.string().describe(
+          'Allows searching for billing profiles by name. Wildcards (*) are allowed. For example, "profile*2020" will return objects with names like "profile June 2020", "profile April 2020", or simply "profile 2020". Most of the searches also add wildcards implicitly at the start and the end of the search string. For example, a search string of "profile" will match objects with name "my profile", "profile 2021", or simply "profile".',
+        ).optional(),
+        onlySuggestion: z.boolean().describe(
+          "Select only billing profile which is suggested for the currency_code & subaccount_id using the Billing Suggestion API.",
+        ).optional(),
+        sortField: z.string().describe("Field by which to sort the list.")
+          .optional(),
+        sortOrder: z.string().describe("Order of sorted results.").optional(),
+        status: z.string().describe(
+          "Select only billing profile with the specified status.",
+        ).optional(),
+        subaccountIds: z.string().describe(
+          "Select only billing profile with the specified subaccount.When only_suggestion is true, only a single subaccount_id is supported.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["profileId"] !== undefined) {
+          params["profileId"] = String(g["profileId"]);
+        }
+        if (args["currency_code"] !== undefined) {
+          params["currency_code"] = String(args["currency_code"]);
+        }
+        if (args["ids"] !== undefined) params["ids"] = String(args["ids"]);
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["name"] !== undefined) params["name"] = String(args["name"]);
+        if (args["onlySuggestion"] !== undefined) {
+          params["onlySuggestion"] = String(args["onlySuggestion"]);
+        }
+        if (args["sortField"] !== undefined) {
+          params["sortField"] = String(args["sortField"]);
+        }
+        if (args["sortOrder"] !== undefined) {
+          params["sortOrder"] = String(args["sortOrder"]);
+        }
+        if (args["status"] !== undefined) {
+          params["status"] = String(args["status"]);
+        }
+        if (args["subaccountIds"] !== undefined) {
+          params["subaccountIds"] = String(args["subaccountIds"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "billingProfiles",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.id?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Agent Platform IndexEndpoints.
+ * Swamp extension model for Google Cloud Vertex AI IndexEndpoints.
  *
  * Indexes are deployed into it. An IndexEndpoint can have multiple DeployedIndexes.
  *
@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -348,10 +349,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Agent Platform IndexEndpoints. Registered at `@swamp/gcp/aiplatform/indexendpoints`. */
+/** Swamp extension model for Google Cloud Vertex AI IndexEndpoints. Registered at `@swamp/gcp/aiplatform/indexendpoints`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/indexendpoints",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -430,6 +431,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -686,6 +692,61 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List indexEndpoints resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          'Optional. An expression for filtering the results of the request. For field names both snake_case and camelCase are supported. * `index_endpoint` supports = and !=. `index_endpoint` represents the IndexEndpoint ID, ie. the last segment of the IndexEndpoint\'s resourcename. * `display_name` supports =, != and regex() (uses [re2](https://github.com/google/re2/wiki/Syntax) syntax) * `labels` supports general map functions that is: `labels.key=value` - key:value equality `labels.key:* or labels:key - key existence A key including a space must be quoted. `labels."a key"`. Some examples: * `index_endpoint="1"` * `display_name="myDisplayName"` * `regex(display_name, "^A") -> The display name starts with an A. * `labels.myKey="myValue"`',
+        ).optional(),
+        pageSize: z.number().describe("Optional. The standard list page size.")
+          .optional(),
+        readMask: z.string().describe(
+          "Optional. Mask specifying which fields to read.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["readMask"] !== undefined) {
+          params["readMask"] = String(args["readMask"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "indexEndpoints",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     deploy_index: {

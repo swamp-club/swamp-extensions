@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -128,10 +129,6 @@ const GlobalArgsSchema = z.object({
     dispositionCode: z.string().describe(
       "A user-provided string indicating the outcome of the agent's segment of the call.",
     ).optional(),
-    entrySubagentDisplayName: z.string().describe(
-      "The entry subagent's display name.",
-    ).optional(),
-    entrySubagentId: z.string().describe("The entry subagent's ID.").optional(),
     location: z.string().describe("The agent's location.").optional(),
     team: z.string().describe(
       "A user-specified string representing the agent's team. Deprecated in favor of the `teams` field.",
@@ -163,8 +160,6 @@ const StateSchema = z.object({
     deploymentId: z.string(),
     displayName: z.string(),
     dispositionCode: z.string(),
-    entrySubagentDisplayName: z.string(),
-    entrySubagentId: z.string(),
     location: z.string(),
     team: z.string(),
     teams: z.array(z.string()),
@@ -201,10 +196,6 @@ const InputsSchema = z.object({
     dispositionCode: z.string().describe(
       "A user-provided string indicating the outcome of the agent's segment of the call.",
     ).optional(),
-    entrySubagentDisplayName: z.string().describe(
-      "The entry subagent's display name.",
-    ).optional(),
-    entrySubagentId: z.string().describe("The entry subagent's ID.").optional(),
     location: z.string().describe("The agent's location.").optional(),
     team: z.string().describe(
       "A user-specified string representing the agent's team. Deprecated in favor of the `teams` field.",
@@ -231,7 +222,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Contact Center AI Insights Conversations.Assessments. Registered at `@swamp/gcp/contactcenterinsights/conversations-assessments`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/conversations-assessments",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -305,6 +296,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -477,6 +473,56 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List assessments resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Optional. A filter to reduce results to a specific subset. Supported filters include: * `state` - The state of the assessment * `agent_info.agent_id` - The ID of the agent the assessment is for",
+        ).optional(),
+        pageSize: z.number().describe(
+          "The maximum number of assessments to list. If zero, the service will select a default size. A call may return fewer objects than requested. A non-empty `next_page_token` in the response indicates that more data is available.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "assessments",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     appeal: {

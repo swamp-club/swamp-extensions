@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/displayvideo"
-version: "2026.05.24.1"
+version: "2026.05.25.2"
 description: "Google Cloud displayvideo infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: advertisers, advertisers_adassets, advertisers_adgroupads, advertisers_adgroups, advertisers_adgroups_targetingtypes_assignedtargetingoptions, advertisers_adgroups_youtubeassettypes_youtubeassetassociations, advertisers_campaigns, advertisers_channels, advertisers_channels_sites, advertisers_creatives, advertisers_insertionorders, advertisers_invoices, advertisers_lineitems, advertisers_lineitems_targetingtypes_assignedtargetingoptions, advertisers_lineitems_youtubeassettypes_youtubeassetassociations, advertisers_locationlists, advertisers_locationlists_assignedlocations, advertisers_negativekeywordlists, advertisers_negativekeywordlists_negativekeywords, advertisers_targetingtypes_assignedtargetingoptions, combinedaudiences, custombiddingalgorithms, custombiddingalgorithms_rules, custombiddingalgorithms_scripts, customlists, firstpartyandpartneraudiences, floodlightgroups, floodlightgroups_floodlightactivities, googleaudiences, guaranteedorders, inventorysourcegroups, inventorysourcegroups_assignedinventorysources, inventorysources, partners, partners_channels, partners_channels_sites, partners_targetingtypes_assignedtargetingoptions, targetingtypes_targetingoptions, users
+  - Updated: advertisers, combinedaudiences, custombiddingalgorithms, customlists, firstpartyandpartneraudiences, googleaudiences, guaranteedorders, inventorysourcegroups, inventorysources, partners, users
 models:
   - advertisers.ts
   - advertisers_adassets.ts

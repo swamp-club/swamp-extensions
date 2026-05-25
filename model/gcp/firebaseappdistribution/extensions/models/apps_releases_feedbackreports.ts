@@ -19,6 +19,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -59,6 +60,27 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "firebaseappdistribution.projects.apps.releases.feedbackReports.list",
+  "path": "v1/{+parent}/feedbackReports",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -89,7 +111,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Firebase App Distribution Apps.Releases.FeedbackReports. Registered at `@swamp/gcp/firebaseappdistribution/apps-releases-feedbackreports`. */
 export const model = {
   type: "@swamp/gcp/firebaseappdistribution/apps-releases-feedbackreports",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -148,6 +170,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -272,6 +299,50 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List feedbackReports resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "Output only. The maximum number of feedback reports to return. The service may return fewer than this value. The valid range is [1-100]; If unspecified (0), at most 25 feedback reports are returned. Values above 100 are coerced to 100.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "feedbackReports",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

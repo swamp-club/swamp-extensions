@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -81,7 +82,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud My Business Business Information Attributes. Registered at `@swamp/gcp/mybusinessbusinessinformation/attributes`. */
 export const model = {
   type: "@swamp/gcp/mybusinessbusinessinformation/attributes",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -135,6 +136,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -229,6 +240,76 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List attributes resources",
+      arguments: z.object({
+        categoryName: z.string().describe(
+          "The primary category stable ID to find available attributes. Must be of the format categories/{category_id}.",
+        ).optional(),
+        languageCode: z.string().describe(
+          "The BCP 47 code of language to get attribute display names in. If this language is not available, they will be provided in English.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "How many attributes to include per page. Default is 200, minimum is 1.",
+        ).optional(),
+        parent: z.string().describe(
+          "Resource name of the location to look up available attributes. If this field is set, category_name, region_code, language_code and show_all are not required and must not be set.",
+        ).optional(),
+        regionCode: z.string().describe(
+          "The ISO 3166-1 alpha-2 country code to find available attributes.",
+        ).optional(),
+        showAll: z.boolean().describe(
+          "Metadata for all available attributes are returned when this field is set to true, disregarding parent and category_name fields. language_code and region_code are required when show_all is set to true.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["categoryName"] !== undefined) {
+          params["categoryName"] = String(args["categoryName"]);
+        }
+        if (args["languageCode"] !== undefined) {
+          params["languageCode"] = String(args["languageCode"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["parent"] !== undefined) {
+          params["parent"] = String(args["parent"]);
+        }
+        if (args["regionCode"] !== undefined) {
+          params["regionCode"] = String(args["regionCode"]);
+        }
+        if (args["showAll"] !== undefined) {
+          params["showAll"] = String(args["showAll"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "attributeMetadata",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -691,7 +692,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Apigee Apiproducts. Registered at `@swamp/gcp/apigee/apiproducts`. */
 export const model = {
   type: "@swamp/gcp/apigee/apiproducts",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -750,6 +751,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1070,6 +1076,78 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List apiproducts resources",
+      arguments: z.object({
+        attributename: z.string().describe(
+          "Name of the attribute used to filter the search.",
+        ).optional(),
+        attributevalue: z.string().describe(
+          "Value of the attribute used to filter the search.",
+        ).optional(),
+        count: z.string().describe(
+          "Enter the number of API products you want returned in the API call. The limit is 1000.",
+        ).optional(),
+        expand: z.boolean().describe(
+          "Flag that specifies whether to expand the results. Set to `true` to get expanded details about each API.",
+        ).optional(),
+        space: z.string().describe(
+          "Optional. The Space to list API products for. When none provided, all the spaces the user has list access, will be used implicitly, and the same following rules will apply. Can be used in conjunction with start_key, expand and count for paginated response. Composite queries with attributename and attributevalue are not supported yet.",
+        ).optional(),
+        startKey: z.string().describe(
+          "Gets a list of API products starting with a specific API product in the list. For example, if you're returning 50 API products at a time (using the `count` query parameter), you can view products 50-99 by entering the name of the 50th API product in the first API (without using `startKey`). Product name is case sensitive.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["attributename"] !== undefined) {
+          params["attributename"] = String(args["attributename"]);
+        }
+        if (args["attributevalue"] !== undefined) {
+          params["attributevalue"] = String(args["attributevalue"]);
+        }
+        if (args["count"] !== undefined) {
+          params["count"] = String(args["count"]);
+        }
+        if (args["expand"] !== undefined) {
+          params["expand"] = String(args["expand"]);
+        }
+        if (args["space"] !== undefined) {
+          params["space"] = String(args["space"]);
+        }
+        if (args["startKey"] !== undefined) {
+          params["startKey"] = String(args["startKey"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "apiProduct",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     attributes: {

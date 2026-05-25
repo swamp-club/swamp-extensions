@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -54,9 +55,6 @@ const INSERT_CONFIG = {
     "parent",
   ],
   "parameters": {
-    "createMessageNotificationOptions.notificationType": {
-      "location": "query",
-    },
     "messageId": {
       "location": "query",
     },
@@ -921,9 +919,6 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "A thread in a Google Chat space. For example usage, see [Start or reply to a message thread](https://developers.google.com/workspace/chat/create-messages#create-message-thread). If you specify a thread when creating a message, you can set the [`messageReplyOption`](https://developers.google.com/workspace/chat/api/reference/rest/v1/spaces.messages/create#messagereplyoption) field to determine what happens if no matching thread is found.",
   ).optional(),
-  createMessageNotificationOptions_notificationType: z.string().describe(
-    "The notification type for the message.",
-  ).optional(),
   messageId: z.string().describe(
     "Optional. A custom ID for a message. Lets Chat apps get, update, or delete a message without needing to store the system-assigned ID in the message's resource name (represented in the message `name` field). The value for this field must meet the following requirements: * Begins with `client-`. For example, `client-custom-name` is a valid custom ID, but `custom-name` is not. * Contains up to 63 characters and only lowercase letters, numbers, and hyphens. * Is unique within a space. A Chat app can't use the same custom ID for different messages. For details, see [Name a message](https://developers.google.com/workspace/chat/create-messages#name_a_created_message).",
   ).optional(),
@@ -1264,7 +1259,6 @@ const StateSchema = z.object({
     name: z.string(),
     type: z.string(),
   }).optional(),
-  silent: z.boolean().optional(),
   slashCommand: z.object({
     commandId: z.string(),
   }).optional(),
@@ -2127,9 +2121,6 @@ const InputsSchema = z.object({
   }).describe(
     "A thread in a Google Chat space. For example usage, see [Start or reply to a message thread](https://developers.google.com/workspace/chat/create-messages#create-message-thread). If you specify a thread when creating a message, you can set the [`messageReplyOption`](https://developers.google.com/workspace/chat/api/reference/rest/v1/spaces.messages/create#messagereplyoption) field to determine what happens if no matching thread is found.",
   ).optional(),
-  createMessageNotificationOptions_notificationType: z.string().describe(
-    "The notification type for the message.",
-  ).optional(),
   messageId: z.string().describe(
     "Optional. A custom ID for a message. Lets Chat apps get, update, or delete a message without needing to store the system-assigned ID in the message's resource name (represented in the message `name` field). The value for this field must meet the following requirements: * Begins with `client-`. For example, `client-custom-name` is a valid custom ID, but `custom-name` is not. * Contains up to 63 characters and only lowercase letters, numbers, and hyphens. * Is unique within a space. A Chat app can't use the same custom ID for different messages. For details, see [Name a message](https://developers.google.com/workspace/chat/create-messages#name_a_created_message).",
   ).optional(),
@@ -2147,7 +2138,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Chat Spaces.Messages. Registered at `@swamp/gcp/chat/spaces-messages`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces-messages",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2253,6 +2244,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "Removed: createMessageNotificationOptions_notificationType",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          createMessageNotificationOptions_notificationType:
+            _createMessageNotificationOptions_notificationType,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -2306,12 +2309,6 @@ export const model = {
         if (g["space"] !== undefined) body["space"] = g["space"];
         if (g["text"] !== undefined) body["text"] = g["text"];
         if (g["thread"] !== undefined) body["thread"] = g["thread"];
-        if (
-          g["createMessageNotificationOptions_notificationType"] !== undefined
-        ) {
-          body["createMessageNotificationOptions_notificationType"] =
-            g["createMessageNotificationOptions_notificationType"];
-        }
         if (g["messageId"] !== undefined) body["messageId"] = g["messageId"];
         if (g["messageReplyOption"] !== undefined) {
           body["messageReplyOption"] = g["messageReplyOption"];
@@ -2538,6 +2535,66 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List messages resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          'Optional. A query filter. You can filter messages by date (`create_time`) and thread (`thread.name`). To filter messages by the date they were created, specify the `create_time` with a timestamp in [RFC-3339](https://www.rfc-editor.org/rfc/rfc3339) format and double quotation marks. For example, `"2023-04-21T11:30:00-04:00"`. You can use the greater than operator `>` to list messages that were created after a timestamp, or the less than operator `<` to list messages that were created before a timestamp. To filter messages within a time interval, use the `AND` operator between two timestamps. To filter by thread, specify the `thread.name`, formatted as `spaces/{space}/threads/{thread}`. You can only specify one `thread.name` per query. To filter by both thread and date, use the `AND` operator in your query. For example, the following queries are valid: ``` create_time > "2012-04-21T11:30:00-04:00" create_time > "2012-04-21T11:30:00-04:00" AND thread.name = spaces/AAAAAAAAAAA/threads/123 create_time > "2012-04-21T11:30:00+00:00" AND create_time < "2013-01-01T00:00:00+00:00" AND thread.name = spaces/AAAAAAAAAAA/threads/123 thread.name = spaces/AAAAAAAAAAA/threads/123 ``` Invalid queries are rejected by the server with an `INVALID_ARGUMENT` error.',
+        ).optional(),
+        orderBy: z.string().describe(
+          "Optional. How the list of messages is ordered. Specify a value to order by an ordering operation. Valid ordering operation values are as follows: - `ASC` for ascending. - `DESC` for descending. The default ordering is `create_time ASC`.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of messages returned. The service might return fewer messages than this value. If unspecified, at most 25 are returned. The maximum value is 1000. If you use a value more than 1000, it's automatically changed to 1000. Negative values return an `INVALID_ARGUMENT` error.",
+        ).optional(),
+        showDeleted: z.boolean().describe(
+          "Optional. Whether to include deleted messages. Deleted messages include deleted time and metadata about their deletion, but message content is unavailable.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["showDeleted"] !== undefined) {
+          params["showDeleted"] = String(args["showDeleted"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "messages",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

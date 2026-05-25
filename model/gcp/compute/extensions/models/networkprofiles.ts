@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -39,6 +40,36 @@ const GET_CONFIG = {
     "project": {
       "location": "path",
       "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "compute.networkProfiles.list",
+  "path": "projects/{project}/global/networkProfiles",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "project",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "project": {
+      "location": "path",
+      "required": true,
+    },
+    "returnPartialSuccess": {
+      "location": "query",
     },
   },
 } as const;
@@ -121,7 +152,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine NetworkProfiles. Registered at `@swamp/gcp/compute/networkprofiles`. */
 export const model = {
   type: "@swamp/gcp/compute/networkprofiles",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -175,6 +206,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -267,6 +308,64 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List networkProfiles resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "A filter expression that filters resources listed in the response. Most",
+        ).optional(),
+        maxResults: z.number().describe(
+          "The maximum number of results per page that should be returned.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Sorts list results by a certain order. By default, results",
+        ).optional(),
+        returnPartialSuccess: z.boolean().describe(
+          "Opt-in for partial success behavior which provides partial results in case",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["returnPartialSuccess"] !== undefined) {
+          params["returnPartialSuccess"] = String(args["returnPartialSuccess"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -189,10 +190,6 @@ const GlobalArgsSchema = z.object({
         "PD_BALANCED",
         "PD_EXTREME",
         "HYPERDISK_BALANCED",
-        "HYPERDISK_EXTREME",
-        "HYPERDISK_THROUGHPUT",
-        "HYPERDISK_BALANCED_HIGH_AVAILABILITY",
-        "HYPERDISK_ML",
       ]).describe("Optional. Indicates the type of the disk.").optional(),
       kmsKey: z.string().describe(
         "Optional. Input only. The KMS key used to encrypt the disks, only applicable if disk_encryption is CMEK. Format: `projects/{project_id}/locations/{location}/keyRings/{key_ring_id}/cryptoKeys/{key_id}` Learn more about using your own encryption keys.",
@@ -231,10 +228,6 @@ const GlobalArgsSchema = z.object({
         "PD_BALANCED",
         "PD_EXTREME",
         "HYPERDISK_BALANCED",
-        "HYPERDISK_EXTREME",
-        "HYPERDISK_THROUGHPUT",
-        "HYPERDISK_BALANCED_HIGH_AVAILABILITY",
-        "HYPERDISK_ML",
       ]).describe("Optional. Input only. Indicates the type of the disk.")
         .optional(),
       kmsKey: z.string().describe(
@@ -518,10 +511,6 @@ const InputsSchema = z.object({
         "PD_BALANCED",
         "PD_EXTREME",
         "HYPERDISK_BALANCED",
-        "HYPERDISK_EXTREME",
-        "HYPERDISK_THROUGHPUT",
-        "HYPERDISK_BALANCED_HIGH_AVAILABILITY",
-        "HYPERDISK_ML",
       ]).describe("Optional. Indicates the type of the disk.").optional(),
       kmsKey: z.string().describe(
         "Optional. Input only. The KMS key used to encrypt the disks, only applicable if disk_encryption is CMEK. Format: `projects/{project_id}/locations/{location}/keyRings/{key_ring_id}/cryptoKeys/{key_id}` Learn more about using your own encryption keys.",
@@ -560,10 +549,6 @@ const InputsSchema = z.object({
         "PD_BALANCED",
         "PD_EXTREME",
         "HYPERDISK_BALANCED",
-        "HYPERDISK_EXTREME",
-        "HYPERDISK_THROUGHPUT",
-        "HYPERDISK_BALANCED_HIGH_AVAILABILITY",
-        "HYPERDISK_ML",
       ]).describe("Optional. Input only. Indicates the type of the disk.")
         .optional(),
       kmsKey: z.string().describe(
@@ -698,7 +683,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Notebooks Instances. Registered at `@swamp/gcp/notebooks/instances`. */
 export const model = {
   type: "@swamp/gcp/notebooks/instances",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -777,6 +762,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1053,6 +1043,60 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List instances resources",
+      arguments: z.object({
+        filter: z.string().describe("Optional. List filter.").optional(),
+        orderBy: z.string().describe(
+          'Optional. Sort results. Supported values are "name", "name desc" or "" (unsorted).',
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Maximum return size of the list call.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "instances",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     check_authorization: {

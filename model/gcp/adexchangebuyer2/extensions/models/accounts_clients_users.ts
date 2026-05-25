@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -76,6 +77,32 @@ const UPDATE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "adexchangebuyer2.accounts.clients.users.list",
+  "path": "v2beta1/accounts/{accountId}/clients/{clientAccountId}/users",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "accountId",
+    "clientAccountId",
+  ],
+  "parameters": {
+    "accountId": {
+      "location": "path",
+      "required": true,
+    },
+    "clientAccountId": {
+      "location": "path",
+      "required": true,
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -120,7 +147,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Ad Exchange Buyer Accounts.Clients.Users. Registered at `@swamp/gcp/adexchangebuyer2/accounts-clients-users`. */
 export const model = {
   type: "@swamp/gcp/adexchangebuyer2/accounts-clients-users",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -174,6 +201,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -350,6 +382,53 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List users resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "Requested page size. The server may return fewer clients than requested. If unspecified, the server will pick an appropriate default.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["accountId"] !== undefined) {
+          params["accountId"] = String(g["accountId"]);
+        }
+        if (g["clientAccountId"] !== undefined) {
+          params["clientAccountId"] = String(g["clientAccountId"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "users",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

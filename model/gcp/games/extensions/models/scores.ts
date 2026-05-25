@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -57,6 +58,40 @@ const GET_CONFIG = {
     },
     "timeSpan": {
       "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "games.scores.list",
+  "path": "games/v1/leaderboards/{leaderboardId}/scores/{collection}",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "leaderboardId",
+    "collection",
+    "timeSpan",
+  ],
+  "parameters": {
+    "collection": {
+      "location": "path",
+      "required": true,
+    },
+    "language": {
+      "location": "query",
+    },
+    "leaderboardId": {
+      "location": "path",
+      "required": true,
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "timeSpan": {
+      "location": "query",
       "required": true,
     },
   },
@@ -150,7 +185,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Play Games Services Scores. Registered at `@swamp/gcp/games/scores`. */
 export const model = {
   type: "@swamp/gcp/games/scores",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -204,6 +239,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -311,6 +351,68 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List scores resources",
+      arguments: z.object({
+        language: z.string().describe(
+          "The preferred language to use for strings returned by this method.",
+        ).optional(),
+        maxResults: z.number().describe(
+          "The maximum number of leaderboard scores to return in the response. For any response, the actual number of leaderboard scores returned may be less than the specified `maxResults`.",
+        ).optional(),
+        timeSpan: z.string().describe(
+          "Required. The time span for the scores and ranks you're requesting.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["leaderboardId"] !== undefined) {
+          params["leaderboardId"] = String(g["leaderboardId"]);
+        }
+        if (g["collection"] !== undefined) {
+          params["collection"] = String(g["collection"]);
+        }
+        if (g["timeSpan"] !== undefined) {
+          params["timeSpan"] = String(g["timeSpan"]);
+        }
+        if (args["language"] !== undefined) {
+          params["language"] = String(args["language"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["timeSpan"] !== undefined) {
+          params["timeSpan"] = String(args["timeSpan"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     list_window: {

@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -74,6 +75,24 @@ const DELETE_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "analyticsadmin.accounts.list",
+  "path": "v1beta/accounts",
+  "httpMethod": "GET",
+  "parameterOrder": [],
+  "parameters": {
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "showDeleted": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   createTime: z.string().describe(
     "Output only. Time when this account was originally created.",
@@ -88,7 +107,7 @@ const GlobalArgsSchema = z.object({
     "Output only. The URI for a Google Marketing Platform organization resource. Only set when this account is connected to a GMP organization. Format: marketingplatformadmin.googleapis.com/organizations/{org_id}",
   ).optional(),
   name: z.string().describe(
-    'Identifier. Resource name of this account. Format: accounts/{account} Example: "accounts/100"',
+    'Output only. Resource name of this account. Format: accounts/{account} Example: "accounts/100"',
   ).optional(),
   regionCode: z.string().describe(
     "Country of business. Must be a Unicode CLDR region code.",
@@ -124,7 +143,7 @@ const InputsSchema = z.object({
     "Output only. The URI for a Google Marketing Platform organization resource. Only set when this account is connected to a GMP organization. Format: marketingplatformadmin.googleapis.com/organizations/{org_id}",
   ).optional(),
   name: z.string().describe(
-    'Identifier. Resource name of this account. Format: accounts/{account} Example: "accounts/100"',
+    'Output only. Resource name of this account. Format: accounts/{account} Example: "accounts/100"',
   ).optional(),
   regionCode: z.string().describe(
     "Country of business. Must be a Unicode CLDR region code.",
@@ -137,7 +156,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Analytics Admin Accounts. Registered at `@swamp/gcp/analyticsadmin/accounts`. */
 export const model = {
   type: "@swamp/gcp/analyticsadmin/accounts",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -206,6 +225,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -382,6 +411,52 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List accounts resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "The maximum number of resources to return. The service may return fewer than this value, even if there are additional pages. If unspecified, at most 50 resources will be returned. The maximum value is 200; (higher values will be coerced to the maximum)",
+        ).optional(),
+        showDeleted: z.boolean().describe(
+          'Whether to include soft-deleted (ie: "trashed") Accounts in the results. Accounts can be inspected to determine whether they are deleted or not.',
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["showDeleted"] !== undefined) {
+          params["showDeleted"] = String(args["showDeleted"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "accounts",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     get_data_sharing_settings: {

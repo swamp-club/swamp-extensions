@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -133,7 +134,7 @@ const GlobalArgsSchema = z.object({
     egressPolicies: z.array(z.object({
       egressFrom: z.object({
         identities: z.array(z.unknown()).describe(
-          "A list of identities that are allowed access through [EgressPolicy]. Identities can be an individual user, service account, Google group, third-party identity, or agent identity. For the list of supported identity types, see https://docs.cloud.google.com/vpc-service-controls/docs/supported-identities.",
+          "A list of identities that are allowed access through [EgressPolicy]. Identities can be an individual user, service account, Google group, or third-party identity. For the list of supported identity types, see https://docs.cloud.google.com/vpc-service-controls/docs/supported-identities.",
         ).optional(),
         identityType: z.enum([
           "IDENTITY_TYPE_UNSPECIFIED",
@@ -181,7 +182,7 @@ const GlobalArgsSchema = z.object({
     ingressPolicies: z.array(z.object({
       ingressFrom: z.object({
         identities: z.array(z.unknown()).describe(
-          "A list of identities that are allowed access through [IngressPolicy]. Identities can be an individual user, service account, Google group, third-party identity, or agent identity. For the list of supported identity types, see https://docs.cloud.google.com/vpc-service-controls/docs/supported-identities.",
+          "A list of identities that are allowed access through [IngressPolicy]. Identities can be an individual user, service account, Google group, or third-party identity. For the list of supported identity types, see https://docs.cloud.google.com/vpc-service-controls/docs/supported-identities.",
         ).optional(),
         identityType: z.enum([
           "IDENTITY_TYPE_UNSPECIFIED",
@@ -242,7 +243,7 @@ const GlobalArgsSchema = z.object({
     egressPolicies: z.array(z.object({
       egressFrom: z.object({
         identities: z.array(z.unknown()).describe(
-          "A list of identities that are allowed access through [EgressPolicy]. Identities can be an individual user, service account, Google group, third-party identity, or agent identity. For the list of supported identity types, see https://docs.cloud.google.com/vpc-service-controls/docs/supported-identities.",
+          "A list of identities that are allowed access through [EgressPolicy]. Identities can be an individual user, service account, Google group, or third-party identity. For the list of supported identity types, see https://docs.cloud.google.com/vpc-service-controls/docs/supported-identities.",
         ).optional(),
         identityType: z.enum([
           "IDENTITY_TYPE_UNSPECIFIED",
@@ -290,7 +291,7 @@ const GlobalArgsSchema = z.object({
     ingressPolicies: z.array(z.object({
       ingressFrom: z.object({
         identities: z.array(z.unknown()).describe(
-          "A list of identities that are allowed access through [IngressPolicy]. Identities can be an individual user, service account, Google group, third-party identity, or agent identity. For the list of supported identity types, see https://docs.cloud.google.com/vpc-service-controls/docs/supported-identities.",
+          "A list of identities that are allowed access through [IngressPolicy]. Identities can be an individual user, service account, Google group, or third-party identity. For the list of supported identity types, see https://docs.cloud.google.com/vpc-service-controls/docs/supported-identities.",
         ).optional(),
         identityType: z.enum([
           "IDENTITY_TYPE_UNSPECIFIED",
@@ -458,7 +459,7 @@ const InputsSchema = z.object({
     egressPolicies: z.array(z.object({
       egressFrom: z.object({
         identities: z.array(z.unknown()).describe(
-          "A list of identities that are allowed access through [EgressPolicy]. Identities can be an individual user, service account, Google group, third-party identity, or agent identity. For the list of supported identity types, see https://docs.cloud.google.com/vpc-service-controls/docs/supported-identities.",
+          "A list of identities that are allowed access through [EgressPolicy]. Identities can be an individual user, service account, Google group, or third-party identity. For the list of supported identity types, see https://docs.cloud.google.com/vpc-service-controls/docs/supported-identities.",
         ).optional(),
         identityType: z.enum([
           "IDENTITY_TYPE_UNSPECIFIED",
@@ -506,7 +507,7 @@ const InputsSchema = z.object({
     ingressPolicies: z.array(z.object({
       ingressFrom: z.object({
         identities: z.array(z.unknown()).describe(
-          "A list of identities that are allowed access through [IngressPolicy]. Identities can be an individual user, service account, Google group, third-party identity, or agent identity. For the list of supported identity types, see https://docs.cloud.google.com/vpc-service-controls/docs/supported-identities.",
+          "A list of identities that are allowed access through [IngressPolicy]. Identities can be an individual user, service account, Google group, or third-party identity. For the list of supported identity types, see https://docs.cloud.google.com/vpc-service-controls/docs/supported-identities.",
         ).optional(),
         identityType: z.enum([
           "IDENTITY_TYPE_UNSPECIFIED",
@@ -567,7 +568,7 @@ const InputsSchema = z.object({
     egressPolicies: z.array(z.object({
       egressFrom: z.object({
         identities: z.array(z.unknown()).describe(
-          "A list of identities that are allowed access through [EgressPolicy]. Identities can be an individual user, service account, Google group, third-party identity, or agent identity. For the list of supported identity types, see https://docs.cloud.google.com/vpc-service-controls/docs/supported-identities.",
+          "A list of identities that are allowed access through [EgressPolicy]. Identities can be an individual user, service account, Google group, or third-party identity. For the list of supported identity types, see https://docs.cloud.google.com/vpc-service-controls/docs/supported-identities.",
         ).optional(),
         identityType: z.enum([
           "IDENTITY_TYPE_UNSPECIFIED",
@@ -615,7 +616,7 @@ const InputsSchema = z.object({
     ingressPolicies: z.array(z.object({
       ingressFrom: z.object({
         identities: z.array(z.unknown()).describe(
-          "A list of identities that are allowed access through [IngressPolicy]. Identities can be an individual user, service account, Google group, third-party identity, or agent identity. For the list of supported identity types, see https://docs.cloud.google.com/vpc-service-controls/docs/supported-identities.",
+          "A list of identities that are allowed access through [IngressPolicy]. Identities can be an individual user, service account, Google group, or third-party identity. For the list of supported identity types, see https://docs.cloud.google.com/vpc-service-controls/docs/supported-identities.",
         ).optional(),
         identityType: z.enum([
           "IDENTITY_TYPE_UNSPECIFIED",
@@ -683,7 +684,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Access Context Manager AccessPolicies.ServicePerimeters. Registered at `@swamp/gcp/accesscontextmanager/accesspolicies-serviceperimeters`. */
 export const model = {
   type: "@swamp/gcp/accesscontextmanager/accesspolicies-serviceperimeters",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -772,6 +773,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1012,6 +1018,48 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List servicePerimeters resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "Number of Service Perimeters to include in the list. Default 100.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "servicePerimeters",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     commit: {

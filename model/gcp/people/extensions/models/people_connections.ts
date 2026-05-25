@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -812,7 +813,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud People People.Connections. Registered at `@swamp/gcp/people/people-connections`. */
 export const model = {
   type: "@swamp/gcp/people/people-connections",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -871,6 +872,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -973,6 +979,88 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List connections resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "Optional. The number of connections to include in the response. Valid values are between 1 and 1000, inclusive. Defaults to 100 if not set or set to 0.",
+        ).optional(),
+        personFields: z.string().describe(
+          "Required. A field mask to restrict which fields on each person are returned. Multiple fields can be specified by separating them with commas. Valid values are: * addresses * ageRanges * biographies * birthdays * calendarUrls * clientData * coverPhotos * emailAddresses * events * externalIds * genders * imClients * interests * locales * locations * memberships * metadata * miscKeywords * names * nicknames * occupations * organizations * phoneNumbers * photos * relations * sipAddresses * skills * urls * userDefined",
+        ).optional(),
+        requestMask_includeField: z.string().describe(
+          "Required. Comma-separated list of person fields to be included in the response. Each path should start with `person.`: for example, `person.names` or `person.photos`.",
+        ).optional(),
+        requestSyncToken: z.boolean().describe(
+          "Optional. Whether the response should return `next_sync_token` on the last page of results. It can be used to get incremental changes since the last request by setting it on the request `sync_token`. More details about sync behavior at `people.connections.list`.",
+        ).optional(),
+        sortOrder: z.string().describe(
+          "Optional. The order in which the connections should be sorted. Defaults to `LAST_MODIFIED_ASCENDING`.",
+        ).optional(),
+        sources: z.string().describe(
+          "Optional. A mask of what source types to return. Defaults to READ_SOURCE_TYPE_CONTACT and READ_SOURCE_TYPE_PROFILE if not set.",
+        ).optional(),
+        syncToken: z.string().describe(
+          "Optional. A sync token, received from a previous response `next_sync_token` Provide this to retrieve only the resources changed since the last request. When syncing, all other parameters provided to `people.connections.list` must match the first call that provided the sync token. More details about sync behavior at `people.connections.list`.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["resourceName"] !== undefined) {
+          params["resourceName"] = String(g["resourceName"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["personFields"] !== undefined) {
+          params["personFields"] = String(args["personFields"]);
+        }
+        if (args["requestMask_includeField"] !== undefined) {
+          params["requestMask.includeField"] = String(
+            args["requestMask_includeField"],
+          );
+        }
+        if (args["requestSyncToken"] !== undefined) {
+          params["requestSyncToken"] = String(args["requestSyncToken"]);
+        }
+        if (args["sortOrder"] !== undefined) {
+          params["sortOrder"] = String(args["sortOrder"]);
+        }
+        if (args["sources"] !== undefined) {
+          params["sources"] = String(args["sources"]);
+        }
+        if (args["syncToken"] !== undefined) {
+          params["syncToken"] = String(args["syncToken"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "connections",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

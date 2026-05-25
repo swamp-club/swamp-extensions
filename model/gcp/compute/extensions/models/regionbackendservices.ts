@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -176,7 +177,6 @@ const GlobalArgsSchema = z.object({
     balancingMode: z.enum([
       "CONNECTION",
       "CUSTOM_METRICS",
-      "IN_FLIGHT",
       "RATE",
       "UTILIZATION",
     ]).describe(
@@ -216,15 +216,6 @@ const GlobalArgsSchema = z.object({
     maxConnectionsPerInstance: z.number().int().describe(
       "Defines a target maximum number of simultaneous connections. For usage guidelines, seeConnection balancing mode and Utilization balancing mode. Not available if the backend's balancingMode isRATE.",
     ).optional(),
-    maxInFlightRequests: z.number().int().describe(
-      "Defines a maximum number of in-flight requests for the whole NEG or instance group. Not available if backend's balancingMode isRATE or CONNECTION.",
-    ).optional(),
-    maxInFlightRequestsPerEndpoint: z.number().int().describe(
-      "Defines a maximum number of in-flight requests for a single endpoint. Not available if backend's balancingMode is RATE or CONNECTION.",
-    ).optional(),
-    maxInFlightRequestsPerInstance: z.number().int().describe(
-      "Defines a maximum number of in-flight requests for a single VM. Not available if backend's balancingMode is RATE or CONNECTION.",
-    ).optional(),
     maxRate: z.number().int().describe(
       "Defines a maximum number of HTTP requests per second (RPS). For usage guidelines, seeRate balancing mode and Utilization balancing mode. Not available if the backend's balancingMode isCONNECTION.",
     ).optional(),
@@ -248,8 +239,6 @@ const GlobalArgsSchema = z.object({
       .describe(
         "This field indicates whether this backend should be fully utilized before sending traffic to backends with default preference. The possible values are: - PREFERRED: Backends with this preference level will be filled up to their capacity limits first, based on RTT. - DEFAULT: If preferred backends don't have enough capacity, backends in this layer would be used and traffic would be assigned based on the load balancing algorithm you use. This is the default",
       ).optional(),
-    trafficDuration: z.enum(["LONG", "SHORT", "TRAFFIC_DURATION_UNSPECIFIED"])
-      .optional(),
   })).describe("The list of backends that serve this BackendService.")
     .optional(),
   cdnPolicy: z.object({
@@ -548,7 +537,7 @@ const GlobalArgsSchema = z.object({
     "WEIGHTED_MAGLEV",
     "WEIGHTED_ROUND_ROBIN",
   ]).describe(
-    "The load balancing algorithm used within the scope of the locality. The possible values are: - ROUND_ROBIN: This is a simple policy in which each healthy backend is selected in round robin order. This is the default. - LEAST_REQUEST: An O(1) algorithm which selects two random healthy hosts and picks the host which has fewer active requests. - RING_HASH: The ring/modulo hash load balancer implements consistent hashing to backends. The algorithm has the property that the addition/removal of a host from a set of N hosts only affects 1/N of the requests. - RANDOM: The load balancer selects a random healthy host. - ORIGINAL_DESTINATION: Backend host is selected based on the client connection metadata, i.e., connections are opened to the same address as the destination address of the incoming connection before the connection was redirected to the load balancer. - MAGLEV: used as a drop in replacement for the ring hash load balancer. Maglev is not as stable as ring hash but has faster table lookup build times and host selection times. For more information about Maglev, see Maglev: A Fast and Reliable Software Network Load Balancer. - WEIGHTED_ROUND_ROBIN: Per-endpoint Weighted Round Robin Load Balancing using weights computed from Backend reported Custom Metrics. If set, the Backend Service responses are expected to contain non-standard HTTP response header field Endpoint-Load-Metrics. The reported metrics to use for computing the weights are specified via thecustomMetrics field. This field is applicable to either: - A regional backend service with the service protocol set to HTTP, HTTPS, HTTP2 or H2C, and load_balancing_scheme set to INTERNAL_MANAGED. - A global backend service with the load_balancing_scheme set to INTERNAL_SELF_MANAGED, INTERNAL_MANAGED, or EXTERNAL_MANAGED. If sessionAffinity is not configured—that is, if session affinity remains at the default value of NONE—then the default value for localityLbPolicy is ROUND_ROBIN. If session affinity is set to a value other than NONE, then the default value for localityLbPolicy isMAGLEV. Only ROUND_ROBIN and RING_HASH are supported when the backend service is referenced by a URL map that is bound to target gRPC proxy that has validateForProxyless field set to true. localityLbPolicy cannot be specified with haPolicy.",
+    "The load balancing algorithm used within the scope of the locality. The possible values are: - ROUND_ROBIN: This is a simple policy in which each healthy backend is selected in round robin order. This is the default. - LEAST_REQUEST: An O(1) algorithm which selects two random healthy hosts and picks the host which has fewer active requests. - RING_HASH: The ring/modulo hash load balancer implements consistent hashing to backends. The algorithm has the property that the addition/removal of a host from a set of N hosts only affects 1/N of the requests. - RANDOM: The load balancer selects a random healthy host. - ORIGINAL_DESTINATION: Backend host is selected based on the client connection metadata, i.e., connections are opened to the same address as the destination address of the incoming connection before the connection was redirected to the load balancer. - MAGLEV: used as a drop in replacement for the ring hash load balancer. Maglev is not as stable as ring hash but has faster table lookup build times and host selection times. For more information about Maglev, see Maglev: A Fast and Reliable Software Network Load Balancer. - WEIGHTED_ROUND_ROBIN: Per-endpoint Weighted Round Robin Load Balancing using weights computed from Backend reported Custom Metrics. If set, the Backend Service responses are expected to contain non-standard HTTP response header field Endpoint-Load-Metrics. The reported metrics to use for computing the weights are specified via thecustomMetrics field. This field is applicable to either: - A regional backend service with the service_protocol set to HTTP, HTTPS, HTTP2 or H2C, and load_balancing_scheme set to INTERNAL_MANAGED. - A global backend service with the load_balancing_scheme set to INTERNAL_SELF_MANAGED, INTERNAL_MANAGED, or EXTERNAL_MANAGED. If sessionAffinity is not configured—that is, if session affinity remains at the default value of NONE—then the default value for localityLbPolicy is ROUND_ROBIN. If session affinity is set to a value other than NONE, then the default value for localityLbPolicy isMAGLEV. Only ROUND_ROBIN and RING_HASH are supported when the backend service is referenced by a URL map that is bound to target gRPC proxy that has validateForProxyless field set to true. localityLbPolicy cannot be specified with haPolicy.",
   ).optional(),
   logConfig: z.object({
     enable: z.boolean().describe(
@@ -791,9 +780,6 @@ const StateSchema = z.object({
     maxConnections: z.number(),
     maxConnectionsPerEndpoint: z.number(),
     maxConnectionsPerInstance: z.number(),
-    maxInFlightRequests: z.number(),
-    maxInFlightRequestsPerEndpoint: z.number(),
-    maxInFlightRequestsPerInstance: z.number(),
     maxRate: z.number(),
     maxRatePerEndpoint: z.number(),
     maxRatePerInstance: z.number(),
@@ -802,7 +788,6 @@ const StateSchema = z.object({
       resourceUri: z.string(),
     }),
     preference: z.string(),
-    trafficDuration: z.string(),
   })).optional(),
   cdnPolicy: z.object({
     bypassCacheOnRequestHeaders: z.array(z.object({
@@ -1006,7 +991,6 @@ const InputsSchema = z.object({
     balancingMode: z.enum([
       "CONNECTION",
       "CUSTOM_METRICS",
-      "IN_FLIGHT",
       "RATE",
       "UTILIZATION",
     ]).describe(
@@ -1046,15 +1030,6 @@ const InputsSchema = z.object({
     maxConnectionsPerInstance: z.number().int().describe(
       "Defines a target maximum number of simultaneous connections. For usage guidelines, seeConnection balancing mode and Utilization balancing mode. Not available if the backend's balancingMode isRATE.",
     ).optional(),
-    maxInFlightRequests: z.number().int().describe(
-      "Defines a maximum number of in-flight requests for the whole NEG or instance group. Not available if backend's balancingMode isRATE or CONNECTION.",
-    ).optional(),
-    maxInFlightRequestsPerEndpoint: z.number().int().describe(
-      "Defines a maximum number of in-flight requests for a single endpoint. Not available if backend's balancingMode is RATE or CONNECTION.",
-    ).optional(),
-    maxInFlightRequestsPerInstance: z.number().int().describe(
-      "Defines a maximum number of in-flight requests for a single VM. Not available if backend's balancingMode is RATE or CONNECTION.",
-    ).optional(),
     maxRate: z.number().int().describe(
       "Defines a maximum number of HTTP requests per second (RPS). For usage guidelines, seeRate balancing mode and Utilization balancing mode. Not available if the backend's balancingMode isCONNECTION.",
     ).optional(),
@@ -1078,8 +1053,6 @@ const InputsSchema = z.object({
       .describe(
         "This field indicates whether this backend should be fully utilized before sending traffic to backends with default preference. The possible values are: - PREFERRED: Backends with this preference level will be filled up to their capacity limits first, based on RTT. - DEFAULT: If preferred backends don't have enough capacity, backends in this layer would be used and traffic would be assigned based on the load balancing algorithm you use. This is the default",
       ).optional(),
-    trafficDuration: z.enum(["LONG", "SHORT", "TRAFFIC_DURATION_UNSPECIFIED"])
-      .optional(),
   })).describe("The list of backends that serve this BackendService.")
     .optional(),
   cdnPolicy: z.object({
@@ -1378,7 +1351,7 @@ const InputsSchema = z.object({
     "WEIGHTED_MAGLEV",
     "WEIGHTED_ROUND_ROBIN",
   ]).describe(
-    "The load balancing algorithm used within the scope of the locality. The possible values are: - ROUND_ROBIN: This is a simple policy in which each healthy backend is selected in round robin order. This is the default. - LEAST_REQUEST: An O(1) algorithm which selects two random healthy hosts and picks the host which has fewer active requests. - RING_HASH: The ring/modulo hash load balancer implements consistent hashing to backends. The algorithm has the property that the addition/removal of a host from a set of N hosts only affects 1/N of the requests. - RANDOM: The load balancer selects a random healthy host. - ORIGINAL_DESTINATION: Backend host is selected based on the client connection metadata, i.e., connections are opened to the same address as the destination address of the incoming connection before the connection was redirected to the load balancer. - MAGLEV: used as a drop in replacement for the ring hash load balancer. Maglev is not as stable as ring hash but has faster table lookup build times and host selection times. For more information about Maglev, see Maglev: A Fast and Reliable Software Network Load Balancer. - WEIGHTED_ROUND_ROBIN: Per-endpoint Weighted Round Robin Load Balancing using weights computed from Backend reported Custom Metrics. If set, the Backend Service responses are expected to contain non-standard HTTP response header field Endpoint-Load-Metrics. The reported metrics to use for computing the weights are specified via thecustomMetrics field. This field is applicable to either: - A regional backend service with the service protocol set to HTTP, HTTPS, HTTP2 or H2C, and load_balancing_scheme set to INTERNAL_MANAGED. - A global backend service with the load_balancing_scheme set to INTERNAL_SELF_MANAGED, INTERNAL_MANAGED, or EXTERNAL_MANAGED. If sessionAffinity is not configured—that is, if session affinity remains at the default value of NONE—then the default value for localityLbPolicy is ROUND_ROBIN. If session affinity is set to a value other than NONE, then the default value for localityLbPolicy isMAGLEV. Only ROUND_ROBIN and RING_HASH are supported when the backend service is referenced by a URL map that is bound to target gRPC proxy that has validateForProxyless field set to true. localityLbPolicy cannot be specified with haPolicy.",
+    "The load balancing algorithm used within the scope of the locality. The possible values are: - ROUND_ROBIN: This is a simple policy in which each healthy backend is selected in round robin order. This is the default. - LEAST_REQUEST: An O(1) algorithm which selects two random healthy hosts and picks the host which has fewer active requests. - RING_HASH: The ring/modulo hash load balancer implements consistent hashing to backends. The algorithm has the property that the addition/removal of a host from a set of N hosts only affects 1/N of the requests. - RANDOM: The load balancer selects a random healthy host. - ORIGINAL_DESTINATION: Backend host is selected based on the client connection metadata, i.e., connections are opened to the same address as the destination address of the incoming connection before the connection was redirected to the load balancer. - MAGLEV: used as a drop in replacement for the ring hash load balancer. Maglev is not as stable as ring hash but has faster table lookup build times and host selection times. For more information about Maglev, see Maglev: A Fast and Reliable Software Network Load Balancer. - WEIGHTED_ROUND_ROBIN: Per-endpoint Weighted Round Robin Load Balancing using weights computed from Backend reported Custom Metrics. If set, the Backend Service responses are expected to contain non-standard HTTP response header field Endpoint-Load-Metrics. The reported metrics to use for computing the weights are specified via thecustomMetrics field. This field is applicable to either: - A regional backend service with the service_protocol set to HTTP, HTTPS, HTTP2 or H2C, and load_balancing_scheme set to INTERNAL_MANAGED. - A global backend service with the load_balancing_scheme set to INTERNAL_SELF_MANAGED, INTERNAL_MANAGED, or EXTERNAL_MANAGED. If sessionAffinity is not configured—that is, if session affinity remains at the default value of NONE—then the default value for localityLbPolicy is ROUND_ROBIN. If session affinity is set to a value other than NONE, then the default value for localityLbPolicy isMAGLEV. Only ROUND_ROBIN and RING_HASH are supported when the backend service is referenced by a URL map that is bound to target gRPC proxy that has validateForProxyless field set to true. localityLbPolicy cannot be specified with haPolicy.",
   ).optional(),
   logConfig: z.object({
     enable: z.boolean().describe(
@@ -1608,7 +1581,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine RegionBackendServices. Registered at `@swamp/gcp/compute/regionbackendservices`. */
 export const model = {
   type: "@swamp/gcp/compute/regionbackendservices",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1702,6 +1675,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2132,6 +2110,66 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List regionBackendServices resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "A filter expression that filters resources listed in the response. Most",
+        ).optional(),
+        maxResults: z.number().describe(
+          "The maximum number of results per page that should be returned.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Sorts list results by a certain order. By default, results",
+        ).optional(),
+        returnPartialSuccess: z.boolean().describe(
+          "Opt-in for partial success behavior which provides partial results in case",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["region"] !== undefined) params["region"] = String(g["region"]);
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["returnPartialSuccess"] !== undefined) {
+          params["returnPartialSuccess"] = String(args["returnPartialSuccess"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     get_health: {

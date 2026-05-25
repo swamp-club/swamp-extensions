@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -189,7 +190,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud YouTube Data Search. Registered at `@swamp/gcp/youtube/search`. */
 export const model = {
   type: "@swamp/gcp/youtube/search",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -243,6 +244,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -340,6 +346,206 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List search resources",
+      arguments: z.object({
+        channelId: z.string().describe(
+          "Filter on resources belonging to this channelId.",
+        ).optional(),
+        channelType: z.string().describe("Add a filter on the channel search.")
+          .optional(),
+        eventType: z.string().describe(
+          "Filter on the livestream status of the videos.",
+        ).optional(),
+        forContentOwner: z.boolean().describe(
+          "Search owned by a content owner.",
+        ).optional(),
+        forDeveloper: z.boolean().describe(
+          "Restrict the search to only retrieve videos uploaded using the project id of the authenticated user.",
+        ).optional(),
+        forMine: z.boolean().describe(
+          "Search for the private videos of the authenticated user.",
+        ).optional(),
+        location: z.string().describe("Filter on location of the video")
+          .optional(),
+        locationRadius: z.string().describe(
+          "Filter on distance from the location (specified above).",
+        ).optional(),
+        maxResults: z.number().describe(
+          "The *maxResults* parameter specifies the maximum number of items that should be returned in the result set.",
+        ).optional(),
+        onBehalfOfContentOwner: z.string().describe(
+          "*Note:* This parameter is intended exclusively for YouTube content partners. The *onBehalfOfContentOwner* parameter indicates that the request's authorization credentials identify a YouTube CMS user who is acting on behalf of the content owner specified in the parameter value. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and get access to all their video and channel data, without having to provide authentication credentials for each individual channel. The CMS account that the user authenticates with must be linked to the specified YouTube content owner.",
+        ).optional(),
+        order: z.string().describe("Sort order of the results.").optional(),
+        part: z.string().describe(
+          "The *part* parameter specifies a comma-separated list of one or more search resource properties that the API response will include. Set the parameter value to snippet.",
+        ).optional(),
+        publishedAfter: z.string().describe(
+          "Filter on resources published after this date.",
+        ).optional(),
+        publishedBefore: z.string().describe(
+          "Filter on resources published before this date.",
+        ).optional(),
+        q: z.string().describe("Textual search terms to match.").optional(),
+        regionCode: z.string().describe(
+          "Display the content as seen by viewers in this country.",
+        ).optional(),
+        relevanceLanguage: z.string().describe(
+          "Return results relevant to this language.",
+        ).optional(),
+        safeSearch: z.string().describe(
+          "Indicates whether the search results should include restricted content as well as standard content.",
+        ).optional(),
+        topicId: z.string().describe("Restrict results to a particular topic.")
+          .optional(),
+        type: z.string().describe(
+          "Restrict results to a particular set of resource types from One Platform.",
+        ).optional(),
+        videoCaption: z.string().describe(
+          "Filter on the presence of captions on the videos.",
+        ).optional(),
+        videoCategoryId: z.string().describe(
+          "Filter on videos in a specific category.",
+        ).optional(),
+        videoDefinition: z.string().describe(
+          "Filter on the definition of the videos.",
+        ).optional(),
+        videoDimension: z.string().describe("Filter on 3d videos.").optional(),
+        videoDuration: z.string().describe(
+          "Filter on the duration of the videos.",
+        ).optional(),
+        videoEmbeddable: z.string().describe("Filter on embeddable videos.")
+          .optional(),
+        videoLicense: z.string().describe(
+          "Filter on the license of the videos.",
+        ).optional(),
+        videoPaidProductPlacement: z.string().optional(),
+        videoSyndicated: z.string().describe("Filter on syndicated videos.")
+          .optional(),
+        videoType: z.string().describe("Filter on videos of a specific type.")
+          .optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["part"] !== undefined) params["part"] = String(g["part"]);
+        if (args["channelId"] !== undefined) {
+          params["channelId"] = String(args["channelId"]);
+        }
+        if (args["channelType"] !== undefined) {
+          params["channelType"] = String(args["channelType"]);
+        }
+        if (args["eventType"] !== undefined) {
+          params["eventType"] = String(args["eventType"]);
+        }
+        if (args["forContentOwner"] !== undefined) {
+          params["forContentOwner"] = String(args["forContentOwner"]);
+        }
+        if (args["forDeveloper"] !== undefined) {
+          params["forDeveloper"] = String(args["forDeveloper"]);
+        }
+        if (args["forMine"] !== undefined) {
+          params["forMine"] = String(args["forMine"]);
+        }
+        if (args["location"] !== undefined) {
+          params["location"] = String(args["location"]);
+        }
+        if (args["locationRadius"] !== undefined) {
+          params["locationRadius"] = String(args["locationRadius"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["onBehalfOfContentOwner"] !== undefined) {
+          params["onBehalfOfContentOwner"] = String(
+            args["onBehalfOfContentOwner"],
+          );
+        }
+        if (args["order"] !== undefined) {
+          params["order"] = String(args["order"]);
+        }
+        if (args["part"] !== undefined) params["part"] = String(args["part"]);
+        if (args["publishedAfter"] !== undefined) {
+          params["publishedAfter"] = String(args["publishedAfter"]);
+        }
+        if (args["publishedBefore"] !== undefined) {
+          params["publishedBefore"] = String(args["publishedBefore"]);
+        }
+        if (args["q"] !== undefined) params["q"] = String(args["q"]);
+        if (args["regionCode"] !== undefined) {
+          params["regionCode"] = String(args["regionCode"]);
+        }
+        if (args["relevanceLanguage"] !== undefined) {
+          params["relevanceLanguage"] = String(args["relevanceLanguage"]);
+        }
+        if (args["safeSearch"] !== undefined) {
+          params["safeSearch"] = String(args["safeSearch"]);
+        }
+        if (args["topicId"] !== undefined) {
+          params["topicId"] = String(args["topicId"]);
+        }
+        if (args["type"] !== undefined) params["type"] = String(args["type"]);
+        if (args["videoCaption"] !== undefined) {
+          params["videoCaption"] = String(args["videoCaption"]);
+        }
+        if (args["videoCategoryId"] !== undefined) {
+          params["videoCategoryId"] = String(args["videoCategoryId"]);
+        }
+        if (args["videoDefinition"] !== undefined) {
+          params["videoDefinition"] = String(args["videoDefinition"]);
+        }
+        if (args["videoDimension"] !== undefined) {
+          params["videoDimension"] = String(args["videoDimension"]);
+        }
+        if (args["videoDuration"] !== undefined) {
+          params["videoDuration"] = String(args["videoDuration"]);
+        }
+        if (args["videoEmbeddable"] !== undefined) {
+          params["videoEmbeddable"] = String(args["videoEmbeddable"]);
+        }
+        if (args["videoLicense"] !== undefined) {
+          params["videoLicense"] = String(args["videoLicense"]);
+        }
+        if (args["videoPaidProductPlacement"] !== undefined) {
+          params["videoPaidProductPlacement"] = String(
+            args["videoPaidProductPlacement"],
+          );
+        }
+        if (args["videoSyndicated"] !== undefined) {
+          params["videoSyndicated"] = String(args["videoSyndicated"]);
+        }
+        if (args["videoType"] !== undefined) {
+          params["videoType"] = String(args["videoType"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

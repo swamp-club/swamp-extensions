@@ -110,7 +110,7 @@ const GlobalArgsSchema = z.object({
       type: z.enum(["PATTERN_TYPE_UNSPECIFIED", "RE2", "GLOB", "PREFIX"])
         .describe("Optional. The type of pattern to match against.").optional(),
     })).describe(
-      'Optional. A list of file paths patterns to exclude from triggering a rollout. Patterns in this list take precedence over required_paths. **Note**: All paths must be in the ignored_paths in order for the rollout to be skipped. Limited to 100 paths. Example: ` ignored_paths: { pattern: "foo/bar/excluded/*", type: "GLOB" } `',
+      'Optional. A list of file paths patterns to exclude from triggering a rollout. Patterns in this list take precedence over required_paths. **Note**: All paths must be in the ignored_paths in order for the rollout to be skipped. Limited to 100 paths. Example: ignored_paths: { pattern: "foo/bar/excluded/*” type: GLOB }',
     ).optional(),
     requiredPaths: z.array(z.object({
       pattern: z.string().describe("Optional. The pattern to match against.")
@@ -118,7 +118,7 @@ const GlobalArgsSchema = z.object({
       type: z.enum(["PATTERN_TYPE_UNSPECIFIED", "RE2", "GLOB", "PREFIX"])
         .describe("Optional. The type of pattern to match against.").optional(),
     })).describe(
-      'Optional. A list of file paths patterns that trigger a build and rollout if at least one of the changed files in the commit are present in this list. This field is optional; the rollout policy will default to triggering on all paths if both ignored_paths and required_paths are not populated. Limited to 100 paths. Example: ` required_paths: { pattern: "foo/bar/*", type: "GLOB" } `',
+      'Optional. A list of file paths patterns that trigger a build and rollout if at least one of the changed files in the commit are present in this list. This field is optional; the rollout policy will default to triggering on all paths if not populated. Limited to 100 paths. Example: “required_paths: { pattern: "foo/bar/*” type: GLOB }',
     ).optional(),
   }).describe(
     "The policy for how automatic builds and rollouts are triggered and rolled out.",
@@ -227,7 +227,7 @@ const InputsSchema = z.object({
       type: z.enum(["PATTERN_TYPE_UNSPECIFIED", "RE2", "GLOB", "PREFIX"])
         .describe("Optional. The type of pattern to match against.").optional(),
     })).describe(
-      'Optional. A list of file paths patterns to exclude from triggering a rollout. Patterns in this list take precedence over required_paths. **Note**: All paths must be in the ignored_paths in order for the rollout to be skipped. Limited to 100 paths. Example: ` ignored_paths: { pattern: "foo/bar/excluded/*", type: "GLOB" } `',
+      'Optional. A list of file paths patterns to exclude from triggering a rollout. Patterns in this list take precedence over required_paths. **Note**: All paths must be in the ignored_paths in order for the rollout to be skipped. Limited to 100 paths. Example: ignored_paths: { pattern: "foo/bar/excluded/*” type: GLOB }',
     ).optional(),
     requiredPaths: z.array(z.object({
       pattern: z.string().describe("Optional. The pattern to match against.")
@@ -235,7 +235,7 @@ const InputsSchema = z.object({
       type: z.enum(["PATTERN_TYPE_UNSPECIFIED", "RE2", "GLOB", "PREFIX"])
         .describe("Optional. The type of pattern to match against.").optional(),
     })).describe(
-      'Optional. A list of file paths patterns that trigger a build and rollout if at least one of the changed files in the commit are present in this list. This field is optional; the rollout policy will default to triggering on all paths if both ignored_paths and required_paths are not populated. Limited to 100 paths. Example: ` required_paths: { pattern: "foo/bar/*", type: "GLOB" } `',
+      'Optional. A list of file paths patterns that trigger a build and rollout if at least one of the changed files in the commit are present in this list. This field is optional; the rollout policy will default to triggering on all paths if not populated. Limited to 100 paths. Example: “required_paths: { pattern: "foo/bar/*” type: GLOB }',
     ).optional(),
   }).describe(
     "The policy for how automatic builds and rollouts are triggered and rolled out.",
@@ -262,7 +262,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Firebase App Hosting Backends.Traffic. Registered at `@swamp/gcp/firebaseapphosting/backends-traffic`. */
 export const model = {
   type: "@swamp/gcp/firebaseapphosting/backends-traffic",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -336,6 +336,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

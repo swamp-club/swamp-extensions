@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -140,28 +141,6 @@ const GlobalArgsSchema = z.object({
   fieldPathsPendingUpdate: z.array(z.string()).describe(
     "Optional. The list of fields waiting for hub administrator's approval.",
   ).optional(),
-  gateway: z.object({
-    capacity: z.enum([
-      "GATEWAY_CAPACITY_UNSPECIFIED",
-      "CAPACITY_1_GBPS",
-      "CAPACITY_10_GBPS",
-    ]).describe("Optional. The aggregate processing capacity of this gateway.")
-      .optional(),
-    cloudRouters: z.array(z.string()).describe(
-      "Output only. The list of Cloud Routers that are connected to this gateway. Should be in the form: https://www.googleapis.com/compute/v1/projects/{project}/regions/{region}/routers/{router}",
-    ).optional(),
-    ipRangeReservations: z.array(z.object({
-      ipRange: z.string().describe(
-        'Required. A block of IP addresses used to allocate supporting infrastructure for this gateway. This block must not overlap with subnets in any spokes or peer VPC networks that the gateway can communicate with. Example: "10.1.2.0/24"',
-      ).optional(),
-    })).describe(
-      "Optional. A list of IP ranges that are reserved for this gateway's internal intfrastructure.",
-    ).optional(),
-    sacAttachment: z.string().describe(
-      "Output only. The URI of the connected SACAttachment. Should be in the form: projects/{project}/locations/{location}/sacAttachments/{sac_attachment}",
-    ).optional(),
-  }).describe("A gateway that can apply specialized traffic processing.")
-    .optional(),
   group: z.string().describe(
     "Optional. The name of the group that this spoke is associated with.",
   ).optional(),
@@ -312,14 +291,6 @@ const StateSchema = z.object({
   description: z.string().optional(),
   etag: z.string().optional(),
   fieldPathsPendingUpdate: z.array(z.string()).optional(),
-  gateway: z.object({
-    capacity: z.string(),
-    cloudRouters: z.array(z.string()),
-    ipRangeReservations: z.array(z.object({
-      ipRange: z.string(),
-    })),
-    sacAttachment: z.string(),
-  }).optional(),
   group: z.string().optional(),
   hub: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
@@ -392,28 +363,6 @@ const InputsSchema = z.object({
   fieldPathsPendingUpdate: z.array(z.string()).describe(
     "Optional. The list of fields waiting for hub administrator's approval.",
   ).optional(),
-  gateway: z.object({
-    capacity: z.enum([
-      "GATEWAY_CAPACITY_UNSPECIFIED",
-      "CAPACITY_1_GBPS",
-      "CAPACITY_10_GBPS",
-    ]).describe("Optional. The aggregate processing capacity of this gateway.")
-      .optional(),
-    cloudRouters: z.array(z.string()).describe(
-      "Output only. The list of Cloud Routers that are connected to this gateway. Should be in the form: https://www.googleapis.com/compute/v1/projects/{project}/regions/{region}/routers/{router}",
-    ).optional(),
-    ipRangeReservations: z.array(z.object({
-      ipRange: z.string().describe(
-        'Required. A block of IP addresses used to allocate supporting infrastructure for this gateway. This block must not overlap with subnets in any spokes or peer VPC networks that the gateway can communicate with. Example: "10.1.2.0/24"',
-      ).optional(),
-    })).describe(
-      "Optional. A list of IP ranges that are reserved for this gateway's internal intfrastructure.",
-    ).optional(),
-    sacAttachment: z.string().describe(
-      "Output only. The URI of the connected SACAttachment. Should be in the form: projects/{project}/locations/{location}/sacAttachments/{sac_attachment}",
-    ).optional(),
-  }).describe("A gateway that can apply specialized traffic processing.")
-    .optional(),
   group: z.string().describe(
     "Optional. The name of the group that this spoke is associated with.",
   ).optional(),
@@ -562,7 +511,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Network Connectivity Spokes. Registered at `@swamp/gcp/networkconnectivity/spokes`. */
 export const model = {
   type: "@swamp/gcp/networkconnectivity/spokes",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -637,6 +586,14 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "Removed: gateway",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { gateway: _gateway, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -671,7 +628,6 @@ export const model = {
         if (g["fieldPathsPendingUpdate"] !== undefined) {
           body["fieldPathsPendingUpdate"] = g["fieldPathsPendingUpdate"];
         }
-        if (g["gateway"] !== undefined) body["gateway"] = g["gateway"];
         if (g["group"] !== undefined) body["group"] = g["group"];
         if (g["hub"] !== undefined) body["hub"] = g["hub"];
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
@@ -801,7 +757,6 @@ export const model = {
         if (g["fieldPathsPendingUpdate"] !== undefined) {
           body["fieldPathsPendingUpdate"] = g["fieldPathsPendingUpdate"];
         }
-        if (g["gateway"] !== undefined) body["gateway"] = g["gateway"];
         if (g["group"] !== undefined) body["group"] = g["group"];
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["linkedInterconnectAttachments"] !== undefined) {
@@ -930,6 +885,61 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List spokes resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "An expression that filters the list of results.",
+        ).optional(),
+        orderBy: z.string().describe("Sort the results by a certain order.")
+          .optional(),
+        pageSize: z.number().describe(
+          "The maximum number of results to return per page.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "spokes",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     get_iam_policy: {

@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -222,7 +223,6 @@ const GlobalArgsSchema = z.object({
   guestOsFeatures: z.array(z.object({
     type: z.enum([
       "BARE_METAL_LINUX_COMPATIBLE",
-      "CCA_CAPABLE",
       "FEATURE_TYPE_UNSPECIFIED",
       "GVNIC",
       "IDPF",
@@ -238,7 +238,7 @@ const GlobalArgsSchema = z.object({
       "VIRTIO_SCSI_MULTIQUEUE",
       "WINDOWS",
     ]).describe(
-      "The ID of a supported feature. To add multiple values, use commas to separate values. Set to one or more of the following values: - VIRTIO_SCSI_MULTIQUEUE - WINDOWS - MULTI_IP_SUBNET - UEFI_COMPATIBLE - GVNIC - SEV_CAPABLE - SUSPEND_RESUME_COMPATIBLE - SEV_LIVE_MIGRATABLE_V2 - SEV_SNP_CAPABLE - TDX_CAPABLE - IDPF - SNP_SVSM_CAPABLE - CCA_CAPABLE For more information, see Enabling guest operating system features.",
+      "The ID of a supported feature. To add multiple values, use commas to separate values. Set to one or more of the following values: - VIRTIO_SCSI_MULTIQUEUE - WINDOWS - MULTI_IP_SUBNET - UEFI_COMPATIBLE - GVNIC - SEV_CAPABLE - SUSPEND_RESUME_COMPATIBLE - SEV_LIVE_MIGRATABLE_V2 - SEV_SNP_CAPABLE - TDX_CAPABLE - IDPF - SNP_SVSM_CAPABLE For more information, see Enabling guest operating system features.",
     ).optional(),
   })).describe(
     "A list of features to enable on the guest operating system. Applicable only for bootable images. Read Enabling guest operating system features to see a list of available options.",
@@ -265,7 +265,7 @@ const GlobalArgsSchema = z.object({
   options: z.string().describe("Internal use only.").optional(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.string()).describe(
-      "Input only. Resource manager tags to be bound to the disk. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/{tag_value_id}` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
+      "Input only. Resource manager tags to be bound to the disk. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/456` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
     ).optional(),
   }).describe("Additional disk params.").optional(),
   physicalBlockSizeBytes: z.string().describe(
@@ -509,7 +509,6 @@ const InputsSchema = z.object({
   guestOsFeatures: z.array(z.object({
     type: z.enum([
       "BARE_METAL_LINUX_COMPATIBLE",
-      "CCA_CAPABLE",
       "FEATURE_TYPE_UNSPECIFIED",
       "GVNIC",
       "IDPF",
@@ -525,7 +524,7 @@ const InputsSchema = z.object({
       "VIRTIO_SCSI_MULTIQUEUE",
       "WINDOWS",
     ]).describe(
-      "The ID of a supported feature. To add multiple values, use commas to separate values. Set to one or more of the following values: - VIRTIO_SCSI_MULTIQUEUE - WINDOWS - MULTI_IP_SUBNET - UEFI_COMPATIBLE - GVNIC - SEV_CAPABLE - SUSPEND_RESUME_COMPATIBLE - SEV_LIVE_MIGRATABLE_V2 - SEV_SNP_CAPABLE - TDX_CAPABLE - IDPF - SNP_SVSM_CAPABLE - CCA_CAPABLE For more information, see Enabling guest operating system features.",
+      "The ID of a supported feature. To add multiple values, use commas to separate values. Set to one or more of the following values: - VIRTIO_SCSI_MULTIQUEUE - WINDOWS - MULTI_IP_SUBNET - UEFI_COMPATIBLE - GVNIC - SEV_CAPABLE - SUSPEND_RESUME_COMPATIBLE - SEV_LIVE_MIGRATABLE_V2 - SEV_SNP_CAPABLE - TDX_CAPABLE - IDPF - SNP_SVSM_CAPABLE For more information, see Enabling guest operating system features.",
     ).optional(),
   })).describe(
     "A list of features to enable on the guest operating system. Applicable only for bootable images. Read Enabling guest operating system features to see a list of available options.",
@@ -552,7 +551,7 @@ const InputsSchema = z.object({
   options: z.string().describe("Internal use only.").optional(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.string()).describe(
-      "Input only. Resource manager tags to be bound to the disk. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/{tag_value_id}` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
+      "Input only. Resource manager tags to be bound to the disk. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/456` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
     ).optional(),
   }).describe("Additional disk params.").optional(),
   physicalBlockSizeBytes: z.string().describe(
@@ -664,7 +663,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine Disks. Registered at `@swamp/gcp/compute/disks`. */
 export const model = {
   type: "@swamp/gcp/compute/disks",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -778,6 +777,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1163,6 +1167,66 @@ export const model = {
         }
       },
     },
+    list: {
+      description: "List disks resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "A filter expression that filters resources listed in the response. Most",
+        ).optional(),
+        maxResults: z.number().describe(
+          "The maximum number of results per page that should be returned.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Sorts list results by a certain order. By default, results",
+        ).optional(),
+        returnPartialSuccess: z.boolean().describe(
+          "Opt-in for partial success behavior which provides partial results in case",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["zone"] !== undefined) params["zone"] = String(g["zone"]);
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["returnPartialSuccess"] !== undefined) {
+          params["returnPartialSuccess"] = String(args["returnPartialSuccess"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "items",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
     add_resource_policies: {
       description: "add resource policies",
       arguments: z.object({
@@ -1215,8 +1279,6 @@ export const model = {
     bulk_insert: {
       description: "bulk insert",
       arguments: z.object({
-        instantSnapshotGroupParameters: z.any().optional(),
-        snapshotGroupParameters: z.any().optional(),
         sourceConsistencyGroupPolicy: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
@@ -1225,13 +1287,6 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         if (g["zone"] !== undefined) params["zone"] = String(g["zone"]);
         const body: Record<string, unknown> = {};
-        if (args["instantSnapshotGroupParameters"] !== undefined) {
-          body["instantSnapshotGroupParameters"] =
-            args["instantSnapshotGroupParameters"];
-        }
-        if (args["snapshotGroupParameters"] !== undefined) {
-          body["snapshotGroupParameters"] = args["snapshotGroupParameters"];
-        }
         if (args["sourceConsistencyGroupPolicy"] !== undefined) {
           body["sourceConsistencyGroupPolicy"] =
             args["sourceConsistencyGroupPolicy"];
@@ -1310,13 +1365,10 @@ export const model = {
         locationHint: z.any().optional(),
         name: z.any().optional(),
         params: z.any().optional(),
-        region: z.any().optional(),
         satisfiesPzi: z.any().optional(),
         satisfiesPzs: z.any().optional(),
         selfLink: z.any().optional(),
         snapshotEncryptionKey: z.any().optional(),
-        snapshotGroupId: z.any().optional(),
-        snapshotGroupName: z.any().optional(),
         snapshotType: z.any().optional(),
         sourceDisk: z.any().optional(),
         sourceDiskEncryptionKey: z.any().optional(),
@@ -1400,7 +1452,6 @@ export const model = {
         }
         if (args["name"] !== undefined) body["name"] = args["name"];
         if (args["params"] !== undefined) body["params"] = args["params"];
-        if (args["region"] !== undefined) body["region"] = args["region"];
         if (args["satisfiesPzi"] !== undefined) {
           body["satisfiesPzi"] = args["satisfiesPzi"];
         }
@@ -1410,12 +1461,6 @@ export const model = {
         if (args["selfLink"] !== undefined) body["selfLink"] = args["selfLink"];
         if (args["snapshotEncryptionKey"] !== undefined) {
           body["snapshotEncryptionKey"] = args["snapshotEncryptionKey"];
-        }
-        if (args["snapshotGroupId"] !== undefined) {
-          body["snapshotGroupId"] = args["snapshotGroupId"];
-        }
-        if (args["snapshotGroupName"] !== undefined) {
-          body["snapshotGroupName"] = args["snapshotGroupName"];
         }
         if (args["snapshotType"] !== undefined) {
           body["snapshotType"] = args["snapshotType"];
@@ -1838,54 +1883,6 @@ export const model = {
             "parameters": {
               "project": { "location": "path", "required": true },
               "resource": { "location": "path", "required": true },
-              "zone": { "location": "path", "required": true },
-            },
-          },
-          params,
-          body,
-        );
-        return { result };
-      },
-    },
-    update_kms_key: {
-      description: "update kms key",
-      arguments: z.object({
-        kmsKeyName: z.any().optional(),
-      }),
-      execute: async (args: Record<string, unknown>, context: any) => {
-        const g = context.globalArgs;
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
-        if (g["zone"] !== undefined) params["zone"] = String(g["zone"]);
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
-            /\.\./g,
-            "_",
-          ).replace(/\0/g, ""),
-        );
-        if (!content) {
-          throw new Error("No existing state found - run create or get first");
-        }
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        params["disk"] = existing["name"]?.toString() ??
-          g["name"]?.toString() ?? "";
-        const body: Record<string, unknown> = {};
-        if (args["kmsKeyName"] !== undefined) {
-          body["kmsKeyName"] = args["kmsKeyName"];
-        }
-        const result = await createResource(
-          BASE_URL,
-          {
-            "id": "compute.disks.updateKmsKey",
-            "path": "projects/{project}/zones/{zone}/disks/{disk}/updateKmsKey",
-            "httpMethod": "POST",
-            "parameterOrder": ["project", "zone", "disk"],
-            "parameters": {
-              "disk": { "location": "path", "required": true },
-              "project": { "location": "path", "required": true },
-              "requestId": { "location": "query" },
               "zone": { "location": "path", "required": true },
             },
           },

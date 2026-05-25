@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -222,7 +223,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Apigee Developers. Registered at `@swamp/gcp/apigee/developers`. */
 export const model = {
   type: "@swamp/gcp/apigee/developers",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -276,6 +277,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -516,6 +522,74 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List developers resources",
+      arguments: z.object({
+        app: z.string().describe(
+          "Optional. List only Developers that are associated with the app. Note that start_key, count are not applicable for this filter criteria.",
+        ).optional(),
+        count: z.string().describe(
+          "Optional. Number of developers to return in the API call. Use with the `startKey` parameter to provide more targeted filtering. The limit is 1000.",
+        ).optional(),
+        expand: z.boolean().describe(
+          "Specifies whether to expand the results. Set to `true` to expand the results. This query parameter is not valid if you use the `count` or `startKey` query parameters.",
+        ).optional(),
+        ids: z.string().describe(
+          "Optional. List of IDs to include, separated by commas.",
+        ).optional(),
+        includeCompany: z.boolean().describe(
+          "Flag that specifies whether to include company details in the response.",
+        ).optional(),
+        startKey: z.string().describe(
+          "**Note**: Must be used in conjunction with the `count` parameter. Email address of the developer from which to start displaying the list of developers. For example, if the an unfiltered list returns: ``` westley@example.com fezzik@example.com buttercup@example.com ``` and your `startKey` is `fezzik@example.com`, the list returned will be ``` fezzik@example.com buttercup@example.com ```",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["app"] !== undefined) params["app"] = String(args["app"]);
+        if (args["count"] !== undefined) {
+          params["count"] = String(args["count"]);
+        }
+        if (args["expand"] !== undefined) {
+          params["expand"] = String(args["expand"]);
+        }
+        if (args["ids"] !== undefined) params["ids"] = String(args["ids"]);
+        if (args["includeCompany"] !== undefined) {
+          params["includeCompany"] = String(args["includeCompany"]);
+        }
+        if (args["startKey"] !== undefined) {
+          params["startKey"] = String(args["startKey"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "developer",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     attributes: {

@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -225,9 +226,6 @@ const GlobalArgsSchema = z.object({
     enabled: z.boolean().describe(
       "Optional. Setting this to true allows the git and http proxies to perform actions on behalf of the user configured under the account connector.",
     ).optional(),
-    httpProxyBaseUri: z.string().describe(
-      "Output only. The base URI for the HTTP proxy endpoint. Has the format `https://{generatedID}-a-h-{shortRegion}.developerconnect.dev` Populated only when `enabled` is set to `true`. This endpoint is used by other Google services that integrate with Developer Connect.",
-    ).optional(),
   }).describe("The proxy configuration.").optional(),
   accountConnectorId: z.string().describe(
     "Required. The ID to use for the AccountConnector, which will become the final component of the AccountConnector's resource name. Its format should adhere to https://google.aip.dev/122#resource-id-segments Names must be unique per-project per-location.",
@@ -268,9 +266,7 @@ const StateSchema = z.object({
   }).optional(),
   proxyConfig: z.object({
     enabled: z.boolean(),
-    httpProxyBaseUri: z.string(),
   }).optional(),
-  uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -350,9 +346,6 @@ const InputsSchema = z.object({
     enabled: z.boolean().describe(
       "Optional. Setting this to true allows the git and http proxies to perform actions on behalf of the user configured under the account connector.",
     ).optional(),
-    httpProxyBaseUri: z.string().describe(
-      "Output only. The base URI for the HTTP proxy endpoint. Has the format `https://{generatedID}-a-h-{shortRegion}.developerconnect.dev` Populated only when `enabled` is set to `true`. This endpoint is used by other Google services that integrate with Developer Connect.",
-    ).optional(),
   }).describe("The proxy configuration.").optional(),
   accountConnectorId: z.string().describe(
     "Required. The ID to use for the AccountConnector, which will become the final component of the AccountConnector's resource name. Its format should adhere to https://google.aip.dev/122#resource-id-segments Names must be unique per-project per-location.",
@@ -368,7 +361,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Developer Connect AccountConnectors. Registered at `@swamp/gcp/developerconnect/accountconnectors`. */
 export const model = {
   type: "@swamp/gcp/developerconnect/accountconnectors",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -442,6 +435,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -692,6 +690,60 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List accountConnectors resources",
+      arguments: z.object({
+        filter: z.string().describe("Optional. Filtering results").optional(),
+        orderBy: z.string().describe(
+          "Optional. Hint for how to order the results",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Requested page size. Server may return fewer items than requested. If unspecified, server will pick an appropriate default.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "accountConnectors",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     fetch_user_repositories: {

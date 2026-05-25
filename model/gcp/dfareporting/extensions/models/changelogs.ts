@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -39,6 +40,51 @@ const GET_CONFIG = {
     "profileId": {
       "location": "path",
       "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "dfareporting.changeLogs.list",
+  "path": "userprofiles/{+profileId}/changeLogs",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "profileId",
+  ],
+  "parameters": {
+    "action": {
+      "location": "query",
+    },
+    "ids": {
+      "location": "query",
+    },
+    "maxChangeTime": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "minChangeTime": {
+      "location": "query",
+    },
+    "objectIds": {
+      "location": "query",
+    },
+    "objectType": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "profileId": {
+      "location": "path",
+      "required": true,
+    },
+    "searchString": {
+      "location": "query",
+    },
+    "userProfileIds": {
+      "location": "query",
     },
   },
 } as const;
@@ -75,7 +121,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Campaign Manager 360 ChangeLogs. Registered at `@swamp/gcp/dfareporting/changelogs`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/changelogs",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -129,6 +175,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -228,6 +279,94 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List changeLogs resources",
+      arguments: z.object({
+        action: z.string().describe(
+          "Select only change logs with the specified action.",
+        ).optional(),
+        ids: z.string().describe("Select only change logs with these IDs.")
+          .optional(),
+        maxChangeTime: z.string().describe(
+          'Select only change logs whose change time is before the specified maxChangeTime.The time should be formatted as an RFC3339 date/time string. For example, for 10:54 PM on July 18th, 2015, in the America/New York time zone, the format is "2015-07-18T22:54:00-04:00". In other words, the year, month, day, the letter T, the hour (24-hour clock system), minute, second, and then the time zone offset.',
+        ).optional(),
+        maxResults: z.number().describe("Maximum number of results to return.")
+          .optional(),
+        minChangeTime: z.string().describe(
+          'Select only change logs whose change time is after the specified minChangeTime.The time should be formatted as an RFC3339 date/time string. For example, for 10:54 PM on July 18th, 2015, in the America/New York time zone, the format is "2015-07-18T22:54:00-04:00". In other words, the year, month, day, the letter T, the hour (24-hour clock system), minute, second, and then the time zone offset.',
+        ).optional(),
+        objectIds: z.string().describe(
+          "Select only change logs with these object IDs.",
+        ).optional(),
+        objectType: z.string().describe(
+          "Select only change logs with the specified object type.",
+        ).optional(),
+        searchString: z.string().describe(
+          "Select only change logs whose object ID, user name, old or new values match the search string.",
+        ).optional(),
+        userProfileIds: z.string().describe(
+          "Select only change logs with these user profile IDs.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["profileId"] !== undefined) {
+          params["profileId"] = String(g["profileId"]);
+        }
+        if (args["action"] !== undefined) {
+          params["action"] = String(args["action"]);
+        }
+        if (args["ids"] !== undefined) params["ids"] = String(args["ids"]);
+        if (args["maxChangeTime"] !== undefined) {
+          params["maxChangeTime"] = String(args["maxChangeTime"]);
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["minChangeTime"] !== undefined) {
+          params["minChangeTime"] = String(args["minChangeTime"]);
+        }
+        if (args["objectIds"] !== undefined) {
+          params["objectIds"] = String(args["objectIds"]);
+        }
+        if (args["objectType"] !== undefined) {
+          params["objectType"] = String(args["objectType"]);
+        }
+        if (args["searchString"] !== undefined) {
+          params["searchString"] = String(args["searchString"]);
+        }
+        if (args["userProfileIds"] !== undefined) {
+          params["userProfileIds"] = String(args["userProfileIds"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "changeLogs",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.id?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

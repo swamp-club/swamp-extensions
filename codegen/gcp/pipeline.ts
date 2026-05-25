@@ -212,6 +212,23 @@ export interface GcpParsedResource {
    * Only set when usesFullResourceName is true.
    */
   resourceSegment?: string;
+  /**
+   * Query parameters for the list method, excluding pagination internals
+   * (pageToken) and deprecated parameters. Used to generate list method arguments.
+   * Only set when a list method with a detectable response array exists.
+   */
+  listQueryParams?: Array<{
+    name: string;
+    type: string;
+    description?: string;
+    required?: boolean;
+  }>;
+  /**
+   * The property name in the list response that contains the resource array
+   * (e.g., "files" for Drive, "items" for Compute). Only set when the list
+   * response schema has a top-level array property whose items are objects.
+   */
+  listResponseArrayField?: string;
 }
 
 /** A non-CRUD action method on a GCP resource (e.g., start, stop, reboot). */
@@ -1497,6 +1514,61 @@ function buildGcpParsedResource(
   if (deleteMethod) methodConfigs.delete = extractMethodConfig(deleteMethod);
   if (list) methodConfigs.list = extractMethodConfig(list);
 
+  // Extract list method metadata for list factory method generation.
+  // Detect the response array field (must be an array of objects, not primitives)
+  // and collect query parameters (excluding pagination internals and deprecated).
+  let listResponseArrayField: string | undefined;
+  let listQueryParams:
+    | Array<{
+      name: string;
+      type: string;
+      description?: string;
+      required?: boolean;
+    }>
+    | undefined;
+
+  if (list?.response?.properties) {
+    for (
+      const [propName, propDef] of Object.entries(list.response.properties)
+    ) {
+      if (
+        propDef.type === "array" && propDef.items &&
+        (propDef.items.type === "object" || propDef.items.properties)
+      ) {
+        listResponseArrayField = propName;
+        break;
+      }
+    }
+  }
+
+  if (listResponseArrayField && list?.parameters) {
+    const skipParams = new Set([
+      "pageToken",
+      "alt",
+      "key",
+      "oauth_token",
+      "prettyPrint",
+      "quotaUser",
+      "userIp",
+      "fields",
+      "uploadType",
+      "upload_protocol",
+    ]);
+    listQueryParams = [];
+    for (const [paramName, param] of Object.entries(list.parameters)) {
+      if (param.location !== "query") continue;
+      if (skipParams.has(paramName)) continue;
+      if (param.deprecated === true) continue;
+      listQueryParams.push({
+        name: paramName,
+        type: param.type || "string",
+        description: param.description,
+        required: param.required,
+      });
+    }
+    if (listQueryParams.length === 0) listQueryParams = undefined;
+  }
+
   const typeName = buildGcpTypeName(doc.title || doc.name, resourcePath);
   const description = normalizeDescription(
     resourceSchema.description ||
@@ -1533,6 +1605,8 @@ function buildGcpParsedResource(
     actionMethods: buildActionMethods(spec.actionMethods || {}, doc),
     readiness: detectReadinessConfig(resourceSchema),
     ...detectFullResourceNamePattern(getMethod, list, insert),
+    listQueryParams,
+    listResponseArrayField,
   };
 }
 

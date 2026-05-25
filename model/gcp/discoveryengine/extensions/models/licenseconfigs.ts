@@ -81,30 +81,6 @@ const PATCH_CONFIG = {
   },
 } as const;
 
-const LIST_CONFIG = {
-  "id": "discoveryengine.projects.locations.licenseConfigs.list",
-  "path": "v1/{+parent}/licenseConfigs",
-  "httpMethod": "GET",
-  "parameterOrder": [
-    "parent",
-  ],
-  "parameters": {
-    "filter": {
-      "location": "query",
-    },
-    "pageSize": {
-      "location": "query",
-    },
-    "pageToken": {
-      "location": "query",
-    },
-    "parent": {
-      "location": "path",
-      "required": true,
-    },
-  },
-} as const;
-
 const GlobalArgsSchema = z.object({
   autoRenew: z.boolean().describe(
     "Optional. Whether the license config should be auto renewed when it reaches the end date.",
@@ -303,7 +279,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Discovery Engine LicenseConfigs. Registered at `@swamp/gcp/discoveryengine/licenseconfigs`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/licenseconfigs",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -378,6 +354,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -444,16 +425,6 @@ export const model = {
               "failedValues": [],
             }
             : undefined,
-          {
-            listConfig: LIST_CONFIG,
-            listParams: {
-              "parent": `projects/${projectId}/locations/${
-                String(g["location"] ?? "")
-              }`,
-            },
-            matchField: "name",
-            matchValue: String(g["name"] ?? ""),
-          },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");

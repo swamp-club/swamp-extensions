@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -597,9 +598,6 @@ const GlobalArgsSchema = z.object({
   pemCsr: z.string().describe(
     "Immutable. A pem-encoded X.509 certificate signing request (CSR).",
   ).optional(),
-  requestedNotBeforeTime: z.string().describe(
-    "Optional. The requested not_before_time of this Certificate. This field may only be set if the CaPool.IssuancePolicy.allow_requester_specified_not_before_time field is set to true for the issuing CaPool. If this field is specified, the certificate will be issued with this 'not_before_time'. If this is not specified, the 'not_before_time' will be set to the issuance time or issuance time minus backdate_duration depending on the CaPool configuration.",
-  ).optional(),
   revocationDetails: z.object({
     revocationState: z.enum([
       "REVOCATION_REASON_UNSPECIFIED",
@@ -837,7 +835,6 @@ const StateSchema = z.object({
   pemCertificate: z.string().optional(),
   pemCertificateChain: z.array(z.string()).optional(),
   pemCsr: z.string().optional(),
-  requestedNotBeforeTime: z.string().optional(),
   revocationDetails: z.object({
     revocationState: z.string(),
     revocationTime: z.string(),
@@ -1325,9 +1322,6 @@ const InputsSchema = z.object({
   pemCsr: z.string().describe(
     "Immutable. A pem-encoded X.509 certificate signing request (CSR).",
   ).optional(),
-  requestedNotBeforeTime: z.string().describe(
-    "Optional. The requested not_before_time of this Certificate. This field may only be set if the CaPool.IssuancePolicy.allow_requester_specified_not_before_time field is set to true for the issuing CaPool. If this field is specified, the certificate will be issued with this 'not_before_time'. If this is not specified, the 'not_before_time' will be set to the issuance time or issuance time minus backdate_duration depending on the CaPool configuration.",
-  ).optional(),
   revocationDetails: z.object({
     revocationState: z.enum([
       "REVOCATION_REASON_UNSPECIFIED",
@@ -1371,7 +1365,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Certificate Authority CaPools.Certificates. Registered at `@swamp/gcp/privateca/capools-certificates`. */
 export const model = {
   type: "@swamp/gcp/privateca/capools-certificates",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1461,6 +1455,15 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.25.1",
+      description: "Removed: requestedNotBeforeTime",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { requestedNotBeforeTime: _requestedNotBeforeTime, ...rest } =
+          old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1496,9 +1499,6 @@ export const model = {
         if (g["lifetime"] !== undefined) body["lifetime"] = g["lifetime"];
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["pemCsr"] !== undefined) body["pemCsr"] = g["pemCsr"];
-        if (g["requestedNotBeforeTime"] !== undefined) {
-          body["requestedNotBeforeTime"] = g["requestedNotBeforeTime"];
-        }
         if (g["revocationDetails"] !== undefined) {
           body["revocationDetails"] = g["revocationDetails"];
         }
@@ -1608,9 +1608,6 @@ export const model = {
         }
         if (g["config"] !== undefined) body["config"] = g["config"];
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
-        if (g["requestedNotBeforeTime"] !== undefined) {
-          body["requestedNotBeforeTime"] = g["requestedNotBeforeTime"];
-        }
         if (g["revocationDetails"] !== undefined) {
           body["revocationDetails"] = g["revocationDetails"];
         }
@@ -1685,6 +1682,62 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List certificates resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Optional. Only include resources that match the filter in the response. For details on supported filters and syntax, see [Certificates Filtering documentation](https://cloud.google.com/certificate-authority-service/docs/sorting-filtering-certificates#filtering_support).",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Optional. Specify how the results should be sorted. For details on supported fields and syntax, see [Certificates Sorting documentation](https://cloud.google.com/certificate-authority-service/docs/sorting-filtering-certificates#sorting_support).",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Limit on the number of Certificates to include in the response. Further Certificates can subsequently be obtained by including the ListCertificatesResponse.next_page_token in a subsequent request. If unspecified, the server will pick an appropriate default.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "certificates",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     revoke: {

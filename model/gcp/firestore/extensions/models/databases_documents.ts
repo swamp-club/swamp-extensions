@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -94,6 +95,47 @@ const DELETE_CONFIG = {
     "name": {
       "location": "path",
       "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "firestore.projects.databases.documents.list",
+  "path": "v1/{+parent}/{collectionId}",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+    "collectionId",
+  ],
+  "parameters": {
+    "collectionId": {
+      "location": "path",
+      "required": true,
+    },
+    "mask.fieldPaths": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+    "readTime": {
+      "location": "query",
+    },
+    "showMissing": {
+      "location": "query",
+    },
+    "transaction": {
+      "location": "query",
     },
   },
 } as const;
@@ -292,7 +334,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Firestore Databases.Documents. Registered at `@swamp/gcp/firestore/databases-documents`. */
 export const model = {
   type: "@swamp/gcp/firestore/databases-documents",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -356,6 +398,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -524,6 +571,83 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List documents resources",
+      arguments: z.object({
+        mask_fieldPaths: z.string().describe(
+          "The list of field paths in the mask. See Document.fields for a field path syntax reference.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Optional. The optional ordering of the documents to return. For example: `priority desc, __name__ desc`. This mirrors the `ORDER BY` used in Firestore queries but in a string representation. When absent, documents are ordered based on `__name__ ASC`.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of documents to return in a single response. Firestore may return fewer than this value.",
+        ).optional(),
+        readTime: z.string().describe(
+          "Perform the read at the provided time. This must be a microsecond precision timestamp within the past one hour, or if Point-in-Time Recovery is enabled, can additionally be a whole minute timestamp within the past 7 days.",
+        ).optional(),
+        showMissing: z.boolean().describe(
+          "If the list should show missing documents. A document is missing if it does not exist, but there are sub-documents nested underneath it. When true, such missing documents will be returned with a key but will not have fields, `create_time`, or `update_time` set. Requests with `show_missing` may not specify `where` or `order_by`.",
+        ).optional(),
+        transaction: z.string().describe(
+          "Perform the read as part of an already active transaction.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (g["collectionId"] !== undefined) {
+          params["collectionId"] = String(g["collectionId"]);
+        }
+        if (args["mask_fieldPaths"] !== undefined) {
+          params["mask.fieldPaths"] = String(args["mask_fieldPaths"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["readTime"] !== undefined) {
+          params["readTime"] = String(args["readTime"]);
+        }
+        if (args["showMissing"] !== undefined) {
+          params["showMissing"] = String(args["showMissing"]);
+        }
+        if (args["transaction"] !== undefined) {
+          params["transaction"] = String(args["transaction"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "documents",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     batch_get: {

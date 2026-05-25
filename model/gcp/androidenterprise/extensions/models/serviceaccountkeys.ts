@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -81,7 +82,7 @@ const GlobalArgsSchema = z.object({
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
   data: z.string().describe(
-    'The body of the private key credentials file, in string format. This is only populated when the ServiceAccountKey is created, and is not stored by Google. When type is "pkcs12", the contents of the data field is base64 encoded and has the password "notasecret".',
+    "The body of the private key credentials file, in string format. This is only populated when the ServiceAccountKey is created, and is not stored by Google.",
   ).optional(),
   id: z.string().describe(
     "An opaque, unique identifier for this ServiceAccountKey. Assigned by the server.",
@@ -107,7 +108,7 @@ type StateData = z.infer<typeof StateSchema>;
 const InputsSchema = z.object({
   name: z.string().optional(),
   data: z.string().describe(
-    'The body of the private key credentials file, in string format. This is only populated when the ServiceAccountKey is created, and is not stored by Google. When type is "pkcs12", the contents of the data field is base64 encoded and has the password "notasecret".',
+    "The body of the private key credentials file, in string format. This is only populated when the ServiceAccountKey is created, and is not stored by Google.",
   ).optional(),
   id: z.string().describe(
     "An opaque, unique identifier for this ServiceAccountKey. Assigned by the server.",
@@ -124,7 +125,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Play EMM Serviceaccountkeys. Registered at `@swamp/gcp/androidenterprise/serviceaccountkeys`. */
 export const model = {
   type: "@swamp/gcp/androidenterprise/serviceaccountkeys",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -198,6 +199,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -372,6 +383,44 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List serviceaccountkeys resources",
+      arguments: z.object({
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["enterpriseId"] !== undefined) {
+          params["enterpriseId"] = String(g["enterpriseId"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "serviceAccountKey",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -257,14 +258,8 @@ const GlobalArgsSchema = z.object({
     displayNetworkMembersCount: z.string().describe(
       "Output only. Estimated number of members in this user list, on the Google Display Network.",
     ).optional(),
-    gmailMembersCount: z.string().describe(
-      "Output only. Estimated number of members in this user list on Gmail.",
-    ).optional(),
     searchNetworkMembersCount: z.string().describe(
       "Output only. Estimated number of members in this user list in the google.com domain. These are the members available for targeting in Search campaigns.",
-    ).optional(),
-    youtubeMembersCount: z.string().describe(
-      "Output only. Estimated number of members in this user list on YouTube.",
     ).optional(),
   }).describe(
     "Estimated number of members in this user list in different target networks.",
@@ -327,9 +322,7 @@ const StateSchema = z.object({
   readOnly: z.boolean().optional(),
   sizeInfo: z.object({
     displayNetworkMembersCount: z.string(),
-    gmailMembersCount: z.string(),
     searchNetworkMembersCount: z.string(),
-    youtubeMembersCount: z.string(),
   }).optional(),
   targetNetworkInfo: z.object({
     eligibleForDisplay: z.boolean(),
@@ -469,14 +462,8 @@ const InputsSchema = z.object({
     displayNetworkMembersCount: z.string().describe(
       "Output only. Estimated number of members in this user list, on the Google Display Network.",
     ).optional(),
-    gmailMembersCount: z.string().describe(
-      "Output only. Estimated number of members in this user list on Gmail.",
-    ).optional(),
     searchNetworkMembersCount: z.string().describe(
       "Output only. Estimated number of members in this user list in the google.com domain. These are the members available for targeting in Search campaigns.",
-    ).optional(),
-    youtubeMembersCount: z.string().describe(
-      "Output only. Estimated number of members in this user list on YouTube.",
     ).optional(),
   }).describe(
     "Estimated number of members in this user list in different target networks.",
@@ -498,7 +485,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Data Manager AccountTypes.Accounts.UserLists. Registered at `@swamp/gcp/datamanager/accounttypes-accounts-userlists`. */
 export const model = {
   type: "@swamp/gcp/datamanager/accounttypes-accounts-userlists",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -572,6 +559,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -837,6 +829,54 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List userLists resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          'Optional. A [filter string](https://google.aip.dev/160). All fields need to be on the left hand side of each condition (for example: `display_name = "list 1"`). Fields must be specified using either all [camel case](https://en.wikipedia.org/wiki/Camel_case) or all [snake case](https://en.wikipedia.org/wiki/Snake_case). Don\'t use a combination of camel case and snake case. Supported operations: - `AND` - `=` - `!=` - `>` - `>=` - `<` - `<=` - `:` (has) Supported fields: - `id` - `display_name` - `description` - `membership_status` - `integration_code` - `access_reason` - `ingested_user_list_info.upload_key_types`',
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of user lists to return. The service may return fewer than this value. If unspecified, at most 50 user lists will be returned. The maximum value is 1000; values above 1000 will be coerced to 1000.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "userLists",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

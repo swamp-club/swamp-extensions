@@ -19,6 +19,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -84,6 +85,27 @@ const DELETE_CONFIG = {
     "revisionId": {
       "location": "path",
       "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "drive.revisions.list",
+  "path": "files/{fileId}/revisions",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "fileId",
+  ],
+  "parameters": {
+    "fileId": {
+      "location": "path",
+      "required": true,
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
     },
   },
 } as const;
@@ -239,7 +261,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Drive Revisions. Registered at `@swamp/gcp/drive/revisions`. */
 export const model = {
   type: "@swamp/gcp/drive/revisions",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -293,6 +315,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -500,6 +527,48 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List revisions resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "The maximum number of revisions to return per page.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["fileId"] !== undefined) params["fileId"] = String(g["fileId"]);
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "revisions",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -504,7 +505,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Chat Spaces. Registered at `@swamp/gcp/chat/spaces`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -578,6 +579,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -834,6 +845,52 @@ export const model = {
         }
       },
     },
+    list: {
+      description: "List spaces resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          'Optional. A query filter. You can filter spaces by the space type ([`space_type`](https://developers.google.com/workspace/chat/api/reference/rest/v1/spaces#spacetype)). To filter by space type, you must specify valid enum value, such as `SPACE` or `GROUP_CHAT` (the `space_type` can\'t be `SPACE_TYPE_UNSPECIFIED`). To query for multiple space types, use the `OR` operator. For example, the following queries are valid: ``` space_type = "SPACE" spaceType = "GROUP_CHAT" OR spaceType = "DIRECT_MESSAGE" ``` Invalid queries are rejected by the server with an `INVALID_ARGUMENT` error.',
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of spaces to return. The service might return fewer than this value. If unspecified, at most 100 spaces are returned. The maximum value is 1000. If you use a value more than 1000, it's automatically changed to 1000. Negative values return an `INVALID_ARGUMENT` error.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "spaces",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
     complete_import: {
       description: "complete import",
       arguments: z.object({}),
@@ -871,32 +928,6 @@ export const model = {
             "httpMethod": "GET",
             "parameterOrder": [],
             "parameters": { "name": { "location": "query" } },
-          },
-          params,
-          {},
-        );
-        return { result };
-      },
-    },
-    find_group_chats: {
-      description: "find group chats",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, unknown>, _context: any) => {
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
-        const result = await createResource(
-          BASE_URL,
-          {
-            "id": "chat.spaces.findGroupChats",
-            "path": "v1/spaces:findGroupChats",
-            "httpMethod": "GET",
-            "parameterOrder": [],
-            "parameters": {
-              "pageSize": { "location": "query" },
-              "pageToken": { "location": "query" },
-              "spaceView": { "location": "query" },
-              "users": { "location": "query" },
-            },
           },
           params,
           {},

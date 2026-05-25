@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -86,7 +87,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Play Android Developer Purchases.Voidedpurchases. Registered at `@swamp/gcp/androidpublisher/purchases-voidedpurchases`. */
 export const model = {
   type: "@swamp/gcp/androidpublisher/purchases-voidedpurchases",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -140,6 +141,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -242,6 +248,86 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List voidedpurchases resources",
+      arguments: z.object({
+        endTime: z.string().describe(
+          "The time, in milliseconds since the Epoch, of the newest voided purchase that you want to see in the response. The value of this parameter cannot be greater than the current time and is ignored if a pagination token is set. Default value is current time. Note: This filter is applied on the time at which the record is seen as voided by our systems and not the actual voided time returned in the response.",
+        ).optional(),
+        includeQuantityBasedPartialRefund: z.boolean().describe(
+          "Optional. Whether to include voided purchases of quantity-based partial refunds, which are applicable only to multi-quantity purchases. If true, additional voided purchases may be returned with voidedQuantity that indicates the refund quantity of a quantity-based partial refund. The default value is false.",
+        ).optional(),
+        maxResults: z.number().describe(
+          "Defines how many results the list operation should return. The default number depends on the resource collection.",
+        ).optional(),
+        startIndex: z.number().describe(
+          "Defines the index of the first element to return. This can only be used if indexed paging is enabled.",
+        ).optional(),
+        startTime: z.string().describe(
+          "The time, in milliseconds since the Epoch, of the oldest voided purchase that you want to see in the response. The value of this parameter cannot be older than 30 days and is ignored if a pagination token is set. Default value is current time minus 30 days. Note: This filter is applied on the time at which the record is seen as voided by our systems and not the actual voided time returned in the response.",
+        ).optional(),
+        token: z.string().describe(
+          "Defines the token of the page to return, usually taken from TokenPagination. This can only be used if token paging is enabled.",
+        ).optional(),
+        type: z.number().describe(
+          "The type of voided purchases that you want to see in the response. Possible values are: 0. Only voided in-app product purchases will be returned in the response. This is the default value. 1. Both voided in-app purchases and voided subscription purchases will be returned in the response. Note: Before requesting to receive voided subscription purchases, you must switch to use orderId in the response which uniquely identifies one-time purchases and subscriptions. Otherwise, you will receive multiple subscription orders with the same PurchaseToken, because subscription renewal orders share the same PurchaseToken.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["packageName"] !== undefined) {
+          params["packageName"] = String(g["packageName"]);
+        }
+        if (args["endTime"] !== undefined) {
+          params["endTime"] = String(args["endTime"]);
+        }
+        if (args["includeQuantityBasedPartialRefund"] !== undefined) {
+          params["includeQuantityBasedPartialRefund"] = String(
+            args["includeQuantityBasedPartialRefund"],
+          );
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["startIndex"] !== undefined) {
+          params["startIndex"] = String(args["startIndex"]);
+        }
+        if (args["startTime"] !== undefined) {
+          params["startTime"] = String(args["startTime"]);
+        }
+        if (args["token"] !== undefined) {
+          params["token"] = String(args["token"]);
+        }
+        if (args["type"] !== undefined) params["type"] = String(args["type"]);
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "voidedPurchases",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

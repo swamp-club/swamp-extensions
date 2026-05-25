@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Agent Platform TuningJobs.
+ * Swamp extension model for Google Cloud Vertex AI TuningJobs.
  *
  * Represents a TuningJob that runs with Google owned models.
  *
@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -451,7 +452,7 @@ const GlobalArgsSchema = z.object({
           "Optional. The IANA standard MIME type of the response. The model will generate output that conforms to this MIME type. Supported values include 'text/plain' (default) and 'application/json'. The model needs to be prompted to output the appropriate response type, otherwise the behavior is undefined.",
         ).optional(),
         responseModalities: z.array(
-          z.enum(["MODALITY_UNSPECIFIED", "TEXT", "IMAGE", "AUDIO", "VIDEO"]),
+          z.enum(["MODALITY_UNSPECIFIED", "TEXT", "IMAGE", "AUDIO"]),
         ).describe(
           "Optional. The modalities of the response. The model will generate a response that includes all the specified modalities. For example, if this is set to `[TEXT, IMAGE]`, the response will include both text and an image.",
         ).optional(),
@@ -656,9 +657,6 @@ const GlobalArgsSchema = z.object({
           ).optional(),
           predefinedRubricGenerationSpec: z.unknown().describe(
             "The spec for a pre-defined metric.",
-          ).optional(),
-          resultParserConfig: z.unknown().describe(
-            "Config for parsing LLM responses. It can be used to parse the LLM response to be evaluated, or the LLM response from LLM-based metrics/Autoraters.",
           ).optional(),
           rubricGenerationSpec: z.unknown().describe(
             "Specification for how rubrics should be generated.",
@@ -1330,7 +1328,6 @@ const StateSchema = z.object({
           judgeAutoraterConfig: z.unknown(),
           metricPromptTemplate: z.unknown(),
           predefinedRubricGenerationSpec: z.unknown(),
-          resultParserConfig: z.unknown(),
           rubricGenerationSpec: z.unknown(),
           rubricGroupKey: z.unknown(),
           systemInstruction: z.unknown(),
@@ -1887,7 +1884,7 @@ const InputsSchema = z.object({
           "Optional. The IANA standard MIME type of the response. The model will generate output that conforms to this MIME type. Supported values include 'text/plain' (default) and 'application/json'. The model needs to be prompted to output the appropriate response type, otherwise the behavior is undefined.",
         ).optional(),
         responseModalities: z.array(
-          z.enum(["MODALITY_UNSPECIFIED", "TEXT", "IMAGE", "AUDIO", "VIDEO"]),
+          z.enum(["MODALITY_UNSPECIFIED", "TEXT", "IMAGE", "AUDIO"]),
         ).describe(
           "Optional. The modalities of the response. The model will generate a response that includes all the specified modalities. For example, if this is set to `[TEXT, IMAGE]`, the response will include both text and an image.",
         ).optional(),
@@ -2092,9 +2089,6 @@ const InputsSchema = z.object({
           ).optional(),
           predefinedRubricGenerationSpec: z.unknown().describe(
             "The spec for a pre-defined metric.",
-          ).optional(),
-          resultParserConfig: z.unknown().describe(
-            "Config for parsing LLM responses. It can be used to parse the LLM response to be evaluated, or the LLM response from LLM-based metrics/Autoraters.",
           ).optional(),
           rubricGenerationSpec: z.unknown().describe(
             "Specification for how rubrics should be generated.",
@@ -2534,10 +2528,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Agent Platform TuningJobs. Registered at `@swamp/gcp/aiplatform/tuningjobs`. */
+/** Swamp extension model for Google Cloud Vertex AI TuningJobs. Registered at `@swamp/gcp/aiplatform/tuningjobs`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/tuningjobs",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2626,6 +2620,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2794,6 +2793,54 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List tuningJobs resources",
+      arguments: z.object({
+        filter: z.string().describe("Optional. The standard list filter.")
+          .optional(),
+        pageSize: z.number().describe("Optional. The standard list page size.")
+          .optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "tuningJobs",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     cancel: {

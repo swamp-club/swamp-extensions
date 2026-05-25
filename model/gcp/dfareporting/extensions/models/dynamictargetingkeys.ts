@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -149,7 +150,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Campaign Manager 360 DynamicTargetingKeys. Registered at `@swamp/gcp/dfareporting/dynamictargetingkeys`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/dynamictargetingkeys",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -203,6 +204,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -379,6 +385,68 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List dynamicTargetingKeys resources",
+      arguments: z.object({
+        advertiserId: z.string().describe(
+          "Select only dynamic targeting keys whose object has this advertiser ID.",
+        ).optional(),
+        names: z.string().describe(
+          "Select only dynamic targeting keys exactly matching these names.",
+        ).optional(),
+        objectId: z.string().describe(
+          "Select only dynamic targeting keys with this object ID.",
+        ).optional(),
+        objectType: z.string().describe(
+          "Select only dynamic targeting keys with this object type.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["profileId"] !== undefined) {
+          params["profileId"] = String(g["profileId"]);
+        }
+        if (args["advertiserId"] !== undefined) {
+          params["advertiserId"] = String(args["advertiserId"]);
+        }
+        if (args["names"] !== undefined) {
+          params["names"] = String(args["names"]);
+        }
+        if (args["objectId"] !== undefined) {
+          params["objectId"] = String(args["objectId"]);
+        }
+        if (args["objectType"] !== undefined) {
+          params["objectType"] = String(args["objectType"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "dynamicTargetingKeys",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

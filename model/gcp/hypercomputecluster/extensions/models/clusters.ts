@@ -20,6 +20,7 @@ import {
   deleteResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -240,7 +241,7 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }),
   ).describe(
-    "Optional. Network resources available to the cluster. Must contain exactly one value. Keys specify the ID of the network resource by which it can be referenced elsewhere, and must conform to [RFC-1034](https://datatracker.ietf.org/doc/html/rfc1034) (lower-case, alphanumeric, and at most 63 characters).",
+    "Optional. Network resources available to the cluster. Must contain at most one value. Keys specify the ID of the network resource by which it can be referenced elsewhere, and must conform to [RFC-1034](https://datatracker.ietf.org/doc/html/rfc1034) (lower-case, alphanumeric, and at most 63 characters).",
   ).optional(),
   orchestrator: z.object({
     slurm: z.object({
@@ -253,7 +254,7 @@ const GlobalArgsSchema = z.object({
       loginNodes: z.object({
         bootDisk: z.object({
           sizeGb: z.string().describe(
-            "Required. Immutable. Size of the disk in gigabytes. Must be at least 40GB.",
+            "Required. Immutable. Size of the disk in gigabytes. Must be at least 10GB.",
           ).optional(),
           type: z.string().describe(
             "Required. Immutable. [Persistent disk type](https://cloud.google.com/compute/docs/disks#disk-types), in the format `projects/{project}/zones/{zone}/diskTypes/{disk_type}`.",
@@ -304,7 +305,7 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       nodeSets: z.array(z.object({
         computeId: z.string().describe(
-          "Required. ID of the compute resource on which this nodeset will run. Must match a key in the cluster's compute_resources.",
+          "Optional. ID of the compute resource on which this nodeset will run. Must match a key in the cluster's compute_resources.",
         ).optional(),
         computeInstance: z.object({
           bootDisk: z.unknown().describe(
@@ -449,9 +450,6 @@ const GlobalArgsSchema = z.object({
           ).optional(),
           lustre: z.string().describe(
             "Required. Immutable. Name of the Managed Lustre instance to create, in the format `projects/{project}/locations/{location}/instances/{instance}`",
-          ).optional(),
-          perUnitStorageThroughput: z.string().describe(
-            "Optional. Immutable. Throughput of the instance in MB/s/TiB. Valid values are 125, 250, 500, 1000. See [Performance tiers and maximum storage capacities](https://cloud.google.com/managed-lustre/docs/create-instance#performance-tiers) for more information.",
           ).optional(),
         }).describe(
           "When set in a StorageResourceConfig, indicates that a new [Managed Lustre](https://cloud.google.com/products/managed-lustre) instance should be created.",
@@ -652,7 +650,7 @@ const InputsSchema = z.object({
       ).optional(),
     }),
   ).describe(
-    "Optional. Network resources available to the cluster. Must contain exactly one value. Keys specify the ID of the network resource by which it can be referenced elsewhere, and must conform to [RFC-1034](https://datatracker.ietf.org/doc/html/rfc1034) (lower-case, alphanumeric, and at most 63 characters).",
+    "Optional. Network resources available to the cluster. Must contain at most one value. Keys specify the ID of the network resource by which it can be referenced elsewhere, and must conform to [RFC-1034](https://datatracker.ietf.org/doc/html/rfc1034) (lower-case, alphanumeric, and at most 63 characters).",
   ).optional(),
   orchestrator: z.object({
     slurm: z.object({
@@ -665,7 +663,7 @@ const InputsSchema = z.object({
       loginNodes: z.object({
         bootDisk: z.object({
           sizeGb: z.string().describe(
-            "Required. Immutable. Size of the disk in gigabytes. Must be at least 40GB.",
+            "Required. Immutable. Size of the disk in gigabytes. Must be at least 10GB.",
           ).optional(),
           type: z.string().describe(
             "Required. Immutable. [Persistent disk type](https://cloud.google.com/compute/docs/disks#disk-types), in the format `projects/{project}/zones/{zone}/diskTypes/{disk_type}`.",
@@ -716,7 +714,7 @@ const InputsSchema = z.object({
       ).optional(),
       nodeSets: z.array(z.object({
         computeId: z.string().describe(
-          "Required. ID of the compute resource on which this nodeset will run. Must match a key in the cluster's compute_resources.",
+          "Optional. ID of the compute resource on which this nodeset will run. Must match a key in the cluster's compute_resources.",
         ).optional(),
         computeInstance: z.object({
           bootDisk: z.unknown().describe(
@@ -862,9 +860,6 @@ const InputsSchema = z.object({
           lustre: z.string().describe(
             "Required. Immutable. Name of the Managed Lustre instance to create, in the format `projects/{project}/locations/{location}/instances/{instance}`",
           ).optional(),
-          perUnitStorageThroughput: z.string().describe(
-            "Optional. Immutable. Throughput of the instance in MB/s/TiB. Valid values are 125, 250, 500, 1000. See [Performance tiers and maximum storage capacities](https://cloud.google.com/managed-lustre/docs/create-instance#performance-tiers) for more information.",
-          ).optional(),
         }).describe(
           "When set in a StorageResourceConfig, indicates that a new [Managed Lustre](https://cloud.google.com/products/managed-lustre) instance should be created.",
         ).optional(),
@@ -903,7 +898,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Cluster Director Clusters. Registered at `@swamp/gcp/hypercomputecluster/clusters`. */
 export const model = {
   type: "@swamp/gcp/hypercomputecluster/clusters",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -992,6 +987,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1246,6 +1246,62 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List clusters resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Optional. [Filter](https://google.aip.dev/160) to apply to the returned results.",
+        ).optional(),
+        orderBy: z.string().describe(
+          "Optional. How to order the resulting clusters. Must be one of the following strings: * `name` * `name desc` * `create_time` * `create_time desc` If not specified, clusters will be returned in an arbitrary order.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. Maximum number of clusters to return. The service may return fewer than this value.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "clusters",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

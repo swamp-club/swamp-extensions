@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -371,7 +372,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Campaign Manager 360 Advertisers. Registered at `@swamp/gcp/dfareporting/advertisers`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/advertisers",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -425,6 +426,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -688,6 +694,107 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List advertisers resources",
+      arguments: z.object({
+        advertiserGroupIds: z.string().describe(
+          "Select only advertisers with these advertiser group IDs.",
+        ).optional(),
+        floodlightConfigurationIds: z.string().describe(
+          "Select only advertisers with these floodlight configuration IDs.",
+        ).optional(),
+        ids: z.string().describe("Select only advertisers with these IDs.")
+          .optional(),
+        includeAdvertisersWithoutGroupsOnly: z.boolean().describe(
+          "Select only advertisers which do not belong to any advertiser group.",
+        ).optional(),
+        maxResults: z.number().describe("Maximum number of results to return.")
+          .optional(),
+        onlyParent: z.boolean().describe(
+          "Select only advertisers which use another advertiser's floodlight configuration.",
+        ).optional(),
+        searchString: z.string().describe(
+          'Allows searching for objects by name or ID. Wildcards (*) are allowed. For example, "advertiser*2015" will return objects with names like "advertiser June 2015", "advertiser April 2015", or simply "advertiser 2015". Most of the searches also add wildcards implicitly at the start and the end of the search string. For example, a search string of "advertiser" will match objects with name "my advertiser", "advertiser 2015", or simply "advertiser" .',
+        ).optional(),
+        sortField: z.string().describe("Field by which to sort the list.")
+          .optional(),
+        sortOrder: z.string().describe("Order of sorted results.").optional(),
+        status: z.string().describe(
+          "Select only advertisers with the specified status.",
+        ).optional(),
+        subaccountId: z.string().describe(
+          "Select only advertisers with these subaccount IDs.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["profileId"] !== undefined) {
+          params["profileId"] = String(g["profileId"]);
+        }
+        if (args["advertiserGroupIds"] !== undefined) {
+          params["advertiserGroupIds"] = String(args["advertiserGroupIds"]);
+        }
+        if (args["floodlightConfigurationIds"] !== undefined) {
+          params["floodlightConfigurationIds"] = String(
+            args["floodlightConfigurationIds"],
+          );
+        }
+        if (args["ids"] !== undefined) params["ids"] = String(args["ids"]);
+        if (args["includeAdvertisersWithoutGroupsOnly"] !== undefined) {
+          params["includeAdvertisersWithoutGroupsOnly"] = String(
+            args["includeAdvertisersWithoutGroupsOnly"],
+          );
+        }
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["onlyParent"] !== undefined) {
+          params["onlyParent"] = String(args["onlyParent"]);
+        }
+        if (args["searchString"] !== undefined) {
+          params["searchString"] = String(args["searchString"]);
+        }
+        if (args["sortField"] !== undefined) {
+          params["sortField"] = String(args["sortField"]);
+        }
+        if (args["sortOrder"] !== undefined) {
+          params["sortOrder"] = String(args["sortOrder"]);
+        }
+        if (args["status"] !== undefined) {
+          params["status"] = String(args["status"]);
+        }
+        if (args["subaccountId"] !== undefined) {
+          params["subaccountId"] = String(args["subaccountId"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "advertisers",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.id?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

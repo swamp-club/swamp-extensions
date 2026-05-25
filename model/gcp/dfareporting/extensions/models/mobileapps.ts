@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/gcp.ts";
 
@@ -39,6 +40,36 @@ const GET_CONFIG = {
     "profileId": {
       "location": "path",
       "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "dfareporting.mobileApps.list",
+  "path": "userprofiles/{+profileId}/mobileApps",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "profileId",
+  ],
+  "parameters": {
+    "directories": {
+      "location": "query",
+    },
+    "ids": {
+      "location": "query",
+    },
+    "maxResults": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "profileId": {
+      "location": "path",
+      "required": true,
+    },
+    "searchString": {
+      "location": "query",
     },
   },
 } as const;
@@ -66,7 +97,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Campaign Manager 360 MobileApps. Registered at `@swamp/gcp/dfareporting/mobileapps`. */
 export const model = {
   type: "@swamp/gcp/dfareporting/mobileapps",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -120,6 +151,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -220,6 +256,63 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List mobileApps resources",
+      arguments: z.object({
+        directories: z.string().describe(
+          "Select only apps from these directories.",
+        ).optional(),
+        ids: z.string().describe("Select only apps with these IDs.").optional(),
+        maxResults: z.number().describe("Maximum number of results to return.")
+          .optional(),
+        searchString: z.string().describe(
+          'Allows searching for objects by name or ID. Wildcards (*) are allowed. For example, "app*2015" will return objects with names like "app Jan 2018", "app Jan 2018", or simply "app 2018". Most of the searches also add wildcards implicitly at the start and the end of the search string. For example, a search string of "app" will match objects with name "my app", "app 2018", or simply "app".',
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["profileId"] !== undefined) {
+          params["profileId"] = String(g["profileId"]);
+        }
+        if (args["directories"] !== undefined) {
+          params["directories"] = String(args["directories"]);
+        }
+        if (args["ids"] !== undefined) params["ids"] = String(args["ids"]);
+        if (args["maxResults"] !== undefined) {
+          params["maxResults"] = String(args["maxResults"]);
+        }
+        if (args["searchString"] !== undefined) {
+          params["searchString"] = String(args["searchString"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "mobileApps",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.id?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },

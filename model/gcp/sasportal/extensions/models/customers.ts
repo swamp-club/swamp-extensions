@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readResource,
   updateResource,
 } from "./_lib/gcp.ts";
@@ -58,6 +59,21 @@ const PATCH_CONFIG = {
   },
 } as const;
 
+const LIST_CONFIG = {
+  "id": "sasportal.customers.list",
+  "path": "v1alpha1/customers",
+  "httpMethod": "GET",
+  "parameterOrder": [],
+  "parameters": {
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+  },
+} as const;
+
 const GlobalArgsSchema = z.object({
   displayName: z.string().describe(
     "Required. Name of the organization that the customer entity represents.",
@@ -91,7 +107,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud SAS Portal Customers. Registered at `@swamp/gcp/sasportal/customers`. */
 export const model = {
   type: "@swamp/gcp/sasportal/customers",
-  version: "2026.05.24.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -145,6 +161,16 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -286,6 +312,46 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List customers resources",
+      arguments: z.object({
+        pageSize: z.number().describe(
+          "The maximum number of customers to return in the response.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "customers",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
     list_gcp_project_deployments: {

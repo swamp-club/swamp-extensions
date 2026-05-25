@@ -19,6 +19,7 @@ import {
   createResource,
   getProjectId,
   isResourceNotFoundError,
+  listResources,
   readViaList,
 } from "./_lib/gcp.ts";
 
@@ -193,7 +194,7 @@ const GlobalArgsSchema = z.object({
       "Output only. The location resource that this location duplicates.",
     ).optional(),
     hasGoogleUpdated: z.boolean().describe(
-      "Output only. Indicates whether the place ID associated with this location has updates that need to be updated or rejected by the client. If this boolean is set, you should call the `getGoogleUpdated` method to look up information that's needs to be verified.",
+      "Output only. Indicates whether the place ID associated with this location has updates that need to be updated or rejected by the client. If this boolean is set, you should call the `getGoogleUpdated` method to lookup information that's needs to be verified.",
     ).optional(),
     hasPendingEdits: z.boolean().describe(
       "Output only. Indicates whether any of this Location's properties are in the edit pending state.",
@@ -466,7 +467,7 @@ const GlobalArgsSchema = z.object({
         "Label to be used when displaying the price list, section, or item.",
       ).optional(),
     }).describe(
-      "Represents a free-form service offered by the merchant. These are services that are not exposed as part of our structure service data. The merchant manually enters the names for such services using a geomerchant surface.",
+      "Represents a free-form service offered by the merchant. These are services that are not exposed as part of our structure service data. The merchant manually enters the names for of such services via a geomerchant surface.",
     ).optional(),
     price: z.object({
       currencyCode: z.string().describe(
@@ -930,7 +931,7 @@ const InputsSchema = z.object({
       "Output only. The location resource that this location duplicates.",
     ).optional(),
     hasGoogleUpdated: z.boolean().describe(
-      "Output only. Indicates whether the place ID associated with this location has updates that need to be updated or rejected by the client. If this boolean is set, you should call the `getGoogleUpdated` method to look up information that's needs to be verified.",
+      "Output only. Indicates whether the place ID associated with this location has updates that need to be updated or rejected by the client. If this boolean is set, you should call the `getGoogleUpdated` method to lookup information that's needs to be verified.",
     ).optional(),
     hasPendingEdits: z.boolean().describe(
       "Output only. Indicates whether any of this Location's properties are in the edit pending state.",
@@ -1203,7 +1204,7 @@ const InputsSchema = z.object({
         "Label to be used when displaying the price list, section, or item.",
       ).optional(),
     }).describe(
-      "Represents a free-form service offered by the merchant. These are services that are not exposed as part of our structure service data. The merchant manually enters the names for such services using a geomerchant surface.",
+      "Represents a free-form service offered by the merchant. These are services that are not exposed as part of our structure service data. The merchant manually enters the names for of such services via a geomerchant surface.",
     ).optional(),
     price: z.object({
       currencyCode: z.string().describe(
@@ -1356,7 +1357,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud My Business Business Information Accounts. Registered at `@swamp/gcp/mybusinessbusinessinformation/accounts`. */
 export const model = {
   type: "@swamp/gcp/mybusinessbusinessinformation/accounts",
-  version: "2026.05.24.1",
+  version: "2026.05.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1435,6 +1436,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1609,6 +1615,66 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List accounts resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Optional. A filter constraining the locations to return. The response includes only entries that match the filter. If `filter` is empty, then constraints are applied and all locations (paginated) are retrieved for the requested account. For more information about valid fields and example usage, see [Work with Location Data Guide](https://developers.google.com/my-business/content/location-data#filter_results_when_you_list_locations).",
+        ).optional(),
+        orderBy: z.string().describe(
+          'Optional. Sorting order for the request. Multiple fields should be comma-separated, following SQL syntax. The default sorting order is ascending. To specify descending order, a suffix " desc" should be added. Valid fields to order_by are title and store_code. For example: "title, store_code desc" or "title" or "store_code desc"',
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. How many locations to fetch per page. Default value is 10 if not set. Minimum is 1, and maximum page size is 100.",
+        ).optional(),
+        readMask: z.string().describe(
+          "Required. Read mask to specify what fields will be returned in the response.",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["readMask"] !== undefined) {
+          params["readMask"] = String(args["readMask"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "locations",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
   },
