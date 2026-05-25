@@ -120,9 +120,9 @@ export function isInternalCacheFile(rel: string): boolean {
  * Exported for unit tests; not part of the public extension API.
  */
 export function isLazySkippable(rel: string): boolean {
-  if (!rel.startsWith("data/")) return false;
-  const base = rel.split("/").pop() ?? "";
-  return base === "raw";
+  const parts = rel.split("/");
+  return parts.length >= 3 && parts[0] === "data" &&
+    parts[parts.length - 1] === "raw";
 }
 
 /**
@@ -986,9 +986,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       }
       toPull.push(rel);
     }
-    for (const dir of lazyDirsToCreate) {
-      await ensureDir(dir);
-    }
+    await Promise.all([...lazyDirsToCreate].map((d) => ensureDir(d)));
     tracePhase("pullChanged.walk", walkStart, `toPull=${toPull.length}`);
 
     const downloadStart = Date.now();

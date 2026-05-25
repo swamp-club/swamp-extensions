@@ -3473,6 +3473,10 @@ Deno.test("isLazySkippable: allows non-data paths", () => {
   assertEquals(isLazySkippable("definitions-evaluated/model-a.yaml"), false);
 });
 
+Deno.test("isLazySkippable: rejects degenerate data/raw (insufficient depth)", () => {
+  assertEquals(isLazySkippable("data/raw"), false);
+});
+
 // -- Lazy pullChanged tests ------------------------------------------------
 
 Deno.test("pullChanged: metadataOnly skips raw files", async () => {
