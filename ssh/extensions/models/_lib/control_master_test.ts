@@ -18,7 +18,6 @@
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
 import { assert, assertEquals, assertNotEquals } from "jsr:@std/assert@1.0.19";
-import { basename } from "jsr:@std/path@1";
 import {
   checkMasterArgv,
   controlBaseDir,
@@ -27,6 +26,7 @@ import {
   ensureControlDir,
   exitMasterArgv,
   openMasterArgv,
+  safeFleetDir,
 } from "./control_master.ts";
 import type { EffectiveHost } from "./hosts.ts";
 
@@ -125,7 +125,7 @@ Deno.test("controlPath: differs when fleet changes", async () => {
   assertNotEquals(a, b);
 });
 
-Deno.test("controlPath: socket filename stays under 104-byte UNIX limit", async () => {
+Deno.test("controlPath: full path stays under 104-byte UNIX limit (Linux XDG)", async () => {
   const longHost = sshHost({
     address: "very-long-hostname-".repeat(10) + "example.com",
     user: "a-rather-long-deployment-service-account-name",
@@ -133,9 +133,43 @@ Deno.test("controlPath: socket filename stays under 104-byte UNIX limit", async 
   const p = await controlPath("a-long-fleet-name-for-testing", longHost, {
     XDG_RUNTIME_DIR: "/run/user/1000",
   });
-  // The full socket path must fit in sockaddr_un.sun_path (108 on Linux,
-  // commonly cited as 104). Our basename is sha1(40) + ".sock" = 45 chars.
-  assert(basename(p).length <= 45, `basename too long: ${basename(p)}`);
+  assert(p.length <= 104, `full path too long (${p.length}): ${p}`);
+});
+
+Deno.test("controlPath: full path stays under 104 bytes with macOS TMPDIR (short fleet)", async () => {
+  const macEnv = {
+    XDG_RUNTIME_DIR: "",
+    TMPDIR: "/var/folders/jb/r4b9t72s2xjf38ljdqy8hm9w0000gn/T",
+  };
+  // Short fleet name fits on TMPDIR with the truncated hash
+  const p = await controlPath("my-app", sshHost(), macEnv);
+  assert(p.length <= 104, `full path too long (${p.length}): ${p}`);
+});
+
+Deno.test("controlPath: macOS TMPDIR falls back to /tmp for longer fleet names", async () => {
+  const macEnv = {
+    XDG_RUNTIME_DIR: "",
+    TMPDIR: "/var/folders/jb/r4b9t72s2xjf38ljdqy8hm9w0000gn/T",
+  };
+  // Fleet name long enough to exceed 104 bytes on macOS TMPDIR
+  const p = await controlPath("production-us-east-1-web-servers", sshHost(), macEnv);
+  assert(p.length <= 104, `full path too long (${p.length}): ${p}`);
+  assert(
+    p.startsWith("/tmp/swamp-ssh/"),
+    `long fleet on macOS should fall back to /tmp, got: ${p}`,
+  );
+});
+
+Deno.test("controlPath: extremely long fleet name hashed to fit", async () => {
+  const longFleet = "a".repeat(200);
+  const p = await controlPath(longFleet, sshHost(), {
+    XDG_RUNTIME_DIR: "/run/user/1000",
+  });
+  assert(p.length <= 104, `full path too long (${p.length}): ${p}`);
+  assert(
+    p.startsWith("/tmp/swamp-ssh/"),
+    `long fleet should fall back to /tmp, got: ${p}`,
+  );
 });
 
 Deno.test("controlPath: throws for tailscale host", async () => {
@@ -154,6 +188,80 @@ Deno.test("controlPath: throws for tailscale host", async () => {
     threw = true;
   }
   assert(threw);
+});
+
+// ---------------------------------------------------------------------------
+// safeFleetDir: length-aware resolution
+// ---------------------------------------------------------------------------
+
+Deno.test("safeFleetDir: Linux XDG preserved for typical fleet names", async () => {
+  const linuxEnv = { XDG_RUNTIME_DIR: "/run/user/1000" };
+  for (const fleet of ["my-app", "production-web", "staging-k8s-workers"]) {
+    const dir = await safeFleetDir(fleet, linuxEnv);
+    assert(
+      dir.startsWith("/run/user/1000/swamp-ssh/"),
+      `fleet "${fleet}" should stay on XDG, got: ${dir}`,
+    );
+    assertEquals(dir, `/run/user/1000/swamp-ssh/${fleet}`);
+  }
+});
+
+Deno.test("safeFleetDir: macOS TMPDIR preserved for short fleet names", async () => {
+  const macEnv = {
+    XDG_RUNTIME_DIR: "",
+    TMPDIR: "/var/folders/jb/r4b9t72s2xjf38ljdqy8hm9w0000gn/T",
+  };
+  const dir = await safeFleetDir("my-app", macEnv);
+  assert(
+    dir.includes("/swamp-ssh/my-app"),
+    `short fleet on macOS should keep fleet name, got: ${dir}`,
+  );
+});
+
+Deno.test("safeFleetDir: macOS TMPDIR triggers /tmp fallback for longer fleet names", async () => {
+  const macEnv = {
+    XDG_RUNTIME_DIR: "",
+    TMPDIR: "/var/folders/jb/r4b9t72s2xjf38ljdqy8hm9w0000gn/T",
+  };
+  const dir = await safeFleetDir("production-us-east-1-web-servers", macEnv);
+  assert(
+    dir.startsWith("/tmp/swamp-ssh/"),
+    `long fleet on macOS should fall back to /tmp, got: ${dir}`,
+  );
+  assertEquals(dir, "/tmp/swamp-ssh/production-us-east-1-web-servers");
+});
+
+Deno.test("safeFleetDir: Linux XDG threshold — boundary fleet stays on XDG", async () => {
+  const linuxEnv = { XDG_RUNTIME_DIR: "/run/user/1000" };
+  // base = "/run/user/1000/swamp-ssh" (24 chars) + "/" + fleet + "/" + 17 (filename) <= 104
+  // max fleet = 104 - 24 - 1 - 1 - 17 = 61 chars
+  // but safeFleetDir budget = 104 - 1 - 17 = 86, and dir = 24 + 1 + fleet
+  // so fleet <= 86 - 25 = 61 chars
+  const maxFleet = "a".repeat(61);
+  const dir = await safeFleetDir(maxFleet, linuxEnv);
+  assert(
+    dir.startsWith("/run/user/1000/swamp-ssh/"),
+    `fleet at boundary should stay on XDG, got: ${dir}`,
+  );
+});
+
+Deno.test("safeFleetDir: Linux XDG threshold — one char over triggers /tmp fallback", async () => {
+  const linuxEnv = { XDG_RUNTIME_DIR: "/run/user/1000" };
+  const overFleet = "a".repeat(62);
+  const dir = await safeFleetDir(overFleet, linuxEnv);
+  assert(
+    dir.startsWith("/tmp/swamp-ssh/"),
+    `fleet one char over boundary should fall back to /tmp, got: ${dir}`,
+  );
+});
+
+Deno.test("safeFleetDir: controlPath and ensureControlDir agree on directory", async () => {
+  const env = { XDG_RUNTIME_DIR: "/run/user/1000" };
+  const fleet = "my-app";
+  const dir = await safeFleetDir(fleet, env);
+  const p = await controlPath(fleet, sshHost(), env);
+  const pathDir = p.substring(0, p.lastIndexOf("/"));
+  assertEquals(dir, pathDir);
 });
 
 // ---------------------------------------------------------------------------
