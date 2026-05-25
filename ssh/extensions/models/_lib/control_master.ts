@@ -21,17 +21,29 @@
  * ControlMaster socket path calculation + directory setup helpers.
  *
  * Sockets live at:
- *   ${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/swamp-ssh/<fleet>/<sha1(user@addr:port)>.sock
+ *   <base>/swamp-ssh/<fleet>/<sha1(user@addr:port)[:12]>.sock
  *
- * `<fleet>` isolates masters per swamp model instance — two fleets that
- * happen to share a host don't fight over a socket. The SHA-1 keeps paths
- * under the 104-byte UNIX socket length limit even when usernames and
- * hostnames are long.
+ * where `<base>` is resolved length-aware: XDG_RUNTIME_DIR or TMPDIR when
+ * the total path fits in 104 bytes, otherwise /tmp. `<fleet>` isolates
+ * masters per swamp model instance — two fleets that happen to share a
+ * host don't fight over a socket. The truncated SHA-1 (12 hex chars, 48
+ * bits) keeps filenames short while providing ample collision resistance
+ * for per-machine socket naming.
  *
  * @module
  */
 
 import type { EffectiveHost } from "./hosts.ts";
+
+// macOS sockaddr_un.sun_path is 104 bytes including the null terminator;
+// the max usable string length is 103. Linux is 108 (107 usable). Use the
+// smaller.
+const UNIX_SOCKET_MAX = 103;
+// 12 hex chars = 48 bits. Birthday-bound collision at ~2^24 (16M) sockets
+// per fleet — safe for per-machine naming.
+const HASH_CHARS = 12;
+const SOCK_SUFFIX = ".sock";
+const SOCK_FILENAME_LEN = HASH_CHARS + SOCK_SUFFIX.length; // 17
 
 /**
  * Compute the base directory for a fleet's control sockets.
@@ -57,6 +69,27 @@ export function controlFleetDir(
   envSource?: Record<string, string>,
 ): string {
   return `${controlBaseDir(envSource)}/${fleetName}`;
+}
+
+/**
+ * Return a fleet directory whose full socket path fits within
+ * {@link UNIX_SOCKET_MAX}. Tries the env-based directory first; falls
+ * back to `/tmp/swamp-ssh/<fleet>` if too long; hashes the fleet name
+ * as a last resort for extremely long names.
+ */
+export async function safeFleetDir(
+  fleetName: string,
+  envSource?: Record<string, string>,
+): Promise<string> {
+  const budget = UNIX_SOCKET_MAX - 1 - SOCK_FILENAME_LEN; // 1 for '/'
+  let dir = controlFleetDir(fleetName, envSource);
+  if (dir.length <= budget) return dir;
+
+  dir = `/tmp/swamp-ssh/${fleetName}`;
+  if (dir.length <= budget) return dir;
+
+  const shortFleet = (await sha1Hex(fleetName)).slice(0, 8);
+  return `/tmp/swamp-ssh/${shortFleet}`;
 }
 
 /**
@@ -91,8 +124,9 @@ export async function controlPath(
   }
   const user = host.transport.user ?? "";
   const handle = `${user}@${host.address}:${host.transport.port}`;
-  const digest = await sha1Hex(handle);
-  return `${controlFleetDir(fleetName, envSource)}/${digest}.sock`;
+  const digest = (await sha1Hex(handle)).slice(0, HASH_CHARS);
+  const dir = await safeFleetDir(fleetName, envSource);
+  return `${dir}/${digest}${SOCK_SUFFIX}`;
 }
 
 /**
@@ -111,7 +145,7 @@ export async function ensureControlDir(
 ): Promise<
   { writable: true; path: string } | { writable: false; reason: string }
 > {
-  const dir = controlFleetDir(fleetName, envSource);
+  const dir = await safeFleetDir(fleetName, envSource);
   try {
     await Deno.mkdir(dir, { recursive: true, mode: 0o700 });
   } catch (err) {

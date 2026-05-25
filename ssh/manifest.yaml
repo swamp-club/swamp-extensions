@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/ssh"
-version: "2026.05.19.1"
+version: "2026.05.25.1"
 description: |
   Run commands, copy files, and open port forwards across a declared set of
   hosts over SSH. Define the hosts once on the model, then target any subset
