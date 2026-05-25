@@ -1081,7 +1081,7 @@ export function generateGcpExtensionModel(
   }
 
   // --- list factory method ---
-  if (hasListFactory && resource.listQueryParams) {
+  if (hasListFactory) {
     const arrayField = resource.listResponseArrayField!;
     const primaryId = resource.primaryIdentifier[0] || "name";
 
@@ -1092,7 +1092,7 @@ export function generateGcpExtensionModel(
 
     // Build arguments schema from list query parameters
     lines.push(`      arguments: z.object({`);
-    for (const param of resource.listQueryParams) {
+    for (const param of resource.listQueryParams ?? []) {
       const safeParamName = safeIdent(param.name);
       let zodType: string;
       switch (param.type) {
@@ -1163,7 +1163,7 @@ export function generateGcpExtensionModel(
     }
 
     // Add query parameters from method arguments
-    for (const param of resource.listQueryParams) {
+    for (const param of resource.listQueryParams ?? []) {
       const safeParamName = safeIdent(param.name);
       lines.push(
         `        if (args[${
