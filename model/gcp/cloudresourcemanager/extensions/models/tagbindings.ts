@@ -111,7 +111,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Resource Manager TagBindings. Registered at `@swamp/gcp/cloudresourcemanager/tagbindings`. */
 export const model = {
   type: "@swamp/gcp/cloudresourcemanager/tagbindings",
-  version: "2026.05.25.1",
+  version: "2026.05.25.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -185,6 +185,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.25.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -364,7 +369,6 @@ export const model = {
         ).optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
-        const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         if (args["pageSize"] !== undefined) {

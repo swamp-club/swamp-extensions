@@ -1117,17 +1117,25 @@ export function generateGcpExtensionModel(
     );
     lines.push(`      }),`);
 
+    // Determine if globalArgs are needed for path params
+    const listConfig = resource.methodConfigs.list!;
+    const listNonProjectParams = listConfig.parameterOrder.filter(
+      (p) => p !== "project" && p !== "projectId",
+    );
+    const listNeedsG = listNonProjectParams.length > 0;
+
     lines.push(
       `      execute: async (args: Record<string, unknown>, context: any) => {`,
     );
-    lines.push(`        const g = context.globalArgs;`);
+    if (listNeedsG) {
+      lines.push(`        const g = context.globalArgs;`);
+    }
     lines.push(`        const projectId = await getProjectId();`);
     lines.push(
       `        const params: Record<string, string> = { project: projectId };`,
     );
 
     // Add path parameters from list config's parameterOrder
-    const listConfig = resource.methodConfigs.list!;
     for (const paramName of listConfig.parameterOrder) {
       if (paramName === "project" || paramName === "projectId") continue;
       const parentLikeParams = new Set(["parent", "ownerName"]);

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/chat"
-version: "2026.05.25.1"
+version: "2026.05.25.2"
 description: "Google Cloud chat infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: customemojis, spaces, spaces_members, spaces_messages, spaces_messages_attachments, spaces_messages_reactions, spaces_spaceevents, users_sections, users_sections_items, users_spaces_spacenotificationsetting
+  - Updated: customemojis, spaces
 models:
   - customemojis.ts
   - spaces.ts

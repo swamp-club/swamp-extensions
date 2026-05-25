@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/books"
-version: "2026.05.25.1"
+version: "2026.05.25.2"
 description: "Google Cloud books infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: bookshelves, bookshelves_volumes, layers, layers_annotationdata, layers_volumeannotations, mylibrary_annotations, mylibrary_bookshelves, mylibrary_bookshelves_volumes, mylibrary_readingpositions, notification, personalizedstream, promooffer, series, series_membership, volumes, volumes_associated, volumes_mybooks, volumes_recommended, volumes_useruploaded
+  - Updated: mylibrary_annotations, mylibrary_bookshelves, volumes_mybooks, volumes_recommended, volumes_useruploaded
 models:
   - bookshelves.ts
   - bookshelves_volumes.ts
