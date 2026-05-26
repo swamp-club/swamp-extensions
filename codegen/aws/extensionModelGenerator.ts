@@ -16,6 +16,17 @@ export interface ResourceHandlers {
   delete: boolean;
 }
 
+export interface AwsExtensionModelListMethod {
+  /** Parsed source (imports + body) from the list .enrich.ts file */
+  source: ParsedEnrichmentSource;
+  /** Name of the list function in the enrichment body */
+  functionExport: string;
+  /** Zod argument field lines for the list method */
+  argumentFields: string[];
+  /** Description for the list method */
+  description: string;
+}
+
 export interface AwsExtensionModelInput {
   /** AWS type name, e.g., "AWS::EC2::Instance" */
   typeName: string;
@@ -42,6 +53,8 @@ export interface AwsExtensionModelInput {
     /** Name of the enrichState function in the enrichment body */
     functionExport: string;
   };
+  /** Parsed list method enrichment to emit as a list method */
+  listMethod?: AwsExtensionModelListMethod;
 }
 
 /**
@@ -136,6 +149,18 @@ export function generateAwsExtensionModel(
       lines.push(imp);
     }
   }
+  if (input.listMethod) {
+    const existingImportPackages = new Set(
+      (input.enrichment?.source.imports ?? [])
+        .map((imp) => imp.match(/"([^"]+)"/)?.[1])
+        .filter(Boolean),
+    );
+    for (const imp of input.listMethod.source.imports) {
+      const pkg = imp.match(/"([^"]+)"/)?.[1];
+      if (pkg && existingImportPackages.has(pkg)) continue;
+      lines.push(imp);
+    }
+  }
   lines.push("");
 
   // Determine the naming field for factory-pattern instance names
@@ -168,6 +193,12 @@ export function generateAwsExtensionModel(
   // Enrichment body (schemas + function inlined from .enrich.ts source)
   if (input.enrichment) {
     lines.push(input.enrichment.source.body);
+    lines.push("");
+  }
+
+  // List method body (schemas + function inlined from list .enrich.ts source)
+  if (input.listMethod) {
+    lines.push(input.listMethod.source.body);
     lines.push("");
   }
 
@@ -556,6 +587,47 @@ export function generateAwsExtensionModel(
     lines.push(`          }`);
     lines.push(`          throw error;`);
     lines.push(`        }`);
+    lines.push(`      },`);
+    lines.push(`    },`);
+  }
+
+  // list method (from enrichment listMethod config)
+  if (input.listMethod) {
+    const primaryId = onlyProperties.primaryIdentifier[0] ||
+      "ResourceIdentifier";
+    lines.push(`    list: {`);
+    lines.push(
+      `      description: "${input.listMethod.description}",`,
+    );
+    lines.push(`      arguments: z.object({`);
+    for (const field of input.listMethod.argumentFields) {
+      lines.push(field);
+    }
+    lines.push(`      }),`);
+    lines.push(
+      `      execute: async (args: Record<string, unknown>, context: any) => {`,
+    );
+    lines.push(
+      `        const items = await ${input.listMethod.functionExport}(args.filters as any, args.maxPages as number | undefined);`,
+    );
+    lines.push(`        const dataHandles = [];`);
+    lines.push(`        for (let i = 0; i < items.length; i++) {`);
+    lines.push(`          const item = items[i] as StateData;`);
+    lines.push(
+      `          const instanceName = ${
+        wrapWithSanitize(
+          `item.${primaryId}?.toString() ?? String(i)`,
+        )
+      };`,
+    );
+    lines.push(
+      `          const handle = await context.writeResource("state", instanceName, item);`,
+    );
+    lines.push(`          dataHandles.push(handle);`);
+    lines.push(`        }`);
+    lines.push(
+      `        return { dataHandles, result: { count: items.length } };`,
+    );
     lines.push(`      },`);
     lines.push(`    },`);
   }

@@ -1,3 +1,14 @@
+export interface AwsEnrichmentListMethod {
+  /** Absolute path to the list method source file (real TypeScript, type-checkable) */
+  sourceFile: string;
+  /** Name of the list function export */
+  functionExport: string;
+  /** Zod field strings for the list method's arguments schema (each line is a field) */
+  argumentFields: string[];
+  /** Description for the list method */
+  description: string;
+}
+
 export interface AwsEnrichment {
   /** CloudFormation type name, e.g., "AWS::RDS::DBCluster" */
   cfTypeName: string;
@@ -9,6 +20,8 @@ export interface AwsEnrichment {
   functionExport: string;
   /** Extra field(s) to add inside the StateSchema z.object({}) block */
   stateFields: string;
+  /** Optional list method configuration */
+  listMethod?: AwsEnrichmentListMethod;
 }
 
 export interface ParsedEnrichmentSource {

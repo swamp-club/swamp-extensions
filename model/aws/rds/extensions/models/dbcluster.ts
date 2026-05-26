@@ -328,6 +328,73 @@ async function enrichState(
   }
 }
 
+async function listClusters(
+  filters?: Array<{ Name: string; Values: string[] }>,
+  maxPages = 10,
+): Promise<Record<string, unknown>[]> {
+  const rdsClient = new RDSClient({
+    region: Deno.env.get("AWS_REGION") || "us-east-1",
+  });
+
+  const clusters: Record<string, unknown>[] = [];
+  let marker: string | undefined;
+  let pages = 0;
+
+  do {
+    const command = new DescribeDBClustersCommand({
+      Filters: filters as { Name: string; Values: string[] }[] | undefined,
+      Marker: marker,
+      MaxRecords: 100,
+    });
+    const response = await rdsClient.send(command);
+
+    for (const cluster of response.DBClusters ?? []) {
+      clusters.push({
+        DBClusterIdentifier: cluster.DBClusterIdentifier,
+        DBClusterArn: cluster.DBClusterArn,
+        Engine: cluster.Engine,
+        EngineVersion: cluster.EngineVersion,
+        Status: cluster.Status,
+        DatabaseName: cluster.DatabaseName,
+        MasterUsername: cluster.MasterUsername,
+        Port: cluster.Port,
+        Endpoint: cluster.Endpoint,
+        ReaderEndpoint: cluster.ReaderEndpoint,
+        MultiAZ: cluster.MultiAZ,
+        AvailabilityZones: cluster.AvailabilityZones,
+        StorageEncrypted: cluster.StorageEncrypted,
+        KmsKeyId: cluster.KmsKeyId,
+        DbClusterResourceId: cluster.DbClusterResourceId,
+        DeletionProtection: cluster.DeletionProtection,
+        EngineMode: cluster.EngineMode,
+        DBSubnetGroup: cluster.DBSubnetGroup,
+        AllocatedStorage: cluster.AllocatedStorage,
+        StorageType: cluster.StorageType,
+        DBClusterParameterGroup: cluster.DBClusterParameterGroup,
+        VpcSecurityGroups: cluster.VpcSecurityGroups?.map((sg) => ({
+          VpcSecurityGroupId: sg.VpcSecurityGroupId,
+          Status: sg.Status,
+        })),
+        DBClusterMembers: cluster.DBClusterMembers?.map((m) => ({
+          DBInstanceIdentifier: m.DBInstanceIdentifier,
+          IsClusterWriter: m.IsClusterWriter,
+          DBClusterParameterGroupStatus: m.DBClusterParameterGroupStatus,
+          PromotionTier: m.PromotionTier,
+        })),
+        TagList: cluster.TagList?.map((t) => ({
+          Key: t.Key,
+          Value: t.Value,
+        })),
+      });
+    }
+
+    marker = response.Marker;
+    pages++;
+  } while (marker && pages < maxPages);
+
+  return clusters;
+}
+
 const StateSchema = z.object({
   Endpoint: z.object({
     Address: z.string(),
@@ -643,7 +710,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for RDS DBCluster. Registered at `@swamp/aws/rds/dbcluster`. */
 export const model = {
   type: "@swamp/aws/rds/dbcluster",
-  version: "2026.05.22.2",
+  version: "2026.05.26.3",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -682,6 +749,21 @@ export const model = {
     },
     {
       toVersion: "2026.05.22.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.3",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -877,6 +959,39 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List RDS DB clusters in the current region",
+      arguments: z.object({
+        filters: z.array(
+          z.object({ Name: z.string(), Values: z.array(z.string()) }),
+        ).describe("Optional filters to narrow results").optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const items = await listClusters(
+          args.filters as any,
+          args.maxPages as number | undefined,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName =
+            (item.DBClusterIdentifier?.toString() ?? String(i)).replace(
+              /[\/\\]/g,
+              "_",
+            ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length } };
       },
     },
   },

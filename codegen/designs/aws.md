@@ -526,6 +526,63 @@ The interface is strategy-agnostic. Three patterns are supported:
 | --------------------- | -------- | --------------------------------------------------------- |
 | `AWS::RDS::DBCluster` | SDK      | `DBClusterMembers` with instance class, AZ, writer status |
 
+### List method enrichment
+
+State enrichments augment the output of `get`/`sync`. A **list method
+enrichment** adds a `list` method to the generated model, enabling resource
+discovery without knowing identifiers upfront.
+
+Unlike GCP (which has a uniform Discovery API with consistent pagination), AWS
+services each have their own SDK clients and pagination schemes. List methods
+therefore live entirely in the enrichment source file — there is no shared
+pagination helper in `_lib/aws.ts`.
+
+#### Interface
+
+The `AwsEnrichment` type accepts an optional `listMethod` field:
+
+```typescript
+listMethod?: {
+  sourceFile: string;       // Path to list .enrich.ts file
+  functionExport: string;   // Name of the list function
+  argumentFields: string[]; // Zod field lines for method arguments
+  description: string;      // Method description
+}
+```
+
+#### Source file requirements
+
+1. Must `deno check` independently (same as state enrichments)
+2. Owns all pagination logic (Marker-based, NextToken-based, etc.)
+3. Transforms SDK responses to CloudFormation property names (PascalCase) so
+   list results are compatible with StateSchema and subsequent `sync` calls
+4. Returns `Record<string, unknown>[]` — one entry per discovered resource
+
+#### How it's emitted
+
+The generator:
+
+1. Skips list method imports when the package is already imported by the state
+   enrichment (avoids duplicate identifiers)
+2. Inlines the list function body after the state enrichment body
+3. Emits a `list` method that calls the function, iterates results, and writes
+   each as a `"state"` resource handle keyed by the primary identifier
+
+#### Adding a new list enrichment
+
+1. Create `codegen/aws/enrichments/<service>-<resource>-list.enrich.ts`
+2. Add `listMethod` to the existing enrichment metadata (or create a new
+   `AwsEnrichment` entry if no state enrichment exists)
+3. Run `deno check` on the source file
+4. Run `deno task generate:aws <service>` and verify output
+5. Run a second time to confirm idempotency
+
+#### Current list enrichments
+
+| Resource              | SDK command          | Pagination | Data returned                             |
+| --------------------- | -------------------- | ---------- | ----------------------------------------- |
+| `AWS::RDS::DBCluster` | `DescribeDBClusters` | Marker     | Cluster ID, engine, status, members, tags |
+
 ---
 
 ## 9. Zod Schema Generation
