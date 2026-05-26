@@ -22,6 +22,7 @@ import {
   getServiceEnrichmentImports,
   parseEnrichmentSource,
 } from "./enrichments/index.ts";
+import { parseListMethodSource } from "./enrichments/parser.ts";
 import { generateManifest } from "../shared/manifestGenerator.ts";
 import { generateLicense } from "../shared/licenseGenerator.ts";
 import { generateAwsDenoConfig } from "../shared/denoConfigGenerator.ts";
@@ -321,6 +322,16 @@ export async function generateAwsModels(options: {
             functionExport: rawEnrichment.functionExport,
           }
           : undefined;
+        const listMethod = rawEnrichment?.listMethod
+          ? {
+            source: await parseListMethodSource(
+              rawEnrichment.listMethod.sourceFile,
+            ),
+            functionExport: rawEnrichment.listMethod.functionExport,
+            argumentFields: rawEnrichment.listMethod.argumentFields,
+            description: rawEnrichment.listMethod.description,
+          }
+          : undefined;
         const candidateCode = generateAwsExtensionModel({
           typeName,
           zodResult,
@@ -330,6 +341,7 @@ export async function generateAwsModels(options: {
           version: placeholderVersion,
           modelType,
           enrichment,
+          listMethod,
         });
 
         const { version, status, existingContent } = await computeModelVersion(
@@ -368,6 +380,7 @@ export async function generateAwsModels(options: {
           modelType,
           upgradesBlock,
           enrichment,
+          listMethod,
         });
 
         models.push({ filePath, sourceCode });

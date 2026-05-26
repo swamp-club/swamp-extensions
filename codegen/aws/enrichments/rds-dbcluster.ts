@@ -8,4 +8,14 @@ export const enrichment: AwsEnrichment = {
   sourceFile: new URL("./rds-dbcluster.enrich.ts", import.meta.url).pathname,
   functionExport: "enrichState",
   stateFields: "  DBClusterMembers: z.array(DBClusterMemberSchema).optional(),",
+  listMethod: {
+    sourceFile: new URL("./rds-dbcluster-list.enrich.ts", import.meta.url)
+      .pathname,
+    functionExport: "listClusters",
+    argumentFields: [
+      `    filters: z.array(z.object({ Name: z.string(), Values: z.array(z.string()) })).describe("Optional filters to narrow results").optional(),`,
+      `    maxPages: z.number().describe("Maximum number of pages to fetch (default: 10)").optional(),`,
+    ],
+    description: "List RDS DB clusters in the current region",
+  },
 };
