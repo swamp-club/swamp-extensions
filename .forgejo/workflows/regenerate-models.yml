@@ -1,0 +1,210 @@
+name: Regenerate Models
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: "Provider to regenerate"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - aws
+          - gcp
+          - hetzner
+          - digitalocean
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: regenerate-models
+  cancel-in-progress: false
+
+jobs:
+  regenerate:
+    name: Fetch schemas and regenerate models
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.BOT_TOKEN }}
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+
+      - name: Fetch and generate AWS models
+        if: >-
+          github.event_name == 'schedule' ||
+          inputs.provider == 'all' ||
+          inputs.provider == 'aws'
+        working-directory: codegen
+        run: |
+          echo "::group::Fetch AWS schema"
+          deno task fetch-schema:aws
+          echo "::endgroup::"
+          echo "::group::Generate AWS models"
+          deno task generate:aws
+          echo "::endgroup::"
+
+      - name: Fetch and generate GCP models
+        if: >-
+          github.event_name == 'schedule' ||
+          inputs.provider == 'all' ||
+          inputs.provider == 'gcp'
+        working-directory: codegen
+        run: |
+          echo "::group::Fetch GCP schema"
+          deno task fetch-schema:gcp
+          echo "::endgroup::"
+          echo "::group::Generate GCP models"
+          deno task generate:gcp
+          echo "::endgroup::"
+
+      - name: Fetch and generate Hetzner models
+        if: >-
+          github.event_name == 'schedule' ||
+          inputs.provider == 'all' ||
+          inputs.provider == 'hetzner'
+        working-directory: codegen
+        run: |
+          echo "::group::Fetch Hetzner schema"
+          deno task fetch-schema:hetzner
+          echo "::endgroup::"
+          echo "::group::Generate Hetzner models"
+          deno task generate:hetzner
+          echo "::endgroup::"
+
+      - name: Fetch and generate DigitalOcean models
+        if: >-
+          github.event_name == 'schedule' ||
+          inputs.provider == 'all' ||
+          inputs.provider == 'digitalocean'
+        working-directory: codegen
+        run: |
+          echo "::group::Fetch DigitalOcean schema"
+          deno task fetch-schema:digitalocean
+          echo "::endgroup::"
+          echo "::group::Generate DigitalOcean models"
+          deno task generate:digitalocean
+          echo "::endgroup::"
+
+      - name: Update lockfiles for changed directories
+        run: |
+          changed=$(git status --porcelain -- '*/deno.json' | sed 's/^...//')
+          if [ -z "$changed" ]; then
+            echo "No deno.json changes, skipping lockfile updates"
+            exit 0
+          fi
+
+          echo "$changed" | while read -r deno_json; do
+            dir=$(dirname "$deno_json")
+            if [ -f "$dir/deno.json" ]; then
+              echo "Updating lockfile: $dir"
+              (cd "$dir" && deno install) || echo "::warning::Failed to update lockfile in $dir"
+            fi
+          done
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No changes detected — models are up to date"
+            exit 0
+          fi
+
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+
+          SUMMARY=""
+          for provider in aws gcp hetzner-cloud digitalocean; do
+            count=$(git status --porcelain -- "model/$provider/" | wc -l | tr -d ' ')
+            if [ "$count" -gt 0 ]; then
+              SUMMARY="${SUMMARY}- **${provider}**: ${count} files changed"$'\n'
+            fi
+          done
+
+          {
+            echo "summary<<SUMMARY_EOF"
+            echo "$SUMMARY"
+            echo "SUMMARY_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Determine provider label
+        id: label
+        run: |
+          PROVIDER="${{ inputs.provider || 'all' }}"
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "$PROVIDER" = "all" ]; then
+            echo "suffix=" >> "$GITHUB_OUTPUT"
+            echo "title=chore: regenerate models from upstream schemas" >> "$GITHUB_OUTPUT"
+          else
+            echo "suffix=-${PROVIDER}" >> "$GITHUB_OUTPUT"
+            echo "title=chore: regenerate ${PROVIDER} models from upstream schemas" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create or update pull request
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHANGE_SUMMARY: ${{ steps.changes.outputs.summary }}
+        run: |
+          BRANCH="automated/regenerate-models${{ steps.label.outputs.suffix }}"
+          DATE=$(date +%Y-%m-%d)
+          TITLE="${{ steps.label.outputs.title }}"
+          REPO="swamp-club/swamp-extensions"
+          API="https://git.swamp-club.com/api/v1"
+
+          git config user.name "forgejo-actions[bot]"
+          git config user.email "forgejo-actions[bot]@git.swamp-club.com"
+
+          git checkout -b "$BRANCH"
+          git add -A
+          git commit -m "${TITLE} ($DATE)"
+          git push --force origin "$BRANCH"
+
+          EXISTING_PR=$(curl -sf \
+            -H "Authorization: token $BOT_TOKEN" \
+            "$API/repos/$REPO/pulls?state=open&head=$BRANCH" | \
+            jq -r '.[0].number // empty')
+
+          if [ -n "$EXISTING_PR" ]; then
+            echo "Updated existing PR #$EXISTING_PR"
+          else
+            BODY=$(cat <<'BODY_EOF'
+          ## Summary
+
+          Automated regeneration of extension models from upstream provider schemas.
+
+          ### Schema Sources
+
+          - **AWS**: CloudFormation Resource Schema
+          - **GCP**: Google Discovery Documents
+          - **Hetzner**: Hetzner Cloud OpenAPI spec
+          - **DigitalOcean**: DigitalOcean OpenAPI spec
+
+          ### Review Notes
+
+          - Files under `model/` are auto-generated — review the `manifest.yaml` diffs for version changes
+          - CalVer versioning with content-based change detection ensures versions only bump when content changes
+          - Publishing happens automatically when this PR is merged (via the publish workflow)
+          BODY_EOF
+          )
+
+            curl -sf -X POST \
+              -H "Authorization: token $BOT_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --arg title "$TITLE" --arg body "$BODY" --arg head "$BRANCH" --arg base "main" \
+                '{title: $title, body: $body, head: $head, base: $base}')" \
+              "$API/repos/$REPO/pulls"
+
+            echo "Created new PR"
+          fi

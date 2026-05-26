@@ -1,0 +1,863 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+    branches: [main]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    outputs:
+      vaults: ${{ steps.filter.outputs.vaults }}
+      datastores: ${{ steps.filter.outputs.datastores }}
+      codegen: ${{ steps.filter.outputs.codegen }}
+      models: ${{ steps.filter.outputs.models }}
+      issue-lifecycle: ${{ steps.filter.outputs.issue-lifecycle }}
+      ssh: ${{ steps.filter.outputs.ssh }}
+      workflows: ${{ steps.filter.outputs.workflows }}
+      cve: ${{ steps.filter.outputs.cve }}
+      ci: ${{ steps.filter.outputs.ci }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check for changes
+        id: filter
+        run: |
+          BASE_SHA=${{ github.event.pull_request.base.sha }}
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+          CHANGED=$(git diff --name-only ${BASE_SHA}...${HEAD_SHA})
+
+          check_path() {
+            local name=$1
+            shift
+            local found=false
+            for pattern in "$@"; do
+              if echo "$CHANGED" | grep -q "^${pattern}"; then
+                found=true
+                break
+              fi
+            done
+            echo "${name}=${found}" >> $GITHUB_OUTPUT
+          }
+
+          check_path vaults "vault/"
+          check_path datastores "datastore/"
+          check_path codegen "codegen/"
+          check_path models "model/"
+          check_path issue-lifecycle "issue-lifecycle/"
+          check_path ssh "ssh/"
+          check_path workflows "workflows/"
+          check_path cve "cve/"
+          check_path ci ".forgejo/workflows/" "scripts/"
+
+  vault-check:
+    name: vault/${{ matrix.vault }} - ${{ matrix.task }}
+    needs: [changes]
+    if: needs.changes.outputs.vaults == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        vault: [1password, aws-sm, azure-kv]
+        task: [check, lint, fmt, test]
+    defaults:
+      run:
+        working-directory: vault/${{ matrix.vault }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: deno ${{ matrix.task }}
+        run: |
+          if [ "${{ matrix.task }}" = "fmt" ]; then
+            deno fmt --check extensions/vaults/
+          elif [ "${{ matrix.task }}" = "lint" ]; then
+            deno lint extensions/vaults/
+          elif [ "${{ matrix.task }}" = "test" ]; then
+            deno test --allow-env --allow-net --allow-sys extensions/vaults/
+          else
+            deno check extensions/vaults/*.ts
+          fi
+
+  vault-lockfile:
+    name: vault/${{ matrix.vault }} - lockfile up to date
+    needs: [changes]
+    if: needs.changes.outputs.vaults == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        vault: [1password, aws-sm, azure-kv]
+    defaults:
+      run:
+        working-directory: vault/${{ matrix.vault }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: Verify lockfile is up to date
+        run: deno install --frozen
+
+  datastore-check:
+    name: datastore/${{ matrix.datastore }} - ${{ matrix.task }}
+    needs: [changes]
+    if: needs.changes.outputs.datastores == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        datastore: [s3, gcs]
+        task: [check, lint, fmt, test]
+    defaults:
+      run:
+        working-directory: datastore/${{ matrix.datastore }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: deno ${{ matrix.task }}
+        run: |
+          if [ "${{ matrix.task }}" = "fmt" ]; then
+            deno fmt --check extensions/datastores/
+          elif [ "${{ matrix.task }}" = "lint" ]; then
+            deno lint extensions/datastores/
+          elif [ "${{ matrix.task }}" = "test" ]; then
+            deno test --allow-read --allow-write --allow-env --allow-net --allow-sys extensions/datastores/
+          else
+            deno check extensions/datastores/*.ts
+          fi
+
+  datastore-lockfile:
+    name: datastore/${{ matrix.datastore }} - lockfile up to date
+    needs: [changes]
+    if: needs.changes.outputs.datastores == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        datastore: [s3, gcs]
+    defaults:
+      run:
+        working-directory: datastore/${{ matrix.datastore }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: Verify lockfile is up to date
+        run: deno install --frozen
+
+  issue-lifecycle-check:
+    name: issue-lifecycle - ${{ matrix.task }}
+    needs: [changes]
+    if: needs.changes.outputs.issue-lifecycle == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [check, lint, fmt, test]
+    defaults:
+      run:
+        working-directory: issue-lifecycle
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: deno ${{ matrix.task }}
+        run: |
+          if [ "${{ matrix.task }}" = "fmt" ]; then
+            deno fmt --check extensions/models/
+          elif [ "${{ matrix.task }}" = "lint" ]; then
+            deno lint extensions/models/
+          elif [ "${{ matrix.task }}" = "test" ]; then
+            deno test --allow-read --allow-write --allow-env --allow-net --allow-sys extensions/models/
+          else
+            deno check extensions/models/issue_lifecycle.ts
+          fi
+
+  issue-lifecycle-lockfile:
+    name: issue-lifecycle - lockfile up to date
+    needs: [changes]
+    if: needs.changes.outputs.issue-lifecycle == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: issue-lifecycle
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: Verify lockfile is up to date
+        run: deno install --frozen
+
+  ssh-check:
+    name: ssh - ${{ matrix.task }}
+    needs: [changes]
+    if: needs.changes.outputs.ssh == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [check, lint, fmt, test]
+    defaults:
+      run:
+        working-directory: ssh
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: deno ${{ matrix.task }}
+        run: |
+          if [ "${{ matrix.task }}" = "fmt" ]; then
+            deno fmt --check extensions/models/
+          elif [ "${{ matrix.task }}" = "lint" ]; then
+            deno lint extensions/models/
+          elif [ "${{ matrix.task }}" = "test" ]; then
+            deno test --allow-read --allow-write --allow-env --allow-run --allow-sys extensions/models/
+          else
+            deno check extensions/models/ssh.ts
+          fi
+
+  ssh-lockfile:
+    name: ssh - lockfile up to date
+    needs: [changes]
+    if: needs.changes.outputs.ssh == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ssh
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: Verify lockfile is up to date
+        run: deno install --frozen
+
+  workflows-check:
+    name: workflows/${{ matrix.workflow }} - ${{ matrix.task }}
+    needs: [changes]
+    if: needs.changes.outputs.workflows == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        workflow: [s3-bootstrap, gcs-bootstrap]
+        task: [check, lint, fmt, test]
+    defaults:
+      run:
+        working-directory: workflows/${{ matrix.workflow }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: deno ${{ matrix.task }}
+        run: |
+          if [ "${{ matrix.task }}" = "fmt" ]; then
+            deno fmt --check extensions/models/
+          elif [ "${{ matrix.task }}" = "lint" ]; then
+            deno lint extensions/models/
+          elif [ "${{ matrix.task }}" = "test" ]; then
+            deno test --allow-read --allow-write --allow-env --allow-net --allow-sys extensions/models/
+          else
+            deno check extensions/models/*.ts
+          fi
+
+  workflows-lockfile:
+    name: workflows/${{ matrix.workflow }} - lockfile up to date
+    needs: [changes]
+    if: needs.changes.outputs.workflows == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        workflow: [s3-bootstrap, gcs-bootstrap]
+    defaults:
+      run:
+        working-directory: workflows/${{ matrix.workflow }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: Verify lockfile is up to date
+        run: deno install --frozen
+
+  cve-check:
+    name: cve/${{ matrix.cve }} - ${{ matrix.task }}
+    needs: [changes]
+    if: needs.changes.outputs.cve == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cve: [dirtyfrag, mini-shai-hulud]
+        task: [check, lint, fmt, test]
+    defaults:
+      run:
+        working-directory: cve/${{ matrix.cve }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: deno ${{ matrix.task }}
+        run: |
+          if [ "${{ matrix.task }}" = "fmt" ]; then
+            deno fmt --check extensions/models/ extensions/reports/
+          elif [ "${{ matrix.task }}" = "lint" ]; then
+            deno lint extensions/models/ extensions/reports/
+          elif [ "${{ matrix.task }}" = "test" ]; then
+            deno test --allow-read --allow-write --allow-env --allow-net --allow-sys extensions/models/ extensions/reports/
+          else
+            deno check extensions/models/*.ts extensions/reports/*.ts
+          fi
+
+  cve-lockfile:
+    name: cve/${{ matrix.cve }} - lockfile up to date
+    needs: [changes]
+    if: needs.changes.outputs.cve == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cve: [dirtyfrag, mini-shai-hulud]
+    defaults:
+      run:
+        working-directory: cve/${{ matrix.cve }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: Verify lockfile is up to date
+        run: deno install --frozen
+
+  model-check:
+    name: model/${{ matrix.model }} - ${{ matrix.task }}
+    needs: [changes]
+    if: needs.changes.outputs.models == 'true' || needs.changes.outputs.codegen == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [hetzner-cloud, digitalocean]
+        task: [check, lint, fmt]
+    defaults:
+      run:
+        working-directory: model/${{ matrix.model }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: deno ${{ matrix.task }}
+        run: |
+          if [ "${{ matrix.task }}" = "fmt" ]; then
+            deno fmt --no-config --check extensions/models/
+          elif [ "${{ matrix.task }}" = "lint" ]; then
+            deno lint --no-config extensions/models/
+          else
+            deno check extensions/models/*.ts
+          fi
+
+  model-lockfile:
+    name: model/${{ matrix.model }} - lockfile up to date
+    needs: [changes]
+    if: needs.changes.outputs.models == 'true' || needs.changes.outputs.codegen == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [hetzner-cloud, digitalocean]
+    defaults:
+      run:
+        working-directory: model/${{ matrix.model }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: Verify lockfile is up to date
+        run: deno install --frozen
+
+  aws-check:
+    name: aws models - ${{ matrix.task }}
+    needs: [changes]
+    if: needs.changes.outputs.models == 'true' || needs.changes.outputs.codegen == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [check, lint, fmt]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: deno ${{ matrix.task }}
+        run: |
+          if [ "${{ matrix.task }}" = "fmt" ]; then
+            find model/aws -name "*.ts" -path "*/extensions/models/*" | xargs deno fmt --no-config --check
+          elif [ "${{ matrix.task }}" = "lint" ]; then
+            find model/aws -name "*.ts" -path "*/extensions/models/*" | xargs deno lint --no-config
+          else
+            for service in model/aws/*/; do
+              (cd "$service" && deno check extensions/models/*.ts)
+            done
+          fi
+
+  aws-lockfile:
+    name: aws models - lockfiles up to date
+    needs: [changes]
+    if: needs.changes.outputs.models == 'true' || needs.changes.outputs.codegen == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: Verify all AWS lockfiles are up to date
+        run: |
+          failed=false
+          for service in model/aws/*/; do
+            if ! (cd "$service" && deno install --frozen 2>&1); then
+              echo "::error::Lockfile out of date in $service"
+              failed=true
+            fi
+          done
+          if [ "$failed" = true ]; then
+            exit 1
+          fi
+
+  gcp-check:
+    name: gcp models - ${{ matrix.task }}
+    needs: [changes]
+    if: needs.changes.outputs.models == 'true' || needs.changes.outputs.codegen == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [check, lint, fmt]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: deno ${{ matrix.task }}
+        run: |
+          if [ "${{ matrix.task }}" = "fmt" ]; then
+            find model/gcp -name "*.ts" -path "*/extensions/models/*" | xargs deno fmt --no-config --check
+          elif [ "${{ matrix.task }}" = "lint" ]; then
+            find model/gcp -name "*.ts" -path "*/extensions/models/*" | xargs deno lint --no-config
+          else
+            for service in model/gcp/*/; do
+              (cd "$service" && deno check extensions/models/*.ts)
+            done
+          fi
+
+  gcp-lockfile:
+    name: gcp models - lockfiles up to date
+    needs: [changes]
+    if: needs.changes.outputs.models == 'true' || needs.changes.outputs.codegen == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: Verify all GCP lockfiles are up to date
+        run: |
+          failed=false
+          for service in model/gcp/*/; do
+            if ! (cd "$service" && deno install --frozen 2>&1); then
+              echo "::error::Lockfile out of date in $service"
+              failed=true
+            fi
+          done
+          if [ "$failed" = true ]; then
+            exit 1
+          fi
+
+  cloudflare-check:
+    name: cloudflare models - ${{ matrix.task }}
+    needs: [changes]
+    if: needs.changes.outputs.models == 'true' || needs.changes.outputs.codegen == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [check, lint, fmt]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: deno ${{ matrix.task }}
+        run: |
+          if [ "${{ matrix.task }}" = "fmt" ]; then
+            find model/cloudflare -name "*.ts" -path "*/extensions/models/*" | xargs deno fmt --no-config --check
+          elif [ "${{ matrix.task }}" = "lint" ]; then
+            find model/cloudflare -name "*.ts" -path "*/extensions/models/*" | xargs deno lint --no-config
+          else
+            for service in model/cloudflare/*/; do
+              (cd "$service" && deno check extensions/models/*.ts)
+            done
+          fi
+
+  cloudflare-lockfile:
+    name: cloudflare models - lockfiles up to date
+    needs: [changes]
+    if: needs.changes.outputs.models == 'true' || needs.changes.outputs.codegen == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: Verify all Cloudflare lockfiles are up to date
+        run: |
+          failed=false
+          for service in model/cloudflare/*/; do
+            if ! (cd "$service" && deno install --frozen 2>&1); then
+              echo "::error::Lockfile out of date in $service"
+              failed=true
+            fi
+          done
+          if [ "$failed" = true ]; then
+            exit 1
+          fi
+
+  codegen-check:
+    name: codegen - ${{ matrix.task }}
+    needs: [changes]
+    if: needs.changes.outputs.codegen == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [check, lint, fmt]
+    defaults:
+      run:
+        working-directory: codegen
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: deno ${{ matrix.task }}
+        run: |
+          if [ "${{ matrix.task }}" = "fmt" ]; then
+            deno fmt --check
+          elif [ "${{ matrix.task }}" = "lint" ]; then
+            deno lint
+          else
+            deno check main.ts
+          fi
+
+  codegen-lockfile:
+    name: codegen - lockfile up to date
+    needs: [changes]
+    if: needs.changes.outputs.codegen == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: codegen
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: Verify lockfile is up to date
+        run: deno install --frozen
+
+  deps-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: Scan for known vulnerabilities
+        run: deno run --allow-read --allow-net=api.osv.dev --allow-env=GITHUB_STEP_SUMMARY --allow-write scripts/audit_deps.ts
+      - name: Check for outdated dependencies
+        run: |
+          has_outdated=false
+          for lockdir in $(find vault datastore model codegen issue-lifecycle workflows cve -name "deno.lock" -exec dirname {} \;); do
+            output=$(cd "$lockdir" && deno outdated 2>&1) || true
+            if [ -n "$output" ]; then
+              echo "::warning::Outdated dependencies in $lockdir"
+              echo "$output"
+              has_outdated=true
+            fi
+          done
+          if [ "$has_outdated" = false ]; then
+            echo "All dependencies are up to date"
+          fi
+
+  actions-audit:
+    name: Actions Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: Check for unpinned or outdated Actions
+        run: deno run --allow-read --allow-net=api.github.com --allow-env=GITHUB_STEP_SUMMARY,GITHUB_TOKEN --allow-write scripts/audit_actions.ts
+
+  claude-review:
+    name: Claude Code Review
+    needs:
+      [
+        changes,
+        vault-check,
+        vault-lockfile,
+        datastore-check,
+        datastore-lockfile,
+        issue-lifecycle-check,
+        issue-lifecycle-lockfile,
+        workflows-check,
+        workflows-lockfile,
+        cve-check,
+        cve-lockfile,
+        model-check,
+        model-lockfile,
+        aws-check,
+        aws-lockfile,
+        cloudflare-check,
+        cloudflare-lockfile,
+        gcp-check,
+        gcp-lockfile,
+        codegen-check,
+        codegen-lockfile,
+        deps-audit,
+        actions-audit,
+      ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    if: |
+      !failure() && !cancelled() &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.draft == false
+    concurrency:
+      group: claude-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Claude Code Review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          CLAUDE_VERSION="2.1.150"
+          CLAUDE_CHECKSUM="6c086a0f5fbf684d4148bb69629268b4f5109498c1a7be757acf18c51fd04f4b"
+          curl -fsSL -o /tmp/claude "https://downloads.claude.ai/claude-code-releases/${CLAUDE_VERSION}/linux-x64/claude"
+          echo "${CLAUDE_CHECKSUM}  /tmp/claude" | sha256sum -c -
+          chmod +x /tmp/claude
+          /tmp/claude -p "$(cat .forgejo/prompts/review.md)" \
+            --model claude-sonnet-4-6 \
+            --allowedTools "Read,Glob,Grep,Bash(git diff:*),Bash(git log:*),Bash(tee /tmp/review-body.md:*),Bash(touch /tmp/review-failed)"
+
+      - name: Post review comment
+        if: always()
+        env:
+          FORGEJO_TOKEN: ${{ secrets.BOT_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ -f /tmp/review-body.md ]; then
+            python3 -c "import json; print(json.dumps({'body': open('/tmp/review-body.md').read()}))" > /tmp/review-payload.json
+            HTTP_CODE=$(curl -s -o /tmp/curl-response.txt -w "%{http_code}" -X POST \
+              -H "Authorization: token $FORGEJO_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d @/tmp/review-payload.json \
+              "https://git.swamp-club.com/api/v1/repos/$REPO/issues/$PR_NUMBER/comments")
+            if [ "$HTTP_CODE" -ge 400 ]; then
+              echo "::error::Failed to post review comment (HTTP $HTTP_CODE)"
+              cat /tmp/curl-response.txt
+              exit 1
+            fi
+            echo "Review comment posted (HTTP $HTTP_CODE)"
+          else
+            echo "::warning::No review body found at /tmp/review-body.md"
+          fi
+
+      - name: Fail if changes requested
+        run: |
+          if [ -f /tmp/review-failed ]; then
+            echo "::error::Code review requested changes — blocking merge"
+            exit 1
+          fi
+
+  claude-adversarial-review:
+    name: Adversarial Code Review
+    needs:
+      [
+        changes,
+        vault-check,
+        vault-lockfile,
+        datastore-check,
+        datastore-lockfile,
+        issue-lifecycle-check,
+        issue-lifecycle-lockfile,
+        workflows-check,
+        workflows-lockfile,
+        cve-check,
+        cve-lockfile,
+        aws-check,
+        aws-lockfile,
+        cloudflare-check,
+        cloudflare-lockfile,
+        gcp-check,
+        gcp-lockfile,
+        codegen-check,
+        codegen-lockfile,
+        deps-audit,
+      ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    if: |
+      !failure() && !cancelled() &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.draft == false &&
+      (needs.changes.outputs.vaults == 'true' || needs.changes.outputs.datastores == 'true' || needs.changes.outputs.issue-lifecycle == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.cve == 'true' || needs.changes.outputs.codegen == 'true')
+    concurrency:
+      group: claude-adversarial-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Adversarial Code Review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          CLAUDE_VERSION="2.1.150"
+          CLAUDE_CHECKSUM="6c086a0f5fbf684d4148bb69629268b4f5109498c1a7be757acf18c51fd04f4b"
+          curl -fsSL -o /tmp/claude "https://downloads.claude.ai/claude-code-releases/${CLAUDE_VERSION}/linux-x64/claude"
+          echo "${CLAUDE_CHECKSUM}  /tmp/claude" | sha256sum -c -
+          chmod +x /tmp/claude
+          /tmp/claude -p "$(cat .forgejo/prompts/adversarial.md)" \
+            --model claude-opus-4-6 \
+            --allowedTools "Read,Glob,Grep,Bash(git diff:*),Bash(git log:*),Bash(tee /tmp/review-body.md:*),Bash(touch /tmp/review-failed)"
+
+      - name: Post review comment
+        if: always()
+        env:
+          FORGEJO_TOKEN: ${{ secrets.BOT_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ -f /tmp/review-body.md ]; then
+            python3 -c "import json; print(json.dumps({'body': open('/tmp/review-body.md').read()}))" > /tmp/review-payload.json
+            HTTP_CODE=$(curl -s -o /tmp/curl-response.txt -w "%{http_code}" -X POST \
+              -H "Authorization: token $FORGEJO_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d @/tmp/review-payload.json \
+              "https://git.swamp-club.com/api/v1/repos/$REPO/issues/$PR_NUMBER/comments")
+            if [ "$HTTP_CODE" -ge 400 ]; then
+              echo "::error::Failed to post review comment (HTTP $HTTP_CODE)"
+              cat /tmp/curl-response.txt
+              exit 1
+            fi
+            echo "Review comment posted (HTTP $HTTP_CODE)"
+          else
+            echo "::warning::No review body found at /tmp/review-body.md"
+          fi
+
+      - name: Fail if changes requested
+        run: |
+          if [ -f /tmp/review-failed ]; then
+            echo "::error::Adversarial review requested changes — blocking merge"
+            exit 1
+          fi
+
+  claude-ci-security-review:
+    name: CI Security Review
+    needs: [changes, deps-audit, actions-audit]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    if: |
+      !failure() && !cancelled() &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.draft == false &&
+      needs.changes.outputs.ci == 'true'
+    concurrency:
+      group: claude-ci-security-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: CI Security Review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          CLAUDE_VERSION="2.1.150"
+          CLAUDE_CHECKSUM="6c086a0f5fbf684d4148bb69629268b4f5109498c1a7be757acf18c51fd04f4b"
+          curl -fsSL -o /tmp/claude "https://downloads.claude.ai/claude-code-releases/${CLAUDE_VERSION}/linux-x64/claude"
+          echo "${CLAUDE_CHECKSUM}  /tmp/claude" | sha256sum -c -
+          chmod +x /tmp/claude
+          /tmp/claude -p "$(cat .forgejo/prompts/ci-security.md)" \
+            --model claude-opus-4-6 \
+            --allowedTools "Read,Glob,Grep,Bash(git diff:*),Bash(git log:*),Bash(tee /tmp/review-body.md:*),Bash(touch /tmp/review-failed)"
+
+      - name: Post review comment
+        if: always()
+        env:
+          FORGEJO_TOKEN: ${{ secrets.BOT_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ -f /tmp/review-body.md ]; then
+            python3 -c "import json; print(json.dumps({'body': open('/tmp/review-body.md').read()}))" > /tmp/review-payload.json
+            HTTP_CODE=$(curl -s -o /tmp/curl-response.txt -w "%{http_code}" -X POST \
+              -H "Authorization: token $FORGEJO_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d @/tmp/review-payload.json \
+              "https://git.swamp-club.com/api/v1/repos/$REPO/issues/$PR_NUMBER/comments")
+            if [ "$HTTP_CODE" -ge 400 ]; then
+              echo "::error::Failed to post review comment (HTTP $HTTP_CODE)"
+              cat /tmp/curl-response.txt
+              exit 1
+            fi
+            echo "Review comment posted (HTTP $HTTP_CODE)"
+          else
+            echo "::warning::No review body found at /tmp/review-body.md"
+          fi
+
+      - name: Fail if changes requested
+        run: |
+          if [ -f /tmp/review-failed ]; then
+            echo "::error::CI security review requested changes — blocking merge"
+            exit 1
+          fi
