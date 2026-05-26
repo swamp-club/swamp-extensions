@@ -180,7 +180,7 @@ const GlobalArgsSchema = z.object({
       "The timestamp to collect the info. It is suggested to be set by the topmost level resource only.",
     ).optional(),
   }).describe(
-    "ResourceInfo represents the information/status of an app connector resource. Such as: - remote_agent - container - runtime - appgateway - appconnector - appconnection - tunnel - logagent",
+    "ResourceInfo represents the information or status of an app connector resource component that's used to report on various parts of the system. For example, ResourceInfo can be used to convey the status of a remote_agent, including the status of an appgateway for an runtime environment in a container instance.",
   ).optional(),
   appConnectorId: z.string().describe(
     "Optional. User-settable AppConnector resource ID. * Must start with a letter. * Must contain between 4-63 characters from `/a-z-/`. * Must end with a number or a letter.",
@@ -254,7 +254,7 @@ const InputsSchema = z.object({
       "The timestamp to collect the info. It is suggested to be set by the topmost level resource only.",
     ).optional(),
   }).describe(
-    "ResourceInfo represents the information/status of an app connector resource. Such as: - remote_agent - container - runtime - appgateway - appconnector - appconnection - tunnel - logagent",
+    "ResourceInfo represents the information or status of an app connector resource component that's used to report on various parts of the system. For example, ResourceInfo can be used to convey the status of a remote_agent, including the status of an appgateway for an runtime environment in a container instance.",
   ).optional(),
   appConnectorId: z.string().describe(
     "Optional. User-settable AppConnector resource ID. * Must start with a letter. * Must contain between 4-63 characters from `/a-z-/`. * Must end with a number or a letter.",
@@ -270,7 +270,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud BeyondCorp AppConnectors. Registered at `@swamp/gcp/beyondcorp/appconnectors`. */
 export const model = {
   type: "@swamp/gcp/beyondcorp/appconnectors",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -349,6 +349,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -155,7 +155,7 @@ const GlobalArgsSchema = z.object({
     "Optional. Flag indicating if the pool is NFS LDAP enabled or not.",
   ).optional(),
   mode: z.enum(["MODE_UNSPECIFIED", "DEFAULT", "ONTAP"]).describe(
-    "Optional. Mode of the storage pool. This field is used to control whether the user can perform the ONTAP operations on the storage pool using the GCNV ONTAP Mode APIs. If not specified during creation, it defaults to `DEFAULT`.",
+    "Optional. Mode of the storage pool. This field is used to control whether the user can perform ONTAP operations on the storage pool using the GCNV ONTAP Mode APIs. If not specified during creation, it defaults to `DEFAULT`.",
   ).optional(),
   name: z.string().describe("Identifier. Name of the storage pool").optional(),
   network: z.string().describe(
@@ -273,7 +273,7 @@ const InputsSchema = z.object({
     "Optional. Flag indicating if the pool is NFS LDAP enabled or not.",
   ).optional(),
   mode: z.enum(["MODE_UNSPECIFIED", "DEFAULT", "ONTAP"]).describe(
-    "Optional. Mode of the storage pool. This field is used to control whether the user can perform the ONTAP operations on the storage pool using the GCNV ONTAP Mode APIs. If not specified during creation, it defaults to `DEFAULT`.",
+    "Optional. Mode of the storage pool. This field is used to control whether the user can perform ONTAP operations on the storage pool using the GCNV ONTAP Mode APIs. If not specified during creation, it defaults to `DEFAULT`.",
   ).optional(),
   name: z.string().describe("Identifier. Name of the storage pool").optional(),
   network: z.string().describe(
@@ -325,7 +325,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud NetApp StoragePools. Registered at `@swamp/gcp/netapp/storagepools`. */
 export const model = {
   type: "@swamp/gcp/netapp/storagepools",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -427,6 +427,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -811,6 +816,44 @@ export const model = {
         return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
+    restore_volume: {
+      description: "restore volume",
+      arguments: z.object({
+        backupSource: z.any().optional(),
+        ontapVolumeTarget: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (args["backupSource"] !== undefined) {
+          body["backupSource"] = args["backupSource"];
+        }
+        if (args["ontapVolumeTarget"] !== undefined) {
+          body["ontapVolumeTarget"] = args["ontapVolumeTarget"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "netapp.projects.locations.storagePools.restoreVolume",
+            "path": "v1/{+name}:restoreVolume",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
+        );
+        return { result };
+      },
+    },
     switch: {
       description: "switch",
       arguments: z.object({}),
@@ -835,6 +878,48 @@ export const model = {
           },
           params,
           {},
+        );
+        return { result };
+      },
+    },
+    update_backup_config: {
+      description: "update backup config",
+      arguments: z.object({
+        backupConfig: z.any().optional(),
+        updateMask: z.any().optional(),
+        volumeUuid: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (args["backupConfig"] !== undefined) {
+          body["backupConfig"] = args["backupConfig"];
+        }
+        if (args["updateMask"] !== undefined) {
+          body["updateMask"] = args["updateMask"];
+        }
+        if (args["volumeUuid"] !== undefined) {
+          body["volumeUuid"] = args["volumeUuid"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "netapp.projects.locations.storagePools.updateBackupConfig",
+            "path": "v1/{+name}:updateBackupConfig",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
         );
         return { result };
       },

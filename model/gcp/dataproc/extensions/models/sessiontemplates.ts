@@ -145,6 +145,9 @@ const GlobalArgsSchema = z.object({
       networkUri: z.string().describe(
         "Optional. Network URI to connect workload to.",
       ).optional(),
+      resourceManagerTags: z.record(z.string(), z.string()).describe(
+        "Optional. Associates Resource Manager tags with the workload nodes. There is a max limit of 30 tags. Keys and values can be either in numeric format, such as tagKeys/{tag_key_id} and tagValues/{tag_value_id}, or in namespaced format, such as {org_id|project_id}/{tag_key_short_name} and {tag_value_short_name}.",
+      ).optional(),
       serviceAccount: z.string().describe(
         "Optional. Service account that used to execute workload.",
       ).optional(),
@@ -238,6 +241,7 @@ const StateSchema = z.object({
       kmsKey: z.string(),
       networkTags: z.array(z.string()),
       networkUri: z.string(),
+      resourceManagerTags: z.record(z.string(), z.unknown()),
       serviceAccount: z.string(),
       stagingBucket: z.string(),
       subnetworkUri: z.string(),
@@ -305,6 +309,9 @@ const InputsSchema = z.object({
       ).optional(),
       networkUri: z.string().describe(
         "Optional. Network URI to connect workload to.",
+      ).optional(),
+      resourceManagerTags: z.record(z.string(), z.string()).describe(
+        "Optional. Associates Resource Manager tags with the workload nodes. There is a max limit of 30 tags. Keys and values can be either in numeric format, such as tagKeys/{tag_key_id} and tagValues/{tag_value_id}, or in namespaced format, such as {org_id|project_id}/{tag_key_short_name} and {tag_value_short_name}.",
       ).optional(),
       serviceAccount: z.string().describe(
         "Optional. Service account that used to execute workload.",
@@ -389,7 +396,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dataproc SessionTemplates. Registered at `@swamp/gcp/dataproc/sessiontemplates`. */
 export const model = {
   type: "@swamp/gcp/dataproc/sessiontemplates",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -468,6 +475,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

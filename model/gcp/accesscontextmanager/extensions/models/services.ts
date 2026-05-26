@@ -82,7 +82,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Access Context Manager Services. Registered at `@swamp/gcp/accesscontextmanager/services`. */
 export const model = {
   type: "@swamp/gcp/accesscontextmanager/services",
-  version: "2026.05.25.2",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -146,6 +146,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -244,7 +249,7 @@ export const model = {
       description: "List services resources",
       arguments: z.object({
         pageSize: z.number().describe(
-          "This flag specifies the maximum number of services to return per page. Default is 100.",
+          "This flag specifies the maximum number of services to return per page. Default value is 100.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",

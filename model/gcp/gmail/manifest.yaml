@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/gmail"
-version: "2026.05.25.2"
+version: "2026.05.26.1"
 description: "Google Cloud gmail infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: users_labels, users_settings_delegates, users_settings_filters, users_settings_forwardingaddresses, users_settings_sendas, users_settings_sendas_smimeinfo
+  - Updated: users_drafts, users_labels, users_messages, users_settings_filters, users_settings_sendas
 models:
   - users_drafts.ts
   - users_history.ts

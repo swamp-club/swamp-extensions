@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/dfareporting"
-version: "2026.05.25.2"
+version: "2026.05.26.1"
 description: "Google Cloud dfareporting infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: accountpermissiongroups, accountpermissions, billingassignments, billingrates, browsers, connectiontypes, countries, languages, metros, mobilecarriers, operatingsystemversions, operatingsystems, platformtypes, postalcodes, regions, userprofiles, userrolepermissiongroups, videoformats
+  - Updated: creatives
 models:
   - accountactiveadsummaries.ts
   - accountpermissiongroups.ts

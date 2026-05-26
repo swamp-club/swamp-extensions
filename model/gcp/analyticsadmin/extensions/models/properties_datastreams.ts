@@ -117,9 +117,6 @@ const LIST_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe(
-    "Instance name for this resource (used as the unique identifier in the factory pattern)",
-  ),
   androidAppStreamData: z.object({
     firebaseAppId: z.string().describe(
       "Output only. ID of the corresponding Android app in Firebase, if any. This ID can change if the Android app is deleted and recreated.",
@@ -139,6 +136,9 @@ const GlobalArgsSchema = z.object({
       "Output only. ID of the corresponding iOS app in Firebase, if any. This ID can change if the iOS app is deleted and recreated.",
     ).optional(),
   }).describe("Data specific to iOS app streams.").optional(),
+  name: z.string().describe(
+    'Identifier. Resource name of this Data Stream. Format: properties/{property_id}/dataStreams/{stream_id} Example: "properties/1000/dataStreams/2000"',
+  ).optional(),
   type: z.enum([
     "DATA_STREAM_TYPE_UNSPECIFIED",
     "WEB_DATA_STREAM",
@@ -186,7 +186,6 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().optional(),
   androidAppStreamData: z.object({
     firebaseAppId: z.string().describe(
       "Output only. ID of the corresponding Android app in Firebase, if any. This ID can change if the Android app is deleted and recreated.",
@@ -206,6 +205,9 @@ const InputsSchema = z.object({
       "Output only. ID of the corresponding iOS app in Firebase, if any. This ID can change if the iOS app is deleted and recreated.",
     ).optional(),
   }).describe("Data specific to iOS app streams.").optional(),
+  name: z.string().describe(
+    'Identifier. Resource name of this Data Stream. Format: properties/{property_id}/dataStreams/{stream_id} Example: "properties/1000/dataStreams/2000"',
+  ).optional(),
   type: z.enum([
     "DATA_STREAM_TYPE_UNSPECIFIED",
     "WEB_DATA_STREAM",
@@ -232,7 +234,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Analytics Admin Properties.DataStreams. Registered at `@swamp/gcp/analyticsadmin/properties-datastreams`. */
 export const model = {
   type: "@swamp/gcp/analyticsadmin/properties-datastreams",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -309,6 +311,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -339,6 +346,7 @@ export const model = {
         if (g["iosAppStreamData"] !== undefined) {
           body["iosAppStreamData"] = g["iosAppStreamData"];
         }
+        if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["type"] !== undefined) body["type"] = g["type"];
         if (g["webStreamData"] !== undefined) {
           body["webStreamData"] = g["webStreamData"];
@@ -365,10 +373,8 @@ export const model = {
             matchValue: String(g["displayName"] ?? ""),
           },
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
+          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -395,10 +401,11 @@ export const model = {
           GET_CONFIG,
           params,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? args.identifier).replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName =
+          ((result.name ?? g.name)?.toString() ?? args.identifier).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,

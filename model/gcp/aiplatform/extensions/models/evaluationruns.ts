@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI EvaluationRuns.
+ * Swamp extension model for Google Cloud Agent Platform EvaluationRuns.
  *
  * EvaluationRun is a resource that represents a single evaluation run, which includes a set of prompts, model responses, evaluation configuration and the resulting metrics.
  *
@@ -228,7 +228,7 @@ const GlobalArgsSchema = z.object({
           "Optional. The IANA standard MIME type of the response. The model will generate output that conforms to this MIME type. Supported values include 'text/plain' (default) and 'application/json'. The model needs to be prompted to output the appropriate response type, otherwise the behavior is undefined.",
         ).optional(),
         responseModalities: z.array(
-          z.enum(["MODALITY_UNSPECIFIED", "TEXT", "IMAGE", "AUDIO"]),
+          z.enum(["MODALITY_UNSPECIFIED", "TEXT", "IMAGE", "AUDIO", "VIDEO"]),
         ).describe(
           "Optional. The modalities of the response. The model will generate a response that includes all the specified modalities. For example, if this is set to `[TEXT, IMAGE]`, the response will include both text and an image.",
         ).optional(),
@@ -515,6 +515,9 @@ const GlobalArgsSchema = z.object({
           predefinedRubricGenerationSpec: z.unknown().describe(
             "The spec for a pre-defined metric.",
           ).optional(),
+          resultParserConfig: z.unknown().describe(
+            "Config for parsing LLM responses. It can be used to parse the LLM response to be evaluated, or the LLM response from LLM-based metrics/Autoraters.",
+          ).optional(),
           rubricGenerationSpec: z.unknown().describe(
             "Specification for how rubrics should be generated.",
           ).optional(),
@@ -644,7 +647,7 @@ const GlobalArgsSchema = z.object({
       }).describe("Specification for a metric that is based on rubrics.")
         .optional(),
     })).describe(
-      "Required. The metrics to be calculated in the evaluation run.",
+      "Optional. The metrics to be calculated in the evaluation run. Required when analysis_configs is not set.",
     ).optional(),
     outputConfig: z.object({
       bigqueryDestination: z.object({
@@ -905,7 +908,7 @@ const GlobalArgsSchema = z.object({
           "Optional. The IANA standard MIME type of the response. The model will generate output that conforms to this MIME type. Supported values include 'text/plain' (default) and 'application/json'. The model needs to be prompted to output the appropriate response type, otherwise the behavior is undefined.",
         ).optional(),
         responseModalities: z.array(
-          z.enum(["MODALITY_UNSPECIFIED", "TEXT", "IMAGE", "AUDIO"]),
+          z.enum(["MODALITY_UNSPECIFIED", "TEXT", "IMAGE", "AUDIO", "VIDEO"]),
         ).describe(
           "Optional. The modalities of the response. The model will generate a response that includes all the specified modalities. For example, if this is set to `[TEXT, IMAGE]`, the response will include both text and an image.",
         ).optional(),
@@ -1071,6 +1074,9 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       model: z.string().describe(
         "Optional. The fully qualified name of the publisher model or endpoint to use. Anthropic and Llama third-party models are also supported through Model Garden. Publisher model format: `projects/{project}/locations/{location}/publishers/*/models/*` Third-party model formats: `projects/{project}/locations/{location}/publishers/anthropic/models/{model}` or `projects/{project}/locations/{location}/publishers/llama/models/{model}` Endpoint format: `projects/{project}/locations/{location}/endpoints/{endpoint}`",
+      ).optional(),
+      parallelism: z.number().int().describe(
+        "Optional. The parallelism of the evaluation run for the inference step. If not specified, the default parallelism will be used.",
       ).optional(),
     }),
   ).describe(
@@ -1247,6 +1253,7 @@ const StateSchema = z.object({
           judgeAutoraterConfig: z.unknown(),
           metricPromptTemplate: z.unknown(),
           predefinedRubricGenerationSpec: z.unknown(),
+          resultParserConfig: z.unknown(),
           rubricGenerationSpec: z.unknown(),
           rubricGroupKey: z.unknown(),
           systemInstruction: z.unknown(),
@@ -1477,7 +1484,7 @@ const InputsSchema = z.object({
           "Optional. The IANA standard MIME type of the response. The model will generate output that conforms to this MIME type. Supported values include 'text/plain' (default) and 'application/json'. The model needs to be prompted to output the appropriate response type, otherwise the behavior is undefined.",
         ).optional(),
         responseModalities: z.array(
-          z.enum(["MODALITY_UNSPECIFIED", "TEXT", "IMAGE", "AUDIO"]),
+          z.enum(["MODALITY_UNSPECIFIED", "TEXT", "IMAGE", "AUDIO", "VIDEO"]),
         ).describe(
           "Optional. The modalities of the response. The model will generate a response that includes all the specified modalities. For example, if this is set to `[TEXT, IMAGE]`, the response will include both text and an image.",
         ).optional(),
@@ -1764,6 +1771,9 @@ const InputsSchema = z.object({
           predefinedRubricGenerationSpec: z.unknown().describe(
             "The spec for a pre-defined metric.",
           ).optional(),
+          resultParserConfig: z.unknown().describe(
+            "Config for parsing LLM responses. It can be used to parse the LLM response to be evaluated, or the LLM response from LLM-based metrics/Autoraters.",
+          ).optional(),
           rubricGenerationSpec: z.unknown().describe(
             "Specification for how rubrics should be generated.",
           ).optional(),
@@ -1893,7 +1903,7 @@ const InputsSchema = z.object({
       }).describe("Specification for a metric that is based on rubrics.")
         .optional(),
     })).describe(
-      "Required. The metrics to be calculated in the evaluation run.",
+      "Optional. The metrics to be calculated in the evaluation run. Required when analysis_configs is not set.",
     ).optional(),
     outputConfig: z.object({
       bigqueryDestination: z.object({
@@ -2154,7 +2164,7 @@ const InputsSchema = z.object({
           "Optional. The IANA standard MIME type of the response. The model will generate output that conforms to this MIME type. Supported values include 'text/plain' (default) and 'application/json'. The model needs to be prompted to output the appropriate response type, otherwise the behavior is undefined.",
         ).optional(),
         responseModalities: z.array(
-          z.enum(["MODALITY_UNSPECIFIED", "TEXT", "IMAGE", "AUDIO"]),
+          z.enum(["MODALITY_UNSPECIFIED", "TEXT", "IMAGE", "AUDIO", "VIDEO"]),
         ).describe(
           "Optional. The modalities of the response. The model will generate a response that includes all the specified modalities. For example, if this is set to `[TEXT, IMAGE]`, the response will include both text and an image.",
         ).optional(),
@@ -2321,6 +2331,9 @@ const InputsSchema = z.object({
       model: z.string().describe(
         "Optional. The fully qualified name of the publisher model or endpoint to use. Anthropic and Llama third-party models are also supported through Model Garden. Publisher model format: `projects/{project}/locations/{location}/publishers/*/models/*` Third-party model formats: `projects/{project}/locations/{location}/publishers/anthropic/models/{model}` or `projects/{project}/locations/{location}/publishers/llama/models/{model}` Endpoint format: `projects/{project}/locations/{location}/endpoints/{endpoint}`",
       ).optional(),
+      parallelism: z.number().int().describe(
+        "Optional. The parallelism of the evaluation run for the inference step. If not specified, the default parallelism will be used.",
+      ).optional(),
     }),
   ).describe(
     "Optional. The candidate to inference config map for the evaluation run. The candidate can be up to 128 characters long and can consist of any UTF-8 characters.",
@@ -2339,10 +2352,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI EvaluationRuns. Registered at `@swamp/gcp/aiplatform/evaluationruns`. */
+/** Swamp extension model for Google Cloud Agent Platform EvaluationRuns. Registered at `@swamp/gcp/aiplatform/evaluationruns`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/evaluationruns",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2441,6 +2454,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

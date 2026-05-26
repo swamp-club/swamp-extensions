@@ -241,7 +241,7 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }),
   ).describe(
-    "Optional. Network resources available to the cluster. Must contain at most one value. Keys specify the ID of the network resource by which it can be referenced elsewhere, and must conform to [RFC-1034](https://datatracker.ietf.org/doc/html/rfc1034) (lower-case, alphanumeric, and at most 63 characters).",
+    "Optional. Network resources available to the cluster. Must contain exactly one value. Keys specify the ID of the network resource by which it can be referenced elsewhere, and must conform to [RFC-1034](https://datatracker.ietf.org/doc/html/rfc1034) (lower-case, alphanumeric, and at most 63 characters).",
   ).optional(),
   orchestrator: z.object({
     slurm: z.object({
@@ -254,7 +254,7 @@ const GlobalArgsSchema = z.object({
       loginNodes: z.object({
         bootDisk: z.object({
           sizeGb: z.string().describe(
-            "Required. Immutable. Size of the disk in gigabytes. Must be at least 10GB.",
+            "Required. Immutable. Size of the disk in gigabytes. Must be at least 40GB.",
           ).optional(),
           type: z.string().describe(
             "Required. Immutable. [Persistent disk type](https://cloud.google.com/compute/docs/disks#disk-types), in the format `projects/{project}/zones/{zone}/diskTypes/{disk_type}`.",
@@ -305,7 +305,7 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       nodeSets: z.array(z.object({
         computeId: z.string().describe(
-          "Optional. ID of the compute resource on which this nodeset will run. Must match a key in the cluster's compute_resources.",
+          "Required. ID of the compute resource on which this nodeset will run. Must match a key in the cluster's compute_resources.",
         ).optional(),
         computeInstance: z.object({
           bootDisk: z.unknown().describe(
@@ -450,6 +450,9 @@ const GlobalArgsSchema = z.object({
           ).optional(),
           lustre: z.string().describe(
             "Required. Immutable. Name of the Managed Lustre instance to create, in the format `projects/{project}/locations/{location}/instances/{instance}`",
+          ).optional(),
+          perUnitStorageThroughput: z.string().describe(
+            "Optional. Immutable. Throughput of the instance in MB/s/TiB. Valid values are 125, 250, 500, 1000. See [Performance tiers and maximum storage capacities](https://cloud.google.com/managed-lustre/docs/create-instance#performance-tiers) for more information.",
           ).optional(),
         }).describe(
           "When set in a StorageResourceConfig, indicates that a new [Managed Lustre](https://cloud.google.com/products/managed-lustre) instance should be created.",
@@ -650,7 +653,7 @@ const InputsSchema = z.object({
       ).optional(),
     }),
   ).describe(
-    "Optional. Network resources available to the cluster. Must contain at most one value. Keys specify the ID of the network resource by which it can be referenced elsewhere, and must conform to [RFC-1034](https://datatracker.ietf.org/doc/html/rfc1034) (lower-case, alphanumeric, and at most 63 characters).",
+    "Optional. Network resources available to the cluster. Must contain exactly one value. Keys specify the ID of the network resource by which it can be referenced elsewhere, and must conform to [RFC-1034](https://datatracker.ietf.org/doc/html/rfc1034) (lower-case, alphanumeric, and at most 63 characters).",
   ).optional(),
   orchestrator: z.object({
     slurm: z.object({
@@ -663,7 +666,7 @@ const InputsSchema = z.object({
       loginNodes: z.object({
         bootDisk: z.object({
           sizeGb: z.string().describe(
-            "Required. Immutable. Size of the disk in gigabytes. Must be at least 10GB.",
+            "Required. Immutable. Size of the disk in gigabytes. Must be at least 40GB.",
           ).optional(),
           type: z.string().describe(
             "Required. Immutable. [Persistent disk type](https://cloud.google.com/compute/docs/disks#disk-types), in the format `projects/{project}/zones/{zone}/diskTypes/{disk_type}`.",
@@ -714,7 +717,7 @@ const InputsSchema = z.object({
       ).optional(),
       nodeSets: z.array(z.object({
         computeId: z.string().describe(
-          "Optional. ID of the compute resource on which this nodeset will run. Must match a key in the cluster's compute_resources.",
+          "Required. ID of the compute resource on which this nodeset will run. Must match a key in the cluster's compute_resources.",
         ).optional(),
         computeInstance: z.object({
           bootDisk: z.unknown().describe(
@@ -860,6 +863,9 @@ const InputsSchema = z.object({
           lustre: z.string().describe(
             "Required. Immutable. Name of the Managed Lustre instance to create, in the format `projects/{project}/locations/{location}/instances/{instance}`",
           ).optional(),
+          perUnitStorageThroughput: z.string().describe(
+            "Optional. Immutable. Throughput of the instance in MB/s/TiB. Valid values are 125, 250, 500, 1000. See [Performance tiers and maximum storage capacities](https://cloud.google.com/managed-lustre/docs/create-instance#performance-tiers) for more information.",
+          ).optional(),
         }).describe(
           "When set in a StorageResourceConfig, indicates that a new [Managed Lustre](https://cloud.google.com/products/managed-lustre) instance should be created.",
         ).optional(),
@@ -898,7 +904,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Cluster Director Clusters. Registered at `@swamp/gcp/hypercomputecluster/clusters`. */
 export const model = {
   type: "@swamp/gcp/hypercomputecluster/clusters",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -992,6 +998,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI Datasets.SavedQueries.
+ * Swamp extension model for Google Cloud Agent Platform Datasets.SavedQueries.
  *
  * A SavedQuery is a view of the dataset. It references a subset of annotations by problem type and filters.
  *
@@ -101,10 +101,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI Datasets.SavedQueries. Registered at `@swamp/gcp/aiplatform/datasets-savedqueries`. */
+/** Swamp extension model for Google Cloud Agent Platform Datasets.SavedQueries. Registered at `@swamp/gcp/aiplatform/datasets-savedqueries`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/datasets-savedqueries",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -183,6 +183,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

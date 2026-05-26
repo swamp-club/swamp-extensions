@@ -178,7 +178,7 @@ const GlobalArgsSchema = z.object({
             "The cast for the field. This can any SQL cast type. Examples: - STRING - CHAR - DATE - TIMESTAMP - DATETIME - INT - FLOAT",
           ).optional(),
           field: z.unknown().describe(
-            "The field name. This will be the field that is selected using the dot notation to display the drill down value.",
+            "Optional. The field name. This will be the field that is selected using the dot notation to display the drill down value.",
           ).optional(),
           operation: z.unknown().describe(
             "Specifies the role of this field (direct selection, grouping, or aggregation).",
@@ -192,8 +192,11 @@ const GlobalArgsSchema = z.object({
           truncationGranularity: z.unknown().describe(
             "The truncation granularity when grouping by a time/date field. This will be used to truncate the field to the granularity specified. This can be either a date or a time granularity found at https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#timestamp_trunc_granularity_date and https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#timestamp_trunc_granularity_time respectively.",
           ).optional(),
+          virtualField: z.unknown().describe(
+            "A virtual field is a field that is not physically present in the underlying data schema, but is created through specific operations within the query builder model based on other fields in the schema.",
+          ).optional(),
         }).describe(
-          "Represents a field selected in the query, analogous to an item in a SQL SELECT clause. It specifies the source field and optionally applies transformations like aggregation, casting, regex extraction, or assigns an alias. Use ProjectedField when you need more than just the raw source field name (for which you might use FieldSource directly in QueryBuilderConfig's field_sources list if no transformations or specific operation type are needed).",
+          "Represents a field selected in the query, analogous to an item in a SQL SELECT clause. It specifies the source field and optionally applies transformations like aggregation, casting, regex extraction, or assigns an alias. Use ProjectedField when you need more than just the raw source field name (for which you might use FieldSource directly in QueryBuilderConfig's field_sources list if no transformations or specific operation type are needed).A ProjectedField can represent either a field present in the data schema (specified via the field property) or a virtual field that is computed from other fields (specified via the virtual_field property).",
         ).optional(),
       })).describe(
         "Defines the items to include in the query result, analogous to a SQL SELECT clause.",
@@ -232,10 +235,10 @@ const GlobalArgsSchema = z.object({
               "The dot-delimited path of the parent container that holds the target field.This path defines the structural hierarchy and is essential for correctly generating SQL when field keys contain special characters (e.g., dots or brackets).Example: json_payload.labels (This points to the 'labels' object). This is an empty string if the target field is at the root level.",
             ).optional(),
             projectedField: z.unknown().describe(
-              "Represents a field selected in the query, analogous to an item in a SQL SELECT clause. It specifies the source field and optionally applies transformations like aggregation, casting, regex extraction, or assigns an alias. Use ProjectedField when you need more than just the raw source field name (for which you might use FieldSource directly in QueryBuilderConfig's field_sources list if no transformations or specific operation type are needed).",
+              "Represents a field selected in the query, analogous to an item in a SQL SELECT clause. It specifies the source field and optionally applies transformations like aggregation, casting, regex extraction, or assigns an alias. Use ProjectedField when you need more than just the raw source field name (for which you might use FieldSource directly in QueryBuilderConfig's field_sources list if no transformations or specific operation type are needed).A ProjectedField can represent either a field present in the data schema (specified via the field property) or a virtual field that is computed from other fields (specified via the virtual_field property).",
             ).optional(),
           }).describe(
-            "A source that can be used to represent a field within various parts of a structured query, such as in SELECT, WHERE, or ORDER BY clauses.",
+            'A source that can be used to represent a "field of data" within various parts of a structured query, such as in SELECT, WHERE, or ORDER BY clauses. The term "field of data" is used here because it is not limited to literal fields in the underlying data schema.',
           ).optional(),
           fieldSourceValue: z.object({
             aliasRef: z.unknown().describe(
@@ -254,10 +257,10 @@ const GlobalArgsSchema = z.object({
               "The dot-delimited path of the parent container that holds the target field.This path defines the structural hierarchy and is essential for correctly generating SQL when field keys contain special characters (e.g., dots or brackets).Example: json_payload.labels (This points to the 'labels' object). This is an empty string if the target field is at the root level.",
             ).optional(),
             projectedField: z.unknown().describe(
-              "Represents a field selected in the query, analogous to an item in a SQL SELECT clause. It specifies the source field and optionally applies transformations like aggregation, casting, regex extraction, or assigns an alias. Use ProjectedField when you need more than just the raw source field name (for which you might use FieldSource directly in QueryBuilderConfig's field_sources list if no transformations or specific operation type are needed).",
+              "Represents a field selected in the query, analogous to an item in a SQL SELECT clause. It specifies the source field and optionally applies transformations like aggregation, casting, regex extraction, or assigns an alias. Use ProjectedField when you need more than just the raw source field name (for which you might use FieldSource directly in QueryBuilderConfig's field_sources list if no transformations or specific operation type are needed).A ProjectedField can represent either a field present in the data schema (specified via the field property) or a virtual field that is computed from other fields (specified via the virtual_field property).",
             ).optional(),
           }).describe(
-            "A source that can be used to represent a field within various parts of a structured query, such as in SELECT, WHERE, or ORDER BY clauses.",
+            'A source that can be used to represent a "field of data" within various parts of a structured query, such as in SELECT, WHERE, or ORDER BY clauses. The term "field of data" is used here because it is not limited to literal fields in the underlying data schema.',
           ).optional(),
           isNegation: z.boolean().describe(
             "Determines if the NOT flag should be added to the comparator.",
@@ -296,10 +299,10 @@ const GlobalArgsSchema = z.object({
             "The dot-delimited path of the parent container that holds the target field.This path defines the structural hierarchy and is essential for correctly generating SQL when field keys contain special characters (e.g., dots or brackets).Example: json_payload.labels (This points to the 'labels' object). This is an empty string if the target field is at the root level.",
           ).optional(),
           projectedField: z.unknown().describe(
-            "Represents a field selected in the query, analogous to an item in a SQL SELECT clause. It specifies the source field and optionally applies transformations like aggregation, casting, regex extraction, or assigns an alias. Use ProjectedField when you need more than just the raw source field name (for which you might use FieldSource directly in QueryBuilderConfig's field_sources list if no transformations or specific operation type are needed).",
+            "Represents a field selected in the query, analogous to an item in a SQL SELECT clause. It specifies the source field and optionally applies transformations like aggregation, casting, regex extraction, or assigns an alias. Use ProjectedField when you need more than just the raw source field name (for which you might use FieldSource directly in QueryBuilderConfig's field_sources list if no transformations or specific operation type are needed).A ProjectedField can represent either a field present in the data schema (specified via the field property) or a virtual field that is computed from other fields (specified via the virtual_field property).",
           ).optional(),
         }).describe(
-          "A source that can be used to represent a field within various parts of a structured query, such as in SELECT, WHERE, or ORDER BY clauses.",
+          'A source that can be used to represent a "field of data" within various parts of a structured query, such as in SELECT, WHERE, or ORDER BY clauses. The term "field of data" is used here because it is not limited to literal fields in the underlying data schema.',
         ).optional(),
         sortOrderDirection: z.enum([
           "SORT_ORDER_UNSPECIFIED",
@@ -363,6 +366,7 @@ const StateSchema = z.object({
           regexExtraction: z.unknown(),
           sqlAggregationFunction: z.unknown(),
           truncationGranularity: z.unknown(),
+          virtualField: z.unknown(),
         }),
       })),
       filter: z.object({
@@ -467,7 +471,7 @@ const InputsSchema = z.object({
             "The cast for the field. This can any SQL cast type. Examples: - STRING - CHAR - DATE - TIMESTAMP - DATETIME - INT - FLOAT",
           ).optional(),
           field: z.unknown().describe(
-            "The field name. This will be the field that is selected using the dot notation to display the drill down value.",
+            "Optional. The field name. This will be the field that is selected using the dot notation to display the drill down value.",
           ).optional(),
           operation: z.unknown().describe(
             "Specifies the role of this field (direct selection, grouping, or aggregation).",
@@ -481,8 +485,11 @@ const InputsSchema = z.object({
           truncationGranularity: z.unknown().describe(
             "The truncation granularity when grouping by a time/date field. This will be used to truncate the field to the granularity specified. This can be either a date or a time granularity found at https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#timestamp_trunc_granularity_date and https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#timestamp_trunc_granularity_time respectively.",
           ).optional(),
+          virtualField: z.unknown().describe(
+            "A virtual field is a field that is not physically present in the underlying data schema, but is created through specific operations within the query builder model based on other fields in the schema.",
+          ).optional(),
         }).describe(
-          "Represents a field selected in the query, analogous to an item in a SQL SELECT clause. It specifies the source field and optionally applies transformations like aggregation, casting, regex extraction, or assigns an alias. Use ProjectedField when you need more than just the raw source field name (for which you might use FieldSource directly in QueryBuilderConfig's field_sources list if no transformations or specific operation type are needed).",
+          "Represents a field selected in the query, analogous to an item in a SQL SELECT clause. It specifies the source field and optionally applies transformations like aggregation, casting, regex extraction, or assigns an alias. Use ProjectedField when you need more than just the raw source field name (for which you might use FieldSource directly in QueryBuilderConfig's field_sources list if no transformations or specific operation type are needed).A ProjectedField can represent either a field present in the data schema (specified via the field property) or a virtual field that is computed from other fields (specified via the virtual_field property).",
         ).optional(),
       })).describe(
         "Defines the items to include in the query result, analogous to a SQL SELECT clause.",
@@ -521,10 +528,10 @@ const InputsSchema = z.object({
               "The dot-delimited path of the parent container that holds the target field.This path defines the structural hierarchy and is essential for correctly generating SQL when field keys contain special characters (e.g., dots or brackets).Example: json_payload.labels (This points to the 'labels' object). This is an empty string if the target field is at the root level.",
             ).optional(),
             projectedField: z.unknown().describe(
-              "Represents a field selected in the query, analogous to an item in a SQL SELECT clause. It specifies the source field and optionally applies transformations like aggregation, casting, regex extraction, or assigns an alias. Use ProjectedField when you need more than just the raw source field name (for which you might use FieldSource directly in QueryBuilderConfig's field_sources list if no transformations or specific operation type are needed).",
+              "Represents a field selected in the query, analogous to an item in a SQL SELECT clause. It specifies the source field and optionally applies transformations like aggregation, casting, regex extraction, or assigns an alias. Use ProjectedField when you need more than just the raw source field name (for which you might use FieldSource directly in QueryBuilderConfig's field_sources list if no transformations or specific operation type are needed).A ProjectedField can represent either a field present in the data schema (specified via the field property) or a virtual field that is computed from other fields (specified via the virtual_field property).",
             ).optional(),
           }).describe(
-            "A source that can be used to represent a field within various parts of a structured query, such as in SELECT, WHERE, or ORDER BY clauses.",
+            'A source that can be used to represent a "field of data" within various parts of a structured query, such as in SELECT, WHERE, or ORDER BY clauses. The term "field of data" is used here because it is not limited to literal fields in the underlying data schema.',
           ).optional(),
           fieldSourceValue: z.object({
             aliasRef: z.unknown().describe(
@@ -543,10 +550,10 @@ const InputsSchema = z.object({
               "The dot-delimited path of the parent container that holds the target field.This path defines the structural hierarchy and is essential for correctly generating SQL when field keys contain special characters (e.g., dots or brackets).Example: json_payload.labels (This points to the 'labels' object). This is an empty string if the target field is at the root level.",
             ).optional(),
             projectedField: z.unknown().describe(
-              "Represents a field selected in the query, analogous to an item in a SQL SELECT clause. It specifies the source field and optionally applies transformations like aggregation, casting, regex extraction, or assigns an alias. Use ProjectedField when you need more than just the raw source field name (for which you might use FieldSource directly in QueryBuilderConfig's field_sources list if no transformations or specific operation type are needed).",
+              "Represents a field selected in the query, analogous to an item in a SQL SELECT clause. It specifies the source field and optionally applies transformations like aggregation, casting, regex extraction, or assigns an alias. Use ProjectedField when you need more than just the raw source field name (for which you might use FieldSource directly in QueryBuilderConfig's field_sources list if no transformations or specific operation type are needed).A ProjectedField can represent either a field present in the data schema (specified via the field property) or a virtual field that is computed from other fields (specified via the virtual_field property).",
             ).optional(),
           }).describe(
-            "A source that can be used to represent a field within various parts of a structured query, such as in SELECT, WHERE, or ORDER BY clauses.",
+            'A source that can be used to represent a "field of data" within various parts of a structured query, such as in SELECT, WHERE, or ORDER BY clauses. The term "field of data" is used here because it is not limited to literal fields in the underlying data schema.',
           ).optional(),
           isNegation: z.boolean().describe(
             "Determines if the NOT flag should be added to the comparator.",
@@ -585,10 +592,10 @@ const InputsSchema = z.object({
             "The dot-delimited path of the parent container that holds the target field.This path defines the structural hierarchy and is essential for correctly generating SQL when field keys contain special characters (e.g., dots or brackets).Example: json_payload.labels (This points to the 'labels' object). This is an empty string if the target field is at the root level.",
           ).optional(),
           projectedField: z.unknown().describe(
-            "Represents a field selected in the query, analogous to an item in a SQL SELECT clause. It specifies the source field and optionally applies transformations like aggregation, casting, regex extraction, or assigns an alias. Use ProjectedField when you need more than just the raw source field name (for which you might use FieldSource directly in QueryBuilderConfig's field_sources list if no transformations or specific operation type are needed).",
+            "Represents a field selected in the query, analogous to an item in a SQL SELECT clause. It specifies the source field and optionally applies transformations like aggregation, casting, regex extraction, or assigns an alias. Use ProjectedField when you need more than just the raw source field name (for which you might use FieldSource directly in QueryBuilderConfig's field_sources list if no transformations or specific operation type are needed).A ProjectedField can represent either a field present in the data schema (specified via the field property) or a virtual field that is computed from other fields (specified via the virtual_field property).",
           ).optional(),
         }).describe(
-          "A source that can be used to represent a field within various parts of a structured query, such as in SELECT, WHERE, or ORDER BY clauses.",
+          'A source that can be used to represent a "field of data" within various parts of a structured query, such as in SELECT, WHERE, or ORDER BY clauses. The term "field of data" is used here because it is not limited to literal fields in the underlying data schema.',
         ).optional(),
         sortOrderDirection: z.enum([
           "SORT_ORDER_UNSPECIFIED",
@@ -626,7 +633,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Logging SavedQueries. Registered at `@swamp/gcp/logging/savedqueries`. */
 export const model = {
   type: "@swamp/gcp/logging/savedqueries",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -710,6 +717,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

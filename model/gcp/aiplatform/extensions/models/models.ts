@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI Models.
+ * Swamp extension model for Google Cloud Agent Platform Models.
  *
  * A trained machine learning Model.
  *
@@ -1679,10 +1679,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI Models. Registered at `@swamp/gcp/aiplatform/models`. */
+/** Swamp extension model for Google Cloud Agent Platform Models. Registered at `@swamp/gcp/aiplatform/models`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/models",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1766,6 +1766,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2095,6 +2100,7 @@ export const model = {
     copy: {
       description: "copy",
       arguments: z.object({
+        customServiceAccount: z.any().optional(),
         encryptionSpec: z.any().optional(),
         modelId: z.any().optional(),
         parentModel: z.any().optional(),
@@ -2108,6 +2114,9 @@ export const model = {
           String(g["location"] ?? "")
         }`;
         const body: Record<string, unknown> = {};
+        if (args["customServiceAccount"] !== undefined) {
+          body["customServiceAccount"] = args["customServiceAccount"];
+        }
         if (args["encryptionSpec"] !== undefined) {
           body["encryptionSpec"] = args["encryptionSpec"];
         }

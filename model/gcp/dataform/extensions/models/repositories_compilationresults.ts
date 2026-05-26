@@ -268,7 +268,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dataform Repositories.CompilationResults. Registered at `@swamp/gcp/dataform/repositories-compilationresults`. */
 export const model = {
   type: "@swamp/gcp/dataform/repositories-compilationresults",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -332,6 +332,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -493,8 +498,9 @@ export const model = {
     list: {
       description: "List compilationResults resources",
       arguments: z.object({
-        filter: z.string().describe("Optional. Filter for the returned list.")
-          .optional(),
+        filter: z.string().describe(
+          "Optional. Filter for the returned list. LINT.ThenChange(//depot/google3/google/cloud/dataform/v2main/data_pipelines.proto:ListCompilationResultsRequest)",
+        ).optional(),
         orderBy: z.string().describe(
           "Optional. This field only supports ordering by `name` and `create_time`. If unspecified, the server will choose the ordering. If specified, the default order is ascending for the `name` field.",
         ).optional(),

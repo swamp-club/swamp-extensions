@@ -220,6 +220,35 @@ const GlobalArgsSchema = z.object({
   appProperties: z.record(z.string(), z.string()).describe(
     "A collection of arbitrary key-value pairs which are private to the requesting app. Entries with null values are cleared in update and copy requests. These properties can only be retrieved using an authenticated request. An authenticated request uses an access token obtained with a OAuth 2 client ID. You cannot use an API key to retrieve private properties.",
   ).optional(),
+  clientEncryptionDetails: z.object({
+    decryptionMetadata: z.object({
+      aes256GcmChunkSize: z.string().describe(
+        "Chunk size used if content was encrypted with the AES 256 GCM Cipher. Possible values are: - default - small",
+      ).optional(),
+      encryptionResourceKeyHash: z.string().describe(
+        "The URL-safe Base64 encoded HMAC-SHA256 digest of the resource metadata with its DEK (Data Encryption Key); see https://developers.google.com/workspace/cse/reference",
+      ).optional(),
+      jwt: z.string().describe(
+        "The signed JSON Web Token (JWT) which can be used to authorize the requesting user with the Key ACL Service (KACLS). The JWT asserts that the requesting user has at least read permissions on the file.",
+      ).optional(),
+      kaclsId: z.string().describe(
+        "The ID of the KACLS (Key ACL Service) used to encrypt the file.",
+      ).optional(),
+      kaclsName: z.string().describe(
+        "The name of the KACLS (Key ACL Service) used to encrypt the file.",
+      ).optional(),
+      keyFormat: z.string().describe(
+        "Key format for the unwrapped key. Must be `tinkAesGcmKey`.",
+      ).optional(),
+      wrappedKey: z.string().describe(
+        "The URL-safe Base64 encoded wrapped key used to encrypt the contents of the file.",
+      ).optional(),
+    }).describe("Representation of the CSE DecryptionMetadata.").optional(),
+    encryptionState: z.string().describe(
+      "The encryption state of the file. The values expected here are: - encrypted - unencrypted",
+    ).optional(),
+  }).describe("Details about the client-side encryption applied to the file.")
+    .optional(),
   contentHints: z.object({
     indexableText: z.string().describe(
       "Text to be indexed for the file to improve fullText queries. This is limited to 128 KB in length and may contain HTML elements.",
@@ -292,7 +321,7 @@ const GlobalArgsSchema = z.object({
         "Whether download and copy is restricted for readers.",
       ).optional(),
       restrictedForWriters: z.boolean().describe(
-        "Whether download and copy is restricted for writers. If `true`, download is also restricted for readers.",
+        "Whether download and copy is restricted for writers. If true, download is also restricted for readers.",
       ).optional(),
     }).describe("A restriction for copy and download of the file.").optional(),
     itemDownloadRestriction: z.object({
@@ -300,7 +329,7 @@ const GlobalArgsSchema = z.object({
         "Whether download and copy is restricted for readers.",
       ).optional(),
       restrictedForWriters: z.boolean().describe(
-        "Whether download and copy is restricted for writers. If `true`, download is also restricted for readers.",
+        "Whether download and copy is restricted for writers. If true, download is also restricted for readers.",
       ).optional(),
     }).describe("A restriction for copy and download of the file.").optional(),
   }).describe("Download restrictions applied to the file.").optional(),
@@ -311,6 +340,42 @@ const GlobalArgsSchema = z.object({
   inheritedPermissionsDisabled: z.boolean().describe(
     "Whether this file has inherited permissions disabled. Inherited permissions are enabled by default.",
   ).optional(),
+  labelInfo: z.object({
+    labels: z.array(z.object({
+      fields: z.record(
+        z.string(),
+        z.object({
+          dateString: z.unknown().describe(
+            "Only present if valueType is dateString. RFC 3339 formatted date: YYYY-MM-DD.",
+          ).optional(),
+          id: z.unknown().describe("The identifier of this label field.")
+            .optional(),
+          integer: z.unknown().describe(
+            "Only present if `valueType` is `integer`.",
+          ).optional(),
+          kind: z.unknown().describe("This is always drive#labelField.")
+            .optional(),
+          selection: z.unknown().describe(
+            "Only present if `valueType` is `selection`",
+          ).optional(),
+          text: z.unknown().describe("Only present if `valueType` is `text`.")
+            .optional(),
+          user: z.unknown().describe("Only present if `valueType` is `user`.")
+            .optional(),
+          valueType: z.unknown().describe(
+            "The field type. While new values may be supported in the future, the following are currently allowed: * `dateString` * `integer` * `selection` * `text` * `user`",
+          ).optional(),
+        }),
+      ).describe("A map of the fields on the label, keyed by the field's ID.")
+        .optional(),
+      id: z.string().describe("The ID of the label.").optional(),
+      kind: z.string().describe("This is always drive#label").optional(),
+      revisionId: z.string().describe("The revision ID of the label.")
+        .optional(),
+    })).describe(
+      "Output only. The set of labels on the file as requested by the label IDs in the `includeLabels` parameter. By default, no labels are returned.",
+    ).optional(),
+  }).describe("Label information on the file.").optional(),
   lastModifyingUser: z.object({
     displayName: z.string().describe(
       "Output only. A plain text displayable name for this user.",
@@ -395,13 +460,11 @@ const GlobalArgsSchema = z.object({
     targetResourceKey: z.string().describe(
       "Output only. The `resourceKey` for the target file.",
     ).optional(),
-  }).describe(
-    "Shortcut file details. Only populated for shortcut files, which have the mimeType field set to `application/vnd.google-apps.shortcut`. Can only be set on `files.create` requests.",
-  ).optional(),
+  }).describe("Information about a shortcut file.").optional(),
   starred: z.boolean().describe("Whether the user has starred the file.")
     .optional(),
   trashed: z.boolean().describe(
-    "Whether the file has been trashed, either explicitly or from a trashed parent folder. Only the owner may trash a file, and other users cannot see files in the owner's trash.",
+    "Whether the file has been trashed, either explicitly or from a trashed parent folder. Only the owner may trash a file, but other users can still access the file in the owner's trash until it's permanently deleted.",
   ).optional(),
   trashedTime: z.string().describe(
     "The time that the item was trashed (RFC 3339 date-time). Only populated for items in shared drives.",
@@ -499,9 +562,22 @@ const StateSchema = z.object({
     canRemoveMyDriveParent: z.boolean(),
     canRename: z.boolean(),
     canShare: z.boolean(),
+    canStartApproval: z.boolean(),
     canTrash: z.boolean(),
     canTrashChildren: z.boolean(),
     canUntrash: z.boolean(),
+  }).optional(),
+  clientEncryptionDetails: z.object({
+    decryptionMetadata: z.object({
+      aes256GcmChunkSize: z.string(),
+      encryptionResourceKeyHash: z.string(),
+      jwt: z.string(),
+      kaclsId: z.string(),
+      kaclsName: z.string(),
+      keyFormat: z.string(),
+      wrappedKey: z.string(),
+    }),
+    encryptionState: z.string(),
   }).optional(),
   contentHints: z.object({
     indexableText: z.string(),
@@ -702,6 +778,35 @@ const InputsSchema = z.object({
   appProperties: z.record(z.string(), z.string()).describe(
     "A collection of arbitrary key-value pairs which are private to the requesting app. Entries with null values are cleared in update and copy requests. These properties can only be retrieved using an authenticated request. An authenticated request uses an access token obtained with a OAuth 2 client ID. You cannot use an API key to retrieve private properties.",
   ).optional(),
+  clientEncryptionDetails: z.object({
+    decryptionMetadata: z.object({
+      aes256GcmChunkSize: z.string().describe(
+        "Chunk size used if content was encrypted with the AES 256 GCM Cipher. Possible values are: - default - small",
+      ).optional(),
+      encryptionResourceKeyHash: z.string().describe(
+        "The URL-safe Base64 encoded HMAC-SHA256 digest of the resource metadata with its DEK (Data Encryption Key); see https://developers.google.com/workspace/cse/reference",
+      ).optional(),
+      jwt: z.string().describe(
+        "The signed JSON Web Token (JWT) which can be used to authorize the requesting user with the Key ACL Service (KACLS). The JWT asserts that the requesting user has at least read permissions on the file.",
+      ).optional(),
+      kaclsId: z.string().describe(
+        "The ID of the KACLS (Key ACL Service) used to encrypt the file.",
+      ).optional(),
+      kaclsName: z.string().describe(
+        "The name of the KACLS (Key ACL Service) used to encrypt the file.",
+      ).optional(),
+      keyFormat: z.string().describe(
+        "Key format for the unwrapped key. Must be `tinkAesGcmKey`.",
+      ).optional(),
+      wrappedKey: z.string().describe(
+        "The URL-safe Base64 encoded wrapped key used to encrypt the contents of the file.",
+      ).optional(),
+    }).describe("Representation of the CSE DecryptionMetadata.").optional(),
+    encryptionState: z.string().describe(
+      "The encryption state of the file. The values expected here are: - encrypted - unencrypted",
+    ).optional(),
+  }).describe("Details about the client-side encryption applied to the file.")
+    .optional(),
   contentHints: z.object({
     indexableText: z.string().describe(
       "Text to be indexed for the file to improve fullText queries. This is limited to 128 KB in length and may contain HTML elements.",
@@ -774,7 +879,7 @@ const InputsSchema = z.object({
         "Whether download and copy is restricted for readers.",
       ).optional(),
       restrictedForWriters: z.boolean().describe(
-        "Whether download and copy is restricted for writers. If `true`, download is also restricted for readers.",
+        "Whether download and copy is restricted for writers. If true, download is also restricted for readers.",
       ).optional(),
     }).describe("A restriction for copy and download of the file.").optional(),
     itemDownloadRestriction: z.object({
@@ -782,7 +887,7 @@ const InputsSchema = z.object({
         "Whether download and copy is restricted for readers.",
       ).optional(),
       restrictedForWriters: z.boolean().describe(
-        "Whether download and copy is restricted for writers. If `true`, download is also restricted for readers.",
+        "Whether download and copy is restricted for writers. If true, download is also restricted for readers.",
       ).optional(),
     }).describe("A restriction for copy and download of the file.").optional(),
   }).describe("Download restrictions applied to the file.").optional(),
@@ -793,6 +898,42 @@ const InputsSchema = z.object({
   inheritedPermissionsDisabled: z.boolean().describe(
     "Whether this file has inherited permissions disabled. Inherited permissions are enabled by default.",
   ).optional(),
+  labelInfo: z.object({
+    labels: z.array(z.object({
+      fields: z.record(
+        z.string(),
+        z.object({
+          dateString: z.unknown().describe(
+            "Only present if valueType is dateString. RFC 3339 formatted date: YYYY-MM-DD.",
+          ).optional(),
+          id: z.unknown().describe("The identifier of this label field.")
+            .optional(),
+          integer: z.unknown().describe(
+            "Only present if `valueType` is `integer`.",
+          ).optional(),
+          kind: z.unknown().describe("This is always drive#labelField.")
+            .optional(),
+          selection: z.unknown().describe(
+            "Only present if `valueType` is `selection`",
+          ).optional(),
+          text: z.unknown().describe("Only present if `valueType` is `text`.")
+            .optional(),
+          user: z.unknown().describe("Only present if `valueType` is `user`.")
+            .optional(),
+          valueType: z.unknown().describe(
+            "The field type. While new values may be supported in the future, the following are currently allowed: * `dateString` * `integer` * `selection` * `text` * `user`",
+          ).optional(),
+        }),
+      ).describe("A map of the fields on the label, keyed by the field's ID.")
+        .optional(),
+      id: z.string().describe("The ID of the label.").optional(),
+      kind: z.string().describe("This is always drive#label").optional(),
+      revisionId: z.string().describe("The revision ID of the label.")
+        .optional(),
+    })).describe(
+      "Output only. The set of labels on the file as requested by the label IDs in the `includeLabels` parameter. By default, no labels are returned.",
+    ).optional(),
+  }).describe("Label information on the file.").optional(),
   lastModifyingUser: z.object({
     displayName: z.string().describe(
       "Output only. A plain text displayable name for this user.",
@@ -877,13 +1018,11 @@ const InputsSchema = z.object({
     targetResourceKey: z.string().describe(
       "Output only. The `resourceKey` for the target file.",
     ).optional(),
-  }).describe(
-    "Shortcut file details. Only populated for shortcut files, which have the mimeType field set to `application/vnd.google-apps.shortcut`. Can only be set on `files.create` requests.",
-  ).optional(),
+  }).describe("Information about a shortcut file.").optional(),
   starred: z.boolean().describe("Whether the user has starred the file.")
     .optional(),
   trashed: z.boolean().describe(
-    "Whether the file has been trashed, either explicitly or from a trashed parent folder. Only the owner may trash a file, and other users cannot see files in the owner's trash.",
+    "Whether the file has been trashed, either explicitly or from a trashed parent folder. Only the owner may trash a file, but other users can still access the file in the owner's trash until it's permanently deleted.",
   ).optional(),
   trashedTime: z.string().describe(
     "The time that the item was trashed (RFC 3339 date-time). Only populated for items in shared drives.",
@@ -940,7 +1079,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Drive Files. Registered at `@swamp/gcp/drive/files`. */
 export const model = {
   type: "@swamp/gcp/drive/files",
-  version: "2026.05.25.2",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1053,6 +1192,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.26.1",
+      description: "Added: clientEncryptionDetails, labelInfo",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1076,6 +1220,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["appProperties"] !== undefined) {
           body["appProperties"] = g["appProperties"];
+        }
+        if (g["clientEncryptionDetails"] !== undefined) {
+          body["clientEncryptionDetails"] = g["clientEncryptionDetails"];
         }
         if (g["contentHints"] !== undefined) {
           body["contentHints"] = g["contentHints"];
@@ -1104,6 +1251,7 @@ export const model = {
           body["inheritedPermissionsDisabled"] =
             g["inheritedPermissionsDisabled"];
         }
+        if (g["labelInfo"] !== undefined) body["labelInfo"] = g["labelInfo"];
         if (g["lastModifyingUser"] !== undefined) {
           body["lastModifyingUser"] = g["lastModifyingUser"];
         }
@@ -1245,6 +1393,9 @@ export const model = {
         if (g["appProperties"] !== undefined) {
           body["appProperties"] = g["appProperties"];
         }
+        if (g["clientEncryptionDetails"] !== undefined) {
+          body["clientEncryptionDetails"] = g["clientEncryptionDetails"];
+        }
         if (g["contentHints"] !== undefined) {
           body["contentHints"] = g["contentHints"];
         }
@@ -1272,6 +1423,7 @@ export const model = {
           body["inheritedPermissionsDisabled"] =
             g["inheritedPermissionsDisabled"];
         }
+        if (g["labelInfo"] !== undefined) body["labelInfo"] = g["labelInfo"];
         if (g["lastModifyingUser"] !== undefined) {
           body["lastModifyingUser"] = g["lastModifyingUser"];
         }
@@ -1294,6 +1446,9 @@ export const model = {
         }
         if (g["sharingUser"] !== undefined) {
           body["sharingUser"] = g["sharingUser"];
+        }
+        if (g["shortcutDetails"] !== undefined) {
+          body["shortcutDetails"] = g["shortcutDetails"];
         }
         if (g["starred"] !== undefined) body["starred"] = g["starred"];
         if (g["trashed"] !== undefined) body["trashed"] = g["trashed"];
@@ -1429,10 +1584,10 @@ export const model = {
           "Specifies which additional view's permissions to include in the response. Only `published` is supported.",
         ).optional(),
         orderBy: z.string().describe(
-          "A comma-separated list of sort keys. Valid keys are: * `createdTime`: When the file was created. Avoid using this key for queries on large item collections as it might result in timeouts or other issues. For time-related sorting on large item collections, use `modifiedTime` instead. * `folder`: The folder ID. This field is sorted using alphabetical ordering. * `modifiedByMeTime`: The last time the file was modified by the user. * `modifiedTime`: The last time the file was modified by anyone. * `name`: The name of the file. This field is sorted using alphabetical ordering, so 1, 12, 2, 22. * `name_natural`: The name of the file. This field is sorted using natural sort ordering, so 1, 2, 12, 22. * `quotaBytesUsed`: The number of storage quota bytes used by the file. * `recency`: The most recent timestamp from the file's date-time fields. * `sharedWithMeTime`: When the file was shared with the user, if applicable. * `starred`: Whether the user has starred the file. * `viewedByMeTime`: The last time the file was viewed by the user. Each key sorts ascending by default, but can be reversed with the `desc` modifier. Example usage: `?orderBy=folder,modifiedTime desc,name`.",
+          "A comma-separated list of sort keys. Valid keys are: * `createdTime`: When the file was created. Avoid using this key for queries on large item collections as it might result in timeouts or other issues. For time-related sorting on large item collections, use `modifiedTime desc` instead. * `folder`: The folder ID. This field is sorted using alphabetical ordering. * `modifiedByMeTime`: The last time the file was modified by the user. * `modifiedTime`: The last time the file was modified by anyone. * `name`: The name of the file. This field is sorted using alphabetical ordering, so 1, 12, 2, 22. * `name_natural`: The name of the file. This field is sorted using natural sort ordering, so 1, 2, 12, 22. * `quotaBytesUsed`: The number of storage quota bytes used by the file. * `recency`: The most recent timestamp from the file's date-time fields. * `sharedWithMeTime`: When the file was shared with the user, if applicable. * `starred`: Whether the user has starred the file. * `viewedByMeTime`: The last time the file was viewed by the user. Each key sorts ascending by default, but can be reversed with the `desc` modifier. Example usage: `?orderBy=folder,modifiedTime desc,name`.",
         ).optional(),
         pageSize: z.number().describe(
-          "The maximum number of files to return per page. Partial or empty result pages are possible even before the end of the files list has been reached.",
+          "The maximum number of files to return per page. Pages may be partial or empty even before reaching the end of the file list. If unspecified, at most 100 files are returned for shared drives, and the entire list of files for non-shared drives. The maximum value is 100; values above 100 are changed to 100.",
         ).optional(),
         q: z.string().describe(
           "A query for filtering the file results. For supported syntax, see [Search for files and folders](/workspace/drive/api/guides/search-files).",
@@ -1511,6 +1666,7 @@ export const model = {
       arguments: z.object({
         appProperties: z.any().optional(),
         capabilities: z.any().optional(),
+        clientEncryptionDetails: z.any().optional(),
         contentHints: z.any().optional(),
         contentRestrictions: z.any().optional(),
         copyRequiresWriterPermission: z.any().optional(),
@@ -1598,6 +1754,9 @@ export const model = {
         }
         if (args["capabilities"] !== undefined) {
           body["capabilities"] = args["capabilities"];
+        }
+        if (args["clientEncryptionDetails"] !== undefined) {
+          body["clientEncryptionDetails"] = args["clientEncryptionDetails"];
         }
         if (args["contentHints"] !== undefined) {
           body["contentHints"] = args["contentHints"];
@@ -1882,6 +2041,30 @@ export const model = {
             "parameters": {
               "fileId": { "location": "path", "required": true },
               "mimeType": { "location": "query", "required": true },
+            },
+          },
+          params,
+          {},
+        );
+        return { result };
+      },
+    },
+    generate_cse_token: {
+      description: "generate cse token",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, _context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "drive.files.generateCseToken",
+            "path": "files/generateCseToken",
+            "httpMethod": "GET",
+            "parameterOrder": [],
+            "parameters": {
+              "fileId": { "location": "query" },
+              "parent": { "location": "query" },
             },
           },
           params,

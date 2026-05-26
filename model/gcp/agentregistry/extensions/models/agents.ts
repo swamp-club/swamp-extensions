@@ -16,6 +16,7 @@
 
 import { z } from "npm:zod@4.3.6";
 import {
+  createResource,
   getProjectId,
   isResourceNotFoundError,
   listResources,
@@ -124,7 +125,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Agent Registry Agents. Registered at `@swamp/gcp/agentregistry/agents`. */
 export const model = {
   type: "@swamp/gcp/agentregistry/agents",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -203,6 +204,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -351,6 +357,45 @@ export const model = {
           dataHandles.push(handle);
         }
         return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
+    search: {
+      description: "search",
+      arguments: z.object({
+        pageSize: z.any().optional(),
+        pageToken: z.any().optional(),
+        searchString: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        const body: Record<string, unknown> = {};
+        if (args["pageSize"] !== undefined) body["pageSize"] = args["pageSize"];
+        if (args["pageToken"] !== undefined) {
+          body["pageToken"] = args["pageToken"];
+        }
+        if (args["searchString"] !== undefined) {
+          body["searchString"] = args["searchString"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "agentregistry.projects.locations.agents.search",
+            "path": "v1alpha/{+parent}/agents:search",
+            "httpMethod": "POST",
+            "parameterOrder": ["parent"],
+            "parameters": {
+              "parent": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+        );
+        return { result };
       },
     },
   },

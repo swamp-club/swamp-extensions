@@ -89,7 +89,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Organization Policy Constraints. Registered at `@swamp/gcp/orgpolicy/constraints`. */
 export const model = {
   type: "@swamp/gcp/orgpolicy/constraints",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -148,6 +148,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -253,7 +258,7 @@ export const model = {
       description: "List constraints resources",
       arguments: z.object({
         pageSize: z.number().describe(
-          "Size of the pages to be returned. This is currently unsupported and will be ignored. The server may at any point start using this field to limit page size.",
+          "Size of the pages to be returned. This is not used, but the server may at any point start using this field to limit page size.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",

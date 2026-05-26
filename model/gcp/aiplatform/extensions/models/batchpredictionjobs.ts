@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI BatchPredictionJobs.
+ * Swamp extension model for Google Cloud Agent Platform BatchPredictionJobs.
  *
  * A job that uses a Model to produce predictions on multiple input instances. If predictions for significant portion of the instances fail, the job may finish without attempting predictions for all remaining instances.
  *
@@ -1739,10 +1739,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI BatchPredictionJobs. Registered at `@swamp/gcp/aiplatform/batchpredictionjobs`. */
+/** Swamp extension model for Google Cloud Agent Platform BatchPredictionJobs. Registered at `@swamp/gcp/aiplatform/batchpredictionjobs`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/batchpredictionjobs",
-  version: "2026.05.25.2",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1831,6 +1831,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

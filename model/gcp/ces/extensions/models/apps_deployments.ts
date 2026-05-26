@@ -191,6 +191,29 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   displayName: z.string().describe("Required. Display name of the deployment.")
     .optional(),
+  experimentConfig: z.object({
+    versionRelease: z.object({
+      state: z.enum([
+        "STATE_UNSPECIFIED",
+        "PENDING",
+        "RUNNING",
+        "DONE",
+        "EXPIRED",
+      ]).describe("Optional. State of the version release.").optional(),
+      trafficAllocations: z.array(z.object({
+        appVersion: z.string().describe(
+          "Optional. App version of the traffic allocation. Format: `projects/{project}/locations/{location}/apps/{app}/versions/{version}`",
+        ).optional(),
+        id: z.string().describe(
+          "Optional. Id of the traffic allocation. Free format string, up to 128 characters.",
+        ).optional(),
+        trafficPercentage: z.number().int().describe(
+          "Optional. Traffic percentage of the traffic allocation. Must be between 0 and 100.",
+        ).optional(),
+      })).describe("Optional. Traffic allocations for the version release.")
+        .optional(),
+    }).describe("Version release for the experiment.").optional(),
+  }).describe("Experiment for the deployment.").optional(),
   name: z.string().describe(
     "Identifier. The resource name of the deployment. Format: `projects/{project}/locations/{location}/apps/{app}/deployments/{deployment}`",
   ).optional(),
@@ -228,6 +251,16 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   displayName: z.string().optional(),
   etag: z.string().optional(),
+  experimentConfig: z.object({
+    versionRelease: z.object({
+      state: z.string(),
+      trafficAllocations: z.array(z.object({
+        appVersion: z.string(),
+        id: z.string(),
+        trafficPercentage: z.number(),
+      })),
+    }),
+  }).optional(),
   name: z.string(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -300,6 +333,29 @@ const InputsSchema = z.object({
   ).optional(),
   displayName: z.string().describe("Required. Display name of the deployment.")
     .optional(),
+  experimentConfig: z.object({
+    versionRelease: z.object({
+      state: z.enum([
+        "STATE_UNSPECIFIED",
+        "PENDING",
+        "RUNNING",
+        "DONE",
+        "EXPIRED",
+      ]).describe("Optional. State of the version release.").optional(),
+      trafficAllocations: z.array(z.object({
+        appVersion: z.string().describe(
+          "Optional. App version of the traffic allocation. Format: `projects/{project}/locations/{location}/apps/{app}/versions/{version}`",
+        ).optional(),
+        id: z.string().describe(
+          "Optional. Id of the traffic allocation. Free format string, up to 128 characters.",
+        ).optional(),
+        trafficPercentage: z.number().int().describe(
+          "Optional. Traffic percentage of the traffic allocation. Must be between 0 and 100.",
+        ).optional(),
+      })).describe("Optional. Traffic allocations for the version release.")
+        .optional(),
+    }).describe("Version release for the experiment.").optional(),
+  }).describe("Experiment for the deployment.").optional(),
   name: z.string().describe(
     "Identifier. The resource name of the deployment. Format: `projects/{project}/locations/{location}/apps/{app}/deployments/{deployment}`",
   ).optional(),
@@ -314,7 +370,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Deployments. Registered at `@swamp/gcp/ces/apps-deployments`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-deployments",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -405,6 +461,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.05.26.1",
+      description: "Added: experimentConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -435,6 +496,9 @@ export const model = {
         }
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
+        }
+        if (g["experimentConfig"] !== undefined) {
+          body["experimentConfig"] = g["experimentConfig"];
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["deploymentId"] !== undefined) {
@@ -536,6 +600,9 @@ export const model = {
         }
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
+        }
+        if (g["experimentConfig"] !== undefined) {
+          body["experimentConfig"] = g["experimentConfig"];
         }
         for (const key of Object.keys(existing)) {
           if (

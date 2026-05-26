@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI Datasets.DatasetVersions.
+ * Swamp extension model for Google Cloud Agent Platform Datasets.DatasetVersions.
  *
  * Describes the dataset version.
  *
@@ -165,10 +165,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI Datasets.DatasetVersions. Registered at `@swamp/gcp/aiplatform/datasets-datasetversions`. */
+/** Swamp extension model for Google Cloud Agent Platform Datasets.DatasetVersions. Registered at `@swamp/gcp/aiplatform/datasets-datasetversions`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/datasets-datasetversions",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -247,6 +247,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

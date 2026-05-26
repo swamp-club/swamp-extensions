@@ -32,6 +32,9 @@ const LIST_CONFIG = {
     "parent",
   ],
   "parameters": {
+    "filter": {
+      "location": "query",
+    },
     "orderBy": {
       "location": "query",
     },
@@ -79,7 +82,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Discovery Engine UserStores.UserLicenses. Registered at `@swamp/gcp/discoveryengine/userstores-userlicenses`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/userstores-userlicenses",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -158,6 +161,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -261,6 +269,9 @@ export const model = {
     list: {
       description: "List userLicenses resources",
       arguments: z.object({
+        filter: z.string().describe(
+          "Optional. Filter for the list request. Supported fields: * `license_assignment_state` * `user_principal` * Examples: * `license_assignment_state = ASSIGNED` to list assigned user licenses. * `license_assignment_state = NO_LICENSE` to list not licensed users. * `license_assignment_state = NO_LICENSE_ATTEMPTED_LOGIN` to list users who attempted login but no license assigned. * `license_assignment_state != NO_LICENSE_ATTEMPTED_LOGIN` to filter out users who attempted login but no license assigned. * `user_principal = user1@example.com` to list user license for `user1@example.com`.",
+        ).optional(),
         orderBy: z.string().describe(
           'Optional. The order in which the UserLicenses are listed. The value must be a comma-separated list of fields. Default sorting order is ascending. To specify descending order for a field, append a " desc" suffix. Redundant space characters in the syntax are insignificant. Supported fields (only `user_principal` is supported for now): * `user_principal` If not set, the default ordering is by `user_principal`. Examples: * `user_principal` to order by `user_principal` in ascending order. * `user_principal desc` to order by `user_principal` in descending order.',
         ).optional(),
@@ -278,6 +289,9 @@ export const model = {
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
         }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
         if (args["orderBy"] !== undefined) {
           params["orderBy"] = String(args["orderBy"]);
         }
