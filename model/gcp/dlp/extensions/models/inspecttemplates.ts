@@ -124,6 +124,9 @@ const GlobalArgsSchema = z.object({
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
   inspectTemplate: z.object({
+    allowLimitedAvailabilityInfoTypes: z.boolean().describe(
+      "Optional. Enables the use of [limited-availability built-in infoTypes](https://docs.cloud.google.com/sensitive-data-protection/docs/infotypes-reference#limited-availability-infotypes) in inspect_config. These infoTypes are supported only in specific regions and can cause scanning errors if used elsewhere.",
+    ).optional(),
     createTime: z.string().describe(
       "Output only. The creation timestamp of an inspectTemplate.",
     ).optional(),
@@ -328,6 +331,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  allowLimitedAvailabilityInfoTypes: z.boolean().optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
@@ -425,6 +429,9 @@ type StateData = z.infer<typeof StateSchema>;
 const InputsSchema = z.object({
   name: z.string().optional(),
   inspectTemplate: z.object({
+    allowLimitedAvailabilityInfoTypes: z.boolean().describe(
+      "Optional. Enables the use of [limited-availability built-in infoTypes](https://docs.cloud.google.com/sensitive-data-protection/docs/infotypes-reference#limited-availability-infotypes) in inspect_config. These infoTypes are supported only in specific regions and can cause scanning errors if used elsewhere.",
+    ).optional(),
     createTime: z.string().describe(
       "Output only. The creation timestamp of an inspectTemplate.",
     ).optional(),
@@ -631,7 +638,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Sensitive Data Protection (DLP) InspectTemplates. Registered at `@swamp/gcp/dlp/inspecttemplates`. */
 export const model = {
   type: "@swamp/gcp/dlp/inspecttemplates",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -715,6 +722,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

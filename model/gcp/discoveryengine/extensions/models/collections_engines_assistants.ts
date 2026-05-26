@@ -217,6 +217,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  createTime: z.string().optional(),
   customerPolicy: z.object({
     bannedPhrases: z.array(z.object({
       ignoreDiacritics: z.boolean(),
@@ -242,6 +243,7 @@ const StateSchema = z.object({
     }),
   }).optional(),
   name: z.string(),
+  updateTime: z.string().optional(),
   webGroundingType: z.string().optional(),
 }).passthrough();
 
@@ -343,7 +345,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Discovery Engine Collections.Engines.Assistants. Registered at `@swamp/gcp/discoveryengine/collections-engines-assistants`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-engines-assistants",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -422,6 +424,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

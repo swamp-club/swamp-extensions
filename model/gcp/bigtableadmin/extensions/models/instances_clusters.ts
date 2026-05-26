@@ -252,7 +252,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Bigtable Admin Instances.Clusters. Registered at `@swamp/gcp/bigtableadmin/instances-clusters`. */
 export const model = {
   type: "@swamp/gcp/bigtableadmin/instances-clusters",
-  version: "2026.05.25.2",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -351,6 +351,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -652,6 +657,34 @@ export const model = {
           dataHandles.push(handle);
         }
         return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
+    get_memory_layer: {
+      description: "get memory layer",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "bigtableadmin.projects.instances.clusters.getMemoryLayer",
+            "path": "v2/{+name}",
+            "httpMethod": "GET",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          {},
+        );
+        return { result };
       },
     },
     partial_update_cluster: {

@@ -105,9 +105,6 @@ const LIST_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe(
-    "Instance name for this resource (used as the unique identifier in the factory pattern)",
-  ),
   account: z.string().describe(
     'Immutable. The resource name of the parent account Format: accounts/{account_id} Example: "accounts/123"',
   ).optional(),
@@ -147,6 +144,9 @@ const GlobalArgsSchema = z.object({
     "SHOPPING",
   ]).describe(
     "Industry associated with this property Example: AUTOMOTIVE, FOOD_AND_DRINK",
+  ).optional(),
+  name: z.string().describe(
+    'Identifier. Resource name of this property. Format: properties/{property_id} Example: "properties/1000"',
   ).optional(),
   parent: z.string().describe(
     'Immutable. Resource name of this property\'s logical parent. Note: The Property-Moving UI can be used to change the parent. Format: accounts/{account}, properties/{property} Example: "accounts/100", "properties/101"',
@@ -183,7 +183,6 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().optional(),
   account: z.string().describe(
     'Immutable. The resource name of the parent account Format: accounts/{account_id} Example: "accounts/123"',
   ).optional(),
@@ -224,6 +223,9 @@ const InputsSchema = z.object({
   ]).describe(
     "Industry associated with this property Example: AUTOMOTIVE, FOOD_AND_DRINK",
   ).optional(),
+  name: z.string().describe(
+    'Identifier. Resource name of this property. Format: properties/{property_id} Example: "properties/1000"',
+  ).optional(),
   parent: z.string().describe(
     'Immutable. Resource name of this property\'s logical parent. Note: The Property-Moving UI can be used to change the parent. Format: accounts/{account}, properties/{property} Example: "accounts/100", "properties/101"',
   ).optional(),
@@ -243,7 +245,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Analytics Admin Properties. Registered at `@swamp/gcp/analyticsadmin/properties`. */
 export const model = {
   type: "@swamp/gcp/analyticsadmin/properties",
-  version: "2026.05.25.2",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -325,6 +327,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -356,6 +363,7 @@ export const model = {
         if (g["industryCategory"] !== undefined) {
           body["industryCategory"] = g["industryCategory"];
         }
+        if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["parent"] !== undefined) body["parent"] = g["parent"];
         if (g["propertyType"] !== undefined) {
           body["propertyType"] = g["propertyType"];
@@ -376,10 +384,8 @@ export const model = {
             matchValue: String(g["displayName"] ?? ""),
           },
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
+          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -403,10 +409,11 @@ export const model = {
           GET_CONFIG,
           params,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? args.identifier).replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName =
+          ((result.name ?? g.name)?.toString() ?? args.identifier).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -556,7 +563,7 @@ export const model = {
           "Required. An expression for filtering the results of the request. Fields eligible for filtering are: `parent:`(The resource name of the parent account/property) or `ancestor:`(The resource name of the parent account) or `firebase_project:`(The id or number of the linked firebase project). Some examples of filters: ``` | Filter | Description | |-----------------------------|-------------------------------------------| | parent:accounts/123 | The account with account id: 123. | | parent:properties/123 | The property with property id: 123. | | ancestor:accounts/123 | The account with account id: 123. | | firebase_project:project-id | The firebase project with id: project-id. | | firebase_project:123 | The firebase project with number: 123. | ```",
         ).optional(),
         pageSize: z.number().describe(
-          "The maximum number of resources to return. The service may return fewer than this value, even if there are additional pages. If unspecified, at most 50 resources will be returned. The maximum value is 200; (higher values will be coerced to the maximum)",
+          "Optional. The maximum number of resources to return. The service may return fewer than this value, even if there are additional pages. If unspecified, at most 50 resources will be returned. The maximum value is 200; (higher values will be coerced to the maximum)",
         ).optional(),
         showDeleted: z.boolean().describe(
           'Whether to include soft-deleted (ie: "trashed") Properties in the results. Properties can be inspected to determine whether they are deleted or not.',

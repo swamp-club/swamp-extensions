@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud Display & Video 360 InventorySources.
  *
- * An inventory source. Next ID: 22
+ * An inventory source.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -708,7 +708,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Display & Video 360 InventorySources. Registered at `@swamp/gcp/displayvideo/inventorysources`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/inventorysources",
-  version: "2026.05.25.2",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -795,12 +795,17 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "An inventory source. Next ID: 22",
+      description: "An inventory source.",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,

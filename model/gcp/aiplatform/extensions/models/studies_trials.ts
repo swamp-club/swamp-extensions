@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI Studies.Trials.
+ * Swamp extension model for Google Cloud Agent Platform Studies.Trials.
  *
  * A message representing a Trial. A Trial contains a unique set of Parameters that has been or will be evaluated, along with the objective metrics got by running the Trial.
  *
@@ -185,10 +185,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI Studies.Trials. Registered at `@swamp/gcp/aiplatform/studies-trials`. */
+/** Swamp extension model for Google Cloud Agent Platform Studies.Trials. Registered at `@swamp/gcp/aiplatform/studies-trials`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/studies-trials",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -267,6 +267,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

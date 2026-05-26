@@ -211,7 +211,7 @@ const GlobalArgsSchema = z.object({
     apiGateway: z.object({
       resourceOverride: z.object({
         path: z.string().describe(
-          "Required. Contains the URI path fragment where HTTP request is sent.",
+          "Optional. Contains the URI path fragment where HTTP request is sent.",
         ).optional(),
       }).describe("API operation descriptor.").optional(),
     }).describe(
@@ -342,7 +342,7 @@ const InputsSchema = z.object({
     apiGateway: z.object({
       resourceOverride: z.object({
         path: z.string().describe(
-          "Required. Contains the URI path fragment where HTTP request is sent.",
+          "Optional. Contains the URI path fragment where HTTP request is sent.",
         ).optional(),
       }).describe("API operation descriptor.").optional(),
     }).describe(
@@ -363,7 +363,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud BeyondCorp SecurityGateways. Registered at `@swamp/gcp/beyondcorp/securitygateways`. */
 export const model = {
   type: "@swamp/gcp/beyondcorp/securitygateways",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -442,6 +442,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

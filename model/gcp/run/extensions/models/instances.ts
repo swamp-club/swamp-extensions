@@ -22,6 +22,7 @@ import {
   isResourceNotFoundError,
   listResources,
   readResource,
+  updateResource,
 } from "./_lib/gcp.ts";
 
 /** Construct the fully-qualified resource name from parent and short name. */
@@ -60,6 +61,30 @@ const INSERT_CONFIG = {
     "parent": {
       "location": "path",
       "required": true,
+    },
+    "validateOnly": {
+      "location": "query",
+    },
+  },
+} as const;
+
+const PATCH_CONFIG = {
+  "id": "run.projects.locations.instances.patch",
+  "path": "v2/{+name}",
+  "httpMethod": "PATCH",
+  "parameterOrder": [
+    "name",
+  ],
+  "parameters": {
+    "allowMissing": {
+      "location": "query",
+    },
+    "name": {
+      "location": "path",
+      "required": true,
+    },
+    "updateMask": {
+      "location": "query",
     },
     "validateOnly": {
       "location": "query",
@@ -355,7 +380,7 @@ const GlobalArgsSchema = z.object({
         "Required. This must match the Name of a Volume.",
       ).optional(),
       subPath: z.string().describe(
-        "Optional. Path within the volume from which the container's volume should be mounted. Defaults to \"\" (volume's root). This field is currently ignored for Secret volumes.",
+        "Optional. Path within the volume from which the container's volume should be mounted. Defaults to \"\" (volume's root). This field is currently rejected in Secret volume mounts.",
       ).optional(),
     })).describe("Volume to mount into the container's filesystem.").optional(),
     workingDir: z.string().describe(
@@ -363,6 +388,9 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   })).describe(
     "Required. Holds the single container that defines the unit of execution for this Instance.",
+  ).optional(),
+  defaultUriDisabled: z.boolean().describe(
+    "Optional. Disables public resolution of the default URI of this Instance.",
   ).optional(),
   description: z.string().describe(
     "User-provided description of the Instance. This field currently has a 512-character limit.",
@@ -709,6 +737,7 @@ const StateSchema = z.object({
   })).optional(),
   createTime: z.string().optional(),
   creator: z.string().optional(),
+  defaultUriDisabled: z.boolean().optional(),
   deleteTime: z.string().optional(),
   description: z.string().optional(),
   encryptionKey: z.string().optional(),
@@ -1032,7 +1061,7 @@ const InputsSchema = z.object({
         "Required. This must match the Name of a Volume.",
       ).optional(),
       subPath: z.string().describe(
-        "Optional. Path within the volume from which the container's volume should be mounted. Defaults to \"\" (volume's root). This field is currently ignored for Secret volumes.",
+        "Optional. Path within the volume from which the container's volume should be mounted. Defaults to \"\" (volume's root). This field is currently rejected in Secret volume mounts.",
       ).optional(),
     })).describe("Volume to mount into the container's filesystem.").optional(),
     workingDir: z.string().describe(
@@ -1040,6 +1069,9 @@ const InputsSchema = z.object({
     ).optional(),
   })).describe(
     "Required. Holds the single container that defines the unit of execution for this Instance.",
+  ).optional(),
+  defaultUriDisabled: z.boolean().describe(
+    "Optional. Disables public resolution of the default URI of this Instance.",
   ).optional(),
   description: z.string().describe(
     "User-provided description of the Instance. This field currently has a 512-character limit.",
@@ -1266,7 +1298,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Run Admin Instances. Registered at `@swamp/gcp/run/instances`. */
 export const model = {
   type: "@swamp/gcp/run/instances",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1367,6 +1399,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.05.26.1",
+      description: "Added: defaultUriDisabled",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1402,6 +1439,9 @@ export const model = {
           body["clientVersion"] = g["clientVersion"];
         }
         if (g["containers"] !== undefined) body["containers"] = g["containers"];
+        if (g["defaultUriDisabled"] !== undefined) {
+          body["defaultUriDisabled"] = g["defaultUriDisabled"];
+        }
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
         }
@@ -1499,6 +1539,106 @@ export const model = {
             /[\/\\]/g,
             "_",
           ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    update: {
+      description: "Update instances attributes",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const params: Record<string, string> = { project: projectId };
+        params["name"] = buildResourceName(
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+          existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
+        );
+        const body: Record<string, unknown> = {};
+        if (g["annotations"] !== undefined) {
+          body["annotations"] = g["annotations"];
+        }
+        if (g["binaryAuthorization"] !== undefined) {
+          body["binaryAuthorization"] = g["binaryAuthorization"];
+        }
+        if (g["client"] !== undefined) body["client"] = g["client"];
+        if (g["clientVersion"] !== undefined) {
+          body["clientVersion"] = g["clientVersion"];
+        }
+        if (g["containers"] !== undefined) body["containers"] = g["containers"];
+        if (g["defaultUriDisabled"] !== undefined) {
+          body["defaultUriDisabled"] = g["defaultUriDisabled"];
+        }
+        if (g["description"] !== undefined) {
+          body["description"] = g["description"];
+        }
+        if (g["encryptionKey"] !== undefined) {
+          body["encryptionKey"] = g["encryptionKey"];
+        }
+        if (g["encryptionKeyRevocationAction"] !== undefined) {
+          body["encryptionKeyRevocationAction"] =
+            g["encryptionKeyRevocationAction"];
+        }
+        if (g["encryptionKeyShutdownDuration"] !== undefined) {
+          body["encryptionKeyShutdownDuration"] =
+            g["encryptionKeyShutdownDuration"];
+        }
+        if (g["gpuZonalRedundancyDisabled"] !== undefined) {
+          body["gpuZonalRedundancyDisabled"] = g["gpuZonalRedundancyDisabled"];
+        }
+        if (g["iapEnabled"] !== undefined) body["iapEnabled"] = g["iapEnabled"];
+        if (g["ingress"] !== undefined) body["ingress"] = g["ingress"];
+        if (g["invokerIamDisabled"] !== undefined) {
+          body["invokerIamDisabled"] = g["invokerIamDisabled"];
+        }
+        if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        if (g["launchStage"] !== undefined) {
+          body["launchStage"] = g["launchStage"];
+        }
+        if (g["nodeSelector"] !== undefined) {
+          body["nodeSelector"] = g["nodeSelector"];
+        }
+        if (g["serviceAccount"] !== undefined) {
+          body["serviceAccount"] = g["serviceAccount"];
+        }
+        if (g["terminalCondition"] !== undefined) {
+          body["terminalCondition"] = g["terminalCondition"];
+        }
+        if (g["timeout"] !== undefined) body["timeout"] = g["timeout"];
+        if (g["volumes"] !== undefined) body["volumes"] = g["volumes"];
+        if (g["vpcAccess"] !== undefined) body["vpcAccess"] = g["vpcAccess"];
+        for (const key of Object.keys(existing)) {
+          if (
+            key === "fingerprint" || key === "labelFingerprint" ||
+            key === "etag" || key.endsWith("Fingerprint")
+          ) {
+            body[key] = existing[key];
+          }
+        }
+        const result = await updateResource(
+          BASE_URL,
+          PATCH_CONFIG,
+          params,
+          body,
+          GET_CONFIG,
+        ) as StateData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -1638,6 +1778,91 @@ export const model = {
         return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
+    get_iam_policy: {
+      description: "get iam policy",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "run.projects.locations.instances.getIamPolicy",
+            "path": "v2/{+resource}:getIamPolicy",
+            "httpMethod": "GET",
+            "parameterOrder": ["resource"],
+            "parameters": {
+              "options.requestedPolicyVersion": { "location": "query" },
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          {},
+        );
+        return { result };
+      },
+    },
+    set_iam_policy: {
+      description: "set iam policy",
+      arguments: z.object({
+        policy: z.any().optional(),
+        updateMask: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["policy"] !== undefined) body["policy"] = args["policy"];
+        if (args["updateMask"] !== undefined) {
+          body["updateMask"] = args["updateMask"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "run.projects.locations.instances.setIamPolicy",
+            "path": "v2/{+resource}:setIamPolicy",
+            "httpMethod": "POST",
+            "parameterOrder": ["resource"],
+            "parameters": {
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+        );
+        return { result };
+      },
+    },
     start: {
       description: "start",
       arguments: z.object({
@@ -1703,6 +1928,50 @@ export const model = {
             "httpMethod": "POST",
             "parameterOrder": ["name"],
             "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
+        );
+        return { result };
+      },
+    },
+    test_iam_permissions: {
+      description: "test iam permissions",
+      arguments: z.object({
+        permissions: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["permissions"] !== undefined) {
+          body["permissions"] = args["permissions"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "run.projects.locations.instances.testIamPermissions",
+            "path": "v2/{+resource}:testIamPermissions",
+            "httpMethod": "POST",
+            "parameterOrder": ["resource"],
+            "parameters": {
+              "resource": { "location": "path", "required": true },
+            },
           },
           params,
           body,

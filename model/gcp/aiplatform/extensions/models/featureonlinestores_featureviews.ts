@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI FeatureOnlineStores.FeatureViews.
+ * Swamp extension model for Google Cloud Agent Platform FeatureOnlineStores.FeatureViews.
  *
  * FeatureView is representation of values that the FeatureOnlineStore will serve based on its syncConfig.
  *
@@ -419,10 +419,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI FeatureOnlineStores.FeatureViews. Registered at `@swamp/gcp/aiplatform/featureonlinestores-featureviews`. */
+/** Swamp extension model for Google Cloud Agent Platform FeatureOnlineStores.FeatureViews. Registered at `@swamp/gcp/aiplatform/featureonlinestores-featureviews`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/featureonlinestores-featureviews",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -501,6 +501,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

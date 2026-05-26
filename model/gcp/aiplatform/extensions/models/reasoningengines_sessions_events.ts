@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI ReasoningEngines.Sessions.Events.
+ * Swamp extension model for Google Cloud Agent Platform ReasoningEngines.Sessions.Events.
  *
  * An event represents a message from either the user or agent.
  *
@@ -204,10 +204,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI ReasoningEngines.Sessions.Events. Registered at `@swamp/gcp/aiplatform/reasoningengines-sessions-events`. */
+/** Swamp extension model for Google Cloud Agent Platform ReasoningEngines.Sessions.Events. Registered at `@swamp/gcp/aiplatform/reasoningengines-sessions-events`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines-sessions-events",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -291,6 +291,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

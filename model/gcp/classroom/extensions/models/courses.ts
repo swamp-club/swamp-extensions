@@ -169,6 +169,9 @@ const GlobalArgsSchema = z.object({
   id: z.string().describe(
     "Identifier for this course assigned by Classroom. When creating a course, you may optionally set this identifier to an alias string in the request to create a corresponding alias. The `id` is still assigned by Classroom and cannot be updated after the course is created. Specifying this field in a course update mask results in an error.",
   ).optional(),
+  levels: z.string().describe(
+    'Optional. Levels for the course. Examples: "9th grade", "Middle school", "4th - 5th", "K-2", "3000". If set, this field must be a valid UTF-8 string and fewer than 1000 characters. This field can only be cleared using the `PatchCourse` method.',
+  ).optional(),
   name: z.string().describe(
     'Name of the course. For example, "10th Grade Biology". The name is required. It must be between 1 and 750 characters and a valid UTF-8 string.',
   ).optional(),
@@ -248,6 +251,7 @@ const StateSchema = z.object({
   }).optional(),
   guardiansEnabled: z.boolean().optional(),
   id: z.string(),
+  levels: z.string().optional(),
   name: z.string().optional(),
   ownerId: z.string().optional(),
   room: z.string().optional(),
@@ -329,6 +333,9 @@ const InputsSchema = z.object({
   id: z.string().describe(
     "Identifier for this course assigned by Classroom. When creating a course, you may optionally set this identifier to an alias string in the request to create a corresponding alias. The `id` is still assigned by Classroom and cannot be updated after the course is created. Specifying this field in a course update mask results in an error.",
   ).optional(),
+  levels: z.string().describe(
+    'Optional. Levels for the course. Examples: "9th grade", "Middle school", "4th - 5th", "K-2", "3000". If set, this field must be a valid UTF-8 string and fewer than 1000 characters. This field can only be cleared using the `PatchCourse` method.',
+  ).optional(),
   name: z.string().describe(
     'Name of the course. For example, "10th Grade Biology". The name is required. It must be between 1 and 750 characters and a valid UTF-8 string.',
   ).optional(),
@@ -362,7 +369,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Classroom Courses. Registered at `@swamp/gcp/classroom/courses`. */
 export const model = {
   type: "@swamp/gcp/classroom/courses",
-  version: "2026.05.25.2",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -463,6 +470,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.26.1",
+      description: "Added: levels",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -512,6 +524,7 @@ export const model = {
           body["guardiansEnabled"] = g["guardiansEnabled"];
         }
         if (g["id"] !== undefined) body["id"] = g["id"];
+        if (g["levels"] !== undefined) body["levels"] = g["levels"];
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["ownerId"] !== undefined) body["ownerId"] = g["ownerId"];
         if (g["room"] !== undefined) body["room"] = g["room"];
@@ -627,6 +640,7 @@ export const model = {
         if (g["guardiansEnabled"] !== undefined) {
           body["guardiansEnabled"] = g["guardiansEnabled"];
         }
+        if (g["levels"] !== undefined) body["levels"] = g["levels"];
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["ownerId"] !== undefined) body["ownerId"] = g["ownerId"];
         if (g["room"] !== undefined) body["room"] = g["room"];
@@ -745,16 +759,16 @@ export const model = {
       description: "List courses resources",
       arguments: z.object({
         courseStates: z.string().describe(
-          "Restricts returned courses to those in one of the specified states The default value is ACTIVE, ARCHIVED, PROVISIONED, DECLINED.",
+          "Restricts returned courses to those in one of the specified states. If unspecified, Courses in any state are returned.",
         ).optional(),
         pageSize: z.number().describe(
           "Maximum number of items to return. Zero or unspecified indicates that the server may assign a maximum. The server may return fewer than the specified number of results.",
         ).optional(),
         studentId: z.string().describe(
-          'Restricts returned courses to those having a student with the specified identifier. The identifier can be one of the following: * the numeric identifier for the user * the email address of the user * the string literal `"me"`, indicating the requesting user',
+          'Restricts returned courses to those having a student with the specified identifier. The identifier can be one of the following: * the numeric identifier for the user * the email address of the user * the string literal `"me"`, indicating the requesting user If specified, `teacher_id` must be empty.',
         ).optional(),
         teacherId: z.string().describe(
-          'Restricts returned courses to those having a teacher with the specified identifier. The identifier can be one of the following: * the numeric identifier for the user * the email address of the user * the string literal `"me"`, indicating the requesting user',
+          'Restricts returned courses to those having a teacher with the specified identifier. The identifier can be one of the following: * the numeric identifier for the user * the email address of the user * the string literal `"me"`, indicating the requesting user If specified, `student_id` must be empty.',
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",

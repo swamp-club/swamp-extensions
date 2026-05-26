@@ -179,6 +179,7 @@ const StateSchema = z.object({
         }),
       }),
       snapshotInspectTemplate: z.object({
+        allowLimitedAvailabilityInfoTypes: z.boolean(),
         createTime: z.string(),
         description: z.string(),
         displayName: z.string(),
@@ -454,7 +455,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Sensitive Data Protection (DLP) DlpJobs. Registered at `@swamp/gcp/dlp/dlpjobs`. */
 export const model = {
   type: "@swamp/gcp/dlp/dlpjobs",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -538,6 +539,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

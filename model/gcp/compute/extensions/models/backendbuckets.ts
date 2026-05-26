@@ -218,9 +218,10 @@ const GlobalArgsSchema = z.object({
   enableCdn: z.boolean().describe(
     "If true, enable Cloud CDN for this BackendBucket.",
   ).optional(),
-  loadBalancingScheme: z.enum(["INTERNAL_MANAGED"]).describe(
-    "The value can only be INTERNAL_MANAGED for cross-region internal layer 7 load balancer. If loadBalancingScheme is not specified, the backend bucket can be used by classic global external load balancers, or global application external load balancers, or both.",
-  ).optional(),
+  loadBalancingScheme: z.enum(["EXTERNAL_MANAGED", "INTERNAL_MANAGED"])
+    .describe(
+      "The value can only be INTERNAL_MANAGED for cross-region internal layer 7 load balancer. If loadBalancingScheme is not specified, the backend bucket can be used by classic global external load balancers, or global application external load balancers, or both.",
+    ).optional(),
   name: z.string().regex(new RegExp("[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?"))
     .describe(
       "Name of the resource. Provided by the client when the resource is created. The name must be 1-63 characters long, and comply withRFC1035. Specifically, the name must be 1-63 characters long and match the regular expression `[a-z]([-a-z0-9]*[a-z0-9])?` which means the first character must be a lowercase letter, and all following characters must be a dash, lowercase letter, or digit, except the last character, which cannot be a dash.",
@@ -272,6 +273,7 @@ const StateSchema = z.object({
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
   }).optional(),
+  region: z.string().optional(),
   selfLink: z.string().optional(),
   usedBy: z.array(z.object({
     reference: z.string(),
@@ -357,9 +359,10 @@ const InputsSchema = z.object({
   enableCdn: z.boolean().describe(
     "If true, enable Cloud CDN for this BackendBucket.",
   ).optional(),
-  loadBalancingScheme: z.enum(["INTERNAL_MANAGED"]).describe(
-    "The value can only be INTERNAL_MANAGED for cross-region internal layer 7 load balancer. If loadBalancingScheme is not specified, the backend bucket can be used by classic global external load balancers, or global application external load balancers, or both.",
-  ).optional(),
+  loadBalancingScheme: z.enum(["EXTERNAL_MANAGED", "INTERNAL_MANAGED"])
+    .describe(
+      "The value can only be INTERNAL_MANAGED for cross-region internal layer 7 load balancer. If loadBalancingScheme is not specified, the backend bucket can be used by classic global external load balancers, or global application external load balancers, or both.",
+    ).optional(),
   name: z.string().regex(new RegExp("[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?"))
     .describe(
       "Name of the resource. Provided by the client when the resource is created. The name must be 1-63 characters long, and comply withRFC1035. Specifically, the name must be 1-63 characters long and match the regular expression `[a-z]([-a-z0-9]*[a-z0-9])?` which means the first character must be a lowercase letter, and all following characters must be a dash, lowercase letter, or digit, except the last character, which cannot be a dash.",
@@ -377,7 +380,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine BackendBuckets. Registered at `@swamp/gcp/compute/backendbuckets`. */
 export const model = {
   type: "@swamp/gcp/compute/backendbuckets",
-  version: "2026.05.25.2",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -481,6 +484,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -857,6 +865,34 @@ export const model = {
               "optionsRequestedPolicyVersion": { "location": "query" },
               "project": { "location": "path", "required": true },
               "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          {},
+        );
+        return { result };
+      },
+    },
+    list_usable: {
+      description: "list usable",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, _context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "compute.backendBuckets.listUsable",
+            "path": "projects/{project}/global/backendBuckets/listUsable",
+            "httpMethod": "GET",
+            "parameterOrder": ["project"],
+            "parameters": {
+              "filter": { "location": "query" },
+              "maxResults": { "location": "query" },
+              "orderBy": { "location": "query" },
+              "pageToken": { "location": "query" },
+              "project": { "location": "path", "required": true },
+              "returnPartialSuccess": { "location": "query" },
             },
           },
           params,

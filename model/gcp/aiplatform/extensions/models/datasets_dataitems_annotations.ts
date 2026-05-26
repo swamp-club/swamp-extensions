@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI Datasets.DataItems.Annotations.
+ * Swamp extension model for Google Cloud Agent Platform Datasets.DataItems.Annotations.
  *
  * Used to assign specific AnnotationSpec to a particular area of a DataItem or the whole part of the DataItem.
  *
@@ -87,10 +87,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI Datasets.DataItems.Annotations. Registered at `@swamp/gcp/aiplatform/datasets-dataitems-annotations`. */
+/** Swamp extension model for Google Cloud Agent Platform Datasets.DataItems.Annotations. Registered at `@swamp/gcp/aiplatform/datasets-dataitems-annotations`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/datasets-dataitems-annotations",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -169,6 +169,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Vertex AI Schedules.
+ * Swamp extension model for Google Cloud Agent Platform Schedules.
  *
  * An instance of a Schedule periodically schedules runs to make API calls based on user specified time specification and API request type.
  *
@@ -1251,10 +1251,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Vertex AI Schedules. Registered at `@swamp/gcp/aiplatform/schedules`. */
+/** Swamp extension model for Google Cloud Agent Platform Schedules. Registered at `@swamp/gcp/aiplatform/schedules`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/schedules",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1338,6 +1338,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

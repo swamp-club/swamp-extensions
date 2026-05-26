@@ -151,6 +151,7 @@ const GlobalArgsSchema = z.object({
       "LOOKER_STUDIO",
       "DATAPROC",
       "VERTEX_AI",
+      "DATAFLOW",
       "LOOKER_CORE",
     ]).describe(
       "Type of the source. Use of a source_type other than `CUSTOM` for process creation or updating is highly discouraged. It might be restricted in the future without notice. There will be increase in cost if you use any of the source types other than `CUSTOM`.",
@@ -199,6 +200,7 @@ const InputsSchema = z.object({
       "LOOKER_STUDIO",
       "DATAPROC",
       "VERTEX_AI",
+      "DATAFLOW",
       "LOOKER_CORE",
     ]).describe(
       "Type of the source. Use of a source_type other than `CUSTOM` for process creation or updating is highly discouraged. It might be restricted in the future without notice. There will be increase in cost if you use any of the source types other than `CUSTOM`.",
@@ -215,7 +217,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Data Lineage Processes. Registered at `@swamp/gcp/datalineage/processes`. */
 export const model = {
   type: "@swamp/gcp/datalineage/processes",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -304,6 +306,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -541,7 +548,7 @@ export const model = {
       description: "List processes resources",
       arguments: z.object({
         pageSize: z.number().describe(
-          "The maximum number of processes to return. The service may return fewer than this value. If unspecified, at most 50 processes are returned. The maximum value is 100; values greater than 100 are cut to 100.",
+          "Optional. The maximum number of processes to return. The service may return fewer than this value. If unspecified, at most 50 processes are returned. The maximum value is 100; values greater than 100 are cut to 100.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",

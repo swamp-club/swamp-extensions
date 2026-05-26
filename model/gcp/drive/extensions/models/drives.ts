@@ -162,7 +162,7 @@ const GlobalArgsSchema = z.object({
         "Whether download and copy is restricted for readers.",
       ).optional(),
       restrictedForWriters: z.boolean().describe(
-        "Whether download and copy is restricted for writers. If `true`, download is also restricted for readers.",
+        "Whether download and copy is restricted for writers. If true, download is also restricted for readers.",
       ).optional(),
     }).describe("A restriction for copy and download of the file.").optional(),
     driveMembersOnly: z.boolean().describe(
@@ -278,7 +278,7 @@ const InputsSchema = z.object({
         "Whether download and copy is restricted for readers.",
       ).optional(),
       restrictedForWriters: z.boolean().describe(
-        "Whether download and copy is restricted for writers. If `true`, download is also restricted for readers.",
+        "Whether download and copy is restricted for writers. If true, download is also restricted for readers.",
       ).optional(),
     }).describe("A restriction for copy and download of the file.").optional(),
     driveMembersOnly: z.boolean().describe(
@@ -301,7 +301,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Drive Drives. Registered at `@swamp/gcp/drive/drives`. */
 export const model = {
   type: "@swamp/gcp/drive/drives",
-  version: "2026.05.25.2",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -385,6 +385,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

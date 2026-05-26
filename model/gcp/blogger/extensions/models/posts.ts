@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Blogger Posts.
+ * Swamp extension model for Google Cloud blogger Posts.
  *
  * Gets a post by blog id and post id
  *
@@ -489,10 +489,10 @@ const InputsSchema = z.object({
   isDraft: z.string().describe("The isDraft for this resource").optional(),
 });
 
-/** Swamp extension model for Google Cloud Blogger Posts. Registered at `@swamp/gcp/blogger/posts`. */
+/** Swamp extension model for Google Cloud blogger Posts. Registered at `@swamp/gcp/blogger/posts`. */
 export const model = {
   type: "@swamp/gcp/blogger/posts",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -556,6 +556,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

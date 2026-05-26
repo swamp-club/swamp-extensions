@@ -121,6 +121,9 @@ const StateSchema = z.object({
         encoding: z.string(),
         typeInferenceDisabled: z.boolean(),
       }),
+      unstructuredDataOptions: z.object({
+        semanticInferenceEnabled: z.boolean(),
+      }),
     }),
   }).optional(),
   dataDocumentationResult: z.object({
@@ -141,14 +144,6 @@ const StateSchema = z.object({
         }),
         sources: z.array(z.unknown()),
         type: z.string(),
-      })),
-      tableResults: z.array(z.object({
-        name: z.string(),
-        overview: z.string(),
-        queries: z.array(z.unknown()),
-        schema: z.object({
-          fields: z.unknown(),
-        }),
       })),
     }),
     tableResult: z.object({
@@ -213,6 +208,7 @@ const StateSchema = z.object({
     includeFields: z.object({
       fieldNames: z.array(z.string()),
     }),
+    mode: z.string(),
     postScanActions: z.object({
       bigqueryExport: z.object({
         resultsTable: z.string(),
@@ -268,6 +264,7 @@ const StateSchema = z.object({
       passed: z.boolean(),
       passedCount: z.string(),
       rule: z.object({
+        attributes: z.record(z.string(), z.unknown()),
         column: z.string(),
         debugQueries: z.array(z.unknown()),
         description: z.string(),
@@ -287,6 +284,9 @@ const StateSchema = z.object({
         rowConditionExpectation: z.object({
           sqlExpression: z.unknown(),
         }),
+        ruleSource: z.object({
+          rulePathElements: z.unknown(),
+        }),
         setExpectation: z.object({
           values: z.unknown(),
         }),
@@ -304,6 +304,12 @@ const StateSchema = z.object({
         tableConditionExpectation: z.object({
           sqlExpression: z.unknown(),
         }),
+        templateReference: z.object({
+          name: z.unknown(),
+          resolvedSql: z.unknown(),
+          ruleTemplate: z.unknown(),
+          values: z.unknown(),
+        }),
         threshold: z.number(),
         uniquenessExpectation: z.object({}),
       }),
@@ -319,6 +325,8 @@ const StateSchema = z.object({
   }).optional(),
   dataQualitySpec: z.object({
     catalogPublishingEnabled: z.boolean(),
+    enableCatalogBasedRules: z.boolean(),
+    filter: z.string(),
     postScanActions: z.object({
       bigqueryExport: z.object({
         resultsTable: z.string(),
@@ -336,6 +344,7 @@ const StateSchema = z.object({
     }),
     rowFilter: z.string(),
     rules: z.array(z.object({
+      attributes: z.record(z.string(), z.unknown()),
       column: z.string(),
       debugQueries: z.array(z.object({
         description: z.unknown(),
@@ -358,6 +367,9 @@ const StateSchema = z.object({
       rowConditionExpectation: z.object({
         sqlExpression: z.string(),
       }),
+      ruleSource: z.object({
+        rulePathElements: z.array(z.unknown()),
+      }),
       setExpectation: z.object({
         values: z.array(z.unknown()),
       }),
@@ -375,6 +387,18 @@ const StateSchema = z.object({
       tableConditionExpectation: z.object({
         sqlExpression: z.string(),
       }),
+      templateReference: z.object({
+        name: z.string(),
+        resolvedSql: z.string(),
+        ruleTemplate: z.object({
+          capabilities: z.unknown(),
+          dimension: z.unknown(),
+          inputParameters: z.unknown(),
+          name: z.unknown(),
+          sqlCollection: z.unknown(),
+        }),
+        values: z.record(z.string(), z.unknown()),
+      }),
       threshold: z.number(),
       uniquenessExpectation: z.object({}),
     })),
@@ -383,6 +407,7 @@ const StateSchema = z.object({
   endTime: z.string().optional(),
   message: z.string().optional(),
   name: z.string(),
+  partialFailureMessage: z.string().optional(),
   startTime: z.string().optional(),
   state: z.string().optional(),
   type: z.string().optional(),
@@ -401,7 +426,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dataplex DataScans.Jobs. Registered at `@swamp/gcp/dataplex/datascans-jobs`. */
 export const model = {
   type: "@swamp/gcp/dataplex/datascans-jobs",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -500,6 +525,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -644,6 +674,34 @@ export const model = {
           dataHandles.push(handle);
         }
         return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
+    cancel: {
+      description: "cancel",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "dataplex.projects.locations.dataScans.jobs.cancel",
+            "path": "v1/{+name}:cancel",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          {},
+        );
+        return { result };
       },
     },
     generate_data_quality_rules: {

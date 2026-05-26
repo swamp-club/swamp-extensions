@@ -102,7 +102,7 @@ const GlobalArgsSchema = z.object({
       "List of labels to add to the message.",
     ).optional(),
     forward: z.string().describe(
-      "Email address that the message should be forwarded to.",
+      'Email address that the message should be forwarded to. This effectively redirects the message to the address specified in this field, maintaining the original sender in the "From" field.',
     ).optional(),
     removeLabelIds: z.array(z.string()).describe(
       "List of labels to remove from the message.",
@@ -170,7 +170,7 @@ const InputsSchema = z.object({
       "List of labels to add to the message.",
     ).optional(),
     forward: z.string().describe(
-      "Email address that the message should be forwarded to.",
+      'Email address that the message should be forwarded to. This effectively redirects the message to the address specified in this field, maintaining the original sender in the "From" field.',
     ).optional(),
     removeLabelIds: z.array(z.string()).describe(
       "List of labels to remove from the message.",
@@ -213,7 +213,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gmail Users.Settings.Filters. Registered at `@swamp/gcp/gmail/users-settings-filters`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-settings-filters",
-  version: "2026.05.25.2",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -297,6 +297,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

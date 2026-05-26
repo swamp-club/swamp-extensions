@@ -107,7 +107,7 @@ const GlobalArgsSchema = z.object({
     "Output only. The URI for a Google Marketing Platform organization resource. Only set when this account is connected to a GMP organization. Format: marketingplatformadmin.googleapis.com/organizations/{org_id}",
   ).optional(),
   name: z.string().describe(
-    'Output only. Resource name of this account. Format: accounts/{account} Example: "accounts/100"',
+    'Identifier. Resource name of this account. Format: accounts/{account} Example: "accounts/100"',
   ).optional(),
   regionCode: z.string().describe(
     "Country of business. Must be a Unicode CLDR region code.",
@@ -143,7 +143,7 @@ const InputsSchema = z.object({
     "Output only. The URI for a Google Marketing Platform organization resource. Only set when this account is connected to a GMP organization. Format: marketingplatformadmin.googleapis.com/organizations/{org_id}",
   ).optional(),
   name: z.string().describe(
-    'Output only. Resource name of this account. Format: accounts/{account} Example: "accounts/100"',
+    'Identifier. Resource name of this account. Format: accounts/{account} Example: "accounts/100"',
   ).optional(),
   regionCode: z.string().describe(
     "Country of business. Must be a Unicode CLDR region code.",
@@ -156,7 +156,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Analytics Admin Accounts. Registered at `@swamp/gcp/analyticsadmin/accounts`. */
 export const model = {
   type: "@swamp/gcp/analyticsadmin/accounts",
-  version: "2026.05.25.2",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -235,6 +235,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -417,7 +422,7 @@ export const model = {
       description: "List accounts resources",
       arguments: z.object({
         pageSize: z.number().describe(
-          "The maximum number of resources to return. The service may return fewer than this value, even if there are additional pages. If unspecified, at most 50 resources will be returned. The maximum value is 200; (higher values will be coerced to the maximum)",
+          "Optional. The maximum number of resources to return. The service may return fewer than this value, even if there are additional pages. If unspecified, at most 50 resources will be returned. The maximum value is 200; (higher values will be coerced to the maximum)",
         ).optional(),
         showDeleted: z.boolean().describe(
           'Whether to include soft-deleted (ie: "trashed") Accounts in the results. Accounts can be inspected to determine whether they are deleted or not.',

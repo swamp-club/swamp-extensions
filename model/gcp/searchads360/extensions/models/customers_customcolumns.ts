@@ -26,7 +26,7 @@ const BASE_URL = "https://searchads360.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "searchads360.customers.customColumns.get",
-  "path": "v0/{+resourceName}",
+  "path": "v23/{+resourceName}",
   "httpMethod": "GET",
   "parameterOrder": [
     "resourceName",
@@ -41,7 +41,7 @@ const GET_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "searchads360.customers.customColumns.list",
-  "path": "v0/customers/{+customerId}/customColumns",
+  "path": "v23/customers/{+customerId}/customColumns",
   "httpMethod": "GET",
   "parameterOrder": [
     "customerId",
@@ -82,7 +82,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Search Ads 360 Reporting Customers.CustomColumns. Registered at `@swamp/gcp/searchads360/customers-customcolumns`. */
 export const model = {
   type: "@swamp/gcp/searchads360/customers-customcolumns",
-  version: "2026.05.25.2",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -166,6 +166,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

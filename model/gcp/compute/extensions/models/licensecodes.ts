@@ -51,18 +51,31 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  allowedReplacementLicenses: z.array(z.string()).optional(),
+  appendableToDisk: z.boolean().optional(),
   creationTimestamp: z.string().optional(),
   description: z.string().optional(),
   id: z.string().optional(),
+  incompatibleLicenses: z.array(z.string()).optional(),
   kind: z.string().optional(),
   licenseAlias: z.array(z.object({
     description: z.string(),
     selfLink: z.string(),
   })).optional(),
+  minimumRetention: z.object({
+    nanos: z.number(),
+    seconds: z.string(),
+  }).optional(),
+  multiTenantOnly: z.boolean().optional(),
   name: z.string(),
+  osLicense: z.boolean().optional(),
+  removableFromDisk: z.boolean().optional(),
+  requiredCoattachedLicenses: z.array(z.string()).optional(),
   selfLink: z.string().optional(),
+  soleTenantOnly: z.boolean().optional(),
   state: z.string().optional(),
   transferable: z.boolean().optional(),
+  updateTimestamp: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -74,7 +87,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine LicenseCodes. Registered at `@swamp/gcp/compute/licensecodes`. */
 export const model = {
   type: "@swamp/gcp/compute/licensecodes",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -163,6 +176,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -255,6 +273,95 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    get_iam_policy: {
+      description: "get iam policy",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "compute.licenseCodes.getIamPolicy",
+            "path":
+              "projects/{project}/global/licenseCodes/{resource}/getIamPolicy",
+            "httpMethod": "GET",
+            "parameterOrder": ["project", "resource"],
+            "parameters": {
+              "optionsRequestedPolicyVersion": { "location": "query" },
+              "project": { "location": "path", "required": true },
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          {},
+        );
+        return { result };
+      },
+    },
+    set_iam_policy: {
+      description: "set iam policy",
+      arguments: z.object({
+        bindings: z.any().optional(),
+        etag: z.any().optional(),
+        policy: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["bindings"] !== undefined) body["bindings"] = args["bindings"];
+        if (args["etag"] !== undefined) body["etag"] = args["etag"];
+        if (args["policy"] !== undefined) body["policy"] = args["policy"];
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "compute.licenseCodes.setIamPolicy",
+            "path":
+              "projects/{project}/global/licenseCodes/{resource}/setIamPolicy",
+            "httpMethod": "POST",
+            "parameterOrder": ["project", "resource"],
+            "parameters": {
+              "project": { "location": "path", "required": true },
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+        );
+        return { result };
       },
     },
     test_iam_permissions: {

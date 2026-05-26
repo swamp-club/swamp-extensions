@@ -129,6 +129,10 @@ const GlobalArgsSchema = z.object({
     dispositionCode: z.string().describe(
       "A user-provided string indicating the outcome of the agent's segment of the call.",
     ).optional(),
+    entrySubagentDisplayName: z.string().describe(
+      "The entry subagent's display name.",
+    ).optional(),
+    entrySubagentId: z.string().describe("The entry subagent's ID.").optional(),
     location: z.string().describe("The agent's location.").optional(),
     team: z.string().describe(
       "A user-specified string representing the agent's team. Deprecated in favor of the `teams` field.",
@@ -160,6 +164,8 @@ const StateSchema = z.object({
     deploymentId: z.string(),
     displayName: z.string(),
     dispositionCode: z.string(),
+    entrySubagentDisplayName: z.string(),
+    entrySubagentId: z.string(),
     location: z.string(),
     team: z.string(),
     teams: z.array(z.string()),
@@ -196,6 +202,10 @@ const InputsSchema = z.object({
     dispositionCode: z.string().describe(
       "A user-provided string indicating the outcome of the agent's segment of the call.",
     ).optional(),
+    entrySubagentDisplayName: z.string().describe(
+      "The entry subagent's display name.",
+    ).optional(),
+    entrySubagentId: z.string().describe("The entry subagent's ID.").optional(),
     location: z.string().describe("The agent's location.").optional(),
     team: z.string().describe(
       "A user-specified string representing the agent's team. Deprecated in favor of the `teams` field.",
@@ -222,7 +232,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Contact Center AI Insights Conversations.Assessments. Registered at `@swamp/gcp/contactcenterinsights/conversations-assessments`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/conversations-assessments",
-  version: "2026.05.25.1",
+  version: "2026.05.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -301,6 +311,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
