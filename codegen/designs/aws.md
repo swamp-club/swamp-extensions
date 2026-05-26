@@ -554,18 +554,19 @@ listMethod?: {
 
 1. Must `deno check` independently (same as state enrichments)
 2. Owns all pagination logic (Marker-based, NextToken-based, etc.)
-3. Transforms SDK responses to CloudFormation property names (PascalCase)
-   so list results are compatible with StateSchema and subsequent `sync` calls
+3. Transforms SDK responses to CloudFormation property names (PascalCase) so
+   list results are compatible with StateSchema and subsequent `sync` calls
 4. Returns `Record<string, unknown>[]` — one entry per discovered resource
 
 #### How it's emitted
 
 The generator:
-1. Skips list method imports when the package is already imported by the
-   state enrichment (avoids duplicate identifiers)
+
+1. Skips list method imports when the package is already imported by the state
+   enrichment (avoids duplicate identifiers)
 2. Inlines the list function body after the state enrichment body
-3. Emits a `list` method that calls the function, iterates results, and
-   writes each as a `"state"` resource handle keyed by the primary identifier
+3. Emits a `list` method that calls the function, iterates results, and writes
+   each as a `"state"` resource handle keyed by the primary identifier
 
 #### Adding a new list enrichment
 
@@ -578,9 +579,9 @@ The generator:
 
 #### Current list enrichments
 
-| Resource              | SDK command             | Pagination | Data returned                          |
-| --------------------- | ----------------------- | ---------- | -------------------------------------- |
-| `AWS::RDS::DBCluster` | `DescribeDBClusters`    | Marker     | Cluster ID, engine, status, members, tags |
+| Resource              | SDK command          | Pagination | Data returned                             |
+| --------------------- | -------------------- | ---------- | ----------------------------------------- |
+| `AWS::RDS::DBCluster` | `DescribeDBClusters` | Marker     | Cluster ID, engine, status, members, tags |
 
 ---
 
