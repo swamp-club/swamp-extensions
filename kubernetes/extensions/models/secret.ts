@@ -88,8 +88,16 @@ function normalizeSecretMeta(raw: V1Secret) {
 /** Kubernetes Secret model. */
 export const model = {
   type: "@swamp/kubernetes/secret",
-  version: "2026.05.27.1",
+  version: "2026.05.27.2",
   globalArguments: K8sGlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.05.27.2",
+      description:
+        "Version bump for extension-wide security fix in pod exec method",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     secretMeta: {
       description: "Secret metadata with type and data key names (no content)",

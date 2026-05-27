@@ -142,8 +142,16 @@ function normalizePod(raw: V1Pod) {
 /** Kubernetes Pod model. */
 export const model = {
   type: "@swamp/kubernetes/pod",
-  version: "2026.05.27.1",
+  version: "2026.05.27.2",
   globalArguments: K8sGlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.05.27.2",
+      description:
+        "Security fix: validate pod name in exec method to prevent kubectl flag injection via crafted pod names starting with '-'",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     pod: {
       description:
@@ -466,6 +474,12 @@ export const model = {
         args: z.infer<typeof ExecArgsSchema>,
         context: K8sContext,
       ): Promise<{ dataHandles: DataHandle[] }> => {
+        if (!/^[a-z0-9][a-z0-9\-.]*$/.test(args.podName)) {
+          throw new Error(
+            `Invalid pod name "${args.podName}": must start with a lowercase alphanumeric character and contain only lowercase alphanumeric characters, '-', or '.'`,
+          );
+        }
+
         const globalArgs = context.globalArgs;
         const ns = globalArgs.namespace;
 

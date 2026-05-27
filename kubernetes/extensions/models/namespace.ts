@@ -261,8 +261,16 @@ function normalizeLimitRange(raw: V1LimitRange) {
 /** Kubernetes Namespace model. */
 export const model = {
   type: "@swamp/kubernetes/namespace",
-  version: "2026.05.27.1",
+  version: "2026.05.27.2",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.05.27.2",
+      description:
+        "Version bump for extension-wide security fix in pod exec method",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     namespace: {
       description:

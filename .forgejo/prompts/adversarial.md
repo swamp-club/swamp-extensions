@@ -101,7 +101,8 @@ Your review MUST systematically attempt to break the code across these dimension
   These are warnings but do NOT block.
 - **LOW**: Theoretical issues that are unlikely in practice. Mention but do NOT block.
 
-After reviewing, you MUST write your review using tee. The OUTPUT_DIR is provided
+After reviewing, you MUST write your review using tee (NOT the Write tool).
+Do NOT use the Write tool — it is not available. The OUTPUT_DIR is provided
 at the end of this prompt. Use it as follows:
 ```
 tee $OUTPUT_DIR/review-body.md <<'REVIEW_EOF'

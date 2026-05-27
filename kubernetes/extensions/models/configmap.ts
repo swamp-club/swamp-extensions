@@ -62,8 +62,16 @@ function normalizeConfigMap(raw: V1ConfigMap) {
 /** Kubernetes ConfigMap model. */
 export const model = {
   type: "@swamp/kubernetes/configmap",
-  version: "2026.05.27.1",
+  version: "2026.05.27.2",
   globalArguments: K8sGlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.05.27.2",
+      description:
+        "Version bump for extension-wide security fix in pod exec method",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     configmap: {
       description:

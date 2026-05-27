@@ -110,7 +110,8 @@ This is the HIGHEST PRIORITY check. Any workflow that passes data to an LLM
   than necessary but not exploitable. These are warnings.
 - **LOW**: Style issues in workflow files, missing comments. Mention but do NOT block.
 
-After reviewing, you MUST write your review using tee. The OUTPUT_DIR is provided
+After reviewing, you MUST write your review using tee (NOT the Write tool).
+Do NOT use the Write tool — it is not available. The OUTPUT_DIR is provided
 at the end of this prompt. Use it as follows:
 ```
 tee $OUTPUT_DIR/review-body.md <<'REVIEW_EOF'

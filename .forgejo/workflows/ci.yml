@@ -727,6 +727,8 @@ jobs:
 
           ${RUNNER_TEMP}/review/claude -p "$PROMPT" \
             --model claude-sonnet-4-6 \
+            --add-dir "$OUTPUT_DIR" \
+            --disallowedTools "Write" "Edit" \
             --allowedTools "Read,Grep,Bash(git diff:*),Bash(git log:*),Bash(tee ${OUTPUT_DIR}/review-body.md:*),Bash(touch ${OUTPUT_DIR}/review-failed)"
 
       - name: Post review comment
@@ -842,6 +844,8 @@ jobs:
 
           ${RUNNER_TEMP}/review/claude -p "$PROMPT" \
             --model claude-opus-4-6 \
+            --add-dir "$OUTPUT_DIR" \
+            --disallowedTools "Write" "Edit" \
             --allowedTools "Read,Grep,Bash(git diff:*),Bash(git log:*),Bash(tee ${OUTPUT_DIR}/review-body.md:*),Bash(touch ${OUTPUT_DIR}/review-failed)"
 
       - name: Post review comment
@@ -933,6 +937,8 @@ jobs:
 
           ${RUNNER_TEMP}/review/claude -p "$PROMPT" \
             --model claude-opus-4-6 \
+            --add-dir "$OUTPUT_DIR" \
+            --disallowedTools "Write" "Edit" \
             --allowedTools "Read,Grep,Bash(git diff:*),Bash(git log:*),Bash(tee ${OUTPUT_DIR}/review-body.md:*),Bash(touch ${OUTPUT_DIR}/review-failed)"
 
       - name: Post review comment

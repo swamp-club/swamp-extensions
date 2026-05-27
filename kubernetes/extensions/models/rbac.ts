@@ -208,8 +208,16 @@ function normalizeServiceAccount(raw: V1ServiceAccount) {
 /** Kubernetes RBAC model. */
 export const model = {
   type: "@swamp/kubernetes/rbac",
-  version: "2026.05.27.1",
+  version: "2026.05.27.2",
   globalArguments: K8sGlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.05.27.2",
+      description:
+        "Version bump for extension-wide security fix in pod exec method",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     role: {
       description:

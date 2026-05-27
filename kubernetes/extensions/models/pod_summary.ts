@@ -78,8 +78,16 @@ interface PodData {
 /** Kubernetes Pod summary aggregation model. */
 export const model = {
   type: "@swamp/kubernetes/pod-summary",
-  version: "2026.05.27.1",
+  version: "2026.05.27.2",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.05.27.2",
+      description:
+        "Version bump for extension-wide security fix in pod exec method",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     summary: {
       description:

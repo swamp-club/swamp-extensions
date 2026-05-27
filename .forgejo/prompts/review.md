@@ -71,7 +71,8 @@ IMPORTANT: Categorize your findings into two types:
 - **Suggestions**: Nice-to-have improvements that don't block merge (style preferences,
   optional refactoring)
 
-After reviewing, you MUST write your review using tee. The OUTPUT_DIR is provided
+After reviewing, you MUST write your review using tee (NOT the Write tool).
+Do NOT use the Write tool — it is not available. The OUTPUT_DIR is provided
 at the end of this prompt. Use it as follows:
 ```
 tee $OUTPUT_DIR/review-body.md <<'REVIEW_EOF'
