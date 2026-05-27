@@ -1,0 +1,103 @@
+name: Full Model Check
+
+on:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  aws-full-check:
+    name: aws models - full check
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: deno check all AWS services
+        run: |
+          failed=false
+          for service in model/aws/*/; do
+            if ! (cd "$service" && deno check extensions/models/*.ts 2>&1); then
+              echo "::error::Type check failed in $service"
+              failed=true
+            fi
+          done
+          if [ "$failed" = true ]; then
+            exit 1
+          fi
+
+  gcp-full-check:
+    name: gcp models - full check
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: deno check all GCP services
+        run: |
+          failed=false
+          for service in model/gcp/*/; do
+            if ! (cd "$service" && deno check extensions/models/*.ts 2>&1); then
+              echo "::error::Type check failed in $service"
+              failed=true
+            fi
+          done
+          if [ "$failed" = true ]; then
+            exit 1
+          fi
+
+  cloudflare-full-check:
+    name: cloudflare models - full check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: deno check all Cloudflare services
+        run: |
+          failed=false
+          for service in model/cloudflare/*/; do
+            if ! (cd "$service" && deno check extensions/models/*.ts 2>&1); then
+              echo "::error::Type check failed in $service"
+              failed=true
+            fi
+          done
+          if [ "$failed" = true ]; then
+            exit 1
+          fi
+
+  hetzner-digitalocean-full-check:
+    name: model/${{ matrix.model }} - full check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [hetzner-cloud, digitalocean]
+    defaults:
+      run:
+        working-directory: model/${{ matrix.model }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: deno check
+        run: deno check extensions/models/*.ts
+      - name: deno lint
+        run: deno lint --no-config extensions/models/
+      - name: deno fmt
+        run: deno fmt --no-config --check extensions/models/

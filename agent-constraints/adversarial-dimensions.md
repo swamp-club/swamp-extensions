@@ -180,7 +180,7 @@ multipliers if ignored:
   `claude-ci-security-review` have scoped `--allowedTools` — broad
   `Bash(gh api:*)` is too wide.
 - Workflow-file changes trigger the `claude-ci-security-review` job;
-  plans that touch `.github/workflows/` must expect that gate and not
+  plans that touch `.forgejo/workflows/` must expect that gate and not
   blindly silence it.
 
 ## docs-drift

@@ -248,7 +248,7 @@ async function writeGitHubSummary(findings: AuditFinding[]): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const workflowDir = ".github/workflows";
+  const workflowDir = ".forgejo/workflows";
   const refs: ActionRef[] = [];
 
   try {

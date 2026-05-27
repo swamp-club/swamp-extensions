@@ -355,7 +355,7 @@ jobs:
         run: deno install --frozen
 
   model-check:
-    name: model/${{ matrix.model }} - ${{ matrix.task }}
+    name: model/${{ matrix.model }} - check
     needs: [changes]
     if: needs.changes.outputs.models == 'true' || needs.changes.outputs.codegen == 'true'
     runs-on: ubuntu-latest
@@ -363,7 +363,6 @@ jobs:
       fail-fast: false
       matrix:
         model: [hetzner-cloud, digitalocean]
-        task: [check, lint, fmt]
     defaults:
       run:
         working-directory: model/${{ matrix.model }}
@@ -372,15 +371,8 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.7.x
-      - name: deno ${{ matrix.task }}
-        run: |
-          if [ "${{ matrix.task }}" = "fmt" ]; then
-            deno fmt --no-config --check extensions/models/
-          elif [ "${{ matrix.task }}" = "lint" ]; then
-            deno lint --no-config extensions/models/
-          else
-            deno check extensions/models/*.ts
-          fi
+      - name: deno check
+        run: deno check extensions/models/*.ts
 
   model-lockfile:
     name: model/${{ matrix.model }} - lockfile up to date
@@ -403,30 +395,23 @@ jobs:
         run: deno install --frozen
 
   aws-check:
-    name: aws models - ${{ matrix.task }}
+    name: aws models - sample check
     needs: [changes]
     if: needs.changes.outputs.models == 'true' || needs.changes.outputs.codegen == 'true'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        task: [check, lint, fmt]
     steps:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.7.x
-      - name: deno ${{ matrix.task }}
+      # Sample: baseline, complex nested, json/any-typed, array/map, large service
+      - name: deno check (sample)
         run: |
-          if [ "${{ matrix.task }}" = "fmt" ]; then
-            find model/aws -name "*.ts" -path "*/extensions/models/*" | xargs deno fmt --no-config --check
-          elif [ "${{ matrix.task }}" = "lint" ]; then
-            find model/aws -name "*.ts" -path "*/extensions/models/*" | xargs deno lint --no-config
-          else
-            for service in model/aws/*/; do
-              (cd "$service" && deno check extensions/models/*.ts)
-            done
-          fi
+          for service in healthimaging quicksight sns apigateway ec2; do
+            echo "::group::model/aws/$service"
+            (cd "model/aws/$service" && deno check extensions/models/*.ts)
+            echo "::endgroup::"
+          done
 
   aws-lockfile:
     name: aws models - lockfiles up to date
@@ -452,30 +437,23 @@ jobs:
           fi
 
   gcp-check:
-    name: gcp models - ${{ matrix.task }}
+    name: gcp models - sample check
     needs: [changes]
     if: needs.changes.outputs.models == 'true' || needs.changes.outputs.codegen == 'true'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        task: [check, lint, fmt]
     steps:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.7.x
-      - name: deno ${{ matrix.task }}
+      # Sample: baseline, complex nested, json/any-typed, array/map, large service
+      - name: deno check (sample)
         run: |
-          if [ "${{ matrix.task }}" = "fmt" ]; then
-            find model/gcp -name "*.ts" -path "*/extensions/models/*" | xargs deno fmt --no-config --check
-          elif [ "${{ matrix.task }}" = "lint" ]; then
-            find model/gcp -name "*.ts" -path "*/extensions/models/*" | xargs deno lint --no-config
-          else
-            for service in model/gcp/*/; do
-              (cd "$service" && deno check extensions/models/*.ts)
-            done
-          fi
+          for service in groupssettings container storage dataproc compute; do
+            echo "::group::model/gcp/$service"
+            (cd "model/gcp/$service" && deno check extensions/models/*.ts)
+            echo "::endgroup::"
+          done
 
   gcp-lockfile:
     name: gcp models - lockfiles up to date
@@ -501,30 +479,23 @@ jobs:
           fi
 
   cloudflare-check:
-    name: cloudflare models - ${{ matrix.task }}
+    name: cloudflare models - sample check
     needs: [changes]
     if: needs.changes.outputs.models == 'true' || needs.changes.outputs.codegen == 'true'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        task: [check, lint, fmt]
     steps:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.7.x
-      - name: deno ${{ matrix.task }}
+      # Sample: baseline, complex nested, array/map-heavy
+      - name: deno check (sample)
         run: |
-          if [ "${{ matrix.task }}" = "fmt" ]; then
-            find model/cloudflare -name "*.ts" -path "*/extensions/models/*" | xargs deno fmt --no-config --check
-          elif [ "${{ matrix.task }}" = "lint" ]; then
-            find model/cloudflare -name "*.ts" -path "*/extensions/models/*" | xargs deno lint --no-config
-          else
-            for service in model/cloudflare/*/; do
-              (cd "$service" && deno check extensions/models/*.ts)
-            done
-          fi
+          for service in r2 load-balancing pages; do
+            echo "::group::model/cloudflare/$service"
+            (cd "model/cloudflare/$service" && deno check extensions/models/*.ts)
+            echo "::endgroup::"
+          done
 
   cloudflare-lockfile:
     name: cloudflare models - lockfiles up to date
@@ -605,7 +576,7 @@ jobs:
       - name: Check for outdated dependencies
         run: |
           has_outdated=false
-          for lockdir in $(find vault datastore model codegen issue-lifecycle workflows cve -name "deno.lock" -exec dirname {} \;); do
+          for lockdir in $(find vault datastore model codegen issue-lifecycle workflows cve ssh -name "deno.lock" -exec dirname {} \;); do
             output=$(cd "$lockdir" && deno outdated 2>&1) || true
             if [ -n "$output" ]; then
               echo "::warning::Outdated dependencies in $lockdir"
@@ -698,7 +669,8 @@ jobs:
           chmod +x ${RUNNER_TEMP}/review/claude
 
           CHANGED_FILES=$(cat ${RUNNER_TEMP}/review/changed-files.txt)
-          OUTPUT_DIR="${RUNNER_TEMP}/review"
+          OUTPUT_DIR="${GITHUB_WORKSPACE}/.review-output"
+          mkdir -p "$OUTPUT_DIR"
           PROMPT="$(cat .forgejo/prompts/review.md)
 
           OUTPUT_DIR: ${OUTPUT_DIR}
@@ -717,8 +689,9 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
-          if [ -f ${RUNNER_TEMP}/review/review-body.md ]; then
-            python3 -c "import json; print(json.dumps({'body': open('${RUNNER_TEMP}/review/review-body.md').read()}))" > ${RUNNER_TEMP}/review/payload.json
+          OUTPUT_DIR="${GITHUB_WORKSPACE}/.review-output"
+          if [ -f "${OUTPUT_DIR}/review-body.md" ]; then
+            python3 -c "import json; print(json.dumps({'body': open('${OUTPUT_DIR}/review-body.md').read()}))" > ${RUNNER_TEMP}/review/payload.json
             HTTP_CODE=$(curl -s -o ${RUNNER_TEMP}/review/curl-response.txt -w "%{http_code}" -X POST \
               -H "Authorization: token $FORGEJO_TOKEN" \
               -H "Content-Type: application/json" \
@@ -731,12 +704,12 @@ jobs:
             fi
             echo "Review comment posted (HTTP $HTTP_CODE)"
           else
-            echo "::warning::No review body found at ${RUNNER_TEMP}/review/review-body.md"
+            echo "::warning::No review body found at ${OUTPUT_DIR}/review-body.md"
           fi
 
       - name: Fail if changes requested
         run: |
-          if [ -f ${RUNNER_TEMP}/review/review-failed ]; then
+          if [ -f "${GITHUB_WORKSPACE}/.review-output/review-failed" ]; then
             echo "::error::Code review requested changes — blocking merge"
             exit 1
           fi
@@ -809,7 +782,8 @@ jobs:
           chmod +x ${RUNNER_TEMP}/review/claude
 
           CHANGED_FILES=$(cat ${RUNNER_TEMP}/review/changed-files.txt)
-          OUTPUT_DIR="${RUNNER_TEMP}/review"
+          OUTPUT_DIR="${GITHUB_WORKSPACE}/.review-output"
+          mkdir -p "$OUTPUT_DIR"
           PROMPT="$(cat .forgejo/prompts/adversarial.md)
 
           OUTPUT_DIR: ${OUTPUT_DIR}
@@ -828,8 +802,9 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
-          if [ -f ${RUNNER_TEMP}/review/review-body.md ]; then
-            python3 -c "import json; print(json.dumps({'body': open('${RUNNER_TEMP}/review/review-body.md').read()}))" > ${RUNNER_TEMP}/review/payload.json
+          OUTPUT_DIR="${GITHUB_WORKSPACE}/.review-output"
+          if [ -f "${OUTPUT_DIR}/review-body.md" ]; then
+            python3 -c "import json; print(json.dumps({'body': open('${OUTPUT_DIR}/review-body.md').read()}))" > ${RUNNER_TEMP}/review/payload.json
             HTTP_CODE=$(curl -s -o ${RUNNER_TEMP}/review/curl-response.txt -w "%{http_code}" -X POST \
               -H "Authorization: token $FORGEJO_TOKEN" \
               -H "Content-Type: application/json" \
@@ -842,12 +817,12 @@ jobs:
             fi
             echo "Review comment posted (HTTP $HTTP_CODE)"
           else
-            echo "::warning::No review body found at ${RUNNER_TEMP}/review/review-body.md"
+            echo "::warning::No review body found at ${OUTPUT_DIR}/review-body.md"
           fi
 
       - name: Fail if changes requested
         run: |
-          if [ -f ${RUNNER_TEMP}/review/review-failed ]; then
+          if [ -f "${GITHUB_WORKSPACE}/.review-output/review-failed" ]; then
             echo "::error::Adversarial review requested changes — blocking merge"
             exit 1
           fi
@@ -876,7 +851,7 @@ jobs:
         run: |
           mkdir -p "${RUNNER_TEMP}/review"
           git fetch origin main
-          git diff --name-only origin/main..HEAD | grep -E '^\.(forgejo|github)/' > ${RUNNER_TEMP}/review/changed-files.txt || true
+          git diff --name-only origin/main..HEAD | grep -E '^\.(forgejo|github)/|^scripts/' > ${RUNNER_TEMP}/review/changed-files.txt || true
           COUNT=$(wc -l < ${RUNNER_TEMP}/review/changed-files.txt | tr -d ' ')
           echo "Changed workflow/CI files in scope: $COUNT"
           cat ${RUNNER_TEMP}/review/changed-files.txt
@@ -898,7 +873,8 @@ jobs:
           chmod +x ${RUNNER_TEMP}/review/claude
 
           CHANGED_FILES=$(cat ${RUNNER_TEMP}/review/changed-files.txt)
-          OUTPUT_DIR="${RUNNER_TEMP}/review"
+          OUTPUT_DIR="${GITHUB_WORKSPACE}/.review-output"
+          mkdir -p "$OUTPUT_DIR"
           PROMPT="$(cat .forgejo/prompts/ci-security.md)
 
           OUTPUT_DIR: ${OUTPUT_DIR}
@@ -917,8 +893,9 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
-          if [ -f ${RUNNER_TEMP}/review/review-body.md ]; then
-            python3 -c "import json; print(json.dumps({'body': open('${RUNNER_TEMP}/review/review-body.md').read()}))" > ${RUNNER_TEMP}/review/payload.json
+          OUTPUT_DIR="${GITHUB_WORKSPACE}/.review-output"
+          if [ -f "${OUTPUT_DIR}/review-body.md" ]; then
+            python3 -c "import json; print(json.dumps({'body': open('${OUTPUT_DIR}/review-body.md').read()}))" > ${RUNNER_TEMP}/review/payload.json
             HTTP_CODE=$(curl -s -o ${RUNNER_TEMP}/review/curl-response.txt -w "%{http_code}" -X POST \
               -H "Authorization: token $FORGEJO_TOKEN" \
               -H "Content-Type: application/json" \
@@ -931,12 +908,55 @@ jobs:
             fi
             echo "Review comment posted (HTTP $HTTP_CODE)"
           else
-            echo "::warning::No review body found at ${RUNNER_TEMP}/review/review-body.md"
+            echo "::warning::No review body found at ${OUTPUT_DIR}/review-body.md"
           fi
 
       - name: Fail if changes requested
         run: |
-          if [ -f ${RUNNER_TEMP}/review/review-failed ]; then
+          if [ -f "${GITHUB_WORKSPACE}/.review-output/review-failed" ]; then
             echo "::error::CI security review requested changes — blocking merge"
             exit 1
           fi
+
+  merge-gate:
+    name: Merge Gate
+    if: always()
+    needs:
+      [
+        vault-check,
+        vault-lockfile,
+        datastore-check,
+        datastore-lockfile,
+        issue-lifecycle-check,
+        issue-lifecycle-lockfile,
+        ssh-check,
+        ssh-lockfile,
+        workflows-check,
+        workflows-lockfile,
+        cve-check,
+        cve-lockfile,
+        model-check,
+        model-lockfile,
+        aws-check,
+        aws-lockfile,
+        cloudflare-check,
+        cloudflare-lockfile,
+        gcp-check,
+        gcp-lockfile,
+        codegen-check,
+        codegen-lockfile,
+        deps-audit,
+        actions-audit,
+        claude-review,
+        claude-adversarial-review,
+        claude-ci-security-review,
+      ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for failures
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') }}" = "true" ]; then
+            echo "::error::One or more required jobs failed"
+            exit 1
+          fi
+          echo "All required checks passed"

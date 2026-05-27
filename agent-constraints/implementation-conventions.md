@@ -97,7 +97,7 @@ deno install --frozen
 
 `datastore/` and `issue-lifecycle/` may also need `--allow-read
 --allow-write` on `deno test`; mirror the flags from the corresponding
-CI matrix job in `.github/workflows/ci.yml`.
+CI matrix job in `.forgejo/workflows/ci.yml`.
 
 ### Model directory (`model/hetzner-cloud`, `model/digitalocean`,
 `model/aws/<service>`, `model/gcp/<service>`)
@@ -192,7 +192,7 @@ After the PR is open, CI runs every job whose `paths-filter` matches:
 - `claude-adversarial-review` — adversarial pass across the dimensions
   in `agent-constraints/adversarial-dimensions.md`. **Blocks merge** on
   critical/high findings.
-- `claude-ci-security-review` — runs only when `.github/workflows/` or
+- `claude-ci-security-review` — runs only when `.forgejo/workflows/` or
   `scripts/` changed. **Blocks merge** on critical/high findings.
 
 A red CI blocks merge. Fix locally and push a new commit — do not

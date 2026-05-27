@@ -44,7 +44,7 @@ CI is a matrix fan-out keyed by `(extension × task)`. When a change adds a
 new extension or a new scope directory, every one of the following must be
 updated, or the change will be silently uncovered:
 
-- `.github/workflows/ci.yml`:
+- `.forgejo/workflows/ci.yml`:
   - `changes` job's `paths-filter` filters (must include the new path).
   - The matching matrix job's `matrix.<extension>` list (e.g.
     `vault: [1password, aws-sm, azure-kv, <new>]`).
@@ -52,9 +52,9 @@ updated, or the change will be silently uncovered:
   - The `claude-review` job's `needs:` list — missing here means the
     extension check passes but review is skipped.
   - The `claude-adversarial-review` job's `needs:` list — same risk.
-- `.github/workflows/publish.yml` — add the push step for the new
+- `.forgejo/workflows/publish.yml` — add the push step for the new
   extension.
-- `.github/workflows/regenerate-models.yml` — only for new codegen
+- `.forgejo/workflows/regenerate-models.yml` — only for new codegen
   providers.
 - `deps-audit` job's `find` expression in `ci.yml` (around line 508) —
   uses a space-separated directory list. Missing here means `deno
