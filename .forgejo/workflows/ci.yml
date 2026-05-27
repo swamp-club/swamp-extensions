@@ -35,10 +35,11 @@ jobs:
 
       - name: Check for changes
         id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          BASE_SHA=${{ github.event.pull_request.base.sha }}
-          HEAD_SHA=${{ github.event.pull_request.head.sha }}
-          CHANGED=$(git diff --name-only ${BASE_SHA}...${HEAD_SHA})
+          CHANGED=$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}")
 
           check_path() {
             local name=$1
@@ -670,18 +671,44 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Compute changed files
+        id: changed
+        run: |
+          mkdir -p "${RUNNER_TEMP}/review"
+          git fetch origin main
+          git diff --name-only origin/main..HEAD | grep -v '^model/' > ${RUNNER_TEMP}/review/changed-files.txt || true
+          COUNT=$(wc -l < ${RUNNER_TEMP}/review/changed-files.txt | tr -d ' ')
+          echo "Changed files in scope: $COUNT"
+          cat ${RUNNER_TEMP}/review/changed-files.txt
+          if [ "$COUNT" -eq 0 ]; then
+            echo "has_files=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_files=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Claude Code Review
+        if: steps.changed.outputs.has_files == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           CLAUDE_VERSION="2.1.150"
           CLAUDE_CHECKSUM="6c086a0f5fbf684d4148bb69629268b4f5109498c1a7be757acf18c51fd04f4b"
-          curl -fsSL -o /tmp/claude "https://downloads.claude.ai/claude-code-releases/${CLAUDE_VERSION}/linux-x64/claude"
-          echo "${CLAUDE_CHECKSUM}  /tmp/claude" | sha256sum -c -
-          chmod +x /tmp/claude
-          /tmp/claude -p "$(cat .forgejo/prompts/review.md)" \
+          curl -fsSL -o ${RUNNER_TEMP}/review/claude "https://downloads.claude.ai/claude-code-releases/${CLAUDE_VERSION}/linux-x64/claude"
+          echo "${CLAUDE_CHECKSUM}  ${RUNNER_TEMP}/review/claude" | sha256sum -c -
+          chmod +x ${RUNNER_TEMP}/review/claude
+
+          CHANGED_FILES=$(cat ${RUNNER_TEMP}/review/changed-files.txt)
+          OUTPUT_DIR="${RUNNER_TEMP}/review"
+          PROMPT="$(cat .forgejo/prompts/review.md)
+
+          OUTPUT_DIR: ${OUTPUT_DIR}
+
+          CHANGED FILES (this is the complete list — do NOT review any other files):
+          ${CHANGED_FILES}"
+
+          ${RUNNER_TEMP}/review/claude -p "$PROMPT" \
             --model claude-sonnet-4-6 \
-            --allowedTools "Read,Glob,Grep,Bash(git diff:*),Bash(git log:*),Bash(tee /tmp/review-body.md:*),Bash(touch /tmp/review-failed)"
+            --allowedTools "Read,Grep,Bash(git diff:*),Bash(git log:*),Bash(tee ${OUTPUT_DIR}/review-body.md:*),Bash(touch ${OUTPUT_DIR}/review-failed)"
 
       - name: Post review comment
         if: always()
@@ -690,26 +717,26 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
-          if [ -f /tmp/review-body.md ]; then
-            python3 -c "import json; print(json.dumps({'body': open('/tmp/review-body.md').read()}))" > /tmp/review-payload.json
-            HTTP_CODE=$(curl -s -o /tmp/curl-response.txt -w "%{http_code}" -X POST \
+          if [ -f ${RUNNER_TEMP}/review/review-body.md ]; then
+            python3 -c "import json; print(json.dumps({'body': open('${RUNNER_TEMP}/review/review-body.md').read()}))" > ${RUNNER_TEMP}/review/payload.json
+            HTTP_CODE=$(curl -s -o ${RUNNER_TEMP}/review/curl-response.txt -w "%{http_code}" -X POST \
               -H "Authorization: token $FORGEJO_TOKEN" \
               -H "Content-Type: application/json" \
-              -d @/tmp/review-payload.json \
+              -d @${RUNNER_TEMP}/review/payload.json \
               "https://git.swamp-club.com/api/v1/repos/$REPO/issues/$PR_NUMBER/comments")
             if [ "$HTTP_CODE" -ge 400 ]; then
               echo "::error::Failed to post review comment (HTTP $HTTP_CODE)"
-              cat /tmp/curl-response.txt
+              cat ${RUNNER_TEMP}/review/curl-response.txt
               exit 1
             fi
             echo "Review comment posted (HTTP $HTTP_CODE)"
           else
-            echo "::warning::No review body found at /tmp/review-body.md"
+            echo "::warning::No review body found at ${RUNNER_TEMP}/review/review-body.md"
           fi
 
       - name: Fail if changes requested
         run: |
-          if [ -f /tmp/review-failed ]; then
+          if [ -f ${RUNNER_TEMP}/review/review-failed ]; then
             echo "::error::Code review requested changes — blocking merge"
             exit 1
           fi
@@ -755,18 +782,44 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Compute changed files
+        id: changed
+        run: |
+          mkdir -p "${RUNNER_TEMP}/review"
+          git fetch origin main
+          git diff --name-only origin/main..HEAD | grep -v '^model/' > ${RUNNER_TEMP}/review/changed-files.txt || true
+          COUNT=$(wc -l < ${RUNNER_TEMP}/review/changed-files.txt | tr -d ' ')
+          echo "Changed files in scope: $COUNT"
+          cat ${RUNNER_TEMP}/review/changed-files.txt
+          if [ "$COUNT" -eq 0 ]; then
+            echo "has_files=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_files=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Adversarial Code Review
+        if: steps.changed.outputs.has_files == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           CLAUDE_VERSION="2.1.150"
           CLAUDE_CHECKSUM="6c086a0f5fbf684d4148bb69629268b4f5109498c1a7be757acf18c51fd04f4b"
-          curl -fsSL -o /tmp/claude "https://downloads.claude.ai/claude-code-releases/${CLAUDE_VERSION}/linux-x64/claude"
-          echo "${CLAUDE_CHECKSUM}  /tmp/claude" | sha256sum -c -
-          chmod +x /tmp/claude
-          /tmp/claude -p "$(cat .forgejo/prompts/adversarial.md)" \
+          curl -fsSL -o ${RUNNER_TEMP}/review/claude "https://downloads.claude.ai/claude-code-releases/${CLAUDE_VERSION}/linux-x64/claude"
+          echo "${CLAUDE_CHECKSUM}  ${RUNNER_TEMP}/review/claude" | sha256sum -c -
+          chmod +x ${RUNNER_TEMP}/review/claude
+
+          CHANGED_FILES=$(cat ${RUNNER_TEMP}/review/changed-files.txt)
+          OUTPUT_DIR="${RUNNER_TEMP}/review"
+          PROMPT="$(cat .forgejo/prompts/adversarial.md)
+
+          OUTPUT_DIR: ${OUTPUT_DIR}
+
+          CHANGED FILES (this is the complete list — do NOT review any other files):
+          ${CHANGED_FILES}"
+
+          ${RUNNER_TEMP}/review/claude -p "$PROMPT" \
             --model claude-opus-4-6 \
-            --allowedTools "Read,Glob,Grep,Bash(git diff:*),Bash(git log:*),Bash(tee /tmp/review-body.md:*),Bash(touch /tmp/review-failed)"
+            --allowedTools "Read,Grep,Bash(git diff:*),Bash(git log:*),Bash(tee ${OUTPUT_DIR}/review-body.md:*),Bash(touch ${OUTPUT_DIR}/review-failed)"
 
       - name: Post review comment
         if: always()
@@ -775,26 +828,26 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
-          if [ -f /tmp/review-body.md ]; then
-            python3 -c "import json; print(json.dumps({'body': open('/tmp/review-body.md').read()}))" > /tmp/review-payload.json
-            HTTP_CODE=$(curl -s -o /tmp/curl-response.txt -w "%{http_code}" -X POST \
+          if [ -f ${RUNNER_TEMP}/review/review-body.md ]; then
+            python3 -c "import json; print(json.dumps({'body': open('${RUNNER_TEMP}/review/review-body.md').read()}))" > ${RUNNER_TEMP}/review/payload.json
+            HTTP_CODE=$(curl -s -o ${RUNNER_TEMP}/review/curl-response.txt -w "%{http_code}" -X POST \
               -H "Authorization: token $FORGEJO_TOKEN" \
               -H "Content-Type: application/json" \
-              -d @/tmp/review-payload.json \
+              -d @${RUNNER_TEMP}/review/payload.json \
               "https://git.swamp-club.com/api/v1/repos/$REPO/issues/$PR_NUMBER/comments")
             if [ "$HTTP_CODE" -ge 400 ]; then
               echo "::error::Failed to post review comment (HTTP $HTTP_CODE)"
-              cat /tmp/curl-response.txt
+              cat ${RUNNER_TEMP}/review/curl-response.txt
               exit 1
             fi
             echo "Review comment posted (HTTP $HTTP_CODE)"
           else
-            echo "::warning::No review body found at /tmp/review-body.md"
+            echo "::warning::No review body found at ${RUNNER_TEMP}/review/review-body.md"
           fi
 
       - name: Fail if changes requested
         run: |
-          if [ -f /tmp/review-failed ]; then
+          if [ -f ${RUNNER_TEMP}/review/review-failed ]; then
             echo "::error::Adversarial review requested changes — blocking merge"
             exit 1
           fi
@@ -818,18 +871,44 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Compute changed files
+        id: changed
+        run: |
+          mkdir -p "${RUNNER_TEMP}/review"
+          git fetch origin main
+          git diff --name-only origin/main..HEAD | grep -E '^\.(forgejo|github)/' > ${RUNNER_TEMP}/review/changed-files.txt || true
+          COUNT=$(wc -l < ${RUNNER_TEMP}/review/changed-files.txt | tr -d ' ')
+          echo "Changed workflow/CI files in scope: $COUNT"
+          cat ${RUNNER_TEMP}/review/changed-files.txt
+          if [ "$COUNT" -eq 0 ]; then
+            echo "has_files=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_files=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: CI Security Review
+        if: steps.changed.outputs.has_files == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           CLAUDE_VERSION="2.1.150"
           CLAUDE_CHECKSUM="6c086a0f5fbf684d4148bb69629268b4f5109498c1a7be757acf18c51fd04f4b"
-          curl -fsSL -o /tmp/claude "https://downloads.claude.ai/claude-code-releases/${CLAUDE_VERSION}/linux-x64/claude"
-          echo "${CLAUDE_CHECKSUM}  /tmp/claude" | sha256sum -c -
-          chmod +x /tmp/claude
-          /tmp/claude -p "$(cat .forgejo/prompts/ci-security.md)" \
+          curl -fsSL -o ${RUNNER_TEMP}/review/claude "https://downloads.claude.ai/claude-code-releases/${CLAUDE_VERSION}/linux-x64/claude"
+          echo "${CLAUDE_CHECKSUM}  ${RUNNER_TEMP}/review/claude" | sha256sum -c -
+          chmod +x ${RUNNER_TEMP}/review/claude
+
+          CHANGED_FILES=$(cat ${RUNNER_TEMP}/review/changed-files.txt)
+          OUTPUT_DIR="${RUNNER_TEMP}/review"
+          PROMPT="$(cat .forgejo/prompts/ci-security.md)
+
+          OUTPUT_DIR: ${OUTPUT_DIR}
+
+          CHANGED FILES (this is the complete list — do NOT review any other files):
+          ${CHANGED_FILES}"
+
+          ${RUNNER_TEMP}/review/claude -p "$PROMPT" \
             --model claude-opus-4-6 \
-            --allowedTools "Read,Glob,Grep,Bash(git diff:*),Bash(git log:*),Bash(tee /tmp/review-body.md:*),Bash(touch /tmp/review-failed)"
+            --allowedTools "Read,Grep,Bash(git diff:*),Bash(git log:*),Bash(tee ${OUTPUT_DIR}/review-body.md:*),Bash(touch ${OUTPUT_DIR}/review-failed)"
 
       - name: Post review comment
         if: always()
@@ -838,26 +917,26 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
-          if [ -f /tmp/review-body.md ]; then
-            python3 -c "import json; print(json.dumps({'body': open('/tmp/review-body.md').read()}))" > /tmp/review-payload.json
-            HTTP_CODE=$(curl -s -o /tmp/curl-response.txt -w "%{http_code}" -X POST \
+          if [ -f ${RUNNER_TEMP}/review/review-body.md ]; then
+            python3 -c "import json; print(json.dumps({'body': open('${RUNNER_TEMP}/review/review-body.md').read()}))" > ${RUNNER_TEMP}/review/payload.json
+            HTTP_CODE=$(curl -s -o ${RUNNER_TEMP}/review/curl-response.txt -w "%{http_code}" -X POST \
               -H "Authorization: token $FORGEJO_TOKEN" \
               -H "Content-Type: application/json" \
-              -d @/tmp/review-payload.json \
+              -d @${RUNNER_TEMP}/review/payload.json \
               "https://git.swamp-club.com/api/v1/repos/$REPO/issues/$PR_NUMBER/comments")
             if [ "$HTTP_CODE" -ge 400 ]; then
               echo "::error::Failed to post review comment (HTTP $HTTP_CODE)"
-              cat /tmp/curl-response.txt
+              cat ${RUNNER_TEMP}/review/curl-response.txt
               exit 1
             fi
             echo "Review comment posted (HTTP $HTTP_CODE)"
           else
-            echo "::warning::No review body found at /tmp/review-body.md"
+            echo "::warning::No review body found at ${RUNNER_TEMP}/review/review-body.md"
           fi
 
       - name: Fail if changes requested
         run: |
-          if [ -f /tmp/review-failed ]; then
+          if [ -f ${RUNNER_TEMP}/review/review-failed ]; then
             echo "::error::CI security review requested changes — blocking merge"
             exit 1
           fi

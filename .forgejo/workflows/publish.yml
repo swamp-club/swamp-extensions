@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 defaults:
   run:
     shell: bash
@@ -23,25 +26,25 @@ jobs:
       - id: changes
         name: Find changed manifests and chunk for publishing
         run: |
-          EXTENSIONS="[]"
-
+          DIRS=""
           for manifest in $(git diff --name-only --diff-filter=d HEAD~1 HEAD -- '*/manifest.yaml'); do
             dir=$(dirname "$manifest")
-            EXTENSIONS=$(echo "$EXTENSIONS" | jq -c --arg d "$dir" '. + [$d]')
+            DIRS="${DIRS}${dir}"$'\n'
             echo "Changed: ${dir}"
           done
 
-          COUNT=$(echo "$EXTENSIONS" | jq 'length')
-          echo "Total changed extensions: $COUNT"
-
-          if [ "$COUNT" -eq 0 ]; then
-            echo "chunks=[]" >> "$GITHUB_OUTPUT"
-          else
-            CHUNKS=$(echo "$EXTENSIONS" | jq -c '[range(0; length; 50) as $i | .[$i:$i+50]]')
-            CHUNK_COUNT=$(echo "$CHUNKS" | jq 'length')
-            echo "Chunks: $CHUNK_COUNT (up to 50 extensions each)"
-            echo "chunks=$CHUNKS" >> "$GITHUB_OUTPUT"
-          fi
+          CHUNKS=$(echo "$DIRS" | python3 -c "
+          import sys, json
+          dirs = [l.strip() for l in sys.stdin if l.strip()]
+          print(f'Total changed extensions: {len(dirs)}', file=sys.stderr)
+          if not dirs:
+              print('[]')
+          else:
+              chunks = [dirs[i:i+50] for i in range(0, len(dirs), 50)]
+              print(f'Chunks: {len(chunks)} (up to 50 extensions each)', file=sys.stderr)
+              print(json.dumps(chunks))
+          ")
+          echo "chunks=$CHUNKS" >> "$GITHUB_OUTPUT"
 
   publish:
     name: Publish chunk ${{ strategy.job-index }}
@@ -63,18 +66,19 @@ jobs:
         env:
           CHUNK: ${{ toJson(matrix.chunk) }}
         run: |
-          TOTAL=$(echo "$CHUNK" | jq 'length')
+          readarray -t DIRS < <(echo "$CHUNK" | python3 -c "import sys,json; [print(d) for d in json.load(sys.stdin)]")
+          TOTAL=${#DIRS[@]}
           PUBLISHED=0
           SKIPPED=0
           FAILED=0
           SUMMARY=""
 
-          for dir in $(echo "$CHUNK" | jq -r '.[]'); do
+          for dir in "${DIRS[@]}"; do
             cd "$GITHUB_WORKSPACE/$dir"
 
             NAME=$(grep '^name:' manifest.yaml | sed 's/name: *"\(.*\)"/\1/')
             LOCAL=$(grep '^version:' manifest.yaml | sed 's/version: *"\(.*\)"/\1/')
-            UPSTREAM=$(swamp extension version "$NAME" --json 2>/dev/null | jq -r '.currentPublished // empty' || true)
+            UPSTREAM=$(swamp extension version "$NAME" --json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('currentPublished',''))" 2>/dev/null || true)
 
             if [ "$LOCAL" = "$UPSTREAM" ]; then
               echo "skip: $NAME ($LOCAL) already published"

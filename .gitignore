@@ -6,6 +6,9 @@ codegen/schemas/gcp/
 .claude/worktrees/
 .claude/skills/swamp-*
 
+# CI review artifacts (written by Claude review jobs)
+.review/
+
 .swamp.yaml
 /models/
 /workflows/workflow-*

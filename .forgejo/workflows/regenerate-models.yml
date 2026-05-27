@@ -174,7 +174,7 @@ jobs:
           EXISTING_PR=$(curl -sf \
             -H "Authorization: token $BOT_TOKEN" \
             "$API/repos/$REPO/pulls?state=open&head=$BRANCH" | \
-            jq -r '.[0].number // empty')
+            python3 -c "import sys,json; prs=json.load(sys.stdin); print(prs[0]['number'] if prs else '')" 2>/dev/null || true)
 
           if [ -n "$EXISTING_PR" ]; then
             echo "Updated existing PR #$EXISTING_PR"
@@ -199,11 +199,19 @@ jobs:
           BODY_EOF
           )
 
+            PR_TITLE="$TITLE" PR_BODY="$BODY" PR_HEAD="$BRANCH" python3 -c "
+          import json, os
+          print(json.dumps({
+            'title': os.environ['PR_TITLE'],
+            'body': os.environ['PR_BODY'],
+            'head': os.environ['PR_HEAD'],
+            'base': 'main'
+          }))" > /tmp/pr-payload.json
+
             curl -sf -X POST \
               -H "Authorization: token $BOT_TOKEN" \
               -H "Content-Type: application/json" \
-              -d "$(jq -n --arg title "$TITLE" --arg body "$BODY" --arg head "$BRANCH" --arg base "main" \
-                '{title: $title, body: $body, head: $head, base: $base}')" \
+              -d @/tmp/pr-payload.json \
               "$API/repos/$REPO/pulls"
 
             echo "Created new PR"
