@@ -468,12 +468,7 @@ export function generateGcpExtensionModel(
     // Idempotent create: pass list config for already-exists fallback
     if (hasIdempotentCreate && resource.methodConfigs.list) {
       const listConfig = resource.methodConfigs.list;
-      // Determine match field: prefer displayName for idempotency (human-facing
-      // unique identifier), fall back to naming field
-      const matchField = resource.insertProperties.has("displayName") &&
-          resource.domainProperties["displayName"]
-        ? "displayName"
-        : namingField;
+      const matchField = resolveGcpMatchField(resource, namingField);
 
       // Build list params from parameterOrder + parent if it's a list parameter
       const listParamParts: string[] = [];
@@ -1432,4 +1427,28 @@ export function resolveGcpNamingField(
 
   // Synthetic name
   return { field: "name", synthetic: true };
+}
+
+/**
+ * Select the best field for idempotent create matching.
+ *
+ * Cascade: displayName → shortName → namingField.
+ */
+export function resolveGcpMatchField(
+  resource: GcpParsedResource,
+  namingField: string,
+): string {
+  if (
+    resource.insertProperties.has("displayName") &&
+    resource.domainProperties["displayName"]
+  ) {
+    return "displayName";
+  }
+  if (
+    resource.insertProperties.has("shortName") &&
+    resource.domainProperties["shortName"]
+  ) {
+    return "shortName";
+  }
+  return namingField;
 }

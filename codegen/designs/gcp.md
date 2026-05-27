@@ -584,10 +584,14 @@ interface IdempotencyConfig {
 
 ### Match field selection
 
-The generator selects the match field based on the resource's naming pattern:
+The generator selects the match field via `resolveGcpMatchField()`, a cascade
+that picks the best user-facing unique identifier:
 
 - If `displayName` exists in `insertProperties`: match by `displayName` (covers
   folders, projects, and other resources where `name` is auto-generated)
+- If `shortName` exists in `insertProperties`: match by `shortName` (covers
+  tagKeys, tagValues, and firewall/security policies where `name` is
+  auto-generated or not part of the insert body)
 - Otherwise: match by the resource's naming field
 
 ### List params

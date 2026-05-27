@@ -927,7 +927,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine FirewallPolicies. Registered at `@swamp/gcp/compute/firewallpolicies`. */
 export const model = {
   type: "@swamp/gcp/compute/firewallpolicies",
-  version: "2026.05.26.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1039,6 +1039,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.27.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1089,8 +1094,8 @@ export const model = {
           {
             listConfig: LIST_CONFIG,
             listParams: {},
-            matchField: "name",
-            matchValue: String(g["name"] ?? ""),
+            matchField: "shortName",
+            matchValue: String(g["shortName"] ?? ""),
           },
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(

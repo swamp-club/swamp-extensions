@@ -3,6 +3,7 @@ import { assertEquals } from "@std/assert";
 import {
   type GcpExtensionModelInput,
   generateGcpExtensionModel,
+  resolveGcpMatchField,
   resolveGcpNamingField,
 } from "./extensionModelGenerator.ts";
 import type { GcpMethodConfig, GcpParsedResource } from "./pipeline.ts";
@@ -118,6 +119,59 @@ Deno.test("resolveGcpNamingField - fallback to name when primary is something el
   });
   const result = resolveGcpNamingField(resource);
   assertEquals(result, { field: "name", synthetic: false });
+});
+
+// ---------------------------------------------------------------------------
+// resolveGcpMatchField unit tests
+// ---------------------------------------------------------------------------
+
+Deno.test("resolveGcpMatchField - prefers displayName when in insertProperties", () => {
+  const resource = makeResource({
+    resourcePath: ["folders"],
+    insertProperties: new Set(["displayName", "parent"]),
+    domainProperties: {
+      displayName: { type: "string" },
+      parent: { type: "string" },
+    },
+  });
+  assertEquals(resolveGcpMatchField(resource, "name"), "displayName");
+});
+
+Deno.test("resolveGcpMatchField - prefers shortName when displayName absent", () => {
+  const resource = makeResource({
+    resourcePath: ["tagKeys"],
+    insertProperties: new Set(["shortName", "parent"]),
+    domainProperties: {
+      name: { type: "string" },
+      shortName: { type: "string" },
+      parent: { type: "string" },
+    },
+  });
+  assertEquals(resolveGcpMatchField(resource, "name"), "shortName");
+});
+
+Deno.test("resolveGcpMatchField - displayName wins over shortName when both present", () => {
+  const resource = makeResource({
+    resourcePath: ["things"],
+    insertProperties: new Set(["displayName", "shortName"]),
+    domainProperties: {
+      displayName: { type: "string" },
+      shortName: { type: "string" },
+    },
+  });
+  assertEquals(resolveGcpMatchField(resource, "name"), "displayName");
+});
+
+Deno.test("resolveGcpMatchField - falls back to namingField when neither present", () => {
+  const resource = makeResource({
+    resourcePath: ["instances"],
+    insertProperties: new Set(["name", "zone"]),
+    domainProperties: {
+      name: { type: "string" },
+      zone: { type: "string" },
+    },
+  });
+  assertEquals(resolveGcpMatchField(resource, "name"), "name");
 });
 
 // ---------------------------------------------------------------------------

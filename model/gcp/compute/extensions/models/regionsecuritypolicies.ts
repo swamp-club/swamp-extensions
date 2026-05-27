@@ -981,7 +981,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine RegionSecurityPolicies. Registered at `@swamp/gcp/compute/regionsecuritypolicies`. */
 export const model = {
   type: "@swamp/gcp/compute/regionsecuritypolicies",
-  version: "2026.05.25.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1045,6 +1045,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1119,8 +1124,8 @@ export const model = {
               "project": projectId,
               "region": String(g["region"] ?? ""),
             },
-            matchField: "name",
-            matchValue: String(g["name"] ?? ""),
+            matchField: "shortName",
+            matchValue: String(g["shortName"] ?? ""),
           },
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
