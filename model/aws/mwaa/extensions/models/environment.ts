@@ -76,7 +76,7 @@ const GlobalArgsSchema = z.object({
   StartupScriptS3ObjectVersion: z.string().max(1024).describe(
     "Represents an version ID for an S3 object.",
   ).optional(),
-  AirflowConfigurationOptions: z.string().describe(
+  AirflowConfigurationOptions: z.record(z.string(), z.unknown()).describe(
     'Key/value pairs representing Airflow configuration variables. Keys are prefixed by their section: [core] dags_folder={AIRFLOW_HOME}/dags Would be represented as "core.dags_folder": "{AIRFLOW_HOME}/dags"',
   ).optional(),
   EnvironmentClass: z.string().min(1).max(1024).describe(
@@ -126,7 +126,9 @@ const GlobalArgsSchema = z.object({
   WeeklyMaintenanceWindowStart: z.string().max(9).regex(
     new RegExp("(MON|TUE|WED|THU|FRI|SAT|SUN):([01]\\d|2[0-3]):(00|30)"),
   ).describe("Start time for the weekly maintenance window.").optional(),
-  Tags: z.string().describe("A map of tags for the environment.").optional(),
+  Tags: z.record(z.string(), z.unknown()).describe(
+    "A map of tags for the environment.",
+  ).optional(),
   WebserverAccessMode: z.enum(["PRIVATE_ONLY", "PUBLIC_ONLY"]).describe(
     "Choice for mode of webserver access including over public internet or via private VPC endpoint.",
   ).optional(),
@@ -153,7 +155,7 @@ const StateSchema = z.object({
   RequirementsS3ObjectVersion: z.string().optional(),
   StartupScriptS3Path: z.string().optional(),
   StartupScriptS3ObjectVersion: z.string().optional(),
-  AirflowConfigurationOptions: z.string().optional(),
+  AirflowConfigurationOptions: z.record(z.string(), z.unknown()).optional(),
   EnvironmentClass: z.string().optional(),
   MaxWorkers: z.number().optional(),
   MinWorkers: z.number().optional(),
@@ -172,7 +174,7 @@ const StateSchema = z.object({
     TaskLogs: ModuleLoggingConfigurationSchema,
   }).optional(),
   WeeklyMaintenanceWindowStart: z.string().optional(),
-  Tags: z.string().optional(),
+  Tags: z.record(z.string(), z.unknown()).optional(),
   WebserverAccessMode: z.string().optional(),
   EndpointManagement: z.string().optional(),
   CeleryExecutorQueue: z.string().optional(),
@@ -232,7 +234,7 @@ const InputsSchema = z.object({
   StartupScriptS3ObjectVersion: z.string().max(1024).describe(
     "Represents an version ID for an S3 object.",
   ).optional(),
-  AirflowConfigurationOptions: z.string().describe(
+  AirflowConfigurationOptions: z.record(z.string(), z.unknown()).describe(
     'Key/value pairs representing Airflow configuration variables. Keys are prefixed by their section: [core] dags_folder={AIRFLOW_HOME}/dags Would be represented as "core.dags_folder": "{AIRFLOW_HOME}/dags"',
   ).optional(),
   EnvironmentClass: z.string().min(1).max(1024).describe(
@@ -282,7 +284,9 @@ const InputsSchema = z.object({
   WeeklyMaintenanceWindowStart: z.string().max(9).regex(
     new RegExp("(MON|TUE|WED|THU|FRI|SAT|SUN):([01]\\d|2[0-3]):(00|30)"),
   ).describe("Start time for the weekly maintenance window.").optional(),
-  Tags: z.string().describe("A map of tags for the environment.").optional(),
+  Tags: z.record(z.string(), z.unknown()).describe(
+    "A map of tags for the environment.",
+  ).optional(),
   WebserverAccessMode: z.enum(["PRIVATE_ONLY", "PUBLIC_ONLY"]).describe(
     "Choice for mode of webserver access including over public internet or via private VPC endpoint.",
   ).optional(),
@@ -297,7 +301,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for MWAA Environment. Registered at `@swamp/aws/mwaa/environment`. */
 export const model = {
   type: "@swamp/aws/mwaa/environment",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -321,6 +325,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

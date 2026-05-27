@@ -250,7 +250,7 @@ const RuleSchema = z.object({
     DmarcExpression: RuleDmarcExpressionSchema.optional(),
   })).optional(),
   Actions: z.array(z.object({
-    Drop: z.string().optional(),
+    Drop: z.record(z.string(), z.unknown()).optional(),
     Relay: RelayActionSchema.optional(),
     Archive: ArchiveActionSchema.optional(),
     WriteToS3: S3ActionSchema.optional(),
@@ -305,7 +305,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SES MailManagerRuleSet. Registered at `@swamp/aws/ses/mail-manager-rule-set`. */
 export const model = {
   type: "@swamp/aws/ses/mail-manager-rule-set",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -339,6 +339,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

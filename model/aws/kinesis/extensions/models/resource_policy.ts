@@ -27,14 +27,14 @@ const GlobalArgsSchema = z.object({
   ).describe(
     "The ARN of the AWS Kinesis resource to which the policy applies.",
   ),
-  ResourcePolicy: z.string().describe(
+  ResourcePolicy: z.record(z.string(), z.unknown()).describe(
     "A policy document containing permissions to add to the specified resource. In IAM, you must provide policy documents in JSON format. However, in CloudFormation you can provide the policy in JSON or YAML format because CloudFormation converts YAML to JSON before submitting it to IAM.",
   ),
 });
 
 const StateSchema = z.object({
   ResourceArn: z.string(),
-  ResourcePolicy: z.string().optional(),
+  ResourcePolicy: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -44,7 +44,7 @@ const InputsSchema = z.object({
     new RegExp("arn:aws.*:kinesis:.*:\\d{12}:stream/\\S+"),
   ).describe("The ARN of the AWS Kinesis resource to which the policy applies.")
     .optional(),
-  ResourcePolicy: z.string().describe(
+  ResourcePolicy: z.record(z.string(), z.unknown()).describe(
     "A policy document containing permissions to add to the specified resource. In IAM, you must provide policy documents in JSON format. However, in CloudFormation you can provide the policy in JSON or YAML format because CloudFormation converts YAML to JSON before submitting it to IAM.",
   ).optional(),
 });
@@ -52,7 +52,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Kinesis ResourcePolicy. Registered at `@swamp/aws/kinesis/resource-policy`. */
 export const model = {
   type: "@swamp/aws/kinesis/resource-policy",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -76,6 +76,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

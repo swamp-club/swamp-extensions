@@ -29,7 +29,7 @@ const GlobalArgsSchema = z.object({
   ContentType: z.string().describe(
     'The content-type for the model, for example, "application/json".',
   ).optional(),
-  Schema: z.string().describe(
+  Schema: z.record(z.string(), z.unknown()).describe(
     "The schema for the model. For application/json models, this should be JSON schema draft 4 model.",
   ),
   ApiId: z.string().describe("The API identifier."),
@@ -40,7 +40,7 @@ const StateSchema = z.object({
   ModelId: z.string(),
   Description: z.string().optional(),
   ContentType: z.string().optional(),
-  Schema: z.string().optional(),
+  Schema: z.record(z.string(), z.unknown()).optional(),
   ApiId: z.string(),
   Name: z.string().optional(),
 }).passthrough();
@@ -53,7 +53,7 @@ const InputsSchema = z.object({
   ContentType: z.string().describe(
     'The content-type for the model, for example, "application/json".',
   ).optional(),
-  Schema: z.string().describe(
+  Schema: z.record(z.string(), z.unknown()).describe(
     "The schema for the model. For application/json models, this should be JSON schema draft 4 model.",
   ).optional(),
   ApiId: z.string().describe("The API identifier.").optional(),
@@ -63,7 +63,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ApiGatewayV2 Model. Registered at `@swamp/aws/apigatewayv2/model`. */
 export const model = {
   type: "@swamp/aws/apigatewayv2/model",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -87,6 +87,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

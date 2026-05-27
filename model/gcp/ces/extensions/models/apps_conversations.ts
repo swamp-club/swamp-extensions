@@ -163,7 +163,7 @@ const StateSchema = z.object({
     })),
     rootSpan: z.object({
       attributes: z.record(z.string(), z.unknown()),
-      childSpans: z.array(z.string()),
+      childSpans: z.array(z.record(z.string(), z.unknown())),
       duration: z.string(),
       endTime: z.string(),
       name: z.string(),
@@ -184,7 +184,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Conversations. Registered at `@swamp/gcp/ces/apps-conversations`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-conversations",
-  version: "2026.05.25.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -253,6 +253,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

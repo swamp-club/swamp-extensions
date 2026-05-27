@@ -398,10 +398,10 @@ Deno.test("generateZodSchemas - maxDepth truncates at specified depth", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 14. Unit test: JSON type — string for inputs, union for resource state
+// 14. Unit test: JSON type — record for inputs, union for resource state
 // ---------------------------------------------------------------------------
 
-Deno.test("generateZodSchemas - json type: string for inputs, union for resource state", () => {
+Deno.test("generateZodSchemas - json type: record for inputs, union for resource state", () => {
   const props: Record<string, CfProperty> = {
     PolicyDocument: { type: "json" } as unknown as CfProperty,
   };
@@ -416,9 +416,16 @@ Deno.test("generateZodSchemas - json type: string for inputs, union for resource
     makeOnlyProperties(),
   );
 
-  // Input schema keeps z.string() — users supply JSON as a string
-  assertEquals(result.inputSchemaBody.includes("z.string()"), true);
-  assertEquals(result.inputSchemaBody.includes("z.record"), false);
+  // Input schema uses z.record — CloudControl expects JSONObject, not String
+  assertEquals(
+    result.inputSchemaBody.includes("z.record(z.string(), z.unknown())"),
+    true,
+  );
+  // No bare z.string() — only z.string() inside z.record()
+  assertEquals(
+    result.inputSchemaBody.includes("PolicyDocument: z.string()"),
+    false,
+  );
 
   // Resource schema uses a union — AWS CloudControl returns parsed objects
   assertEquals(
@@ -429,5 +436,47 @@ Deno.test("generateZodSchemas - json type: string for inputs, union for resource
   );
 
   // No extracted schemas for a simple json property
+  assertEquals(result.extractedSchemas.length, 0);
+});
+
+// ---------------------------------------------------------------------------
+// 15. Unit test: bare object (no properties) — record for both schemas
+// ---------------------------------------------------------------------------
+
+Deno.test("generateZodSchemas - bare object with no properties emits z.record", () => {
+  const props: Record<string, CfProperty> = {
+    PolicyDocument: { type: "object" } as unknown as CfProperty,
+  };
+  const cfSchema = makeCfSchema({
+    properties: props,
+    required: ["PolicyDocument"],
+  });
+  const result = generateZodSchemas(
+    props,
+    props,
+    cfSchema,
+    makeOnlyProperties(),
+  );
+
+  // Input schema: bare object emits z.record, not bare z.string
+  assertEquals(
+    result.inputSchemaBody.includes("z.record(z.string(), z.unknown())"),
+    true,
+  );
+  assertEquals(
+    result.inputSchemaBody.includes("PolicyDocument: z.string()"),
+    false,
+  );
+
+  // Resource schema: bare object also emits z.record
+  assertEquals(
+    result.resourceSchemaBody.includes("z.record(z.string(), z.unknown())"),
+    true,
+  );
+  assertEquals(
+    result.resourceSchemaBody.includes("PolicyDocument: z.string()"),
+    false,
+  );
+
   assertEquals(result.extractedSchemas.length, 0);
 });

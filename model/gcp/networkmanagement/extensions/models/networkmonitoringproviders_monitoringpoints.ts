@@ -135,7 +135,14 @@ const InputsSchema = z.object({
 export const model = {
   type:
     "@swamp/gcp/networkmanagement/networkmonitoringproviders-monitoringpoints",
-  version: "2026.05.26.1",
+  version: "2026.05.27.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.27.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -296,6 +303,7 @@ export const model = {
               "ntpServerAddress": { "location": "query" },
               "ntpServerSecondaryAddress": { "location": "query" },
               "parent": { "location": "path", "required": true },
+              "privateConnectivityEnabled": { "location": "query" },
               "staticIpAddress.dnsServerAddress": { "location": "query" },
               "staticIpAddress.dnsServerSecondaryAddress": {
                 "location": "query",

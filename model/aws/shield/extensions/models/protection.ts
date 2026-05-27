@@ -43,7 +43,7 @@ const GlobalArgsSchema = z.object({
     "The Amazon Resource Names (ARNs) of the health check to associate with the protection.",
   ).optional(),
   ApplicationLayerAutomaticResponseConfiguration: z.object({
-    Action: z.string().describe(
+    Action: z.record(z.string(), z.unknown()).describe(
       "Specifies the action setting that Shield Advanced should use in the AWS WAF rules that it creates on behalf of the protected resource in response to DDoS attacks. You specify this as part of the configuration for the automatic application layer DDoS mitigation feature, when you enable or update automatic mitigation. Shield Advanced creates the AWS WAF rules in a Shield Advanced-managed rule group, inside the web ACL that you have associated with the resource.",
     ),
     Status: z.enum(["ENABLED", "DISABLED"]).describe(
@@ -64,7 +64,7 @@ const StateSchema = z.object({
   ResourceArn: z.string().optional(),
   HealthCheckArns: z.array(z.string()).optional(),
   ApplicationLayerAutomaticResponseConfiguration: z.object({
-    Action: z.string(),
+    Action: z.record(z.string(), z.unknown()),
     Status: z.string(),
   }).optional(),
   Tags: z.array(TagSchema).optional(),
@@ -83,7 +83,7 @@ const InputsSchema = z.object({
     "The Amazon Resource Names (ARNs) of the health check to associate with the protection.",
   ).optional(),
   ApplicationLayerAutomaticResponseConfiguration: z.object({
-    Action: z.string().describe(
+    Action: z.record(z.string(), z.unknown()).describe(
       "Specifies the action setting that Shield Advanced should use in the AWS WAF rules that it creates on behalf of the protected resource in response to DDoS attacks. You specify this as part of the configuration for the automatic application layer DDoS mitigation feature, when you enable or update automatic mitigation. Shield Advanced creates the AWS WAF rules in a Shield Advanced-managed rule group, inside the web ACL that you have associated with the resource.",
     ).optional(),
     Status: z.enum(["ENABLED", "DISABLED"]).describe(
@@ -100,7 +100,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Shield Protection. Registered at `@swamp/aws/shield/protection`. */
 export const model = {
   type: "@swamp/aws/shield/protection",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -124,6 +124,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

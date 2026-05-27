@@ -243,7 +243,7 @@ const GlobalArgsSchema = z.object({
       description: z.string().describe(
         "Optional. User friendly field description. Must be less than or equal to 1024 characters.",
       ).optional(),
-      fields: z.array(z.string()).describe(
+      fields: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. Any nested field for complex types.",
       ).optional(),
       mode: z.enum(["MODE_UNSPECIFIED", "REQUIRED", "NULLABLE", "REPEATED"])
@@ -363,7 +363,7 @@ const StateSchema = z.object({
   schema: z.object({
     fields: z.array(z.object({
       description: z.string(),
-      fields: z.array(z.string()),
+      fields: z.array(z.record(z.string(), z.unknown())),
       mode: z.string(),
       name: z.string(),
       type: z.string(),
@@ -493,7 +493,7 @@ const InputsSchema = z.object({
       description: z.string().describe(
         "Optional. User friendly field description. Must be less than or equal to 1024 characters.",
       ).optional(),
-      fields: z.array(z.string()).describe(
+      fields: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. Any nested field for complex types.",
       ).optional(),
       mode: z.enum(["MODE_UNSPECIFIED", "REQUIRED", "NULLABLE", "REPEATED"])
@@ -572,7 +572,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dataplex Lakes.Entities. Registered at `@swamp/gcp/dataplex/lakes-entities`. */
 export const model = {
   type: "@swamp/gcp/dataplex/lakes-entities",
-  version: "2026.05.25.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -636,6 +636,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

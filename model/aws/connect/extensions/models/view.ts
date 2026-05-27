@@ -53,7 +53,9 @@ const GlobalArgsSchema = z.object({
       "u",
     ),
   ).describe("The description of the view.").optional(),
-  Template: z.string().describe("The template of the view as JSON."),
+  Template: z.record(z.string(), z.unknown()).describe(
+    "The template of the view as JSON.",
+  ),
   Actions: z.array(
     z.string().min(1).max(255).regex(
       new RegExp(
@@ -71,7 +73,7 @@ const StateSchema = z.object({
   ViewId: z.string().optional(),
   Name: z.string().optional(),
   Description: z.string().optional(),
-  Template: z.string().optional(),
+  Template: z.record(z.string(), z.unknown()).optional(),
   Actions: z.array(z.string()).optional(),
   ViewContentSha256: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
@@ -98,7 +100,9 @@ const InputsSchema = z.object({
       "u",
     ),
   ).describe("The description of the view.").optional(),
-  Template: z.string().describe("The template of the view as JSON.").optional(),
+  Template: z.record(z.string(), z.unknown()).describe(
+    "The template of the view as JSON.",
+  ).optional(),
   Actions: z.array(
     z.string().min(1).max(255).regex(
       new RegExp(
@@ -113,7 +117,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Connect View. Registered at `@swamp/aws/connect/view`. */
 export const model = {
   type: "@swamp/aws/connect/view",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -137,6 +141,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

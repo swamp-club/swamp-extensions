@@ -103,7 +103,7 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe("The Pipeline Role (ARN) for the pipeline.").optional(),
   ResourcePolicy: z.object({
-    Policy: z.string(),
+    Policy: z.record(z.string(), z.unknown()),
   }).optional(),
 });
 
@@ -152,7 +152,7 @@ const StateSchema = z.object({
   PipelineRoleArn: z.string().optional(),
   IngestEndpointUrls: z.array(z.string()).optional(),
   ResourcePolicy: z.object({
-    Policy: z.string(),
+    Policy: z.record(z.string(), z.unknown()),
   }).optional(),
 }).passthrough();
 
@@ -230,14 +230,14 @@ const InputsSchema = z.object({
     ),
   ).describe("The Pipeline Role (ARN) for the pipeline.").optional(),
   ResourcePolicy: z.object({
-    Policy: z.string().optional(),
+    Policy: z.record(z.string(), z.unknown()).optional(),
   }).optional(),
 });
 
 /** Swamp extension model for OSIS Pipeline. Registered at `@swamp/aws/osis/pipeline`. */
 export const model = {
   type: "@swamp/aws/osis/pipeline",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -261,6 +261,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -32,7 +32,7 @@ const GlobalArgsSchema = z.object({
   ),
   Name: z.string().describe("Name of AllowList."),
   Description: z.string().describe("Description of AllowList.").optional(),
-  Criteria: z.string().describe("AllowList criteria."),
+  Criteria: z.record(z.string(), z.unknown()).describe("AllowList criteria."),
   Tags: z.array(TagSchema).describe(
     "A collection of tags associated with a resource",
   ).optional(),
@@ -41,7 +41,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Name: z.string().optional(),
   Description: z.string().optional(),
-  Criteria: z.string().optional(),
+  Criteria: z.record(z.string(), z.unknown()).optional(),
   Id: z.string(),
   Arn: z.string().optional(),
   Status: z.string().optional(),
@@ -54,7 +54,8 @@ const InputsSchema = z.object({
   name: z.string().optional(),
   Name: z.string().describe("Name of AllowList.").optional(),
   Description: z.string().describe("Description of AllowList.").optional(),
-  Criteria: z.string().describe("AllowList criteria.").optional(),
+  Criteria: z.record(z.string(), z.unknown()).describe("AllowList criteria.")
+    .optional(),
   Tags: z.array(TagSchema).describe(
     "A collection of tags associated with a resource",
   ).optional(),
@@ -63,7 +64,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Macie AllowList. Registered at `@swamp/aws/macie/allow-list`. */
 export const model = {
   type: "@swamp/aws/macie/allow-list",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -87,6 +88,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

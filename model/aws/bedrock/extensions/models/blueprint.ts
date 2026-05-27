@@ -36,7 +36,7 @@ const GlobalArgsSchema = z.object({
   BlueprintName: z.string().min(1).max(128).regex(
     new RegExp("^[a-zA-Z0-9-_]+$"),
   ).describe("Name of the Blueprint"),
-  Schema: z.string().describe("Schema of the blueprint"),
+  Schema: z.record(z.string(), z.unknown()).describe("Schema of the blueprint"),
   Type: z.enum(["DOCUMENT", "IMAGE", "AUDIO", "VIDEO"]).describe(
     "Modality Type",
   ),
@@ -53,7 +53,7 @@ const StateSchema = z.object({
   BlueprintName: z.string().optional(),
   CreationTime: z.string().optional(),
   LastModifiedTime: z.string().optional(),
-  Schema: z.string().optional(),
+  Schema: z.record(z.string(), z.unknown()).optional(),
   Type: z.string().optional(),
   BlueprintStage: z.string().optional(),
   KmsKeyId: z.string().optional(),
@@ -68,7 +68,8 @@ const InputsSchema = z.object({
   BlueprintName: z.string().min(1).max(128).regex(
     new RegExp("^[a-zA-Z0-9-_]+$"),
   ).describe("Name of the Blueprint").optional(),
-  Schema: z.string().describe("Schema of the blueprint").optional(),
+  Schema: z.record(z.string(), z.unknown()).describe("Schema of the blueprint")
+    .optional(),
   Type: z.enum(["DOCUMENT", "IMAGE", "AUDIO", "VIDEO"]).describe(
     "Modality Type",
   ).optional(),
@@ -83,7 +84,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Bedrock Blueprint. Registered at `@swamp/aws/bedrock/blueprint`. */
 export const model = {
   type: "@swamp/aws/bedrock/blueprint",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -107,6 +108,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

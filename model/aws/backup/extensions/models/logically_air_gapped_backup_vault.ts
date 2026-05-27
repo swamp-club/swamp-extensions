@@ -22,7 +22,7 @@ import {
 } from "./_lib/aws.ts";
 
 const GlobalArgsSchema = z.object({
-  AccessPolicy: z.string().optional(),
+  AccessPolicy: z.record(z.string(), z.unknown()).optional(),
   BackupVaultName: z.string().regex(new RegExp("^[a-zA-Z0-9\\-\\_]{2,50}$")),
   MinRetentionDays: z.number().int(),
   MaxRetentionDays: z.number().int(),
@@ -56,7 +56,7 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  AccessPolicy: z.string().optional(),
+  AccessPolicy: z.record(z.string(), z.unknown()).optional(),
   BackupVaultName: z.string().regex(new RegExp("^[a-zA-Z0-9\\-\\_]{2,50}$"))
     .optional(),
   MinRetentionDays: z.number().int().optional(),
@@ -73,7 +73,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Backup LogicallyAirGappedBackupVault. Registered at `@swamp/aws/backup/logically-air-gapped-backup-vault`. */
 export const model = {
   type: "@swamp/aws/backup/logically-air-gapped-backup-vault",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -102,6 +102,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

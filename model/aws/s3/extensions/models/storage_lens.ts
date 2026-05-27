@@ -143,7 +143,7 @@ const StorageLensTableDestinationSchema = z.object({
   IsEnabled: z.boolean().describe(
     "Specifies whether the export to S3 Tables is enabled or disabled.",
   ),
-  Encryption: z.string().describe(
+  Encryption: z.record(z.string(), z.unknown()).describe(
     "Configures the server-side encryption for Amazon S3 Storage Lens report files with either S3-managed keys (SSE-S3) or KMS-managed keys (SSE-KMS).",
   ).optional(),
 });
@@ -161,7 +161,7 @@ const S3BucketDestinationSchema = z.object({
   Prefix: z.string().describe(
     "The prefix to use for Amazon S3 Storage Lens export.",
   ).optional(),
-  Encryption: z.string().describe(
+  Encryption: z.record(z.string(), z.unknown()).describe(
     "Configures the server-side encryption for Amazon S3 Storage Lens report files with either S3-managed keys (SSE-S3) or KMS-managed keys (SSE-KMS).",
   ).optional(),
   Arn: z.string().describe(
@@ -301,7 +301,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for S3 StorageLens. Registered at `@swamp/aws/s3/storage-lens`. */
 export const model = {
   type: "@swamp/aws/s3/storage-lens",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -325,6 +325,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

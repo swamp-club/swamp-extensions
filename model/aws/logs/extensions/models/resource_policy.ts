@@ -25,7 +25,9 @@ const GlobalArgsSchema = z.object({
   PolicyName: z.string().min(1).max(255).regex(
     new RegExp("^([^:*\\/]+\\/?)*[^:*\\/]+$"),
   ).describe("A name for resource policy"),
-  PolicyDocument: z.string().describe("The policy document"),
+  PolicyDocument: z.record(z.string(), z.unknown()).describe(
+    "The policy document",
+  ),
 });
 
 const StateSchema = z.object({
@@ -40,13 +42,15 @@ const InputsSchema = z.object({
   PolicyName: z.string().min(1).max(255).regex(
     new RegExp("^([^:*\\/]+\\/?)*[^:*\\/]+$"),
   ).describe("A name for resource policy").optional(),
-  PolicyDocument: z.string().describe("The policy document").optional(),
+  PolicyDocument: z.record(z.string(), z.unknown()).describe(
+    "The policy document",
+  ).optional(),
 });
 
 /** Swamp extension model for Logs ResourcePolicy. Registered at `@swamp/aws/logs/resource-policy`. */
 export const model = {
   type: "@swamp/aws/logs/resource-policy",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -80,6 +84,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

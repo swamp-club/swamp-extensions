@@ -22,21 +22,21 @@ import {
 } from "./_lib/aws.ts";
 
 const GlobalArgsSchema = z.object({
-  PolicyDocument: z.string().describe(
+  PolicyDocument: z.record(z.string(), z.unknown()).describe(
     "A policy document that contains permissions to add to the specified SQS queue",
   ),
   Queue: z.string().describe("The URL of the SQS queue."),
 });
 
 const StateSchema = z.object({
-  PolicyDocument: z.string().optional(),
+  PolicyDocument: z.record(z.string(), z.unknown()).optional(),
   Queue: z.string(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  PolicyDocument: z.string().describe(
+  PolicyDocument: z.record(z.string(), z.unknown()).describe(
     "A policy document that contains permissions to add to the specified SQS queue",
   ).optional(),
   Queue: z.string().describe("The URL of the SQS queue.").optional(),
@@ -45,7 +45,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SQS QueueInlinePolicy. Registered at `@swamp/aws/sqs/queue-inline-policy`. */
 export const model = {
   type: "@swamp/aws/sqs/queue-inline-policy",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -69,6 +69,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -46,7 +46,7 @@ const ModuleConfigurationSchema = z.object({
   Name: z.string().regex(new RegExp("^[A-Za-z0-9 -]+$")),
   DependsOn: z.array(z.string().regex(new RegExp("^[A-Za-z0-9 -]+$")))
     .optional(),
-  ModuleParameters: z.string().optional(),
+  ModuleParameters: z.record(z.string(), z.unknown()).optional(),
 });
 
 const GlobalArgsSchema = z.object({
@@ -128,7 +128,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for RTBFabric Link. Registered at `@swamp/aws/rtbfabric/link`. */
 export const model = {
   type: "@swamp/aws/rtbfabric/link",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -157,6 +157,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

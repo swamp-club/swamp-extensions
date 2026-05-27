@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/mwaa"
-version: "2026.04.23.3"
+version: "2026.05.27.1"
 description: "AWS MWAA infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - mwaa
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: environment
 models:
   - environment.ts
 additionalFiles:

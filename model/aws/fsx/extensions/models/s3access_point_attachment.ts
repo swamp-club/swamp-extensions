@@ -113,7 +113,9 @@ const GlobalArgsSchema = z.object({
     VpcConfiguration: S3AccessPointVpcConfigurationSchema.describe(
       "The S3 access point's virtual private cloud (VPC) configuration.",
     ).optional(),
-    Policy: z.string().describe("The S3 access point's policy.").optional(),
+    Policy: z.record(z.string(), z.unknown()).describe(
+      "The S3 access point's policy.",
+    ).optional(),
   }).describe(
     "The S3 access point configuration of the S3 access point attachment.",
   ).optional(),
@@ -176,7 +178,9 @@ const InputsSchema = z.object({
     VpcConfiguration: S3AccessPointVpcConfigurationSchema.describe(
       "The S3 access point's virtual private cloud (VPC) configuration.",
     ).optional(),
-    Policy: z.string().describe("The S3 access point's policy.").optional(),
+    Policy: z.record(z.string(), z.unknown()).describe(
+      "The S3 access point's policy.",
+    ).optional(),
   }).describe(
     "The S3 access point configuration of the S3 access point attachment.",
   ).optional(),
@@ -185,7 +189,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for FSx S3AccessPointAttachment. Registered at `@swamp/aws/fsx/s3access-point-attachment`. */
 export const model = {
   type: "@swamp/aws/fsx/s3access-point-attachment",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -219,6 +223,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

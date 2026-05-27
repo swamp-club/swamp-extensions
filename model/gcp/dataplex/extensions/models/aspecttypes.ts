@@ -174,7 +174,7 @@ const GlobalArgsSchema = z.object({
         "Optional. Suggested hints for string fields. You can use them to suggest values to users through console.",
       ).optional(),
     }).describe("Definition of the annotations of a field.").optional(),
-    arrayItems: z.string().describe(
+    arrayItems: z.record(z.string(), z.unknown()).describe(
       "Circular reference to GoogleCloudDataplexV1AspectTypeMetadataTemplate",
     ).optional(),
     constraints: z.object({
@@ -198,11 +198,11 @@ const GlobalArgsSchema = z.object({
     index: z.number().int().describe(
       'Optional. Index is used to encode Template messages. The value of index can range between 1 and 2,147,483,647. Index must be unique within all fields in a Template. (Nested Templates can reuse indexes). Once a Template is defined, the index cannot be changed, because it identifies the field in the actual storage format. Index is a mandatory field, but it is optional for top level fields, and map/array "values" definitions.',
     ).optional(),
-    mapItems: z.string().describe(
+    mapItems: z.record(z.string(), z.unknown()).describe(
       "Circular reference to GoogleCloudDataplexV1AspectTypeMetadataTemplate",
     ).optional(),
     name: z.string().describe("Required. The name of the field.").optional(),
-    recordFields: z.array(z.string()).describe(
+    recordFields: z.array(z.record(z.string(), z.unknown())).describe(
       "Optional. Field definition. You must specify it if the type is record. It defines the nested fields.",
     ).optional(),
     type: z.string().describe(
@@ -241,7 +241,7 @@ const StateSchema = z.object({
       stringType: z.string(),
       stringValues: z.array(z.string()),
     }),
-    arrayItems: z.string(),
+    arrayItems: z.record(z.string(), z.unknown()),
     constraints: z.object({
       required: z.boolean(),
     }),
@@ -251,9 +251,9 @@ const StateSchema = z.object({
       name: z.string(),
     })),
     index: z.number(),
-    mapItems: z.string(),
+    mapItems: z.record(z.string(), z.unknown()),
     name: z.string(),
-    recordFields: z.array(z.string()),
+    recordFields: z.array(z.record(z.string(), z.unknown())),
     type: z.string(),
     typeId: z.string(),
     typeRef: z.string(),
@@ -304,7 +304,7 @@ const InputsSchema = z.object({
         "Optional. Suggested hints for string fields. You can use them to suggest values to users through console.",
       ).optional(),
     }).describe("Definition of the annotations of a field.").optional(),
-    arrayItems: z.string().describe(
+    arrayItems: z.record(z.string(), z.unknown()).describe(
       "Circular reference to GoogleCloudDataplexV1AspectTypeMetadataTemplate",
     ).optional(),
     constraints: z.object({
@@ -328,11 +328,11 @@ const InputsSchema = z.object({
     index: z.number().int().describe(
       'Optional. Index is used to encode Template messages. The value of index can range between 1 and 2,147,483,647. Index must be unique within all fields in a Template. (Nested Templates can reuse indexes). Once a Template is defined, the index cannot be changed, because it identifies the field in the actual storage format. Index is a mandatory field, but it is optional for top level fields, and map/array "values" definitions.',
     ).optional(),
-    mapItems: z.string().describe(
+    mapItems: z.record(z.string(), z.unknown()).describe(
       "Circular reference to GoogleCloudDataplexV1AspectTypeMetadataTemplate",
     ).optional(),
     name: z.string().describe("Required. The name of the field.").optional(),
-    recordFields: z.array(z.string()).describe(
+    recordFields: z.array(z.record(z.string(), z.unknown())).describe(
       "Optional. Field definition. You must specify it if the type is record. It defines the nested fields.",
     ).optional(),
     type: z.string().describe(
@@ -355,7 +355,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dataplex AspectTypes. Registered at `@swamp/gcp/dataplex/aspecttypes`. */
 export const model = {
   type: "@swamp/gcp/dataplex/aspecttypes",
-  version: "2026.05.25.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -419,6 +419,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

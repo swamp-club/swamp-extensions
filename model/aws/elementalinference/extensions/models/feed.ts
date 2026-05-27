@@ -32,7 +32,7 @@ const GetOutputSchema = z.object({
     new RegExp("^[a-zA-Z0-9]([a-zA-Z0-9-_]{0,126}[a-zA-Z0-9])?$"),
   ),
   OutputConfig: z.object({
-    Cropping: z.string().optional(),
+    Cropping: z.record(z.string(), z.unknown()).optional(),
     Clipping: ClippingConfigSchema.optional(),
   }),
   Status: z.enum(["ENABLED", "DISABLED"]),
@@ -74,7 +74,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ElementalInference Feed. Registered at `@swamp/aws/elementalinference/feed`. */
 export const model = {
   type: "@swamp/aws/elementalinference/feed",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -98,6 +98,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

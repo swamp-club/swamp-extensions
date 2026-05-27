@@ -70,7 +70,7 @@ const ToolSpecificationSchema = z.object({
     .describe("Tool name"),
   Description: z.string().min(1).optional(),
   InputSchema: z.object({
-    Json: z.string().optional(),
+    Json: z.record(z.string(), z.unknown()).optional(),
   }).describe("Tool input schema"),
 });
 
@@ -85,8 +85,10 @@ const ToolConfigurationSchema = z.object({
     CachePoint: CachePointBlockSchema.describe("CachePointBlock").optional(),
   })).describe("List of Tools"),
   ToolChoice: z.object({
-    Auto: z.string().describe("Auto Tool choice").optional(),
-    Any: z.string().describe("Any Tool choice").optional(),
+    Auto: z.record(z.string(), z.unknown()).describe("Auto Tool choice")
+      .optional(),
+    Any: z.record(z.string(), z.unknown()).describe("Any Tool choice")
+      .optional(),
     Tool: SpecificToolChoiceSchema.describe("Specific Tool choice").optional(),
   }).describe("Tool choice").optional(),
 });
@@ -166,7 +168,7 @@ const PromptVariantSchema = z.object({
       "Target Agent to invoke with Prompt",
     ).optional(),
   }).describe("Target resource to invoke with Prompt").optional(),
-  AdditionalModelRequestFields: z.string().describe(
+  AdditionalModelRequestFields: z.record(z.string(), z.unknown()).describe(
     "Contains model-specific configurations",
   ).optional(),
   Metadata: z.array(PromptMetadataEntrySchema).describe(
@@ -241,7 +243,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Bedrock Prompt. Registered at `@swamp/aws/bedrock/prompt`. */
 export const model = {
   type: "@swamp/aws/bedrock/prompt",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -265,6 +267,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

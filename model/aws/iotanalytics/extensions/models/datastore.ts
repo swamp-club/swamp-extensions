@@ -75,7 +75,7 @@ const TagSchema = z.object({
 
 const GlobalArgsSchema = z.object({
   DatastoreStorage: z.object({
-    ServiceManagedS3: z.string().optional(),
+    ServiceManagedS3: z.record(z.string(), z.unknown()).optional(),
     CustomerManagedS3: CustomerManagedS3Schema.optional(),
     IotSiteWiseMultiLayerStorage: IotSiteWiseMultiLayerStorageSchema.optional(),
   }).optional(),
@@ -85,7 +85,7 @@ const GlobalArgsSchema = z.object({
     Partitions: z.array(DatastorePartitionSchema).optional(),
   }).optional(),
   FileFormatConfiguration: z.object({
-    JsonConfiguration: z.string().optional(),
+    JsonConfiguration: z.record(z.string(), z.unknown()).optional(),
     ParquetConfiguration: ParquetConfigurationSchema.optional(),
   }).optional(),
   RetentionPeriod: z.object({
@@ -97,7 +97,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   DatastoreStorage: z.object({
-    ServiceManagedS3: z.string(),
+    ServiceManagedS3: z.record(z.string(), z.unknown()),
     CustomerManagedS3: CustomerManagedS3Schema,
     IotSiteWiseMultiLayerStorage: IotSiteWiseMultiLayerStorageSchema,
   }).optional(),
@@ -107,7 +107,7 @@ const StateSchema = z.object({
   }).optional(),
   Id: z.string().optional(),
   FileFormatConfiguration: z.object({
-    JsonConfiguration: z.string(),
+    JsonConfiguration: z.record(z.string(), z.unknown()),
     ParquetConfiguration: ParquetConfigurationSchema,
   }).optional(),
   RetentionPeriod: z.object({
@@ -121,7 +121,7 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   DatastoreStorage: z.object({
-    ServiceManagedS3: z.string().optional(),
+    ServiceManagedS3: z.record(z.string(), z.unknown()).optional(),
     CustomerManagedS3: CustomerManagedS3Schema.optional(),
     IotSiteWiseMultiLayerStorage: IotSiteWiseMultiLayerStorageSchema.optional(),
   }).optional(),
@@ -131,7 +131,7 @@ const InputsSchema = z.object({
     Partitions: z.array(DatastorePartitionSchema).optional(),
   }).optional(),
   FileFormatConfiguration: z.object({
-    JsonConfiguration: z.string().optional(),
+    JsonConfiguration: z.record(z.string(), z.unknown()).optional(),
     ParquetConfiguration: ParquetConfigurationSchema.optional(),
   }).optional(),
   RetentionPeriod: z.object({
@@ -144,7 +144,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for IoTAnalytics Datastore. Registered at `@swamp/aws/iotanalytics/datastore`. */
 export const model = {
   type: "@swamp/aws/iotanalytics/datastore",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -168,6 +168,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

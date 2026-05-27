@@ -22,7 +22,7 @@ import {
 } from "./_lib/aws.ts";
 
 const GlobalArgsSchema = z.object({
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     "A policy document containing permissions to add to the specified cluster.",
   ),
   ClusterArn: z.string().regex(
@@ -31,7 +31,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  Policy: z.string().optional(),
+  Policy: z.record(z.string(), z.unknown()).optional(),
   ClusterArn: z.string(),
   CurrentVersion: z.string().optional(),
 }).passthrough();
@@ -39,7 +39,7 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     "A policy document containing permissions to add to the specified cluster.",
   ).optional(),
   ClusterArn: z.string().regex(
@@ -50,7 +50,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for MSK ClusterPolicy. Registered at `@swamp/aws/msk/cluster-policy`. */
 export const model = {
   type: "@swamp/aws/msk/cluster-policy",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -74,6 +74,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

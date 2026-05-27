@@ -36,7 +36,7 @@ const GlobalArgsSchema = z.object({
   OriginEndpointName: z.string().min(1).max(256).regex(
     new RegExp("^[a-zA-Z0-9_-]+$"),
   ),
-  Policy: z.string(),
+  Policy: z.record(z.string(), z.unknown()),
 });
 
 const StateSchema = z.object({
@@ -66,13 +66,13 @@ const InputsSchema = z.object({
   OriginEndpointName: z.string().min(1).max(256).regex(
     new RegExp("^[a-zA-Z0-9_-]+$"),
   ).optional(),
-  Policy: z.string().optional(),
+  Policy: z.record(z.string(), z.unknown()).optional(),
 });
 
 /** Swamp extension model for MediaPackageV2 OriginEndpointPolicy. Registered at `@swamp/aws/mediapackagev2/origin-endpoint-policy`. */
 export const model = {
   type: "@swamp/aws/mediapackagev2/origin-endpoint-policy",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -101,6 +101,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

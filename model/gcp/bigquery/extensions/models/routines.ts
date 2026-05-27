@@ -168,10 +168,10 @@ const GlobalArgsSchema = z.object({
       "ANY_TYPE",
     ]).describe("Optional. Defaults to FIXED_TYPE.").optional(),
     dataType: z.object({
-      arrayElementType: z.string().describe(
+      arrayElementType: z.record(z.string(), z.unknown()).describe(
         "Circular reference to StandardSqlDataType",
       ).optional(),
-      rangeElementType: z.string().describe(
+      rangeElementType: z.record(z.string(), z.unknown()).describe(
         "Circular reference to StandardSqlDataType",
       ).optional(),
       structType: z.object({
@@ -324,10 +324,10 @@ const GlobalArgsSchema = z.object({
         "Optional. The name of this field. Can be absent for struct fields.",
       ).optional(),
       type: z.object({
-        arrayElementType: z.string().describe(
+        arrayElementType: z.record(z.string(), z.unknown()).describe(
           "Circular reference to StandardSqlDataType",
         ).optional(),
-        rangeElementType: z.string().describe(
+        rangeElementType: z.record(z.string(), z.unknown()).describe(
           "Circular reference to StandardSqlDataType",
         ).optional(),
         structType: z.object({
@@ -361,10 +361,10 @@ const GlobalArgsSchema = z.object({
     })).describe("The columns in this table type").optional(),
   }).describe("A table type").optional(),
   returnType: z.object({
-    arrayElementType: z.string().describe(
+    arrayElementType: z.record(z.string(), z.unknown()).describe(
       "Circular reference to StandardSqlDataType",
     ).optional(),
-    rangeElementType: z.string().describe(
+    rangeElementType: z.record(z.string(), z.unknown()).describe(
       "Circular reference to StandardSqlDataType",
     ).optional(),
     structType: z.object({
@@ -372,8 +372,9 @@ const GlobalArgsSchema = z.object({
         name: z.string().describe(
           "Optional. The name of this field. Can be absent for struct fields.",
         ).optional(),
-        type: z.string().describe("Circular reference to StandardSqlDataType")
-          .optional(),
+        type: z.record(z.string(), z.unknown()).describe(
+          "Circular reference to StandardSqlDataType",
+        ).optional(),
       })).describe("Fields within the struct.").optional(),
     }).describe("The representation of a SQL STRUCT type.").optional(),
     typeKind: z.enum([
@@ -465,8 +466,8 @@ const StateSchema = z.object({
   arguments: z.array(z.object({
     argumentKind: z.string(),
     dataType: z.object({
-      arrayElementType: z.string(),
-      rangeElementType: z.string(),
+      arrayElementType: z.record(z.string(), z.unknown()),
+      rangeElementType: z.record(z.string(), z.unknown()),
       structType: z.object({
         fields: z.array(z.unknown()),
       }),
@@ -519,8 +520,8 @@ const StateSchema = z.object({
     columns: z.array(z.object({
       name: z.string(),
       type: z.object({
-        arrayElementType: z.string(),
-        rangeElementType: z.string(),
+        arrayElementType: z.record(z.string(), z.unknown()),
+        rangeElementType: z.record(z.string(), z.unknown()),
         structType: z.object({
           fields: z.unknown(),
         }),
@@ -529,12 +530,12 @@ const StateSchema = z.object({
     })),
   }).optional(),
   returnType: z.object({
-    arrayElementType: z.string(),
-    rangeElementType: z.string(),
+    arrayElementType: z.record(z.string(), z.unknown()),
+    rangeElementType: z.record(z.string(), z.unknown()),
     structType: z.object({
       fields: z.array(z.object({
         name: z.string(),
-        type: z.string(),
+        type: z.record(z.string(), z.unknown()),
       })),
     }),
     typeKind: z.string(),
@@ -572,10 +573,10 @@ const InputsSchema = z.object({
       "ANY_TYPE",
     ]).describe("Optional. Defaults to FIXED_TYPE.").optional(),
     dataType: z.object({
-      arrayElementType: z.string().describe(
+      arrayElementType: z.record(z.string(), z.unknown()).describe(
         "Circular reference to StandardSqlDataType",
       ).optional(),
-      rangeElementType: z.string().describe(
+      rangeElementType: z.record(z.string(), z.unknown()).describe(
         "Circular reference to StandardSqlDataType",
       ).optional(),
       structType: z.object({
@@ -728,10 +729,10 @@ const InputsSchema = z.object({
         "Optional. The name of this field. Can be absent for struct fields.",
       ).optional(),
       type: z.object({
-        arrayElementType: z.string().describe(
+        arrayElementType: z.record(z.string(), z.unknown()).describe(
           "Circular reference to StandardSqlDataType",
         ).optional(),
-        rangeElementType: z.string().describe(
+        rangeElementType: z.record(z.string(), z.unknown()).describe(
           "Circular reference to StandardSqlDataType",
         ).optional(),
         structType: z.object({
@@ -765,10 +766,10 @@ const InputsSchema = z.object({
     })).describe("The columns in this table type").optional(),
   }).describe("A table type").optional(),
   returnType: z.object({
-    arrayElementType: z.string().describe(
+    arrayElementType: z.record(z.string(), z.unknown()).describe(
       "Circular reference to StandardSqlDataType",
     ).optional(),
-    rangeElementType: z.string().describe(
+    rangeElementType: z.record(z.string(), z.unknown()).describe(
       "Circular reference to StandardSqlDataType",
     ).optional(),
     structType: z.object({
@@ -776,8 +777,9 @@ const InputsSchema = z.object({
         name: z.string().describe(
           "Optional. The name of this field. Can be absent for struct fields.",
         ).optional(),
-        type: z.string().describe("Circular reference to StandardSqlDataType")
-          .optional(),
+        type: z.record(z.string(), z.unknown()).describe(
+          "Circular reference to StandardSqlDataType",
+        ).optional(),
       })).describe("Fields within the struct.").optional(),
     }).describe("The representation of a SQL STRUCT type.").optional(),
     typeKind: z.enum([
@@ -869,7 +871,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud BigQuery Routines. Registered at `@swamp/gcp/bigquery/routines`. */
 export const model = {
   type: "@swamp/gcp/bigquery/routines",
-  version: "2026.05.26.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -943,6 +945,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

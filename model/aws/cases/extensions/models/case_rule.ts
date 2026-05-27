@@ -37,7 +37,9 @@ const BooleanOperandsSchema = z.object({
     DoubleValue: z.number().describe(
       "A numeric value to compare against the field value in the condition evaluation.",
     ).optional(),
-    EmptyValue: z.string().describe("An empty operand value.").optional(),
+    EmptyValue: z.record(z.string(), z.unknown()).describe(
+      "An empty operand value.",
+    ).optional(),
   }).describe("The right hand operand in the condition."),
   Result: z.boolean().describe(
     "The value of the outer rule if the condition evaluates to true.",
@@ -159,7 +161,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cases CaseRule. Registered at `@swamp/aws/cases/case-rule`. */
 export const model = {
   type: "@swamp/aws/cases/case-rule",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -183,6 +185,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

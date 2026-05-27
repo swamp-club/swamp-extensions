@@ -63,7 +63,7 @@ const GlobalArgsSchema = z.object({
   FinalSnapshotRetentionPeriod: z.number().int().describe(
     "The number of days to retain automated snapshot in the destination region after they are copied from the source region. If the value is -1, the manual snapshot is retained indefinitely. The value must be either -1 or an integer between 1 and 3,653.",
   ).optional(),
-  NamespaceResourcePolicy: z.string().describe(
+  NamespaceResourcePolicy: z.record(z.string(), z.unknown()).describe(
     "The resource policy document that will be attached to the namespace.",
   ).optional(),
   RedshiftIdcApplicationArn: z.string().describe(
@@ -103,7 +103,7 @@ const StateSchema = z.object({
   Tags: z.array(TagSchema).optional(),
   FinalSnapshotName: z.string().optional(),
   FinalSnapshotRetentionPeriod: z.number().optional(),
-  NamespaceResourcePolicy: z.string().optional(),
+  NamespaceResourcePolicy: z.record(z.string(), z.unknown()).optional(),
   RedshiftIdcApplicationArn: z.string().optional(),
   SnapshotCopyConfigurations: z.array(SnapshotCopyConfigurationSchema)
     .optional(),
@@ -140,7 +140,7 @@ const InputsSchema = z.object({
   FinalSnapshotRetentionPeriod: z.number().int().describe(
     "The number of days to retain automated snapshot in the destination region after they are copied from the source region. If the value is -1, the manual snapshot is retained indefinitely. The value must be either -1 or an integer between 1 and 3,653.",
   ).optional(),
-  NamespaceResourcePolicy: z.string().describe(
+  NamespaceResourcePolicy: z.record(z.string(), z.unknown()).describe(
     "The resource policy document that will be attached to the namespace.",
   ).optional(),
   RedshiftIdcApplicationArn: z.string().describe(
@@ -154,7 +154,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for RedshiftServerless Namespace. Registered at `@swamp/aws/redshiftserverless/namespace`. */
 export const model = {
   type: "@swamp/aws/redshiftserverless/namespace",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -178,6 +178,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

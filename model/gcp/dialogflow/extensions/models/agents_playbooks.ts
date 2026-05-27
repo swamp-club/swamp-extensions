@@ -180,7 +180,7 @@ const GlobalArgsSchema = z.object({
     ]).optional(),
     typeSchema: z.object({
       inlineSchema: z.object({
-        items: z.string().describe(
+        items: z.record(z.string(), z.unknown()).describe(
           "Circular reference to GoogleCloudDialogflowCxV3TypeSchema",
         ).optional(),
         type: z.enum([
@@ -200,7 +200,7 @@ const GlobalArgsSchema = z.object({
   instruction: z.object({
     guidelines: z.string().optional(),
     steps: z.array(z.object({
-      steps: z.array(z.string()).optional(),
+      steps: z.array(z.record(z.string(), z.unknown())).optional(),
       text: z.string().optional(),
     })).optional(),
   }).optional(),
@@ -223,7 +223,7 @@ const GlobalArgsSchema = z.object({
     ]).optional(),
     typeSchema: z.object({
       inlineSchema: z.object({
-        items: z.string().describe(
+        items: z.record(z.string(), z.unknown()).describe(
           "Circular reference to GoogleCloudDialogflowCxV3TypeSchema",
         ).optional(),
         type: z.enum([
@@ -308,7 +308,7 @@ const StateSchema = z.object({
     type: z.string(),
     typeSchema: z.object({
       inlineSchema: z.object({
-        items: z.string(),
+        items: z.record(z.string(), z.unknown()),
         type: z.string(),
       }),
       schemaReference: z.object({
@@ -320,7 +320,7 @@ const StateSchema = z.object({
   instruction: z.object({
     guidelines: z.string(),
     steps: z.array(z.object({
-      steps: z.array(z.string()),
+      steps: z.array(z.record(z.string(), z.unknown())),
       text: z.string(),
     })),
   }).optional(),
@@ -335,7 +335,7 @@ const StateSchema = z.object({
     type: z.string(),
     typeSchema: z.object({
       inlineSchema: z.object({
-        items: z.string(),
+        items: z.record(z.string(), z.unknown()),
         type: z.string(),
       }),
       schemaReference: z.object({
@@ -418,7 +418,7 @@ const InputsSchema = z.object({
     ]).optional(),
     typeSchema: z.object({
       inlineSchema: z.object({
-        items: z.string().describe(
+        items: z.record(z.string(), z.unknown()).describe(
           "Circular reference to GoogleCloudDialogflowCxV3TypeSchema",
         ).optional(),
         type: z.enum([
@@ -438,7 +438,7 @@ const InputsSchema = z.object({
   instruction: z.object({
     guidelines: z.string().optional(),
     steps: z.array(z.object({
-      steps: z.array(z.string()).optional(),
+      steps: z.array(z.record(z.string(), z.unknown())).optional(),
       text: z.string().optional(),
     })).optional(),
   }).optional(),
@@ -461,7 +461,7 @@ const InputsSchema = z.object({
     ]).optional(),
     typeSchema: z.object({
       inlineSchema: z.object({
-        items: z.string().describe(
+        items: z.record(z.string(), z.unknown()).describe(
           "Circular reference to GoogleCloudDialogflowCxV3TypeSchema",
         ).optional(),
         type: z.enum([
@@ -493,7 +493,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dialogflow Agents.Playbooks. Registered at `@swamp/gcp/dialogflow/agents-playbooks`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/agents-playbooks",
-  version: "2026.05.25.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -562,6 +562,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

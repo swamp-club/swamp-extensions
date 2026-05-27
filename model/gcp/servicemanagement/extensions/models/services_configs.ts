@@ -251,9 +251,11 @@ const GlobalArgsSchema = z.object({
       operationDeadline: z.number().describe(
         "The number of seconds to wait for the completion of a long running operation. The default is no deadline.",
       ).optional(),
-      overridesByRequestProtocol: z.record(z.string(), z.string()).describe(
-        "The map between request protocol and the backend address.",
-      ).optional(),
+      overridesByRequestProtocol: z.record(
+        z.string(),
+        z.record(z.string(), z.unknown()),
+      ).describe("The map between request protocol and the backend address.")
+        .optional(),
       pathTranslation: z.enum([
         "PATH_TRANSLATION_UNSPECIFIED",
         "CONSTANT_ADDRESS",
@@ -371,7 +373,7 @@ const GlobalArgsSchema = z.object({
       name: z.string().describe(
         "The name of the page. It will be used as an identity of the page to generate URI of the page, text of the link to this page in navigation, etc. The full page name (start from the root page name to this page concatenated with `.`) can be used as reference to the page in your documentation. For example: pages: - name: Tutorial content: (== include tutorial.md ==) subpages: - name: Java content: (== include tutorial_java.md ==) You can reference `Java` page using Markdown reference link syntax: `Java`.",
       ).optional(),
-      subpages: z.array(z.string()).describe(
+      subpages: z.array(z.record(z.string(), z.unknown())).describe(
         "Subpages of this page. The order of subpages specified here will be honored in the generated docset.",
       ).optional(),
     })).describe("The top level pages for the documentation set.").optional(),
@@ -398,7 +400,7 @@ const GlobalArgsSchema = z.object({
       name: z.string().describe(
         "The name of the page. It will be used as an identity of the page to generate URI of the page, text of the link to this page in navigation, etc. The full page name (start from the root page name to this page concatenated with `.`) can be used as reference to the page in your documentation. For example: pages: - name: Tutorial content: (== include tutorial.md ==) subpages: - name: Java content: (== include tutorial_java.md ==) You can reference `Java` page using Markdown reference link syntax: `Java`.",
       ).optional(),
-      subpages: z.array(z.string()).describe(
+      subpages: z.array(z.record(z.string(), z.unknown())).describe(
         "Subpages of this page. The order of subpages specified here will be honored in the generated docset.",
       ).optional(),
     })).describe(
@@ -464,7 +466,7 @@ const GlobalArgsSchema = z.object({
       'When set to true, URL path parameters will be fully URI-decoded except in cases of single segment matches in reserved expansion, where "%2F" will be left encoded. The default behavior is to not decode RFC 6570 reserved characters in multi segment matches.',
     ).optional(),
     rules: z.array(z.object({
-      additionalBindings: z.array(z.string()).describe(
+      additionalBindings: z.array(z.record(z.string(), z.unknown())).describe(
         "Additional HTTP bindings for the selector. Nested bindings must not contain an `additional_bindings` field themselves (that is, the nesting may only be one level deep).",
       ).optional(),
       body: z.string().describe(
@@ -1356,7 +1358,7 @@ const StateSchema = z.object({
     pages: z.array(z.object({
       content: z.string(),
       name: z.string(),
-      subpages: z.array(z.string()),
+      subpages: z.array(z.record(z.string(), z.unknown())),
     })),
     rules: z.array(z.object({
       deprecationDescription: z.string(),
@@ -1367,7 +1369,7 @@ const StateSchema = z.object({
     sectionOverrides: z.array(z.object({
       content: z.string(),
       name: z.string(),
-      subpages: z.array(z.string()),
+      subpages: z.array(z.record(z.string(), z.unknown())),
     })),
     serviceRootUrl: z.string(),
     summary: z.string(),
@@ -1398,7 +1400,7 @@ const StateSchema = z.object({
   http: z.object({
     fullyDecodeReservedExpansion: z.boolean(),
     rules: z.array(z.object({
-      additionalBindings: z.array(z.string()),
+      additionalBindings: z.array(z.record(z.string(), z.unknown())),
       body: z.string(),
       custom: z.object({
         kind: z.string(),
@@ -1855,9 +1857,11 @@ const InputsSchema = z.object({
       operationDeadline: z.number().describe(
         "The number of seconds to wait for the completion of a long running operation. The default is no deadline.",
       ).optional(),
-      overridesByRequestProtocol: z.record(z.string(), z.string()).describe(
-        "The map between request protocol and the backend address.",
-      ).optional(),
+      overridesByRequestProtocol: z.record(
+        z.string(),
+        z.record(z.string(), z.unknown()),
+      ).describe("The map between request protocol and the backend address.")
+        .optional(),
       pathTranslation: z.enum([
         "PATH_TRANSLATION_UNSPECIFIED",
         "CONSTANT_ADDRESS",
@@ -1975,7 +1979,7 @@ const InputsSchema = z.object({
       name: z.string().describe(
         "The name of the page. It will be used as an identity of the page to generate URI of the page, text of the link to this page in navigation, etc. The full page name (start from the root page name to this page concatenated with `.`) can be used as reference to the page in your documentation. For example: pages: - name: Tutorial content: (== include tutorial.md ==) subpages: - name: Java content: (== include tutorial_java.md ==) You can reference `Java` page using Markdown reference link syntax: `Java`.",
       ).optional(),
-      subpages: z.array(z.string()).describe(
+      subpages: z.array(z.record(z.string(), z.unknown())).describe(
         "Subpages of this page. The order of subpages specified here will be honored in the generated docset.",
       ).optional(),
     })).describe("The top level pages for the documentation set.").optional(),
@@ -2002,7 +2006,7 @@ const InputsSchema = z.object({
       name: z.string().describe(
         "The name of the page. It will be used as an identity of the page to generate URI of the page, text of the link to this page in navigation, etc. The full page name (start from the root page name to this page concatenated with `.`) can be used as reference to the page in your documentation. For example: pages: - name: Tutorial content: (== include tutorial.md ==) subpages: - name: Java content: (== include tutorial_java.md ==) You can reference `Java` page using Markdown reference link syntax: `Java`.",
       ).optional(),
-      subpages: z.array(z.string()).describe(
+      subpages: z.array(z.record(z.string(), z.unknown())).describe(
         "Subpages of this page. The order of subpages specified here will be honored in the generated docset.",
       ).optional(),
     })).describe(
@@ -2068,7 +2072,7 @@ const InputsSchema = z.object({
       'When set to true, URL path parameters will be fully URI-decoded except in cases of single segment matches in reserved expansion, where "%2F" will be left encoded. The default behavior is to not decode RFC 6570 reserved characters in multi segment matches.',
     ).optional(),
     rules: z.array(z.object({
-      additionalBindings: z.array(z.string()).describe(
+      additionalBindings: z.array(z.record(z.string(), z.unknown())).describe(
         "Additional HTTP bindings for the selector. Nested bindings must not contain an `additional_bindings` field themselves (that is, the nesting may only be one level deep).",
       ).optional(),
       body: z.string().describe(
@@ -2845,7 +2849,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Service Management Services.Configs. Registered at `@swamp/gcp/servicemanagement/services-configs`. */
 export const model = {
   type: "@swamp/gcp/servicemanagement/services-configs",
-  version: "2026.05.26.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2939,6 +2943,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

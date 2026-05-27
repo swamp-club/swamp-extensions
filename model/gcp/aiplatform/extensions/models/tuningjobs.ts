@@ -481,7 +481,7 @@ const GlobalArgsSchema = z.object({
           format: z.string().describe(
             "Optional. The format of the data. For `NUMBER` type, format can be `float` or `double`. For `INTEGER` type, format can be `int32` or `int64`. For `STRING` type, format can be `email`, `byte`, `date`, `date-time`, `password`, and other formats to further refine the data type.",
           ).optional(),
-          items: z.string().describe(
+          items: z.record(z.string(), z.unknown()).describe(
             "Circular reference to GoogleCloudAiplatformV1Schema",
           ).optional(),
           maxItems: z.string().describe(
@@ -1266,7 +1266,7 @@ const StateSchema = z.object({
           enum: z.array(z.unknown()),
           example: z.string(),
           format: z.string(),
-          items: z.string(),
+          items: z.record(z.string(), z.unknown()),
           maxItems: z.string(),
           maxLength: z.string(),
           maxProperties: z.string(),
@@ -1917,7 +1917,7 @@ const InputsSchema = z.object({
           format: z.string().describe(
             "Optional. The format of the data. For `NUMBER` type, format can be `float` or `double`. For `INTEGER` type, format can be `int32` or `int64`. For `STRING` type, format can be `email`, `byte`, `date`, `date-time`, `password`, and other formats to further refine the data type.",
           ).optional(),
-          items: z.string().describe(
+          items: z.record(z.string(), z.unknown()).describe(
             "Circular reference to GoogleCloudAiplatformV1Schema",
           ).optional(),
           maxItems: z.string().describe(
@@ -2538,7 +2538,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Agent Platform TuningJobs. Registered at `@swamp/gcp/aiplatform/tuningjobs`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/tuningjobs",
-  version: "2026.05.26.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2637,6 +2637,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

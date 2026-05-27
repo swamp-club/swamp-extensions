@@ -38,7 +38,7 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   SecurityPolicy: z.string().optional(),
   EndpointAccessMode: z.string().optional(),
-  Policy: z.string().optional(),
+  Policy: z.record(z.string(), z.unknown()).optional(),
   RoutingMode: z.enum([
     "BASE_PATH_MAPPING_ONLY",
     "ROUTING_RULE_THEN_BASE_PATH_MAPPING",
@@ -77,7 +77,7 @@ const InputsSchema = z.object({
   }).optional(),
   SecurityPolicy: z.string().optional(),
   EndpointAccessMode: z.string().optional(),
-  Policy: z.string().optional(),
+  Policy: z.record(z.string(), z.unknown()).optional(),
   RoutingMode: z.enum([
     "BASE_PATH_MAPPING_ONLY",
     "ROUTING_RULE_THEN_BASE_PATH_MAPPING",
@@ -91,7 +91,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ApiGateway DomainNameV2. Registered at `@swamp/aws/apigateway/domain-name-v2`. */
 export const model = {
   type: "@swamp/aws/apigateway/domain-name-v2",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -120,6 +120,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

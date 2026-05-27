@@ -81,7 +81,7 @@ const BlockDeviceMappingSchema = z.object({
   Ebs: EbsSchema.describe(
     "Parameters used to automatically set up EBS volumes when the instance is launched.",
   ).optional(),
-  NoDevice: z.string().optional(),
+  NoDevice: z.record(z.string(), z.unknown()).optional(),
   VirtualName: z.string().optional(),
   DeviceName: z.string().describe(
     "The device name (for example, /dev/sdh or xvdh).",
@@ -583,7 +583,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for EC2 Instance. Registered at `@swamp/aws/ec2/instance`. */
 export const model = {
   type: "@swamp/aws/ec2/instance",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -607,6 +607,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -38,7 +38,9 @@ const GlobalArgsSchema = z.object({
   ResourceType: z.string().describe(
     "The resource type this permission can be used with.",
   ),
-  PolicyTemplate: z.string().describe("Policy template for the permission."),
+  PolicyTemplate: z.record(z.string(), z.unknown()).describe(
+    "Policy template for the permission.",
+  ),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -49,7 +51,7 @@ const StateSchema = z.object({
   IsResourceTypeDefault: z.boolean().optional(),
   PermissionType: z.string().optional(),
   ResourceType: z.string().optional(),
-  PolicyTemplate: z.string().optional(),
+  PolicyTemplate: z.record(z.string(), z.unknown()).optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -61,15 +63,16 @@ const InputsSchema = z.object({
   ResourceType: z.string().describe(
     "The resource type this permission can be used with.",
   ).optional(),
-  PolicyTemplate: z.string().describe("Policy template for the permission.")
-    .optional(),
+  PolicyTemplate: z.record(z.string(), z.unknown()).describe(
+    "Policy template for the permission.",
+  ).optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
 /** Swamp extension model for RAM Permission. Registered at `@swamp/aws/ram/permission`. */
 export const model = {
   type: "@swamp/aws/ram/permission",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -93,6 +96,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

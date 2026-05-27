@@ -60,7 +60,7 @@ const GlobalArgsSchema = z.object({
   Requires: z.array(DocumentRequiresSchema).describe(
     "A list of SSM documents required by a document. For example, an ApplicationConfiguration document requires an ApplicationConfigurationSchema document.",
   ).optional(),
-  Content: z.string().describe(
+  Content: z.record(z.string(), z.unknown()).describe(
     "The content for the Systems Manager document in JSON, YAML or String format.",
   ),
   TargetType: z.string().regex(new RegExp("^\\/[\\w\\.\\-\\:\\/]*$")).describe(
@@ -123,7 +123,7 @@ const InputsSchema = z.object({
   Requires: z.array(DocumentRequiresSchema).describe(
     "A list of SSM documents required by a document. For example, an ApplicationConfiguration document requires an ApplicationConfigurationSchema document.",
   ).optional(),
-  Content: z.string().describe(
+  Content: z.record(z.string(), z.unknown()).describe(
     "The content for the Systems Manager document in JSON, YAML or String format.",
   ).optional(),
   TargetType: z.string().regex(new RegExp("^\\/[\\w\\.\\-\\:\\/]*$")).describe(
@@ -167,7 +167,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SSM Document. Registered at `@swamp/aws/ssm/document`. */
 export const model = {
   type: "@swamp/aws/ssm/document",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -196,6 +196,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

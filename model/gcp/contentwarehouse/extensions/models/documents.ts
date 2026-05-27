@@ -750,7 +750,7 @@ const StateSchema = z.object({
       pageAnchor: z.object({
         pageRefs: z.array(z.unknown()),
       }),
-      properties: z.array(z.string()),
+      properties: z.array(z.record(z.string(), z.unknown())),
       provenance: z.object({
         id: z.number(),
         parents: z.array(z.unknown()),
@@ -971,7 +971,7 @@ const StateSchema = z.object({
     }),
     name: z.string(),
     propertyValues: z.object({
-      properties: z.array(z.string()),
+      properties: z.array(z.record(z.string(), z.unknown())),
     }),
     textValues: z.object({
       values: z.array(z.string()),
@@ -1568,7 +1568,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Document AI Warehouse Documents. Registered at `@swamp/gcp/contentwarehouse/documents`. */
 export const model = {
   type: "@swamp/gcp/contentwarehouse/documents",
-  version: "2026.05.25.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1637,6 +1637,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

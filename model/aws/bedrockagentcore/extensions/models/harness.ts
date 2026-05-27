@@ -163,8 +163,8 @@ const OAuthCredentialProviderSchema = z.object({
 });
 
 const HarnessGatewayOutboundAuthSchema = z.object({
-  AwsIam: z.string().optional(),
-  None: z.string().optional(),
+  AwsIam: z.record(z.string(), z.unknown()).optional(),
+  None: z.record(z.string(), z.unknown()).optional(),
   Oauth: OAuthCredentialProviderSchema.optional(),
 });
 
@@ -179,7 +179,7 @@ const HarnessAgentCoreGatewayConfigSchema = z.object({
 
 const HarnessInlineFunctionConfigSchema = z.object({
   Description: z.string().min(1).max(4096),
-  InputSchema: z.string().describe(
+  InputSchema: z.record(z.string(), z.unknown()).describe(
     "JSON Schema describing the tool's input parameters.",
   ),
 });
@@ -443,7 +443,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for BedrockAgentCore Harness. Registered at `@swamp/aws/bedrockagentcore/harness`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/harness",
-  version: "2026.05.24.1",
+  version: "2026.05.27.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.27.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

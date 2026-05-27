@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/lex"
-version: "2026.05.14.1"
+version: "2026.05.27.1"
 description: "AWS LEX infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - lex
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: resource_policy
 models:
   - bot.ts
   - bot_alias.ts

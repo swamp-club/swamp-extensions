@@ -24,7 +24,7 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  Detail: z.string().optional(),
+  Detail: z.record(z.string(), z.unknown()).optional(),
   DomainIdentifier: z.string().regex(
     new RegExp("^dzd[-_][a-zA-Z0-9_-]{1,36}$"),
   ),
@@ -50,11 +50,11 @@ const GlobalArgsSchema = z.object({
     "CREATE_ENVIRONMENT_FROM_BLUEPRINT",
     "CREATE_PROJECT_FROM_PROJECT_PROFILE",
   ]),
-  Principal: z.string().optional(),
+  Principal: z.record(z.string(), z.unknown()).optional(),
 });
 
 const StateSchema = z.object({
-  Detail: z.string().optional(),
+  Detail: z.record(z.string(), z.unknown()).optional(),
   DomainIdentifier: z.string(),
   EntityIdentifier: z.string(),
   EntityType: z.string(),
@@ -62,14 +62,14 @@ const StateSchema = z.object({
   CreatedAt: z.string().optional(),
   CreatedBy: z.string().optional(),
   PolicyType: z.string(),
-  Principal: z.string().optional(),
+  Principal: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
-  Detail: z.string().optional(),
+  Detail: z.record(z.string(), z.unknown()).optional(),
   DomainIdentifier: z.string().regex(new RegExp("^dzd[-_][a-zA-Z0-9_-]{1,36}$"))
     .optional(),
   EntityIdentifier: z.string().optional(),
@@ -94,13 +94,13 @@ const InputsSchema = z.object({
     "CREATE_ENVIRONMENT_FROM_BLUEPRINT",
     "CREATE_PROJECT_FROM_PROJECT_PROFILE",
   ]).optional(),
-  Principal: z.string().optional(),
+  Principal: z.record(z.string(), z.unknown()).optional(),
 });
 
 /** Swamp extension model for DataZone PolicyGrant. Registered at `@swamp/aws/datazone/policy-grant`. */
 export const model = {
   type: "@swamp/aws/datazone/policy-grant",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -124,6 +124,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

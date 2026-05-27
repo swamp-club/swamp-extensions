@@ -173,7 +173,7 @@ const GlobalArgsSchema = z.object({
     ]).describe(
       "Overall health status. Overall status is derived based on the status of each sub level resources.",
     ).optional(),
-    sub: z.array(z.string()).describe(
+    sub: z.array(z.record(z.string(), z.unknown())).describe(
       "List of Info for the sub level resources.",
     ).optional(),
     time: z.string().describe(
@@ -207,7 +207,7 @@ const StateSchema = z.object({
     id: z.string(),
     resource: z.record(z.string(), z.unknown()),
     status: z.string(),
-    sub: z.array(z.string()),
+    sub: z.array(z.record(z.string(), z.unknown())),
     time: z.string(),
   }).optional(),
   state: z.string().optional(),
@@ -247,7 +247,7 @@ const InputsSchema = z.object({
     ]).describe(
       "Overall health status. Overall status is derived based on the status of each sub level resources.",
     ).optional(),
-    sub: z.array(z.string()).describe(
+    sub: z.array(z.record(z.string(), z.unknown())).describe(
       "List of Info for the sub level resources.",
     ).optional(),
     time: z.string().describe(
@@ -270,7 +270,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud BeyondCorp AppConnectors. Registered at `@swamp/gcp/beyondcorp/appconnectors`. */
 export const model = {
   type: "@swamp/gcp/beyondcorp/appconnectors",
-  version: "2026.05.26.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -354,6 +354,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

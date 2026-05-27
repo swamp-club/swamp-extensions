@@ -717,7 +717,7 @@ const GlobalArgsSchema = z.object({
     LogFilePrefix: z.string().describe(
       "A prefix for all log object keys. If you store log files from multiple Amazon S3 buckets in a single bucket, you can use a prefix to distinguish which log files came from which bucket.",
     ).optional(),
-    TargetObjectKeyFormat: z.string().describe(
+    TargetObjectKeyFormat: z.record(z.string(), z.unknown()).describe(
       "Amazon S3 key format for log objects. Only one format, either PartitionedPrefix or SimplePrefix, is allowed.",
     ).optional(),
   }).describe("Settings that define where logs are stored.").optional(),
@@ -861,7 +861,7 @@ const StateSchema = z.object({
   LoggingConfiguration: z.object({
     DestinationBucketName: z.string(),
     LogFilePrefix: z.string(),
-    TargetObjectKeyFormat: z.string(),
+    TargetObjectKeyFormat: z.record(z.string(), z.unknown()),
   }).optional(),
   MetricsConfigurations: z.array(MetricsConfigurationSchema).optional(),
   MetadataTableConfiguration: z.object({
@@ -985,7 +985,7 @@ const InputsSchema = z.object({
     LogFilePrefix: z.string().describe(
       "A prefix for all log object keys. If you store log files from multiple Amazon S3 buckets in a single bucket, you can use a prefix to distinguish which log files came from which bucket.",
     ).optional(),
-    TargetObjectKeyFormat: z.string().describe(
+    TargetObjectKeyFormat: z.record(z.string(), z.unknown()).describe(
       "Amazon S3 key format for log objects. Only one format, either PartitionedPrefix or SimplePrefix, is allowed.",
     ).optional(),
   }).describe("Settings that define where logs are stored.").optional(),
@@ -1106,7 +1106,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for S3 Bucket. Registered at `@swamp/aws/s3/bucket`. */
 export const model = {
   type: "@swamp/aws/s3/bucket",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1130,6 +1130,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -39,10 +39,10 @@ const GlobalArgsSchema = z.object({
   ).describe(
     "The Amazon Resource Name (ARN) of the KMS key to use when encrypting log data. To associate an KMS key with the log group, specify the ARN of that KMS key here. If you do so, ingested data is encrypted using this key. This association is stored as long as the data encrypted with the KMS key is still within CWL. This enables CWL to decrypt this data whenever it is requested. If you attempt to associate a KMS key with the log group but the KMS key doesn't exist or is deactivated, you will receive an InvalidParameterException error. Log group data is always encrypted in CWL. If you omit this key, the encryption does not use KMS. For more information, see [Encrypt log data in using](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/encrypt-log-data-kms.html)",
   ).optional(),
-  DataProtectionPolicy: z.string().describe(
+  DataProtectionPolicy: z.record(z.string(), z.unknown()).describe(
     "Creates a data protection policy and assigns it to the log group. A data protection policy can help safeguard sensitive data that's ingested by the log group by auditing and masking the sensitive log data. When a user who does not have permission to view masked data views a log event that includes masked data, the sensitive data is replaced by asterisks.",
   ).optional(),
-  FieldIndexPolicies: z.array(z.string()).describe(
+  FieldIndexPolicies: z.array(z.record(z.string(), z.unknown())).describe(
     "Creates or updates a *field index policy* for the specified log group. Only log groups in the Standard log class support field index policies. For more information about log classes, see [Log classes](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html). You can use field index policies to create *field indexes* on fields found in log events in the log group. Creating field indexes lowers the costs for CWL Insights queries that reference those field indexes, because these queries attempt to skip the processing of log events that are known to not match the indexed field. Good fields to index are fields that you often need to query for and fields that have high cardinality of values Common examples of indexes include request ID, session ID, userID, and instance IDs. For more information, see [Create field indexes to improve query performance and reduce costs](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatchLogs-Field-Indexing.html). Currently, this array supports only one field index policy object.",
   ).optional(),
   LogGroupClass: z.enum(["STANDARD", "INFREQUENT_ACCESS", "DELIVERY"]).describe(
@@ -77,7 +77,7 @@ const GlobalArgsSchema = z.object({
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to the log group. For more information, see [Tag](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-resource-tags.html).",
   ).optional(),
-  ResourcePolicyDocument: z.string().describe(
+  ResourcePolicyDocument: z.record(z.string(), z.unknown()).describe(
     "Creates or updates a resource policy for the specified log group that allows other services to put log events to this account. A LogGroup can have 1 resource policy.",
   ).optional(),
   DeletionProtectionEnabled: z.boolean().describe(
@@ -91,13 +91,13 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   LogGroupName: z.string(),
   KmsKeyId: z.string().optional(),
-  DataProtectionPolicy: z.string().optional(),
-  FieldIndexPolicies: z.array(z.string()).optional(),
+  DataProtectionPolicy: z.record(z.string(), z.unknown()).optional(),
+  FieldIndexPolicies: z.array(z.record(z.string(), z.unknown())).optional(),
   LogGroupClass: z.string().optional(),
   RetentionInDays: z.number().optional(),
   Tags: z.array(TagSchema).optional(),
   Arn: z.string().optional(),
-  ResourcePolicyDocument: z.string().optional(),
+  ResourcePolicyDocument: z.record(z.string(), z.unknown()).optional(),
   DeletionProtectionEnabled: z.boolean().optional(),
   BearerTokenAuthenticationEnabled: z.boolean().optional(),
 }).passthrough();
@@ -115,10 +115,10 @@ const InputsSchema = z.object({
   ).describe(
     "The Amazon Resource Name (ARN) of the KMS key to use when encrypting log data. To associate an KMS key with the log group, specify the ARN of that KMS key here. If you do so, ingested data is encrypted using this key. This association is stored as long as the data encrypted with the KMS key is still within CWL. This enables CWL to decrypt this data whenever it is requested. If you attempt to associate a KMS key with the log group but the KMS key doesn't exist or is deactivated, you will receive an InvalidParameterException error. Log group data is always encrypted in CWL. If you omit this key, the encryption does not use KMS. For more information, see [Encrypt log data in using](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/encrypt-log-data-kms.html)",
   ).optional(),
-  DataProtectionPolicy: z.string().describe(
+  DataProtectionPolicy: z.record(z.string(), z.unknown()).describe(
     "Creates a data protection policy and assigns it to the log group. A data protection policy can help safeguard sensitive data that's ingested by the log group by auditing and masking the sensitive log data. When a user who does not have permission to view masked data views a log event that includes masked data, the sensitive data is replaced by asterisks.",
   ).optional(),
-  FieldIndexPolicies: z.array(z.string()).describe(
+  FieldIndexPolicies: z.array(z.record(z.string(), z.unknown())).describe(
     "Creates or updates a *field index policy* for the specified log group. Only log groups in the Standard log class support field index policies. For more information about log classes, see [Log classes](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html). You can use field index policies to create *field indexes* on fields found in log events in the log group. Creating field indexes lowers the costs for CWL Insights queries that reference those field indexes, because these queries attempt to skip the processing of log events that are known to not match the indexed field. Good fields to index are fields that you often need to query for and fields that have high cardinality of values Common examples of indexes include request ID, session ID, userID, and instance IDs. For more information, see [Create field indexes to improve query performance and reduce costs](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatchLogs-Field-Indexing.html). Currently, this array supports only one field index policy object.",
   ).optional(),
   LogGroupClass: z.enum(["STANDARD", "INFREQUENT_ACCESS", "DELIVERY"]).describe(
@@ -153,7 +153,7 @@ const InputsSchema = z.object({
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to the log group. For more information, see [Tag](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-resource-tags.html).",
   ).optional(),
-  ResourcePolicyDocument: z.string().describe(
+  ResourcePolicyDocument: z.record(z.string(), z.unknown()).describe(
     "Creates or updates a resource policy for the specified log group that allows other services to put log events to this account. A LogGroup can have 1 resource policy.",
   ).optional(),
   DeletionProtectionEnabled: z.boolean().describe(
@@ -167,7 +167,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Logs LogGroup. Registered at `@swamp/aws/logs/log-group`. */
 export const model = {
   type: "@swamp/aws/logs/log-group",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -196,6 +196,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -40,7 +40,7 @@ const GlobalArgsSchema = z.object({
   PendingWindowInDays: z.number().int().min(7).max(30).describe(
     "Specifies the number of days in the waiting period before AWS KMS deletes an AWS KMS key that has been removed from a CloudFormation stack. Enter a value between 7 and 30 days. The default value is 30 days.",
   ).optional(),
-  KeyPolicy: z.string().describe(
+  KeyPolicy: z.record(z.string(), z.unknown()).describe(
     "The key policy that authorizes use of the AWS KMS key. The key policy must observe the following rules.",
   ),
   PrimaryKeyArn: z.string().min(1).max(256).describe(
@@ -76,7 +76,7 @@ const InputsSchema = z.object({
   PendingWindowInDays: z.number().int().min(7).max(30).describe(
     "Specifies the number of days in the waiting period before AWS KMS deletes an AWS KMS key that has been removed from a CloudFormation stack. Enter a value between 7 and 30 days. The default value is 30 days.",
   ).optional(),
-  KeyPolicy: z.string().describe(
+  KeyPolicy: z.record(z.string(), z.unknown()).describe(
     "The key policy that authorizes use of the AWS KMS key. The key policy must observe the following rules.",
   ).optional(),
   PrimaryKeyArn: z.string().min(1).max(256).describe(
@@ -93,7 +93,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for KMS ReplicaKey. Registered at `@swamp/aws/kms/replica-key`. */
 export const model = {
   type: "@swamp/aws/kms/replica-key",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -122,6 +122,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

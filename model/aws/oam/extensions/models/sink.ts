@@ -27,7 +27,7 @@ const GlobalArgsSchema = z.object({
   ),
   Name: z.string().min(1).max(255).regex(new RegExp("^[a-zA-Z0-9_.-]+$"))
     .describe("The name of the ObservabilityAccessManager Sink."),
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     "The policy of this ObservabilityAccessManager Sink.",
   ).optional(),
   Tags: z.record(
@@ -39,7 +39,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Arn: z.string(),
   Name: z.string().optional(),
-  Policy: z.string().optional(),
+  Policy: z.record(z.string(), z.unknown()).optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
@@ -49,7 +49,7 @@ const InputsSchema = z.object({
   name: z.string().optional(),
   Name: z.string().min(1).max(255).regex(new RegExp("^[a-zA-Z0-9_.-]+$"))
     .describe("The name of the ObservabilityAccessManager Sink.").optional(),
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     "The policy of this ObservabilityAccessManager Sink.",
   ).optional(),
   Tags: z.record(
@@ -61,7 +61,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Oam Sink. Registered at `@swamp/aws/oam/sink`. */
 export const model = {
   type: "@swamp/aws/oam/sink",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -85,6 +85,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

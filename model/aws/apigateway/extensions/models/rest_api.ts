@@ -32,7 +32,7 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     'A policy document that contains the permissions for the RestApi resource. To set the ARN for the policy, use the!Join intrinsic function with "" as delimiter and values of "execute-api:/" and "*".',
   ).optional(),
   BodyS3Location: z.object({
@@ -53,7 +53,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Description: z.string().optional(),
   MinimumCompressionSize: z.number().int().optional(),
-  Parameters: z.string().optional(),
+  Parameters: z.record(z.string(), z.unknown()).optional(),
   CloneFrom: z.string().optional(),
   Mode: z.string().describe(
     "This property applies only when you use OpenAPI to define your REST API. The Mode determines how API Gateway handles resource updates. Valid values are overwrite or merge. For overwrite, the new API definition replaces the existing one. The existing API identifier remains unchanged. For merge, the new API definition is merged with the existing API. If you don't specify this property, a default value is chosen. For REST APIs created before March 29, 2021, the default is overwrite. For REST APIs created after March 29, 2021, the new API definition takes precedence, but any container types such as endpoint configurations and binary media types are merged with the existing API. Use the default mode to define top-level RestApi properties in addition to using OpenAPI. Generally, it's preferred to use API Gateway's OpenAPI extensions to model these properties.",
@@ -73,7 +73,7 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "A list of the endpoint types and IP address types of the API. Use this property when creating an API. When importing an existing API, specify the endpoint configuration types using the Parameters property.",
   ).optional(),
-  Body: z.string().describe(
+  Body: z.record(z.string(), z.unknown()).describe(
     "An OpenAPI specification that defines a set of RESTful APIs in JSON format. For YAML templates, you can also provide the specification in YAML format.",
   ).optional(),
   Tags: z.array(TagSchema).optional(),
@@ -116,7 +116,7 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     'A policy document that contains the permissions for the RestApi resource. To set the ARN for the policy, use the!Join intrinsic function with "" as delimiter and values of "execute-api:/" and "*".',
   ).optional(),
   BodyS3Location: z.object({
@@ -137,7 +137,7 @@ const InputsSchema = z.object({
   ).optional(),
   Description: z.string().optional(),
   MinimumCompressionSize: z.number().int().optional(),
-  Parameters: z.string().optional(),
+  Parameters: z.record(z.string(), z.unknown()).optional(),
   CloneFrom: z.string().optional(),
   Mode: z.string().describe(
     "This property applies only when you use OpenAPI to define your REST API. The Mode determines how API Gateway handles resource updates. Valid values are overwrite or merge. For overwrite, the new API definition replaces the existing one. The existing API identifier remains unchanged. For merge, the new API definition is merged with the existing API. If you don't specify this property, a default value is chosen. For REST APIs created before March 29, 2021, the default is overwrite. For REST APIs created after March 29, 2021, the new API definition takes precedence, but any container types such as endpoint configurations and binary media types are merged with the existing API. Use the default mode to define top-level RestApi properties in addition to using OpenAPI. Generally, it's preferred to use API Gateway's OpenAPI extensions to model these properties.",
@@ -157,7 +157,7 @@ const InputsSchema = z.object({
   }).describe(
     "A list of the endpoint types and IP address types of the API. Use this property when creating an API. When importing an existing API, specify the endpoint configuration types using the Parameters property.",
   ).optional(),
-  Body: z.string().describe(
+  Body: z.record(z.string(), z.unknown()).describe(
     "An OpenAPI specification that defines a set of RESTful APIs in JSON format. For YAML templates, you can also provide the specification in YAML format.",
   ).optional(),
   Tags: z.array(TagSchema).optional(),
@@ -167,7 +167,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ApiGateway RestApi. Registered at `@swamp/aws/apigateway/rest-api`. */
 export const model = {
   type: "@swamp/aws/apigateway/rest-api",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -196,6 +196,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -55,7 +55,8 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   InputReferenceProperties: z.object({
     IdNamespaceType: z.enum(["SOURCE", "TARGET"]).optional(),
-    IdMappingWorkflowsSupported: z.array(z.string()).optional(),
+    IdMappingWorkflowsSupported: z.array(z.record(z.string(), z.unknown()))
+      .optional(),
   }).optional(),
 });
 
@@ -78,7 +79,7 @@ const StateSchema = z.object({
   }).optional(),
   InputReferenceProperties: z.object({
     IdNamespaceType: z.string(),
-    IdMappingWorkflowsSupported: z.array(z.string()),
+    IdMappingWorkflowsSupported: z.array(z.record(z.string(), z.unknown())),
   }).optional(),
 }).passthrough();
 
@@ -111,14 +112,15 @@ const InputsSchema = z.object({
   }).optional(),
   InputReferenceProperties: z.object({
     IdNamespaceType: z.enum(["SOURCE", "TARGET"]).optional(),
-    IdMappingWorkflowsSupported: z.array(z.string()).optional(),
+    IdMappingWorkflowsSupported: z.array(z.record(z.string(), z.unknown()))
+      .optional(),
   }).optional(),
 });
 
 /** Swamp extension model for CleanRooms IdNamespaceAssociation. Registered at `@swamp/aws/cleanrooms/id-namespace-association`. */
 export const model = {
   type: "@swamp/aws/cleanrooms/id-namespace-association",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -142,6 +144,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

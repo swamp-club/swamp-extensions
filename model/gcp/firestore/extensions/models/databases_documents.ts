@@ -148,7 +148,9 @@ const GlobalArgsSchema = z.object({
     z.string(),
     z.object({
       arrayValue: z.object({
-        values: z.array(z.string()).describe("Values in the array.").optional(),
+        values: z.array(z.record(z.string(), z.unknown())).describe(
+          "Values in the array.",
+        ).optional(),
       }).describe("An array value.").optional(),
       booleanValue: z.boolean().describe("A boolean value.").optional(),
       bytesValue: z.string().describe(
@@ -159,15 +161,16 @@ const GlobalArgsSchema = z.object({
         "Value which references a field. This is considered relative (vs absolute) since it only refers to a field and not a field within a particular document. **Requires:** * Must follow field reference limitations. * Not allowed to be used when writing documents.",
       ).optional(),
       functionValue: z.object({
-        args: z.array(z.string()).describe(
+        args: z.array(z.record(z.string(), z.unknown())).describe(
           "Optional. Ordered list of arguments the given function expects.",
         ).optional(),
         name: z.string().describe(
           "Required. The name of the function to evaluate. **Requires:** * must be in snake case (lower case with underscore separator).",
         ).optional(),
-        options: z.record(z.string(), z.string()).describe(
-          "Optional. Optional named arguments that certain functions may support.",
-        ).optional(),
+        options: z.record(z.string(), z.record(z.string(), z.unknown()))
+          .describe(
+            "Optional. Optional named arguments that certain functions may support.",
+          ).optional(),
       }).describe(
         'Represents an unevaluated scalar expression. For example, the expression `like(user_name, "%alice%")` is represented as: ` name: "like" args { field_reference: "user_name" } args { string_value: "%alice%" } `',
       ).optional(),
@@ -183,9 +186,10 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       integerValue: z.string().describe("An integer value.").optional(),
       mapValue: z.object({
-        fields: z.record(z.string(), z.string()).describe(
-          "The map's fields. The map keys represent field names. Field names matching the regular expression `__.*__` are reserved. Reserved field names are forbidden except in certain documented contexts. The map keys, represented as UTF-8, must not exceed 1,500 bytes and cannot be empty.",
-        ).optional(),
+        fields: z.record(z.string(), z.record(z.string(), z.unknown()))
+          .describe(
+            "The map's fields. The map keys represent field names. Field names matching the regular expression `__.*__` are reserved. Reserved field names are forbidden except in certain documented contexts. The map keys, represented as UTF-8, must not exceed 1,500 bytes and cannot be empty.",
+          ).optional(),
       }).describe("A map value.").optional(),
       nullValue: z.enum(["NULL_VALUE"]).describe("A null value.").optional(),
       pipelineValue: z.object({
@@ -248,7 +252,9 @@ const InputsSchema = z.object({
     z.string(),
     z.object({
       arrayValue: z.object({
-        values: z.array(z.string()).describe("Values in the array.").optional(),
+        values: z.array(z.record(z.string(), z.unknown())).describe(
+          "Values in the array.",
+        ).optional(),
       }).describe("An array value.").optional(),
       booleanValue: z.boolean().describe("A boolean value.").optional(),
       bytesValue: z.string().describe(
@@ -259,15 +265,16 @@ const InputsSchema = z.object({
         "Value which references a field. This is considered relative (vs absolute) since it only refers to a field and not a field within a particular document. **Requires:** * Must follow field reference limitations. * Not allowed to be used when writing documents.",
       ).optional(),
       functionValue: z.object({
-        args: z.array(z.string()).describe(
+        args: z.array(z.record(z.string(), z.unknown())).describe(
           "Optional. Ordered list of arguments the given function expects.",
         ).optional(),
         name: z.string().describe(
           "Required. The name of the function to evaluate. **Requires:** * must be in snake case (lower case with underscore separator).",
         ).optional(),
-        options: z.record(z.string(), z.string()).describe(
-          "Optional. Optional named arguments that certain functions may support.",
-        ).optional(),
+        options: z.record(z.string(), z.record(z.string(), z.unknown()))
+          .describe(
+            "Optional. Optional named arguments that certain functions may support.",
+          ).optional(),
       }).describe(
         'Represents an unevaluated scalar expression. For example, the expression `like(user_name, "%alice%")` is represented as: ` name: "like" args { field_reference: "user_name" } args { string_value: "%alice%" } `',
       ).optional(),
@@ -283,9 +290,10 @@ const InputsSchema = z.object({
       ).optional(),
       integerValue: z.string().describe("An integer value.").optional(),
       mapValue: z.object({
-        fields: z.record(z.string(), z.string()).describe(
-          "The map's fields. The map keys represent field names. Field names matching the regular expression `__.*__` are reserved. Reserved field names are forbidden except in certain documented contexts. The map keys, represented as UTF-8, must not exceed 1,500 bytes and cannot be empty.",
-        ).optional(),
+        fields: z.record(z.string(), z.record(z.string(), z.unknown()))
+          .describe(
+            "The map's fields. The map keys represent field names. Field names matching the regular expression `__.*__` are reserved. Reserved field names are forbidden except in certain documented contexts. The map keys, represented as UTF-8, must not exceed 1,500 bytes and cannot be empty.",
+          ).optional(),
       }).describe("A map value.").optional(),
       nullValue: z.enum(["NULL_VALUE"]).describe("A null value.").optional(),
       pipelineValue: z.object({
@@ -334,7 +342,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Firestore Databases.Documents. Registered at `@swamp/gcp/firestore/databases-documents`. */
 export const model = {
   type: "@swamp/gcp/firestore/databases-documents",
-  version: "2026.05.25.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -403,6 +411,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

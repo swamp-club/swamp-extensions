@@ -42,7 +42,7 @@ const PointInTimeRecoverySpecificationSchema = z.object({
 });
 
 const ResourcePolicySchema = z.object({
-  PolicyDocument: z.string(),
+  PolicyDocument: z.record(z.string(), z.unknown()),
 });
 
 const ReplicaStreamSpecificationSchema = z.object({
@@ -293,7 +293,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DynamoDB GlobalTable. Registered at `@swamp/aws/dynamodb/global-table`. */
 export const model = {
   type: "@swamp/aws/dynamodb/global-table",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -317,6 +317,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

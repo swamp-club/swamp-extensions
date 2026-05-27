@@ -56,7 +56,9 @@ const TelephonyOutboundModeSchema = z.object({
     .optional(),
   PredictiveConfig: PredictiveConfigSchema.describe("Predictive config")
     .optional(),
-  AgentlessConfig: z.string().describe("Agentless config").optional(),
+  AgentlessConfig: z.record(z.string(), z.unknown()).describe(
+    "Agentless config",
+  ).optional(),
   PreviewConfig: PreviewConfigSchema.describe("Preview config").optional(),
 });
 
@@ -97,7 +99,9 @@ const TelephonyChannelSubtypeConfigSchema = z.object({
 });
 
 const SmsOutboundModeSchema = z.object({
-  AgentlessConfig: z.string().describe("Agentless config").optional(),
+  AgentlessConfig: z.record(z.string(), z.unknown()).describe(
+    "Agentless config",
+  ).optional(),
 });
 
 const SmsOutboundConfigSchema = z.object({
@@ -119,7 +123,9 @@ const SmsChannelSubtypeConfigSchema = z.object({
 });
 
 const EmailOutboundModeSchema = z.object({
-  AgentlessConfig: z.string().describe("Agentless config").optional(),
+  AgentlessConfig: z.record(z.string(), z.unknown()).describe(
+    "Agentless config",
+  ).optional(),
 });
 
 const EmailOutboundConfigSchema = z.object({
@@ -144,7 +150,9 @@ const EmailChannelSubtypeConfigSchema = z.object({
 });
 
 const WhatsAppOutboundModeSchema = z.object({
-  AgentlessConfig: z.string().describe("Agentless config").optional(),
+  AgentlessConfig: z.record(z.string(), z.unknown()).describe(
+    "Agentless config",
+  ).optional(),
 });
 
 const WhatsAppOutboundConfigSchema = z.object({
@@ -438,7 +446,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ConnectCampaignsV2 Campaign. Registered at `@swamp/aws/connectcampaignsv2/campaign`. */
 export const model = {
   type: "@swamp/aws/connectcampaignsv2/campaign",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -467,6 +475,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

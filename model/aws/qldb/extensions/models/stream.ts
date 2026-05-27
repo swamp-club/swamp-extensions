@@ -44,7 +44,7 @@ const GlobalArgsSchema = z.object({
   InclusiveStartTime: z.string(),
   ExclusiveEndTime: z.string().optional(),
   KinesisConfiguration: z.object({
-    StreamArn: z.string().optional(),
+    StreamArn: z.record(z.string(), z.unknown()).optional(),
     AggregationEnabled: z.boolean().optional(),
   }),
   Tags: z.array(TagSchema).describe(
@@ -59,7 +59,7 @@ const StateSchema = z.object({
   InclusiveStartTime: z.string().optional(),
   ExclusiveEndTime: z.string().optional(),
   KinesisConfiguration: z.object({
-    StreamArn: z.string(),
+    StreamArn: z.record(z.string(), z.unknown()),
     AggregationEnabled: z.boolean(),
   }).optional(),
   Tags: z.array(TagSchema).optional(),
@@ -81,7 +81,7 @@ const InputsSchema = z.object({
   InclusiveStartTime: z.string().optional(),
   ExclusiveEndTime: z.string().optional(),
   KinesisConfiguration: z.object({
-    StreamArn: z.string().optional(),
+    StreamArn: z.record(z.string(), z.unknown()).optional(),
     AggregationEnabled: z.boolean().optional(),
   }).optional(),
   Tags: z.array(TagSchema).describe(
@@ -92,7 +92,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for QLDB Stream. Registered at `@swamp/aws/qldb/stream`. */
 export const model = {
   type: "@swamp/aws/qldb/stream",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -116,6 +116,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

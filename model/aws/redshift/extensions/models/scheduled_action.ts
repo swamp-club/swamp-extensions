@@ -42,7 +42,7 @@ const GlobalArgsSchema = z.object({
   Enable: z.boolean().describe(
     "If true, the schedule is enabled. If false, the scheduled action does not trigger.",
   ).optional(),
-  TargetAction: z.string().describe(
+  TargetAction: z.record(z.string(), z.unknown()).describe(
     "A JSON format string of the Amazon Redshift API operation with input parameters.",
   ).optional(),
 });
@@ -56,7 +56,7 @@ const StateSchema = z.object({
   IamRole: z.string().optional(),
   StartTime: z.string().optional(),
   Enable: z.boolean().optional(),
-  TargetAction: z.string().optional(),
+  TargetAction: z.record(z.string(), z.unknown()).optional(),
   NextInvocations: z.array(z.string()).optional(),
 }).passthrough();
 
@@ -83,7 +83,7 @@ const InputsSchema = z.object({
   Enable: z.boolean().describe(
     "If true, the schedule is enabled. If false, the scheduled action does not trigger.",
   ).optional(),
-  TargetAction: z.string().describe(
+  TargetAction: z.record(z.string(), z.unknown()).describe(
     "A JSON format string of the Amazon Redshift API operation with input parameters.",
   ).optional(),
 });
@@ -91,7 +91,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Redshift ScheduledAction. Registered at `@swamp/aws/redshift/scheduled-action`. */
 export const model = {
   type: "@swamp/aws/redshift/scheduled-action",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -115,6 +115,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

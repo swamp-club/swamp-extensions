@@ -171,6 +171,7 @@ const GlobalArgsSchema = z.object({
         "NVIDIA_TESLA_P100_VWS",
         "NVIDIA_TESLA_P4_VWS",
         "NVIDIA_B200",
+        "NVIDIA_RTX6000",
       ]).describe("Optional. Type of this accelerator.").optional(),
     })).describe(
       "Optional. The hardware accelerators used on this instance. If you use accelerators, make sure that your configuration has [enough vCPUs and memory to support the `machine_type` you have selected](https://cloud.google.com/compute/docs/gpus/#gpus-list). Currently supports only one accelerator configuration.",
@@ -500,6 +501,7 @@ const InputsSchema = z.object({
         "NVIDIA_TESLA_P100_VWS",
         "NVIDIA_TESLA_P4_VWS",
         "NVIDIA_B200",
+        "NVIDIA_RTX6000",
       ]).describe("Optional. Type of this accelerator.").optional(),
     })).describe(
       "Optional. The hardware accelerators used on this instance. If you use accelerators, make sure that your configuration has [enough vCPUs and memory to support the `machine_type` you have selected](https://cloud.google.com/compute/docs/gpus/#gpus-list). Currently supports only one accelerator configuration.",
@@ -699,7 +701,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Notebooks Instances. Registered at `@swamp/gcp/notebooks/instances`. */
 export const model = {
   type: "@swamp/gcp/notebooks/instances",
-  version: "2026.05.26.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -788,6 +790,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1649,8 +1656,10 @@ export const model = {
     },
     upgrade: {
       description: "upgrade",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, unknown>, context: any) => {
+      arguments: z.object({
+        imageFamily: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
@@ -1659,6 +1668,10 @@ export const model = {
             `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
             String(g["name"]),
           );
+        }
+        const body: Record<string, unknown> = {};
+        if (args["imageFamily"] !== undefined) {
+          body["imageFamily"] = args["imageFamily"];
         }
         const result = await createResource(
           BASE_URL,
@@ -1670,7 +1683,7 @@ export const model = {
             "parameters": { "name": { "location": "path", "required": true } },
           },
           params,
-          {},
+          body,
         );
         return { result };
       },

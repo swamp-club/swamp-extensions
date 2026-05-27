@@ -565,6 +565,7 @@ const StateSchema = z.object({
     cvssScore: z.number(),
     cvssV2: z.object({
       attackComplexity: z.string(),
+      attackRequirements: z.string(),
       attackVector: z.string(),
       authentication: z.string(),
       availabilityImpact: z.string(),
@@ -575,11 +576,18 @@ const StateSchema = z.object({
       integrityImpact: z.string(),
       privilegesRequired: z.string(),
       scope: z.string(),
+      subsequentSystemAvailabilityImpact: z.string(),
+      subsequentSystemConfidentialityImpact: z.string(),
+      subsequentSystemIntegrityImpact: z.string(),
       userInteraction: z.string(),
+      vulnerableSystemAvailabilityImpact: z.string(),
+      vulnerableSystemConfidentialityImpact: z.string(),
+      vulnerableSystemIntegrityImpact: z.string(),
     }),
     cvssVersion: z.string(),
     cvssv3: z.object({
       attackComplexity: z.string(),
+      attackRequirements: z.string(),
       attackVector: z.string(),
       authentication: z.string(),
       availabilityImpact: z.string(),
@@ -590,7 +598,13 @@ const StateSchema = z.object({
       integrityImpact: z.string(),
       privilegesRequired: z.string(),
       scope: z.string(),
+      subsequentSystemAvailabilityImpact: z.string(),
+      subsequentSystemConfidentialityImpact: z.string(),
+      subsequentSystemIntegrityImpact: z.string(),
       userInteraction: z.string(),
+      vulnerableSystemAvailabilityImpact: z.string(),
+      vulnerableSystemConfidentialityImpact: z.string(),
+      vulnerableSystemIntegrityImpact: z.string(),
     }),
     effectiveSeverity: z.string(),
     extraDetails: z.string(),
@@ -677,7 +691,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Container Analysis Notes.Occurrences. Registered at `@swamp/gcp/containeranalysis/notes-occurrences`. */
 export const model = {
   type: "@swamp/gcp/containeranalysis/notes-occurrences",
-  version: "2026.05.26.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -771,6 +785,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

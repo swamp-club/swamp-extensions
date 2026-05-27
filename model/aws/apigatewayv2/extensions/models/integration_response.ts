@@ -25,13 +25,13 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  ResponseTemplates: z.string().describe(
+  ResponseTemplates: z.record(z.string(), z.unknown()).describe(
     "The collection of response templates for the integration response as a string-to-string map of key-value pairs. Response templates are represented as a key/value map, with a content-type as the key and a template as the value.",
   ).optional(),
   TemplateSelectionExpression: z.string().describe(
     "The template selection expression for the integration response. Supported only for WebSocket APIs.",
   ).optional(),
-  ResponseParameters: z.string().describe(
+  ResponseParameters: z.record(z.string(), z.unknown()).describe(
     "A key-value map specifying response parameters that are passed to the method response from the backend. The key is a method response header parameter name and the mapped value is an integration response header value, a static value enclosed within a pair of single quotes, or a JSON expression from the integration response body. The mapping key must match the pattern of method.response.header.{name}, where name is a valid and unique header name. The mapped non-static value must match the pattern of integration.response.header.{name} or integration.response.body.{JSON-expression}, where {name} is a valid and unique response header name and {JSON-expression} is a valid JSON expression without the $ prefix.",
   ).optional(),
   ContentHandlingStrategy: z.string().describe(
@@ -44,9 +44,9 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   IntegrationResponseId: z.string(),
-  ResponseTemplates: z.string().optional(),
+  ResponseTemplates: z.record(z.string(), z.unknown()).optional(),
   TemplateSelectionExpression: z.string().optional(),
-  ResponseParameters: z.string().optional(),
+  ResponseParameters: z.record(z.string(), z.unknown()).optional(),
   ContentHandlingStrategy: z.string().optional(),
   IntegrationId: z.string(),
   IntegrationResponseKey: z.string().optional(),
@@ -57,13 +57,13 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
-  ResponseTemplates: z.string().describe(
+  ResponseTemplates: z.record(z.string(), z.unknown()).describe(
     "The collection of response templates for the integration response as a string-to-string map of key-value pairs. Response templates are represented as a key/value map, with a content-type as the key and a template as the value.",
   ).optional(),
   TemplateSelectionExpression: z.string().describe(
     "The template selection expression for the integration response. Supported only for WebSocket APIs.",
   ).optional(),
-  ResponseParameters: z.string().describe(
+  ResponseParameters: z.record(z.string(), z.unknown()).describe(
     "A key-value map specifying response parameters that are passed to the method response from the backend. The key is a method response header parameter name and the mapped value is an integration response header value, a static value enclosed within a pair of single quotes, or a JSON expression from the integration response body. The mapping key must match the pattern of method.response.header.{name}, where name is a valid and unique header name. The mapped non-static value must match the pattern of integration.response.header.{name} or integration.response.body.{JSON-expression}, where {name} is a valid and unique response header name and {JSON-expression} is a valid JSON expression without the $ prefix.",
   ).optional(),
   ContentHandlingStrategy: z.string().describe(
@@ -78,7 +78,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ApiGatewayV2 IntegrationResponse. Registered at `@swamp/aws/apigatewayv2/integration-response`. */
 export const model = {
   type: "@swamp/aws/apigatewayv2/integration-response",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -102,6 +102,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

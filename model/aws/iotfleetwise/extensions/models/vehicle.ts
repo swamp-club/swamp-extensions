@@ -39,7 +39,7 @@ const StateTemplateAssociationSchema = z.object({
   Identifier: z.string().min(1).max(100),
   StateTemplateUpdateStrategy: z.object({
     Periodic: PeriodicStateTemplateUpdateStrategySchema.optional(),
-    OnChange: z.string().optional(),
+    OnChange: z.record(z.string(), z.unknown()).optional(),
   }),
 });
 
@@ -84,7 +84,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for IoTFleetWise Vehicle. Registered at `@swamp/aws/iotfleetwise/vehicle`. */
 export const model = {
   type: "@swamp/aws/iotfleetwise/vehicle",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -108,6 +108,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

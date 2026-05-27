@@ -43,7 +43,7 @@ const GlobalArgsSchema = z.object({
   PropagatedSetLevelTags: z.array(z.string().min(1).max(128)).describe(
     "The tags keys to propagate to the S3 objects associated with read sets in the sequence store.",
   ).optional(),
-  S3AccessPolicy: z.string().describe(
+  S3AccessPolicy: z.record(z.string(), z.unknown()).describe(
     "The resource policy that controls S3 access on the store",
   ).optional(),
   SseConfig: z.object({
@@ -65,7 +65,7 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   PropagatedSetLevelTags: z.array(z.string()).optional(),
   S3AccessPointArn: z.string().optional(),
-  S3AccessPolicy: z.string().optional(),
+  S3AccessPolicy: z.record(z.string(), z.unknown()).optional(),
   S3Uri: z.string().optional(),
   SequenceStoreId: z.string(),
   SseConfig: z.object({
@@ -100,7 +100,7 @@ const InputsSchema = z.object({
   PropagatedSetLevelTags: z.array(z.string().min(1).max(128)).describe(
     "The tags keys to propagate to the S3 objects associated with read sets in the sequence store.",
   ).optional(),
-  S3AccessPolicy: z.string().describe(
+  S3AccessPolicy: z.record(z.string(), z.unknown()).describe(
     "The resource policy that controls S3 access on the store",
   ).optional(),
   SseConfig: z.object({
@@ -115,7 +115,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Omics SequenceStore. Registered at `@swamp/aws/omics/sequence-store`. */
 export const model = {
   type: "@swamp/aws/omics/sequence-store",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -139,6 +139,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -63,7 +63,7 @@ const GlobalArgsSchema = z.object({
     "The relay state URL that redirect links to any service in the AWS Management Console.",
   ).optional(),
   ManagedPolicies: z.array(z.string().min(20).max(2048)).optional(),
-  InlinePolicy: z.string().describe(
+  InlinePolicy: z.record(z.string(), z.unknown()).describe(
     "The inline policy to put in permission set.",
   ).optional(),
   Tags: z.array(TagSchema).optional(),
@@ -128,7 +128,7 @@ const InputsSchema = z.object({
     "The relay state URL that redirect links to any service in the AWS Management Console.",
   ).optional(),
   ManagedPolicies: z.array(z.string().min(20).max(2048)).optional(),
-  InlinePolicy: z.string().describe(
+  InlinePolicy: z.record(z.string(), z.unknown()).describe(
     "The inline policy to put in permission set.",
   ).optional(),
   Tags: z.array(TagSchema).optional(),
@@ -146,7 +146,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SSO PermissionSet. Registered at `@swamp/aws/sso/permission-set`. */
 export const model = {
   type: "@swamp/aws/sso/permission-set",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -180,6 +180,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

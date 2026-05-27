@@ -30,7 +30,7 @@ const GlobalArgsSchema = z.object({
       "^arn:aws(-[a-z]+)*:acm-pca:[a-z]+(-[a-z]+)+-[1-9]\\d*:\\d{12}:certificate-authority\\/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$",
     ),
   ),
-  MobileDeviceManagement: z.string().optional(),
+  MobileDeviceManagement: z.record(z.string(), z.unknown()).optional(),
   OpenIdConfiguration: z.object({
     Issuer: z.string().optional(),
     Subject: z.string().optional(),
@@ -45,7 +45,7 @@ const StateSchema = z.object({
   ConnectorArn: z.string(),
   Type: z.string().optional(),
   Endpoint: z.string().optional(),
-  MobileDeviceManagement: z.string().optional(),
+  MobileDeviceManagement: z.record(z.string(), z.unknown()).optional(),
   OpenIdConfiguration: z.object({
     Issuer: z.string(),
     Subject: z.string(),
@@ -64,7 +64,7 @@ const InputsSchema = z.object({
       "^arn:aws(-[a-z]+)*:acm-pca:[a-z]+(-[a-z]+)+-[1-9]\\d*:\\d{12}:certificate-authority\\/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$",
     ),
   ).optional(),
-  MobileDeviceManagement: z.string().optional(),
+  MobileDeviceManagement: z.record(z.string(), z.unknown()).optional(),
   OpenIdConfiguration: z.object({
     Issuer: z.string().optional(),
     Subject: z.string().optional(),
@@ -77,7 +77,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for PCAConnectorSCEP Connector. Registered at `@swamp/aws/pcaconnectorscep/connector`. */
 export const model = {
   type: "@swamp/aws/pcaconnectorscep/connector",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -101,6 +101,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

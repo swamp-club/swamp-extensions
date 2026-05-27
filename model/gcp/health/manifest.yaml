@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/health"
-version: "2026.05.26.1"
+version: "2026.05.27.1"
 description: "Google Cloud health infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,11 +11,13 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: subscribers
+  - Added: subscribers_subscriptions, users_paireddevices
   - Updated: users_datatypes_datapoints
 models:
   - subscribers.ts
+  - subscribers_subscriptions.ts
   - users_datatypes_datapoints.ts
+  - users_paireddevices.ts
 additionalFiles:
   - LICENSE.txt
   - README.md

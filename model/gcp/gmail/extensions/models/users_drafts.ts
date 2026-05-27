@@ -190,12 +190,12 @@ const GlobalArgsSchema = z.object({
         .optional(),
       partId: z.string().describe("The immutable ID of the message part.")
         .optional(),
-      parts: z.array(z.string()).describe(
+      parts: z.array(z.record(z.string(), z.unknown())).describe(
         "The child MIME message parts of this part. This only applies to container MIME message parts, for example `multipart/*`. For non- container MIME message part types, such as `text/plain`, this field is empty. For more information, see RFC 1521.",
       ).optional(),
     }).describe("A single MIME message part.").optional(),
     raw: z.string().describe(
-      "The entire email message in an RFC 2822 formatted and base64url encoded string. Returned in `messages.get` and `drafts.get` responses when the `format=RAW` parameter is supplied.",
+      "The entire email message in an RFC 2822 formatted and base64url encoded string. Returned in `messages.get` and `drafts.get` responses when the `format=RAW` parameter is supplied. @required gmail.users.drafts.create gmail.users.drafts.update",
     ).optional(),
     sizeEstimate: z.number().int().describe(
       "Estimated size in bytes of the message.",
@@ -238,7 +238,7 @@ const StateSchema = z.object({
       })),
       mimeType: z.string(),
       partId: z.string(),
-      parts: z.array(z.string()),
+      parts: z.array(z.record(z.string(), z.unknown())),
     }),
     raw: z.string(),
     sizeEstimate: z.number(),
@@ -307,12 +307,12 @@ const InputsSchema = z.object({
         .optional(),
       partId: z.string().describe("The immutable ID of the message part.")
         .optional(),
-      parts: z.array(z.string()).describe(
+      parts: z.array(z.record(z.string(), z.unknown())).describe(
         "The child MIME message parts of this part. This only applies to container MIME message parts, for example `multipart/*`. For non- container MIME message part types, such as `text/plain`, this field is empty. For more information, see RFC 1521.",
       ).optional(),
     }).describe("A single MIME message part.").optional(),
     raw: z.string().describe(
-      "The entire email message in an RFC 2822 formatted and base64url encoded string. Returned in `messages.get` and `drafts.get` responses when the `format=RAW` parameter is supplied.",
+      "The entire email message in an RFC 2822 formatted and base64url encoded string. Returned in `messages.get` and `drafts.get` responses when the `format=RAW` parameter is supplied. @required gmail.users.drafts.create gmail.users.drafts.update",
     ).optional(),
     sizeEstimate: z.number().int().describe(
       "Estimated size in bytes of the message.",
@@ -331,7 +331,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gmail Users.Drafts. Registered at `@swamp/gcp/gmail/users-drafts`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-drafts",
-  version: "2026.05.26.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -420,6 +420,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

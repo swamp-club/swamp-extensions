@@ -89,7 +89,7 @@ const FieldValueSchema = z.object({
   StringValue: z.string().optional(),
   BooleanValue: z.boolean().optional(),
   DoubleValue: z.number().optional(),
-  EmptyValue: z.string().optional(),
+  EmptyValue: z.record(z.string(), z.unknown()).optional(),
 });
 
 const FieldSchema = z.object({
@@ -161,9 +161,10 @@ const GlobalArgsSchema = z.object({
   }).describe("The event source to trigger the rule."),
   Function: z.string().describe("The conditions of the rule."),
   Actions: z.object({
-    AssignContactCategoryActions: z.array(z.string()).describe(
-      "Information about the contact category action. The syntax can be empty, for example, {}.",
-    ).optional(),
+    AssignContactCategoryActions: z.array(z.record(z.string(), z.unknown()))
+      .describe(
+        "Information about the contact category action. The syntax can be empty, for example, {}.",
+      ).optional(),
     EventBridgeActions: z.array(EventBridgeActionSchema).describe(
       "Information about the EV action.",
     ).optional(),
@@ -175,7 +176,8 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     CreateCaseActions: z.array(CreateCaseActionSchema).optional(),
     UpdateCaseActions: z.array(UpdateCaseActionSchema).optional(),
-    EndAssociatedTasksActions: z.array(z.string()).optional(),
+    EndAssociatedTasksActions: z.array(z.record(z.string(), z.unknown()))
+      .optional(),
     SubmitAutoEvaluationActions: z.array(SubmitAutoEvaluationActionSchema)
       .optional(),
   }).describe("A list of actions to be run when the rule is triggered."),
@@ -197,13 +199,13 @@ const StateSchema = z.object({
   }).optional(),
   Function: z.string().optional(),
   Actions: z.object({
-    AssignContactCategoryActions: z.array(z.string()),
+    AssignContactCategoryActions: z.array(z.record(z.string(), z.unknown())),
     EventBridgeActions: z.array(EventBridgeActionSchema),
     TaskActions: z.array(TaskActionSchema),
     SendNotificationActions: z.array(SendNotificationActionSchema),
     CreateCaseActions: z.array(CreateCaseActionSchema),
     UpdateCaseActions: z.array(UpdateCaseActionSchema),
-    EndAssociatedTasksActions: z.array(z.string()),
+    EndAssociatedTasksActions: z.array(z.record(z.string(), z.unknown())),
     SubmitAutoEvaluationActions: z.array(SubmitAutoEvaluationActionSchema),
   }).optional(),
   PublishStatus: z.string().optional(),
@@ -246,9 +248,10 @@ const InputsSchema = z.object({
   }).describe("The event source to trigger the rule.").optional(),
   Function: z.string().describe("The conditions of the rule.").optional(),
   Actions: z.object({
-    AssignContactCategoryActions: z.array(z.string()).describe(
-      "Information about the contact category action. The syntax can be empty, for example, {}.",
-    ).optional(),
+    AssignContactCategoryActions: z.array(z.record(z.string(), z.unknown()))
+      .describe(
+        "Information about the contact category action. The syntax can be empty, for example, {}.",
+      ).optional(),
     EventBridgeActions: z.array(EventBridgeActionSchema).describe(
       "Information about the EV action.",
     ).optional(),
@@ -260,7 +263,8 @@ const InputsSchema = z.object({
     ).optional(),
     CreateCaseActions: z.array(CreateCaseActionSchema).optional(),
     UpdateCaseActions: z.array(UpdateCaseActionSchema).optional(),
-    EndAssociatedTasksActions: z.array(z.string()).optional(),
+    EndAssociatedTasksActions: z.array(z.record(z.string(), z.unknown()))
+      .optional(),
     SubmitAutoEvaluationActions: z.array(SubmitAutoEvaluationActionSchema)
       .optional(),
   }).describe("A list of actions to be run when the rule is triggered.")
@@ -276,7 +280,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Connect Rule. Registered at `@swamp/aws/connect/rule`. */
 export const model = {
   type: "@swamp/aws/connect/rule",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -300,6 +304,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

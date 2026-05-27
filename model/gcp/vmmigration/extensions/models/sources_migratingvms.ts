@@ -474,6 +474,37 @@ const GlobalArgsSchema = z.object({
       "COMPUTE_ENGINE_DISK_TYPE_HYPERDISK_BALANCED",
       "COMPUTE_ENGINE_DISK_TYPE_HYPERDISK_BALANCED_HIGH_AVAILABILITY",
     ]).describe("The disk type to use in the VM.").optional(),
+    disks: z.array(z.object({
+      additionalLabels: z.record(z.string(), z.string()).describe(
+        "A map of labels to associate with the Persistent Disk.",
+      ).optional(),
+      diskName: z.string().describe(
+        "Optional. The name of the Persistent Disk to create.",
+      ).optional(),
+      diskType: z.enum([
+        "COMPUTE_ENGINE_DISK_TYPE_UNSPECIFIED",
+        "COMPUTE_ENGINE_DISK_TYPE_STANDARD",
+        "COMPUTE_ENGINE_DISK_TYPE_SSD",
+        "COMPUTE_ENGINE_DISK_TYPE_BALANCED",
+        "COMPUTE_ENGINE_DISK_TYPE_HYPERDISK_BALANCED",
+        "COMPUTE_ENGINE_DISK_TYPE_HYPERDISK_BALANCED_HIGH_AVAILABILITY",
+      ]).describe("The disk type to use.").optional(),
+      encryption: z.object({
+        kmsKey: z.string().describe(
+          "Required. The name of the encryption key that is stored in Google Cloud KMS.",
+        ).optional(),
+      }).describe(
+        "Encryption message describes the details of the applied encryption.",
+      ).optional(),
+      sourceDiskNumber: z.number().int().describe(
+        "Required. The ordinal number of the source VM disk.",
+      ).optional(),
+      vmAttachmentDetails: z.object({
+        deviceName: z.string().describe(
+          "Optional. Specifies a unique device name of your choice that is reflected into the /dev/disk/by-id/google-* tree of a Linux operating system running within the instance. If not specified, the server chooses a default device name to apply to this disk, in the form persistent-disk-x, where x is a number assigned by Google Compute Engine. This field is only applicable for persistent disks.",
+        ).optional(),
+      }).describe("Details for attachment of the disk to a VM.").optional(),
+    })).describe("Optional. The details of each disk to create.").optional(),
     enableIntegrityMonitoring: z.boolean().describe(
       "Optional. Defines whether the instance has integrity monitoring enabled. This can be set to true only if the VM boot option is EFI, and vTPM is enabled.",
     ).optional(),
@@ -969,6 +1000,18 @@ const StateSchema = z.object({
     }),
     diskReplicaZones: z.array(z.string()),
     diskType: z.string(),
+    disks: z.array(z.object({
+      additionalLabels: z.record(z.string(), z.unknown()),
+      diskName: z.string(),
+      diskType: z.string(),
+      encryption: z.object({
+        kmsKey: z.string(),
+      }),
+      sourceDiskNumber: z.number(),
+      vmAttachmentDetails: z.object({
+        deviceName: z.string(),
+      }),
+    })),
     enableIntegrityMonitoring: z.boolean(),
     enableVtpm: z.boolean(),
     encryption: z.object({
@@ -1638,6 +1681,37 @@ const InputsSchema = z.object({
       "COMPUTE_ENGINE_DISK_TYPE_HYPERDISK_BALANCED",
       "COMPUTE_ENGINE_DISK_TYPE_HYPERDISK_BALANCED_HIGH_AVAILABILITY",
     ]).describe("The disk type to use in the VM.").optional(),
+    disks: z.array(z.object({
+      additionalLabels: z.record(z.string(), z.string()).describe(
+        "A map of labels to associate with the Persistent Disk.",
+      ).optional(),
+      diskName: z.string().describe(
+        "Optional. The name of the Persistent Disk to create.",
+      ).optional(),
+      diskType: z.enum([
+        "COMPUTE_ENGINE_DISK_TYPE_UNSPECIFIED",
+        "COMPUTE_ENGINE_DISK_TYPE_STANDARD",
+        "COMPUTE_ENGINE_DISK_TYPE_SSD",
+        "COMPUTE_ENGINE_DISK_TYPE_BALANCED",
+        "COMPUTE_ENGINE_DISK_TYPE_HYPERDISK_BALANCED",
+        "COMPUTE_ENGINE_DISK_TYPE_HYPERDISK_BALANCED_HIGH_AVAILABILITY",
+      ]).describe("The disk type to use.").optional(),
+      encryption: z.object({
+        kmsKey: z.string().describe(
+          "Required. The name of the encryption key that is stored in Google Cloud KMS.",
+        ).optional(),
+      }).describe(
+        "Encryption message describes the details of the applied encryption.",
+      ).optional(),
+      sourceDiskNumber: z.number().int().describe(
+        "Required. The ordinal number of the source VM disk.",
+      ).optional(),
+      vmAttachmentDetails: z.object({
+        deviceName: z.string().describe(
+          "Optional. Specifies a unique device name of your choice that is reflected into the /dev/disk/by-id/google-* tree of a Linux operating system running within the instance. If not specified, the server chooses a default device name to apply to this disk, in the form persistent-disk-x, where x is a number assigned by Google Compute Engine. This field is only applicable for persistent disks.",
+        ).optional(),
+      }).describe("Details for attachment of the disk to a VM.").optional(),
+    })).describe("Optional. The details of each disk to create.").optional(),
     enableIntegrityMonitoring: z.boolean().describe(
       "Optional. Defines whether the instance has integrity monitoring enabled. This can be set to true only if the VM boot option is EFI, and vTPM is enabled.",
     ).optional(),
@@ -2021,7 +2095,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud VM Migration Sources.MigratingVms. Registered at `@swamp/gcp/vmmigration/sources-migratingvms`. */
 export const model = {
   type: "@swamp/gcp/vmmigration/sources-migratingvms",
-  version: "2026.05.25.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2090,6 +2164,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

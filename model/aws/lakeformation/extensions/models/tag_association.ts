@@ -29,7 +29,7 @@ const TableResourceSchema = z.object({
   CatalogId: z.string().min(12).max(12),
   DatabaseName: z.string().min(1).max(255),
   Name: z.string().min(1).max(255).optional(),
-  TableWildcard: z.string().optional(),
+  TableWildcard: z.record(z.string(), z.unknown()).optional(),
 });
 
 const TableWithColumnsResourceSchema = z.object({
@@ -50,7 +50,7 @@ const GlobalArgsSchema = z.object({
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
   Resource: z.object({
-    Catalog: z.string().optional(),
+    Catalog: z.record(z.string(), z.unknown()).optional(),
     Database: DatabaseResourceSchema.optional(),
     Table: TableResourceSchema.optional(),
     TableWithColumns: TableWithColumnsResourceSchema.optional(),
@@ -62,7 +62,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Resource: z.object({
-    Catalog: z.string(),
+    Catalog: z.record(z.string(), z.unknown()),
     Database: DatabaseResourceSchema,
     Table: TableResourceSchema,
     TableWithColumns: TableWithColumnsResourceSchema,
@@ -77,7 +77,7 @@ type StateData = z.infer<typeof StateSchema>;
 const InputsSchema = z.object({
   name: z.string().optional(),
   Resource: z.object({
-    Catalog: z.string().optional(),
+    Catalog: z.record(z.string(), z.unknown()).optional(),
     Database: DatabaseResourceSchema.optional(),
     Table: TableResourceSchema.optional(),
     TableWithColumns: TableWithColumnsResourceSchema.optional(),
@@ -90,7 +90,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for LakeFormation TagAssociation. Registered at `@swamp/aws/lakeformation/tag-association`. */
 export const model = {
   type: "@swamp/aws/lakeformation/tag-association",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -114,6 +114,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

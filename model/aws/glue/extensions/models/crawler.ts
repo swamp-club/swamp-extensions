@@ -214,7 +214,9 @@ const GlobalArgsSchema = z.object({
   TablePrefix: z.string().describe(
     "The prefix added to the names of tables that are created.",
   ).optional(),
-  Tags: z.string().describe("The tags to use with this crawler.").optional(),
+  Tags: z.record(z.string(), z.unknown()).describe(
+    "The tags to use with this crawler.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -250,7 +252,7 @@ const StateSchema = z.object({
     ScheduleExpression: z.string(),
   }).optional(),
   TablePrefix: z.string().optional(),
-  Tags: z.string().optional(),
+  Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -335,13 +337,15 @@ const InputsSchema = z.object({
   TablePrefix: z.string().describe(
     "The prefix added to the names of tables that are created.",
   ).optional(),
-  Tags: z.string().describe("The tags to use with this crawler.").optional(),
+  Tags: z.record(z.string(), z.unknown()).describe(
+    "The tags to use with this crawler.",
+  ).optional(),
 });
 
 /** Swamp extension model for Glue Crawler. Registered at `@swamp/aws/glue/crawler`. */
 export const model = {
   type: "@swamp/aws/glue/crawler",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -365,6 +369,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -31,7 +31,7 @@ const GlobalArgsSchema = z.object({
   Description: z.string().max(1024).describe(
     "The description of the attribute group.",
   ).optional(),
-  Attributes: z.string(),
+  Attributes: z.record(z.string(), z.unknown()),
   Tags: z.record(z.string(), z.string().max(256)).optional(),
 });
 
@@ -40,7 +40,7 @@ const StateSchema = z.object({
   Arn: z.string().optional(),
   Name: z.string().optional(),
   Description: z.string().optional(),
-  Attributes: z.string().optional(),
+  Attributes: z.record(z.string(), z.unknown()).optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
@@ -54,14 +54,14 @@ const InputsSchema = z.object({
   Description: z.string().max(1024).describe(
     "The description of the attribute group.",
   ).optional(),
-  Attributes: z.string().optional(),
+  Attributes: z.record(z.string(), z.unknown()).optional(),
   Tags: z.record(z.string(), z.string().max(256)).optional(),
 });
 
 /** Swamp extension model for ServiceCatalogAppRegistry AttributeGroup. Registered at `@swamp/aws/servicecatalogappregistry/attribute-group`. */
 export const model = {
   type: "@swamp/aws/servicecatalogappregistry/attribute-group",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -85,6 +85,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

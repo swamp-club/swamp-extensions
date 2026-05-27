@@ -37,7 +37,7 @@ const GlobalArgsSchema = z.object({
   Family: z.string().describe(
     'The DB cluster parameter group family name. A DB cluster parameter group can be associated with one and only one DB cluster parameter group family, and can be applied only to a DB cluster running a database engine and engine version compatible with that DB cluster parameter group family. *Aurora MySQL* Example: aurora-mysql5.7, aurora-mysql8.0 *Aurora PostgreSQL* Example: aurora-postgresql14 *RDS for MySQL* Example: mysql8.0 *RDS for PostgreSQL* Example: postgres13 To list all of the available parameter group families for a DB engine, use the following command: aws rds describe-db-engine-versions --query "DBEngineVersions[].DBParameterGroupFamily" --engine  For example, to list all of the available parameter group families for the Aurora PostgreSQL DB engine, use the following command: aws rds describe-db-engine-versions --query "DBEngineVersions[].DBParameterGroupFamily" --engine aurora-postgresql The output contains duplicates. The following are the valid DB engine values: aurora-mysql aurora-postgresql mysql postgres',
   ),
-  Parameters: z.string().describe(
+  Parameters: z.record(z.string(), z.unknown()).describe(
     "Provides a list of parameters for the DB cluster parameter group.",
   ),
   DBClusterParameterGroupName: z.string().regex(
@@ -53,7 +53,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Description: z.string().optional(),
   Family: z.string().optional(),
-  Parameters: z.string().optional(),
+  Parameters: z.record(z.string(), z.unknown()).optional(),
   DBClusterParameterGroupName: z.string(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
@@ -67,7 +67,7 @@ const InputsSchema = z.object({
   Family: z.string().describe(
     'The DB cluster parameter group family name. A DB cluster parameter group can be associated with one and only one DB cluster parameter group family, and can be applied only to a DB cluster running a database engine and engine version compatible with that DB cluster parameter group family. *Aurora MySQL* Example: aurora-mysql5.7, aurora-mysql8.0 *Aurora PostgreSQL* Example: aurora-postgresql14 *RDS for MySQL* Example: mysql8.0 *RDS for PostgreSQL* Example: postgres13 To list all of the available parameter group families for a DB engine, use the following command: aws rds describe-db-engine-versions --query "DBEngineVersions[].DBParameterGroupFamily" --engine  For example, to list all of the available parameter group families for the Aurora PostgreSQL DB engine, use the following command: aws rds describe-db-engine-versions --query "DBEngineVersions[].DBParameterGroupFamily" --engine aurora-postgresql The output contains duplicates. The following are the valid DB engine values: aurora-mysql aurora-postgresql mysql postgres',
   ).optional(),
-  Parameters: z.string().describe(
+  Parameters: z.record(z.string(), z.unknown()).describe(
     "Provides a list of parameters for the DB cluster parameter group.",
   ).optional(),
   DBClusterParameterGroupName: z.string().regex(
@@ -83,7 +83,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for RDS DBClusterParameterGroup. Registered at `@swamp/aws/rds/dbcluster-parameter-group`. */
 export const model = {
   type: "@swamp/aws/rds/dbcluster-parameter-group",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -107,6 +107,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

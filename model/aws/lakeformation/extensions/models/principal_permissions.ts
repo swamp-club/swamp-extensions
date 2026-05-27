@@ -38,7 +38,7 @@ const TableResourceSchema = z.object({
   ),
   Name: z.string().min(1).max(255).describe("The name of the table.")
     .optional(),
-  TableWildcard: z.string().describe(
+  TableWildcard: z.record(z.string(), z.unknown()).describe(
     "A wildcard object representing every table under a database. At least one of TableResource$Name or TableResource$TableWildcard is required.",
   ).optional(),
 });
@@ -130,7 +130,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe("The principal to be granted a permission."),
   Resource: z.object({
-    Catalog: z.string().describe(
+    Catalog: z.record(z.string(), z.unknown()).describe(
       "The identifier for the Data Catalog. By default, the account ID. The Data Catalog is the persistent metadata store. It contains database definitions, table definitions, and other control information to manage your LFlong environment.",
     ).optional(),
     Database: DatabaseResourceSchema.describe(
@@ -199,7 +199,7 @@ const StateSchema = z.object({
     DataLakePrincipalIdentifier: z.string(),
   }).optional(),
   Resource: z.object({
-    Catalog: z.string(),
+    Catalog: z.record(z.string(), z.unknown()),
     Database: DatabaseResourceSchema,
     Table: TableResourceSchema,
     TableWithColumns: TableWithColumnsResourceSchema,
@@ -227,7 +227,7 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe("The principal to be granted a permission.").optional(),
   Resource: z.object({
-    Catalog: z.string().describe(
+    Catalog: z.record(z.string(), z.unknown()).describe(
       "The identifier for the Data Catalog. By default, the account ID. The Data Catalog is the persistent metadata store. It contains database definitions, table definitions, and other control information to manage your LFlong environment.",
     ).optional(),
     Database: DatabaseResourceSchema.describe(
@@ -293,7 +293,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for LakeFormation PrincipalPermissions. Registered at `@swamp/aws/lakeformation/principal-permissions`. */
 export const model = {
   type: "@swamp/aws/lakeformation/principal-permissions",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -317,6 +317,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

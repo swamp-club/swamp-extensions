@@ -93,7 +93,7 @@ const StateSchema = z.object({
     deprecated: z.boolean(),
     description: z.string(),
     displayName: z.string(),
-    fields: z.array(z.string()),
+    fields: z.array(z.record(z.string(), z.unknown())),
     immutable: z.boolean(),
     maxListSize: z.string(),
     maxValue: z.number(),
@@ -126,7 +126,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud BigQuery Data Transfer DataSources. Registered at `@swamp/gcp/bigquerydatatransfer/datasources`. */
 export const model = {
   type: "@swamp/gcp/bigquerydatatransfer/datasources",
-  version: "2026.05.25.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -190,6 +190,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

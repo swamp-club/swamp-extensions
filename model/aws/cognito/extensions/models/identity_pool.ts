@@ -51,8 +51,8 @@ const GlobalArgsSchema = z.object({
     StreamName: z.string().optional(),
     RoleArn: z.string().optional(),
   }).optional(),
-  SupportedLoginProviders: z.string().optional(),
-  CognitoEvents: z.string().optional(),
+  SupportedLoginProviders: z.record(z.string(), z.unknown()).optional(),
+  CognitoEvents: z.record(z.string(), z.unknown()).optional(),
   IdentityPoolName: z.string().optional(),
   AllowUnauthenticatedIdentities: z.boolean(),
   SamlProviderARNs: z.array(z.string()).optional(),
@@ -75,9 +75,9 @@ const StateSchema = z.object({
     StreamName: z.string(),
     RoleArn: z.string(),
   }).optional(),
-  SupportedLoginProviders: z.string().optional(),
+  SupportedLoginProviders: z.record(z.string(), z.unknown()).optional(),
   Name: z.string().optional(),
-  CognitoEvents: z.string().optional(),
+  CognitoEvents: z.record(z.string(), z.unknown()).optional(),
   Id: z.string(),
   IdentityPoolName: z.string().optional(),
   AllowUnauthenticatedIdentities: z.boolean().optional(),
@@ -102,8 +102,8 @@ const InputsSchema = z.object({
     StreamName: z.string().optional(),
     RoleArn: z.string().optional(),
   }).optional(),
-  SupportedLoginProviders: z.string().optional(),
-  CognitoEvents: z.string().optional(),
+  SupportedLoginProviders: z.record(z.string(), z.unknown()).optional(),
+  CognitoEvents: z.record(z.string(), z.unknown()).optional(),
   IdentityPoolName: z.string().optional(),
   AllowUnauthenticatedIdentities: z.boolean().optional(),
   SamlProviderARNs: z.array(z.string()).optional(),
@@ -117,7 +117,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cognito IdentityPool. Registered at `@swamp/aws/cognito/identity-pool`. */
 export const model = {
   type: "@swamp/aws/cognito/identity-pool",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -141,6 +141,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

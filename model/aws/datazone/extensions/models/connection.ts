@@ -380,7 +380,7 @@ const GlobalArgsSchema = z.object({
     WorkflowsMwaaProperties: WorkflowsMwaaPropertiesInputSchema.describe(
       "Workflows MWAA Properties Input",
     ).optional(),
-    WorkflowsServerlessProperties: z.string().describe(
+    WorkflowsServerlessProperties: z.record(z.string(), z.unknown()).describe(
       "Workflows Serverless Properties Input",
     ).optional(),
     LakehouseProperties: LakehousePropertiesInputSchema.describe(
@@ -423,7 +423,7 @@ const StateSchema = z.object({
     S3Properties: S3PropertiesInputSchema,
     MlflowProperties: MlflowPropertiesInputSchema,
     WorkflowsMwaaProperties: WorkflowsMwaaPropertiesInputSchema,
-    WorkflowsServerlessProperties: z.string(),
+    WorkflowsServerlessProperties: z.record(z.string(), z.unknown()),
     LakehouseProperties: LakehousePropertiesInputSchema,
   }).optional(),
   Type: z.string().optional(),
@@ -499,7 +499,7 @@ const InputsSchema = z.object({
     WorkflowsMwaaProperties: WorkflowsMwaaPropertiesInputSchema.describe(
       "Workflows MWAA Properties Input",
     ).optional(),
-    WorkflowsServerlessProperties: z.string().describe(
+    WorkflowsServerlessProperties: z.record(z.string(), z.unknown()).describe(
       "Workflows Serverless Properties Input",
     ).optional(),
     LakehouseProperties: LakehousePropertiesInputSchema.describe(
@@ -513,7 +513,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DataZone Connection. Registered at `@swamp/aws/datazone/connection`. */
 export const model = {
   type: "@swamp/aws/datazone/connection",
-  version: "2026.05.09.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -553,6 +553,11 @@ export const model = {
     {
       toVersion: "2026.05.09.1",
       description: "Added: Configurations",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

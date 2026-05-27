@@ -204,7 +204,7 @@ const StateSchema = z.object({
     lastUpdateDate: z.string(),
   }).optional(),
   customAttributes: z.array(z.object({
-    groupValues: z.array(z.string()),
+    groupValues: z.array(z.record(z.string(), z.unknown())),
     name: z.string(),
     value: z.string(),
   })).optional(),
@@ -225,7 +225,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud CSS Accounts.CssProducts. Registered at `@swamp/gcp/css/accounts-cssproducts`. */
 export const model = {
   type: "@swamp/gcp/css/accounts-cssproducts",
-  version: "2026.05.25.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -284,6 +284,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

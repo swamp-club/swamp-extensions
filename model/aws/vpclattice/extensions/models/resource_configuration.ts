@@ -36,7 +36,7 @@ const GlobalArgsSchema = z.object({
       new RegExp("^((\\d{1,5}\\-\\d{1,5})|(\\d+))$"),
     ),
   ).optional(),
-  ResourceConfigurationDefinition: z.string().optional(),
+  ResourceConfigurationDefinition: z.record(z.string(), z.unknown()).optional(),
   GroupDomain: z.string().min(3).max(255).optional(),
   ResourceConfigurationAuthType: z.enum(["NONE", "AWS_IAM"]).optional(),
   ResourceConfigurationGroupId: z.string().min(22).max(22).regex(
@@ -58,7 +58,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   CustomDomainName: z.string().optional(),
   PortRanges: z.array(z.string()).optional(),
-  ResourceConfigurationDefinition: z.string().optional(),
+  ResourceConfigurationDefinition: z.record(z.string(), z.unknown()).optional(),
   GroupDomain: z.string().optional(),
   ResourceConfigurationAuthType: z.string().optional(),
   ResourceConfigurationGroupId: z.string().optional(),
@@ -83,7 +83,7 @@ const InputsSchema = z.object({
       new RegExp("^((\\d{1,5}\\-\\d{1,5})|(\\d+))$"),
     ),
   ).optional(),
-  ResourceConfigurationDefinition: z.string().optional(),
+  ResourceConfigurationDefinition: z.record(z.string(), z.unknown()).optional(),
   GroupDomain: z.string().min(3).max(255).optional(),
   ResourceConfigurationAuthType: z.enum(["NONE", "AWS_IAM"]).optional(),
   ResourceConfigurationGroupId: z.string().min(22).max(22).regex(
@@ -106,7 +106,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for VpcLattice ResourceConfiguration. Registered at `@swamp/aws/vpclattice/resource-configuration`. */
 export const model = {
   type: "@swamp/aws/vpclattice/resource-configuration",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -130,6 +130,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

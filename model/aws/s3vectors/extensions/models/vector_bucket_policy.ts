@@ -22,7 +22,7 @@ import {
 } from "./_lib/aws.ts";
 
 const GlobalArgsSchema = z.object({
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     "A policy document containing permissions to add to the specified vector bucket. In IAM, you must provide policy documents in JSON format. However, in CloudFormation you can provide the policy in JSON or YAML format because CloudFormation converts YAML to JSON before submitting it to IAM.",
   ),
   VectorBucketArn: z.string().describe(
@@ -42,7 +42,7 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     "A policy document containing permissions to add to the specified vector bucket. In IAM, you must provide policy documents in JSON format. However, in CloudFormation you can provide the policy in JSON or YAML format because CloudFormation converts YAML to JSON before submitting it to IAM.",
   ).optional(),
   VectorBucketArn: z.string().describe(
@@ -56,7 +56,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for S3Vectors VectorBucketPolicy. Registered at `@swamp/aws/s3vectors/vector-bucket-policy`. */
 export const model = {
   type: "@swamp/aws/s3vectors/vector-bucket-policy",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -85,6 +85,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

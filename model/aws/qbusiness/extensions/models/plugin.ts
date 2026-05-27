@@ -76,7 +76,7 @@ const GlobalArgsSchema = z.object({
     BasicAuthConfiguration: BasicAuthConfigurationSchema.optional(),
     OAuth2ClientCredentialConfiguration:
       OAuth2ClientCredentialConfigurationSchema.optional(),
-    NoAuthConfiguration: z.string().optional(),
+    NoAuthConfiguration: z.record(z.string(), z.unknown()).optional(),
   }),
   CustomPluginConfiguration: z.object({
     Description: z.string().min(1).max(200),
@@ -121,7 +121,7 @@ const StateSchema = z.object({
     BasicAuthConfiguration: BasicAuthConfigurationSchema,
     OAuth2ClientCredentialConfiguration:
       OAuth2ClientCredentialConfigurationSchema,
-    NoAuthConfiguration: z.string(),
+    NoAuthConfiguration: z.record(z.string(), z.unknown()),
   }).optional(),
   BuildStatus: z.string().optional(),
   CreatedAt: z.string().optional(),
@@ -154,7 +154,7 @@ const InputsSchema = z.object({
     BasicAuthConfiguration: BasicAuthConfigurationSchema.optional(),
     OAuth2ClientCredentialConfiguration:
       OAuth2ClientCredentialConfigurationSchema.optional(),
-    NoAuthConfiguration: z.string().optional(),
+    NoAuthConfiguration: z.record(z.string(), z.unknown()).optional(),
   }).optional(),
   CustomPluginConfiguration: z.object({
     Description: z.string().min(1).max(200).optional(),
@@ -196,7 +196,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for QBusiness Plugin. Registered at `@swamp/aws/qbusiness/plugin`. */
 export const model = {
   type: "@swamp/aws/qbusiness/plugin",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -220,6 +220,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

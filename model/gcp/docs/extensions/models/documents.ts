@@ -626,7 +626,7 @@ const GlobalArgsSchema = z.object({
     "The named styles. Paragraphs in the document can inherit their TextStyle and ParagraphStyle from these named styles.",
   ).optional(),
   tabs: z.array(z.object({
-    childTabs: z.array(z.string()).describe(
+    childTabs: z.array(z.record(z.string(), z.unknown())).describe(
       "The child tabs nested within this tab.",
     ).optional(),
     documentTab: z.object({
@@ -1136,7 +1136,7 @@ const StateSchema = z.object({
   suggestedNamedStylesChanges: z.record(z.string(), z.unknown()).optional(),
   suggestionsViewMode: z.string().optional(),
   tabs: z.array(z.object({
-    childTabs: z.array(z.string()),
+    childTabs: z.array(z.record(z.string(), z.unknown())),
     documentTab: z.object({
       body: z.object({
         content: z.array(z.unknown()),
@@ -1786,7 +1786,7 @@ const InputsSchema = z.object({
     "The named styles. Paragraphs in the document can inherit their TextStyle and ParagraphStyle from these named styles.",
   ).optional(),
   tabs: z.array(z.object({
-    childTabs: z.array(z.string()).describe(
+    childTabs: z.array(z.record(z.string(), z.unknown())).describe(
       "The child tabs nested within this tab.",
     ).optional(),
     documentTab: z.object({
@@ -2041,7 +2041,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Docs Documents. Registered at `@swamp/gcp/docs/documents`. */
 export const model = {
   type: "@swamp/gcp/docs/documents",
-  version: "2026.05.25.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2105,6 +2105,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

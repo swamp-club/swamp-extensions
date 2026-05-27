@@ -30,7 +30,7 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  PolicyDocument: z.string(),
+  PolicyDocument: z.record(z.string(), z.unknown()),
   PolicyName: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
 });
@@ -48,7 +48,7 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
-  PolicyDocument: z.string().optional(),
+  PolicyDocument: z.record(z.string(), z.unknown()).optional(),
   PolicyName: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
 });
@@ -56,7 +56,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for IoT Policy. Registered at `@swamp/aws/iot/policy`. */
 export const model = {
   type: "@swamp/aws/iot/policy",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -85,6 +85,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

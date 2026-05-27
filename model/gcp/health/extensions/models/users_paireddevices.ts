@@ -1,12 +1,12 @@
-// Auto-generated extension model for @swamp/gcp/notebooks/locations
+// Auto-generated extension model for @swamp/gcp/health/users-paireddevices
 // Do not edit manually. Re-generate with: deno task generate:gcp
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Notebooks Locations.
+ * Swamp extension model for Google Cloud Google Health Users.PairedDevices.
  *
- * A resource that represents a Google Cloud location.
+ * User's Paired 1P Device The PairedDevice details include information about the device type, battery status, battery level, last sync time, device version, mac address, and features.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -22,11 +22,16 @@ import {
   readResource,
 } from "./_lib/gcp.ts";
 
-const BASE_URL = "https://notebooks.googleapis.com/";
+/** Construct the fully-qualified resource name from parent and short name. */
+function buildResourceName(parent: string, shortName: string): string {
+  return `${parent}/pairedDevices/${shortName}`;
+}
+
+const BASE_URL = "https://health.googleapis.com/";
 
 const GET_CONFIG = {
-  "id": "notebooks.projects.locations.get",
-  "path": "v2/{+name}",
+  "id": "health.users.pairedDevices.get",
+  "path": "v4/{+name}",
   "httpMethod": "GET",
   "parameterOrder": [
     "name",
@@ -40,28 +45,22 @@ const GET_CONFIG = {
 } as const;
 
 const LIST_CONFIG = {
-  "id": "notebooks.projects.locations.list",
-  "path": "v2/{+name}/locations",
+  "id": "health.users.pairedDevices.list",
+  "path": "v4/{+parent}/pairedDevices",
   "httpMethod": "GET",
   "parameterOrder": [
-    "name",
+    "parent",
   ],
   "parameters": {
-    "extraLocationTypes": {
-      "location": "query",
-    },
-    "filter": {
-      "location": "query",
-    },
-    "name": {
-      "location": "path",
-      "required": true,
-    },
     "pageSize": {
       "location": "query",
     },
     "pageToken": {
       "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
     },
   },
 } as const;
@@ -70,13 +69,19 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
+  parent: z.string().describe(
+    "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
+  ).optional(),
 });
 
 const StateSchema = z.object({
-  displayName: z.string().optional(),
-  labels: z.record(z.string(), z.unknown()).optional(),
-  locationId: z.string().optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
+  batteryLevel: z.number().optional(),
+  batteryStatus: z.string().optional(),
+  deviceType: z.string().optional(),
+  deviceVersion: z.string().optional(),
+  features: z.array(z.string()).optional(),
+  lastSyncTime: z.string().optional(),
+  macAddress: z.string().optional(),
   name: z.string(),
 }).passthrough();
 
@@ -84,84 +89,21 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
+  parent: z.string().describe(
+    "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
+  ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Notebooks Locations. Registered at `@swamp/gcp/notebooks/locations`. */
+/** Swamp extension model for Google Cloud Google Health Users.PairedDevices. Registered at `@swamp/gcp/health/users-paireddevices`. */
 export const model = {
-  type: "@swamp/gcp/notebooks/locations",
+  type: "@swamp/gcp/health/users-paireddevices",
   version: "2026.05.27.1",
-  upgrades: [
-    {
-      toVersion: "2026.04.01.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.02.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.3",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.19.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.19.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.21.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.21.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.24.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.25.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.27.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "A resource that represents a Google Cloud location.",
+      description:
+        "User's Paired 1P Device The PairedDevice details include information about th...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -169,15 +111,18 @@ export const model = {
   },
   methods: {
     get: {
-      description: "Get a locations",
+      description: "Get a pairedDevices",
       arguments: z.object({
-        identifier: z.string().describe("The name of the locations"),
+        identifier: z.string().describe("The name of the pairedDevices"),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
-        params["name"] = args.identifier;
+        params["name"] = buildResourceName(
+          String(g["parent"] ?? ""),
+          args.identifier,
+        );
         const result = await readResource(
           BASE_URL,
           GET_CONFIG,
@@ -196,7 +141,7 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync locations state from GCP",
+      description: "Sync pairedDevices state from GCP",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -216,13 +161,12 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         try {
           const params: Record<string, string> = { project: projectId };
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
-          if (!identifier) {
-            throw new Error(
-              "No identifier found in existing state or globalArgs",
-            );
-          }
-          params["name"] = identifier;
+          const shortName = existing.name?.toString() ?? g["name"]?.toString();
+          if (!shortName) throw new Error("No identifier found");
+          params["name"] = buildResourceName(
+            String(g["parent"] ?? ""),
+            shortName,
+          );
           const result = await readResource(
             BASE_URL,
             GET_CONFIG,
@@ -247,16 +191,10 @@ export const model = {
       },
     },
     list: {
-      description: "List locations resources",
+      description: "List pairedDevices resources",
       arguments: z.object({
-        extraLocationTypes: z.string().describe(
-          "Optional. Do not use this field unless explicitly documented otherwise. This is primarily for internal usage.",
-        ).optional(),
-        filter: z.string().describe(
-          'A filter to narrow down results to a preferred subset. The filtering language accepts strings like `"displayName=tokyo"`, and is documented in more detail in [AIP-160](https://google.aip.dev/160).',
-        ).optional(),
         pageSize: z.number().describe(
-          "The maximum number of results to return. If not set, the service selects a default.",
+          "Optional. The maximum number of devices to return. The service may return fewer than this value. If unspecified, at most 5 devices will be returned. The maximum value is 100. values above 100 will be coerced to 100.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
@@ -266,13 +204,7 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["name"] !== undefined) params["name"] = String(g["name"]);
-        if (args["extraLocationTypes"] !== undefined) {
-          params["extraLocationTypes"] = String(args["extraLocationTypes"]);
-        }
-        if (args["filter"] !== undefined) {
-          params["filter"] = String(args["filter"]);
-        }
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         if (args["pageSize"] !== undefined) {
           params["pageSize"] = String(args["pageSize"]);
         }
@@ -280,7 +212,7 @@ export const model = {
           BASE_URL,
           LIST_CONFIG,
           params,
-          "locations",
+          "pairedDevices",
           (args.maxPages as number | undefined) ?? 10,
         );
         const dataHandles = [];

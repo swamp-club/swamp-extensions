@@ -404,6 +404,9 @@ const GlobalArgsSchema = z.object({
         cloudFunction: z.unknown().describe(
           "For display only. Metadata associated with a Cloud Function.",
         ).optional(),
+        cloudRunJob: z.unknown().describe(
+          "For display only. Metadata associated with a Cloud Run job.",
+        ).optional(),
         cloudRunRevision: z.unknown().describe(
           "For display only. Metadata associated with a Cloud Run revision.",
         ).optional(),
@@ -595,6 +598,9 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         cloudFunction: z.unknown().describe(
           "For display only. Metadata associated with a Cloud Function.",
+        ).optional(),
+        cloudRunJob: z.unknown().describe(
+          "For display only. Metadata associated with a Cloud Run job.",
         ).optional(),
         cloudRunRevision: z.unknown().describe(
           "For display only. Metadata associated with a Cloud Run revision.",
@@ -926,6 +932,7 @@ const StateSchema = z.object({
         appEngineVersion: z.unknown(),
         causesDrop: z.unknown(),
         cloudFunction: z.unknown(),
+        cloudRunJob: z.unknown(),
         cloudRunRevision: z.unknown(),
         cloudSqlInstance: z.unknown(),
         datastreamPrivateConnection: z.unknown(),
@@ -993,6 +1000,7 @@ const StateSchema = z.object({
         appEngineVersion: z.unknown(),
         causesDrop: z.unknown(),
         cloudFunction: z.unknown(),
+        cloudRunJob: z.unknown(),
         cloudRunRevision: z.unknown(),
         cloudSqlInstance: z.unknown(),
         datastreamPrivateConnection: z.unknown(),
@@ -1348,6 +1356,9 @@ const InputsSchema = z.object({
         cloudFunction: z.unknown().describe(
           "For display only. Metadata associated with a Cloud Function.",
         ).optional(),
+        cloudRunJob: z.unknown().describe(
+          "For display only. Metadata associated with a Cloud Run job.",
+        ).optional(),
         cloudRunRevision: z.unknown().describe(
           "For display only. Metadata associated with a Cloud Run revision.",
         ).optional(),
@@ -1539,6 +1550,9 @@ const InputsSchema = z.object({
         ).optional(),
         cloudFunction: z.unknown().describe(
           "For display only. Metadata associated with a Cloud Function.",
+        ).optional(),
+        cloudRunJob: z.unknown().describe(
+          "For display only. Metadata associated with a Cloud Run job.",
         ).optional(),
         cloudRunRevision: z.unknown().describe(
           "For display only. Metadata associated with a Cloud Run revision.",
@@ -1769,7 +1783,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Network Management Global.ConnectivityTests. Registered at `@swamp/gcp/networkmanagement/global-connectivitytests`. */
 export const model = {
   type: "@swamp/gcp/networkmanagement/global-connectivitytests",
-  version: "2026.05.26.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1858,6 +1872,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -43,7 +43,7 @@ const GlobalArgsSchema = z.object({
   FailureMode: z.enum(["FAIL", "WARN"]).describe(
     "Attribute to specify CloudFormation behavior on hook failure.",
   ),
-  TargetFilters: z.string().describe(
+  TargetFilters: z.record(z.string(), z.unknown()).describe(
     "Attribute to specify which targets should invoke the hook",
   ).optional(),
   StackFilters: z.object({
@@ -88,7 +88,7 @@ const StateSchema = z.object({
   HookStatus: z.string().optional(),
   TargetOperations: z.array(z.string()).optional(),
   FailureMode: z.string().optional(),
-  TargetFilters: z.string().optional(),
+  TargetFilters: z.record(z.string(), z.unknown()).optional(),
   StackFilters: z.object({
     FilteringCriteria: z.string(),
     StackNames: z.object({
@@ -127,7 +127,7 @@ const InputsSchema = z.object({
   FailureMode: z.enum(["FAIL", "WARN"]).describe(
     "Attribute to specify CloudFormation behavior on hook failure.",
   ).optional(),
-  TargetFilters: z.string().describe(
+  TargetFilters: z.record(z.string(), z.unknown()).describe(
     "Attribute to specify which targets should invoke the hook",
   ).optional(),
   StackFilters: z.object({
@@ -171,7 +171,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for CloudFormation LambdaHook. Registered at `@swamp/aws/cloudformation/lambda-hook`. */
 export const model = {
   type: "@swamp/aws/cloudformation/lambda-hook",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -195,6 +195,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -49,7 +49,7 @@ const GlobalArgsSchema = z.object({
   AllowVersionUpgrade: z.boolean().describe(
     "Major version upgrades can be applied during the maintenance window to the Amazon Redshift engine that is running on the cluster. Default value is True",
   ).optional(),
-  NamespaceResourcePolicy: z.string().describe(
+  NamespaceResourcePolicy: z.record(z.string(), z.unknown()).describe(
     "The namespace resource policy document that will be attached to a Redshift cluster.",
   ).optional(),
   MaintenanceTrackName: z.string().describe(
@@ -196,7 +196,7 @@ const StateSchema = z.object({
     Address: z.string(),
     Port: z.string(),
   }).optional(),
-  NamespaceResourcePolicy: z.string().optional(),
+  NamespaceResourcePolicy: z.record(z.string(), z.unknown()).optional(),
   MaintenanceTrackName: z.string().optional(),
   OwnerAccount: z.string().optional(),
   MultiAZ: z.boolean().optional(),
@@ -271,7 +271,7 @@ const InputsSchema = z.object({
   AllowVersionUpgrade: z.boolean().describe(
     "Major version upgrades can be applied during the maintenance window to the Amazon Redshift engine that is running on the cluster. Default value is True",
   ).optional(),
-  NamespaceResourcePolicy: z.string().describe(
+  NamespaceResourcePolicy: z.record(z.string(), z.unknown()).describe(
     "The namespace resource policy document that will be attached to a Redshift cluster.",
   ).optional(),
   MaintenanceTrackName: z.string().describe(
@@ -409,7 +409,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Redshift Cluster. Registered at `@swamp/aws/redshift/cluster`. */
 export const model = {
   type: "@swamp/aws/redshift/cluster",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -433,6 +433,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

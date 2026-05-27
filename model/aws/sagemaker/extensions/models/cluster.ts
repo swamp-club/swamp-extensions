@@ -35,8 +35,11 @@ const ClusterSlurmConfigSchema = z.object({
 });
 
 const ClusterCapacityRequirementsSchema = z.object({
-  Spot: z.string().describe("Options for Spot capacity").optional(),
-  OnDemand: z.string().describe("Options for OnDemand capacity").optional(),
+  Spot: z.record(z.string(), z.unknown()).describe("Options for Spot capacity")
+    .optional(),
+  OnDemand: z.record(z.string(), z.unknown()).describe(
+    "Options for OnDemand capacity",
+  ).optional(),
 });
 
 const ClusterKubernetesTaintSchema = z.object({
@@ -143,7 +146,7 @@ const ClusterInstanceGroupSchema = z.object({
   InstanceGroupName: z.string().min(1).max(63).regex(
     new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9])*$"),
   ).describe("The name of the instance group of a SageMaker HyperPod cluster."),
-  InstanceStorageConfigs: z.array(z.string()).describe(
+  InstanceStorageConfigs: z.array(z.record(z.string(), z.unknown())).describe(
     "The instance storage configuration for the instance group.",
   ).optional(),
   KubernetesConfig: ClusterKubernetesConfigSchema.describe(
@@ -228,7 +231,7 @@ const ClusterRestrictedInstanceGroupSchema = z.object({
   InstanceGroupName: z.string().min(1).max(63).regex(
     new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9])*$"),
   ).describe("The name of the instance group of a SageMaker HyperPod cluster."),
-  InstanceStorageConfigs: z.array(z.string()).describe(
+  InstanceStorageConfigs: z.array(z.record(z.string(), z.unknown())).describe(
     "The instance storage configuration for the instance group.",
   ).optional(),
   CurrentCount: z.number().int().min(0).describe(
@@ -292,7 +295,7 @@ const GlobalArgsSchema = z.object({
     .describe(
       "The restricted instance groups of the SageMaker HyperPod cluster.",
     ).optional(),
-  Orchestrator: z.string().describe(
+  Orchestrator: z.record(z.string(), z.unknown()).describe(
     "Specifies parameter(s) specific to the orchestrator, e.g. specify the EKS cluster or Slurm configuration.",
   ).optional(),
   ClusterRole: z.string().min(20).max(2048).regex(
@@ -332,7 +335,7 @@ const StateSchema = z.object({
   InstanceGroups: z.array(ClusterInstanceGroupSchema).optional(),
   RestrictedInstanceGroups: z.array(ClusterRestrictedInstanceGroupSchema)
     .optional(),
-  Orchestrator: z.string().optional(),
+  Orchestrator: z.record(z.string(), z.unknown()).optional(),
   ClusterRole: z.string().optional(),
   NodeProvisioningMode: z.string().optional(),
   CreationTime: z.string().optional(),
@@ -377,7 +380,7 @@ const InputsSchema = z.object({
     .describe(
       "The restricted instance groups of the SageMaker HyperPod cluster.",
     ).optional(),
-  Orchestrator: z.string().describe(
+  Orchestrator: z.record(z.string(), z.unknown()).describe(
     "Specifies parameter(s) specific to the orchestrator, e.g. specify the EKS cluster or Slurm configuration.",
   ).optional(),
   ClusterRole: z.string().min(20).max(2048).regex(
@@ -414,7 +417,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SageMaker Cluster. Registered at `@swamp/aws/sagemaker/cluster`. */
 export const model = {
   type: "@swamp/aws/sagemaker/cluster",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -443,6 +446,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

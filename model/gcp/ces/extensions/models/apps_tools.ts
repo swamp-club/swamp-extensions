@@ -151,14 +151,15 @@ const GlobalArgsSchema = z.object({
       .optional(),
     name: z.string().describe("Required. The function name.").optional(),
     parameters: z.object({
-      additionalProperties: z.string().describe("Circular reference to Schema")
-        .optional(),
-      anyOf: z.array(z.string()).describe(
+      additionalProperties: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Schema",
+      ).optional(),
+      anyOf: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. The value should be validated against any (one or more) of the subschemas in the list.",
       ).optional(),
       default: z.string().describe("Optional. Default value of the data.")
         .optional(),
-      defs: z.record(z.string(), z.string()).describe(
+      defs: z.record(z.string(), z.record(z.string(), z.unknown())).describe(
         "Optional. A map of definitions for use by `ref`. Only allowed at the root of the schema.",
       ).optional(),
       description: z.string().describe("Optional. The description of the data.")
@@ -166,7 +167,9 @@ const GlobalArgsSchema = z.object({
       enum: z.array(z.string()).describe(
         'Optional. Possible values of the element of primitive type with enum format. Examples: 1. We can define direction as: {type:STRING, format:enum, enum:["EAST", NORTH", "SOUTH", "WEST"]} 2. We can define apartment number as: {type:INTEGER, format:enum, enum:["101", "201", "301"]}',
       ).optional(),
-      items: z.string().describe("Circular reference to Schema").optional(),
+      items: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Schema",
+      ).optional(),
       maxItems: z.string().describe(
         "Optional. Maximum number of the elements for Type.ARRAY.",
       ).optional(),
@@ -182,12 +185,11 @@ const GlobalArgsSchema = z.object({
       nullable: z.boolean().describe(
         "Optional. Indicates if the value may be null.",
       ).optional(),
-      prefixItems: z.array(z.string()).describe(
+      prefixItems: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. Schemas of initial elements of Type.ARRAY.",
       ).optional(),
-      properties: z.record(z.string(), z.string()).describe(
-        "Optional. Properties of Type.OBJECT.",
-      ).optional(),
+      properties: z.record(z.string(), z.record(z.string(), z.unknown()))
+        .describe("Optional. Properties of Type.OBJECT.").optional(),
       ref: z.string().describe(
         'Optional. Allows indirect references between schema nodes. The value should be a valid reference to a child of the root `defs`. For example, the following schema defines a reference to a schema node named "Pet": ` type: object properties: pet: ref: #/defs/Pet defs: Pet: type: object properties: name: type: string ` The value of the "pet" property is a reference to the schema node named "Pet". See details in https://json-schema.org/understanding-json-schema/structuring.',
       ).optional(),
@@ -211,14 +213,15 @@ const GlobalArgsSchema = z.object({
     }).describe("Represents a select subset of an OpenAPI 3.0 schema object.")
       .optional(),
     response: z.object({
-      additionalProperties: z.string().describe("Circular reference to Schema")
-        .optional(),
-      anyOf: z.array(z.string()).describe(
+      additionalProperties: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Schema",
+      ).optional(),
+      anyOf: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. The value should be validated against any (one or more) of the subschemas in the list.",
       ).optional(),
       default: z.string().describe("Optional. Default value of the data.")
         .optional(),
-      defs: z.record(z.string(), z.string()).describe(
+      defs: z.record(z.string(), z.record(z.string(), z.unknown())).describe(
         "Optional. A map of definitions for use by `ref`. Only allowed at the root of the schema.",
       ).optional(),
       description: z.string().describe("Optional. The description of the data.")
@@ -226,7 +229,9 @@ const GlobalArgsSchema = z.object({
       enum: z.array(z.string()).describe(
         'Optional. Possible values of the element of primitive type with enum format. Examples: 1. We can define direction as: {type:STRING, format:enum, enum:["EAST", NORTH", "SOUTH", "WEST"]} 2. We can define apartment number as: {type:INTEGER, format:enum, enum:["101", "201", "301"]}',
       ).optional(),
-      items: z.string().describe("Circular reference to Schema").optional(),
+      items: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Schema",
+      ).optional(),
       maxItems: z.string().describe(
         "Optional. Maximum number of the elements for Type.ARRAY.",
       ).optional(),
@@ -242,12 +247,11 @@ const GlobalArgsSchema = z.object({
       nullable: z.boolean().describe(
         "Optional. Indicates if the value may be null.",
       ).optional(),
-      prefixItems: z.array(z.string()).describe(
+      prefixItems: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. Schemas of initial elements of Type.ARRAY.",
       ).optional(),
-      properties: z.record(z.string(), z.string()).describe(
-        "Optional. Properties of Type.OBJECT.",
-      ).optional(),
+      properties: z.record(z.string(), z.record(z.string(), z.unknown()))
+        .describe("Optional. Properties of Type.OBJECT.").optional(),
       ref: z.string().describe(
         'Optional. Allows indirect references between schema nodes. The value should be a valid reference to a child of the root `defs`. For example, the following schema defines a reference to a schema node named "Pet": ` type: object properties: pet: ref: #/defs/Pet defs: Pet: type: object properties: name: type: string ` The value of the "pet" property is a reference to the schema node named "Pet". See details in https://json-schema.org/understanding-json-schema/structuring.',
       ).optional(),
@@ -596,14 +600,15 @@ const GlobalArgsSchema = z.object({
       "Optional. The description of the MCP tool.",
     ).optional(),
     inputSchema: z.object({
-      additionalProperties: z.string().describe("Circular reference to Schema")
-        .optional(),
-      anyOf: z.array(z.string()).describe(
+      additionalProperties: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Schema",
+      ).optional(),
+      anyOf: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. The value should be validated against any (one or more) of the subschemas in the list.",
       ).optional(),
       default: z.string().describe("Optional. Default value of the data.")
         .optional(),
-      defs: z.record(z.string(), z.string()).describe(
+      defs: z.record(z.string(), z.record(z.string(), z.unknown())).describe(
         "Optional. A map of definitions for use by `ref`. Only allowed at the root of the schema.",
       ).optional(),
       description: z.string().describe("Optional. The description of the data.")
@@ -611,7 +616,9 @@ const GlobalArgsSchema = z.object({
       enum: z.array(z.string()).describe(
         'Optional. Possible values of the element of primitive type with enum format. Examples: 1. We can define direction as: {type:STRING, format:enum, enum:["EAST", NORTH", "SOUTH", "WEST"]} 2. We can define apartment number as: {type:INTEGER, format:enum, enum:["101", "201", "301"]}',
       ).optional(),
-      items: z.string().describe("Circular reference to Schema").optional(),
+      items: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Schema",
+      ).optional(),
       maxItems: z.string().describe(
         "Optional. Maximum number of the elements for Type.ARRAY.",
       ).optional(),
@@ -627,12 +634,11 @@ const GlobalArgsSchema = z.object({
       nullable: z.boolean().describe(
         "Optional. Indicates if the value may be null.",
       ).optional(),
-      prefixItems: z.array(z.string()).describe(
+      prefixItems: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. Schemas of initial elements of Type.ARRAY.",
       ).optional(),
-      properties: z.record(z.string(), z.string()).describe(
-        "Optional. Properties of Type.OBJECT.",
-      ).optional(),
+      properties: z.record(z.string(), z.record(z.string(), z.unknown()))
+        .describe("Optional. Properties of Type.OBJECT.").optional(),
       ref: z.string().describe(
         'Optional. Allows indirect references between schema nodes. The value should be a valid reference to a child of the root `defs`. For example, the following schema defines a reference to a schema node named "Pet": ` type: object properties: pet: ref: #/defs/Pet defs: Pet: type: object properties: name: type: string ` The value of the "pet" property is a reference to the schema node named "Pet". See details in https://json-schema.org/understanding-json-schema/structuring.',
       ).optional(),
@@ -660,14 +666,15 @@ const GlobalArgsSchema = z.object({
       "Optional. The name override of the MCP tool. This is populated if the name was overridden by a Toolset override.",
     ).optional(),
     outputSchema: z.object({
-      additionalProperties: z.string().describe("Circular reference to Schema")
-        .optional(),
-      anyOf: z.array(z.string()).describe(
+      additionalProperties: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Schema",
+      ).optional(),
+      anyOf: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. The value should be validated against any (one or more) of the subschemas in the list.",
       ).optional(),
       default: z.string().describe("Optional. Default value of the data.")
         .optional(),
-      defs: z.record(z.string(), z.string()).describe(
+      defs: z.record(z.string(), z.record(z.string(), z.unknown())).describe(
         "Optional. A map of definitions for use by `ref`. Only allowed at the root of the schema.",
       ).optional(),
       description: z.string().describe("Optional. The description of the data.")
@@ -675,7 +682,9 @@ const GlobalArgsSchema = z.object({
       enum: z.array(z.string()).describe(
         'Optional. Possible values of the element of primitive type with enum format. Examples: 1. We can define direction as: {type:STRING, format:enum, enum:["EAST", NORTH", "SOUTH", "WEST"]} 2. We can define apartment number as: {type:INTEGER, format:enum, enum:["101", "201", "301"]}',
       ).optional(),
-      items: z.string().describe("Circular reference to Schema").optional(),
+      items: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Schema",
+      ).optional(),
       maxItems: z.string().describe(
         "Optional. Maximum number of the elements for Type.ARRAY.",
       ).optional(),
@@ -691,12 +700,11 @@ const GlobalArgsSchema = z.object({
       nullable: z.boolean().describe(
         "Optional. Indicates if the value may be null.",
       ).optional(),
-      prefixItems: z.array(z.string()).describe(
+      prefixItems: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. Schemas of initial elements of Type.ARRAY.",
       ).optional(),
-      properties: z.record(z.string(), z.string()).describe(
-        "Optional. Properties of Type.OBJECT.",
-      ).optional(),
+      properties: z.record(z.string(), z.record(z.string(), z.unknown()))
+        .describe("Optional. Properties of Type.OBJECT.").optional(),
       ref: z.string().describe(
         'Optional. Allows indirect references between schema nodes. The value should be a valid reference to a child of the root `defs`. For example, the following schema defines a reference to a schema node named "Pet": ` type: object properties: pet: ref: #/defs/Pet defs: Pet: type: object properties: name: type: string ` The value of the "pet" property is a reference to the schema node named "Pet". See details in https://json-schema.org/understanding-json-schema/structuring.',
       ).optional(),
@@ -972,14 +980,15 @@ const GlobalArgsSchema = z.object({
     name: z.string().describe("Required. The display name of the widget tool.")
       .optional(),
     parameters: z.object({
-      additionalProperties: z.string().describe("Circular reference to Schema")
-        .optional(),
-      anyOf: z.array(z.string()).describe(
+      additionalProperties: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Schema",
+      ).optional(),
+      anyOf: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. The value should be validated against any (one or more) of the subschemas in the list.",
       ).optional(),
       default: z.string().describe("Optional. Default value of the data.")
         .optional(),
-      defs: z.record(z.string(), z.string()).describe(
+      defs: z.record(z.string(), z.record(z.string(), z.unknown())).describe(
         "Optional. A map of definitions for use by `ref`. Only allowed at the root of the schema.",
       ).optional(),
       description: z.string().describe("Optional. The description of the data.")
@@ -987,7 +996,9 @@ const GlobalArgsSchema = z.object({
       enum: z.array(z.string()).describe(
         'Optional. Possible values of the element of primitive type with enum format. Examples: 1. We can define direction as: {type:STRING, format:enum, enum:["EAST", NORTH", "SOUTH", "WEST"]} 2. We can define apartment number as: {type:INTEGER, format:enum, enum:["101", "201", "301"]}',
       ).optional(),
-      items: z.string().describe("Circular reference to Schema").optional(),
+      items: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Schema",
+      ).optional(),
       maxItems: z.string().describe(
         "Optional. Maximum number of the elements for Type.ARRAY.",
       ).optional(),
@@ -1003,12 +1014,11 @@ const GlobalArgsSchema = z.object({
       nullable: z.boolean().describe(
         "Optional. Indicates if the value may be null.",
       ).optional(),
-      prefixItems: z.array(z.string()).describe(
+      prefixItems: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. Schemas of initial elements of Type.ARRAY.",
       ).optional(),
-      properties: z.record(z.string(), z.string()).describe(
-        "Optional. Properties of Type.OBJECT.",
-      ).optional(),
+      properties: z.record(z.string(), z.record(z.string(), z.unknown()))
+        .describe("Optional. Properties of Type.OBJECT.").optional(),
       ref: z.string().describe(
         'Optional. Allows indirect references between schema nodes. The value should be a valid reference to a child of the root `defs`. For example, the following schema defines a reference to a schema node named "Pet": ` type: object properties: pet: ref: #/defs/Pet defs: Pet: type: object properties: name: type: string ` The value of the "pet" property is a reference to the schema node named "Pet". See details in https://json-schema.org/understanding-json-schema/structuring.',
       ).optional(),
@@ -1085,19 +1095,19 @@ const StateSchema = z.object({
     description: z.string(),
     name: z.string(),
     parameters: z.object({
-      additionalProperties: z.string(),
-      anyOf: z.array(z.string()),
+      additionalProperties: z.record(z.string(), z.unknown()),
+      anyOf: z.array(z.record(z.string(), z.unknown())),
       default: z.string(),
       defs: z.record(z.string(), z.unknown()),
       description: z.string(),
       enum: z.array(z.string()),
-      items: z.string(),
+      items: z.record(z.string(), z.unknown()),
       maxItems: z.string(),
       maximum: z.number(),
       minItems: z.string(),
       minimum: z.number(),
       nullable: z.boolean(),
-      prefixItems: z.array(z.string()),
+      prefixItems: z.array(z.record(z.string(), z.unknown())),
       properties: z.record(z.string(), z.unknown()),
       ref: z.string(),
       required: z.array(z.string()),
@@ -1106,19 +1116,19 @@ const StateSchema = z.object({
       uniqueItems: z.boolean(),
     }),
     response: z.object({
-      additionalProperties: z.string(),
-      anyOf: z.array(z.string()),
+      additionalProperties: z.record(z.string(), z.unknown()),
+      anyOf: z.array(z.record(z.string(), z.unknown())),
       default: z.string(),
       defs: z.record(z.string(), z.unknown()),
       description: z.string(),
       enum: z.array(z.string()),
-      items: z.string(),
+      items: z.record(z.string(), z.unknown()),
       maxItems: z.string(),
       maximum: z.number(),
       minItems: z.string(),
       minimum: z.number(),
       nullable: z.boolean(),
-      prefixItems: z.array(z.string()),
+      prefixItems: z.array(z.record(z.string(), z.unknown())),
       properties: z.record(z.string(), z.unknown()),
       ref: z.string(),
       required: z.array(z.string()),
@@ -1263,19 +1273,19 @@ const StateSchema = z.object({
     customHeaders: z.record(z.string(), z.unknown()),
     description: z.string(),
     inputSchema: z.object({
-      additionalProperties: z.string(),
-      anyOf: z.array(z.string()),
+      additionalProperties: z.record(z.string(), z.unknown()),
+      anyOf: z.array(z.record(z.string(), z.unknown())),
       default: z.string(),
       defs: z.record(z.string(), z.unknown()),
       description: z.string(),
       enum: z.array(z.string()),
-      items: z.string(),
+      items: z.record(z.string(), z.unknown()),
       maxItems: z.string(),
       maximum: z.number(),
       minItems: z.string(),
       minimum: z.number(),
       nullable: z.boolean(),
-      prefixItems: z.array(z.string()),
+      prefixItems: z.array(z.record(z.string(), z.unknown())),
       properties: z.record(z.string(), z.unknown()),
       ref: z.string(),
       required: z.array(z.string()),
@@ -1286,19 +1296,19 @@ const StateSchema = z.object({
     name: z.string(),
     nameOverride: z.string(),
     outputSchema: z.object({
-      additionalProperties: z.string(),
-      anyOf: z.array(z.string()),
+      additionalProperties: z.record(z.string(), z.unknown()),
+      anyOf: z.array(z.record(z.string(), z.unknown())),
       default: z.string(),
       defs: z.record(z.string(), z.unknown()),
       description: z.string(),
       enum: z.array(z.string()),
-      items: z.string(),
+      items: z.record(z.string(), z.unknown()),
       maxItems: z.string(),
       maximum: z.number(),
       minItems: z.string(),
       minimum: z.number(),
       nullable: z.boolean(),
-      prefixItems: z.array(z.string()),
+      prefixItems: z.array(z.record(z.string(), z.unknown())),
       properties: z.record(z.string(), z.unknown()),
       ref: z.string(),
       required: z.array(z.string()),
@@ -1419,19 +1429,19 @@ const StateSchema = z.object({
     description: z.string(),
     name: z.string(),
     parameters: z.object({
-      additionalProperties: z.string(),
-      anyOf: z.array(z.string()),
+      additionalProperties: z.record(z.string(), z.unknown()),
+      anyOf: z.array(z.record(z.string(), z.unknown())),
       default: z.string(),
       defs: z.record(z.string(), z.unknown()),
       description: z.string(),
       enum: z.array(z.string()),
-      items: z.string(),
+      items: z.record(z.string(), z.unknown()),
       maxItems: z.string(),
       maximum: z.number(),
       minItems: z.string(),
       minimum: z.number(),
       nullable: z.boolean(),
-      prefixItems: z.array(z.string()),
+      prefixItems: z.array(z.record(z.string(), z.unknown())),
       properties: z.record(z.string(), z.unknown()),
       ref: z.string(),
       required: z.array(z.string()),
@@ -1471,14 +1481,15 @@ const InputsSchema = z.object({
       .optional(),
     name: z.string().describe("Required. The function name.").optional(),
     parameters: z.object({
-      additionalProperties: z.string().describe("Circular reference to Schema")
-        .optional(),
-      anyOf: z.array(z.string()).describe(
+      additionalProperties: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Schema",
+      ).optional(),
+      anyOf: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. The value should be validated against any (one or more) of the subschemas in the list.",
       ).optional(),
       default: z.string().describe("Optional. Default value of the data.")
         .optional(),
-      defs: z.record(z.string(), z.string()).describe(
+      defs: z.record(z.string(), z.record(z.string(), z.unknown())).describe(
         "Optional. A map of definitions for use by `ref`. Only allowed at the root of the schema.",
       ).optional(),
       description: z.string().describe("Optional. The description of the data.")
@@ -1486,7 +1497,9 @@ const InputsSchema = z.object({
       enum: z.array(z.string()).describe(
         'Optional. Possible values of the element of primitive type with enum format. Examples: 1. We can define direction as: {type:STRING, format:enum, enum:["EAST", NORTH", "SOUTH", "WEST"]} 2. We can define apartment number as: {type:INTEGER, format:enum, enum:["101", "201", "301"]}',
       ).optional(),
-      items: z.string().describe("Circular reference to Schema").optional(),
+      items: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Schema",
+      ).optional(),
       maxItems: z.string().describe(
         "Optional. Maximum number of the elements for Type.ARRAY.",
       ).optional(),
@@ -1502,12 +1515,11 @@ const InputsSchema = z.object({
       nullable: z.boolean().describe(
         "Optional. Indicates if the value may be null.",
       ).optional(),
-      prefixItems: z.array(z.string()).describe(
+      prefixItems: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. Schemas of initial elements of Type.ARRAY.",
       ).optional(),
-      properties: z.record(z.string(), z.string()).describe(
-        "Optional. Properties of Type.OBJECT.",
-      ).optional(),
+      properties: z.record(z.string(), z.record(z.string(), z.unknown()))
+        .describe("Optional. Properties of Type.OBJECT.").optional(),
       ref: z.string().describe(
         'Optional. Allows indirect references between schema nodes. The value should be a valid reference to a child of the root `defs`. For example, the following schema defines a reference to a schema node named "Pet": ` type: object properties: pet: ref: #/defs/Pet defs: Pet: type: object properties: name: type: string ` The value of the "pet" property is a reference to the schema node named "Pet". See details in https://json-schema.org/understanding-json-schema/structuring.',
       ).optional(),
@@ -1531,14 +1543,15 @@ const InputsSchema = z.object({
     }).describe("Represents a select subset of an OpenAPI 3.0 schema object.")
       .optional(),
     response: z.object({
-      additionalProperties: z.string().describe("Circular reference to Schema")
-        .optional(),
-      anyOf: z.array(z.string()).describe(
+      additionalProperties: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Schema",
+      ).optional(),
+      anyOf: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. The value should be validated against any (one or more) of the subschemas in the list.",
       ).optional(),
       default: z.string().describe("Optional. Default value of the data.")
         .optional(),
-      defs: z.record(z.string(), z.string()).describe(
+      defs: z.record(z.string(), z.record(z.string(), z.unknown())).describe(
         "Optional. A map of definitions for use by `ref`. Only allowed at the root of the schema.",
       ).optional(),
       description: z.string().describe("Optional. The description of the data.")
@@ -1546,7 +1559,9 @@ const InputsSchema = z.object({
       enum: z.array(z.string()).describe(
         'Optional. Possible values of the element of primitive type with enum format. Examples: 1. We can define direction as: {type:STRING, format:enum, enum:["EAST", NORTH", "SOUTH", "WEST"]} 2. We can define apartment number as: {type:INTEGER, format:enum, enum:["101", "201", "301"]}',
       ).optional(),
-      items: z.string().describe("Circular reference to Schema").optional(),
+      items: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Schema",
+      ).optional(),
       maxItems: z.string().describe(
         "Optional. Maximum number of the elements for Type.ARRAY.",
       ).optional(),
@@ -1562,12 +1577,11 @@ const InputsSchema = z.object({
       nullable: z.boolean().describe(
         "Optional. Indicates if the value may be null.",
       ).optional(),
-      prefixItems: z.array(z.string()).describe(
+      prefixItems: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. Schemas of initial elements of Type.ARRAY.",
       ).optional(),
-      properties: z.record(z.string(), z.string()).describe(
-        "Optional. Properties of Type.OBJECT.",
-      ).optional(),
+      properties: z.record(z.string(), z.record(z.string(), z.unknown()))
+        .describe("Optional. Properties of Type.OBJECT.").optional(),
       ref: z.string().describe(
         'Optional. Allows indirect references between schema nodes. The value should be a valid reference to a child of the root `defs`. For example, the following schema defines a reference to a schema node named "Pet": ` type: object properties: pet: ref: #/defs/Pet defs: Pet: type: object properties: name: type: string ` The value of the "pet" property is a reference to the schema node named "Pet". See details in https://json-schema.org/understanding-json-schema/structuring.',
       ).optional(),
@@ -1916,14 +1930,15 @@ const InputsSchema = z.object({
       "Optional. The description of the MCP tool.",
     ).optional(),
     inputSchema: z.object({
-      additionalProperties: z.string().describe("Circular reference to Schema")
-        .optional(),
-      anyOf: z.array(z.string()).describe(
+      additionalProperties: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Schema",
+      ).optional(),
+      anyOf: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. The value should be validated against any (one or more) of the subschemas in the list.",
       ).optional(),
       default: z.string().describe("Optional. Default value of the data.")
         .optional(),
-      defs: z.record(z.string(), z.string()).describe(
+      defs: z.record(z.string(), z.record(z.string(), z.unknown())).describe(
         "Optional. A map of definitions for use by `ref`. Only allowed at the root of the schema.",
       ).optional(),
       description: z.string().describe("Optional. The description of the data.")
@@ -1931,7 +1946,9 @@ const InputsSchema = z.object({
       enum: z.array(z.string()).describe(
         'Optional. Possible values of the element of primitive type with enum format. Examples: 1. We can define direction as: {type:STRING, format:enum, enum:["EAST", NORTH", "SOUTH", "WEST"]} 2. We can define apartment number as: {type:INTEGER, format:enum, enum:["101", "201", "301"]}',
       ).optional(),
-      items: z.string().describe("Circular reference to Schema").optional(),
+      items: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Schema",
+      ).optional(),
       maxItems: z.string().describe(
         "Optional. Maximum number of the elements for Type.ARRAY.",
       ).optional(),
@@ -1947,12 +1964,11 @@ const InputsSchema = z.object({
       nullable: z.boolean().describe(
         "Optional. Indicates if the value may be null.",
       ).optional(),
-      prefixItems: z.array(z.string()).describe(
+      prefixItems: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. Schemas of initial elements of Type.ARRAY.",
       ).optional(),
-      properties: z.record(z.string(), z.string()).describe(
-        "Optional. Properties of Type.OBJECT.",
-      ).optional(),
+      properties: z.record(z.string(), z.record(z.string(), z.unknown()))
+        .describe("Optional. Properties of Type.OBJECT.").optional(),
       ref: z.string().describe(
         'Optional. Allows indirect references between schema nodes. The value should be a valid reference to a child of the root `defs`. For example, the following schema defines a reference to a schema node named "Pet": ` type: object properties: pet: ref: #/defs/Pet defs: Pet: type: object properties: name: type: string ` The value of the "pet" property is a reference to the schema node named "Pet". See details in https://json-schema.org/understanding-json-schema/structuring.',
       ).optional(),
@@ -1980,14 +1996,15 @@ const InputsSchema = z.object({
       "Optional. The name override of the MCP tool. This is populated if the name was overridden by a Toolset override.",
     ).optional(),
     outputSchema: z.object({
-      additionalProperties: z.string().describe("Circular reference to Schema")
-        .optional(),
-      anyOf: z.array(z.string()).describe(
+      additionalProperties: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Schema",
+      ).optional(),
+      anyOf: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. The value should be validated against any (one or more) of the subschemas in the list.",
       ).optional(),
       default: z.string().describe("Optional. Default value of the data.")
         .optional(),
-      defs: z.record(z.string(), z.string()).describe(
+      defs: z.record(z.string(), z.record(z.string(), z.unknown())).describe(
         "Optional. A map of definitions for use by `ref`. Only allowed at the root of the schema.",
       ).optional(),
       description: z.string().describe("Optional. The description of the data.")
@@ -1995,7 +2012,9 @@ const InputsSchema = z.object({
       enum: z.array(z.string()).describe(
         'Optional. Possible values of the element of primitive type with enum format. Examples: 1. We can define direction as: {type:STRING, format:enum, enum:["EAST", NORTH", "SOUTH", "WEST"]} 2. We can define apartment number as: {type:INTEGER, format:enum, enum:["101", "201", "301"]}',
       ).optional(),
-      items: z.string().describe("Circular reference to Schema").optional(),
+      items: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Schema",
+      ).optional(),
       maxItems: z.string().describe(
         "Optional. Maximum number of the elements for Type.ARRAY.",
       ).optional(),
@@ -2011,12 +2030,11 @@ const InputsSchema = z.object({
       nullable: z.boolean().describe(
         "Optional. Indicates if the value may be null.",
       ).optional(),
-      prefixItems: z.array(z.string()).describe(
+      prefixItems: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. Schemas of initial elements of Type.ARRAY.",
       ).optional(),
-      properties: z.record(z.string(), z.string()).describe(
-        "Optional. Properties of Type.OBJECT.",
-      ).optional(),
+      properties: z.record(z.string(), z.record(z.string(), z.unknown()))
+        .describe("Optional. Properties of Type.OBJECT.").optional(),
       ref: z.string().describe(
         'Optional. Allows indirect references between schema nodes. The value should be a valid reference to a child of the root `defs`. For example, the following schema defines a reference to a schema node named "Pet": ` type: object properties: pet: ref: #/defs/Pet defs: Pet: type: object properties: name: type: string ` The value of the "pet" property is a reference to the schema node named "Pet". See details in https://json-schema.org/understanding-json-schema/structuring.',
       ).optional(),
@@ -2292,14 +2310,15 @@ const InputsSchema = z.object({
     name: z.string().describe("Required. The display name of the widget tool.")
       .optional(),
     parameters: z.object({
-      additionalProperties: z.string().describe("Circular reference to Schema")
-        .optional(),
-      anyOf: z.array(z.string()).describe(
+      additionalProperties: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Schema",
+      ).optional(),
+      anyOf: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. The value should be validated against any (one or more) of the subschemas in the list.",
       ).optional(),
       default: z.string().describe("Optional. Default value of the data.")
         .optional(),
-      defs: z.record(z.string(), z.string()).describe(
+      defs: z.record(z.string(), z.record(z.string(), z.unknown())).describe(
         "Optional. A map of definitions for use by `ref`. Only allowed at the root of the schema.",
       ).optional(),
       description: z.string().describe("Optional. The description of the data.")
@@ -2307,7 +2326,9 @@ const InputsSchema = z.object({
       enum: z.array(z.string()).describe(
         'Optional. Possible values of the element of primitive type with enum format. Examples: 1. We can define direction as: {type:STRING, format:enum, enum:["EAST", NORTH", "SOUTH", "WEST"]} 2. We can define apartment number as: {type:INTEGER, format:enum, enum:["101", "201", "301"]}',
       ).optional(),
-      items: z.string().describe("Circular reference to Schema").optional(),
+      items: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Schema",
+      ).optional(),
       maxItems: z.string().describe(
         "Optional. Maximum number of the elements for Type.ARRAY.",
       ).optional(),
@@ -2323,12 +2344,11 @@ const InputsSchema = z.object({
       nullable: z.boolean().describe(
         "Optional. Indicates if the value may be null.",
       ).optional(),
-      prefixItems: z.array(z.string()).describe(
+      prefixItems: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. Schemas of initial elements of Type.ARRAY.",
       ).optional(),
-      properties: z.record(z.string(), z.string()).describe(
-        "Optional. Properties of Type.OBJECT.",
-      ).optional(),
+      properties: z.record(z.string(), z.record(z.string(), z.unknown()))
+        .describe("Optional. Properties of Type.OBJECT.").optional(),
       ref: z.string().describe(
         'Optional. Allows indirect references between schema nodes. The value should be a valid reference to a child of the root `defs`. For example, the following schema defines a reference to a schema node named "Pet": ` type: object properties: pet: ref: #/defs/Pet defs: Pet: type: object properties: name: type: string ` The value of the "pet" property is a reference to the schema node named "Pet". See details in https://json-schema.org/understanding-json-schema/structuring.',
       ).optional(),
@@ -2397,7 +2417,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Tools. Registered at `@swamp/gcp/ces/apps-tools`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-tools",
-  version: "2026.05.26.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -2523,6 +2543,11 @@ export const model = {
     {
       toVersion: "2026.05.26.1",
       description: "Added: remoteAgentTool, timeout",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

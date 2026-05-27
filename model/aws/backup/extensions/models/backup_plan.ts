@@ -22,7 +22,7 @@ import {
 } from "./_lib/aws.ts";
 
 const AdvancedBackupSettingResourceTypeSchema = z.object({
-  BackupOptions: z.string(),
+  BackupOptions: z.record(z.string(), z.unknown()),
   ResourceType: z.string(),
 });
 
@@ -112,7 +112,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Backup BackupPlan. Registered at `@swamp/aws/backup/backup-plan`. */
 export const model = {
   type: "@swamp/aws/backup/backup-plan",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -136,6 +136,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

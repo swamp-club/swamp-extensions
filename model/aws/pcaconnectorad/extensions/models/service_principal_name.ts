@@ -28,12 +28,12 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:[\\w-]+:pca-connector-ad:[\\w-]+:[0-9]+:connector(\\/[\\w-]+)$",
     ),
-  ).optional(),
+  ),
   DirectoryRegistrationArn: z.string().min(5).max(200).regex(
     new RegExp(
       "^arn:[\\w-]+:pca-connector-ad:[\\w-]+:[0-9]+:directory-registration(\\/[\\w-]+)$",
     ),
-  ).optional(),
+  ),
 });
 
 const StateSchema = z.object({
@@ -60,7 +60,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for PCAConnectorAD ServicePrincipalName. Registered at `@swamp/aws/pcaconnectorad/service-principal-name`. */
 export const model = {
   type: "@swamp/aws/pcaconnectorad/service-principal-name",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -84,6 +84,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

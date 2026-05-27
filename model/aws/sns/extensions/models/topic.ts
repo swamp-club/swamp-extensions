@@ -61,7 +61,7 @@ const GlobalArgsSchema = z.object({
   KmsMasterKeyId: z.string().describe(
     "The ID of an AWS managed customer master key (CMK) for SNS or a custom CMK. For more information, see [Key terms](https://docs.aws.amazon.com/sns/latest/dg/sns-server-side-encryption.html#sse-key-terms). For more examples, see KeyId in the *API Reference*. This property applies only to [server-side-encryption](https://docs.aws.amazon.com/sns/latest/dg/sns-server-side-encryption.html).",
   ).optional(),
-  DataProtectionPolicy: z.string().describe(
+  DataProtectionPolicy: z.record(z.string(), z.unknown()).describe(
     "The body of the policy document you want to use for this topic. You can only add one policy per topic. The policy must be in JSON string format. Length Constraints: Maximum length of 30,720.",
   ).optional(),
   Subscription: z.array(SubscriptionSchema).describe(
@@ -72,7 +72,7 @@ const GlobalArgsSchema = z.object({
   ContentBasedDeduplication: z.boolean().describe(
     "Enables content-based deduplication for FIFO topics. By default, ContentBasedDeduplication is set to false. If you create a FIFO topic and this attribute is false, you must specify a value for the MessageDeduplicationId parameter for the [Publish](https://docs.aws.amazon.com/sns/latest/api/API_Publish.html) action. When you set ContentBasedDeduplication to true, SNS uses a SHA-256 hash to generate the MessageDeduplicationId using the body of the message (but not the attributes of the message). (Optional) To override the generated value, you can specify a value for the the MessageDeduplicationId parameter for the Publish action.",
   ).optional(),
-  ArchivePolicy: z.string().describe(
+  ArchivePolicy: z.record(z.string(), z.unknown()).describe(
     "The archive policy determines the number of days SNS retains messages. You can set a retention period from 1 to 365 days.",
   ).optional(),
   FifoThroughputScope: z.string().optional(),
@@ -96,11 +96,11 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   DisplayName: z.string().optional(),
   KmsMasterKeyId: z.string().optional(),
-  DataProtectionPolicy: z.string().optional(),
+  DataProtectionPolicy: z.record(z.string(), z.unknown()).optional(),
   Subscription: z.array(SubscriptionSchema).optional(),
   FifoTopic: z.boolean().optional(),
   ContentBasedDeduplication: z.boolean().optional(),
-  ArchivePolicy: z.string().optional(),
+  ArchivePolicy: z.record(z.string(), z.unknown()).optional(),
   FifoThroughputScope: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
   TopicName: z.string().optional(),
@@ -120,7 +120,7 @@ const InputsSchema = z.object({
   KmsMasterKeyId: z.string().describe(
     "The ID of an AWS managed customer master key (CMK) for SNS or a custom CMK. For more information, see [Key terms](https://docs.aws.amazon.com/sns/latest/dg/sns-server-side-encryption.html#sse-key-terms). For more examples, see KeyId in the *API Reference*. This property applies only to [server-side-encryption](https://docs.aws.amazon.com/sns/latest/dg/sns-server-side-encryption.html).",
   ).optional(),
-  DataProtectionPolicy: z.string().describe(
+  DataProtectionPolicy: z.record(z.string(), z.unknown()).describe(
     "The body of the policy document you want to use for this topic. You can only add one policy per topic. The policy must be in JSON string format. Length Constraints: Maximum length of 30,720.",
   ).optional(),
   Subscription: z.array(SubscriptionSchema).describe(
@@ -131,7 +131,7 @@ const InputsSchema = z.object({
   ContentBasedDeduplication: z.boolean().describe(
     "Enables content-based deduplication for FIFO topics. By default, ContentBasedDeduplication is set to false. If you create a FIFO topic and this attribute is false, you must specify a value for the MessageDeduplicationId parameter for the [Publish](https://docs.aws.amazon.com/sns/latest/api/API_Publish.html) action. When you set ContentBasedDeduplication to true, SNS uses a SHA-256 hash to generate the MessageDeduplicationId using the body of the message (but not the attributes of the message). (Optional) To override the generated value, you can specify a value for the the MessageDeduplicationId parameter for the Publish action.",
   ).optional(),
-  ArchivePolicy: z.string().describe(
+  ArchivePolicy: z.record(z.string(), z.unknown()).describe(
     "The archive policy determines the number of days SNS retains messages. You can set a retention period from 1 to 365 days.",
   ).optional(),
   FifoThroughputScope: z.string().optional(),
@@ -155,7 +155,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SNS Topic. Registered at `@swamp/aws/sns/topic`. */
 export const model = {
   type: "@swamp/aws/sns/topic",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -179,6 +179,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

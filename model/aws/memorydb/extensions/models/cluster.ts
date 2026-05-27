@@ -78,12 +78,13 @@ const GlobalArgsSchema = z.object({
   TLSEnabled: z.boolean().describe(
     "A flag that enables in-transit encryption when set to true. You cannot modify the value of TransitEncryptionEnabled after the cluster is created. To enable in-transit encryption on a cluster you must set TransitEncryptionEnabled to true when you create a cluster.",
   ).optional(),
-  DataTiering: z.string().describe(
+  DataTiering: z.record(z.string(), z.unknown()).describe(
     "Enables data tiering. Data tiering is only supported for clusters using the r6gd node type. This parameter must be set when using r6gd nodes.",
   ).optional(),
-  NetworkType: z.string().describe("Must be either ipv4 | ipv6 | dual_stack.")
-    .optional(),
-  IpDiscovery: z.string().describe(
+  NetworkType: z.record(z.string(), z.unknown()).describe(
+    "Must be either ipv4 | ipv6 | dual_stack.",
+  ).optional(),
+  IpDiscovery: z.record(z.string(), z.unknown()).describe(
     "For clusters wth dual stack NetworkType, IpDiscovery controls the Ip protocol (ipv4 or ipv6) returned by the engine commands such as `cluster info` and `cluster nodes` which are used by clients to connect to the nodes in the cluster.",
   ).optional(),
   KmsKeyId: z.string().describe(
@@ -131,9 +132,9 @@ const StateSchema = z.object({
   SnsTopicArn: z.string().optional(),
   SnsTopicStatus: z.string().optional(),
   TLSEnabled: z.boolean().optional(),
-  DataTiering: z.string().optional(),
-  NetworkType: z.string().optional(),
-  IpDiscovery: z.string().optional(),
+  DataTiering: z.record(z.string(), z.unknown()).optional(),
+  NetworkType: z.record(z.string(), z.unknown()).optional(),
+  IpDiscovery: z.record(z.string(), z.unknown()).optional(),
   KmsKeyId: z.string().optional(),
   SnapshotArns: z.array(z.string()).optional(),
   SnapshotName: z.string().optional(),
@@ -199,12 +200,13 @@ const InputsSchema = z.object({
   TLSEnabled: z.boolean().describe(
     "A flag that enables in-transit encryption when set to true. You cannot modify the value of TransitEncryptionEnabled after the cluster is created. To enable in-transit encryption on a cluster you must set TransitEncryptionEnabled to true when you create a cluster.",
   ).optional(),
-  DataTiering: z.string().describe(
+  DataTiering: z.record(z.string(), z.unknown()).describe(
     "Enables data tiering. Data tiering is only supported for clusters using the r6gd node type. This parameter must be set when using r6gd nodes.",
   ).optional(),
-  NetworkType: z.string().describe("Must be either ipv4 | ipv6 | dual_stack.")
-    .optional(),
-  IpDiscovery: z.string().describe(
+  NetworkType: z.record(z.string(), z.unknown()).describe(
+    "Must be either ipv4 | ipv6 | dual_stack.",
+  ).optional(),
+  IpDiscovery: z.record(z.string(), z.unknown()).describe(
     "For clusters wth dual stack NetworkType, IpDiscovery controls the Ip protocol (ipv4 or ipv6) returned by the engine commands such as `cluster info` and `cluster nodes` which are used by clients to connect to the nodes in the cluster.",
   ).optional(),
   KmsKeyId: z.string().describe(
@@ -235,7 +237,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for MemoryDB Cluster. Registered at `@swamp/aws/memorydb/cluster`. */
 export const model = {
   type: "@swamp/aws/memorydb/cluster",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -259,6 +261,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

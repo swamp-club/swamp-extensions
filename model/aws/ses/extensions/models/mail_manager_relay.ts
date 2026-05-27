@@ -40,7 +40,7 @@ const GlobalArgsSchema = z.object({
         "^arn:(aws|aws-cn|aws-us-gov|aws-eusc):secretsmanager:[a-z0-9-]+:\\d{12}:secret:[a-zA-Z0-9/_+=,.@-]+$",
       ),
     ).optional(),
-    NoAuthentication: z.string().optional(),
+    NoAuthentication: z.record(z.string(), z.unknown()).optional(),
   }),
   RelayName: z.string().min(1).max(100).regex(new RegExp("^[a-zA-Z0-9-_]+$"))
     .optional(),
@@ -54,7 +54,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Authentication: z.object({
     SecretArn: z.string(),
-    NoAuthentication: z.string(),
+    NoAuthentication: z.record(z.string(), z.unknown()),
   }).optional(),
   RelayArn: z.string().optional(),
   RelayId: z.string(),
@@ -74,7 +74,7 @@ const InputsSchema = z.object({
         "^arn:(aws|aws-cn|aws-us-gov|aws-eusc):secretsmanager:[a-z0-9-]+:\\d{12}:secret:[a-zA-Z0-9/_+=,.@-]+$",
       ),
     ).optional(),
-    NoAuthentication: z.string().optional(),
+    NoAuthentication: z.record(z.string(), z.unknown()).optional(),
   }).optional(),
   RelayName: z.string().min(1).max(100).regex(new RegExp("^[a-zA-Z0-9-_]+$"))
     .optional(),
@@ -87,7 +87,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SES MailManagerRelay. Registered at `@swamp/aws/ses/mail-manager-relay`. */
 export const model = {
   type: "@swamp/aws/ses/mail-manager-relay",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -116,6 +116,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -237,10 +237,10 @@ const GlobalArgsSchema = z.object({
     scanIpIds: z.array(z.string()).describe("Output only. OCIDs of scan IPs.")
       .optional(),
     scanListenerPortTcp: z.number().int().describe(
-      "Output only. SCAN listener port - TCP",
+      "Optional. SCAN listener port - TCP",
     ).optional(),
     scanListenerPortTcpSsl: z.number().int().describe(
-      "Output only. SCAN listener port - TLS",
+      "Optional. SCAN listener port - TLS",
     ).optional(),
     shape: z.string().describe("Output only. Shape of VM Cluster.").optional(),
     sparseDiskgroupEnabled: z.boolean().describe(
@@ -477,10 +477,10 @@ const InputsSchema = z.object({
     scanIpIds: z.array(z.string()).describe("Output only. OCIDs of scan IPs.")
       .optional(),
     scanListenerPortTcp: z.number().int().describe(
-      "Output only. SCAN listener port - TCP",
+      "Optional. SCAN listener port - TCP",
     ).optional(),
     scanListenerPortTcpSsl: z.number().int().describe(
-      "Output only. SCAN listener port - TLS",
+      "Optional. SCAN listener port - TLS",
     ).optional(),
     shape: z.string().describe("Output only. Shape of VM Cluster.").optional(),
     sparseDiskgroupEnabled: z.boolean().describe(
@@ -532,7 +532,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud CloudVmClusters. Registered at `@swamp/gcp/oracledatabase/cloudvmclusters`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/cloudvmclusters",
-  version: "2026.05.25.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -596,6 +596,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -22,10 +22,10 @@ import {
 } from "./_lib/aws.ts";
 
 const FieldToMatchSchema = z.object({
-  Method: z.string().describe(
+  Method: z.record(z.string(), z.unknown()).describe(
     "Inspect the HTTP method. The method indicates the type of operation that the request is asking the origin to perform.",
   ).optional(),
-  QueryString: z.string().describe(
+  QueryString: z.record(z.string(), z.unknown()).describe(
     "Inspect the query string. This is the part of a URL that appears after a? character, if any.",
   ).optional(),
   SingleHeader: z.object({
@@ -33,7 +33,7 @@ const FieldToMatchSchema = z.object({
   }).describe(
     "Inspect a single header. Provide the name of the header to inspect, for example, User-Agent or Referer. This setting isn't case sensitive.",
   ).optional(),
-  UriPath: z.string().describe(
+  UriPath: z.record(z.string(), z.unknown()).describe(
     "Inspect the request URI path. This is the part of a web request that identifies a resource, for example, /images/daily-ad.jpg.",
   ).optional(),
 });
@@ -130,7 +130,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for WAFv2 LoggingConfiguration. Registered at `@swamp/aws/wafv2/logging-configuration`. */
 export const model = {
   type: "@swamp/aws/wafv2/logging-configuration",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -154,6 +154,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

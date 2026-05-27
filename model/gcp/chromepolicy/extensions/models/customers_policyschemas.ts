@@ -112,7 +112,7 @@ const StateSchema = z.object({
         typeName: z.unknown(),
       })),
       name: z.string(),
-      nestedType: z.array(z.string()),
+      nestedType: z.array(z.record(z.string(), z.unknown())),
       oneofDecl: z.array(z.object({
         name: z.unknown(),
       })),
@@ -149,7 +149,7 @@ const StateSchema = z.object({
       value: z.string(),
     })),
     name: z.string(),
-    nestedFieldDescriptions: z.array(z.string()),
+    nestedFieldDescriptions: z.array(z.record(z.string(), z.unknown())),
     requiredItems: z.array(z.object({
       fieldConditions: z.array(z.unknown()),
       requiredFields: z.array(z.unknown()),
@@ -192,7 +192,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Chrome Policy Customers.PolicySchemas. Registered at `@swamp/gcp/chromepolicy/customers-policyschemas`. */
 export const model = {
   type: "@swamp/gcp/chromepolicy/customers-policyschemas",
-  version: "2026.05.25.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -256,6 +256,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

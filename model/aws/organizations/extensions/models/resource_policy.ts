@@ -34,7 +34,7 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  Content: z.string().describe(
+  Content: z.record(z.string(), z.unknown()).describe(
     "The policy document. For AWS CloudFormation templates formatted in YAML, you can provide the policy in JSON or YAML format. AWS CloudFormation always converts a YAML policy to JSON format before submitting it.",
   ),
   Tags: z.array(TagSchema).describe(
@@ -53,7 +53,7 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
-  Content: z.string().describe(
+  Content: z.record(z.string(), z.unknown()).describe(
     "The policy document. For AWS CloudFormation templates formatted in YAML, you can provide the policy in JSON or YAML format. AWS CloudFormation always converts a YAML policy to JSON format before submitting it.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
@@ -64,7 +64,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Organizations ResourcePolicy. Registered at `@swamp/aws/organizations/resource-policy`. */
 export const model = {
   type: "@swamp/aws/organizations/resource-policy",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -93,6 +93,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

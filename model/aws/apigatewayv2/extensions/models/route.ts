@@ -28,7 +28,7 @@ const GlobalArgsSchema = z.object({
   RouteResponseSelectionExpression: z.string().describe(
     "The route response selection expression for the route. Supported only for WebSocket APIs.",
   ).optional(),
-  RequestModels: z.string().describe(
+  RequestModels: z.record(z.string(), z.unknown()).describe(
     "The request models for the route. Supported only for WebSocket APIs.",
   ).optional(),
   OperationName: z.string().describe("The operation name for the route.")
@@ -49,7 +49,7 @@ const GlobalArgsSchema = z.object({
     "The model selection expression for the route. Supported only for WebSocket APIs.",
   ).optional(),
   ApiId: z.string().describe("The API identifier."),
-  RequestParameters: z.string().describe(
+  RequestParameters: z.record(z.string(), z.unknown()).describe(
     "The request parameters for the route. Supported only for WebSocket APIs.",
   ).optional(),
   Target: z.string().describe("The target for the route.").optional(),
@@ -61,7 +61,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   RouteId: z.string(),
   RouteResponseSelectionExpression: z.string().optional(),
-  RequestModels: z.string().optional(),
+  RequestModels: z.record(z.string(), z.unknown()).optional(),
   OperationName: z.string().optional(),
   AuthorizationScopes: z.array(z.string()).optional(),
   ApiKeyRequired: z.boolean().optional(),
@@ -69,7 +69,7 @@ const StateSchema = z.object({
   AuthorizationType: z.string().optional(),
   ModelSelectionExpression: z.string().optional(),
   ApiId: z.string(),
-  RequestParameters: z.string().optional(),
+  RequestParameters: z.record(z.string(), z.unknown()).optional(),
   Target: z.string().optional(),
   AuthorizerId: z.string().optional(),
 }).passthrough();
@@ -81,7 +81,7 @@ const InputsSchema = z.object({
   RouteResponseSelectionExpression: z.string().describe(
     "The route response selection expression for the route. Supported only for WebSocket APIs.",
   ).optional(),
-  RequestModels: z.string().describe(
+  RequestModels: z.record(z.string(), z.unknown()).describe(
     "The request models for the route. Supported only for WebSocket APIs.",
   ).optional(),
   OperationName: z.string().describe("The operation name for the route.")
@@ -102,7 +102,7 @@ const InputsSchema = z.object({
     "The model selection expression for the route. Supported only for WebSocket APIs.",
   ).optional(),
   ApiId: z.string().describe("The API identifier.").optional(),
-  RequestParameters: z.string().describe(
+  RequestParameters: z.record(z.string(), z.unknown()).describe(
     "The request parameters for the route. Supported only for WebSocket APIs.",
   ).optional(),
   Target: z.string().describe("The target for the route.").optional(),
@@ -114,7 +114,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ApiGatewayV2 Route. Registered at `@swamp/aws/apigatewayv2/route`. */
 export const model = {
   type: "@swamp/aws/apigatewayv2/route",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -138,6 +138,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

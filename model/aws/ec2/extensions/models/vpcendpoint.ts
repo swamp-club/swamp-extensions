@@ -85,7 +85,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ServiceName: z.string().describe("The name of the endpoint service.")
     .optional(),
-  PolicyDocument: z.string().describe(
+  PolicyDocument: z.record(z.string(), z.unknown()).describe(
     'An endpoint policy, which controls access to the service from the VPC. The default endpoint policy allows full access to the service. Endpoint policies are supported only for gateway and interface endpoints. For CloudFormation templates in YAML, you can provide the policy in JSON or YAML format. For example, if you have a JSON policy, you can convert it to YAML before including it in the YAML template, and CFNlong converts the policy to JSON format before calling the API actions for privatelink. Alternatively, you can include the JSON directly in the YAML, as shown in the following Properties section: Properties: VpcEndpointType: \'Interface\' ServiceName:!Sub \'com.amazonaws.${AWS::Region}.logs\' PolicyDocument: \'{ "Version":"2012-10-17", "Statement": [{ "Effect":"Allow", "Principal":"*", "Action":["logs:Describe*","logs:Get*","logs:List*","logs:FilterLogEvents"], "Resource":"*" }] }\'',
   ).optional(),
   VpcEndpointType: z.enum([
@@ -181,7 +181,7 @@ const InputsSchema = z.object({
   ).optional(),
   ServiceName: z.string().describe("The name of the endpoint service.")
     .optional(),
-  PolicyDocument: z.string().describe(
+  PolicyDocument: z.record(z.string(), z.unknown()).describe(
     'An endpoint policy, which controls access to the service from the VPC. The default endpoint policy allows full access to the service. Endpoint policies are supported only for gateway and interface endpoints. For CloudFormation templates in YAML, you can provide the policy in JSON or YAML format. For example, if you have a JSON policy, you can convert it to YAML before including it in the YAML template, and CFNlong converts the policy to JSON format before calling the API actions for privatelink. Alternatively, you can include the JSON directly in the YAML, as shown in the following Properties section: Properties: VpcEndpointType: \'Interface\' ServiceName:!Sub \'com.amazonaws.${AWS::Region}.logs\' PolicyDocument: \'{ "Version":"2012-10-17", "Statement": [{ "Effect":"Allow", "Principal":"*", "Action":["logs:Describe*","logs:Get*","logs:List*","logs:FilterLogEvents"], "Resource":"*" }] }\'',
   ).optional(),
   VpcEndpointType: z.enum([
@@ -198,7 +198,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for EC2 VPCEndpoint. Registered at `@swamp/aws/ec2/vpcendpoint`. */
 export const model = {
   type: "@swamp/aws/ec2/vpcendpoint",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -227,6 +227,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

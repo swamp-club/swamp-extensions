@@ -44,7 +44,7 @@ const GlobalArgsSchema = z.object({
     HttpsNotificationConfiguration: HttpsNotificationConfigurationSchema
       .describe("The configuration for HTTPS subscriber notification.")
       .optional(),
-    SqsNotificationConfiguration: z.string().describe(
+    SqsNotificationConfiguration: z.record(z.string(), z.unknown()).describe(
       "The configurations for SQS subscriber notification. The members of this structure are context-dependent.",
     ).optional(),
   }),
@@ -56,7 +56,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   NotificationConfiguration: z.object({
     HttpsNotificationConfiguration: HttpsNotificationConfigurationSchema,
-    SqsNotificationConfiguration: z.string(),
+    SqsNotificationConfiguration: z.record(z.string(), z.unknown()),
   }).optional(),
   SubscriberArn: z.string(),
   SubscriberEndpoint: z.string().optional(),
@@ -69,7 +69,7 @@ const InputsSchema = z.object({
     HttpsNotificationConfiguration: HttpsNotificationConfigurationSchema
       .describe("The configuration for HTTPS subscriber notification.")
       .optional(),
-    SqsNotificationConfiguration: z.string().describe(
+    SqsNotificationConfiguration: z.record(z.string(), z.unknown()).describe(
       "The configurations for SQS subscriber notification. The members of this structure are context-dependent.",
     ).optional(),
   }).optional(),
@@ -81,7 +81,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SecurityLake SubscriberNotification. Registered at `@swamp/aws/securitylake/subscriber-notification`. */
 export const model = {
   type: "@swamp/aws/securitylake/subscriber-notification",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -105,6 +105,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

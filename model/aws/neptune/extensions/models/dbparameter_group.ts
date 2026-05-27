@@ -39,7 +39,7 @@ const GlobalArgsSchema = z.object({
   Family: z.string().describe(
     "Must be `neptune1` for engine versions prior to 1.2.0.0, or `neptune1.2` for engine version `1.2.0.0` and higher.",
   ),
-  Parameters: z.string().describe(
+  Parameters: z.record(z.string(), z.unknown()).describe(
     "The parameters to set for this DB parameter group. The parameters are expressed as a JSON object consisting of key-value pairs. Changes to dynamic parameters are applied immediately. During an update, if you have static parameters (whether they were changed or not), it triggers AWS CloudFormation to reboot the associated DB instance without failover.",
   ),
   Tags: z.array(TagSchema).describe(
@@ -51,7 +51,7 @@ const StateSchema = z.object({
   Name: z.string(),
   Description: z.string().optional(),
   Family: z.string().optional(),
-  Parameters: z.string().optional(),
+  Parameters: z.record(z.string(), z.unknown()).optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -66,7 +66,7 @@ const InputsSchema = z.object({
   Family: z.string().describe(
     "Must be `neptune1` for engine versions prior to 1.2.0.0, or `neptune1.2` for engine version `1.2.0.0` and higher.",
   ).optional(),
-  Parameters: z.string().describe(
+  Parameters: z.record(z.string(), z.unknown()).describe(
     "The parameters to set for this DB parameter group. The parameters are expressed as a JSON object consisting of key-value pairs. Changes to dynamic parameters are applied immediately. During an update, if you have static parameters (whether they were changed or not), it triggers AWS CloudFormation to reboot the associated DB instance without failover.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
@@ -77,7 +77,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Neptune DBParameterGroup. Registered at `@swamp/aws/neptune/dbparameter-group`. */
 export const model = {
   type: "@swamp/aws/neptune/dbparameter-group",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -101,6 +101,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -38,7 +38,7 @@ const ActionSchema = z.object({
     "The JobRun timeout in minutes. This is the maximum time that a job run can consume resources before it is terminated and enters TIMEOUT status. The default is 2,880 minutes (48 hours). This overrides the timeout value set in the parent job.",
   ).optional(),
   JobName: z.string().describe("The name of a job to be executed.").optional(),
-  Arguments: z.string().describe(
+  Arguments: z.record(z.string(), z.unknown()).describe(
     "The job arguments used when this trigger fires. For this job run, they replace the default arguments set in the job definition itself.",
   ).optional(),
   SecurityConfiguration: z.string().describe(
@@ -87,7 +87,9 @@ const GlobalArgsSchema = z.object({
   Schedule: z.string().describe(
     "A cron expression used to specify the schedule.",
   ).optional(),
-  Tags: z.string().describe("The tags to use with this trigger.").optional(),
+  Tags: z.record(z.string(), z.unknown()).describe(
+    "The tags to use with this trigger.",
+  ).optional(),
   Name: z.string().describe("The name of the trigger.").optional(),
   Predicate: z.object({
     Logical: z.string().describe(
@@ -111,7 +113,7 @@ const StateSchema = z.object({
   }).optional(),
   WorkflowName: z.string().optional(),
   Schedule: z.string().optional(),
-  Tags: z.string().optional(),
+  Tags: z.record(z.string(), z.unknown()).optional(),
   Name: z.string(),
   Predicate: z.object({
     Logical: z.string(),
@@ -146,7 +148,9 @@ const InputsSchema = z.object({
   Schedule: z.string().describe(
     "A cron expression used to specify the schedule.",
   ).optional(),
-  Tags: z.string().describe("The tags to use with this trigger.").optional(),
+  Tags: z.record(z.string(), z.unknown()).describe(
+    "The tags to use with this trigger.",
+  ).optional(),
   Name: z.string().describe("The name of the trigger.").optional(),
   Predicate: z.object({
     Logical: z.string().describe(
@@ -162,7 +166,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Glue Trigger. Registered at `@swamp/aws/glue/trigger`. */
 export const model = {
   type: "@swamp/aws/glue/trigger",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -186,6 +190,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

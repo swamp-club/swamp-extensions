@@ -589,16 +589,18 @@ const GlobalArgsSchema = z.object({
           hllppUniqueCount: z.object({}).describe(
             "Computes an approximate unique count over the input values. When using raw data as input, be careful to use a consistent encoding. Otherwise the same value encoded differently could count more than once, or two distinct values could count as identical. Input: Any, or omit for Raw State: TBD Special state conversions: `Int64` (the unique count estimate)",
           ).optional(),
-          inputType: z.string().describe("Circular reference to Type")
-            .optional(),
+          inputType: z.record(z.string(), z.unknown()).describe(
+            "Circular reference to Type",
+          ).optional(),
           max: z.object({}).describe(
             "Computes the max of the input values. Allowed input: `Int64` State: same as input",
           ).optional(),
           min: z.object({}).describe(
             "Computes the min of the input values. Allowed input: `Int64` State: same as input",
           ).optional(),
-          stateType: z.string().describe("Circular reference to Type")
-            .optional(),
+          stateType: z.record(z.string(), z.unknown()).describe(
+            "Circular reference to Type",
+          ).optional(),
           sum: z.object({}).describe(
             "Computes the sum of the input values. Allowed input: `Int64` State: same as input",
           ).optional(),
@@ -606,8 +608,9 @@ const GlobalArgsSchema = z.object({
           "A value that combines incremental updates into a summarized value. Data is never directly written or read using type `Aggregate`. Writes provide either the `input_type` or `state_type`, and reads always return the `state_type`.",
         ).optional(),
         arrayType: z.object({
-          elementType: z.string().describe("Circular reference to Type")
-            .optional(),
+          elementType: z.record(z.string(), z.unknown()).describe(
+            "Circular reference to Type",
+          ).optional(),
         }).describe(
           "An ordered list of elements of a given type. Values of type `Array` are stored in `Value.array_value`.",
         ).optional(),
@@ -677,9 +680,12 @@ const GlobalArgsSchema = z.object({
           "Int64 Values of type `Int64` are stored in `Value.int_value`.",
         ).optional(),
         mapType: z.object({
-          keyType: z.string().describe("Circular reference to Type").optional(),
-          valueType: z.string().describe("Circular reference to Type")
-            .optional(),
+          keyType: z.record(z.string(), z.unknown()).describe(
+            "Circular reference to Type",
+          ).optional(),
+          valueType: z.record(z.string(), z.unknown()).describe(
+            "Circular reference to Type",
+          ).optional(),
         }).describe(
           "A mapping of keys to values of a given type. Values of type `Map` are stored in a `Value.array_value` where each entry is another `Value.array_value` with two elements (the key and the value, in that order). Normally encoded Map values won't have repeated keys, however, clients are expected to handle the case in which they do. If the same key appears multiple times, the _last_ value takes precedence.",
         ).optional(),
@@ -895,7 +901,7 @@ const GlobalArgsSchema = z.object({
         }).describe(
           "String Values of type `String` are stored in `Value.string_value`.",
         ).optional(),
-        structType: z.string().describe(
+        structType: z.record(z.string(), z.unknown()).describe(
           "Circular reference to GoogleBigtableAdminV2TypeStruct",
         ).optional(),
         timestampType: z.object({
@@ -1019,7 +1025,7 @@ const StateSchema = z.object({
         stringType: z.object({
           encoding: z.unknown(),
         }),
-        structType: z.string(),
+        structType: z.record(z.string(), z.unknown()),
         timestampType: z.object({
           encoding: z.unknown(),
         }),
@@ -1505,16 +1511,18 @@ const InputsSchema = z.object({
           hllppUniqueCount: z.object({}).describe(
             "Computes an approximate unique count over the input values. When using raw data as input, be careful to use a consistent encoding. Otherwise the same value encoded differently could count more than once, or two distinct values could count as identical. Input: Any, or omit for Raw State: TBD Special state conversions: `Int64` (the unique count estimate)",
           ).optional(),
-          inputType: z.string().describe("Circular reference to Type")
-            .optional(),
+          inputType: z.record(z.string(), z.unknown()).describe(
+            "Circular reference to Type",
+          ).optional(),
           max: z.object({}).describe(
             "Computes the max of the input values. Allowed input: `Int64` State: same as input",
           ).optional(),
           min: z.object({}).describe(
             "Computes the min of the input values. Allowed input: `Int64` State: same as input",
           ).optional(),
-          stateType: z.string().describe("Circular reference to Type")
-            .optional(),
+          stateType: z.record(z.string(), z.unknown()).describe(
+            "Circular reference to Type",
+          ).optional(),
           sum: z.object({}).describe(
             "Computes the sum of the input values. Allowed input: `Int64` State: same as input",
           ).optional(),
@@ -1522,8 +1530,9 @@ const InputsSchema = z.object({
           "A value that combines incremental updates into a summarized value. Data is never directly written or read using type `Aggregate`. Writes provide either the `input_type` or `state_type`, and reads always return the `state_type`.",
         ).optional(),
         arrayType: z.object({
-          elementType: z.string().describe("Circular reference to Type")
-            .optional(),
+          elementType: z.record(z.string(), z.unknown()).describe(
+            "Circular reference to Type",
+          ).optional(),
         }).describe(
           "An ordered list of elements of a given type. Values of type `Array` are stored in `Value.array_value`.",
         ).optional(),
@@ -1593,9 +1602,12 @@ const InputsSchema = z.object({
           "Int64 Values of type `Int64` are stored in `Value.int_value`.",
         ).optional(),
         mapType: z.object({
-          keyType: z.string().describe("Circular reference to Type").optional(),
-          valueType: z.string().describe("Circular reference to Type")
-            .optional(),
+          keyType: z.record(z.string(), z.unknown()).describe(
+            "Circular reference to Type",
+          ).optional(),
+          valueType: z.record(z.string(), z.unknown()).describe(
+            "Circular reference to Type",
+          ).optional(),
         }).describe(
           "A mapping of keys to values of a given type. Values of type `Map` are stored in a `Value.array_value` where each entry is another `Value.array_value` with two elements (the key and the value, in that order). Normally encoded Map values won't have repeated keys, however, clients are expected to handle the case in which they do. If the same key appears multiple times, the _last_ value takes precedence.",
         ).optional(),
@@ -1811,7 +1823,7 @@ const InputsSchema = z.object({
         }).describe(
           "String Values of type `String` are stored in `Value.string_value`.",
         ).optional(),
-        structType: z.string().describe(
+        structType: z.record(z.string(), z.unknown()).describe(
           "Circular reference to GoogleBigtableAdminV2TypeStruct",
         ).optional(),
         timestampType: z.object({
@@ -1861,7 +1873,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Bigtable Admin Instances.Tables. Registered at `@swamp/gcp/bigtableadmin/instances-tables`. */
 export const model = {
   type: "@swamp/gcp/bigtableadmin/instances-tables",
-  version: "2026.05.26.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1950,6 +1962,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

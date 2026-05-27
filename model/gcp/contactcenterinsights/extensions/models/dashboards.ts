@@ -266,7 +266,7 @@ const GlobalArgsSchema = z.object({
       chartReference: z.string().describe(
         "A reference to a chart widget. Format: projects/{project}/locations/{location}/dashboards/{dashboard}/charts/{chart}",
       ).optional(),
-      container: z.string().describe(
+      container: z.record(z.string(), z.unknown()).describe(
         "Circular reference to GoogleCloudContactcenterinsightsV1Container",
       ).optional(),
       filter: z.string().describe(
@@ -345,7 +345,7 @@ const StateSchema = z.object({
         width: z.number(),
       }),
       chartReference: z.string(),
-      container: z.string(),
+      container: z.record(z.string(), z.unknown()),
       filter: z.string(),
     })),
     width: z.number(),
@@ -496,7 +496,7 @@ const InputsSchema = z.object({
       chartReference: z.string().describe(
         "A reference to a chart widget. Format: projects/{project}/locations/{location}/dashboards/{dashboard}/charts/{chart}",
       ).optional(),
-      container: z.string().describe(
+      container: z.record(z.string(), z.unknown()).describe(
         "Circular reference to GoogleCloudContactcenterinsightsV1Container",
       ).optional(),
       filter: z.string().describe(
@@ -520,7 +520,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Contact Center AI Insights Dashboards. Registered at `@swamp/gcp/contactcenterinsights/dashboards`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/dashboards",
-  version: "2026.05.26.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -609,6 +609,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

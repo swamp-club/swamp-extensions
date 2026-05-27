@@ -25,7 +25,7 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  ReplayPolicy: z.string().describe(
+  ReplayPolicy: z.record(z.string(), z.unknown()).describe(
     "Specifies whether Amazon SNS resends the notification to the subscription when a message's attribute changes.",
   ).optional(),
   RawMessageDelivery: z.boolean().describe(
@@ -34,14 +34,14 @@ const GlobalArgsSchema = z.object({
   Endpoint: z.string().describe(
     "The subscription's endpoint. The endpoint value depends on the protocol that you specify.",
   ).optional(),
-  FilterPolicy: z.string().describe(
+  FilterPolicy: z.record(z.string(), z.unknown()).describe(
     "The filter policy JSON assigned to the subscription. Enables the subscriber to filter out unwanted messages.",
   ).optional(),
   TopicArn: z.string().describe("The ARN of the topic to subscribe to."),
-  RedrivePolicy: z.string().describe(
+  RedrivePolicy: z.record(z.string(), z.unknown()).describe(
     "When specified, sends undeliverable messages to the specified Amazon SQS dead-letter queue. Messages that can't be delivered due to client errors are held in the dead-letter queue for further analysis or reprocessing.",
   ).optional(),
-  DeliveryPolicy: z.string().describe(
+  DeliveryPolicy: z.record(z.string(), z.unknown()).describe(
     "The delivery policy JSON assigned to the subscription. Enables the subscriber to define the message delivery retry strategy in the case of an HTTP/S endpoint subscribed to the topic.",
   ).optional(),
   Region: z.string().describe(
@@ -79,7 +79,7 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
-  ReplayPolicy: z.string().describe(
+  ReplayPolicy: z.record(z.string(), z.unknown()).describe(
     "Specifies whether Amazon SNS resends the notification to the subscription when a message's attribute changes.",
   ).optional(),
   RawMessageDelivery: z.boolean().describe(
@@ -88,15 +88,15 @@ const InputsSchema = z.object({
   Endpoint: z.string().describe(
     "The subscription's endpoint. The endpoint value depends on the protocol that you specify.",
   ).optional(),
-  FilterPolicy: z.string().describe(
+  FilterPolicy: z.record(z.string(), z.unknown()).describe(
     "The filter policy JSON assigned to the subscription. Enables the subscriber to filter out unwanted messages.",
   ).optional(),
   TopicArn: z.string().describe("The ARN of the topic to subscribe to.")
     .optional(),
-  RedrivePolicy: z.string().describe(
+  RedrivePolicy: z.record(z.string(), z.unknown()).describe(
     "When specified, sends undeliverable messages to the specified Amazon SQS dead-letter queue. Messages that can't be delivered due to client errors are held in the dead-letter queue for further analysis or reprocessing.",
   ).optional(),
-  DeliveryPolicy: z.string().describe(
+  DeliveryPolicy: z.record(z.string(), z.unknown()).describe(
     "The delivery policy JSON assigned to the subscription. Enables the subscriber to define the message delivery retry strategy in the case of an HTTP/S endpoint subscribed to the topic.",
   ).optional(),
   Region: z.string().describe(
@@ -114,7 +114,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SNS Subscription. Registered at `@swamp/aws/sns/subscription`. */
 export const model = {
   type: "@swamp/aws/sns/subscription",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -143,6 +143,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -28,7 +28,7 @@ const GlobalArgsSchema = z.object({
   RouteSelectionExpression: z.string().describe(
     "The route selection expression for the API. For HTTP APIs, the routeSelectionExpression must be ${request.method} ${request.path}. If not provided, this will be the default for HTTP APIs. This property is required for WebSocket APIs.",
   ).optional(),
-  Body: z.string().describe(
+  Body: z.record(z.string(), z.unknown()).describe(
     "The OpenAPI definition. Supported only for HTTP APIs. To import an HTTP API, you must specify a Body or BodyS3Location. If you specify a Body or BodyS3Location, don't specify CloudFormation resources such as AWS::ApiGatewayV2::Authorizer or AWS::ApiGatewayV2::Route. API Gateway doesn't support the combination of OpenAPI and CloudFormation resources.",
   ).optional(),
   BodyS3Location: z.object({
@@ -105,7 +105,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   RouteSelectionExpression: z.string().optional(),
-  Body: z.string().optional(),
+  Body: z.record(z.string(), z.unknown()).optional(),
   BodyS3Location: z.object({
     Etag: z.string(),
     Bucket: z.string(),
@@ -145,7 +145,7 @@ const InputsSchema = z.object({
   RouteSelectionExpression: z.string().describe(
     "The route selection expression for the API. For HTTP APIs, the routeSelectionExpression must be ${request.method} ${request.path}. If not provided, this will be the default for HTTP APIs. This property is required for WebSocket APIs.",
   ).optional(),
-  Body: z.string().describe(
+  Body: z.record(z.string(), z.unknown()).describe(
     "The OpenAPI definition. Supported only for HTTP APIs. To import an HTTP API, you must specify a Body or BodyS3Location. If you specify a Body or BodyS3Location, don't specify CloudFormation resources such as AWS::ApiGatewayV2::Authorizer or AWS::ApiGatewayV2::Route. API Gateway doesn't support the combination of OpenAPI and CloudFormation resources.",
   ).optional(),
   BodyS3Location: z.object({
@@ -223,7 +223,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ApiGatewayV2 Api. Registered at `@swamp/aws/apigatewayv2/api`. */
 export const model = {
   type: "@swamp/aws/apigatewayv2/api",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -247,6 +247,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

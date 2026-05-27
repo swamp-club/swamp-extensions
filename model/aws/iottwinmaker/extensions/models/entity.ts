@@ -36,7 +36,7 @@ const GlobalArgsSchema = z.object({
   Status: z.object({
     State: z.enum(["CREATING", "UPDATING", "DELETING", "ACTIVE", "ERROR"])
       .optional(),
-    Error: z.string().optional(),
+    Error: z.record(z.string(), z.unknown()).optional(),
   }).describe("The current status of the entity.").optional(),
   ParentEntityId: z.string().min(1).max(128).regex(
     new RegExp(
@@ -65,7 +65,7 @@ const StateSchema = z.object({
   EntityName: z.string().optional(),
   Status: z.object({
     State: z.string(),
-    Error: z.string(),
+    Error: z.record(z.string(), z.unknown()),
   }).optional(),
   HasChildEntities: z.boolean().optional(),
   ParentEntityId: z.string().optional(),
@@ -94,7 +94,7 @@ const InputsSchema = z.object({
   Status: z.object({
     State: z.enum(["CREATING", "UPDATING", "DELETING", "ACTIVE", "ERROR"])
       .optional(),
-    Error: z.string().optional(),
+    Error: z.record(z.string(), z.unknown()).optional(),
   }).describe("The current status of the entity.").optional(),
   ParentEntityId: z.string().min(1).max(128).regex(
     new RegExp(
@@ -121,7 +121,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for IoTTwinMaker Entity. Registered at `@swamp/aws/iottwinmaker/entity`. */
 export const model = {
   type: "@swamp/aws/iottwinmaker/entity",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -145,6 +145,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

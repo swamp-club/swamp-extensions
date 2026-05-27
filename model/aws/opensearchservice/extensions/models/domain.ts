@@ -120,7 +120,7 @@ const GlobalArgsSchema = z.object({
     NodeOptions: z.array(NodeOptionSchema).optional(),
   }).optional(),
   DomainName: z.string().optional(),
-  AccessPolicies: z.string().optional(),
+  AccessPolicies: z.record(z.string(), z.unknown()).optional(),
   IPAddressType: z.string().optional(),
   EngineVersion: z.string().optional(),
   AdvancedOptions: z.record(z.string(), z.string()).optional(),
@@ -132,6 +132,9 @@ const GlobalArgsSchema = z.object({
   VPCOptions: z.object({
     SecurityGroupIds: z.array(z.string()).optional(),
     SubnetIds: z.array(z.string()).optional(),
+    EgressEnabled: z.boolean().describe(
+      "Controls whether egress traffic from the domain is routed through the customer VPC.",
+    ).optional(),
   }).optional(),
   NodeToNodeEncryptionOptions: z.object({
     Enabled: z.boolean().optional(),
@@ -211,6 +214,11 @@ const GlobalArgsSchema = z.object({
   DeploymentStrategyOptions: z.object({
     DeploymentStrategy: z.enum(["Default", "CapacityOptimized"]).optional(),
   }).optional(),
+  AutomatedSnapshotPauseOptions: z.object({
+    Enabled: z.boolean(),
+    StartTime: z.string().optional(),
+    EndTime: z.string().optional(),
+  }).optional(),
 });
 
 const StateSchema = z.object({
@@ -230,7 +238,7 @@ const StateSchema = z.object({
     NodeOptions: z.array(NodeOptionSchema),
   }).optional(),
   DomainName: z.string(),
-  AccessPolicies: z.string().optional(),
+  AccessPolicies: z.record(z.string(), z.unknown()).optional(),
   IPAddressType: z.string().optional(),
   EngineVersion: z.string().optional(),
   AdvancedOptions: z.record(z.string(), z.unknown()).optional(),
@@ -241,6 +249,7 @@ const StateSchema = z.object({
   VPCOptions: z.object({
     SecurityGroupIds: z.array(z.string()),
     SubnetIds: z.array(z.string()),
+    EgressEnabled: z.boolean(),
   }).optional(),
   NodeToNodeEncryptionOptions: z.object({
     Enabled: z.boolean(),
@@ -319,6 +328,11 @@ const StateSchema = z.object({
   DeploymentStrategyOptions: z.object({
     DeploymentStrategy: z.string(),
   }).optional(),
+  AutomatedSnapshotPauseOptions: z.object({
+    Enabled: z.boolean(),
+    StartTime: z.string(),
+    EndTime: z.string(),
+  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -340,7 +354,7 @@ const InputsSchema = z.object({
     NodeOptions: z.array(NodeOptionSchema).optional(),
   }).optional(),
   DomainName: z.string().optional(),
-  AccessPolicies: z.string().optional(),
+  AccessPolicies: z.record(z.string(), z.unknown()).optional(),
   IPAddressType: z.string().optional(),
   EngineVersion: z.string().optional(),
   AdvancedOptions: z.record(z.string(), z.string()).optional(),
@@ -352,6 +366,9 @@ const InputsSchema = z.object({
   VPCOptions: z.object({
     SecurityGroupIds: z.array(z.string()).optional(),
     SubnetIds: z.array(z.string()).optional(),
+    EgressEnabled: z.boolean().describe(
+      "Controls whether egress traffic from the domain is routed through the customer VPC.",
+    ).optional(),
   }).optional(),
   NodeToNodeEncryptionOptions: z.object({
     Enabled: z.boolean().optional(),
@@ -431,12 +448,17 @@ const InputsSchema = z.object({
   DeploymentStrategyOptions: z.object({
     DeploymentStrategy: z.enum(["Default", "CapacityOptimized"]).optional(),
   }).optional(),
+  AutomatedSnapshotPauseOptions: z.object({
+    Enabled: z.boolean().optional(),
+    StartTime: z.string().optional(),
+    EndTime: z.string().optional(),
+  }).optional(),
 });
 
 /** Swamp extension model for OpenSearchService Domain. Registered at `@swamp/aws/opensearchservice/domain`. */
 export const model = {
   type: "@swamp/aws/opensearchservice/domain",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -461,6 +483,11 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
+      description: "Added: AutomatedSnapshotPauseOptions",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -32,14 +32,16 @@ const GlobalArgsSchema = z.object({
     "The ID of the entity to which you want to add an owner.",
   ),
   EntityType: z.enum(["DOMAIN_UNIT"]).describe("The type of an entity."),
-  Owner: z.string().describe("The owner that you want to add to the entity."),
+  Owner: z.record(z.string(), z.unknown()).describe(
+    "The owner that you want to add to the entity.",
+  ),
 });
 
 const StateSchema = z.object({
   DomainIdentifier: z.string(),
   EntityIdentifier: z.string(),
   EntityType: z.string(),
-  Owner: z.string().optional(),
+  Owner: z.record(z.string(), z.unknown()).optional(),
   OwnerType: z.string(),
   OwnerIdentifier: z.string(),
 }).passthrough();
@@ -56,14 +58,15 @@ const InputsSchema = z.object({
   ).optional(),
   EntityType: z.enum(["DOMAIN_UNIT"]).describe("The type of an entity.")
     .optional(),
-  Owner: z.string().describe("The owner that you want to add to the entity.")
-    .optional(),
+  Owner: z.record(z.string(), z.unknown()).describe(
+    "The owner that you want to add to the entity.",
+  ).optional(),
 });
 
 /** Swamp extension model for DataZone Owner. Registered at `@swamp/aws/datazone/owner`. */
 export const model = {
   type: "@swamp/aws/datazone/owner",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -87,6 +90,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -61,7 +61,7 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "The PublicAccessBlock configuration that you want to apply to this Access Point. You can enable the configuration options in any combination. For more information about when Amazon S3 considers a bucket or object public, see https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html#access-control-block-public-access-policy-status 'The Meaning of Public' in the Amazon Simple Storage Service Developer Guide.",
   ).optional(),
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     "The Access Point Policy you want to apply to this access point.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
@@ -83,7 +83,7 @@ const StateSchema = z.object({
     BlockPublicPolicy: z.boolean(),
     RestrictPublicBuckets: z.boolean(),
   }).optional(),
-  Policy: z.string().optional(),
+  Policy: z.record(z.string(), z.unknown()).optional(),
   NetworkOrigin: z.string().optional(),
   Arn: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
@@ -126,7 +126,7 @@ const InputsSchema = z.object({
   }).describe(
     "The PublicAccessBlock configuration that you want to apply to this Access Point. You can enable the configuration options in any combination. For more information about when Amazon S3 considers a bucket or object public, see https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html#access-control-block-public-access-policy-status 'The Meaning of Public' in the Amazon Simple Storage Service Developer Guide.",
   ).optional(),
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     "The Access Point Policy you want to apply to this access point.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
@@ -137,7 +137,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for S3 AccessPoint. Registered at `@swamp/aws/s3/access-point`. */
 export const model = {
   type: "@swamp/aws/s3/access-point",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -161,6 +161,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

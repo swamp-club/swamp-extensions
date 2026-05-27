@@ -30,7 +30,7 @@ const GlobalArgsSchema = z.object({
   Name: z.string().min(3).max(30).regex(
     new RegExp("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"),
   ).describe("Unique name for this Private Connection within the account."),
-  ConnectionConfiguration: z.string().describe(
+  ConnectionConfiguration: z.record(z.string(), z.unknown()).describe(
     "The connection configuration for the Private Connection.",
   ),
   Tags: z.array(TagSchema).describe(
@@ -43,7 +43,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Name: z.string(),
-  ConnectionConfiguration: z.string().optional(),
+  ConnectionConfiguration: z.record(z.string(), z.unknown()).optional(),
   Status: z.string().optional(),
   CertificateExpiryTime: z.string().optional(),
   Arn: z.string().optional(),
@@ -58,7 +58,7 @@ const InputsSchema = z.object({
     new RegExp("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"),
   ).describe("Unique name for this Private Connection within the account.")
     .optional(),
-  ConnectionConfiguration: z.string().describe(
+  ConnectionConfiguration: z.record(z.string(), z.unknown()).describe(
     "The connection configuration for the Private Connection.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
@@ -72,7 +72,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for DevOpsAgent PrivateConnection. Registered at `@swamp/aws/devopsagent/private-connection`. */
 export const model = {
   type: "@swamp/aws/devopsagent/private-connection",
-  version: "2026.05.01.1",
+  version: "2026.05.27.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.27.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

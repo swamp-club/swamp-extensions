@@ -55,16 +55,16 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Configuration parameters for provisioning a AWS DMS Serverless replication",
   ),
-  ReplicationSettings: z.string().describe(
+  ReplicationSettings: z.record(z.string(), z.unknown()).describe(
     "JSON settings for Servereless replications that are provisioned using this replication configuration",
   ).optional(),
-  SupplementalSettings: z.string().describe(
+  SupplementalSettings: z.record(z.string(), z.unknown()).describe(
     "JSON settings for specifying supplemental data",
   ).optional(),
   ResourceIdentifier: z.string().describe(
     "A unique value or name that you get set for a given resource that can be used to construct an Amazon Resource Name (ARN) for that resource",
   ).optional(),
-  TableMappings: z.string().describe(
+  TableMappings: z.record(z.string(), z.unknown()).describe(
     "JSON table mappings for AWS DMS Serverless replications that are provisioned using this replication configuration",
   ),
   Tags: z.array(TagSchema).describe(
@@ -89,10 +89,10 @@ const StateSchema = z.object({
     ReplicationSubnetGroupId: z.string(),
     VpcSecurityGroupIds: z.array(z.string()),
   }).optional(),
-  ReplicationSettings: z.string().optional(),
-  SupplementalSettings: z.string().optional(),
+  ReplicationSettings: z.record(z.string(), z.unknown()).optional(),
+  SupplementalSettings: z.record(z.string(), z.unknown()).optional(),
   ResourceIdentifier: z.string().optional(),
-  TableMappings: z.string().optional(),
+  TableMappings: z.record(z.string(), z.unknown()).optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -125,16 +125,16 @@ const InputsSchema = z.object({
   }).describe(
     "Configuration parameters for provisioning a AWS DMS Serverless replication",
   ).optional(),
-  ReplicationSettings: z.string().describe(
+  ReplicationSettings: z.record(z.string(), z.unknown()).describe(
     "JSON settings for Servereless replications that are provisioned using this replication configuration",
   ).optional(),
-  SupplementalSettings: z.string().describe(
+  SupplementalSettings: z.record(z.string(), z.unknown()).describe(
     "JSON settings for specifying supplemental data",
   ).optional(),
   ResourceIdentifier: z.string().describe(
     "A unique value or name that you get set for a given resource that can be used to construct an Amazon Resource Name (ARN) for that resource",
   ).optional(),
-  TableMappings: z.string().describe(
+  TableMappings: z.record(z.string(), z.unknown()).describe(
     "JSON table mappings for AWS DMS Serverless replications that are provisioned using this replication configuration",
   ).optional(),
   Tags: z.array(TagSchema).describe(
@@ -145,7 +145,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DMS ReplicationConfig. Registered at `@swamp/aws/dms/replication-config`. */
 export const model = {
   type: "@swamp/aws/dms/replication-config",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -169,6 +169,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -58,7 +58,7 @@ const GlobalArgsSchema = z.object({
     .describe(
       "The list of security groups for the VPC associated with this environment.",
     ).optional(),
-  StorageConfigurations: z.array(z.string()).describe(
+  StorageConfigurations: z.array(z.record(z.string(), z.unknown())).describe(
     "The storage configurations defined for the runtime environment.",
   ).optional(),
   SubnetIds: z.array(z.string().regex(new RegExp("^\\S{1,50}$"))).describe(
@@ -85,7 +85,7 @@ const StateSchema = z.object({
   PreferredMaintenanceWindow: z.string().optional(),
   PubliclyAccessible: z.boolean().optional(),
   SecurityGroupIds: z.array(z.string()).optional(),
-  StorageConfigurations: z.array(z.string()).optional(),
+  StorageConfigurations: z.array(z.record(z.string(), z.unknown())).optional(),
   SubnetIds: z.array(z.string()).optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
@@ -127,7 +127,7 @@ const InputsSchema = z.object({
     .describe(
       "The list of security groups for the VPC associated with this environment.",
     ).optional(),
-  StorageConfigurations: z.array(z.string()).describe(
+  StorageConfigurations: z.array(z.record(z.string(), z.unknown())).describe(
     "The storage configurations defined for the runtime environment.",
   ).optional(),
   SubnetIds: z.array(z.string().regex(new RegExp("^\\S{1,50}$"))).describe(
@@ -141,7 +141,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for M2 Environment. Registered at `@swamp/aws/m2/environment`. */
 export const model = {
   type: "@swamp/aws/m2/environment",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -165,6 +165,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

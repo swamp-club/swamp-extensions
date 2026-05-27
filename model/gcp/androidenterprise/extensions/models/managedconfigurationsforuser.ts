@@ -151,7 +151,7 @@ const GlobalArgsSchema = z.object({
       "The boolean value - this will only be present if type of the property is bool.",
     ).optional(),
     valueBundle: z.object({
-      managedProperty: z.array(z.string()).describe(
+      managedProperty: z.array(z.record(z.string(), z.unknown())).describe(
         "The list of managed properties.",
       ).optional(),
     }).describe("A bundle of managed properties.").optional(),
@@ -191,7 +191,7 @@ const StateSchema = z.object({
     key: z.string(),
     valueBool: z.boolean(),
     valueBundle: z.object({
-      managedProperty: z.array(z.string()),
+      managedProperty: z.array(z.record(z.string(), z.unknown())),
     }),
     valueBundleArray: z.array(z.object({
       managedProperty: z.array(z.unknown()),
@@ -229,7 +229,7 @@ const InputsSchema = z.object({
       "The boolean value - this will only be present if type of the property is bool.",
     ).optional(),
     valueBundle: z.object({
-      managedProperty: z.array(z.string()).describe(
+      managedProperty: z.array(z.record(z.string(), z.unknown())).describe(
         "The list of managed properties.",
       ).optional(),
     }).describe("A bundle of managed properties.").optional(),
@@ -259,7 +259,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Play EMM Managedconfigurationsforuser. Registered at `@swamp/gcp/androidenterprise/managedconfigurationsforuser`. */
 export const model = {
   type: "@swamp/gcp/androidenterprise/managedconfigurationsforuser",
-  version: "2026.05.25.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -328,6 +328,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

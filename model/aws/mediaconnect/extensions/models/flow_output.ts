@@ -183,7 +183,7 @@ const GlobalArgsSchema = z.object({
       SecretsManager: SecretsManagerEncryptionKeyConfigurationSchema.describe(
         "The configuration settings for transit encryption of a flow output using AWS Secrets Manager, including the secret ARN and role ARN.",
       ).optional(),
-      Automatic: z.string().describe(
+      Automatic: z.record(z.string(), z.unknown()).describe(
         "Configuration settings for automatic encryption key management, where MediaConnect handles key creation and rotation.",
       ).optional(),
     }).describe("Configuration settings for flow transit encryption keys."),
@@ -228,7 +228,7 @@ const StateSchema = z.object({
     EncryptionKeyType: z.string(),
     EncryptionKeyConfiguration: z.object({
       SecretsManager: SecretsManagerEncryptionKeyConfigurationSchema,
-      Automatic: z.string(),
+      Automatic: z.record(z.string(), z.unknown()),
     }),
   }).optional(),
   Tags: z.array(TagSchema).optional(),
@@ -334,7 +334,7 @@ const InputsSchema = z.object({
       SecretsManager: SecretsManagerEncryptionKeyConfigurationSchema.describe(
         "The configuration settings for transit encryption of a flow output using AWS Secrets Manager, including the secret ARN and role ARN.",
       ).optional(),
-      Automatic: z.string().describe(
+      Automatic: z.record(z.string(), z.unknown()).describe(
         "Configuration settings for automatic encryption key management, where MediaConnect handles key creation and rotation.",
       ).optional(),
     }).describe("Configuration settings for flow transit encryption keys.")
@@ -350,7 +350,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for MediaConnect FlowOutput. Registered at `@swamp/aws/mediaconnect/flow-output`. */
 export const model = {
   type: "@swamp/aws/mediaconnect/flow-output",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -374,6 +374,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -122,7 +122,7 @@ const FlowTransitEncryptionSchema = z.object({
     SecretsManager: SecretsManagerEncryptionKeyConfigurationSchema.describe(
       "The configuration settings for transit encryption using Secrets Manager, including the secret ARN and role ARN.",
     ).optional(),
-    Automatic: z.string().describe(
+    Automatic: z.record(z.string(), z.unknown()).describe(
       "Configuration settings for automatic encryption key management, where MediaConnect handles key creation and rotation.",
     ).optional(),
   }).describe("Configuration settings for flow transit encryption keys."),
@@ -152,7 +152,7 @@ const MediaLiveTransitEncryptionSchema = z.object({
     SecretsManager: SecretsManagerEncryptionKeyConfigurationSchema.describe(
       "The configuration settings for transit encryption using Secrets Manager, including the secret ARN and role ARN.",
     ).optional(),
-    Automatic: z.string().describe(
+    Automatic: z.record(z.string(), z.unknown()).describe(
       "Configuration settings for automatic encryption key management, where MediaConnect handles key creation and rotation.",
     ).optional(),
   }).describe(
@@ -213,7 +213,7 @@ const GlobalArgsSchema = z.object({
     PreferredDayTime: PreferredDayTimeMaintenanceConfigurationSchema.describe(
       "Configuration for preferred day and time maintenance settings.",
     ).optional(),
-    Default: z.string().describe(
+    Default: z.record(z.string(), z.unknown()).describe(
       "Configuration settings for default maintenance scheduling.",
     ).optional(),
   }).describe(
@@ -246,7 +246,7 @@ const StateSchema = z.object({
   IpAddress: z.string().optional(),
   MaintenanceConfiguration: z.object({
     PreferredDayTime: PreferredDayTimeMaintenanceConfigurationSchema,
-    Default: z.string(),
+    Default: z.record(z.string(), z.unknown()),
   }).optional(),
   MaintenanceType: z.string().optional(),
   MaximumBitrate: z.number().optional(),
@@ -283,7 +283,7 @@ const InputsSchema = z.object({
     PreferredDayTime: PreferredDayTimeMaintenanceConfigurationSchema.describe(
       "Configuration for preferred day and time maintenance settings.",
     ).optional(),
-    Default: z.string().describe(
+    Default: z.record(z.string(), z.unknown()).describe(
       "Configuration settings for default maintenance scheduling.",
     ).optional(),
   }).describe(
@@ -307,7 +307,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for MediaConnect RouterOutput. Registered at `@swamp/aws/mediaconnect/router-output`. */
 export const model = {
   type: "@swamp/aws/mediaconnect/router-output",
-  version: "2026.04.24.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -336,6 +336,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

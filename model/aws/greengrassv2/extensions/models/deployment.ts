@@ -46,7 +46,7 @@ const ComponentDeploymentSpecificationSchema = z.object({
 const IoTJobExponentialRolloutRateSchema = z.object({
   BaseRatePerMinute: z.number().int().min(1).max(1000),
   IncrementFactor: z.number().min(1).max(5),
-  RateIncreaseCriteria: z.string(),
+  RateIncreaseCriteria: z.record(z.string(), z.unknown()),
 });
 
 const IoTJobExecutionsRolloutConfigSchema = z.object({
@@ -156,7 +156,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for GreengrassV2 Deployment. Registered at `@swamp/aws/greengrassv2/deployment`. */
 export const model = {
   type: "@swamp/aws/greengrassv2/deployment",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -180,6 +180,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

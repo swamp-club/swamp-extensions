@@ -25,14 +25,14 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  Policy: z.string(),
+  Policy: z.record(z.string(), z.unknown()),
   RegistryName: z.string(),
   RevisionId: z.string().optional(),
 });
 
 const StateSchema = z.object({
   Id: z.string(),
-  Policy: z.string().optional(),
+  Policy: z.record(z.string(), z.unknown()).optional(),
   RegistryName: z.string().optional(),
   RevisionId: z.string().optional(),
 }).passthrough();
@@ -41,7 +41,7 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
-  Policy: z.string().optional(),
+  Policy: z.record(z.string(), z.unknown()).optional(),
   RegistryName: z.string().optional(),
   RevisionId: z.string().optional(),
 });
@@ -49,7 +49,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for EventSchemas RegistryPolicy. Registered at `@swamp/aws/eventschemas/registry-policy`. */
 export const model = {
   type: "@swamp/aws/eventschemas/registry-policy",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -73,6 +73,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

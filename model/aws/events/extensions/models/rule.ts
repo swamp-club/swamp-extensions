@@ -172,7 +172,7 @@ const GlobalArgsSchema = z.object({
   EventBusName: z.string().describe(
     "The name or ARN of the event bus associated with the rule. If you omit this, the default event bus is used.",
   ).optional(),
-  EventPattern: z.string().describe(
+  EventPattern: z.record(z.string(), z.unknown()).describe(
     "The event pattern of the rule. For more information, see Events and Event Patterns in the Amazon EventBridge User Guide.",
   ).optional(),
   ScheduleExpression: z.string().describe(
@@ -216,7 +216,7 @@ const InputsSchema = z.object({
   EventBusName: z.string().describe(
     "The name or ARN of the event bus associated with the rule. If you omit this, the default event bus is used.",
   ).optional(),
-  EventPattern: z.string().describe(
+  EventPattern: z.record(z.string(), z.unknown()).describe(
     "The event pattern of the rule. For more information, see Events and Event Patterns in the Amazon EventBridge User Guide.",
   ).optional(),
   ScheduleExpression: z.string().describe(
@@ -242,7 +242,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Events Rule. Registered at `@swamp/aws/events/rule`. */
 export const model = {
   type: "@swamp/aws/events/rule",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -271,6 +271,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

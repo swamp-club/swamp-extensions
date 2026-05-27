@@ -58,7 +58,7 @@ const GlobalArgsSchema = z.object({
   DisplayName: z.string().min(1).max(64).regex(new RegExp("^[ _\\-\\d\\w]+$"))
     .optional(),
   EventFilter: z.object({
-    All: z.string().optional(),
+    All: z.record(z.string(), z.unknown()).optional(),
     Include: z.array(
       z.enum([
         "WebsiteInteract",
@@ -94,7 +94,7 @@ const StateSchema = z.object({
   CustomerManagedKey: z.string().optional(),
   DisplayName: z.string().optional(),
   EventFilter: z.object({
-    All: z.string(),
+    All: z.record(z.string(), z.unknown()),
     Include: z.array(z.string()),
   }).optional(),
   LogConfiguration: z.object({
@@ -120,7 +120,7 @@ const InputsSchema = z.object({
   DisplayName: z.string().min(1).max(64).regex(new RegExp("^[ _\\-\\d\\w]+$"))
     .optional(),
   EventFilter: z.object({
-    All: z.string().optional(),
+    All: z.record(z.string(), z.unknown()).optional(),
     Include: z.array(
       z.enum([
         "WebsiteInteract",
@@ -152,7 +152,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for WorkSpacesWeb SessionLogger. Registered at `@swamp/aws/workspacesweb/session-logger`. */
 export const model = {
   type: "@swamp/aws/workspacesweb/session-logger",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -176,6 +176,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

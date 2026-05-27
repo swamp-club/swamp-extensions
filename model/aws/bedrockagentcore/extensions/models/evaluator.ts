@@ -66,7 +66,7 @@ const BedrockEvaluatorModelConfigSchema = z.object({
   InferenceConfig: InferenceConfigurationSchema.describe(
     "The inference configuration parameters that control model behavior during evaluation.",
   ).optional(),
-  AdditionalModelRequestFields: z.string().describe(
+  AdditionalModelRequestFields: z.record(z.string(), z.unknown()).describe(
     "Additional model-specific request fields.",
   ).optional(),
 });
@@ -194,7 +194,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for BedrockAgentCore Evaluator. Registered at `@swamp/aws/bedrockagentcore/evaluator`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/evaluator",
-  version: "2026.05.05.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -229,6 +229,11 @@ export const model = {
     {
       toVersion: "2026.05.05.1",
       description: "Added: KmsKeyArn",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

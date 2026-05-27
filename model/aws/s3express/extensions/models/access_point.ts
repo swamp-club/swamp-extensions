@@ -85,7 +85,7 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "For directory buckets, you can ﬁlter access control to speciﬁc preﬁxes, API operations, or a combination of both.",
   ).optional(),
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     "The Access Point Policy you want to apply to this access point.",
   ).optional(),
   Tags: z.array(TagSchema).optional(),
@@ -108,7 +108,7 @@ const StateSchema = z.object({
     Prefixes: z.array(z.string()),
     Permissions: z.array(z.string()),
   }).optional(),
-  Policy: z.string().optional(),
+  Policy: z.record(z.string(), z.unknown()).optional(),
   NetworkOrigin: z.string().optional(),
   Arn: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
@@ -171,7 +171,7 @@ const InputsSchema = z.object({
   }).describe(
     "For directory buckets, you can ﬁlter access control to speciﬁc preﬁxes, API operations, or a combination of both.",
   ).optional(),
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     "The Access Point Policy you want to apply to this access point.",
   ).optional(),
   Tags: z.array(TagSchema).optional(),
@@ -180,7 +180,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for S3Express AccessPoint. Registered at `@swamp/aws/s3express/access-point`. */
 export const model = {
   type: "@swamp/aws/s3express/access-point",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -204,6 +204,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -700,7 +700,7 @@ const GlobalArgsSchema = z.object({
       description: z.string().describe(
         "Optional. The field description. The maximum length is 1,024 characters.",
       ).optional(),
-      fields: z.array(z.string()).describe(
+      fields: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. Describes the nested schema fields if the type property is set to RECORD.",
       ).optional(),
       foreignTypeDefinition: z.string().describe(
@@ -1249,7 +1249,7 @@ const StateSchema = z.object({
       }),
       defaultValueExpression: z.string(),
       description: z.string(),
-      fields: z.array(z.string()),
+      fields: z.array(z.record(z.string(), z.unknown())),
       foreignTypeDefinition: z.string(),
       generatedColumn: z.object({
         generatedExpressionInfo: z.object({
@@ -1915,7 +1915,7 @@ const InputsSchema = z.object({
       description: z.string().describe(
         "Optional. The field description. The maximum length is 1,024 characters.",
       ).optional(),
-      fields: z.array(z.string()).describe(
+      fields: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. Describes the nested schema fields if the type property is set to RECORD.",
       ).optional(),
       foreignTypeDefinition: z.string().describe(
@@ -2210,7 +2210,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud BigQuery Tables. Registered at `@swamp/gcp/bigquery/tables`. */
 export const model = {
   type: "@swamp/gcp/bigquery/tables",
-  version: "2026.05.26.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2284,6 +2284,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

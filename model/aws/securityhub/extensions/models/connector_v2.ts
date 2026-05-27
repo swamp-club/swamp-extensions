@@ -34,7 +34,7 @@ const GlobalArgsSchema = z.object({
   KmsKeyArn: z.string().min(20).max(2048).regex(new RegExp(".*\\S.*")).describe(
     "The ARN of KMS key used for the connector",
   ).optional(),
-  Provider: z.string().describe(
+  Provider: z.record(z.string(), z.unknown()).describe(
     "The third-party provider configuration for the connector",
   ),
   Tags: z.record(z.string(), z.string().min(0).max(256)).describe(
@@ -46,7 +46,7 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   Description: z.string().optional(),
   KmsKeyArn: z.string().optional(),
-  Provider: z.string().optional(),
+  Provider: z.record(z.string(), z.unknown()).optional(),
   Message: z.string().optional(),
   ConnectorStatus: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
@@ -70,7 +70,7 @@ const InputsSchema = z.object({
   KmsKeyArn: z.string().min(20).max(2048).regex(new RegExp(".*\\S.*")).describe(
     "The ARN of KMS key used for the connector",
   ).optional(),
-  Provider: z.string().describe(
+  Provider: z.record(z.string(), z.unknown()).describe(
     "The third-party provider configuration for the connector",
   ).optional(),
   Tags: z.record(z.string(), z.string().min(0).max(256)).describe(
@@ -81,7 +81,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SecurityHub ConnectorV2. Registered at `@swamp/aws/securityhub/connector-v2`. */
 export const model = {
   type: "@swamp/aws/securityhub/connector-v2",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -105,6 +105,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

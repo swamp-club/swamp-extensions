@@ -31,7 +31,7 @@ const GlobalArgsSchema = z.object({
   ServiceId: z.string().min(1).max(255).describe(
     "The identifier for the associated service",
   ),
-  Configuration: z.string().describe(
+  Configuration: z.record(z.string(), z.unknown()).describe(
     "The configuration that directs how AgentSpace interacts with the given service",
   ),
   LinkedAssociationIds: z.array(z.string().min(1).max(255)).describe(
@@ -43,7 +43,7 @@ const StateSchema = z.object({
   AgentSpaceId: z.string(),
   AssociationId: z.string(),
   ServiceId: z.string().optional(),
-  Configuration: z.string().optional(),
+  Configuration: z.record(z.string(), z.unknown()).optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
   LinkedAssociationIds: z.array(z.string()).optional(),
@@ -59,7 +59,7 @@ const InputsSchema = z.object({
   ServiceId: z.string().min(1).max(255).describe(
     "The identifier for the associated service",
   ).optional(),
-  Configuration: z.string().describe(
+  Configuration: z.record(z.string(), z.unknown()).describe(
     "The configuration that directs how AgentSpace interacts with the given service",
   ).optional(),
   LinkedAssociationIds: z.array(z.string().min(1).max(255)).describe(
@@ -70,7 +70,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DevOpsAgent Association. Registered at `@swamp/aws/devopsagent/association`. */
 export const model = {
   type: "@swamp/aws/devopsagent/association",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -94,6 +94,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

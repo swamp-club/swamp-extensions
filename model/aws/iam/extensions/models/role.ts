@@ -22,7 +22,7 @@ import {
 } from "./_lib/aws.ts";
 
 const PolicySchema = z.object({
-  PolicyDocument: z.string().describe(
+  PolicyDocument: z.record(z.string(), z.unknown()).describe(
     "The entire contents of the policy that defines permissions. For more information, see [Overview of JSON policies](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#access_policies-json).",
   ),
   PolicyName: z.string().describe(
@@ -40,7 +40,7 @@ const TagSchema = z.object({
 });
 
 const GlobalArgsSchema = z.object({
-  AssumeRolePolicyDocument: z.string().describe(
+  AssumeRolePolicyDocument: z.record(z.string(), z.unknown()).describe(
     "The trust policy that is associated with this role. Trust policies define which entities can assume the role. You can associate only one trust policy with a role. For an example of a policy that can be used to assume a role, see [Template Examples](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-iam-role.html#aws-resource-iam-role--examples). For more information about the elements that you can use in an IAM policy, see [Policy Elements Reference](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements.html) in the *User Guide*.",
   ),
   Description: z.string().describe(
@@ -89,7 +89,7 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  AssumeRolePolicyDocument: z.string().describe(
+  AssumeRolePolicyDocument: z.record(z.string(), z.unknown()).describe(
     "The trust policy that is associated with this role. Trust policies define which entities can assume the role. You can associate only one trust policy with a role. For an example of a policy that can be used to assume a role, see [Template Examples](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-iam-role.html#aws-resource-iam-role--examples). For more information about the elements that you can use in an IAM policy, see [Policy Elements Reference](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements.html) in the *User Guide*.",
   ).optional(),
   Description: z.string().describe(
@@ -121,7 +121,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for IAM Role. Registered at `@swamp/aws/iam/role`. */
 export const model = {
   type: "@swamp/aws/iam/role",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -150,6 +150,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -42,7 +42,7 @@ const GlobalArgsSchema = z.object({
   Role: z.string().describe(
     "The name or Amazon Resource Name (ARN) of the IAM role associated with this job.",
   ),
-  DefaultArguments: z.string().describe(
+  DefaultArguments: z.record(z.string(), z.unknown()).describe(
     "The default arguments for this job, specified as name-value pairs.",
   ).optional(),
   NotificationProperty: z.object({
@@ -101,11 +101,13 @@ const GlobalArgsSchema = z.object({
   NumberOfWorkers: z.number().int().describe(
     "The number of workers of a defined workerType that are allocated when a job runs.",
   ).optional(),
-  Tags: z.string().describe("The tags to use with this job.").optional(),
+  Tags: z.record(z.string(), z.unknown()).describe(
+    "The tags to use with this job.",
+  ).optional(),
   MaxCapacity: z.number().describe(
     "The number of AWS Glue data processing units (DPUs) that can be allocated when this job runs.",
   ).optional(),
-  NonOverridableArguments: z.string().describe(
+  NonOverridableArguments: z.record(z.string(), z.unknown()).describe(
     "Non-overridable arguments for this job, specified as name-value pairs.",
   ).optional(),
   MaintenanceWindow: z.string().describe("Property description not available.")
@@ -127,7 +129,7 @@ const StateSchema = z.object({
   AllocatedCapacity: z.number().optional(),
   Name: z.string(),
   Role: z.string().optional(),
-  DefaultArguments: z.string().optional(),
+  DefaultArguments: z.record(z.string(), z.unknown()).optional(),
   NotificationProperty: z.object({
     NotifyDelayAfter: z.number(),
   }).optional(),
@@ -146,9 +148,9 @@ const StateSchema = z.object({
   }).optional(),
   SecurityConfiguration: z.string().optional(),
   NumberOfWorkers: z.number().optional(),
-  Tags: z.string().optional(),
+  Tags: z.record(z.string(), z.unknown()).optional(),
   MaxCapacity: z.number().optional(),
-  NonOverridableArguments: z.string().optional(),
+  NonOverridableArguments: z.record(z.string(), z.unknown()).optional(),
   MaintenanceWindow: z.string().optional(),
   JobMode: z.string().optional(),
   JobRunQueuingEnabled: z.boolean().optional(),
@@ -177,7 +179,7 @@ const InputsSchema = z.object({
   Role: z.string().describe(
     "The name or Amazon Resource Name (ARN) of the IAM role associated with this job.",
   ).optional(),
-  DefaultArguments: z.string().describe(
+  DefaultArguments: z.record(z.string(), z.unknown()).describe(
     "The default arguments for this job, specified as name-value pairs.",
   ).optional(),
   NotificationProperty: z.object({
@@ -236,11 +238,13 @@ const InputsSchema = z.object({
   NumberOfWorkers: z.number().int().describe(
     "The number of workers of a defined workerType that are allocated when a job runs.",
   ).optional(),
-  Tags: z.string().describe("The tags to use with this job.").optional(),
+  Tags: z.record(z.string(), z.unknown()).describe(
+    "The tags to use with this job.",
+  ).optional(),
   MaxCapacity: z.number().describe(
     "The number of AWS Glue data processing units (DPUs) that can be allocated when this job runs.",
   ).optional(),
-  NonOverridableArguments: z.string().describe(
+  NonOverridableArguments: z.record(z.string(), z.unknown()).describe(
     "Non-overridable arguments for this job, specified as name-value pairs.",
   ).optional(),
   MaintenanceWindow: z.string().describe("Property description not available.")
@@ -255,7 +259,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Glue Job. Registered at `@swamp/aws/glue/job`. */
 export const model = {
   type: "@swamp/aws/glue/job",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -279,6 +283,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

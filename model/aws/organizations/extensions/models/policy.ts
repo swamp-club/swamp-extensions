@@ -54,7 +54,7 @@ const GlobalArgsSchema = z.object({
   ]).describe(
     "The type of policy to create. You can specify one of the following values: AISERVICES_OPT_OUT_POLICY, BACKUP_POLICY, BEDROCK_POLICY, CHATBOT_POLICY, DECLARATIVE_POLICY_EC2, INSPECTOR_POLICY, NETWORK_SECURITY_DIRECTOR_POLICY, RESOURCE_CONTROL_POLICY, S3_POLICY, SECURITYHUB_POLICY, SERVICE_CONTROL_POLICY, TAG_POLICY, UPGRADE_ROLLOUT_POLICY",
   ),
-  Content: z.string().describe(
+  Content: z.record(z.string(), z.unknown()).describe(
     "The Policy text content. For AWS CloudFormation templates formatted in YAML, you can provide the policy in JSON or YAML format. AWS CloudFormation always converts a YAML policy to JSON format before submitting it.",
   ),
   Description: z.string().max(512).regex(new RegExp("[\\s\\S]*")).describe(
@@ -110,7 +110,7 @@ const InputsSchema = z.object({
   ]).describe(
     "The type of policy to create. You can specify one of the following values: AISERVICES_OPT_OUT_POLICY, BACKUP_POLICY, BEDROCK_POLICY, CHATBOT_POLICY, DECLARATIVE_POLICY_EC2, INSPECTOR_POLICY, NETWORK_SECURITY_DIRECTOR_POLICY, RESOURCE_CONTROL_POLICY, S3_POLICY, SECURITYHUB_POLICY, SERVICE_CONTROL_POLICY, TAG_POLICY, UPGRADE_ROLLOUT_POLICY",
   ).optional(),
-  Content: z.string().describe(
+  Content: z.record(z.string(), z.unknown()).describe(
     "The Policy text content. For AWS CloudFormation templates formatted in YAML, you can provide the policy in JSON or YAML format. AWS CloudFormation always converts a YAML policy to JSON format before submitting it.",
   ).optional(),
   Description: z.string().max(512).regex(new RegExp("[\\s\\S]*")).describe(
@@ -133,7 +133,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Organizations Policy. Registered at `@swamp/aws/organizations/policy`. */
 export const model = {
   type: "@swamp/aws/organizations/policy",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -162,6 +162,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

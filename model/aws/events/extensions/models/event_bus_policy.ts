@@ -50,7 +50,7 @@ const GlobalArgsSchema = z.object({
     .describe(
       "An identifier string for the external account that you are granting permissions to",
     ),
-  Statement: z.string().describe(
+  Statement: z.record(z.string(), z.unknown()).describe(
     "A JSON string that describes the permission policy statement. You can include a Policy parameter in the request instead of using the StatementId, Action, Principal, or Condition parameters.",
   ).optional(),
   Principal: z.string().min(1).max(12).regex(new RegExp("(\\d{12}|\\*)"))
@@ -68,7 +68,7 @@ const StateSchema = z.object({
   }).optional(),
   Action: z.string().optional(),
   StatementId: z.string(),
-  Statement: z.string().optional(),
+  Statement: z.record(z.string(), z.unknown()).optional(),
   Principal: z.string().optional(),
 }).passthrough();
 
@@ -101,7 +101,7 @@ const InputsSchema = z.object({
     .describe(
       "An identifier string for the external account that you are granting permissions to",
     ).optional(),
-  Statement: z.string().describe(
+  Statement: z.record(z.string(), z.unknown()).describe(
     "A JSON string that describes the permission policy statement. You can include a Policy parameter in the request instead of using the StatementId, Action, Principal, or Condition parameters.",
   ).optional(),
   Principal: z.string().min(1).max(12).regex(new RegExp("(\\d{12}|\\*)"))
@@ -113,7 +113,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Events EventBusPolicy. Registered at `@swamp/aws/events/event-bus-policy`. */
 export const model = {
   type: "@swamp/aws/events/event-bus-policy",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -137,6 +137,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -31,7 +31,7 @@ const GlobalArgsSchema = z.object({
     "A name for the model. If you don't specify a name, CFN generates a unique physical ID and uses that ID for the model name. For more information, see [Name Type](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-name.html). If you specify a name, you cannot perform updates that require replacement of this resource. You can perform updates that require no or some interruption. If you must replace the resource, specify a new name.",
   ).optional(),
   RestApiId: z.string(),
-  Schema: z.string().optional(),
+  Schema: z.record(z.string(), z.unknown()).optional(),
 });
 
 const StateSchema = z.object({
@@ -52,13 +52,13 @@ const InputsSchema = z.object({
     "A name for the model. If you don't specify a name, CFN generates a unique physical ID and uses that ID for the model name. For more information, see [Name Type](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-name.html). If you specify a name, you cannot perform updates that require replacement of this resource. You can perform updates that require no or some interruption. If you must replace the resource, specify a new name.",
   ).optional(),
   RestApiId: z.string().optional(),
-  Schema: z.string().optional(),
+  Schema: z.record(z.string(), z.unknown()).optional(),
 });
 
 /** Swamp extension model for ApiGateway Model. Registered at `@swamp/aws/apigateway/model`. */
 export const model = {
   type: "@swamp/aws/apigateway/model",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -87,6 +87,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

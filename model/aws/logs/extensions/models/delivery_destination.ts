@@ -51,7 +51,7 @@ const GlobalArgsSchema = z.object({
     DeliveryDestinationName: z.string().min(1).max(60).describe(
       "The name of the delivery destination to assign this policy to",
     ).optional(),
-    DeliveryDestinationPolicy: z.string().describe(
+    DeliveryDestinationPolicy: z.record(z.string(), z.unknown()).describe(
       "The contents of the policy attached to the delivery destination",
     ).optional(),
   }).describe(
@@ -71,7 +71,7 @@ const StateSchema = z.object({
   DeliveryDestinationType: z.string().optional(),
   DeliveryDestinationPolicy: z.object({
     DeliveryDestinationName: z.string(),
-    DeliveryDestinationPolicy: z.string(),
+    DeliveryDestinationPolicy: z.record(z.string(), z.unknown()),
   }).optional(),
   OutputFormat: z.string().optional(),
 }).passthrough();
@@ -99,7 +99,7 @@ const InputsSchema = z.object({
     DeliveryDestinationName: z.string().min(1).max(60).describe(
       "The name of the delivery destination to assign this policy to",
     ).optional(),
-    DeliveryDestinationPolicy: z.string().describe(
+    DeliveryDestinationPolicy: z.record(z.string(), z.unknown()).describe(
       "The contents of the policy attached to the delivery destination",
     ).optional(),
   }).describe(
@@ -114,7 +114,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Logs DeliveryDestination. Registered at `@swamp/aws/logs/delivery-destination`. */
 export const model = {
   type: "@swamp/aws/logs/delivery-destination",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -138,6 +138,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

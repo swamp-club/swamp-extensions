@@ -28,14 +28,14 @@ const GlobalArgsSchema = z.object({
   IdentityPoolId: z.string(),
   IdentityProviderName: z.string(),
   UseDefaults: z.boolean().optional(),
-  PrincipalTags: z.string().optional(),
+  PrincipalTags: z.record(z.string(), z.unknown()).optional(),
 });
 
 const StateSchema = z.object({
   IdentityPoolId: z.string(),
   IdentityProviderName: z.string(),
   UseDefaults: z.boolean().optional(),
-  PrincipalTags: z.string().optional(),
+  PrincipalTags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -45,13 +45,13 @@ const InputsSchema = z.object({
   IdentityPoolId: z.string().optional(),
   IdentityProviderName: z.string().optional(),
   UseDefaults: z.boolean().optional(),
-  PrincipalTags: z.string().optional(),
+  PrincipalTags: z.record(z.string(), z.unknown()).optional(),
 });
 
 /** Swamp extension model for Cognito IdentityPoolPrincipalTag. Registered at `@swamp/aws/cognito/identity-pool-principal-tag`. */
 export const model = {
   type: "@swamp/aws/cognito/identity-pool-principal-tag",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -75,6 +75,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -80,7 +80,7 @@ const StateSchema = z.object({
               Name: z.string(),
               Description: z.string(),
               InputSchema: z.object({
-                Json: z.string(),
+                Json: z.record(z.string(), z.unknown()),
               }),
             }),
             CachePoint: z.object({
@@ -88,8 +88,8 @@ const StateSchema = z.object({
             }),
           })),
           ToolChoice: z.object({
-            Auto: z.string(),
-            Any: z.string(),
+            Auto: z.record(z.string(), z.unknown()),
+            Any: z.record(z.string(), z.unknown()),
             Tool: z.object({
               Name: z.string(),
             }),
@@ -114,7 +114,7 @@ const StateSchema = z.object({
         AgentIdentifier: z.string(),
       }),
     }),
-    AdditionalModelRequestFields: z.string(),
+    AdditionalModelRequestFields: z.record(z.string(), z.unknown()),
     Metadata: z.array(z.object({
       Key: z.string(),
       Value: z.string(),
@@ -148,7 +148,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Bedrock PromptVersion. Registered at `@swamp/aws/bedrock/prompt-version`. */
 export const model = {
   type: "@swamp/aws/bedrock/prompt-version",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -172,6 +172,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

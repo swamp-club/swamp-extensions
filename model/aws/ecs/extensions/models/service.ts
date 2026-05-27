@@ -325,7 +325,7 @@ const DeploymentLifecycleHookSchema = z.object({
   HookTargetArn: z.string().describe(
     "The Amazon Resource Name (ARN) of the hook target. For AWS_LAMBDA hooks, this is the Lambda function ARN. This field is not applicable for PAUSE hooks. You must provide this parameter when configuring an AWS_LAMBDA lifecycle hook.",
   ).optional(),
-  HookDetails: z.string().describe(
+  HookDetails: z.record(z.string(), z.unknown()).describe(
     "Use this field to specify custom parameters that ECS passes to your hook target invocations (such as a Lambda function). This field must be a JSON object as a string.",
   ).optional(),
   RoleArn: z.string().describe(
@@ -705,7 +705,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ECS Service. Registered at `@swamp/aws/ecs/service`. */
 export const model = {
   type: "@swamp/aws/ecs/service",
-  version: "2026.05.24.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -749,6 +749,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

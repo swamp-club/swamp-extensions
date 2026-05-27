@@ -67,7 +67,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     Description: z.string().describe("A description of the database.")
       .optional(),
-    Parameters: z.string().describe(
+    Parameters: z.record(z.string(), z.unknown()).describe(
       "These key-value pairs define parameters and properties of the database.",
     ).optional(),
     TargetDatabase: DatabaseIdentifierSchema.describe(
@@ -91,7 +91,7 @@ const StateSchema = z.object({
     LocationUri: z.string(),
     CreateTableDefaultPermissions: z.array(PrincipalPrivilegesSchema),
     Description: z.string(),
-    Parameters: z.string(),
+    Parameters: z.record(z.string(), z.unknown()),
     TargetDatabase: DatabaseIdentifierSchema,
     FederatedDatabase: FederatedDatabaseSchema,
     Name: z.string(),
@@ -114,7 +114,7 @@ const InputsSchema = z.object({
     ).optional(),
     Description: z.string().describe("A description of the database.")
       .optional(),
-    Parameters: z.string().describe(
+    Parameters: z.record(z.string(), z.unknown()).describe(
       "These key-value pairs define parameters and properties of the database.",
     ).optional(),
     TargetDatabase: DatabaseIdentifierSchema.describe(
@@ -135,7 +135,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Glue Database. Registered at `@swamp/aws/glue/database`. */
 export const model = {
   type: "@swamp/aws/glue/database",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -159,6 +159,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

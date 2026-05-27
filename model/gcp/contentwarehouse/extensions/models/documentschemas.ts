@@ -166,7 +166,7 @@ const GlobalArgsSchema = z.object({
       "Required. The name of the metadata property. Must be unique within a document schema and is case insensitive. Names must be non-blank, start with a letter, and can contain alphanumeric characters and: /,:, -, _, and.",
     ).optional(),
     propertyTypeOptions: z.object({
-      propertyDefinitions: z.array(z.string()).describe(
+      propertyDefinitions: z.array(z.record(z.string(), z.unknown())).describe(
         "Required. List of property definitions.",
       ).optional(),
     }).describe("Configurations for a nested structured data property.")
@@ -315,7 +315,7 @@ const StateSchema = z.object({
     mapTypeOptions: z.object({}),
     name: z.string(),
     propertyTypeOptions: z.object({
-      propertyDefinitions: z.array(z.string()),
+      propertyDefinitions: z.array(z.record(z.string(), z.unknown())),
     }),
     retrievalImportance: z.string(),
     schemaSources: z.array(z.object({
@@ -383,7 +383,7 @@ const InputsSchema = z.object({
       "Required. The name of the metadata property. Must be unique within a document schema and is case insensitive. Names must be non-blank, start with a letter, and can contain alphanumeric characters and: /,:, -, _, and.",
     ).optional(),
     propertyTypeOptions: z.object({
-      propertyDefinitions: z.array(z.string()).describe(
+      propertyDefinitions: z.array(z.record(z.string(), z.unknown())).describe(
         "Required. List of property definitions.",
       ).optional(),
     }).describe("Configurations for a nested structured data property.")
@@ -512,7 +512,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Document AI Warehouse DocumentSchemas. Registered at `@swamp/gcp/contentwarehouse/documentschemas`. */
 export const model = {
   type: "@swamp/gcp/contentwarehouse/documentschemas",
-  version: "2026.05.25.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -581,6 +581,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -38,7 +38,7 @@ const GlobalArgsSchema = z.object({
   ),
   RowFilter: z.object({
     FilterExpression: z.string().describe("A PartiQL predicate.").optional(),
-    AllRowsWildcard: z.string().describe(
+    AllRowsWildcard: z.record(z.string(), z.unknown()).describe(
       "An empty object representing a row wildcard.",
     ).optional(),
   }).describe(
@@ -63,7 +63,7 @@ const StateSchema = z.object({
   Name: z.string(),
   RowFilter: z.object({
     FilterExpression: z.string(),
-    AllRowsWildcard: z.string(),
+    AllRowsWildcard: z.record(z.string(), z.unknown()),
   }).optional(),
   ColumnNames: z.array(z.string()).optional(),
   ColumnWildcard: z.object({
@@ -89,7 +89,7 @@ const InputsSchema = z.object({
   ).optional(),
   RowFilter: z.object({
     FilterExpression: z.string().describe("A PartiQL predicate.").optional(),
-    AllRowsWildcard: z.string().describe(
+    AllRowsWildcard: z.record(z.string(), z.unknown()).describe(
       "An empty object representing a row wildcard.",
     ).optional(),
   }).describe(
@@ -110,7 +110,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for LakeFormation DataCellsFilter. Registered at `@swamp/aws/lakeformation/data-cells-filter`. */
 export const model = {
   type: "@swamp/aws/lakeformation/data-cells-filter",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -134,6 +134,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

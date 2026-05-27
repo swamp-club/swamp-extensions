@@ -40,7 +40,7 @@ const GlobalArgsSchema = z.object({
   DeletionProtection: z.object({
     Mode: z.enum(["ENABLED", "DISABLED"]),
   }).optional(),
-  EncryptionSettings: z.string().optional(),
+  EncryptionSettings: z.record(z.string(), z.unknown()).optional(),
   Tags: z.array(TagSchema).describe("The tags to add to the policy store")
     .optional(),
 });
@@ -58,9 +58,9 @@ const StateSchema = z.object({
   DeletionProtection: z.object({
     Mode: z.string(),
   }).optional(),
-  EncryptionSettings: z.string().optional(),
+  EncryptionSettings: z.record(z.string(), z.unknown()).optional(),
   Tags: z.array(TagSchema).optional(),
-  EncryptionState: z.string().optional(),
+  EncryptionState: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -77,7 +77,7 @@ const InputsSchema = z.object({
   DeletionProtection: z.object({
     Mode: z.enum(["ENABLED", "DISABLED"]).optional(),
   }).optional(),
-  EncryptionSettings: z.string().optional(),
+  EncryptionSettings: z.record(z.string(), z.unknown()).optional(),
   Tags: z.array(TagSchema).describe("The tags to add to the policy store")
     .optional(),
 });
@@ -85,7 +85,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for VerifiedPermissions PolicyStore. Registered at `@swamp/aws/verifiedpermissions/policy-store`. */
 export const model = {
   type: "@swamp/aws/verifiedpermissions/policy-store",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -109,6 +109,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

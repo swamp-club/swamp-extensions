@@ -38,7 +38,7 @@ const GlobalArgsSchema = z.object({
   KmsKeyIdentifier: z.string().describe(
     "Kms Key Identifier used to encrypt events at rest in the event bus.",
   ).optional(),
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     "A JSON string that describes the permission policy statement for the event bus.",
   ).optional(),
   LogConfig: z.object({
@@ -82,7 +82,7 @@ const InputsSchema = z.object({
   KmsKeyIdentifier: z.string().describe(
     "Kms Key Identifier used to encrypt events at rest in the event bus.",
   ).optional(),
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     "A JSON string that describes the permission policy statement for the event bus.",
   ).optional(),
   LogConfig: z.object({
@@ -98,7 +98,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Events EventBus. Registered at `@swamp/aws/events/event-bus`. */
 export const model = {
   type: "@swamp/aws/events/event-bus",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -127,6 +127,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

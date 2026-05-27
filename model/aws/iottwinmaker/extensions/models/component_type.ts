@@ -93,7 +93,7 @@ const GlobalArgsSchema = z.object({
   Status: z.object({
     State: z.enum(["CREATING", "UPDATING", "DELETING", "ACTIVE", "ERROR"])
       .optional(),
-    Error: z.string().optional(),
+    Error: z.record(z.string(), z.unknown()).optional(),
   }).describe("The current status of the component type.").optional(),
   Tags: z.record(z.string(), z.string().min(1).max(256)).describe(
     "A map of key-value pairs to associate with a resource.",
@@ -115,7 +115,7 @@ const StateSchema = z.object({
   UpdateDateTime: z.string().optional(),
   Status: z.object({
     State: z.string(),
-    Error: z.string(),
+    Error: z.record(z.string(), z.unknown()),
   }).optional(),
   IsAbstract: z.boolean().optional(),
   IsSchemaInitialized: z.boolean().optional(),
@@ -157,7 +157,7 @@ const InputsSchema = z.object({
   Status: z.object({
     State: z.enum(["CREATING", "UPDATING", "DELETING", "ACTIVE", "ERROR"])
       .optional(),
-    Error: z.string().optional(),
+    Error: z.record(z.string(), z.unknown()).optional(),
   }).describe("The current status of the component type.").optional(),
   Tags: z.record(z.string(), z.string().min(1).max(256)).describe(
     "A map of key-value pairs to associate with a resource.",
@@ -167,7 +167,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for IoTTwinMaker ComponentType. Registered at `@swamp/aws/iottwinmaker/component-type`. */
 export const model = {
   type: "@swamp/aws/iottwinmaker/component-type",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -191,6 +191,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

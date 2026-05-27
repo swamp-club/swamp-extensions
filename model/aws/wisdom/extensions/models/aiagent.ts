@@ -192,9 +192,9 @@ const ToolConfigurationSchema = z.object({
   Instruction: ToolInstructionSchema.optional(),
   OverrideInputValues: z.array(ToolOverrideInputValueSchema).optional(),
   OutputFilters: z.array(ToolOutputFilterSchema).optional(),
-  InputSchema: z.string().optional(),
-  OutputSchema: z.string().optional(),
-  Annotations: z.string().optional(),
+  InputSchema: z.record(z.string(), z.unknown()).optional(),
+  OutputSchema: z.record(z.string(), z.unknown()).optional(),
+  Annotations: z.record(z.string(), z.unknown()).optional(),
   UserInteractionConfiguration: UserInteractionConfigurationSchema.optional(),
 });
 
@@ -371,7 +371,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Wisdom AIAgent. Registered at `@swamp/aws/wisdom/aiagent`. */
 export const model = {
   type: "@swamp/aws/wisdom/aiagent",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -395,6 +395,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

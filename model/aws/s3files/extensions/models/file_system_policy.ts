@@ -27,12 +27,12 @@ const GlobalArgsSchema = z.object({
       "^(arn:aws[-a-z]*:s3files:[0-9a-z-:]+:file-system/fs-[0-9a-f]{17,40}|fs-[0-9a-f]{17,40})$",
     ),
   ),
-  Policy: z.string(),
+  Policy: z.record(z.string(), z.unknown()),
 });
 
 const StateSchema = z.object({
   FileSystemId: z.string(),
-  Policy: z.string().optional(),
+  Policy: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -43,13 +43,13 @@ const InputsSchema = z.object({
       "^(arn:aws[-a-z]*:s3files:[0-9a-z-:]+:file-system/fs-[0-9a-f]{17,40}|fs-[0-9a-f]{17,40})$",
     ),
   ).optional(),
-  Policy: z.string().optional(),
+  Policy: z.record(z.string(), z.unknown()).optional(),
 });
 
 /** Swamp extension model for S3Files FileSystemPolicy. Registered at `@swamp/aws/s3files/file-system-policy`. */
 export const model = {
   type: "@swamp/aws/s3files/file-system-policy",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
@@ -58,6 +58,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

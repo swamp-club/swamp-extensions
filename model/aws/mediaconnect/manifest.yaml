@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/mediaconnect"
-version: "2026.05.01.1"
+version: "2026.05.27.1"
 description: "AWS MEDIACONNECT infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - mediaconnect
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: flow_output, router_input, router_output
 models:
   - bridge.ts
   - bridge_output.ts

@@ -27,14 +27,14 @@ const GlobalArgsSchema = z.object({
       "^arn:aws(-[a-z]+)*:bedrock:[a-z0-9-]+:[0-9]{12}:(guardrail|guardrail-profile)/[a-z0-9]+$",
     ),
   ).describe("The ARN of the Bedrock Guardrail or Guardrail Profile resource"),
-  PolicyDocument: z.string().describe(
+  PolicyDocument: z.record(z.string(), z.unknown()).describe(
     "The IAM policy document defining access permissions for the guardrail and guardrail profile resources",
   ),
 });
 
 const StateSchema = z.object({
   ResourceArn: z.string(),
-  PolicyDocument: z.string().optional(),
+  PolicyDocument: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -46,7 +46,7 @@ const InputsSchema = z.object({
     ),
   ).describe("The ARN of the Bedrock Guardrail or Guardrail Profile resource")
     .optional(),
-  PolicyDocument: z.string().describe(
+  PolicyDocument: z.record(z.string(), z.unknown()).describe(
     "The IAM policy document defining access permissions for the guardrail and guardrail profile resources",
   ).optional(),
 });
@@ -54,7 +54,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Bedrock ResourcePolicy. Registered at `@swamp/aws/bedrock/resource-policy`. */
 export const model = {
   type: "@swamp/aws/bedrock/resource-policy",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
@@ -63,6 +63,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

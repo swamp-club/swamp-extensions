@@ -46,7 +46,7 @@ const GlobalArgsSchema = z.object({
     ),
   ).optional(),
   Port: z.number().int().min(1).max(65535),
-  ManagedEndpointConfiguration: z.string().optional(),
+  ManagedEndpointConfiguration: z.record(z.string(), z.unknown()).optional(),
   SubnetIds: z.array(z.string()).describe(
     "The ID of one or more subnets in order to create a gateway.",
   ),
@@ -69,7 +69,7 @@ const StateSchema = z.object({
   DomainName: z.string().optional(),
   Port: z.number().optional(),
   GatewayId: z.string().optional(),
-  ManagedEndpointConfiguration: z.string().optional(),
+  ManagedEndpointConfiguration: z.record(z.string(), z.unknown()).optional(),
   SubnetIds: z.array(z.string()).optional(),
   SecurityGroupIds: z.array(z.string()).optional(),
   VpcId: z.string().optional(),
@@ -94,7 +94,7 @@ const InputsSchema = z.object({
     ),
   ).optional(),
   Port: z.number().int().min(1).max(65535).optional(),
-  ManagedEndpointConfiguration: z.string().optional(),
+  ManagedEndpointConfiguration: z.record(z.string(), z.unknown()).optional(),
   SubnetIds: z.array(z.string()).describe(
     "The ID of one or more subnets in order to create a gateway.",
   ).optional(),
@@ -110,7 +110,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for RTBFabric ResponderGateway. Registered at `@swamp/aws/rtbfabric/responder-gateway`. */
 export const model = {
   type: "@swamp/aws/rtbfabric/responder-gateway",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -134,6 +134,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

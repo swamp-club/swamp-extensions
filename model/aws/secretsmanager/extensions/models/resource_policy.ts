@@ -28,7 +28,7 @@ const GlobalArgsSchema = z.object({
   SecretId: z.string().min(1).max(2048).describe(
     "The ARN or name of the secret to attach the resource-based policy.",
   ),
-  ResourcePolicy: z.string().describe(
+  ResourcePolicy: z.record(z.string(), z.unknown()).describe(
     "A JSON-formatted string for an AWS resource-based policy.",
   ),
   BlockPublicPolicy: z.boolean().describe(
@@ -51,7 +51,7 @@ const InputsSchema = z.object({
   SecretId: z.string().min(1).max(2048).describe(
     "The ARN or name of the secret to attach the resource-based policy.",
   ).optional(),
-  ResourcePolicy: z.string().describe(
+  ResourcePolicy: z.record(z.string(), z.unknown()).describe(
     "A JSON-formatted string for an AWS resource-based policy.",
   ).optional(),
   BlockPublicPolicy: z.boolean().describe(
@@ -62,7 +62,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SecretsManager ResourcePolicy. Registered at `@swamp/aws/secretsmanager/resource-policy`. */
 export const model = {
   type: "@swamp/aws/secretsmanager/resource-policy",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -91,6 +91,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

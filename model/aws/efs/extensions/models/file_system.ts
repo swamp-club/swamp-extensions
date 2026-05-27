@@ -96,7 +96,7 @@ const GlobalArgsSchema = z.object({
   ThroughputMode: z.string().describe(
     "Specifies the throughput mode for the file system. The mode can be bursting, provisioned, or elastic. If you set ThroughputMode to provisioned, you must also set a value for ProvisionedThroughputInMibps. After you create the file system, you can decrease your file system's Provisioned throughput or change between the throughput modes, with certain time restrictions. For more information, see [Specifying throughput with provisioned mode](https://docs.aws.amazon.com/efs/latest/ug/performance.html#provisioned-throughput) in the *Amazon EFS User Guide*. Default is bursting.",
   ).optional(),
-  FileSystemPolicy: z.string().describe(
+  FileSystemPolicy: z.record(z.string(), z.unknown()).describe(
     "The FileSystemPolicy for the EFS file system. A file system policy is an IAM resource policy used to control NFS access to an EFS file system. For more information, see [Using to control NFS access to Amazon EFS](https://docs.aws.amazon.com/efs/latest/ug/iam-access-control-nfs-efs.html) in the *Amazon EFS User Guide*.",
   ).optional(),
   BypassPolicyLockoutSafetyCheck: z.boolean().describe(
@@ -127,7 +127,7 @@ const StateSchema = z.object({
   PerformanceMode: z.string().optional(),
   ProvisionedThroughputInMibps: z.number().optional(),
   ThroughputMode: z.string().optional(),
-  FileSystemPolicy: z.string().optional(),
+  FileSystemPolicy: z.record(z.string(), z.unknown()).optional(),
   BypassPolicyLockoutSafetyCheck: z.boolean().optional(),
   BackupPolicy: z.object({
     Status: z.string(),
@@ -168,7 +168,7 @@ const InputsSchema = z.object({
   ThroughputMode: z.string().describe(
     "Specifies the throughput mode for the file system. The mode can be bursting, provisioned, or elastic. If you set ThroughputMode to provisioned, you must also set a value for ProvisionedThroughputInMibps. After you create the file system, you can decrease your file system's Provisioned throughput or change between the throughput modes, with certain time restrictions. For more information, see [Specifying throughput with provisioned mode](https://docs.aws.amazon.com/efs/latest/ug/performance.html#provisioned-throughput) in the *Amazon EFS User Guide*. Default is bursting.",
   ).optional(),
-  FileSystemPolicy: z.string().describe(
+  FileSystemPolicy: z.record(z.string(), z.unknown()).describe(
     "The FileSystemPolicy for the EFS file system. A file system policy is an IAM resource policy used to control NFS access to an EFS file system. For more information, see [Using to control NFS access to Amazon EFS](https://docs.aws.amazon.com/efs/latest/ug/iam-access-control-nfs-efs.html) in the *Amazon EFS User Guide*.",
   ).optional(),
   BypassPolicyLockoutSafetyCheck: z.boolean().describe(
@@ -189,7 +189,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for EFS FileSystem. Registered at `@swamp/aws/efs/file-system`. */
 export const model = {
   type: "@swamp/aws/efs/file-system",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -213,6 +213,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

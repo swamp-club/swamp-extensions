@@ -22,7 +22,7 @@ import {
 } from "./_lib/aws.ts";
 
 const GlobalArgsSchema = z.object({
-  PolicyDocument: z.string().describe(
+  PolicyDocument: z.record(z.string(), z.unknown()).describe(
     "A policy document that contains permissions to add to the specified SNS topics.",
   ),
   TopicArn: z.string().describe(
@@ -31,14 +31,14 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  PolicyDocument: z.string().optional(),
+  PolicyDocument: z.record(z.string(), z.unknown()).optional(),
   TopicArn: z.string(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  PolicyDocument: z.string().describe(
+  PolicyDocument: z.record(z.string(), z.unknown()).describe(
     "A policy document that contains permissions to add to the specified SNS topics.",
   ).optional(),
   TopicArn: z.string().describe(
@@ -49,7 +49,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SNS TopicInlinePolicy. Registered at `@swamp/aws/sns/topic-inline-policy`. */
 export const model = {
   type: "@swamp/aws/sns/topic-inline-policy",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -73,6 +73,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

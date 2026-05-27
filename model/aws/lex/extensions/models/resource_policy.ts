@@ -28,7 +28,7 @@ const GlobalArgsSchema = z.object({
   ResourceArn: z.string().min(1).max(1011).describe(
     "The Amazon Resource Name (ARN) of the bot or bot alias that the resource policy is attached to.",
   ),
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     "A resource policy to add to the resource. The policy is a JSON structure following the IAM syntax that contains one or more statements that define the policy.",
   ),
 });
@@ -36,7 +36,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   ResourceArn: z.string().optional(),
   RevisionId: z.string().optional(),
-  Policy: z.string().optional(),
+  Policy: z.record(z.string(), z.unknown()).optional(),
   Id: z.string(),
 }).passthrough();
 
@@ -47,7 +47,7 @@ const InputsSchema = z.object({
   ResourceArn: z.string().min(1).max(1011).describe(
     "The Amazon Resource Name (ARN) of the bot or bot alias that the resource policy is attached to.",
   ).optional(),
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     "A resource policy to add to the resource. The policy is a JSON structure following the IAM syntax that contains one or more statements that define the policy.",
   ).optional(),
 });
@@ -55,7 +55,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Lex ResourcePolicy. Registered at `@swamp/aws/lex/resource-policy`. */
 export const model = {
   type: "@swamp/aws/lex/resource-policy",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -79,6 +79,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -25,26 +25,29 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  PolicyText: z.string().describe("The JSON policy text for your registry."),
+  PolicyText: z.record(z.string(), z.unknown()).describe(
+    "The JSON policy text for your registry.",
+  ),
 });
 
 const StateSchema = z.object({
   RegistryId: z.string(),
-  PolicyText: z.string().optional(),
+  PolicyText: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
-  PolicyText: z.string().describe("The JSON policy text for your registry.")
-    .optional(),
+  PolicyText: z.record(z.string(), z.unknown()).describe(
+    "The JSON policy text for your registry.",
+  ).optional(),
 });
 
 /** Swamp extension model for ECR RegistryPolicy. Registered at `@swamp/aws/ecr/registry-policy`. */
 export const model = {
   type: "@swamp/aws/ecr/registry-policy",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -68,6 +71,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

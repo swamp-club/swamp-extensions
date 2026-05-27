@@ -101,6 +101,92 @@ const LIST_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
+  activeEnergyBurned: z.object({
+    interval: z.object({
+      civilEndTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      civilStartTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      endTime: z.string().describe("Required. Observed interval end time.")
+        .optional(),
+      endUtcOffset: z.string().describe(
+        "Required. The offset of the user's local time at the end of the observation relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+      startTime: z.string().describe("Required. Observed interval start time.")
+        .optional(),
+      startUtcOffset: z.string().describe(
+        "Required. The offset of the user's local time at the start of the observation relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+    }).describe("Represents a time interval of an observed data point.")
+      .optional(),
+    kcal: z.number().describe(
+      "Required. Energy burned during an activity, measured in kilocalories.",
+    ).optional(),
+  }).describe(
+    "Energy burned as part of an activity, excluding the basal energy burn.",
+  ).optional(),
   activeMinutes: z.object({
     activeMinutesByActivityLevel: z.array(z.object({
       activeMinutes: z.string().describe(
@@ -551,6 +637,91 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Number of calories burned due to basal metabolic rate (BMR) over a period of time.",
   ).optional(),
+  bloodGlucose: z.object({
+    bloodGlucoseMilligramsPerDeciliter: z.number().describe(
+      "Required. Blood glucose level concentration in mg/dL.",
+    ).optional(),
+    mealType: z.enum([
+      "MEAL_TYPE_UNSPECIFIED",
+      "BREAKFAST",
+      "LUNCH",
+      "DINNER",
+      "SNACK",
+    ]).describe("Optional. Meal type of the measurement.").optional(),
+    measurementSource: z.enum([
+      "MEASUREMENT_SOURCE_UNSPECIFIED",
+      "SELF_MONITORING_BLOOD_GLUCOSE",
+      "CONTINUOUS_GLUCOSE_MONITORING",
+      "LAB_TEST",
+    ]).describe("Optional. Source of the measurement.").optional(),
+    measurementTiming: z.enum([
+      "MEASUREMENT_TIMING_UNSPECIFIED",
+      "AFTER_MEAL",
+      "BEFORE_MEAL",
+      "FASTING",
+      "GENERAL",
+      "BEFORE_BED",
+      "OVER_NIGHT",
+    ]).describe("Optional. Timing of the measurement.").optional(),
+    notes: z.string().describe(
+      "Optional. Standard free-form notes captured at manual logging.",
+    ).optional(),
+    sampleTime: z.object({
+      civilTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      physicalTime: z.string().describe(
+        "Required. The time of the observation.",
+      ).optional(),
+      utcOffset: z.string().describe(
+        "Required. The offset of the user's local time during the observation relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+    }).describe("Represents a sample time of an observed data point.")
+      .optional(),
+    specimen: z.enum([
+      "SPECIMEN_UNSPECIFIED",
+      "CAPILLARY_BLOOD",
+      "INTERSTITIAL_FLUID",
+      "PLASMA",
+      "SERUM",
+      "TEARS",
+      "WHOLE_BLOOD",
+    ]).describe(
+      "Optional. Type of body fluid used to measure the blood glucose.",
+    ).optional(),
+  }).describe(
+    "Represents a blood glucose level measurement. LINT: LEGACY_NAMES",
+  ).optional(),
   bodyFat: z.object({
     percentage: z.number().describe(
       "Required. Body fat percentage, in range [0, 100].",
@@ -598,6 +769,80 @@ const GlobalArgsSchema = z.object({
     }).describe("Represents a sample time of an observed data point.")
       .optional(),
   }).describe("Body fat measurement.").optional(),
+  coreBodyTemperature: z.object({
+    id: z.string().describe(
+      "Optional. The unique identifier of the core body temperature measurement.",
+    ).optional(),
+    measurementLocation: z.enum([
+      "MEASUREMENT_LOCATION_UNSPECIFIED",
+      "OTHER",
+      "ARMPIT",
+      "BODY",
+      "EAR",
+      "FINGER",
+      "GASTRO_INTESTINAL",
+      "MOUTH",
+      "RECTUM",
+      "TOE",
+      "EAR_DRUM",
+      "TEMPORAL_ARTERY",
+      "FOREHEAD",
+      "URINARY_BLADDER",
+      "NASAL",
+      "NASOPHARYNGEAL",
+      "WRIST",
+      "VAGINA",
+    ]).describe(
+      "Optional. The location of the core body temperature measurement.",
+    ).optional(),
+    sampleTime: z.object({
+      civilTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      physicalTime: z.string().describe(
+        "Required. The time of the observation.",
+      ).optional(),
+      utcOffset: z.string().describe(
+        "Required. The offset of the user's local time during the observation relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+    }).describe("Represents a sample time of an observed data point.")
+      .optional(),
+    temperatureCelsius: z.number().describe(
+      "Required. The core body temperature in Celsius.",
+    ).optional(),
+  }).describe(
+    "Core body temperature measurement, distinct from peripheral body temperature, reflects the temperature of the body's internal organs.",
+  ).optional(),
   dailyHeartRateVariability: z.object({
     averageHeartRateVariabilityMilliseconds: z.number().describe(
       "Optional. A user's average heart rate variability calculated using the root mean square of successive differences (RMSSD) in times between heartbeats.",
@@ -945,6 +1190,137 @@ const GlobalArgsSchema = z.object({
       "Required. Distance in millimeters over the observed interval.",
     ).optional(),
   }).describe("Distance traveled over an interval of time.").optional(),
+  electrocardiogram: z.object({
+    beatsPerMinuteAvg: z.string().describe(
+      "Optional. Average heart rate recorded during ECG reading in beats per minute.",
+    ).optional(),
+    interval: z.object({
+      civilEndTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      civilStartTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      endTime: z.string().describe(
+        "Required. The end time of the observed session.",
+      ).optional(),
+      endUtcOffset: z.string().describe(
+        "Required. The offset of the user's local time at the end of the session relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+      startTime: z.string().describe(
+        "Required. The start time of the observed session.",
+      ).optional(),
+      startUtcOffset: z.string().describe(
+        "Required. The offset of the user's local time at the start of the session relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+    }).describe(
+      "Represents a time interval of session data point, which bundles multiple observed metrics together.",
+    ).optional(),
+    leadNumber: z.number().int().describe(
+      "Optional. The number of leads used for ECG reading.",
+    ).optional(),
+    medicalDeviceInfo: z.object({
+      algorithmVersion: z.string().describe(
+        "Output only. The algorithm version used by the feature.",
+      ).optional(),
+      deviceModel: z.string().describe(
+        "Output only. The model name or device type of the compatible device used to collect the data.",
+      ).optional(),
+      featureVersion: z.string().describe(
+        "Output only. The version of the feature/app running on the device.",
+      ).optional(),
+      firmwareVersion: z.string().describe(
+        "Output only. The firmware version running on the compatible device used to collect the data.",
+      ).optional(),
+      serviceVersion: z.string().describe(
+        "Output only. The service version used by the feature.",
+      ).optional(),
+    }).describe(
+      "Software as Medical Device (SaMD) metadata. Used to construct the Unique Device Identifier (UDI).",
+    ).optional(),
+    millivoltsScalingFactor: z.number().int().describe(
+      "Optional. The factor by which to divide waveform samples to get voltage in millivolts: millivolts = waveform_sample / millivolts_scaling_factor.",
+    ).optional(),
+    resultClassification: z.enum([
+      "RESULT_CLASSIFICATION_UNSPECIFIED",
+      "NORMAL_SINUS_RHYTHM",
+      "ATRIAL_FIBRILLATION",
+      "INCONCLUSIVE",
+      "INCONCLUSIVE_HIGH_HEART_RATE",
+      "INCONCLUSIVE_LOW_HEART_RATE",
+      "UNREADABLE",
+      "NOT_ANALYZED",
+    ]).describe("Optional. The result classification of the ECG reading.")
+      .optional(),
+    samplingFrequencyHertz: z.number().int().describe(
+      "Optional. The sampling frequency of waveform samples in hertz.",
+    ).optional(),
+    waveformSamples: z.array(z.number().int()).describe(
+      "Optional. An array of voltage values representing lead I ECG values. Each sample represents voltage difference in ECG graph. The first value in array corresponds to the start of the reading.",
+    ).optional(),
+  }).describe(
+    "Represents an Electrocardiogram (ECG) measurement session. This data type is based on SaMD feature and any changes to it may require additional review.",
+  ).optional(),
   exercise: z.object({
     activeDuration: z.string().describe("Optional. Duration excluding pauses.")
       .optional(),
@@ -1409,6 +1785,231 @@ const GlobalArgsSchema = z.object({
       .optional(),
   }).describe("Gained elevation measured in floors over the time interval")
     .optional(),
+  food: z.object({
+    accessLevel: z.enum([
+      "FOOD_ACCESS_LEVEL_UNSPECIFIED",
+      "FOOD_ACCESS_LEVEL_PUBLIC",
+      "FOOD_ACCESS_LEVEL_PRIVATE",
+    ]).describe("Required. The access level of the food.").optional(),
+    brand: z.string().describe("Optional. The brand of the food.").optional(),
+    defaultServing: z.object({
+      amount: z.number().describe(
+        "Optional. Amount of food consumed, fractional values are supported.",
+      ).optional(),
+      foodMeasurementUnit: z.string().describe(
+        "Required. Food measurement unit",
+      ).optional(),
+      foodMeasurementUnitDisplayName: z.string().describe(
+        'Output only. Legacy measurement unit for serving size in singular form (e.g. "piece", "gram").',
+      ).optional(),
+      foodMeasurementUnitDisplayNamePlural: z.string().describe(
+        'Output only. Legacy measurement unit for serving size in plural form (e.g. "pieces", "grams").',
+      ).optional(),
+      multiplier: z.number().describe(
+        "Optional. Value representing the multiplier used to compute the energy when using this serving instead of the default serving.",
+      ).optional(),
+    }).describe(
+      "Represents different properties and information about the serving of a specific food.",
+    ).optional(),
+    description: z.string().describe("Optional. The description of the food.")
+      .optional(),
+    displayName: z.string().describe("Required. The display name of the food.")
+      .optional(),
+    energyAvg: z.object({
+      kcal: z.number().describe(
+        "Required. Value representing the energy in kilocalories.",
+      ).optional(),
+      userProvidedUnit: z.enum([
+        "ENERGY_UNIT_UNSPECIFIED",
+        "JOULE",
+        "KILOJOULE",
+        "KILOCALORIE",
+        "SMALL_CALORIE",
+        "CALORIE",
+      ]).describe("Optional. Value representing the user provided unit.")
+        .optional(),
+    }).describe("Represents the energy quantity.").optional(),
+    energyFromFat: z.object({
+      kcal: z.number().describe(
+        "Required. Value representing the energy in kilocalories.",
+      ).optional(),
+      userProvidedUnit: z.enum([
+        "ENERGY_UNIT_UNSPECIFIED",
+        "JOULE",
+        "KILOJOULE",
+        "KILOCALORIE",
+        "SMALL_CALORIE",
+        "CALORIE",
+      ]).describe("Optional. Value representing the user provided unit.")
+        .optional(),
+    }).describe("Represents the energy quantity.").optional(),
+    energyMax: z.object({
+      kcal: z.number().describe(
+        "Required. Value representing the energy in kilocalories.",
+      ).optional(),
+      userProvidedUnit: z.enum([
+        "ENERGY_UNIT_UNSPECIFIED",
+        "JOULE",
+        "KILOJOULE",
+        "KILOCALORIE",
+        "SMALL_CALORIE",
+        "CALORIE",
+      ]).describe("Optional. Value representing the user provided unit.")
+        .optional(),
+    }).describe("Represents the energy quantity.").optional(),
+    energyMin: z.object({
+      kcal: z.number().describe(
+        "Required. Value representing the energy in kilocalories.",
+      ).optional(),
+      userProvidedUnit: z.enum([
+        "ENERGY_UNIT_UNSPECIFIED",
+        "JOULE",
+        "KILOJOULE",
+        "KILOCALORIE",
+        "SMALL_CALORIE",
+        "CALORIE",
+      ]).describe("Optional. Value representing the user provided unit.")
+        .optional(),
+    }).describe("Represents the energy quantity.").optional(),
+    languageCode: z.string().describe(
+      "Optional. The language code where the food is available in format xx-XX. Supported values are defined in Settings.food_language_code.",
+    ).optional(),
+    mealType: z.enum([
+      "MEAL_TYPE_UNSPECIFIED",
+      "BEFORE_BREAKFAST",
+      "BREAKFAST",
+      "BEFORE_LUNCH",
+      "LUNCH",
+      "BEFORE_DINNER",
+      "DINNER",
+      "AFTER_DINNER",
+      "SNACK",
+      "ANYTIME",
+    ]).describe("Optional. The meal type associated with this food.")
+      .optional(),
+    nutrients: z.array(z.object({
+      nutrient: z.enum([
+        "NUTRIENT_UNSPECIFIED",
+        "BIOTIN",
+        "CAFFEINE",
+        "CALCIUM",
+        "CHLORIDE",
+        "CARBOHYDRATES",
+        "CHOLESTEROL",
+        "CHROMIUM",
+        "COPPER",
+        "DIETARY_FIBER",
+        "FOLIC_ACID",
+        "IODINE",
+        "IRON",
+        "MAGNESIUM",
+        "MANGANESE",
+        "MOLYBDENUM",
+        "MONOUNSATURATED_FAT",
+        "NIACIN",
+        "PANTOTHENIC_ACID",
+        "PHOSPHORUS",
+        "POLYUNSATURATED_FAT",
+        "POTASSIUM",
+        "PROTEIN",
+        "RIBOFLAVIN",
+        "SATURATED_FAT",
+        "SELENIUM",
+        "SODIUM",
+        "SUGAR",
+        "THIAMIN",
+        "TRANS_FAT",
+        "UNSATURATED_FAT",
+        "VITAMIN_A",
+        "VITAMIN_B12",
+        "VITAMIN_B6",
+        "VITAMIN_C",
+        "VITAMIN_D",
+        "VITAMIN_E",
+        "VITAMIN_K",
+        "ZINC",
+        "FOLATE",
+      ]).describe("Required. Value representing the nutrient.").optional(),
+      quantity: z.object({
+        grams: z.number().describe(
+          "Required. Value representing the weight in grams.",
+        ).optional(),
+        userProvidedUnit: z.enum([
+          "WEIGHT_UNIT_UNSPECIFIED",
+          "GRAM",
+          "KILOGRAM",
+          "OUNCE",
+          "POUND",
+          "STONE",
+          "MILLIGRAM",
+          "MICROGRAM",
+          "NANOGRAM",
+        ]).describe("Optional. Value representing the user provided unit.")
+          .optional(),
+      }).describe("Represents the weight quantity.").optional(),
+    })).describe(
+      "Optional. Value representing the nutrients of the food for the default serving.",
+    ).optional(),
+    servings: z.array(z.object({
+      amount: z.number().describe(
+        "Optional. Amount of food consumed, fractional values are supported.",
+      ).optional(),
+      foodMeasurementUnit: z.string().describe(
+        "Required. Food measurement unit",
+      ).optional(),
+      foodMeasurementUnitDisplayName: z.string().describe(
+        'Output only. Legacy measurement unit for serving size in singular form (e.g. "piece", "gram").',
+      ).optional(),
+      foodMeasurementUnitDisplayNamePlural: z.string().describe(
+        'Output only. Legacy measurement unit for serving size in plural form (e.g. "pieces", "grams").',
+      ).optional(),
+      multiplier: z.number().describe(
+        "Optional. Value representing the multiplier used to compute the energy when using this serving instead of the default serving.",
+      ).optional(),
+    })).describe("Optional. The serving of the food.").optional(),
+    totalCarbohydrate: z.object({
+      grams: z.number().describe(
+        "Required. Value representing the weight in grams.",
+      ).optional(),
+      userProvidedUnit: z.enum([
+        "WEIGHT_UNIT_UNSPECIFIED",
+        "GRAM",
+        "KILOGRAM",
+        "OUNCE",
+        "POUND",
+        "STONE",
+        "MILLIGRAM",
+        "MICROGRAM",
+        "NANOGRAM",
+      ]).describe("Optional. Value representing the user provided unit.")
+        .optional(),
+    }).describe("Represents the weight quantity.").optional(),
+    totalFat: z.object({
+      grams: z.number().describe(
+        "Required. Value representing the weight in grams.",
+      ).optional(),
+      userProvidedUnit: z.enum([
+        "WEIGHT_UNIT_UNSPECIFIED",
+        "GRAM",
+        "KILOGRAM",
+        "OUNCE",
+        "POUND",
+        "STONE",
+        "MILLIGRAM",
+        "MICROGRAM",
+        "NANOGRAM",
+      ]).describe("Optional. Value representing the user provided unit.")
+        .optional(),
+    }).describe("Represents the weight quantity.").optional(),
+  }).describe("Represents a food item.").optional(),
+  foodMeasurementUnit: z.object({
+    displayName: z.string().describe(
+      'Required. The display name of the food measurement unit (e.g., "gram", "piece").',
+    ).optional(),
+    pluralDisplayName: z.string().describe(
+      'Optional. The plural display name of the food measurement unit (e.g., "grams", "pieces").',
+    ).optional(),
+  }).describe("Represents a food measurement unit.").optional(),
   heartRate: z.object({
     beatsPerMinute: z.string().describe(
       "Required. The heart rate value in beats per minute.",
@@ -1677,8 +2278,456 @@ const GlobalArgsSchema = z.object({
       "Represents a time interval of session data point, which bundles multiple observed metrics together.",
     ).optional(),
   }).describe("Holds information about a user logged hydration.").optional(),
+  irregularRhythmNotification: z.object({
+    alertWindows: z.array(z.object({
+      civilEndTime: z.object({
+        date: z.object({
+          day: z.unknown().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.unknown().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.unknown().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.unknown().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.unknown().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.unknown().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.unknown().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      civilStartTime: z.object({
+        date: z.object({
+          day: z.unknown().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.unknown().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.unknown().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.unknown().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.unknown().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.unknown().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.unknown().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      endTime: z.string().describe(
+        "Required. The end time of the analysis window.",
+      ).optional(),
+      endUtcOffset: z.string().describe(
+        "Required. The UTC offset of the user's timezone when the analysis window ended.",
+      ).optional(),
+      heartBeats: z.array(z.object({
+        beatsPerMinute: z.unknown().describe(
+          "Required. The beats-per-minute value extrapolated from the time before the following heart beat. This is calculated as 60000 / rr, where rr is the gap between heart beats in milliseconds (IBI - Interbeat Interval).",
+        ).optional(),
+        civilTime: z.unknown().describe(
+          "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+        ).optional(),
+        physicalTime: z.unknown().describe(
+          "Required. The time of the heart beat measurement.",
+        ).optional(),
+        utcOffset: z.unknown().describe(
+          "Required. The UTC offset of the user's timezone when the heart beat measurement occurred.",
+        ).optional(),
+      })).describe(
+        "Optional. All heart beats in the interval contained in this analysis window.",
+      ).optional(),
+      positive: z.boolean().describe(
+        "Optional. Flag indicating whether the window was positive for AFib or not. A `true` value indicates that AFib was detected in this window. A `false` value means AFib was not detected, but does not guarantee the absence of AFib.",
+      ).optional(),
+      startTime: z.string().describe(
+        "Required. Observed interval. The start time of the analysis window.",
+      ).optional(),
+      startUtcOffset: z.string().describe(
+        "Required. The UTC offset of the user's timezone when the analysis window started.",
+      ).optional(),
+    })).describe(
+      "Optional. The overlapping analysis windows that were used to evaluate rhythm for potential AFib, containing specific information about the user's heart rhythm.",
+    ).optional(),
+    interval: z.object({
+      civilEndTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      civilStartTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      endTime: z.string().describe(
+        "Required. The end time of the observed session.",
+      ).optional(),
+      endUtcOffset: z.string().describe(
+        "Required. The offset of the user's local time at the end of the session relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+      startTime: z.string().describe(
+        "Required. The start time of the observed session.",
+      ).optional(),
+      startUtcOffset: z.string().describe(
+        "Required. The offset of the user's local time at the start of the session relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+    }).describe(
+      "Represents a time interval of session data point, which bundles multiple observed metrics together.",
+    ).optional(),
+    medicalDeviceInfo: z.object({
+      algorithmVersion: z.string().describe(
+        "Output only. The algorithm version used by the feature.",
+      ).optional(),
+      deviceModel: z.string().describe(
+        "Output only. The model name or device type of the compatible device used to collect the data.",
+      ).optional(),
+      featureVersion: z.string().describe(
+        "Output only. The version of the feature/app running on the device.",
+      ).optional(),
+      firmwareVersion: z.string().describe(
+        "Output only. The firmware version running on the compatible device used to collect the data.",
+      ).optional(),
+      serviceVersion: z.string().describe(
+        "Output only. The service version used by the feature.",
+      ).optional(),
+    }).describe(
+      "Software as Medical Device (SaMD) metadata. Used to construct the Unique Device Identifier (UDI).",
+    ).optional(),
+  }).describe(
+    "Represents an Irregular Rhythm Notification alert, indicating a potential sign of atrial fibrillation (AFib). This data type is based on SaMD feature and any changes to it may require additional review.",
+  ).optional(),
   name: z.string().describe(
     "Identifier. Data point name, only supported for the subset of identifiable data types. For the majority of the data types, individual data points do not need to be identified and this field would be empty. Format: `users/{user}/dataTypes/{data_type}/dataPoints/{data_point}` Example: `users/abcd1234/dataTypes/sleep/dataPoints/a1b2c3d4-e5f6-7890-1234-567890abcdef` The `{user}` ID is a system-generated identifier, as described in Identity.health_user_id. The `{data_type}` ID corresponds to the kebab-case version of the field names in the DataPoint data union field, e.g. `total-calories` for the `total_calories` field. The `{data_point}` ID can be client-provided or system-generated. If client-provided, it must be a string of 4-63 characters, containing only lowercase letters, numbers, and hyphens.",
+  ).optional(),
+  nutritionLog: z.object({
+    energy: z.object({
+      kcal: z.number().describe(
+        "Required. Value representing the energy in kilocalories.",
+      ).optional(),
+      userProvidedUnit: z.enum([
+        "ENERGY_UNIT_UNSPECIFIED",
+        "JOULE",
+        "KILOJOULE",
+        "KILOCALORIE",
+        "SMALL_CALORIE",
+        "CALORIE",
+      ]).describe("Optional. Value representing the user provided unit.")
+        .optional(),
+    }).describe("Represents the energy quantity.").optional(),
+    energyFromFat: z.object({
+      kcal: z.number().describe(
+        "Required. Value representing the energy in kilocalories.",
+      ).optional(),
+      userProvidedUnit: z.enum([
+        "ENERGY_UNIT_UNSPECIFIED",
+        "JOULE",
+        "KILOJOULE",
+        "KILOCALORIE",
+        "SMALL_CALORIE",
+        "CALORIE",
+      ]).describe("Optional. Value representing the user provided unit.")
+        .optional(),
+    }).describe("Represents the energy quantity.").optional(),
+    food: z.string().describe("Required. Represents the food ID.").optional(),
+    foodDisplayName: z.string().describe(
+      "Value representing the display name of the food. For nutrition logs created from an identified food, this field will be populated based on the referenced food. For anonymous food, this field will be populated manually.",
+    ).optional(),
+    interval: z.object({
+      civilEndTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      civilStartTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      endTime: z.string().describe(
+        "Required. The end time of the observed session.",
+      ).optional(),
+      endUtcOffset: z.string().describe(
+        "Required. The offset of the user's local time at the end of the session relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+      startTime: z.string().describe(
+        "Required. The start time of the observed session.",
+      ).optional(),
+      startUtcOffset: z.string().describe(
+        "Required. The offset of the user's local time at the start of the session relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+    }).describe(
+      "Represents a time interval of session data point, which bundles multiple observed metrics together.",
+    ).optional(),
+    mealType: z.enum([
+      "MEAL_TYPE_UNSPECIFIED",
+      "BEFORE_BREAKFAST",
+      "BREAKFAST",
+      "BEFORE_LUNCH",
+      "LUNCH",
+      "BEFORE_DINNER",
+      "DINNER",
+      "AFTER_DINNER",
+      "SNACK",
+      "ANYTIME",
+    ]).describe(
+      "Optional. Value representing the meal type of the nutrition log.",
+    ).optional(),
+    nutrients: z.array(z.object({
+      nutrient: z.enum([
+        "NUTRIENT_UNSPECIFIED",
+        "BIOTIN",
+        "CAFFEINE",
+        "CALCIUM",
+        "CHLORIDE",
+        "CARBOHYDRATES",
+        "CHOLESTEROL",
+        "CHROMIUM",
+        "COPPER",
+        "DIETARY_FIBER",
+        "FOLIC_ACID",
+        "IODINE",
+        "IRON",
+        "MAGNESIUM",
+        "MANGANESE",
+        "MOLYBDENUM",
+        "MONOUNSATURATED_FAT",
+        "NIACIN",
+        "PANTOTHENIC_ACID",
+        "PHOSPHORUS",
+        "POLYUNSATURATED_FAT",
+        "POTASSIUM",
+        "PROTEIN",
+        "RIBOFLAVIN",
+        "SATURATED_FAT",
+        "SELENIUM",
+        "SODIUM",
+        "SUGAR",
+        "THIAMIN",
+        "TRANS_FAT",
+        "UNSATURATED_FAT",
+        "VITAMIN_A",
+        "VITAMIN_B12",
+        "VITAMIN_B6",
+        "VITAMIN_C",
+        "VITAMIN_D",
+        "VITAMIN_E",
+        "VITAMIN_K",
+        "ZINC",
+        "FOLATE",
+      ]).describe("Required. Value representing the nutrient.").optional(),
+      quantity: z.object({
+        grams: z.number().describe(
+          "Required. Value representing the weight in grams.",
+        ).optional(),
+        userProvidedUnit: z.enum([
+          "WEIGHT_UNIT_UNSPECIFIED",
+          "GRAM",
+          "KILOGRAM",
+          "OUNCE",
+          "POUND",
+          "STONE",
+          "MILLIGRAM",
+          "MICROGRAM",
+          "NANOGRAM",
+        ]).describe("Optional. Value representing the user provided unit.")
+          .optional(),
+      }).describe("Represents the weight quantity.").optional(),
+    })).describe(
+      "Optional. Value representing the nutrients of the nutrition log.",
+    ).optional(),
+    serving: z.object({
+      amount: z.number().describe(
+        "Optional. Amount of food consumed, fractional values are supported.",
+      ).optional(),
+      foodMeasurementUnit: z.string().describe(
+        "Required. Food measurement unit",
+      ).optional(),
+      foodMeasurementUnitDisplayName: z.string().describe(
+        'Output only. Legacy measurement unit for serving size in singular form (e.g. "piece", "gram").',
+      ).optional(),
+    }).describe(
+      "Represents different properties and information about the serving of a specific food.",
+    ).optional(),
+    totalCarbohydrate: z.object({
+      grams: z.number().describe(
+        "Required. Value representing the weight in grams.",
+      ).optional(),
+      userProvidedUnit: z.enum([
+        "WEIGHT_UNIT_UNSPECIFIED",
+        "GRAM",
+        "KILOGRAM",
+        "OUNCE",
+        "POUND",
+        "STONE",
+        "MILLIGRAM",
+        "MICROGRAM",
+        "NANOGRAM",
+      ]).describe("Optional. Value representing the user provided unit.")
+        .optional(),
+    }).describe("Represents the weight quantity.").optional(),
+    totalFat: z.object({
+      grams: z.number().describe(
+        "Required. Value representing the weight in grams.",
+      ).optional(),
+      userProvidedUnit: z.enum([
+        "WEIGHT_UNIT_UNSPECIFIED",
+        "GRAM",
+        "KILOGRAM",
+        "OUNCE",
+        "POUND",
+        "STONE",
+        "MILLIGRAM",
+        "MICROGRAM",
+        "NANOGRAM",
+      ]).describe("Optional. Value representing the user provided unit.")
+        .optional(),
+    }).describe("Represents the weight quantity.").optional(),
+  }).describe(
+    "Holds information about a user logged food. There are two ways of creating a nutrition log based on the food type: 1. Identified food: Using the food field, which is a reference to a Food resource. In this case fields `nutrients`, `energy`, `energy_from_fat`, `total_carbohydrate`, `total_fat`, `food_display_name` will be populated based on the referenced food. 2. Anonymous food: Using the `food_display_name` field and setting the `nutrients`, `energy`, `energy_from_fat`, `total_carbohydrate`, `total_fat` fields manually. The identified food is preferred over the anonymous food. Nutrition logs created from anonymous food are not be editable.",
   ).optional(),
   oxygenSaturation: z.object({
     percentage: z.number().describe(
@@ -2536,6 +3585,41 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  activeEnergyBurned: z.object({
+    interval: z.object({
+      civilEndTime: z.object({
+        date: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }),
+        time: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }),
+      }),
+      civilStartTime: z.object({
+        date: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }),
+        time: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }),
+      }),
+      endTime: z.string(),
+      endUtcOffset: z.string(),
+      startTime: z.string(),
+      startUtcOffset: z.string(),
+    }),
+    kcal: z.number(),
+  }).optional(),
   activeMinutes: z.object({
     activeMinutesByActivityLevel: z.array(z.object({
       activeMinutes: z.string(),
@@ -2715,6 +3799,31 @@ const StateSchema = z.object({
     }),
     kcal: z.number(),
   }).optional(),
+  bloodGlucose: z.object({
+    bloodGlucoseMilligramsPerDeciliter: z.number(),
+    mealType: z.string(),
+    measurementSource: z.string(),
+    measurementTiming: z.string(),
+    notes: z.string(),
+    sampleTime: z.object({
+      civilTime: z.object({
+        date: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }),
+        time: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }),
+      }),
+      physicalTime: z.string(),
+      utcOffset: z.string(),
+    }),
+    specimen: z.string(),
+  }).optional(),
   bodyFat: z.object({
     percentage: z.number(),
     sampleTime: z.object({
@@ -2734,6 +3843,28 @@ const StateSchema = z.object({
       physicalTime: z.string(),
       utcOffset: z.string(),
     }),
+  }).optional(),
+  coreBodyTemperature: z.object({
+    id: z.string(),
+    measurementLocation: z.string(),
+    sampleTime: z.object({
+      civilTime: z.object({
+        date: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }),
+        time: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }),
+      }),
+      physicalTime: z.string(),
+      utcOffset: z.string(),
+    }),
+    temperatureCelsius: z.number(),
   }).optional(),
   dailyHeartRateVariability: z.object({
     averageHeartRateVariabilityMilliseconds: z.number(),
@@ -2857,6 +3988,53 @@ const StateSchema = z.object({
       startUtcOffset: z.string(),
     }),
     millimeters: z.string(),
+  }).optional(),
+  electrocardiogram: z.object({
+    beatsPerMinuteAvg: z.string(),
+    interval: z.object({
+      civilEndTime: z.object({
+        date: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }),
+        time: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }),
+      }),
+      civilStartTime: z.object({
+        date: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }),
+        time: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }),
+      }),
+      endTime: z.string(),
+      endUtcOffset: z.string(),
+      startTime: z.string(),
+      startUtcOffset: z.string(),
+    }),
+    leadNumber: z.number(),
+    medicalDeviceInfo: z.object({
+      algorithmVersion: z.string(),
+      deviceModel: z.string(),
+      featureVersion: z.string(),
+      firmwareVersion: z.string(),
+      serviceVersion: z.string(),
+    }),
+    millivoltsScalingFactor: z.number(),
+    resultClassification: z.string(),
+    samplingFrequencyHertz: z.number(),
+    waveformSamples: z.array(z.number()),
   }).optional(),
   exercise: z.object({
     activeDuration: z.string(),
@@ -3033,6 +4211,63 @@ const StateSchema = z.object({
       startUtcOffset: z.string(),
     }),
   }).optional(),
+  food: z.object({
+    accessLevel: z.string(),
+    brand: z.string(),
+    defaultServing: z.object({
+      amount: z.number(),
+      foodMeasurementUnit: z.string(),
+      foodMeasurementUnitDisplayName: z.string(),
+      foodMeasurementUnitDisplayNamePlural: z.string(),
+      multiplier: z.number(),
+    }),
+    description: z.string(),
+    displayName: z.string(),
+    energyAvg: z.object({
+      kcal: z.number(),
+      userProvidedUnit: z.string(),
+    }),
+    energyFromFat: z.object({
+      kcal: z.number(),
+      userProvidedUnit: z.string(),
+    }),
+    energyMax: z.object({
+      kcal: z.number(),
+      userProvidedUnit: z.string(),
+    }),
+    energyMin: z.object({
+      kcal: z.number(),
+      userProvidedUnit: z.string(),
+    }),
+    languageCode: z.string(),
+    mealType: z.string(),
+    nutrients: z.array(z.object({
+      nutrient: z.string(),
+      quantity: z.object({
+        grams: z.number(),
+        userProvidedUnit: z.string(),
+      }),
+    })),
+    servings: z.array(z.object({
+      amount: z.number(),
+      foodMeasurementUnit: z.string(),
+      foodMeasurementUnitDisplayName: z.string(),
+      foodMeasurementUnitDisplayNamePlural: z.string(),
+      multiplier: z.number(),
+    })),
+    totalCarbohydrate: z.object({
+      grams: z.number(),
+      userProvidedUnit: z.string(),
+    }),
+    totalFat: z.object({
+      grams: z.number(),
+      userProvidedUnit: z.string(),
+    }),
+  }).optional(),
+  foodMeasurementUnit: z.object({
+    displayName: z.string(),
+    pluralDisplayName: z.string(),
+  }).optional(),
   heartRate: z.object({
     beatsPerMinute: z.string(),
     metadata: z.object({
@@ -3136,7 +4371,152 @@ const StateSchema = z.object({
       startUtcOffset: z.string(),
     }),
   }).optional(),
+  irregularRhythmNotification: z.object({
+    alertWindows: z.array(z.object({
+      civilEndTime: z.object({
+        date: z.object({
+          day: z.unknown(),
+          month: z.unknown(),
+          year: z.unknown(),
+        }),
+        time: z.object({
+          hours: z.unknown(),
+          minutes: z.unknown(),
+          nanos: z.unknown(),
+          seconds: z.unknown(),
+        }),
+      }),
+      civilStartTime: z.object({
+        date: z.object({
+          day: z.unknown(),
+          month: z.unknown(),
+          year: z.unknown(),
+        }),
+        time: z.object({
+          hours: z.unknown(),
+          minutes: z.unknown(),
+          nanos: z.unknown(),
+          seconds: z.unknown(),
+        }),
+      }),
+      endTime: z.string(),
+      endUtcOffset: z.string(),
+      heartBeats: z.array(z.object({
+        beatsPerMinute: z.unknown(),
+        civilTime: z.unknown(),
+        physicalTime: z.unknown(),
+        utcOffset: z.unknown(),
+      })),
+      positive: z.boolean(),
+      startTime: z.string(),
+      startUtcOffset: z.string(),
+    })),
+    interval: z.object({
+      civilEndTime: z.object({
+        date: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }),
+        time: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }),
+      }),
+      civilStartTime: z.object({
+        date: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }),
+        time: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }),
+      }),
+      endTime: z.string(),
+      endUtcOffset: z.string(),
+      startTime: z.string(),
+      startUtcOffset: z.string(),
+    }),
+    medicalDeviceInfo: z.object({
+      algorithmVersion: z.string(),
+      deviceModel: z.string(),
+      featureVersion: z.string(),
+      firmwareVersion: z.string(),
+      serviceVersion: z.string(),
+    }),
+  }).optional(),
   name: z.string(),
+  nutritionLog: z.object({
+    energy: z.object({
+      kcal: z.number(),
+      userProvidedUnit: z.string(),
+    }),
+    energyFromFat: z.object({
+      kcal: z.number(),
+      userProvidedUnit: z.string(),
+    }),
+    food: z.string(),
+    foodDisplayName: z.string(),
+    interval: z.object({
+      civilEndTime: z.object({
+        date: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }),
+        time: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }),
+      }),
+      civilStartTime: z.object({
+        date: z.object({
+          day: z.number(),
+          month: z.number(),
+          year: z.number(),
+        }),
+        time: z.object({
+          hours: z.number(),
+          minutes: z.number(),
+          nanos: z.number(),
+          seconds: z.number(),
+        }),
+      }),
+      endTime: z.string(),
+      endUtcOffset: z.string(),
+      startTime: z.string(),
+      startUtcOffset: z.string(),
+    }),
+    mealType: z.string(),
+    nutrients: z.array(z.object({
+      nutrient: z.string(),
+      quantity: z.object({
+        grams: z.number(),
+        userProvidedUnit: z.string(),
+      }),
+    })),
+    serving: z.object({
+      amount: z.number(),
+      foodMeasurementUnit: z.string(),
+      foodMeasurementUnitDisplayName: z.string(),
+    }),
+    totalCarbohydrate: z.object({
+      grams: z.number(),
+      userProvidedUnit: z.string(),
+    }),
+    totalFat: z.object({
+      grams: z.number(),
+      userProvidedUnit: z.string(),
+    }),
+  }).optional(),
   oxygenSaturation: z.object({
     percentage: z.number(),
     sampleTime: z.object({
@@ -3474,6 +4854,92 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
+  activeEnergyBurned: z.object({
+    interval: z.object({
+      civilEndTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      civilStartTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      endTime: z.string().describe("Required. Observed interval end time.")
+        .optional(),
+      endUtcOffset: z.string().describe(
+        "Required. The offset of the user's local time at the end of the observation relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+      startTime: z.string().describe("Required. Observed interval start time.")
+        .optional(),
+      startUtcOffset: z.string().describe(
+        "Required. The offset of the user's local time at the start of the observation relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+    }).describe("Represents a time interval of an observed data point.")
+      .optional(),
+    kcal: z.number().describe(
+      "Required. Energy burned during an activity, measured in kilocalories.",
+    ).optional(),
+  }).describe(
+    "Energy burned as part of an activity, excluding the basal energy burn.",
+  ).optional(),
   activeMinutes: z.object({
     activeMinutesByActivityLevel: z.array(z.object({
       activeMinutes: z.string().describe(
@@ -3924,6 +5390,91 @@ const InputsSchema = z.object({
   }).describe(
     "Number of calories burned due to basal metabolic rate (BMR) over a period of time.",
   ).optional(),
+  bloodGlucose: z.object({
+    bloodGlucoseMilligramsPerDeciliter: z.number().describe(
+      "Required. Blood glucose level concentration in mg/dL.",
+    ).optional(),
+    mealType: z.enum([
+      "MEAL_TYPE_UNSPECIFIED",
+      "BREAKFAST",
+      "LUNCH",
+      "DINNER",
+      "SNACK",
+    ]).describe("Optional. Meal type of the measurement.").optional(),
+    measurementSource: z.enum([
+      "MEASUREMENT_SOURCE_UNSPECIFIED",
+      "SELF_MONITORING_BLOOD_GLUCOSE",
+      "CONTINUOUS_GLUCOSE_MONITORING",
+      "LAB_TEST",
+    ]).describe("Optional. Source of the measurement.").optional(),
+    measurementTiming: z.enum([
+      "MEASUREMENT_TIMING_UNSPECIFIED",
+      "AFTER_MEAL",
+      "BEFORE_MEAL",
+      "FASTING",
+      "GENERAL",
+      "BEFORE_BED",
+      "OVER_NIGHT",
+    ]).describe("Optional. Timing of the measurement.").optional(),
+    notes: z.string().describe(
+      "Optional. Standard free-form notes captured at manual logging.",
+    ).optional(),
+    sampleTime: z.object({
+      civilTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      physicalTime: z.string().describe(
+        "Required. The time of the observation.",
+      ).optional(),
+      utcOffset: z.string().describe(
+        "Required. The offset of the user's local time during the observation relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+    }).describe("Represents a sample time of an observed data point.")
+      .optional(),
+    specimen: z.enum([
+      "SPECIMEN_UNSPECIFIED",
+      "CAPILLARY_BLOOD",
+      "INTERSTITIAL_FLUID",
+      "PLASMA",
+      "SERUM",
+      "TEARS",
+      "WHOLE_BLOOD",
+    ]).describe(
+      "Optional. Type of body fluid used to measure the blood glucose.",
+    ).optional(),
+  }).describe(
+    "Represents a blood glucose level measurement. LINT: LEGACY_NAMES",
+  ).optional(),
   bodyFat: z.object({
     percentage: z.number().describe(
       "Required. Body fat percentage, in range [0, 100].",
@@ -3971,6 +5522,80 @@ const InputsSchema = z.object({
     }).describe("Represents a sample time of an observed data point.")
       .optional(),
   }).describe("Body fat measurement.").optional(),
+  coreBodyTemperature: z.object({
+    id: z.string().describe(
+      "Optional. The unique identifier of the core body temperature measurement.",
+    ).optional(),
+    measurementLocation: z.enum([
+      "MEASUREMENT_LOCATION_UNSPECIFIED",
+      "OTHER",
+      "ARMPIT",
+      "BODY",
+      "EAR",
+      "FINGER",
+      "GASTRO_INTESTINAL",
+      "MOUTH",
+      "RECTUM",
+      "TOE",
+      "EAR_DRUM",
+      "TEMPORAL_ARTERY",
+      "FOREHEAD",
+      "URINARY_BLADDER",
+      "NASAL",
+      "NASOPHARYNGEAL",
+      "WRIST",
+      "VAGINA",
+    ]).describe(
+      "Optional. The location of the core body temperature measurement.",
+    ).optional(),
+    sampleTime: z.object({
+      civilTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      physicalTime: z.string().describe(
+        "Required. The time of the observation.",
+      ).optional(),
+      utcOffset: z.string().describe(
+        "Required. The offset of the user's local time during the observation relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+    }).describe("Represents a sample time of an observed data point.")
+      .optional(),
+    temperatureCelsius: z.number().describe(
+      "Required. The core body temperature in Celsius.",
+    ).optional(),
+  }).describe(
+    "Core body temperature measurement, distinct from peripheral body temperature, reflects the temperature of the body's internal organs.",
+  ).optional(),
   dailyHeartRateVariability: z.object({
     averageHeartRateVariabilityMilliseconds: z.number().describe(
       "Optional. A user's average heart rate variability calculated using the root mean square of successive differences (RMSSD) in times between heartbeats.",
@@ -4318,6 +5943,137 @@ const InputsSchema = z.object({
       "Required. Distance in millimeters over the observed interval.",
     ).optional(),
   }).describe("Distance traveled over an interval of time.").optional(),
+  electrocardiogram: z.object({
+    beatsPerMinuteAvg: z.string().describe(
+      "Optional. Average heart rate recorded during ECG reading in beats per minute.",
+    ).optional(),
+    interval: z.object({
+      civilEndTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      civilStartTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      endTime: z.string().describe(
+        "Required. The end time of the observed session.",
+      ).optional(),
+      endUtcOffset: z.string().describe(
+        "Required. The offset of the user's local time at the end of the session relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+      startTime: z.string().describe(
+        "Required. The start time of the observed session.",
+      ).optional(),
+      startUtcOffset: z.string().describe(
+        "Required. The offset of the user's local time at the start of the session relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+    }).describe(
+      "Represents a time interval of session data point, which bundles multiple observed metrics together.",
+    ).optional(),
+    leadNumber: z.number().int().describe(
+      "Optional. The number of leads used for ECG reading.",
+    ).optional(),
+    medicalDeviceInfo: z.object({
+      algorithmVersion: z.string().describe(
+        "Output only. The algorithm version used by the feature.",
+      ).optional(),
+      deviceModel: z.string().describe(
+        "Output only. The model name or device type of the compatible device used to collect the data.",
+      ).optional(),
+      featureVersion: z.string().describe(
+        "Output only. The version of the feature/app running on the device.",
+      ).optional(),
+      firmwareVersion: z.string().describe(
+        "Output only. The firmware version running on the compatible device used to collect the data.",
+      ).optional(),
+      serviceVersion: z.string().describe(
+        "Output only. The service version used by the feature.",
+      ).optional(),
+    }).describe(
+      "Software as Medical Device (SaMD) metadata. Used to construct the Unique Device Identifier (UDI).",
+    ).optional(),
+    millivoltsScalingFactor: z.number().int().describe(
+      "Optional. The factor by which to divide waveform samples to get voltage in millivolts: millivolts = waveform_sample / millivolts_scaling_factor.",
+    ).optional(),
+    resultClassification: z.enum([
+      "RESULT_CLASSIFICATION_UNSPECIFIED",
+      "NORMAL_SINUS_RHYTHM",
+      "ATRIAL_FIBRILLATION",
+      "INCONCLUSIVE",
+      "INCONCLUSIVE_HIGH_HEART_RATE",
+      "INCONCLUSIVE_LOW_HEART_RATE",
+      "UNREADABLE",
+      "NOT_ANALYZED",
+    ]).describe("Optional. The result classification of the ECG reading.")
+      .optional(),
+    samplingFrequencyHertz: z.number().int().describe(
+      "Optional. The sampling frequency of waveform samples in hertz.",
+    ).optional(),
+    waveformSamples: z.array(z.number().int()).describe(
+      "Optional. An array of voltage values representing lead I ECG values. Each sample represents voltage difference in ECG graph. The first value in array corresponds to the start of the reading.",
+    ).optional(),
+  }).describe(
+    "Represents an Electrocardiogram (ECG) measurement session. This data type is based on SaMD feature and any changes to it may require additional review.",
+  ).optional(),
   exercise: z.object({
     activeDuration: z.string().describe("Optional. Duration excluding pauses.")
       .optional(),
@@ -4782,6 +6538,231 @@ const InputsSchema = z.object({
       .optional(),
   }).describe("Gained elevation measured in floors over the time interval")
     .optional(),
+  food: z.object({
+    accessLevel: z.enum([
+      "FOOD_ACCESS_LEVEL_UNSPECIFIED",
+      "FOOD_ACCESS_LEVEL_PUBLIC",
+      "FOOD_ACCESS_LEVEL_PRIVATE",
+    ]).describe("Required. The access level of the food.").optional(),
+    brand: z.string().describe("Optional. The brand of the food.").optional(),
+    defaultServing: z.object({
+      amount: z.number().describe(
+        "Optional. Amount of food consumed, fractional values are supported.",
+      ).optional(),
+      foodMeasurementUnit: z.string().describe(
+        "Required. Food measurement unit",
+      ).optional(),
+      foodMeasurementUnitDisplayName: z.string().describe(
+        'Output only. Legacy measurement unit for serving size in singular form (e.g. "piece", "gram").',
+      ).optional(),
+      foodMeasurementUnitDisplayNamePlural: z.string().describe(
+        'Output only. Legacy measurement unit for serving size in plural form (e.g. "pieces", "grams").',
+      ).optional(),
+      multiplier: z.number().describe(
+        "Optional. Value representing the multiplier used to compute the energy when using this serving instead of the default serving.",
+      ).optional(),
+    }).describe(
+      "Represents different properties and information about the serving of a specific food.",
+    ).optional(),
+    description: z.string().describe("Optional. The description of the food.")
+      .optional(),
+    displayName: z.string().describe("Required. The display name of the food.")
+      .optional(),
+    energyAvg: z.object({
+      kcal: z.number().describe(
+        "Required. Value representing the energy in kilocalories.",
+      ).optional(),
+      userProvidedUnit: z.enum([
+        "ENERGY_UNIT_UNSPECIFIED",
+        "JOULE",
+        "KILOJOULE",
+        "KILOCALORIE",
+        "SMALL_CALORIE",
+        "CALORIE",
+      ]).describe("Optional. Value representing the user provided unit.")
+        .optional(),
+    }).describe("Represents the energy quantity.").optional(),
+    energyFromFat: z.object({
+      kcal: z.number().describe(
+        "Required. Value representing the energy in kilocalories.",
+      ).optional(),
+      userProvidedUnit: z.enum([
+        "ENERGY_UNIT_UNSPECIFIED",
+        "JOULE",
+        "KILOJOULE",
+        "KILOCALORIE",
+        "SMALL_CALORIE",
+        "CALORIE",
+      ]).describe("Optional. Value representing the user provided unit.")
+        .optional(),
+    }).describe("Represents the energy quantity.").optional(),
+    energyMax: z.object({
+      kcal: z.number().describe(
+        "Required. Value representing the energy in kilocalories.",
+      ).optional(),
+      userProvidedUnit: z.enum([
+        "ENERGY_UNIT_UNSPECIFIED",
+        "JOULE",
+        "KILOJOULE",
+        "KILOCALORIE",
+        "SMALL_CALORIE",
+        "CALORIE",
+      ]).describe("Optional. Value representing the user provided unit.")
+        .optional(),
+    }).describe("Represents the energy quantity.").optional(),
+    energyMin: z.object({
+      kcal: z.number().describe(
+        "Required. Value representing the energy in kilocalories.",
+      ).optional(),
+      userProvidedUnit: z.enum([
+        "ENERGY_UNIT_UNSPECIFIED",
+        "JOULE",
+        "KILOJOULE",
+        "KILOCALORIE",
+        "SMALL_CALORIE",
+        "CALORIE",
+      ]).describe("Optional. Value representing the user provided unit.")
+        .optional(),
+    }).describe("Represents the energy quantity.").optional(),
+    languageCode: z.string().describe(
+      "Optional. The language code where the food is available in format xx-XX. Supported values are defined in Settings.food_language_code.",
+    ).optional(),
+    mealType: z.enum([
+      "MEAL_TYPE_UNSPECIFIED",
+      "BEFORE_BREAKFAST",
+      "BREAKFAST",
+      "BEFORE_LUNCH",
+      "LUNCH",
+      "BEFORE_DINNER",
+      "DINNER",
+      "AFTER_DINNER",
+      "SNACK",
+      "ANYTIME",
+    ]).describe("Optional. The meal type associated with this food.")
+      .optional(),
+    nutrients: z.array(z.object({
+      nutrient: z.enum([
+        "NUTRIENT_UNSPECIFIED",
+        "BIOTIN",
+        "CAFFEINE",
+        "CALCIUM",
+        "CHLORIDE",
+        "CARBOHYDRATES",
+        "CHOLESTEROL",
+        "CHROMIUM",
+        "COPPER",
+        "DIETARY_FIBER",
+        "FOLIC_ACID",
+        "IODINE",
+        "IRON",
+        "MAGNESIUM",
+        "MANGANESE",
+        "MOLYBDENUM",
+        "MONOUNSATURATED_FAT",
+        "NIACIN",
+        "PANTOTHENIC_ACID",
+        "PHOSPHORUS",
+        "POLYUNSATURATED_FAT",
+        "POTASSIUM",
+        "PROTEIN",
+        "RIBOFLAVIN",
+        "SATURATED_FAT",
+        "SELENIUM",
+        "SODIUM",
+        "SUGAR",
+        "THIAMIN",
+        "TRANS_FAT",
+        "UNSATURATED_FAT",
+        "VITAMIN_A",
+        "VITAMIN_B12",
+        "VITAMIN_B6",
+        "VITAMIN_C",
+        "VITAMIN_D",
+        "VITAMIN_E",
+        "VITAMIN_K",
+        "ZINC",
+        "FOLATE",
+      ]).describe("Required. Value representing the nutrient.").optional(),
+      quantity: z.object({
+        grams: z.number().describe(
+          "Required. Value representing the weight in grams.",
+        ).optional(),
+        userProvidedUnit: z.enum([
+          "WEIGHT_UNIT_UNSPECIFIED",
+          "GRAM",
+          "KILOGRAM",
+          "OUNCE",
+          "POUND",
+          "STONE",
+          "MILLIGRAM",
+          "MICROGRAM",
+          "NANOGRAM",
+        ]).describe("Optional. Value representing the user provided unit.")
+          .optional(),
+      }).describe("Represents the weight quantity.").optional(),
+    })).describe(
+      "Optional. Value representing the nutrients of the food for the default serving.",
+    ).optional(),
+    servings: z.array(z.object({
+      amount: z.number().describe(
+        "Optional. Amount of food consumed, fractional values are supported.",
+      ).optional(),
+      foodMeasurementUnit: z.string().describe(
+        "Required. Food measurement unit",
+      ).optional(),
+      foodMeasurementUnitDisplayName: z.string().describe(
+        'Output only. Legacy measurement unit for serving size in singular form (e.g. "piece", "gram").',
+      ).optional(),
+      foodMeasurementUnitDisplayNamePlural: z.string().describe(
+        'Output only. Legacy measurement unit for serving size in plural form (e.g. "pieces", "grams").',
+      ).optional(),
+      multiplier: z.number().describe(
+        "Optional. Value representing the multiplier used to compute the energy when using this serving instead of the default serving.",
+      ).optional(),
+    })).describe("Optional. The serving of the food.").optional(),
+    totalCarbohydrate: z.object({
+      grams: z.number().describe(
+        "Required. Value representing the weight in grams.",
+      ).optional(),
+      userProvidedUnit: z.enum([
+        "WEIGHT_UNIT_UNSPECIFIED",
+        "GRAM",
+        "KILOGRAM",
+        "OUNCE",
+        "POUND",
+        "STONE",
+        "MILLIGRAM",
+        "MICROGRAM",
+        "NANOGRAM",
+      ]).describe("Optional. Value representing the user provided unit.")
+        .optional(),
+    }).describe("Represents the weight quantity.").optional(),
+    totalFat: z.object({
+      grams: z.number().describe(
+        "Required. Value representing the weight in grams.",
+      ).optional(),
+      userProvidedUnit: z.enum([
+        "WEIGHT_UNIT_UNSPECIFIED",
+        "GRAM",
+        "KILOGRAM",
+        "OUNCE",
+        "POUND",
+        "STONE",
+        "MILLIGRAM",
+        "MICROGRAM",
+        "NANOGRAM",
+      ]).describe("Optional. Value representing the user provided unit.")
+        .optional(),
+    }).describe("Represents the weight quantity.").optional(),
+  }).describe("Represents a food item.").optional(),
+  foodMeasurementUnit: z.object({
+    displayName: z.string().describe(
+      'Required. The display name of the food measurement unit (e.g., "gram", "piece").',
+    ).optional(),
+    pluralDisplayName: z.string().describe(
+      'Optional. The plural display name of the food measurement unit (e.g., "grams", "pieces").',
+    ).optional(),
+  }).describe("Represents a food measurement unit.").optional(),
   heartRate: z.object({
     beatsPerMinute: z.string().describe(
       "Required. The heart rate value in beats per minute.",
@@ -5050,8 +7031,456 @@ const InputsSchema = z.object({
       "Represents a time interval of session data point, which bundles multiple observed metrics together.",
     ).optional(),
   }).describe("Holds information about a user logged hydration.").optional(),
+  irregularRhythmNotification: z.object({
+    alertWindows: z.array(z.object({
+      civilEndTime: z.object({
+        date: z.object({
+          day: z.unknown().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.unknown().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.unknown().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.unknown().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.unknown().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.unknown().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.unknown().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      civilStartTime: z.object({
+        date: z.object({
+          day: z.unknown().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.unknown().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.unknown().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.unknown().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.unknown().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.unknown().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.unknown().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      endTime: z.string().describe(
+        "Required. The end time of the analysis window.",
+      ).optional(),
+      endUtcOffset: z.string().describe(
+        "Required. The UTC offset of the user's timezone when the analysis window ended.",
+      ).optional(),
+      heartBeats: z.array(z.object({
+        beatsPerMinute: z.unknown().describe(
+          "Required. The beats-per-minute value extrapolated from the time before the following heart beat. This is calculated as 60000 / rr, where rr is the gap between heart beats in milliseconds (IBI - Interbeat Interval).",
+        ).optional(),
+        civilTime: z.unknown().describe(
+          "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+        ).optional(),
+        physicalTime: z.unknown().describe(
+          "Required. The time of the heart beat measurement.",
+        ).optional(),
+        utcOffset: z.unknown().describe(
+          "Required. The UTC offset of the user's timezone when the heart beat measurement occurred.",
+        ).optional(),
+      })).describe(
+        "Optional. All heart beats in the interval contained in this analysis window.",
+      ).optional(),
+      positive: z.boolean().describe(
+        "Optional. Flag indicating whether the window was positive for AFib or not. A `true` value indicates that AFib was detected in this window. A `false` value means AFib was not detected, but does not guarantee the absence of AFib.",
+      ).optional(),
+      startTime: z.string().describe(
+        "Required. Observed interval. The start time of the analysis window.",
+      ).optional(),
+      startUtcOffset: z.string().describe(
+        "Required. The UTC offset of the user's timezone when the analysis window started.",
+      ).optional(),
+    })).describe(
+      "Optional. The overlapping analysis windows that were used to evaluate rhythm for potential AFib, containing specific information about the user's heart rhythm.",
+    ).optional(),
+    interval: z.object({
+      civilEndTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      civilStartTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      endTime: z.string().describe(
+        "Required. The end time of the observed session.",
+      ).optional(),
+      endUtcOffset: z.string().describe(
+        "Required. The offset of the user's local time at the end of the session relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+      startTime: z.string().describe(
+        "Required. The start time of the observed session.",
+      ).optional(),
+      startUtcOffset: z.string().describe(
+        "Required. The offset of the user's local time at the start of the session relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+    }).describe(
+      "Represents a time interval of session data point, which bundles multiple observed metrics together.",
+    ).optional(),
+    medicalDeviceInfo: z.object({
+      algorithmVersion: z.string().describe(
+        "Output only. The algorithm version used by the feature.",
+      ).optional(),
+      deviceModel: z.string().describe(
+        "Output only. The model name or device type of the compatible device used to collect the data.",
+      ).optional(),
+      featureVersion: z.string().describe(
+        "Output only. The version of the feature/app running on the device.",
+      ).optional(),
+      firmwareVersion: z.string().describe(
+        "Output only. The firmware version running on the compatible device used to collect the data.",
+      ).optional(),
+      serviceVersion: z.string().describe(
+        "Output only. The service version used by the feature.",
+      ).optional(),
+    }).describe(
+      "Software as Medical Device (SaMD) metadata. Used to construct the Unique Device Identifier (UDI).",
+    ).optional(),
+  }).describe(
+    "Represents an Irregular Rhythm Notification alert, indicating a potential sign of atrial fibrillation (AFib). This data type is based on SaMD feature and any changes to it may require additional review.",
+  ).optional(),
   name: z.string().describe(
     "Identifier. Data point name, only supported for the subset of identifiable data types. For the majority of the data types, individual data points do not need to be identified and this field would be empty. Format: `users/{user}/dataTypes/{data_type}/dataPoints/{data_point}` Example: `users/abcd1234/dataTypes/sleep/dataPoints/a1b2c3d4-e5f6-7890-1234-567890abcdef` The `{user}` ID is a system-generated identifier, as described in Identity.health_user_id. The `{data_type}` ID corresponds to the kebab-case version of the field names in the DataPoint data union field, e.g. `total-calories` for the `total_calories` field. The `{data_point}` ID can be client-provided or system-generated. If client-provided, it must be a string of 4-63 characters, containing only lowercase letters, numbers, and hyphens.",
+  ).optional(),
+  nutritionLog: z.object({
+    energy: z.object({
+      kcal: z.number().describe(
+        "Required. Value representing the energy in kilocalories.",
+      ).optional(),
+      userProvidedUnit: z.enum([
+        "ENERGY_UNIT_UNSPECIFIED",
+        "JOULE",
+        "KILOJOULE",
+        "KILOCALORIE",
+        "SMALL_CALORIE",
+        "CALORIE",
+      ]).describe("Optional. Value representing the user provided unit.")
+        .optional(),
+    }).describe("Represents the energy quantity.").optional(),
+    energyFromFat: z.object({
+      kcal: z.number().describe(
+        "Required. Value representing the energy in kilocalories.",
+      ).optional(),
+      userProvidedUnit: z.enum([
+        "ENERGY_UNIT_UNSPECIFIED",
+        "JOULE",
+        "KILOJOULE",
+        "KILOCALORIE",
+        "SMALL_CALORIE",
+        "CALORIE",
+      ]).describe("Optional. Value representing the user provided unit.")
+        .optional(),
+    }).describe("Represents the energy quantity.").optional(),
+    food: z.string().describe("Required. Represents the food ID.").optional(),
+    foodDisplayName: z.string().describe(
+      "Value representing the display name of the food. For nutrition logs created from an identified food, this field will be populated based on the referenced food. For anonymous food, this field will be populated manually.",
+    ).optional(),
+    interval: z.object({
+      civilEndTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      civilStartTime: z.object({
+        date: z.object({
+          day: z.number().int().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.number().int().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.number().int().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Represents a whole or partial calendar date, such as a birthday. The time of day and time zone are either specified elsewhere or are insignificant. The date is relative to the Gregorian Calendar. This can represent one of the following: * A full date, with non-zero year, month, and day values. * A month and day, with a zero year (for example, an anniversary). * A year on its own, with a zero month and a zero day. * A year and month, with a zero day (for example, a credit card expiration date). Related types: * google.type.TimeOfDay * google.type.DateTime * google.protobuf.Timestamp",
+        ).optional(),
+        time: z.object({
+          hours: z.number().int().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.number().int().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.number().int().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.number().int().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Represents a time of day. The date and time zone are either not significant or are specified elsewhere. An API may choose to allow leap seconds. Related types are google.type.Date and `google.protobuf.Timestamp`.",
+        ).optional(),
+      }).describe(
+        "Civil time representation similar to google.type.DateTime, but ensures that neither the timezone nor the UTC offset can be set to avoid confusion between civil and physical time queries.",
+      ).optional(),
+      endTime: z.string().describe(
+        "Required. The end time of the observed session.",
+      ).optional(),
+      endUtcOffset: z.string().describe(
+        "Required. The offset of the user's local time at the end of the session relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+      startTime: z.string().describe(
+        "Required. The start time of the observed session.",
+      ).optional(),
+      startUtcOffset: z.string().describe(
+        "Required. The offset of the user's local time at the start of the session relative to the Coordinated Universal Time (UTC).",
+      ).optional(),
+    }).describe(
+      "Represents a time interval of session data point, which bundles multiple observed metrics together.",
+    ).optional(),
+    mealType: z.enum([
+      "MEAL_TYPE_UNSPECIFIED",
+      "BEFORE_BREAKFAST",
+      "BREAKFAST",
+      "BEFORE_LUNCH",
+      "LUNCH",
+      "BEFORE_DINNER",
+      "DINNER",
+      "AFTER_DINNER",
+      "SNACK",
+      "ANYTIME",
+    ]).describe(
+      "Optional. Value representing the meal type of the nutrition log.",
+    ).optional(),
+    nutrients: z.array(z.object({
+      nutrient: z.enum([
+        "NUTRIENT_UNSPECIFIED",
+        "BIOTIN",
+        "CAFFEINE",
+        "CALCIUM",
+        "CHLORIDE",
+        "CARBOHYDRATES",
+        "CHOLESTEROL",
+        "CHROMIUM",
+        "COPPER",
+        "DIETARY_FIBER",
+        "FOLIC_ACID",
+        "IODINE",
+        "IRON",
+        "MAGNESIUM",
+        "MANGANESE",
+        "MOLYBDENUM",
+        "MONOUNSATURATED_FAT",
+        "NIACIN",
+        "PANTOTHENIC_ACID",
+        "PHOSPHORUS",
+        "POLYUNSATURATED_FAT",
+        "POTASSIUM",
+        "PROTEIN",
+        "RIBOFLAVIN",
+        "SATURATED_FAT",
+        "SELENIUM",
+        "SODIUM",
+        "SUGAR",
+        "THIAMIN",
+        "TRANS_FAT",
+        "UNSATURATED_FAT",
+        "VITAMIN_A",
+        "VITAMIN_B12",
+        "VITAMIN_B6",
+        "VITAMIN_C",
+        "VITAMIN_D",
+        "VITAMIN_E",
+        "VITAMIN_K",
+        "ZINC",
+        "FOLATE",
+      ]).describe("Required. Value representing the nutrient.").optional(),
+      quantity: z.object({
+        grams: z.number().describe(
+          "Required. Value representing the weight in grams.",
+        ).optional(),
+        userProvidedUnit: z.enum([
+          "WEIGHT_UNIT_UNSPECIFIED",
+          "GRAM",
+          "KILOGRAM",
+          "OUNCE",
+          "POUND",
+          "STONE",
+          "MILLIGRAM",
+          "MICROGRAM",
+          "NANOGRAM",
+        ]).describe("Optional. Value representing the user provided unit.")
+          .optional(),
+      }).describe("Represents the weight quantity.").optional(),
+    })).describe(
+      "Optional. Value representing the nutrients of the nutrition log.",
+    ).optional(),
+    serving: z.object({
+      amount: z.number().describe(
+        "Optional. Amount of food consumed, fractional values are supported.",
+      ).optional(),
+      foodMeasurementUnit: z.string().describe(
+        "Required. Food measurement unit",
+      ).optional(),
+      foodMeasurementUnitDisplayName: z.string().describe(
+        'Output only. Legacy measurement unit for serving size in singular form (e.g. "piece", "gram").',
+      ).optional(),
+    }).describe(
+      "Represents different properties and information about the serving of a specific food.",
+    ).optional(),
+    totalCarbohydrate: z.object({
+      grams: z.number().describe(
+        "Required. Value representing the weight in grams.",
+      ).optional(),
+      userProvidedUnit: z.enum([
+        "WEIGHT_UNIT_UNSPECIFIED",
+        "GRAM",
+        "KILOGRAM",
+        "OUNCE",
+        "POUND",
+        "STONE",
+        "MILLIGRAM",
+        "MICROGRAM",
+        "NANOGRAM",
+      ]).describe("Optional. Value representing the user provided unit.")
+        .optional(),
+    }).describe("Represents the weight quantity.").optional(),
+    totalFat: z.object({
+      grams: z.number().describe(
+        "Required. Value representing the weight in grams.",
+      ).optional(),
+      userProvidedUnit: z.enum([
+        "WEIGHT_UNIT_UNSPECIFIED",
+        "GRAM",
+        "KILOGRAM",
+        "OUNCE",
+        "POUND",
+        "STONE",
+        "MILLIGRAM",
+        "MICROGRAM",
+        "NANOGRAM",
+      ]).describe("Optional. Value representing the user provided unit.")
+        .optional(),
+    }).describe("Represents the weight quantity.").optional(),
+  }).describe(
+    "Holds information about a user logged food. There are two ways of creating a nutrition log based on the food type: 1. Identified food: Using the food field, which is a reference to a Food resource. In this case fields `nutrients`, `energy`, `energy_from_fat`, `total_carbohydrate`, `total_fat`, `food_display_name` will be populated based on the referenced food. 2. Anonymous food: Using the `food_display_name` field and setting the `nutrients`, `energy`, `energy_from_fat`, `total_carbohydrate`, `total_fat` fields manually. The identified food is preferred over the anonymous food. Nutrition logs created from anonymous food are not be editable.",
   ).optional(),
   oxygenSaturation: z.object({
     percentage: z.number().describe(
@@ -5911,7 +8340,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Health Users.DataTypes.DataPoints. Registered at `@swamp/gcp/health/users-datatypes-datapoints`. */
 export const model = {
   type: "@swamp/gcp/health/users-datatypes-datapoints",
-  version: "2026.05.26.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -6037,6 +8466,12 @@ export const model = {
       description: "Added: basalEnergyBurned, height, swimLengthsData",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.27.1",
+      description:
+        "Added: activeEnergyBurned, bloodGlucose, coreBodyTemperature, electrocardiogram, food, foodMeasurementUnit, irregularRhythmNotification, nutritionLog",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -6058,6 +8493,9 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         const body: Record<string, unknown> = {};
+        if (g["activeEnergyBurned"] !== undefined) {
+          body["activeEnergyBurned"] = g["activeEnergyBurned"];
+        }
         if (g["activeMinutes"] !== undefined) {
           body["activeMinutes"] = g["activeMinutes"];
         }
@@ -6071,7 +8509,13 @@ export const model = {
         if (g["basalEnergyBurned"] !== undefined) {
           body["basalEnergyBurned"] = g["basalEnergyBurned"];
         }
+        if (g["bloodGlucose"] !== undefined) {
+          body["bloodGlucose"] = g["bloodGlucose"];
+        }
         if (g["bodyFat"] !== undefined) body["bodyFat"] = g["bodyFat"];
+        if (g["coreBodyTemperature"] !== undefined) {
+          body["coreBodyTemperature"] = g["coreBodyTemperature"];
+        }
         if (g["dailyHeartRateVariability"] !== undefined) {
           body["dailyHeartRateVariability"] = g["dailyHeartRateVariability"];
         }
@@ -6096,8 +8540,15 @@ export const model = {
         }
         if (g["dataSource"] !== undefined) body["dataSource"] = g["dataSource"];
         if (g["distance"] !== undefined) body["distance"] = g["distance"];
+        if (g["electrocardiogram"] !== undefined) {
+          body["electrocardiogram"] = g["electrocardiogram"];
+        }
         if (g["exercise"] !== undefined) body["exercise"] = g["exercise"];
         if (g["floors"] !== undefined) body["floors"] = g["floors"];
+        if (g["food"] !== undefined) body["food"] = g["food"];
+        if (g["foodMeasurementUnit"] !== undefined) {
+          body["foodMeasurementUnit"] = g["foodMeasurementUnit"];
+        }
         if (g["heartRate"] !== undefined) body["heartRate"] = g["heartRate"];
         if (g["heartRateVariability"] !== undefined) {
           body["heartRateVariability"] = g["heartRateVariability"];
@@ -6106,7 +8557,14 @@ export const model = {
         if (g["hydrationLog"] !== undefined) {
           body["hydrationLog"] = g["hydrationLog"];
         }
+        if (g["irregularRhythmNotification"] !== undefined) {
+          body["irregularRhythmNotification"] =
+            g["irregularRhythmNotification"];
+        }
         if (g["name"] !== undefined) body["name"] = g["name"];
+        if (g["nutritionLog"] !== undefined) {
+          body["nutritionLog"] = g["nutritionLog"];
+        }
         if (g["oxygenSaturation"] !== undefined) {
           body["oxygenSaturation"] = g["oxygenSaturation"];
         }
@@ -6216,6 +8674,9 @@ export const model = {
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
+        if (g["activeEnergyBurned"] !== undefined) {
+          body["activeEnergyBurned"] = g["activeEnergyBurned"];
+        }
         if (g["activeMinutes"] !== undefined) {
           body["activeMinutes"] = g["activeMinutes"];
         }
@@ -6229,7 +8690,13 @@ export const model = {
         if (g["basalEnergyBurned"] !== undefined) {
           body["basalEnergyBurned"] = g["basalEnergyBurned"];
         }
+        if (g["bloodGlucose"] !== undefined) {
+          body["bloodGlucose"] = g["bloodGlucose"];
+        }
         if (g["bodyFat"] !== undefined) body["bodyFat"] = g["bodyFat"];
+        if (g["coreBodyTemperature"] !== undefined) {
+          body["coreBodyTemperature"] = g["coreBodyTemperature"];
+        }
         if (g["dailyHeartRateVariability"] !== undefined) {
           body["dailyHeartRateVariability"] = g["dailyHeartRateVariability"];
         }
@@ -6254,8 +8721,15 @@ export const model = {
         }
         if (g["dataSource"] !== undefined) body["dataSource"] = g["dataSource"];
         if (g["distance"] !== undefined) body["distance"] = g["distance"];
+        if (g["electrocardiogram"] !== undefined) {
+          body["electrocardiogram"] = g["electrocardiogram"];
+        }
         if (g["exercise"] !== undefined) body["exercise"] = g["exercise"];
         if (g["floors"] !== undefined) body["floors"] = g["floors"];
+        if (g["food"] !== undefined) body["food"] = g["food"];
+        if (g["foodMeasurementUnit"] !== undefined) {
+          body["foodMeasurementUnit"] = g["foodMeasurementUnit"];
+        }
         if (g["heartRate"] !== undefined) body["heartRate"] = g["heartRate"];
         if (g["heartRateVariability"] !== undefined) {
           body["heartRateVariability"] = g["heartRateVariability"];
@@ -6263,6 +8737,13 @@ export const model = {
         if (g["height"] !== undefined) body["height"] = g["height"];
         if (g["hydrationLog"] !== undefined) {
           body["hydrationLog"] = g["hydrationLog"];
+        }
+        if (g["irregularRhythmNotification"] !== undefined) {
+          body["irregularRhythmNotification"] =
+            g["irregularRhythmNotification"];
+        }
+        if (g["nutritionLog"] !== undefined) {
+          body["nutritionLog"] = g["nutritionLog"];
         }
         if (g["oxygenSaturation"] !== undefined) {
           body["oxygenSaturation"] = g["oxygenSaturation"];
@@ -6362,7 +8843,7 @@ export const model = {
       description: "List dataPoints resources",
       arguments: z.object({
         filter: z.string().describe(
-          'Optional. Filter expression following https://google.aip.dev/160. A time range (either physical or civil) can be specified. The supported filter fields are: - Interval start time: - Pattern: `{interval_data_type}.interval.start_time` - Supported comparison operators: `>=`, `<` - Timestamp literal expected in RFC-3339 format - Supported logical operators: `AND` - Example: - `steps.interval.start_time >= "2023-11-24T00:00:00Z" AND steps.interval.start_time < "2023-11-25T00:00:00Z"` - `distance.interval.start_time >= "2024-08-14T12:34:56Z"` - Interval civil start time: - Pattern: `{interval_data_type}.interval.civil_start_time` - Supported comparison operators: `>=`, `<` - Date with optional time literal expected in ISO 8601 `YYYY-MM-DD[THH:mm:ss]` format - Supported logical operators: `AND` - Example: - `steps.interval.civil_start_time >= "2023-11-24" AND steps.interval.civil_start_time < "2023-11-25"` - `distance.interval.civil_start_time >= "2024-08-14T12:34:56"` - Sample observation physical time: - Pattern: `{sample_data_type}.sample_time.physical_time` - Supported comparison operators: `>=`, `<` - Timestamp literal expected in RFC-3339 format - Supported logical operators: `AND` - Example: - `weight.sample_time.physical_time >= "2023-11-24T00:00:00Z" AND weight.sample_time.physical_time < "2023-11-25T00:00:00Z"` - `weight.sample_time.physical_time >= "2024-08-14T12:34:56Z"` - Sample observation civil time: - Pattern: `{sample_data_type}.sample_time.civil_time` - Supported comparison operators: `>=`, `<` - Date with optional time literal expected in ISO 8601 `YYYY-MM-DD[THH:mm:ss]` format - Supported logical operators: `AND` - Example: - `weight.sample_time.civil_time >= "2023-11-24" AND weight.sample_time.civil_time < "2023-11-25"` - `weight.sample_time.civil_time >= "2024-08-14T12:34:56"` - Daily summary date: - Pattern: `{daily_summary_data_type}.date` - Supported comparison operators: `>=`, `<` - Date literal expected in ISO 8601 `YYYY-MM-DD` format - Supported logical operators: `AND` - Example: - `daily_heart_rate_variability.date < "2024-08-15"` - Session start time (**ECG specific**): - Pattern: `electrocardiogram.interval.start_time` - Supported comparison operators: `>=` - Timestamp literal expected in RFC-3339 format - Example: - `electrocardiogram.interval.start_time >= "2024-08-14T12:34:56Z"` - Note: Only filtering by start time is supported for ECG. Filtering by end time (e.g., `electrocardiogram.interval.end_time`) is not supported. - Session civil start time (**Excluding Sleep**): - Pattern: `{session_data_type}.interval.civil_start_time` - Supported comparison operators: `>=`, `<` - Date with optional time literal expected in ISO 8601 `YYYY-MM-DD[THH:mm:ss]` format - Supported logical operators: `AND` - Example: - `exercise.interval.civil_start_time >= "2023-11-24" AND exercise.interval.civil_start_time < "2023-11-25"` - `exercise.interval.civil_start_time >= "2024-08-14T12:34:56"` - Session end time (**Sleep specific**): - Pattern: `sleep.interval.end_time` - Supported comparison operators: `>=`, `<` - Timestamp literal expected in RFC-3339 format - Supported logical operators: `AND`, `OR` - Example: - `sleep.interval.end_time >= "2023-11-24T00:00:00Z" AND sleep.interval.end_time < "2023-11-25T00:00:00Z"` - Session civil end time (**Sleep specific**): - Pattern: `sleep.interval.civil_end_time` - Supported comparison operators: `>=`, `<` - Date with optional time literal expected in ISO 8601 `YYYY-MM-DD[THH:mm:ss]` format - Supported logical operators: `AND`, `OR` - Example: - `sleep.interval.civil_end_time >= "2023-11-24" AND sleep.interval.civil_end_time < "2023-11-25"` Data points in the response will be ordered by the interval start time in descending order.',
+          'Optional. Filter expression following https://google.aip.dev/160. A time range (either physical or civil) can be specified. The supported filter fields are: - Interval start time: - Pattern: `{interval_data_type}.interval.start_time` - Supported comparison operators: `>=`, `<` - Timestamp literal expected in RFC-3339 format - Supported logical operators: `AND` - Example: - `steps.interval.start_time >= "2023-11-24T00:00:00Z" AND steps.interval.start_time < "2023-11-25T00:00:00Z"` - `distance.interval.start_time >= "2024-08-14T12:34:56Z"` - Interval civil start time: - Pattern: `{interval_data_type}.interval.civil_start_time` - Supported comparison operators: `>=`, `<` - Date with optional time literal expected in ISO 8601 `YYYY-MM-DD[THH:mm:ss]` format - Supported logical operators: `AND` - Example: - `steps.interval.civil_start_time >= "2023-11-24" AND steps.interval.civil_start_time < "2023-11-25"` - `distance.interval.civil_start_time >= "2024-08-14T12:34:56"` - Sample observation physical time: - Pattern: `{sample_data_type}.sample_time.physical_time` - Supported comparison operators: `>=`, `<` - Timestamp literal expected in RFC-3339 format - Supported logical operators: `AND` - Example: - `weight.sample_time.physical_time >= "2023-11-24T00:00:00Z" AND weight.sample_time.physical_time < "2023-11-25T00:00:00Z"` - `weight.sample_time.physical_time >= "2024-08-14T12:34:56Z"` - Sample observation civil time: - Pattern: `{sample_data_type}.sample_time.civil_time` - Supported comparison operators: `>=`, `<` - Date with optional time literal expected in ISO 8601 `YYYY-MM-DD[THH:mm:ss]` format - Supported logical operators: `AND` - Example: - `weight.sample_time.civil_time >= "2023-11-24" AND weight.sample_time.civil_time < "2023-11-25"` - `weight.sample_time.civil_time >= "2024-08-14T12:34:56"` - Daily summary date: - Pattern: `{daily_summary_data_type}.date` - Supported comparison operators: `>=`, `<` - Date literal expected in ISO 8601 `YYYY-MM-DD` format - Supported logical operators: `AND` - Example: - `daily_heart_rate_variability.date < "2024-08-15"` - Session civil start time (**Excluding Sleep and ECG**): - Pattern: `{session_data_type}.interval.civil_start_time` - Supported comparison operators: `>=`, `<` - Date with optional time literal expected in ISO 8601 `YYYY-MM-DD[THH:mm:ss]` format - Supported logical operators: `AND` - Example: - `exercise.interval.civil_start_time >= "2023-11-24" AND exercise.interval.civil_start_time < "2023-11-25"` - `exercise.interval.civil_start_time >= "2024-08-14T12:34:56"` - Session start time (**ECG specific**): - Pattern: `electrocardiogram.interval.start_time` - Supported comparison operators: `>=` - Timestamp literal expected in RFC-3339 format - Example: - `electrocardiogram.interval.start_time >= "2024-08-14T12:34:56Z"` - Note: Only filtering by start time is supported for ECG. Filtering by end time (e.g., `electrocardiogram.interval.end_time`) is not supported. - Session end time (**Sleep specific**): - Pattern: `sleep.interval.end_time` - Supported comparison operators: `>=`, `<` - Timestamp literal expected in RFC-3339 format - Supported logical operators: `AND`, `OR` - Example: - `sleep.interval.end_time >= "2023-11-24T00:00:00Z" AND sleep.interval.end_time < "2023-11-25T00:00:00Z"` - Session civil end time (**Sleep specific**): - Pattern: `sleep.interval.civil_end_time` - Supported comparison operators: `>=`, `<` - Date with optional time literal expected in ISO 8601 `YYYY-MM-DD[THH:mm:ss]` format - Supported logical operators: `AND`, `OR` - Example: - `sleep.interval.civil_end_time >= "2023-11-24" AND sleep.interval.civil_end_time < "2023-11-25"` Data points in the response will be ordered by the interval start time in descending order.',
         ).optional(),
         pageSize: z.number().describe(
           "Optional. The maximum number of data points to return. If unspecified, at most 1440 data points will be returned. The maximum page size is 10000; values above that will be truncated accordingly. For `exercise` and `sleep` the default page size is 25. The maximum page size for `exercise` and `sleep` is 25.",

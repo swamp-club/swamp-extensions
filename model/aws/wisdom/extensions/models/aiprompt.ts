@@ -43,7 +43,7 @@ const GlobalArgsSchema = z.object({
   Name: z.string().min(1).max(255).regex(new RegExp("^[a-zA-Z0-9\\s_.,-]+"))
     .optional(),
   Tags: z.record(z.string(), z.string().min(1).max(256)).optional(),
-  TemplateConfiguration: z.string(),
+  TemplateConfiguration: z.record(z.string(), z.unknown()),
   TemplateType: z.enum(["TEXT"]),
   Type: z.enum([
     "ANSWER_GENERATION",
@@ -71,7 +71,7 @@ const StateSchema = z.object({
   ModelId: z.string().optional(),
   Name: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
-  TemplateConfiguration: z.string().optional(),
+  TemplateConfiguration: z.record(z.string(), z.unknown()).optional(),
   TemplateType: z.string().optional(),
   Type: z.string().optional(),
   ModifiedTimeSeconds: z.number().optional(),
@@ -99,7 +99,7 @@ const InputsSchema = z.object({
   Name: z.string().min(1).max(255).regex(new RegExp("^[a-zA-Z0-9\\s_.,-]+"))
     .optional(),
   Tags: z.record(z.string(), z.string().min(1).max(256)).optional(),
-  TemplateConfiguration: z.string().optional(),
+  TemplateConfiguration: z.record(z.string(), z.unknown()).optional(),
   TemplateType: z.enum(["TEXT"]).optional(),
   Type: z.enum([
     "ANSWER_GENERATION",
@@ -120,7 +120,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Wisdom AIPrompt. Registered at `@swamp/aws/wisdom/aiprompt`. */
 export const model = {
   type: "@swamp/aws/wisdom/aiprompt",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -144,6 +144,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

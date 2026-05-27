@@ -22,7 +22,7 @@ import {
 } from "./_lib/aws.ts";
 
 const InlineExamplesSourceSchema = z.object({
-  Examples: z.array(z.string()).describe(
+  Examples: z.array(z.record(z.string(), z.unknown())).describe(
     "Examples to add. Each example is a free-form JSON document validated against the declared schemaType.",
   ),
 });
@@ -133,7 +133,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for BedrockAgentCore Dataset. Registered at `@swamp/aws/bedrockagentcore/dataset`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/dataset",
-  version: "2026.05.24.1",
+  version: "2026.05.27.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.27.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

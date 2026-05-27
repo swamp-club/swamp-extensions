@@ -43,7 +43,7 @@ const GlobalArgsSchema = z.object({
   EnableKeyRotation: z.boolean().describe(
     "Enables automatic rotation of the key material for the specified KMS key. By default, automatic key rotation is not enabled. KMS supports automatic rotation only for symmetric encryption KMS keys ( KeySpec = SYMMETRIC_DEFAULT). For asymmetric KMS keys, HMAC KMS keys, and KMS keys with Origin EXTERNAL, omit the EnableKeyRotation property or set it to false. To enable automatic key rotation of the key material for a multi-Region KMS key, set EnableKeyRotation to true on the primary key (created by using AWS::KMS::Key). KMS copies the rotation status to all replica keys. For details, see [Rotating multi-Region keys](https://docs.aws.amazon.com/kms/latest/developerguide/multi-region-keys-manage.html#multi-region-rotate) in the *Developer Guide*. When you enable automatic rotation, KMS automatically creates new key material for the KMS key one year after the enable date and every year thereafter. KMS retains all key material until you delete the KMS key. For detailed information about automatic key rotation, see [Rotating KMS keys](https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html) in the *Developer Guide*.",
   ).optional(),
-  KeyPolicy: z.string().describe(
+  KeyPolicy: z.record(z.string(), z.unknown()).describe(
     "The key policy to attach to the KMS key. If you provide a key policy, it must meet the following criteria: The key policy must allow the caller to make a subsequent [PutKeyPolicy](https://docs.aws.amazon.com/kms/latest/APIReference/API_PutKeyPolicy.html) request on the KMS key. This reduces the risk that the KMS key becomes unmanageable. For more information, see [Default key policy](https://docs.aws.amazon.com/kms/latest/developerguide/key-policies.html#key-policy-default-allow-root-enable-iam) in the *Developer Guide*. (To omit this condition, set BypassPolicyLockoutSafetyCheck to true.) Each statement in the key policy must contain one or more principals. The principals in the key policy must exist and be visible to KMS. When you create a new AWS principal (for example, an IAM user or role), you might need to enforce a delay before including the new principal in a key policy because the new principal might not be immediately visible to KMS. For more information, see [Changes that I make are not always immediately visible](https://docs.aws.amazon.com/IAM/latest/UserGuide/troubleshoot_general.html#troubleshoot_general_eventual-consistency) in the *User Guide*. If you do not provide a key policy, KMS attaches a default key policy to the KMS key. For more information, see [Default key policy](https://docs.aws.amazon.com/kms/latest/developerguide/key-policies.html#key-policy-default) in the *Developer Guide*. A key policy document can include only the following characters: Printable ASCII characters Printable characters in the Basic Latin and Latin-1 Supplement character set The tab ( \\u0009), line feed ( \\u000A), and carriage return ( \\u000D) special characters *Minimum*: 1 *Maximum*: 32768",
   ).optional(),
   KeyUsage: z.enum([
@@ -126,7 +126,7 @@ const InputsSchema = z.object({
   EnableKeyRotation: z.boolean().describe(
     "Enables automatic rotation of the key material for the specified KMS key. By default, automatic key rotation is not enabled. KMS supports automatic rotation only for symmetric encryption KMS keys ( KeySpec = SYMMETRIC_DEFAULT). For asymmetric KMS keys, HMAC KMS keys, and KMS keys with Origin EXTERNAL, omit the EnableKeyRotation property or set it to false. To enable automatic key rotation of the key material for a multi-Region KMS key, set EnableKeyRotation to true on the primary key (created by using AWS::KMS::Key). KMS copies the rotation status to all replica keys. For details, see [Rotating multi-Region keys](https://docs.aws.amazon.com/kms/latest/developerguide/multi-region-keys-manage.html#multi-region-rotate) in the *Developer Guide*. When you enable automatic rotation, KMS automatically creates new key material for the KMS key one year after the enable date and every year thereafter. KMS retains all key material until you delete the KMS key. For detailed information about automatic key rotation, see [Rotating KMS keys](https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html) in the *Developer Guide*.",
   ).optional(),
-  KeyPolicy: z.string().describe(
+  KeyPolicy: z.record(z.string(), z.unknown()).describe(
     "The key policy to attach to the KMS key. If you provide a key policy, it must meet the following criteria: The key policy must allow the caller to make a subsequent [PutKeyPolicy](https://docs.aws.amazon.com/kms/latest/APIReference/API_PutKeyPolicy.html) request on the KMS key. This reduces the risk that the KMS key becomes unmanageable. For more information, see [Default key policy](https://docs.aws.amazon.com/kms/latest/developerguide/key-policies.html#key-policy-default-allow-root-enable-iam) in the *Developer Guide*. (To omit this condition, set BypassPolicyLockoutSafetyCheck to true.) Each statement in the key policy must contain one or more principals. The principals in the key policy must exist and be visible to KMS. When you create a new AWS principal (for example, an IAM user or role), you might need to enforce a delay before including the new principal in a key policy because the new principal might not be immediately visible to KMS. For more information, see [Changes that I make are not always immediately visible](https://docs.aws.amazon.com/IAM/latest/UserGuide/troubleshoot_general.html#troubleshoot_general_eventual-consistency) in the *User Guide*. If you do not provide a key policy, KMS attaches a default key policy to the KMS key. For more information, see [Default key policy](https://docs.aws.amazon.com/kms/latest/developerguide/key-policies.html#key-policy-default) in the *Developer Guide*. A key policy document can include only the following characters: Printable ASCII characters Printable characters in the Basic Latin and Latin-1 Supplement character set The tab ( \\u0009), line feed ( \\u000A), and carriage return ( \\u000D) special characters *Minimum*: 1 *Maximum*: 32768",
   ).optional(),
   KeyUsage: z.enum([
@@ -181,7 +181,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for KMS Key. Registered at `@swamp/aws/kms/key`. */
 export const model = {
   type: "@swamp/aws/kms/key",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -210,6 +210,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -66,7 +66,7 @@ const StateSchema = z.object({
   pageElements: z.array(z.object({
     description: z.string(),
     elementGroup: z.object({
-      children: z.array(z.string()),
+      children: z.array(z.record(z.string(), z.unknown())),
     }),
     image: z.object({
       contentUrl: z.string(),
@@ -428,7 +428,7 @@ const StateSchema = z.object({
       }),
       pageType: z.string(),
       revisionId: z.string(),
-      slideProperties: z.string(),
+      slideProperties: z.record(z.string(), z.unknown()),
     }),
   }).optional(),
 }).passthrough();
@@ -442,7 +442,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Slides Presentations.Pages. Registered at `@swamp/gcp/slides/presentations-pages`. */
 export const model = {
   type: "@swamp/gcp/slides/presentations-pages",
-  version: "2026.05.25.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -506,6 +506,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

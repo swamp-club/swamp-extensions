@@ -42,7 +42,7 @@ const GlobalArgsSchema = z.object({
     "mcpserversigv4",
     "mcpservergrafana",
   ]).describe("The type of service being registered"),
-  ServiceDetails: z.string().describe(
+  ServiceDetails: z.record(z.string(), z.unknown()).describe(
     "Service-specific configuration details for create operation",
   ).optional(),
   KmsKeyArn: z.string().min(1).max(2048).describe(
@@ -56,9 +56,9 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   ServiceId: z.string(),
   ServiceType: z.string().optional(),
-  ServiceDetails: z.string().optional(),
-  AccessibleResources: z.array(z.string()).optional(),
-  AdditionalServiceDetails: z.string().optional(),
+  ServiceDetails: z.record(z.string(), z.unknown()).optional(),
+  AccessibleResources: z.array(z.record(z.string(), z.unknown())).optional(),
+  AdditionalServiceDetails: z.record(z.string(), z.unknown()).optional(),
   KmsKeyArn: z.string().optional(),
   Arn: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
@@ -80,7 +80,7 @@ const InputsSchema = z.object({
     "mcpserversigv4",
     "mcpservergrafana",
   ]).describe("The type of service being registered").optional(),
-  ServiceDetails: z.string().describe(
+  ServiceDetails: z.record(z.string(), z.unknown()).describe(
     "Service-specific configuration details for create operation",
   ).optional(),
   KmsKeyArn: z.string().min(1).max(2048).describe(
@@ -94,7 +94,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DevOpsAgent Service. Registered at `@swamp/aws/devopsagent/service`. */
 export const model = {
   type: "@swamp/aws/devopsagent/service",
-  version: "2026.05.24.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -143,6 +143,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

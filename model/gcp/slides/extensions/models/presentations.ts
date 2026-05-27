@@ -261,7 +261,9 @@ const GlobalArgsSchema = z.object({
       masterObjectId: z.string().describe(
         "The object ID of the master that this slide is based on. This property is read-only.",
       ).optional(),
-      notesPage: z.string().describe("Circular reference to Page").optional(),
+      notesPage: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Page",
+      ).optional(),
     }).describe(
       "The properties of Page that are only relevant for pages with page_type SLIDE.",
     ).optional(),
@@ -481,7 +483,9 @@ const GlobalArgsSchema = z.object({
       masterObjectId: z.string().describe(
         "The object ID of the master that this slide is based on. This property is read-only.",
       ).optional(),
-      notesPage: z.string().describe("Circular reference to Page").optional(),
+      notesPage: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Page",
+      ).optional(),
     }).describe(
       "The properties of Page that are only relevant for pages with page_type SLIDE.",
     ).optional(),
@@ -982,7 +986,9 @@ const GlobalArgsSchema = z.object({
       masterObjectId: z.string().describe(
         "The object ID of the master that this slide is based on. This property is read-only.",
       ).optional(),
-      notesPage: z.string().describe("Circular reference to Page").optional(),
+      notesPage: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Page",
+      ).optional(),
     }).describe(
       "The properties of Page that are only relevant for pages with page_type SLIDE.",
     ).optional(),
@@ -1214,7 +1220,9 @@ const GlobalArgsSchema = z.object({
       masterObjectId: z.string().describe(
         "The object ID of the master that this slide is based on. This property is read-only.",
       ).optional(),
-      notesPage: z.string().describe("Circular reference to Page").optional(),
+      notesPage: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Page",
+      ).optional(),
     }).describe(
       "The properties of Page that are only relevant for pages with page_type SLIDE.",
     ).optional(),
@@ -1324,7 +1332,7 @@ const StateSchema = z.object({
       isSkipped: z.boolean(),
       layoutObjectId: z.string(),
       masterObjectId: z.string(),
-      notesPage: z.string(),
+      notesPage: z.record(z.string(), z.unknown()),
     }),
   })).optional(),
   locale: z.string().optional(),
@@ -1427,7 +1435,7 @@ const StateSchema = z.object({
       isSkipped: z.boolean(),
       layoutObjectId: z.string(),
       masterObjectId: z.string(),
-      notesPage: z.string(),
+      notesPage: z.record(z.string(), z.unknown()),
     }),
   })).optional(),
   notesMaster: z.object({
@@ -1591,7 +1599,7 @@ const StateSchema = z.object({
       isSkipped: z.boolean(),
       layoutObjectId: z.string(),
       masterObjectId: z.string(),
-      notesPage: z.string(),
+      notesPage: z.record(z.string(), z.unknown()),
     }),
   }).optional(),
   pageSize: z.object({
@@ -1705,7 +1713,7 @@ const StateSchema = z.object({
       isSkipped: z.boolean(),
       layoutObjectId: z.string(),
       masterObjectId: z.string(),
-      notesPage: z.string(),
+      notesPage: z.record(z.string(), z.unknown()),
     }),
   })).optional(),
   title: z.string().optional(),
@@ -1925,7 +1933,9 @@ const InputsSchema = z.object({
       masterObjectId: z.string().describe(
         "The object ID of the master that this slide is based on. This property is read-only.",
       ).optional(),
-      notesPage: z.string().describe("Circular reference to Page").optional(),
+      notesPage: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Page",
+      ).optional(),
     }).describe(
       "The properties of Page that are only relevant for pages with page_type SLIDE.",
     ).optional(),
@@ -2145,7 +2155,9 @@ const InputsSchema = z.object({
       masterObjectId: z.string().describe(
         "The object ID of the master that this slide is based on. This property is read-only.",
       ).optional(),
-      notesPage: z.string().describe("Circular reference to Page").optional(),
+      notesPage: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Page",
+      ).optional(),
     }).describe(
       "The properties of Page that are only relevant for pages with page_type SLIDE.",
     ).optional(),
@@ -2646,7 +2658,9 @@ const InputsSchema = z.object({
       masterObjectId: z.string().describe(
         "The object ID of the master that this slide is based on. This property is read-only.",
       ).optional(),
-      notesPage: z.string().describe("Circular reference to Page").optional(),
+      notesPage: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Page",
+      ).optional(),
     }).describe(
       "The properties of Page that are only relevant for pages with page_type SLIDE.",
     ).optional(),
@@ -2878,7 +2892,9 @@ const InputsSchema = z.object({
       masterObjectId: z.string().describe(
         "The object ID of the master that this slide is based on. This property is read-only.",
       ).optional(),
-      notesPage: z.string().describe("Circular reference to Page").optional(),
+      notesPage: z.record(z.string(), z.unknown()).describe(
+        "Circular reference to Page",
+      ).optional(),
     }).describe(
       "The properties of Page that are only relevant for pages with page_type SLIDE.",
     ).optional(),
@@ -2891,7 +2907,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Slides Presentations. Registered at `@swamp/gcp/slides/presentations`. */
 export const model = {
   type: "@swamp/gcp/slides/presentations",
-  version: "2026.05.25.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2955,6 +2971,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -56,8 +56,9 @@ const GlobalArgsSchema = z.object({
     ServiceDescriptor: MultiplexProgramServiceDescriptorSchema.describe(
       "Transport stream service descriptor configuration for the Multiplex program.",
     ).optional(),
-    VideoSettings: z.string().describe("Program video settings configuration.")
-      .optional(),
+    VideoSettings: z.record(z.string(), z.unknown()).describe(
+      "Program video settings configuration.",
+    ).optional(),
   }).describe("The settings for this multiplex program.").optional(),
   PreferredChannelPipeline: z.enum([
     "CURRENTLY_ACTIVE",
@@ -94,7 +95,7 @@ const StateSchema = z.object({
     PreferredChannelPipeline: z.string(),
     ProgramNumber: z.number(),
     ServiceDescriptor: MultiplexProgramServiceDescriptorSchema,
-    VideoSettings: z.string(),
+    VideoSettings: z.record(z.string(), z.unknown()),
   }).optional(),
   PreferredChannelPipeline: z.string().optional(),
   PacketIdentifiersMap: z.object({
@@ -137,8 +138,9 @@ const InputsSchema = z.object({
     ServiceDescriptor: MultiplexProgramServiceDescriptorSchema.describe(
       "Transport stream service descriptor configuration for the Multiplex program.",
     ).optional(),
-    VideoSettings: z.string().describe("Program video settings configuration.")
-      .optional(),
+    VideoSettings: z.record(z.string(), z.unknown()).describe(
+      "Program video settings configuration.",
+    ).optional(),
   }).describe("The settings for this multiplex program.").optional(),
   PreferredChannelPipeline: z.enum([
     "CURRENTLY_ACTIVE",
@@ -171,7 +173,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for MediaLive Multiplexprogram. Registered at `@swamp/aws/medialive/multiplexprogram`. */
 export const model = {
   type: "@swamp/aws/medialive/multiplexprogram",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -195,6 +197,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

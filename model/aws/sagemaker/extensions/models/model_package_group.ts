@@ -47,7 +47,7 @@ const GlobalArgsSchema = z.object({
   ModelPackageGroupDescription: z.string().max(1024).regex(
     new RegExp("[\\p{L}\\p{M}\\p{Z}\\p{S}\\p{N}\\p{P}]*", "u"),
   ).describe("The description of the model package group.").optional(),
-  ModelPackageGroupPolicy: z.string().optional(),
+  ModelPackageGroupPolicy: z.record(z.string(), z.unknown()).optional(),
 });
 
 const StateSchema = z.object({
@@ -76,13 +76,13 @@ const InputsSchema = z.object({
   ModelPackageGroupDescription: z.string().max(1024).regex(
     new RegExp("[\\p{L}\\p{M}\\p{Z}\\p{S}\\p{N}\\p{P}]*", "u"),
   ).describe("The description of the model package group.").optional(),
-  ModelPackageGroupPolicy: z.string().optional(),
+  ModelPackageGroupPolicy: z.record(z.string(), z.unknown()).optional(),
 });
 
 /** Swamp extension model for SageMaker ModelPackageGroup. Registered at `@swamp/aws/sagemaker/model-package-group`. */
 export const model = {
   type: "@swamp/aws/sagemaker/model-package-group",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -111,6 +111,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

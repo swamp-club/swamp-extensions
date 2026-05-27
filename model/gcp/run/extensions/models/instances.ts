@@ -513,9 +513,6 @@ const GlobalArgsSchema = z.object({
       'type is used to communicate the status of the reconciliation process. See also: https://github.com/knative/serving/blob/main/docs/spec/errors.md#error-conditions-and-reporting Types common to all resources include: * "Ready": True when the Resource is ready.',
     ).optional(),
   }).describe("Defines a status condition for a resource.").optional(),
-  timeout: z.string().describe(
-    "Optional. Duration the instance may be active before the system will shut it down.",
-  ).optional(),
   volumes: z.array(z.object({
     cloudSqlInstance: z.object({
       instances: z.array(z.string()).describe(
@@ -772,7 +769,6 @@ const StateSchema = z.object({
     state: z.string(),
     type: z.string(),
   }).optional(),
-  timeout: z.string().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
   urls: z.array(z.string()).optional(),
@@ -1194,9 +1190,6 @@ const InputsSchema = z.object({
       'type is used to communicate the status of the reconciliation process. See also: https://github.com/knative/serving/blob/main/docs/spec/errors.md#error-conditions-and-reporting Types common to all resources include: * "Ready": True when the Resource is ready.',
     ).optional(),
   }).describe("Defines a status condition for a resource.").optional(),
-  timeout: z.string().describe(
-    "Optional. Duration the instance may be active before the system will shut it down.",
-  ).optional(),
   volumes: z.array(z.object({
     cloudSqlInstance: z.object({
       instances: z.array(z.string()).describe(
@@ -1298,7 +1291,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Run Admin Instances. Registered at `@swamp/gcp/run/instances`. */
 export const model = {
   type: "@swamp/gcp/run/instances",
-  version: "2026.05.26.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1404,6 +1397,14 @@ export const model = {
       description: "Added: defaultUriDisabled",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.27.1",
+      description: "Removed: timeout",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { timeout: _timeout, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1478,7 +1479,6 @@ export const model = {
         if (g["terminalCondition"] !== undefined) {
           body["terminalCondition"] = g["terminalCondition"];
         }
-        if (g["timeout"] !== undefined) body["timeout"] = g["timeout"];
         if (g["volumes"] !== undefined) body["volumes"] = g["volumes"];
         if (g["vpcAccess"] !== undefined) body["vpcAccess"] = g["vpcAccess"];
         if (g["instanceId"] !== undefined) body["instanceId"] = g["instanceId"];
@@ -1621,7 +1621,6 @@ export const model = {
         if (g["terminalCondition"] !== undefined) {
           body["terminalCondition"] = g["terminalCondition"];
         }
-        if (g["timeout"] !== undefined) body["timeout"] = g["timeout"];
         if (g["volumes"] !== undefined) body["volumes"] = g["volumes"];
         if (g["vpcAccess"] !== undefined) body["vpcAccess"] = g["vpcAccess"];
         for (const key of Object.keys(existing)) {

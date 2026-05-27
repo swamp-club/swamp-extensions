@@ -31,7 +31,7 @@ const GlobalArgsSchema = z.object({
     "The model selection expression for the route response. Supported only for WebSocket APIs.",
   ).optional(),
   ApiId: z.string().describe("The API identifier."),
-  ResponseModels: z.string().describe(
+  ResponseModels: z.record(z.string(), z.unknown()).describe(
     "The response models for the route response.",
   ).optional(),
 });
@@ -41,7 +41,7 @@ const StateSchema = z.object({
   RouteId: z.string(),
   ModelSelectionExpression: z.string().optional(),
   ApiId: z.string(),
-  ResponseModels: z.string().optional(),
+  ResponseModels: z.record(z.string(), z.unknown()).optional(),
   RouteResponseId: z.string(),
 }).passthrough();
 
@@ -55,7 +55,7 @@ const InputsSchema = z.object({
     "The model selection expression for the route response. Supported only for WebSocket APIs.",
   ).optional(),
   ApiId: z.string().describe("The API identifier.").optional(),
-  ResponseModels: z.string().describe(
+  ResponseModels: z.record(z.string(), z.unknown()).describe(
     "The response models for the route response.",
   ).optional(),
 });
@@ -63,7 +63,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ApiGatewayV2 RouteResponse. Registered at `@swamp/aws/apigatewayv2/route-response`. */
 export const model = {
   type: "@swamp/aws/apigatewayv2/route-response",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -87,6 +87,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

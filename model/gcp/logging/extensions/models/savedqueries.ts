@@ -192,9 +192,6 @@ const GlobalArgsSchema = z.object({
           truncationGranularity: z.unknown().describe(
             "The truncation granularity when grouping by a time/date field. This will be used to truncate the field to the granularity specified. This can be either a date or a time granularity found at https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#timestamp_trunc_granularity_date and https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#timestamp_trunc_granularity_time respectively.",
           ).optional(),
-          virtualField: z.unknown().describe(
-            "A virtual field is a field that is not physically present in the underlying data schema, but is created through specific operations within the query builder model based on other fields in the schema.",
-          ).optional(),
         }).describe(
           "Represents a field selected in the query, analogous to an item in a SQL SELECT clause. It specifies the source field and optionally applies transformations like aggregation, casting, regex extraction, or assigns an alias. Use ProjectedField when you need more than just the raw source field name (for which you might use FieldSource directly in QueryBuilderConfig's field_sources list if no transformations or specific operation type are needed).A ProjectedField can represent either a field present in the data schema (specified via the field property) or a virtual field that is computed from other fields (specified via the virtual_field property).",
         ).optional(),
@@ -202,7 +199,7 @@ const GlobalArgsSchema = z.object({
         "Defines the items to include in the query result, analogous to a SQL SELECT clause.",
       ).optional(),
       filter: z.object({
-        childPredicates: z.array(z.string()).describe(
+        childPredicates: z.array(z.record(z.string(), z.unknown())).describe(
           "The children of the filter predicate. This equates to the branches of the filter predicate that could contain further nested leaves.",
         ).optional(),
         leafPredicate: z.object({
@@ -366,11 +363,10 @@ const StateSchema = z.object({
           regexExtraction: z.unknown(),
           sqlAggregationFunction: z.unknown(),
           truncationGranularity: z.unknown(),
-          virtualField: z.unknown(),
         }),
       })),
       filter: z.object({
-        childPredicates: z.array(z.string()),
+        childPredicates: z.array(z.record(z.string(), z.unknown())),
         leafPredicate: z.object({
           comparator: z.string(),
           fieldSource: z.object({
@@ -485,9 +481,6 @@ const InputsSchema = z.object({
           truncationGranularity: z.unknown().describe(
             "The truncation granularity when grouping by a time/date field. This will be used to truncate the field to the granularity specified. This can be either a date or a time granularity found at https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#timestamp_trunc_granularity_date and https://cloud.google.com/bigquery/docs/reference/standard-sql/timestamp_functions#timestamp_trunc_granularity_time respectively.",
           ).optional(),
-          virtualField: z.unknown().describe(
-            "A virtual field is a field that is not physically present in the underlying data schema, but is created through specific operations within the query builder model based on other fields in the schema.",
-          ).optional(),
         }).describe(
           "Represents a field selected in the query, analogous to an item in a SQL SELECT clause. It specifies the source field and optionally applies transformations like aggregation, casting, regex extraction, or assigns an alias. Use ProjectedField when you need more than just the raw source field name (for which you might use FieldSource directly in QueryBuilderConfig's field_sources list if no transformations or specific operation type are needed).A ProjectedField can represent either a field present in the data schema (specified via the field property) or a virtual field that is computed from other fields (specified via the virtual_field property).",
         ).optional(),
@@ -495,7 +488,7 @@ const InputsSchema = z.object({
         "Defines the items to include in the query result, analogous to a SQL SELECT clause.",
       ).optional(),
       filter: z.object({
-        childPredicates: z.array(z.string()).describe(
+        childPredicates: z.array(z.record(z.string(), z.unknown())).describe(
           "The children of the filter predicate. This equates to the branches of the filter predicate that could contain further nested leaves.",
         ).optional(),
         leafPredicate: z.object({
@@ -633,7 +626,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Logging SavedQueries. Registered at `@swamp/gcp/logging/savedqueries`. */
 export const model = {
   type: "@swamp/gcp/logging/savedqueries",
-  version: "2026.05.26.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -722,6 +715,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

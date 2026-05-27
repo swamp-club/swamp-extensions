@@ -134,7 +134,7 @@ const GlobalArgsSchema = z.object({
           "Must be specified if type is `CATEGORICAL`. The list of possible categories.",
         ).optional(),
       }).optional(),
-      childParameterSpecs: z.array(z.string()).describe(
+      childParameterSpecs: z.array(z.record(z.string(), z.unknown())).describe(
         "A child node is active if the parameter's value matches the child node's matching_parent_values. If two items in child_parameter_specs have the same name, they must have disjoint matching_parent_values.",
       ).optional(),
       discreteValueSpec: z.object({
@@ -230,7 +230,7 @@ const StateSchema = z.object({
       categoricalValueSpec: z.object({
         values: z.array(z.unknown()),
       }),
-      childParameterSpecs: z.array(z.string()),
+      childParameterSpecs: z.array(z.record(z.string(), z.unknown())),
       discreteValueSpec: z.object({
         values: z.array(z.unknown()),
       }),
@@ -298,7 +298,7 @@ const InputsSchema = z.object({
           "Must be specified if type is `CATEGORICAL`. The list of possible categories.",
         ).optional(),
       }).optional(),
-      childParameterSpecs: z.array(z.string()).describe(
+      childParameterSpecs: z.array(z.record(z.string(), z.unknown())).describe(
         "A child node is active if the parameter's value matches the child node's matching_parent_values. If two items in child_parameter_specs have the same name, they must have disjoint matching_parent_values.",
       ).optional(),
       discreteValueSpec: z.object({
@@ -374,7 +374,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud AI Platform Training & Prediction Studies. Registered at `@swamp/gcp/ml/studies`. */
 export const model = {
   type: "@swamp/gcp/ml/studies",
-  version: "2026.05.25.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -448,6 +448,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

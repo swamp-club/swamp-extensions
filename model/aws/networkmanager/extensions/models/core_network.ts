@@ -37,7 +37,7 @@ const GlobalArgsSchema = z.object({
   GlobalNetworkId: z.string().describe(
     "The ID of the global network that your core network is a part of.",
   ),
-  PolicyDocument: z.string().describe(
+  PolicyDocument: z.record(z.string(), z.unknown()).describe(
     "Live policy document for the core network, you must provide PolicyDocument in Json Format",
   ).optional(),
   Description: z.string().describe("The description of core network")
@@ -50,7 +50,7 @@ const StateSchema = z.object({
   GlobalNetworkId: z.string().optional(),
   CoreNetworkId: z.string(),
   CoreNetworkArn: z.string().optional(),
-  PolicyDocument: z.string().optional(),
+  PolicyDocument: z.record(z.string(), z.unknown()).optional(),
   Description: z.string().optional(),
   CreatedAt: z.string().optional(),
   State: z.string().optional(),
@@ -83,7 +83,7 @@ const InputsSchema = z.object({
   GlobalNetworkId: z.string().describe(
     "The ID of the global network that your core network is a part of.",
   ).optional(),
-  PolicyDocument: z.string().describe(
+  PolicyDocument: z.record(z.string(), z.unknown()).describe(
     "Live policy document for the core network, you must provide PolicyDocument in Json Format",
   ).optional(),
   Description: z.string().describe("The description of core network")
@@ -95,7 +95,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for NetworkManager CoreNetwork. Registered at `@swamp/aws/networkmanager/core-network`. */
 export const model = {
   type: "@swamp/aws/networkmanager/core-network",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -119,6 +119,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

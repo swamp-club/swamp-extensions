@@ -50,7 +50,7 @@ const MaintenanceWindowRunCommandParametersSchema = z.object({
   TimeoutSeconds: z.number().int().optional(),
   Comment: z.string().optional(),
   OutputS3KeyPrefix: z.string().optional(),
-  Parameters: z.string().optional(),
+  Parameters: z.record(z.string(), z.unknown()).optional(),
   CloudWatchOutputConfig: CloudWatchOutputConfigSchema.optional(),
   DocumentHashType: z.string().optional(),
   ServiceRoleArn: z.string().optional(),
@@ -67,7 +67,7 @@ const MaintenanceWindowLambdaParametersSchema = z.object({
 });
 
 const MaintenanceWindowAutomationParametersSchema = z.object({
-  Parameters: z.string().optional(),
+  Parameters: z.record(z.string(), z.unknown()).optional(),
   DocumentVersion: z.string().optional(),
 });
 
@@ -110,7 +110,7 @@ const GlobalArgsSchema = z.object({
   WindowId: z.string().describe(
     "The ID of the maintenance window where the task is registered.",
   ),
-  TaskParameters: z.string().describe(
+  TaskParameters: z.record(z.string(), z.unknown()).describe(
     "The parameters to pass to the task when it runs.",
   ).optional(),
   TaskType: z.string().describe("The type of task."),
@@ -145,7 +145,7 @@ const StateSchema = z.object({
       MaintenanceWindowAutomationParametersSchema,
   }).optional(),
   WindowId: z.string(),
-  TaskParameters: z.string().optional(),
+  TaskParameters: z.record(z.string(), z.unknown()).optional(),
   TaskType: z.string().optional(),
   CutoffBehavior: z.string().optional(),
   WindowTaskId: z.string(),
@@ -195,7 +195,7 @@ const InputsSchema = z.object({
   WindowId: z.string().describe(
     "The ID of the maintenance window where the task is registered.",
   ).optional(),
-  TaskParameters: z.string().describe(
+  TaskParameters: z.record(z.string(), z.unknown()).describe(
     "The parameters to pass to the task when it runs.",
   ).optional(),
   TaskType: z.string().describe("The type of task.").optional(),
@@ -214,7 +214,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SSM MaintenanceWindowTask. Registered at `@swamp/aws/ssm/maintenance-window-task`. */
 export const model = {
   type: "@swamp/aws/ssm/maintenance-window-task",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -238,6 +238,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

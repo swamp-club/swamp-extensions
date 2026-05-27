@@ -224,7 +224,7 @@ const GlobalArgsSchema = z.object({
     value: z.string().describe("The price represented as a number.").optional(),
   }).optional(),
   customAttributes: z.array(z.object({
-    groupValues: z.array(z.string()).describe(
+    groupValues: z.array(z.record(z.string(), z.unknown())).describe(
       "Subattributes within this attribute group. Exactly one of value or groupValues must be provided.",
     ).optional(),
     name: z.string().describe(
@@ -723,7 +723,7 @@ const StateSchema = z.object({
     value: z.string(),
   }).optional(),
   customAttributes: z.array(z.object({
-    groupValues: z.array(z.string()),
+    groupValues: z.array(z.record(z.string(), z.unknown())),
     name: z.string(),
     value: z.string(),
   })).optional(),
@@ -1035,7 +1035,7 @@ const InputsSchema = z.object({
     value: z.string().describe("The price represented as a number.").optional(),
   }).optional(),
   customAttributes: z.array(z.object({
-    groupValues: z.array(z.string()).describe(
+    groupValues: z.array(z.record(z.string(), z.unknown())).describe(
       "Subattributes within this attribute group. Exactly one of value or groupValues must be provided.",
     ).optional(),
     name: z.string().describe(
@@ -1496,7 +1496,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Content for Shopping Products. Registered at `@swamp/gcp/content/products`. */
 export const model = {
   type: "@swamp/gcp/content/products",
-  version: "2026.05.25.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1555,6 +1555,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

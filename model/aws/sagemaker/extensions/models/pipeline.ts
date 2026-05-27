@@ -36,7 +36,7 @@ const GlobalArgsSchema = z.object({
   PipelineDescription: z.string().min(0).max(3072).describe(
     "The description of the Pipeline.",
   ).optional(),
-  PipelineDefinition: z.string(),
+  PipelineDefinition: z.record(z.string(), z.unknown()),
   RoleArn: z.string().min(20).max(2048).regex(
     new RegExp("^arn:aws[a-z\\-]*:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$"),
   ).describe("Role Arn"),
@@ -52,7 +52,7 @@ const StateSchema = z.object({
   PipelineName: z.string(),
   PipelineDisplayName: z.string().optional(),
   PipelineDescription: z.string().optional(),
-  PipelineDefinition: z.string().optional(),
+  PipelineDefinition: z.record(z.string(), z.unknown()).optional(),
   RoleArn: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
   ParallelismConfiguration: z.object({
@@ -72,7 +72,7 @@ const InputsSchema = z.object({
   PipelineDescription: z.string().min(0).max(3072).describe(
     "The description of the Pipeline.",
   ).optional(),
-  PipelineDefinition: z.string().optional(),
+  PipelineDefinition: z.record(z.string(), z.unknown()).optional(),
   RoleArn: z.string().min(20).max(2048).regex(
     new RegExp("^arn:aws[a-z\\-]*:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$"),
   ).describe("Role Arn").optional(),
@@ -87,7 +87,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SageMaker Pipeline. Registered at `@swamp/aws/sagemaker/pipeline`. */
 export const model = {
   type: "@swamp/aws/sagemaker/pipeline",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -111,6 +111,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

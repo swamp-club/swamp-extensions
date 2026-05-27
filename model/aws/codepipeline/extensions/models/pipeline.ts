@@ -111,7 +111,7 @@ const ActionDeclarationSchema = z.object({
   ActionTypeId: ActionTypeIdSchema.describe(
     "Represents information about an action type.",
   ),
-  Configuration: z.string().describe(
+  Configuration: z.record(z.string(), z.unknown()).describe(
     "The action's configuration. These are key-value pairs that specify input values for an action.",
   ).optional(),
   InputArtifacts: z.array(InputArtifactSchema).optional(),
@@ -162,7 +162,7 @@ const RuleDeclarationSchema = z.object({
   RuleTypeId: RuleTypeIdSchema.describe(
     "Represents information about a rule type.",
   ).optional(),
-  Configuration: z.string().describe(
+  Configuration: z.record(z.string(), z.unknown()).describe(
     "The rule's configuration. These are key-value pairs that specify input values for a rule.",
   ).optional(),
   Commands: z.array(z.string()).describe(
@@ -426,7 +426,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for CodePipeline Pipeline. Registered at `@swamp/aws/codepipeline/pipeline`. */
 export const model = {
   type: "@swamp/aws/codepipeline/pipeline",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -450,6 +450,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

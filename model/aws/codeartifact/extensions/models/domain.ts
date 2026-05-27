@@ -37,7 +37,7 @@ const GlobalArgsSchema = z.object({
   DomainName: z.string().min(2).max(50).regex(
     new RegExp("^([a-z][a-z0-9\\-]{0,48}[a-z0-9])$"),
   ).describe("The name of the domain."),
-  PermissionsPolicyDocument: z.string().describe(
+  PermissionsPolicyDocument: z.record(z.string(), z.unknown()).describe(
     "The access control resource policy on the provided domain.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
@@ -50,7 +50,7 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   Owner: z.string().optional(),
   EncryptionKey: z.string().optional(),
-  PermissionsPolicyDocument: z.string().optional(),
+  PermissionsPolicyDocument: z.record(z.string(), z.unknown()).optional(),
   Tags: z.array(TagSchema).optional(),
   Arn: z.string(),
 }).passthrough();
@@ -62,7 +62,7 @@ const InputsSchema = z.object({
   DomainName: z.string().min(2).max(50).regex(
     new RegExp("^([a-z][a-z0-9\\-]{0,48}[a-z0-9])$"),
   ).describe("The name of the domain.").optional(),
-  PermissionsPolicyDocument: z.string().describe(
+  PermissionsPolicyDocument: z.record(z.string(), z.unknown()).describe(
     "The access control resource policy on the provided domain.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
@@ -73,7 +73,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for CodeArtifact Domain. Registered at `@swamp/aws/codeartifact/domain`. */
 export const model = {
   type: "@swamp/aws/codeartifact/domain",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -97,6 +97,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

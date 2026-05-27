@@ -517,7 +517,7 @@ const SelectedSheetsFilterScopeConfigurationSchema = z.object({
 });
 
 const FilterScopeConfigurationSchema = z.object({
-  AllSheets: z.string().optional(),
+  AllSheets: z.record(z.string(), z.unknown()).optional(),
   SelectedSheets: SelectedSheetsFilterScopeConfigurationSchema.optional(),
 });
 
@@ -1709,7 +1709,7 @@ const AxisDisplayMinMaxRangeSchema = z.object({
 });
 
 const AxisDisplayRangeSchema = z.object({
-  DataDriven: z.string().optional(),
+  DataDriven: z.record(z.string(), z.unknown()).optional(),
   MinMax: AxisDisplayMinMaxRangeSchema.optional(),
 });
 
@@ -3937,7 +3937,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for QuickSight Template. Registered at `@swamp/aws/quicksight/template`. */
 export const model = {
   type: "@swamp/aws/quicksight/template",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -3961,6 +3961,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

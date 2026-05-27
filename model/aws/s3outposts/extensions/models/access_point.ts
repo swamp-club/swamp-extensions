@@ -42,7 +42,7 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Virtual Private Cloud (VPC) from which requests can be made to the AccessPoint.",
   ),
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     "The access point policy associated with this access point.",
   ).optional(),
 });
@@ -54,7 +54,7 @@ const StateSchema = z.object({
   VpcConfiguration: z.object({
     VpcId: z.string(),
   }).optional(),
-  Policy: z.string().optional(),
+  Policy: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -78,7 +78,7 @@ const InputsSchema = z.object({
   }).describe(
     "Virtual Private Cloud (VPC) from which requests can be made to the AccessPoint.",
   ).optional(),
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     "The access point policy associated with this access point.",
   ).optional(),
 });
@@ -86,7 +86,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for S3Outposts AccessPoint. Registered at `@swamp/aws/s3outposts/access-point`. */
 export const model = {
   type: "@swamp/aws/s3outposts/access-point",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -110,6 +110,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

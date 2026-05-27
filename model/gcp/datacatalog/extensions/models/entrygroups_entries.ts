@@ -677,7 +677,7 @@ const GlobalArgsSchema = z.object({
           "Required. The type of a field element. See ColumnSchema.type.",
         ).optional(),
       }).describe("Represents the type of a field element.").optional(),
-      subcolumns: z.array(z.string()).describe(
+      subcolumns: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. Schema of sub-columns. A column can have zero or more sub-columns.",
       ).optional(),
       type: z.string().describe(
@@ -1073,7 +1073,7 @@ const StateSchema = z.object({
       rangeElementType: z.object({
         type: z.string(),
       }),
-      subcolumns: z.array(z.string()),
+      subcolumns: z.array(z.record(z.string(), z.unknown())),
       type: z.string(),
     })),
   }).optional(),
@@ -1676,7 +1676,7 @@ const InputsSchema = z.object({
           "Required. The type of a field element. See ColumnSchema.type.",
         ).optional(),
       }).describe("Represents the type of a field element.").optional(),
-      subcolumns: z.array(z.string()).describe(
+      subcolumns: z.array(z.record(z.string(), z.unknown())).describe(
         "Optional. Schema of sub-columns. A column can have zero or more sub-columns.",
       ).optional(),
       type: z.string().describe(
@@ -1836,7 +1836,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Cloud Data Catalog EntryGroups.Entries. Registered at `@swamp/gcp/datacatalog/entrygroups-entries`. */
 export const model = {
   type: "@swamp/gcp/datacatalog/entrygroups-entries",
-  version: "2026.05.25.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1905,6 +1905,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

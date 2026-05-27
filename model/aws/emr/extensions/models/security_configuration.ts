@@ -23,7 +23,7 @@ import {
 const GlobalArgsSchema = z.object({
   Name: z.string().describe("The name of the security configuration.")
     .optional(),
-  SecurityConfiguration: z.string().describe(
+  SecurityConfiguration: z.record(z.string(), z.unknown()).describe(
     "The security configuration details in JSON format.",
   ),
 });
@@ -41,7 +41,7 @@ type StateData = z.infer<typeof StateSchema>;
 const InputsSchema = z.object({
   Name: z.string().describe("The name of the security configuration.")
     .optional(),
-  SecurityConfiguration: z.string().describe(
+  SecurityConfiguration: z.record(z.string(), z.unknown()).describe(
     "The security configuration details in JSON format.",
   ).optional(),
 });
@@ -49,7 +49,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for EMR SecurityConfiguration. Registered at `@swamp/aws/emr/security-configuration`. */
 export const model = {
   type: "@swamp/aws/emr/security-configuration",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -78,6 +78,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

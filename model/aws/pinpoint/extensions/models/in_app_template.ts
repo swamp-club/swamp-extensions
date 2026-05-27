@@ -65,7 +65,7 @@ const InAppMessageContentSchema = z.object({
 
 const GlobalArgsSchema = z.object({
   Content: z.array(InAppMessageContentSchema).optional(),
-  CustomConfig: z.string().optional(),
+  CustomConfig: z.record(z.string(), z.unknown()).optional(),
   Layout: z.enum([
     "BOTTOM_BANNER",
     "TOP_BANNER",
@@ -74,7 +74,7 @@ const GlobalArgsSchema = z.object({
     "MIDDLE_BANNER",
     "CAROUSEL",
   ]).optional(),
-  Tags: z.string().optional(),
+  Tags: z.record(z.string(), z.unknown()).optional(),
   TemplateDescription: z.string().optional(),
   TemplateName: z.string(),
 });
@@ -82,9 +82,9 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   Arn: z.string().optional(),
   Content: z.array(InAppMessageContentSchema).optional(),
-  CustomConfig: z.string().optional(),
+  CustomConfig: z.record(z.string(), z.unknown()).optional(),
   Layout: z.string().optional(),
-  Tags: z.string().optional(),
+  Tags: z.record(z.string(), z.unknown()).optional(),
   TemplateDescription: z.string().optional(),
   TemplateName: z.string(),
 }).passthrough();
@@ -93,7 +93,7 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   Content: z.array(InAppMessageContentSchema).optional(),
-  CustomConfig: z.string().optional(),
+  CustomConfig: z.record(z.string(), z.unknown()).optional(),
   Layout: z.enum([
     "BOTTOM_BANNER",
     "TOP_BANNER",
@@ -102,7 +102,7 @@ const InputsSchema = z.object({
     "MIDDLE_BANNER",
     "CAROUSEL",
   ]).optional(),
-  Tags: z.string().optional(),
+  Tags: z.record(z.string(), z.unknown()).optional(),
   TemplateDescription: z.string().optional(),
   TemplateName: z.string().optional(),
 });
@@ -110,7 +110,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Pinpoint InAppTemplate. Registered at `@swamp/aws/pinpoint/in-app-template`. */
 export const model = {
   type: "@swamp/aws/pinpoint/in-app-template",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -134,6 +134,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

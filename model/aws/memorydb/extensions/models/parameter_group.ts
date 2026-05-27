@@ -40,7 +40,7 @@ const GlobalArgsSchema = z.object({
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this parameter group.",
   ).optional(),
-  Parameters: z.string().describe(
+  Parameters: z.record(z.string(), z.unknown()).describe(
     "An map of parameter names and values for the parameter update. You must supply at least one parameter name and value; subsequent arguments are optional.",
   ).optional(),
 });
@@ -50,7 +50,7 @@ const StateSchema = z.object({
   Family: z.string().optional(),
   Description: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
-  Parameters: z.string().optional(),
+  Parameters: z.record(z.string(), z.unknown()).optional(),
   ARN: z.string().optional(),
 }).passthrough();
 
@@ -67,7 +67,7 @@ const InputsSchema = z.object({
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this parameter group.",
   ).optional(),
-  Parameters: z.string().describe(
+  Parameters: z.record(z.string(), z.unknown()).describe(
     "An map of parameter names and values for the parameter update. You must supply at least one parameter name and value; subsequent arguments are optional.",
   ).optional(),
 });
@@ -75,7 +75,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for MemoryDB ParameterGroup. Registered at `@swamp/aws/memorydb/parameter-group`. */
 export const model = {
   type: "@swamp/aws/memorydb/parameter-group",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -99,6 +99,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

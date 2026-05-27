@@ -23,7 +23,7 @@ import {
 
 const GlobalArgsSchema = z.object({
   ChannelName: z.string(),
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     "The IAM policy for the channel. IAM policies are used to control access to your channel.",
   ),
 });
@@ -37,7 +37,7 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   ChannelName: z.string().optional(),
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     "The IAM policy for the channel. IAM policies are used to control access to your channel.",
   ).optional(),
 });
@@ -45,7 +45,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for MediaTailor ChannelPolicy. Registered at `@swamp/aws/mediatailor/channel-policy`. */
 export const model = {
   type: "@swamp/aws/mediatailor/channel-policy",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -74,6 +74,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

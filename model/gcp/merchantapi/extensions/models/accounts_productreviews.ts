@@ -102,7 +102,7 @@ const LIST_CONFIG = {
 
 const GlobalArgsSchema = z.object({
   customAttributes: z.array(z.object({
-    groupValues: z.array(z.string()).describe(
+    groupValues: z.array(z.record(z.string(), z.unknown())).describe(
       "Subattributes within this attribute group. If `group_values` is not empty, `value` must be empty.",
     ).optional(),
     name: z.string().describe("The name of the attribute.").optional(),
@@ -306,7 +306,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   customAttributes: z.array(z.object({
-    groupValues: z.array(z.string()),
+    groupValues: z.array(z.record(z.string(), z.unknown())),
     name: z.string(),
     value: z.string(),
   })).optional(),
@@ -372,7 +372,7 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   customAttributes: z.array(z.object({
-    groupValues: z.array(z.string()).describe(
+    groupValues: z.array(z.record(z.string(), z.unknown())).describe(
       "Subattributes within this attribute group. If `group_values` is not empty, `value` must be empty.",
     ).optional(),
     name: z.string().describe("The name of the attribute.").optional(),
@@ -577,7 +577,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Merchant Accounts.ProductReviews. Registered at `@swamp/gcp/merchantapi/accounts-productreviews`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-productreviews",
-  version: "2026.05.25.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -636,6 +636,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

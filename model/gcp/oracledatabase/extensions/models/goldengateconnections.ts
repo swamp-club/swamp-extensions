@@ -409,7 +409,7 @@ const GlobalArgsSchema = z.object({
       .optional(),
     googleBigQueryConnectionProperties: z.object({
       serviceAccountKeyFile: z.string().describe(
-        "Optional. The service account key file Cloud Storage containing the credentials required to use Google BigQuery.",
+        "Optional. The base64 encoded content of the service account key file containing the credentials required to use Google BigQuery.",
       ).optional(),
       technologyType: z.string().describe("Optional. The technology type.")
         .optional(),
@@ -418,7 +418,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     googleCloudStorageConnectionProperties: z.object({
       serviceAccountKeyFile: z.string().describe(
-        "Optional. The service account key Cloud Storage file containing the credentials required to use Google Cloud Storage.",
+        "Optional. The base64 encoded content of the service account key file containing the credentials required to use Google Cloud Storage.",
       ).optional(),
       technologyType: z.string().describe("Optional. The technology type.")
         .optional(),
@@ -427,7 +427,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     googlePubsubConnectionProperties: z.object({
       serviceAccountKeyFile: z.string().describe(
-        "Optional. The content of the service account key file containing the credentials required to use Google Pub/Sub.",
+        "Optional. The base64 encoded content of the service account key file containing the credentials required to use Google Pub/Sub.",
       ).optional(),
       technologyType: z.string().describe(
         "Optional. The technology type of GooglePubsubConnection.",
@@ -477,7 +477,7 @@ const GlobalArgsSchema = z.object({
         }).describe("The Polaris Iceberg catalog.").optional(),
         restIcebergCatalog: z.object({
           properties: z.string().describe(
-            "Optional. The content of the configuration file containing additional properties for the REST catalog.",
+            "Optional. The base64 encoded content of the configuration file containing additional properties for the REST catalog.",
           ).optional(),
           uri: z.string().describe("Required. The REST uri.").optional(),
         }).describe("The REST Iceberg catalog.").optional(),
@@ -522,7 +522,7 @@ const GlobalArgsSchema = z.object({
             "Required. The project ID of Google Cloud Storage.",
           ).optional(),
           serviceAccountKeyFile: z.string().describe(
-            "Optional. The service account key file of Google Cloud Storage.",
+            "Optional. The base64 encoded content of the service account key file of Google Cloud Storage.",
           ).optional(),
         }).describe("The Google Cloud Storage Iceberg storage.").optional(),
         storageType: z.enum([
@@ -568,7 +568,7 @@ const GlobalArgsSchema = z.object({
         "Optional. Specifies the identity of the principal (user) to be authenticated.",
       ).optional(),
       keyStoreFile: z.string().describe(
-        "Optional. The content of the KeyStore file.",
+        "Optional. The base64 encoded content of the KeyStore file.",
       ).optional(),
       keyStorePassword: z.string().describe(
         "Optional. Input only. The KeyStore password in plain text.",
@@ -599,7 +599,7 @@ const GlobalArgsSchema = z.object({
         "Optional. The technology type of JavaMessageServiceConnection.",
       ).optional(),
       trustStoreFile: z.string().describe(
-        "Optional. The content of the TrustStore file.",
+        "Optional. The base64 encoded content of the TrustStore file.",
       ).optional(),
       trustStorePassword: z.string().describe(
         "Optional. Input only. The TrustStore password in plain text.",
@@ -632,10 +632,10 @@ const GlobalArgsSchema = z.object({
         "Optional. The OCID of the Kafka cluster being referenced from OCI Streaming with Apache Kafka.",
       ).optional(),
       consumerPropertiesFile: z.string().describe(
-        "Optional. The content of the consumer.properties file.",
+        "Optional. The base64 encoded content of the consumer.properties file.",
       ).optional(),
       keyStoreFile: z.string().describe(
-        "Optional. The content of the KeyStore file.",
+        "Optional. The base64 encoded content of the KeyStore file.",
       ).optional(),
       keyStorePassword: z.string().describe(
         "Optional. Input only. The KeyStore password in plain text.",
@@ -650,7 +650,7 @@ const GlobalArgsSchema = z.object({
         "Optional. Input only. The resource name of a secret version in Secret Manager which contains the password for Kafka basic/SASL auth. Format: projects/{project}/secrets/{secret}/versions/{version}.",
       ).optional(),
       producerPropertiesFile: z.string().describe(
-        "Optional. The content of the producer.properties file.",
+        "Optional. The base64 encoded content of the producer.properties file.",
       ).optional(),
       securityProtocol: z.enum([
         "KAFKA_SECURITY_PROTOCOL_UNSPECIFIED",
@@ -672,7 +672,7 @@ const GlobalArgsSchema = z.object({
         "Optional. The technology type of KafkaConnection.",
       ).optional(),
       trustStoreFile: z.string().describe(
-        "Optional. The content of the TrustStore file.",
+        "Optional. The base64 encoded content of the TrustStore file.",
       ).optional(),
       trustStorePassword: z.string().describe(
         "Optional. Input only. The TrustStore password in plain text.",
@@ -697,7 +697,7 @@ const GlobalArgsSchema = z.object({
         "Optional. Used authentication mechanism to access Schema Registry.",
       ).optional(),
       keyStoreFile: z.string().describe(
-        "Optional. The content of the KeyStore file.",
+        "Optional. The base64 encoded content of the KeyStore file.",
       ).optional(),
       keyStorePassword: z.string().describe(
         "Optional. Input only. The KeyStore password in plain text.",
@@ -721,7 +721,7 @@ const GlobalArgsSchema = z.object({
         "Optional. The technology type of KafkaSchemaRegistryConnection.",
       ).optional(),
       trustStoreFile: z.string().describe(
-        "Optional. The content of the TrustStore file.",
+        "Optional. The base64 encoded content of the TrustStore file.",
       ).optional(),
       trustStorePassword: z.string().describe(
         "Optional. Input only. The TrustStore password in plain text.",
@@ -800,7 +800,7 @@ const GlobalArgsSchema = z.object({
         "Optional. If set to true, the driver validates the certificate that is sent by the database server.",
       ).optional(),
       sslCaFile: z.string().describe(
-        "Optional. Database Certificate - The content of a.pem or.crt file containing the server public key (for 1-way SSL).",
+        "Optional. Database Certificate - The base64 encoded content of a.pem or.crt file containing the server public key (for 1-way SSL).",
       ).optional(),
       technologyType: z.string().describe(
         "Optional. The technology type of MicrosoftSqlserverConnection.",
@@ -833,10 +833,10 @@ const GlobalArgsSchema = z.object({
         "Optional. The technology type of MongodbConnection.",
       ).optional(),
       tlsCaFile: z.string().describe(
-        "Optional. Database Certificate - The content of a.pem file, containing the server public key (for 1 and 2-way SSL).",
+        "Optional. Database Certificate - The base64 encoded content of a.pem file, containing the server public key (for 1 and 2-way SSL).",
       ).optional(),
       tlsCertificateKeyFile: z.string().describe(
-        "Optional. Client Certificate - The content of a.pem file, containing the client public key (for 2-way SSL).",
+        "Optional. Client Certificate - The base64 encoded content of a.pem file, containing the client public key (for 2-way SSL).",
       ).optional(),
       tlsCertificateKeyFilePassword: z.string().describe(
         "Optional. Input only. The Client Certificate key file password in plain text.",
@@ -880,16 +880,16 @@ const GlobalArgsSchema = z.object({
         "MTLS",
       ]).describe("Optional. Security Type for MySQL.").optional(),
       sslCaFile: z.string().describe(
-        "Optional. Database Certificate - The content of a.pem or.crt file containing the server public key (for 1 and 2-way SSL).",
+        "Optional. Database Certificate - The base64 encoded content of a.pem or.crt file containing the server public key (for 1 and 2-way SSL).",
       ).optional(),
       sslCertFile: z.string().describe(
-        "Optional. Client Certificate - The content of a.pem or.crt file containing the client public key (for 2-way SSL).",
+        "Optional. Client Certificate - The base64 encoded content of a.pem or.crt file containing the client public key (for 2-way SSL).",
       ).optional(),
       sslCrlFile: z.string().describe(
-        "Optional. The list of certificates revoked by the trusted certificate authorities (Trusted CA).",
+        "Optional. The base64 encoded list of certificates revoked by the trusted certificate authorities (Trusted CA).",
       ).optional(),
       sslKeyFile: z.string().describe(
-        "Optional. Client Key - The content of a.pem or.crt file containing the client private key (for 2-way SSL).",
+        "Optional. Client Key - The base64 encoded content of a.pem or.crt file containing the client private key (for 2-way SSL).",
       ).optional(),
       sslMode: z.enum([
         "SSL_MODE_UNSPECIFIED",
@@ -994,7 +994,7 @@ const GlobalArgsSchema = z.object({
         "Optional. The username Oracle Goldengate uses to connect.",
       ).optional(),
       walletFile: z.string().describe(
-        "Optional. The wallet contents Oracle Goldengate uses to make connections to a database.",
+        "Optional. The wallet contents Oracle Goldengate uses to make connections to a database. This attribute is expected to be base64 encoded.",
       ).optional(),
     }).describe("The properties of Goldengate Oracle Database Connection.")
       .optional(),
@@ -1056,16 +1056,16 @@ const GlobalArgsSchema = z.object({
         "MTLS",
       ]).describe("Optional. Security protocol for PostgreSQL.").optional(),
       sslCaFile: z.string().describe(
-        "Optional. The certificate of the trusted certificate authorities (Trusted CA) for PostgreSQL.",
+        "Optional. The base64 encoded certificate of the trusted certificate authorities (Trusted CA) for PostgreSQL.",
       ).optional(),
       sslCertFile: z.string().describe(
-        "Optional. The certificate of the PostgreSQL server.",
+        "Optional. The base64 encoded certificate of the PostgreSQL server.",
       ).optional(),
       sslCrlFile: z.string().describe(
-        "Optional. The list of certificates revoked by the trusted certificate authorities (Trusted CA).",
+        "Optional. The base64 encoded list of certificates revoked by the trusted certificate authorities (Trusted CA).",
       ).optional(),
       sslKeyFile: z.string().describe(
-        "Optional. The private key of the PostgreSQL server.",
+        "Optional. The base64 encoded private key of the PostgreSQL server.",
       ).optional(),
       sslMode: z.enum([
         "POSTGRESQL_SSL_MODE_UNSPECIFIED",
@@ -1088,7 +1088,7 @@ const GlobalArgsSchema = z.object({
         "BASIC",
       ]).describe("Optional. Authentication type for Redis.").optional(),
       keyStoreFile: z.string().describe(
-        "Optional. The content of the KeyStore file.",
+        "Optional. The base64 encoded content of the KeyStore file.",
       ).optional(),
       keyStorePassword: z.string().describe(
         "Optional. Input only. The KeyStore password in plain text.",
@@ -1118,7 +1118,7 @@ const GlobalArgsSchema = z.object({
         "Optional. The technology type of RedisConnection.",
       ).optional(),
       trustStoreFile: z.string().describe(
-        "Optional. The content of the TrustStore file.",
+        "Optional. The base64 encoded content of the TrustStore file.",
       ).optional(),
       trustStorePassword: z.string().describe(
         "Optional. Input only. The TrustStore password in plain text.",
@@ -1863,7 +1863,7 @@ const InputsSchema = z.object({
       .optional(),
     googleBigQueryConnectionProperties: z.object({
       serviceAccountKeyFile: z.string().describe(
-        "Optional. The service account key file Cloud Storage containing the credentials required to use Google BigQuery.",
+        "Optional. The base64 encoded content of the service account key file containing the credentials required to use Google BigQuery.",
       ).optional(),
       technologyType: z.string().describe("Optional. The technology type.")
         .optional(),
@@ -1872,7 +1872,7 @@ const InputsSchema = z.object({
     ).optional(),
     googleCloudStorageConnectionProperties: z.object({
       serviceAccountKeyFile: z.string().describe(
-        "Optional. The service account key Cloud Storage file containing the credentials required to use Google Cloud Storage.",
+        "Optional. The base64 encoded content of the service account key file containing the credentials required to use Google Cloud Storage.",
       ).optional(),
       technologyType: z.string().describe("Optional. The technology type.")
         .optional(),
@@ -1881,7 +1881,7 @@ const InputsSchema = z.object({
     ).optional(),
     googlePubsubConnectionProperties: z.object({
       serviceAccountKeyFile: z.string().describe(
-        "Optional. The content of the service account key file containing the credentials required to use Google Pub/Sub.",
+        "Optional. The base64 encoded content of the service account key file containing the credentials required to use Google Pub/Sub.",
       ).optional(),
       technologyType: z.string().describe(
         "Optional. The technology type of GooglePubsubConnection.",
@@ -1931,7 +1931,7 @@ const InputsSchema = z.object({
         }).describe("The Polaris Iceberg catalog.").optional(),
         restIcebergCatalog: z.object({
           properties: z.string().describe(
-            "Optional. The content of the configuration file containing additional properties for the REST catalog.",
+            "Optional. The base64 encoded content of the configuration file containing additional properties for the REST catalog.",
           ).optional(),
           uri: z.string().describe("Required. The REST uri.").optional(),
         }).describe("The REST Iceberg catalog.").optional(),
@@ -1976,7 +1976,7 @@ const InputsSchema = z.object({
             "Required. The project ID of Google Cloud Storage.",
           ).optional(),
           serviceAccountKeyFile: z.string().describe(
-            "Optional. The service account key file of Google Cloud Storage.",
+            "Optional. The base64 encoded content of the service account key file of Google Cloud Storage.",
           ).optional(),
         }).describe("The Google Cloud Storage Iceberg storage.").optional(),
         storageType: z.enum([
@@ -2022,7 +2022,7 @@ const InputsSchema = z.object({
         "Optional. Specifies the identity of the principal (user) to be authenticated.",
       ).optional(),
       keyStoreFile: z.string().describe(
-        "Optional. The content of the KeyStore file.",
+        "Optional. The base64 encoded content of the KeyStore file.",
       ).optional(),
       keyStorePassword: z.string().describe(
         "Optional. Input only. The KeyStore password in plain text.",
@@ -2053,7 +2053,7 @@ const InputsSchema = z.object({
         "Optional. The technology type of JavaMessageServiceConnection.",
       ).optional(),
       trustStoreFile: z.string().describe(
-        "Optional. The content of the TrustStore file.",
+        "Optional. The base64 encoded content of the TrustStore file.",
       ).optional(),
       trustStorePassword: z.string().describe(
         "Optional. Input only. The TrustStore password in plain text.",
@@ -2086,10 +2086,10 @@ const InputsSchema = z.object({
         "Optional. The OCID of the Kafka cluster being referenced from OCI Streaming with Apache Kafka.",
       ).optional(),
       consumerPropertiesFile: z.string().describe(
-        "Optional. The content of the consumer.properties file.",
+        "Optional. The base64 encoded content of the consumer.properties file.",
       ).optional(),
       keyStoreFile: z.string().describe(
-        "Optional. The content of the KeyStore file.",
+        "Optional. The base64 encoded content of the KeyStore file.",
       ).optional(),
       keyStorePassword: z.string().describe(
         "Optional. Input only. The KeyStore password in plain text.",
@@ -2104,7 +2104,7 @@ const InputsSchema = z.object({
         "Optional. Input only. The resource name of a secret version in Secret Manager which contains the password for Kafka basic/SASL auth. Format: projects/{project}/secrets/{secret}/versions/{version}.",
       ).optional(),
       producerPropertiesFile: z.string().describe(
-        "Optional. The content of the producer.properties file.",
+        "Optional. The base64 encoded content of the producer.properties file.",
       ).optional(),
       securityProtocol: z.enum([
         "KAFKA_SECURITY_PROTOCOL_UNSPECIFIED",
@@ -2126,7 +2126,7 @@ const InputsSchema = z.object({
         "Optional. The technology type of KafkaConnection.",
       ).optional(),
       trustStoreFile: z.string().describe(
-        "Optional. The content of the TrustStore file.",
+        "Optional. The base64 encoded content of the TrustStore file.",
       ).optional(),
       trustStorePassword: z.string().describe(
         "Optional. Input only. The TrustStore password in plain text.",
@@ -2151,7 +2151,7 @@ const InputsSchema = z.object({
         "Optional. Used authentication mechanism to access Schema Registry.",
       ).optional(),
       keyStoreFile: z.string().describe(
-        "Optional. The content of the KeyStore file.",
+        "Optional. The base64 encoded content of the KeyStore file.",
       ).optional(),
       keyStorePassword: z.string().describe(
         "Optional. Input only. The KeyStore password in plain text.",
@@ -2175,7 +2175,7 @@ const InputsSchema = z.object({
         "Optional. The technology type of KafkaSchemaRegistryConnection.",
       ).optional(),
       trustStoreFile: z.string().describe(
-        "Optional. The content of the TrustStore file.",
+        "Optional. The base64 encoded content of the TrustStore file.",
       ).optional(),
       trustStorePassword: z.string().describe(
         "Optional. Input only. The TrustStore password in plain text.",
@@ -2254,7 +2254,7 @@ const InputsSchema = z.object({
         "Optional. If set to true, the driver validates the certificate that is sent by the database server.",
       ).optional(),
       sslCaFile: z.string().describe(
-        "Optional. Database Certificate - The content of a.pem or.crt file containing the server public key (for 1-way SSL).",
+        "Optional. Database Certificate - The base64 encoded content of a.pem or.crt file containing the server public key (for 1-way SSL).",
       ).optional(),
       technologyType: z.string().describe(
         "Optional. The technology type of MicrosoftSqlserverConnection.",
@@ -2287,10 +2287,10 @@ const InputsSchema = z.object({
         "Optional. The technology type of MongodbConnection.",
       ).optional(),
       tlsCaFile: z.string().describe(
-        "Optional. Database Certificate - The content of a.pem file, containing the server public key (for 1 and 2-way SSL).",
+        "Optional. Database Certificate - The base64 encoded content of a.pem file, containing the server public key (for 1 and 2-way SSL).",
       ).optional(),
       tlsCertificateKeyFile: z.string().describe(
-        "Optional. Client Certificate - The content of a.pem file, containing the client public key (for 2-way SSL).",
+        "Optional. Client Certificate - The base64 encoded content of a.pem file, containing the client public key (for 2-way SSL).",
       ).optional(),
       tlsCertificateKeyFilePassword: z.string().describe(
         "Optional. Input only. The Client Certificate key file password in plain text.",
@@ -2334,16 +2334,16 @@ const InputsSchema = z.object({
         "MTLS",
       ]).describe("Optional. Security Type for MySQL.").optional(),
       sslCaFile: z.string().describe(
-        "Optional. Database Certificate - The content of a.pem or.crt file containing the server public key (for 1 and 2-way SSL).",
+        "Optional. Database Certificate - The base64 encoded content of a.pem or.crt file containing the server public key (for 1 and 2-way SSL).",
       ).optional(),
       sslCertFile: z.string().describe(
-        "Optional. Client Certificate - The content of a.pem or.crt file containing the client public key (for 2-way SSL).",
+        "Optional. Client Certificate - The base64 encoded content of a.pem or.crt file containing the client public key (for 2-way SSL).",
       ).optional(),
       sslCrlFile: z.string().describe(
-        "Optional. The list of certificates revoked by the trusted certificate authorities (Trusted CA).",
+        "Optional. The base64 encoded list of certificates revoked by the trusted certificate authorities (Trusted CA).",
       ).optional(),
       sslKeyFile: z.string().describe(
-        "Optional. Client Key - The content of a.pem or.crt file containing the client private key (for 2-way SSL).",
+        "Optional. Client Key - The base64 encoded content of a.pem or.crt file containing the client private key (for 2-way SSL).",
       ).optional(),
       sslMode: z.enum([
         "SSL_MODE_UNSPECIFIED",
@@ -2448,7 +2448,7 @@ const InputsSchema = z.object({
         "Optional. The username Oracle Goldengate uses to connect.",
       ).optional(),
       walletFile: z.string().describe(
-        "Optional. The wallet contents Oracle Goldengate uses to make connections to a database.",
+        "Optional. The wallet contents Oracle Goldengate uses to make connections to a database. This attribute is expected to be base64 encoded.",
       ).optional(),
     }).describe("The properties of Goldengate Oracle Database Connection.")
       .optional(),
@@ -2510,16 +2510,16 @@ const InputsSchema = z.object({
         "MTLS",
       ]).describe("Optional. Security protocol for PostgreSQL.").optional(),
       sslCaFile: z.string().describe(
-        "Optional. The certificate of the trusted certificate authorities (Trusted CA) for PostgreSQL.",
+        "Optional. The base64 encoded certificate of the trusted certificate authorities (Trusted CA) for PostgreSQL.",
       ).optional(),
       sslCertFile: z.string().describe(
-        "Optional. The certificate of the PostgreSQL server.",
+        "Optional. The base64 encoded certificate of the PostgreSQL server.",
       ).optional(),
       sslCrlFile: z.string().describe(
-        "Optional. The list of certificates revoked by the trusted certificate authorities (Trusted CA).",
+        "Optional. The base64 encoded list of certificates revoked by the trusted certificate authorities (Trusted CA).",
       ).optional(),
       sslKeyFile: z.string().describe(
-        "Optional. The private key of the PostgreSQL server.",
+        "Optional. The base64 encoded private key of the PostgreSQL server.",
       ).optional(),
       sslMode: z.enum([
         "POSTGRESQL_SSL_MODE_UNSPECIFIED",
@@ -2542,7 +2542,7 @@ const InputsSchema = z.object({
         "BASIC",
       ]).describe("Optional. Authentication type for Redis.").optional(),
       keyStoreFile: z.string().describe(
-        "Optional. The content of the KeyStore file.",
+        "Optional. The base64 encoded content of the KeyStore file.",
       ).optional(),
       keyStorePassword: z.string().describe(
         "Optional. Input only. The KeyStore password in plain text.",
@@ -2572,7 +2572,7 @@ const InputsSchema = z.object({
         "Optional. The technology type of RedisConnection.",
       ).optional(),
       trustStoreFile: z.string().describe(
-        "Optional. The content of the TrustStore file.",
+        "Optional. The base64 encoded content of the TrustStore file.",
       ).optional(),
       trustStorePassword: z.string().describe(
         "Optional. Input only. The TrustStore password in plain text.",
@@ -2638,7 +2638,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud GoldengateConnections. Registered at `@swamp/gcp/oracledatabase/goldengateconnections`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/goldengateconnections",
-  version: "2026.05.26.1",
+  version: "2026.05.27.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.27.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

@@ -212,19 +212,10 @@ const GlobalArgsSchema = z.object({
   runtimeInfo: z.object({
     approximateUsage: z.object({
       acceleratorType: z.string().describe(
-        "Optional. Accelerator type being used, if any Deprecated: This field is only used in runtime versions below 3.0.",
+        "Optional. DEPRECATED Accelerator type being used, if any",
       ).optional(),
       milliAcceleratorSeconds: z.string().describe(
-        "Optional. Accelerator usage in (milliAccelerator x seconds) (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing)). Deprecated: This field is only used in runtime versions below 3.0.",
-      ).optional(),
-      milliAcceleratorSecondsA10040: z.string().describe(
-        "Optional. A100-40 accelerator usage in (milliAccelerator x seconds) (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing)).",
-      ).optional(),
-      milliAcceleratorSecondsA10080: z.string().describe(
-        "Optional. A100-80 accelerator usage in (milliAccelerator x seconds) (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing)).",
-      ).optional(),
-      milliAcceleratorSecondsL4: z.string().describe(
-        "Optional. L4 accelerator usage in (milliAccelerator x seconds) (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing)).",
+        "Optional. DEPRECATED Accelerator usage in (milliAccelerator x seconds) (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing)).",
       ).optional(),
       milliDcuSeconds: z.string().describe(
         "Optional. DCU (Dataproc Compute Units) usage in (milliDCU x seconds) (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing)).",
@@ -251,19 +242,10 @@ const GlobalArgsSchema = z.object({
       .optional(),
     currentUsage: z.object({
       acceleratorType: z.string().describe(
-        "Optional. Accelerator type being used, if any Deprecated: This field is only used in runtime versions below 3.0.",
+        "Optional. Accelerator type being used, if any",
       ).optional(),
       milliAccelerator: z.string().describe(
-        "Optional. Milli (one-thousandth) accelerator. (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing)) Deprecated: This field is only used in runtime versions below 3.0.",
-      ).optional(),
-      milliAcceleratorA10040: z.string().describe(
-        "Optional. Milli (one-thousandth) accelerator for A100-40 accelerators. (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing))",
-      ).optional(),
-      milliAcceleratorA10080: z.string().describe(
-        "Optional. Milli (one-thousandth) accelerator for A100-80 accelerators. (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing))",
-      ).optional(),
-      milliAcceleratorL4: z.string().describe(
-        "Optional. Milli (one-thousandth) accelerator for L4 accelerators. (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing))",
+        "Optional. Milli (one-thousandth) accelerator. (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing))",
       ).optional(),
       milliDcu: z.string().describe(
         "Optional. Milli (one-thousandth) Dataproc Compute Units (DCUs) (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing)).",
@@ -377,9 +359,6 @@ const StateSchema = z.object({
     approximateUsage: z.object({
       acceleratorType: z.string(),
       milliAcceleratorSeconds: z.string(),
-      milliAcceleratorSecondsA10040: z.string(),
-      milliAcceleratorSecondsA10080: z.string(),
-      milliAcceleratorSecondsL4: z.string(),
       milliDcuSeconds: z.string(),
       shuffleStorageGbSeconds: z.string(),
       updateTime: z.string(),
@@ -391,9 +370,6 @@ const StateSchema = z.object({
     currentUsage: z.object({
       acceleratorType: z.string(),
       milliAccelerator: z.string(),
-      milliAcceleratorA10040: z.string(),
-      milliAcceleratorA10080: z.string(),
-      milliAcceleratorL4: z.string(),
       milliDcu: z.string(),
       milliDcuPremium: z.string(),
       shuffleStorageGb: z.string(),
@@ -526,19 +502,10 @@ const InputsSchema = z.object({
   runtimeInfo: z.object({
     approximateUsage: z.object({
       acceleratorType: z.string().describe(
-        "Optional. Accelerator type being used, if any Deprecated: This field is only used in runtime versions below 3.0.",
+        "Optional. DEPRECATED Accelerator type being used, if any",
       ).optional(),
       milliAcceleratorSeconds: z.string().describe(
-        "Optional. Accelerator usage in (milliAccelerator x seconds) (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing)). Deprecated: This field is only used in runtime versions below 3.0.",
-      ).optional(),
-      milliAcceleratorSecondsA10040: z.string().describe(
-        "Optional. A100-40 accelerator usage in (milliAccelerator x seconds) (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing)).",
-      ).optional(),
-      milliAcceleratorSecondsA10080: z.string().describe(
-        "Optional. A100-80 accelerator usage in (milliAccelerator x seconds) (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing)).",
-      ).optional(),
-      milliAcceleratorSecondsL4: z.string().describe(
-        "Optional. L4 accelerator usage in (milliAccelerator x seconds) (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing)).",
+        "Optional. DEPRECATED Accelerator usage in (milliAccelerator x seconds) (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing)).",
       ).optional(),
       milliDcuSeconds: z.string().describe(
         "Optional. DCU (Dataproc Compute Units) usage in (milliDCU x seconds) (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing)).",
@@ -565,19 +532,10 @@ const InputsSchema = z.object({
       .optional(),
     currentUsage: z.object({
       acceleratorType: z.string().describe(
-        "Optional. Accelerator type being used, if any Deprecated: This field is only used in runtime versions below 3.0.",
+        "Optional. Accelerator type being used, if any",
       ).optional(),
       milliAccelerator: z.string().describe(
-        "Optional. Milli (one-thousandth) accelerator. (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing)) Deprecated: This field is only used in runtime versions below 3.0.",
-      ).optional(),
-      milliAcceleratorA10040: z.string().describe(
-        "Optional. Milli (one-thousandth) accelerator for A100-40 accelerators. (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing))",
-      ).optional(),
-      milliAcceleratorA10080: z.string().describe(
-        "Optional. Milli (one-thousandth) accelerator for A100-80 accelerators. (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing))",
-      ).optional(),
-      milliAcceleratorL4: z.string().describe(
-        "Optional. Milli (one-thousandth) accelerator for L4 accelerators. (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing))",
+        "Optional. Milli (one-thousandth) accelerator. (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing))",
       ).optional(),
       milliDcu: z.string().describe(
         "Optional. Milli (one-thousandth) Dataproc Compute Units (DCUs) (see Dataproc Serverless pricing (https://cloud.google.com/dataproc-serverless/pricing)).",
@@ -645,7 +603,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dataproc Sessions. Registered at `@swamp/gcp/dataproc/sessions`. */
 export const model = {
   type: "@swamp/gcp/dataproc/sessions",
-  version: "2026.05.26.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -734,6 +692,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

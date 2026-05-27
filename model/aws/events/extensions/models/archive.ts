@@ -27,7 +27,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   SourceArn: z.string(),
   Description: z.string().optional(),
-  EventPattern: z.string().optional(),
+  EventPattern: z.record(z.string(), z.unknown()).optional(),
   RetentionDays: z.number().int().optional(),
   KmsKeyIdentifier: z.string().min(0).max(2048).optional(),
 });
@@ -36,7 +36,7 @@ const StateSchema = z.object({
   ArchiveName: z.string(),
   SourceArn: z.string().optional(),
   Description: z.string().optional(),
-  EventPattern: z.string().optional(),
+  EventPattern: z.record(z.string(), z.unknown()).optional(),
   Arn: z.string().optional(),
   RetentionDays: z.number().optional(),
   KmsKeyIdentifier: z.string().optional(),
@@ -50,7 +50,7 @@ const InputsSchema = z.object({
   ).optional(),
   SourceArn: z.string().optional(),
   Description: z.string().optional(),
-  EventPattern: z.string().optional(),
+  EventPattern: z.record(z.string(), z.unknown()).optional(),
   RetentionDays: z.number().int().optional(),
   KmsKeyIdentifier: z.string().min(0).max(2048).optional(),
 });
@@ -58,7 +58,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Events Archive. Registered at `@swamp/aws/events/archive`. */
 export const model = {
   type: "@swamp/aws/events/archive",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -82,6 +82,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -26,7 +26,9 @@ const GlobalArgsSchema = z.object({
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
   ResourceArn: z.string().describe("Arn of OpsItemGroup etc."),
-  Policy: z.string().describe("Actual policy statement."),
+  Policy: z.record(z.string(), z.unknown()).describe(
+    "Actual policy statement.",
+  ),
 });
 
 const StateSchema = z.object({
@@ -41,13 +43,14 @@ type StateData = z.infer<typeof StateSchema>;
 const InputsSchema = z.object({
   name: z.string().optional(),
   ResourceArn: z.string().describe("Arn of OpsItemGroup etc.").optional(),
-  Policy: z.string().describe("Actual policy statement.").optional(),
+  Policy: z.record(z.string(), z.unknown()).describe("Actual policy statement.")
+    .optional(),
 });
 
 /** Swamp extension model for SSM ResourcePolicy. Registered at `@swamp/aws/ssm/resource-policy`. */
 export const model = {
   type: "@swamp/aws/ssm/resource-policy",
-  version: "2026.05.19.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -76,6 +79,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

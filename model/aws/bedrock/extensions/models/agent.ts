@@ -185,7 +185,7 @@ const PromptConfigurationSchema = z.object({
       "^arn:aws(-[^:]+)?:bedrock:[a-z0-9-]{1,20}:(([0-9]{12}:custom-model/[a-z0-9-]{1,63}[.]{1}[a-z0-9-]{1,63}(([:][a-z0-9-]{1,63}){0,2})?/[a-z0-9]{12})|(:foundation-model/([a-z0-9-]{1,63}[.]{1}[a-z0-9-]{1,63}([.]?[a-z0-9-]{1,63})([:][a-z0-9-]{1,63}){0,2}))|([0-9]{12}:(inference-profile|application-inference-profile)/[a-zA-Z0-9-:.]+))|(([a-z0-9-]{1,63}[.]{1}[a-z0-9-]{1,63}([.]?[a-z0-9-]{1,63})([:][a-z0-9-]{1,63}){0,2}))|(([0-9a-zA-Z][_-]?)+)$",
     ),
   ).describe("ARN or name of a Bedrock model.").optional(),
-  AdditionalModelRequestFields: z.string().describe(
+  AdditionalModelRequestFields: z.record(z.string(), z.unknown()).describe(
     "Additional Model Request Fields for Prompt Configuration",
   ).optional(),
 });
@@ -419,7 +419,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Bedrock Agent. Registered at `@swamp/aws/bedrock/agent`. */
 export const model = {
   type: "@swamp/aws/bedrock/agent",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -443,6 +443,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -131,10 +131,10 @@ const GlobalArgsSchema = z.object({
       key: z.string().describe(
         "The named key that uniquely identifies a parameter. Required for top-level parameters, as well as map values. Ignored for list values.",
       ).optional(),
-      list: z.array(z.string()).describe(
+      list: z.array(z.record(z.string(), z.unknown())).describe(
         "This list parameter's parameters (keys will be ignored).",
       ).optional(),
-      map: z.array(z.string()).describe(
+      map: z.array(z.record(z.string(), z.unknown())).describe(
         "This map parameter's parameters (must have keys; keys must be unique).",
       ).optional(),
       type: z.enum([
@@ -160,10 +160,10 @@ const GlobalArgsSchema = z.object({
       key: z.string().describe(
         "The named key that uniquely identifies a parameter. Required for top-level parameters, as well as map values. Ignored for list values.",
       ).optional(),
-      list: z.array(z.string()).describe(
+      list: z.array(z.record(z.string(), z.unknown())).describe(
         "This list parameter's parameters (keys will be ignored).",
       ).optional(),
-      map: z.array(z.string()).describe(
+      map: z.array(z.record(z.string(), z.unknown())).describe(
         "This map parameter's parameters (must have keys; keys must be unique).",
       ).optional(),
       type: z.enum([
@@ -198,10 +198,10 @@ const GlobalArgsSchema = z.object({
       key: z.string().describe(
         "The named key that uniquely identifies a parameter. Required for top-level parameters, as well as map values. Ignored for list values.",
       ).optional(),
-      list: z.array(z.string()).describe(
+      list: z.array(z.record(z.string(), z.unknown())).describe(
         "This list parameter's parameters (keys will be ignored).",
       ).optional(),
-      map: z.array(z.string()).describe(
+      map: z.array(z.record(z.string(), z.unknown())).describe(
         "This map parameter's parameters (must have keys; keys must be unique).",
       ).optional(),
       type: z.enum([
@@ -227,10 +227,10 @@ const GlobalArgsSchema = z.object({
       key: z.string().describe(
         "The named key that uniquely identifies a parameter. Required for top-level parameters, as well as map values. Ignored for list values.",
       ).optional(),
-      list: z.array(z.string()).describe(
+      list: z.array(z.record(z.string(), z.unknown())).describe(
         "This list parameter's parameters (keys will be ignored).",
       ).optional(),
-      map: z.array(z.string()).describe(
+      map: z.array(z.record(z.string(), z.unknown())).describe(
         "This map parameter's parameters (must have keys; keys must be unique).",
       ).optional(),
       type: z.enum([
@@ -261,10 +261,10 @@ const GlobalArgsSchema = z.object({
     key: z.string().describe(
       "The named key that uniquely identifies a parameter. Required for top-level parameters, as well as map values. Ignored for list values.",
     ).optional(),
-    list: z.array(z.string()).describe(
+    list: z.array(z.record(z.string(), z.unknown())).describe(
       "This list parameter's parameters (keys will be ignored).",
     ).optional(),
-    map: z.array(z.string()).describe(
+    map: z.array(z.record(z.string(), z.unknown())).describe(
       "This map parameter's parameters (must have keys; keys must be unique).",
     ).optional(),
     type: z.enum([
@@ -315,16 +315,16 @@ const StateSchema = z.object({
     convertFalseToValue: z.object({
       isWeakReference: z.boolean(),
       key: z.string(),
-      list: z.array(z.string()),
-      map: z.array(z.string()),
+      list: z.array(z.record(z.string(), z.unknown())),
+      map: z.array(z.record(z.string(), z.unknown())),
       type: z.string(),
       value: z.string(),
     }),
     convertNullToValue: z.object({
       isWeakReference: z.boolean(),
       key: z.string(),
-      list: z.array(z.string()),
-      map: z.array(z.string()),
+      list: z.array(z.record(z.string(), z.unknown())),
+      map: z.array(z.record(z.string(), z.unknown())),
       type: z.string(),
       value: z.string(),
     }),
@@ -333,16 +333,16 @@ const StateSchema = z.object({
     convertTrueToValue: z.object({
       isWeakReference: z.boolean(),
       key: z.string(),
-      list: z.array(z.string()),
-      map: z.array(z.string()),
+      list: z.array(z.record(z.string(), z.unknown())),
+      map: z.array(z.record(z.string(), z.unknown())),
       type: z.string(),
       value: z.string(),
     }),
     convertUndefinedToValue: z.object({
       isWeakReference: z.boolean(),
       key: z.string(),
-      list: z.array(z.string()),
-      map: z.array(z.string()),
+      list: z.array(z.record(z.string(), z.unknown())),
+      map: z.array(z.record(z.string(), z.unknown())),
       type: z.string(),
       value: z.string(),
     }),
@@ -352,8 +352,8 @@ const StateSchema = z.object({
   parameter: z.array(z.object({
     isWeakReference: z.boolean(),
     key: z.string(),
-    list: z.array(z.string()),
-    map: z.array(z.string()),
+    list: z.array(z.record(z.string(), z.unknown())),
+    map: z.array(z.record(z.string(), z.unknown())),
     type: z.string(),
     value: z.string(),
   })).optional(),
@@ -392,10 +392,10 @@ const InputsSchema = z.object({
       key: z.string().describe(
         "The named key that uniquely identifies a parameter. Required for top-level parameters, as well as map values. Ignored for list values.",
       ).optional(),
-      list: z.array(z.string()).describe(
+      list: z.array(z.record(z.string(), z.unknown())).describe(
         "This list parameter's parameters (keys will be ignored).",
       ).optional(),
-      map: z.array(z.string()).describe(
+      map: z.array(z.record(z.string(), z.unknown())).describe(
         "This map parameter's parameters (must have keys; keys must be unique).",
       ).optional(),
       type: z.enum([
@@ -421,10 +421,10 @@ const InputsSchema = z.object({
       key: z.string().describe(
         "The named key that uniquely identifies a parameter. Required for top-level parameters, as well as map values. Ignored for list values.",
       ).optional(),
-      list: z.array(z.string()).describe(
+      list: z.array(z.record(z.string(), z.unknown())).describe(
         "This list parameter's parameters (keys will be ignored).",
       ).optional(),
-      map: z.array(z.string()).describe(
+      map: z.array(z.record(z.string(), z.unknown())).describe(
         "This map parameter's parameters (must have keys; keys must be unique).",
       ).optional(),
       type: z.enum([
@@ -459,10 +459,10 @@ const InputsSchema = z.object({
       key: z.string().describe(
         "The named key that uniquely identifies a parameter. Required for top-level parameters, as well as map values. Ignored for list values.",
       ).optional(),
-      list: z.array(z.string()).describe(
+      list: z.array(z.record(z.string(), z.unknown())).describe(
         "This list parameter's parameters (keys will be ignored).",
       ).optional(),
-      map: z.array(z.string()).describe(
+      map: z.array(z.record(z.string(), z.unknown())).describe(
         "This map parameter's parameters (must have keys; keys must be unique).",
       ).optional(),
       type: z.enum([
@@ -488,10 +488,10 @@ const InputsSchema = z.object({
       key: z.string().describe(
         "The named key that uniquely identifies a parameter. Required for top-level parameters, as well as map values. Ignored for list values.",
       ).optional(),
-      list: z.array(z.string()).describe(
+      list: z.array(z.record(z.string(), z.unknown())).describe(
         "This list parameter's parameters (keys will be ignored).",
       ).optional(),
-      map: z.array(z.string()).describe(
+      map: z.array(z.record(z.string(), z.unknown())).describe(
         "This map parameter's parameters (must have keys; keys must be unique).",
       ).optional(),
       type: z.enum([
@@ -522,10 +522,10 @@ const InputsSchema = z.object({
     key: z.string().describe(
       "The named key that uniquely identifies a parameter. Required for top-level parameters, as well as map values. Ignored for list values.",
     ).optional(),
-    list: z.array(z.string()).describe(
+    list: z.array(z.record(z.string(), z.unknown())).describe(
       "This list parameter's parameters (keys will be ignored).",
     ).optional(),
-    map: z.array(z.string()).describe(
+    map: z.array(z.record(z.string(), z.unknown())).describe(
       "This map parameter's parameters (must have keys; keys must be unique).",
     ).optional(),
     type: z.enum([
@@ -568,7 +568,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Tag Manager Accounts.Containers.Workspaces.Variables. Registered at `@swamp/gcp/tagmanager/accounts-containers-workspaces-variables`. */
 export const model = {
   type: "@swamp/gcp/tagmanager/accounts-containers-workspaces-variables",
-  version: "2026.05.25.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -632,6 +632,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

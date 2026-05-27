@@ -25,14 +25,14 @@ const GlobalArgsSchema = z.object({
   MrapName: z.string().min(3).max(50).regex(
     new RegExp("^[a-z0-9][-a-z0-9]{1,48}[a-z0-9]$"),
   ).describe("The name of the Multi Region Access Point to apply policy"),
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     "Policy document to apply to a Multi Region Access Point",
   ),
 });
 
 const StateSchema = z.object({
   MrapName: z.string(),
-  Policy: z.string().optional(),
+  Policy: z.record(z.string(), z.unknown()).optional(),
   PolicyStatus: z.object({
     IsPublic: z.string(),
   }).optional(),
@@ -45,7 +45,7 @@ const InputsSchema = z.object({
     new RegExp("^[a-z0-9][-a-z0-9]{1,48}[a-z0-9]$"),
   ).describe("The name of the Multi Region Access Point to apply policy")
     .optional(),
-  Policy: z.string().describe(
+  Policy: z.record(z.string(), z.unknown()).describe(
     "Policy document to apply to a Multi Region Access Point",
   ).optional(),
 });
@@ -53,7 +53,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for S3 MultiRegionAccessPointPolicy. Registered at `@swamp/aws/s3/multi-region-access-point-policy`. */
 export const model = {
   type: "@swamp/aws/s3/multi-region-access-point-policy",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -77,6 +77,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

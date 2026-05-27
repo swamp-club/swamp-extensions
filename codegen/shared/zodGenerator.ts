@@ -193,7 +193,7 @@ function generateZodForProperty(
     }
 
     case "json":
-      return { expression: "z.string()" };
+      return { expression: "z.record(z.string(), z.unknown())" };
 
     case "number": {
       if (prop.enum && prop.enum.length > 0) {
@@ -387,7 +387,7 @@ function generateSimplifiedZodForProperty(
         }
         return { expression: `z.object({\n${lines.join("\n")}\n  })` };
       }
-      return { expression: "z.string()" };
+      return { expression: "z.record(z.string(), z.unknown())" };
     }
 
     default: {
@@ -536,8 +536,8 @@ function generateObjectZod(
     return { expression: `z.object({\n${body}\n})` };
   }
 
-  // Object with no properties at all — fallback to string
-  return { expression: "z.string()" };
+  // Object with no properties at all — freeform JSON (e.g. PolicyDocument)
+  return { expression: "z.record(z.string(), z.unknown())" };
 }
 
 function generateObjectBody(

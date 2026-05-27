@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/dataplex"
-version: "2026.05.26.1"
+version: "2026.05.27.1"
 description: "Google Cloud dataplex infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,8 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: changerequests
-  - Updated: locations, dataproducts, datascans, datascans_jobs
+  - Updated: aspecttypes, lakes_entities
 models:
   - aspecttypes.ts
   - changerequests.ts

@@ -27,14 +27,14 @@ const GlobalArgsSchema = z.object({
   ).describe(
     "The name of the Amazon S3 ObjectLambdaAccessPoint to which the policy applies.",
   ),
-  PolicyDocument: z.string().describe(
+  PolicyDocument: z.record(z.string(), z.unknown()).describe(
     "A policy document containing permissions to add to the specified ObjectLambdaAccessPoint. For more information, see Access Policy Language Overview (https://docs.aws.amazon.com/AmazonS3/latest/dev/access-policy-language-overview.html) in the Amazon Simple Storage Service Developer Guide.",
   ),
 });
 
 const StateSchema = z.object({
   ObjectLambdaAccessPoint: z.string(),
-  PolicyDocument: z.string().optional(),
+  PolicyDocument: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -45,7 +45,7 @@ const InputsSchema = z.object({
   ).describe(
     "The name of the Amazon S3 ObjectLambdaAccessPoint to which the policy applies.",
   ).optional(),
-  PolicyDocument: z.string().describe(
+  PolicyDocument: z.record(z.string(), z.unknown()).describe(
     "A policy document containing permissions to add to the specified ObjectLambdaAccessPoint. For more information, see Access Policy Language Overview (https://docs.aws.amazon.com/AmazonS3/latest/dev/access-policy-language-overview.html) in the Amazon Simple Storage Service Developer Guide.",
   ).optional(),
 });
@@ -53,7 +53,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for S3ObjectLambda AccessPointPolicy. Registered at `@swamp/aws/s3objectlambda/access-point-policy`. */
 export const model = {
   type: "@swamp/aws/s3objectlambda/access-point-policy",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -77,6 +77,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

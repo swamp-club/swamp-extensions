@@ -86,7 +86,7 @@ const GlobalArgsSchema = z.object({
       "^arn:(aws[a-zA-Z-]*):iam::\\d{12}:role(/[!-.0-~]+)*/[\\w+=,.@-]+$",
     ),
   ).optional(),
-  SchedulingConfiguration: z.string().optional(),
+  SchedulingConfiguration: z.record(z.string(), z.unknown()).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -111,7 +111,7 @@ const StateSchema = z.object({
   RequiredFileSystemLocationNames: z.array(z.string()).optional(),
   RoleArn: z.string().optional(),
   Arn: z.string(),
-  SchedulingConfiguration: z.string().optional(),
+  SchedulingConfiguration: z.record(z.string(), z.unknown()).optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -151,7 +151,7 @@ const InputsSchema = z.object({
       "^arn:(aws[a-zA-Z-]*):iam::\\d{12}:role(/[!-.0-~]+)*/[\\w+=,.@-]+$",
     ),
   ).optional(),
-  SchedulingConfiguration: z.string().optional(),
+  SchedulingConfiguration: z.record(z.string(), z.unknown()).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -160,7 +160,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Deadline Queue. Registered at `@swamp/aws/deadline/queue`. */
 export const model = {
   type: "@swamp/aws/deadline/queue",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -189,6 +189,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

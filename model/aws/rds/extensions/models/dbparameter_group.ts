@@ -42,7 +42,7 @@ const GlobalArgsSchema = z.object({
   Family: z.string().describe(
     'The DB parameter group family name. A DB parameter group can be associated with one and only one DB parameter group family, and can be applied only to a DB instance running a database engine and engine version compatible with that DB parameter group family. To list all of the available parameter group families for a DB engine, use the following command: aws rds describe-db-engine-versions --query "DBEngineVersions[].DBParameterGroupFamily" --engine  For example, to list all of the available parameter group families for the MySQL DB engine, use the following command: aws rds describe-db-engine-versions --query "DBEngineVersions[].DBParameterGroupFamily" --engine mysql The output contains duplicates. The following are the valid DB engine values: aurora-mysql aurora-postgresql db2-ae db2-se mysql oracle-ee oracle-ee-cdb oracle-se2 oracle-se2-cdb postgres sqlserver-ee sqlserver-se sqlserver-ex sqlserver-web',
   ),
-  Parameters: z.string().describe(
+  Parameters: z.record(z.string(), z.unknown()).describe(
     "A mapping of parameter names and values for the parameter update. You must specify at least one parameter name and value. For more information about parameter groups, see [Working with parameter groups](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_WorkingWithParamGroups.html) in the *Amazon RDS User Guide*, or [Working with parameter groups](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/USER_WorkingWithParamGroups.html) in the *Amazon Aurora User Guide*. AWS CloudFormation doesn't support specifying an apply method for each individual parameter. The default apply method for each parameter is used.",
   ).optional(),
   Tags: z.array(TagSchema).describe("Tags to assign to the DB parameter group.")
@@ -53,7 +53,7 @@ const StateSchema = z.object({
   DBParameterGroupName: z.string(),
   Description: z.string().optional(),
   Family: z.string().optional(),
-  Parameters: z.string().optional(),
+  Parameters: z.record(z.string(), z.unknown()).optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -71,7 +71,7 @@ const InputsSchema = z.object({
   Family: z.string().describe(
     'The DB parameter group family name. A DB parameter group can be associated with one and only one DB parameter group family, and can be applied only to a DB instance running a database engine and engine version compatible with that DB parameter group family. To list all of the available parameter group families for a DB engine, use the following command: aws rds describe-db-engine-versions --query "DBEngineVersions[].DBParameterGroupFamily" --engine  For example, to list all of the available parameter group families for the MySQL DB engine, use the following command: aws rds describe-db-engine-versions --query "DBEngineVersions[].DBParameterGroupFamily" --engine mysql The output contains duplicates. The following are the valid DB engine values: aurora-mysql aurora-postgresql db2-ae db2-se mysql oracle-ee oracle-ee-cdb oracle-se2 oracle-se2-cdb postgres sqlserver-ee sqlserver-se sqlserver-ex sqlserver-web',
   ).optional(),
-  Parameters: z.string().describe(
+  Parameters: z.record(z.string(), z.unknown()).describe(
     "A mapping of parameter names and values for the parameter update. You must specify at least one parameter name and value. For more information about parameter groups, see [Working with parameter groups](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_WorkingWithParamGroups.html) in the *Amazon RDS User Guide*, or [Working with parameter groups](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/USER_WorkingWithParamGroups.html) in the *Amazon Aurora User Guide*. AWS CloudFormation doesn't support specifying an apply method for each individual parameter. The default apply method for each parameter is used.",
   ).optional(),
   Tags: z.array(TagSchema).describe("Tags to assign to the DB parameter group.")
@@ -81,7 +81,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for RDS DBParameterGroup. Registered at `@swamp/aws/rds/dbparameter-group`. */
 export const model = {
   type: "@swamp/aws/rds/dbparameter-group",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -105,6 +105,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
