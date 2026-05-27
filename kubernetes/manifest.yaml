@@ -1,0 +1,50 @@
+manifestVersion: 1
+name: "@swamp/kubernetes"
+version: "2026.05.27.1"
+description: "Kubernetes operational toolkit — 15 model types covering pods, deployments, services, RBAC, storage, networking, autoscaling, batch jobs, and more. Includes 14 ready-to-run workflows for namespace debugging, security audits, RBAC analysis, cluster health, and operational diagnostics."
+repository: https://github.com/swamp-club/swamp-extensions
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+platforms: []
+labels:
+  - kubernetes
+  - k8s
+  - cluster
+  - pods
+  - deployments
+  - services
+  - rbac
+  - networking
+  - autoscaling
+models:
+  - pod.ts
+  - pod_summary.ts
+  - namespace.ts
+  - service.ts
+  - deployment.ts
+  - event.ts
+  - configmap.ts
+  - secret.ts
+  - ingress.ts
+  - node.ts
+  - pvc.ts
+  - hpa.ts
+  - job.ts
+  - netpol.ts
+  - rbac.ts
+workflows:
+  - "debug-namespace-deep/workflow.yaml"
+  - "namespace-debug/workflow.yaml"
+  - "deployment-status/workflow.yaml"
+  - "service-connectivity/workflow.yaml"
+  - "cluster-health/workflow.yaml"
+  - "security-audit/workflow.yaml"
+  - "rbac-audit/workflow.yaml"
+  - "storage-health/workflow.yaml"
+  - "autoscaling-status/workflow.yaml"
+  - "batch-jobs-status/workflow.yaml"
+  - "network-audit/workflow.yaml"
+  - "pod-inventory/workflow.yaml"
+  - "pod-health-check/workflow.yaml"
+  - "cluster-summary/workflow.yaml"

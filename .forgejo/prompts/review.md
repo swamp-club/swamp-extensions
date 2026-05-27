@@ -19,7 +19,7 @@ Then use `Read` to read each file listed in the CHANGED FILES section below.
 
 IMPORTANT: Files under `model/` are auto-generated — do NOT review their content.
 Skip reading files in `model/`. Focus your review on `vault/`, `datastore/`,
-`issue-lifecycle/`, `workflows/`, `cve/`, `codegen/`, and `scripts/`.
+`issue-lifecycle/`, `kubernetes/`, `workflows/`, `cve/`, `codegen/`, and `scripts/`.
 
 Model files may change without codegen changes in two legitimate cases:
 1. Codegen regeneration (codegen/ also changes)

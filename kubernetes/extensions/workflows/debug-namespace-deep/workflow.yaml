@@ -1,0 +1,206 @@
+id: 66654a96-7f45-4b6a-acff-e4987d40e648
+name: "@swamp/kubernetes/debug-namespace-deep"
+description: >-
+  Comprehensive namespace debugging workflow. Discovers and diagnoses every
+  deployment, pod, service, configmap, PVC, secret, network policy, and event
+  in a namespace, then iterates over all discovered services, deployments,
+  and network policies for deep diagnostics — per-service selector and
+  endpoint diagnosis, per-deployment rollout status and ReplicaSet history,
+  and per-netpol rule inspection.
+
+  PREREQ — create the 9 per-namespace model instances first. Run this once
+  per namespace before invoking the workflow (substituting your namespace
+  for $NS):
+
+    NS=my-namespace
+    for kind in pod service deployment event configmap pvc secret netpol; do
+      swamp model create "@swamp/kubernetes/$kind" "${NS}-${kind}" \
+        --global-arg "namespace=${NS}" --json
+    done
+    swamp model create @swamp/kubernetes/namespace "${NS}-namespace" --json
+
+  The trailing `${NS}-namespace` instance is needed for the final
+  health-summary step. The @swamp/kubernetes/namespace type is cluster-scoped so
+  it does not take a namespace global arg — it's per-instance only
+  for naming consistency.
+
+  Then:
+
+    swamp workflow run @swamp/kubernetes/debug-namespace-deep --input namespace=$NS
+
+  (We tried to embed the per-namespace creates as a workflow `bootstrap`
+  job, but swamp's per-process model registry doesn't see instances
+  created mid-workflow via `command/shell` shell-out. Tracked as
+  swamp.club/lab/186.)
+version: 1
+inputs:
+  properties:
+    namespace:
+      type: string
+      description: >-
+        Kubernetes namespace to debug. Model instances must follow the naming
+        convention {namespace}-pod, {namespace}-deployment, {namespace}-service,
+        {namespace}-event, {namespace}-configmap, {namespace}-pvc,
+        {namespace}-secret, {namespace}-netpol.
+  required:
+    - namespace
+jobs:
+  - name: discover
+    description: Collect all resources in the namespace in parallel
+    steps:
+      - name: list-deployments
+        description: List all deployments with replica counts, images, and conditions
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.namespace + "-deployment" }}
+          methodName: list
+      - name: list-pods
+        description: List all pods with phase, container states, and restart counts
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.namespace + "-pod" }}
+          methodName: list
+      - name: list-services
+        description: List all services with type, ports, and selectors
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.namespace + "-service" }}
+          methodName: list
+      - name: list-configmaps
+        description: List all configmaps with their data keys and values
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.namespace + "-configmap" }}
+          methodName: list
+      - name: list-pvcs
+        description: List all PVCs with binding status, storage class, and capacity
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.namespace + "-pvc" }}
+          methodName: list
+      - name: list-secrets
+        description: List all secrets with type and data keys (not decoded values)
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.namespace + "-secret" }}
+          methodName: list
+      - name: list-netpols
+        description: List all NetworkPolicies with pod selectors and rule counts
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.namespace + "-netpol" }}
+          methodName: list
+      - name: list-events
+        description: List all events sorted by timestamp
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.namespace + "-event" }}
+          methodName: list
+      - name: get-warnings
+        description: List only warning-type events for quick problem identification
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.namespace + "-event" }}
+          methodName: getWarnings
+
+  - name: diagnose-services
+    description: Automatically diagnose every discovered service — selector matching, endpoint health, port analysis
+    dependsOn:
+      - job: discover
+        condition:
+          type: completed
+    steps:
+      - name: diagnose-${{ self.svc.attributes.name }}
+        description: Diagnose service selector and port matching
+        allowFailure: true
+        forEach:
+          item: svc
+          in: ${{ data.findBySpec(inputs.namespace + "-service", "service") }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.namespace + "-service" }}
+          methodName: diagnoseService
+          inputs:
+            serviceName: ${{ self.svc.attributes.name }}
+
+  - name: diagnose-deployments
+    description: Check rollout status and ReplicaSet history for every discovered deployment
+    dependsOn:
+      - job: discover
+        condition:
+          type: completed
+    steps:
+      - name: rollout-${{ self.dep.attributes.name }}
+        description: Get deployment rollout status and conditions
+        allowFailure: true
+        forEach:
+          item: dep
+          in: ${{ data.findBySpec(inputs.namespace + "-deployment", "deployment") }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.namespace + "-deployment" }}
+          methodName: getRolloutStatus
+          inputs:
+            deploymentName: ${{ self.dep.attributes.name }}
+      - name: replicasets-${{ self.dep.attributes.name }}
+        description: Get deployment ReplicaSet history and revisions
+        allowFailure: true
+        forEach:
+          item: dep
+          in: ${{ data.findBySpec(inputs.namespace + "-deployment", "deployment") }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.namespace + "-deployment" }}
+          methodName: getReplicaSets
+          inputs:
+            deploymentName: ${{ self.dep.attributes.name }}
+
+  - name: inspect-netpols
+    description: Fetch full rule details for every discovered NetworkPolicy — selectors, ports, and CIDR blocks
+    dependsOn:
+      - job: discover
+        condition:
+          type: completed
+    steps:
+      - name: get-${{ self.pol.attributes.name }}
+        description: Inspect NetworkPolicy rules, selectors, and traffic configuration
+        allowFailure: true
+        forEach:
+          item: pol
+          in: ${{ data.findBySpec(inputs.namespace + "-netpol", "netpol") }}
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.namespace + "-netpol" }}
+          methodName: get
+          inputs:
+            policyName: ${{ self.pol.attributes.name }}
+
+  - name: summarize
+    description: >-
+      Final health roll-up. Runs the @swamp/kubernetes/namespace.health aggregator after
+      everything else — the resulting `namespaceHealth` data record carries a
+      single `healthy: bool` plus per-resource breakdown so callers don't need
+      to fan out across pods/deployments/services/events to verify state.
+    dependsOn:
+      - job: discover
+        condition:
+          type: completed
+      - job: diagnose-services
+        condition:
+          type: completed
+      - job: diagnose-deployments
+        condition:
+          type: completed
+      - job: inspect-netpols
+        condition:
+          type: completed
+    steps:
+      - name: health
+        description: Aggregated namespace health — one record summarising the whole namespace
+        allowFailure: true
+        task:
+          type: model_method
+          modelIdOrName: ${{ inputs.namespace + "-namespace" }}
+          methodName: health
+          inputs:
+            namespaceName: ${{ inputs.namespace }}

@@ -1,0 +1,18 @@
+{
+  "tasks": {
+    "check": "deno check extensions/models/",
+    "lint": "deno lint extensions/models/",
+    "fmt": "deno fmt extensions/models/",
+    "fmt:check": "deno fmt --check extensions/models/"
+  },
+  "lint": {
+    "rules": {
+      "exclude": ["no-import-prefix"]
+    }
+  },
+  "imports": {
+    "zod": "npm:zod@4.3.6",
+    "@kubernetes/client-node": "npm:@kubernetes/client-node@1.0.0",
+    "@systeminit/swamp-testing": "jsr:@systeminit/swamp-testing@0.20260521.16"
+  }
+}
