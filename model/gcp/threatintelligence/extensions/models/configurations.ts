@@ -195,6 +195,7 @@ const StateSchema = z.object({
     detailType: z.string(),
   }).optional(),
   displayName: z.string().optional(),
+  etag: z.string().optional(),
   name: z.string(),
   provider: z.string().optional(),
   state: z.string().optional(),
@@ -213,7 +214,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Threat Intelligence Configurations. Registered at `@swamp/gcp/threatintelligence/configurations`. */
 export const model = {
   type: "@swamp/gcp/threatintelligence/configurations",
-  version: "2026.05.25.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -282,6 +283,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -437,6 +443,7 @@ export const model = {
         description: z.any().optional(),
         detail: z.any().optional(),
         displayName: z.any().optional(),
+        etag: z.any().optional(),
         name: z.any().optional(),
         provider: z.any().optional(),
         state: z.any().optional(),
@@ -458,6 +465,7 @@ export const model = {
         if (args["displayName"] !== undefined) {
           body["displayName"] = args["displayName"];
         }
+        if (args["etag"] !== undefined) body["etag"] = args["etag"];
         if (args["name"] !== undefined) body["name"] = args["name"];
         if (args["provider"] !== undefined) body["provider"] = args["provider"];
         if (args["state"] !== undefined) body["state"] = args["state"];

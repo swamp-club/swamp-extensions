@@ -55,6 +55,9 @@ const GlobalArgsSchema = z.object({
     "Additional configuration when you specify SPOT as the purchase option.",
   ).optional(),
   SlurmConfiguration: z.object({
+    ScaleDownIdleTimeInSeconds: z.number().int().min(1).max(10000000).describe(
+      "The time before an idle node is scaled down.",
+    ).optional(),
     SlurmCustomSettings: z.array(SlurmCustomSettingSchema).describe(
       "Additional Slurm-specific configuration that directly maps to Slurm settings.",
     ).optional(),
@@ -118,6 +121,7 @@ const StateSchema = z.object({
     AllocationStrategy: z.string(),
   }).optional(),
   SlurmConfiguration: z.object({
+    ScaleDownIdleTimeInSeconds: z.number(),
     SlurmCustomSettings: z.array(SlurmCustomSettingSchema),
   }).optional(),
   SubnetIds: z.array(z.string()).optional(),
@@ -157,6 +161,9 @@ const InputsSchema = z.object({
     "Additional configuration when you specify SPOT as the purchase option.",
   ).optional(),
   SlurmConfiguration: z.object({
+    ScaleDownIdleTimeInSeconds: z.number().int().min(1).max(10000000).describe(
+      "The time before an idle node is scaled down.",
+    ).optional(),
     SlurmCustomSettings: z.array(SlurmCustomSettingSchema).describe(
       "Additional Slurm-specific configuration that directly maps to Slurm settings.",
     ).optional(),
@@ -212,7 +219,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for PCS ComputeNodeGroup. Registered at `@swamp/aws/pcs/compute-node-group`. */
 export const model = {
   type: "@swamp/aws/pcs/compute-node-group",
-  version: "2026.05.15.1",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -241,6 +248,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

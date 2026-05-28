@@ -104,7 +104,7 @@ const LIST_CONFIG = {
 
 const GlobalArgsSchema = z.object({
   dataTypes: z.array(z.string()).describe(
-    'Optional. Data types subscribed to. A subscriber will only receive notifications for data types that are declared here. A subscription can only subscribe to the data types of the subscriber. Supported data types are: "altitude", "distance", "floors", "sleep", "steps", "weight".',
+    'Optional. Data types subscribed to. A subscriber will only receive notifications for data types that are declared here. A subscription can only subscribe to the data types of the subscriber. The values should be in the format "users/{health_user_id}/dataTypes/{data_type}" where `{data_type}` is one of "altitude", "distance", "floors", "sleep", "steps", "weight".',
   ).optional(),
   user: z.string().describe(
     "Immutable. The resource name of the user for whom this subscription is active. Format: `users/{user}` where `{user}` is the public `healthUserId` as returned by the `GetIdentity` action in the profile PAPI (see `google.devicesandservices.health.v4main.HealthProfileService.GetIdentity`).",
@@ -130,7 +130,7 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   dataTypes: z.array(z.string()).describe(
-    'Optional. Data types subscribed to. A subscriber will only receive notifications for data types that are declared here. A subscription can only subscribe to the data types of the subscriber. Supported data types are: "altitude", "distance", "floors", "sleep", "steps", "weight".',
+    'Optional. Data types subscribed to. A subscriber will only receive notifications for data types that are declared here. A subscription can only subscribe to the data types of the subscriber. The values should be in the format "users/{health_user_id}/dataTypes/{data_type}" where `{data_type}` is one of "altitude", "distance", "floors", "sleep", "steps", "weight".',
   ).optional(),
   user: z.string().describe(
     "Immutable. The resource name of the user for whom this subscription is active. Format: `users/{user}` where `{user}` is the public `healthUserId` as returned by the `GetIdentity` action in the profile PAPI (see `google.devicesandservices.health.v4main.HealthProfileService.GetIdentity`).",
@@ -149,7 +149,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Health Subscribers.Subscriptions. Registered at `@swamp/gcp/health/subscribers-subscriptions`. */
 export const model = {
   type: "@swamp/gcp/health/subscribers-subscriptions",
-  version: "2026.05.27.1",
+  version: "2026.05.27.2",
+  upgrades: [
+    {
+      toVersion: "2026.05.27.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -369,7 +376,7 @@ export const model = {
       description: "List subscriptions resources",
       arguments: z.object({
         filter: z.string().describe(
-          'Optional. A filter to apply to the list of subscriptions. The filter syntax is described in https://google.aip.dev/160. The filter can be applied to the following fields: - `user` - `data_type` The `user` identifier (e.g., `user1` in `users/user1`) refers to the public `healthUserId` Example: user = "users/user1" Example: user = "users/user1" OR user = "users/user2" Example: user = "users/user1" AND (data_type = "sleep" OR data_type = "weight")',
+          'Optional. A filter to apply to the list of subscriptions. The filter syntax is described in https://google.aip.dev/160. The filter can be applied to the following fields: - `user` - `data_type` The `user` identifier (e.g., `user1` in `users/user1`) refers to the public `health_user_id` Example: user = "users/user1" Example: user = "users/user1" OR user = "users/user2" Example: user = "users/user1" AND (data_type = "sleep" OR data_type = "weight")',
         ).optional(),
         pageSize: z.number().describe(
           "Optional. The maximum number of subscriptions to return. The service may return fewer than this value. If unspecified, at most 50 subscriptions will be returned. The maximum value is 1000; values above 1000 will be coerced to 1000.",

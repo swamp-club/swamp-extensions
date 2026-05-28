@@ -50,11 +50,11 @@ const GlobalArgsSchema = z.object({
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
   TargetDomainName: z.string().describe("Domain name of the target domain"),
-  VerificationMethod: z.enum(["DNS_TXT", "HTTP_ROUTE"]).describe(
+  VerificationMethod: z.enum(["DNS_TXT", "HTTP_ROUTE", "PRIVATE_VPC"]).describe(
     "Verification method for the target domain",
   ),
   VerificationDetails: z.object({
-    Method: z.enum(["DNS_TXT", "HTTP_ROUTE"]).describe(
+    Method: z.enum(["DNS_TXT", "HTTP_ROUTE", "PRIVATE_VPC"]).describe(
       "Type of domain ownership verification method",
     ).optional(),
     DnsTxt: DnsVerificationSchema.describe(
@@ -73,6 +73,7 @@ const StateSchema = z.object({
   TargetDomainName: z.string().optional(),
   VerificationMethod: z.string().optional(),
   VerificationStatus: z.string().optional(),
+  VerificationStatusReason: z.string().optional(),
   VerificationDetails: z.object({
     Method: z.string(),
     DnsTxt: DnsVerificationSchema,
@@ -89,11 +90,11 @@ const InputsSchema = z.object({
   name: z.string().optional(),
   TargetDomainName: z.string().describe("Domain name of the target domain")
     .optional(),
-  VerificationMethod: z.enum(["DNS_TXT", "HTTP_ROUTE"]).describe(
+  VerificationMethod: z.enum(["DNS_TXT", "HTTP_ROUTE", "PRIVATE_VPC"]).describe(
     "Verification method for the target domain",
   ).optional(),
   VerificationDetails: z.object({
-    Method: z.enum(["DNS_TXT", "HTTP_ROUTE"]).describe(
+    Method: z.enum(["DNS_TXT", "HTTP_ROUTE", "PRIVATE_VPC"]).describe(
       "Type of domain ownership verification method",
     ).optional(),
     DnsTxt: DnsVerificationSchema.describe(
@@ -110,7 +111,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SecurityAgent TargetDomain. Registered at `@swamp/aws/securityagent/target-domain`. */
 export const model = {
   type: "@swamp/aws/securityagent/target-domain",
-  version: "2026.04.23.2",
+  version: "2026.05.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.3",
@@ -134,6 +135,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
