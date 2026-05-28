@@ -33,6 +33,19 @@ end-to-end with a single `swamp workflow run`.
 | Extension                                        | Description                                                                                              | Dependencies |
 | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | ------------ |
 | [`@swamp/cve/dirtyfrag`](cve/dirtyfrag/) | Detects and mitigates the Dirty Frag Linux privilege escalation (CVE-2026-43284 + CVE-2026-43500) | None (POSIX utilities + procfs/sysfs) |
+| [`@swamp/cve/mini-shai-hulud`](cve/mini-shai-hulud/) | Scans deno.lock and package-lock.json for npm packages compromised in the May 2026 "Mini Shai-Hulud" supply chain attack (317 packages) | None |
+
+## SSH Extension
+
+| Extension                    | Description                                                                                                                                                          | Dependencies |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| [`@swamp/ssh`](ssh/) | Run commands, copy files, and open port forwards across a declared set of hosts over SSH. Supports OpenSSH ControlMaster and Tailscale transports with CEL-based host selectors. | None (shells out to `ssh`, `scp`) |
+
+## Kubernetes Extension
+
+| Extension                                    | Description                                                                                                   | Dependencies              |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| [`@swamp/kubernetes`](kubernetes/) | Kubernetes operational toolkit — 15 model types covering pods, deployments, services, RBAC, storage, networking, autoscaling, batch jobs, and more. Includes 14 ready-to-run workflows for namespace debugging, security audits, RBAC analysis, cluster health, and operational diagnostics. | `@kubernetes/client-node` |
 
 ## Model Extensions (Auto-Generated)
 
@@ -71,6 +84,13 @@ swamp extension pull @swamp/gcs-datastore-bootstrap
 
 # CVE extensions
 swamp extension pull @swamp/cve/dirtyfrag
+swamp extension pull @swamp/cve/mini-shai-hulud
+
+# SSH
+swamp extension pull @swamp/ssh
+
+# Kubernetes
+swamp extension pull @swamp/kubernetes
 
 # Model extensions
 swamp extension pull @swamp/hetzner-cloud
