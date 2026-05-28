@@ -446,6 +446,12 @@ const GlobalArgsSchema = z.object({
         numNewerVersions: z.number().int().describe(
           "Relevant only for versioned objects. If the value is N, this condition is satisfied when there are at least N versions (including the live version) newer than this version of the object.",
         ).optional(),
+        sizeAboveBytes: z.string().describe(
+          "Objects having a size greater than this value in bytes will be matched.",
+        ).optional(),
+        sizeBelowBytes: z.string().describe(
+          "Objects having a size less than this value in bytes will be matched.",
+        ).optional(),
       }).describe("The condition(s) under which the action will be taken.")
         .optional(),
     })).describe(
@@ -890,6 +896,8 @@ const StateSchema = z.object({
         matchesSuffix: z.array(z.unknown()),
         noncurrentTimeBefore: z.string(),
         numNewerVersions: z.number(),
+        sizeAboveBytes: z.string(),
+        sizeBelowBytes: z.string(),
       }),
     })),
   }).optional(),
@@ -1199,6 +1207,12 @@ const InputsSchema = z.object({
         numNewerVersions: z.number().int().describe(
           "Relevant only for versioned objects. If the value is N, this condition is satisfied when there are at least N versions (including the live version) newer than this version of the object.",
         ).optional(),
+        sizeAboveBytes: z.string().describe(
+          "Objects having a size greater than this value in bytes will be matched.",
+        ).optional(),
+        sizeBelowBytes: z.string().describe(
+          "Objects having a size less than this value in bytes will be matched.",
+        ).optional(),
       }).describe("The condition(s) under which the action will be taken.")
         .optional(),
     })).describe(
@@ -1315,7 +1329,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Storage JSON Buckets. Registered at `@swamp/gcp/storage/buckets`. */
 export const model = {
   type: "@swamp/gcp/storage/buckets",
-  version: "2026.05.25.2",
+  version: "2026.05.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1394,6 +1408,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
