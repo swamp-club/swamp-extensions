@@ -694,7 +694,7 @@ jobs:
         run: |
           mkdir -p "${RUNNER_TEMP}/review"
           git fetch origin main
-          git diff --name-only origin/main..HEAD | grep -v '^model/' > ${RUNNER_TEMP}/review/changed-files.txt || true
+          git diff --name-only origin/main..HEAD > ${RUNNER_TEMP}/review/changed-files.txt || true
           COUNT=$(wc -l < ${RUNNER_TEMP}/review/changed-files.txt | tr -d ' ')
           echo "Changed files in scope: $COUNT"
           cat ${RUNNER_TEMP}/review/changed-files.txt
@@ -811,7 +811,7 @@ jobs:
         run: |
           mkdir -p "${RUNNER_TEMP}/review"
           git fetch origin main
-          git diff --name-only origin/main..HEAD | grep -v '^model/' > ${RUNNER_TEMP}/review/changed-files.txt || true
+          git diff --name-only origin/main..HEAD > ${RUNNER_TEMP}/review/changed-files.txt || true
           COUNT=$(wc -l < ${RUNNER_TEMP}/review/changed-files.txt | tr -d ' ')
           echo "Changed files in scope: $COUNT"
           cat ${RUNNER_TEMP}/review/changed-files.txt
