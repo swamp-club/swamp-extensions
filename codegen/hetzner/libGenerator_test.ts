@@ -4,12 +4,28 @@ import { generateHetznerLibFile } from "./libGenerator.ts";
 // The generated `_lib/hetzner.ts` is a string template. To exercise its runtime
 // behavior we write it to a temp file and dynamic-import it with a cache-busting
 // URL query so every test gets a fresh module instance (resets the
-// module-level `validatedToken` cache in getToken()).
+// module-level `validatedTokens` cache in getToken()).
 
 interface HetznerLib {
+  create: (
+    endpoint: string,
+    body: Record<string, unknown>,
+    token?: string,
+  ) => Promise<Record<string, unknown>>;
+  read: (
+    endpoint: string,
+    id: number | string,
+    token?: string,
+  ) => Promise<Record<string, unknown>>;
+  listAll: (
+    endpoint: string,
+    queryParams?: Record<string, string>,
+    token?: string,
+  ) => Promise<Record<string, unknown>[]>;
   remove: (
     endpoint: string,
     id: number | string,
+    token?: string,
   ) => Promise<{ existed: boolean }>;
 }
 
@@ -68,6 +84,30 @@ async function withFetchQueue(
   }) as typeof fetch;
   try {
     await fn();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+/**
+ * Replaces globalThis.fetch with a request router and records every request so
+ * tests can assert on headers, URLs, and call counts. The handler decides the
+ * response per request (e.g. answer /locations, paginate /servers). Always
+ * restores the original fetch in `finally`.
+ */
+async function withFetchRouter(
+  handler: (req: Request) => Response | Promise<Response>,
+  fn: (calls: Request[]) => Promise<void>,
+): Promise<void> {
+  const originalFetch = globalThis.fetch;
+  const calls: Request[] = [];
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+    const req = input instanceof Request ? input : new Request(input, init);
+    calls.push(req);
+    return Promise.resolve(handler(req));
+  }) as typeof fetch;
+  try {
+    await fn(calls);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -295,6 +335,149 @@ Deno.test("remove: surfaces non-422 non-404 error through request() (e.g. 500)",
           "returned 500",
         );
         assertStringIncludes(err.message, "service_error");
+      },
+    );
+  } finally {
+    await cleanup();
+    restoreToken();
+  }
+});
+
+Deno.test("getToken: an explicit token overrides the HETZNER_API_TOKEN env var", async () => {
+  const restoreToken = withTestToken(); // sets env token to "test-token"
+  const { mod, cleanup } = await importFreshHetznerLib();
+  try {
+    await withFetchRouter(
+      (req) =>
+        req.url.endsWith("/locations")
+          ? okLocations()
+          : jsonResponse(200, { server: { id: 1, name: "web" } }),
+      async (calls) => {
+        await mod.create("/servers", { name: "web" }, "explicit-token");
+        // Both the validation call and the create call use the explicit token,
+        // never the env var value.
+        assertEquals(calls.length, 2);
+        for (const req of calls) {
+          assertEquals(
+            req.headers.get("Authorization"),
+            "Bearer explicit-token",
+          );
+        }
+      },
+    );
+  } finally {
+    await cleanup();
+    restoreToken();
+  }
+});
+
+Deno.test("getToken: each distinct token is validated exactly once (no leakage)", async () => {
+  const restoreToken = withTestToken();
+  const { mod, cleanup } = await importFreshHetznerLib();
+  try {
+    await withFetchRouter(
+      (req) =>
+        req.url.endsWith("/locations")
+          ? okLocations()
+          : jsonResponse(200, { server: { id: 1 } }),
+      async (calls) => {
+        await mod.create("/servers", {}, "token-a");
+        await mod.create("/servers", {}, "token-a"); // cached — no re-validation
+        await mod.create("/servers", {}, "token-b");
+        const validations = calls.filter((r) => r.url.endsWith("/locations"));
+        assertEquals(validations.length, 2); // token-a once, token-b once
+        assertEquals(
+          validations[0].headers.get("Authorization"),
+          "Bearer token-a",
+        );
+        assertEquals(
+          validations[1].headers.get("Authorization"),
+          "Bearer token-b",
+        );
+      },
+    );
+  } finally {
+    await cleanup();
+    restoreToken();
+  }
+});
+
+Deno.test("listAll: sends label_selector and pagination as query params", async () => {
+  const restoreToken = withTestToken();
+  const { mod, cleanup } = await importFreshHetznerLib();
+  try {
+    await withFetchRouter(
+      (req) =>
+        req.url.endsWith("/locations") ? okLocations() : jsonResponse(200, {
+          servers: [{ id: 1, name: "web" }],
+          meta: { pagination: { next_page: null } },
+        }),
+      async (calls) => {
+        const items = await mod.listAll(
+          "/servers",
+          { label_selector: "env=prod" },
+          "t",
+        );
+        assertEquals(items.length, 1);
+        const listCall = calls.find((r) => r.url.includes("/servers"))!;
+        const url = new URL(listCall.url);
+        assertEquals(url.searchParams.get("label_selector"), "env=prod");
+        assertEquals(url.searchParams.get("per_page"), "50");
+        assertEquals(url.searchParams.get("page"), "1");
+      },
+    );
+  } finally {
+    await cleanup();
+    restoreToken();
+  }
+});
+
+Deno.test("listAll: follows meta.pagination.next_page and accumulates every item", async () => {
+  const restoreToken = withTestToken();
+  const { mod, cleanup } = await importFreshHetznerLib();
+  try {
+    await withFetchRouter(
+      (req) => {
+        if (req.url.endsWith("/locations")) return okLocations();
+        const page = new URL(req.url).searchParams.get("page");
+        return page === "1"
+          ? jsonResponse(200, {
+            servers: [{ id: 1 }, { id: 2 }],
+            meta: { pagination: { next_page: 2 } },
+          })
+          : jsonResponse(200, {
+            servers: [{ id: 3 }],
+            meta: { pagination: { next_page: null } },
+          });
+      },
+      async (calls) => {
+        const items = await mod.listAll("/servers", undefined, "t");
+        assertEquals(items.map((i) => i.id), [1, 2, 3]);
+        const pageCalls = calls.filter((r) => r.url.includes("page="));
+        assertEquals(pageCalls.length, 2); // followed exactly one next_page
+      },
+    );
+  } finally {
+    await cleanup();
+    restoreToken();
+  }
+});
+
+Deno.test("listAll: surfaces a non-OK page response as an error", async () => {
+  const restoreToken = withTestToken();
+  const { mod, cleanup } = await importFreshHetznerLib();
+  try {
+    await withFetchRouter(
+      (req) =>
+        req.url.endsWith("/locations")
+          ? okLocations()
+          : new Response('{"error":{"code":"unauthorized"}}', { status: 401 }),
+      async () => {
+        await assertRejects(
+          () => mod.listAll("/servers", undefined, "t"),
+          Error,
+          "returned 401",
+        );
       },
     );
   } finally {

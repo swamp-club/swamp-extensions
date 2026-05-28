@@ -13,7 +13,14 @@
  */
 
 import { z } from "npm:zod@4.3.6";
-import { create, read, remove, tryRead, update } from "./_lib/hetzner.ts";
+import {
+  create,
+  listAll,
+  read,
+  remove,
+  tryRead,
+  update,
+} from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("Name of the [Network](#tag/networks)."),
@@ -37,6 +44,9 @@ const GlobalArgsSchema = z.object({
     gateway: z.string(),
   })).describe("Array of routes set in this [Network](#tag/networks).")
     .optional(),
+  token: z.string().meta({ sensitive: true }).describe(
+    "Hetzner API token; overrides the HETZNER_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -81,12 +91,13 @@ const InputsSchema = z.object({
     destination: z.string(),
     gateway: z.string(),
   })).optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Hetzner Cloud network. Registered at `@swamp/hetzner-cloud/networks`. */
 export const model = {
   type: "@swamp/hetzner-cloud/networks",
-  version: "2026.04.23.4",
+  version: "2026.05.28.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -123,6 +134,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.28.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -149,7 +165,7 @@ export const model = {
         if (g.expose_routes_to_vswitch !== undefined) {
           body.expose_routes_to_vswitch = g.expose_routes_to_vswitch;
         }
-        const result = await create("/networks", body) as ResourceData;
+        const result = await create("/networks", body, g.token) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -168,7 +184,11 @@ export const model = {
         id: z.number().int().describe("The ID of the network"),
       }),
       execute: async (args: { id: number }, context: any) => {
-        const result = await read("/networks", args.id) as ResourceData;
+        const result = await read(
+          "/networks",
+          args.id,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -205,6 +225,7 @@ export const model = {
           "/networks",
           existing.id,
           body,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -220,7 +241,11 @@ export const model = {
         id: z.number().int().describe("The ID of the network"),
       }),
       execute: async (args: { id: number }, context: any) => {
-        const { existed } = await remove("/networks", args.id);
+        const { existed } = await remove(
+          "/networks",
+          args.id,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -253,7 +278,7 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/networks", existing.id) as
+        const result = await tryRead("/networks", existing.id, g.token) as
           | ResourceData
           | null;
         if (result) {
@@ -270,6 +295,42 @@ export const model = {
           syncedAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
+      },
+    },
+    list: {
+      description:
+        "List networks, optionally filtered by a Hetzner label selector",
+      arguments: z.object({
+        label_selector: z.string().describe(
+          "Hetzner label selector to filter results, e.g. env=production,role!=db",
+        ).optional(),
+      }),
+      execute: async (args: { label_selector?: string }, context: any) => {
+        const g = context.globalArgs;
+        const queryParams: Record<string, string> = {};
+        if (args.label_selector !== undefined) {
+          queryParams.label_selector = args.label_selector;
+        }
+        const items = await listAll(
+          "/networks",
+          queryParams,
+          g.token,
+        ) as ResourceData[];
+        const dataHandles: any[] = [];
+        for (const item of items) {
+          const instanceName =
+            (item.name?.toString() ?? item.id?.toString() ?? "unknown").replace(
+              /[\/\\]/g,
+              "_",
+            ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length } };
       },
     },
   },

@@ -13,7 +13,14 @@
  */
 
 import { z } from "npm:zod@4.3.6";
-import { create, read, remove, tryRead, update } from "./_lib/hetzner.ts";
+import {
+  create,
+  listAll,
+  read,
+  remove,
+  tryRead,
+  update,
+} from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("Name of the Certificate."),
@@ -31,6 +38,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   domain_names: z.array(z.string()).describe(
     "Domains and subdomains that should be contained in the Certificate issued by *Let's Encrypt*. Required for type `managed` Certificates.",
+  ).optional(),
+  token: z.string().meta({ sensitive: true }).describe(
+    "Hetzner API token; overrides the HETZNER_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
 });
 
@@ -68,12 +78,13 @@ const InputsSchema = z.object({
   certificate: z.string().optional(),
   private_key: z.string().optional(),
   domain_names: z.array(z.string()).optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Hetzner Cloud certificate. Registered at `@swamp/hetzner-cloud/certificates`. */
 export const model = {
   type: "@swamp/hetzner-cloud/certificates",
-  version: "2026.04.23.4",
+  version: "2026.05.28.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -110,6 +121,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.28.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -134,7 +150,11 @@ export const model = {
         if (g.certificate !== undefined) body.certificate = g.certificate;
         if (g.private_key !== undefined) body.private_key = g.private_key;
         if (g.domain_names !== undefined) body.domain_names = g.domain_names;
-        const result = await create("/certificates", body) as ResourceData;
+        const result = await create(
+          "/certificates",
+          body,
+          g.token,
+        ) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -153,7 +173,11 @@ export const model = {
         id: z.number().int().describe("The ID of the certificate"),
       }),
       execute: async (args: { id: number }, context: any) => {
-        const result = await read("/certificates", args.id) as ResourceData;
+        const result = await read(
+          "/certificates",
+          args.id,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -187,6 +211,7 @@ export const model = {
           "/certificates",
           existing.id,
           body,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -202,7 +227,11 @@ export const model = {
         id: z.number().int().describe("The ID of the certificate"),
       }),
       execute: async (args: { id: number }, context: any) => {
-        const { existed } = await remove("/certificates", args.id);
+        const { existed } = await remove(
+          "/certificates",
+          args.id,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -235,7 +264,7 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/certificates", existing.id) as
+        const result = await tryRead("/certificates", existing.id, g.token) as
           | ResourceData
           | null;
         if (result) {
@@ -252,6 +281,42 @@ export const model = {
           syncedAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
+      },
+    },
+    list: {
+      description:
+        "List certificates, optionally filtered by a Hetzner label selector",
+      arguments: z.object({
+        label_selector: z.string().describe(
+          "Hetzner label selector to filter results, e.g. env=production,role!=db",
+        ).optional(),
+      }),
+      execute: async (args: { label_selector?: string }, context: any) => {
+        const g = context.globalArgs;
+        const queryParams: Record<string, string> = {};
+        if (args.label_selector !== undefined) {
+          queryParams.label_selector = args.label_selector;
+        }
+        const items = await listAll(
+          "/certificates",
+          queryParams,
+          g.token,
+        ) as ResourceData[];
+        const dataHandles: any[] = [];
+        for (const item of items) {
+          const instanceName =
+            (item.name?.toString() ?? item.id?.toString() ?? "unknown").replace(
+              /[\/\\]/g,
+              "_",
+            ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length } };
       },
     },
   },

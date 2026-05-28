@@ -1,4 +1,5 @@
 import { assertSnapshot } from "@std/testing/snapshot";
+import { assert, assertStringIncludes } from "@std/assert";
 import { generateHetznerExtensionModel } from "./extensionModelGenerator.ts";
 import type { HetznerProperty, HetznerResource } from "./pipeline.ts";
 
@@ -14,7 +15,13 @@ function makeResource(
     updateProperties: {},
     resourceProperties: {},
     requiredProperties: [],
-    handlers: { create: true, read: true, update: true, delete: true },
+    handlers: {
+      create: true,
+      read: true,
+      update: true,
+      delete: true,
+      list: true,
+    },
     identifyingField: "id",
     ...overrides,
   };
@@ -80,7 +87,13 @@ Deno.test("generateHetznerExtensionModel - read-only (no update, no delete)", as
     noun: "zones",
     modelSlug: "zones",
     fileName: "zones.ts",
-    handlers: { create: true, read: true, update: false, delete: false },
+    handlers: {
+      create: true,
+      read: true,
+      update: false,
+      delete: false,
+      list: true,
+    },
     createProperties: {
       name: { type: "string", description: "Zone name" },
       ttl: { type: "integer", description: "TTL" },
@@ -133,7 +146,13 @@ Deno.test("generateHetznerExtensionModel - synthetic name", async (t) => {
       },
     },
     requiredProperties: ["type", "assignee_type"],
-    handlers: { create: true, read: true, update: false, delete: true },
+    handlers: {
+      create: true,
+      read: true,
+      update: false,
+      delete: true,
+      list: true,
+    },
   });
 
   await assertSnapshot(
@@ -144,6 +163,105 @@ Deno.test("generateHetznerExtensionModel - synthetic name", async (t) => {
       version: "2026.01.01.1",
     }),
   );
+});
+
+// ---------------------------------------------------------------------------
+// Behavior assertions: token auth arg, list method, validation preserved
+// ---------------------------------------------------------------------------
+
+function serversResource(
+  handlers?: Partial<HetznerResource["handlers"]>,
+): HetznerResource {
+  return makeResource({
+    noun: "servers",
+    modelSlug: "servers",
+    fileName: "servers.ts",
+    createProperties: {
+      name: { type: "string", description: "Name of the server" },
+      server_type: { type: "string", description: "Server type" },
+      image: { type: "string", description: "Image" },
+    },
+    updateProperties: {
+      name: { type: "string", description: "New name for the server" },
+    },
+    resourceProperties: { id: intProp, name: stringProp },
+    requiredProperties: ["name", "server_type", "image"],
+    handlers: {
+      create: true,
+      read: true,
+      update: true,
+      delete: true,
+      list: true,
+      ...handlers,
+    },
+  });
+}
+
+function generateServers(handlers?: Partial<HetznerResource["handlers"]>) {
+  return generateHetznerExtensionModel({
+    resource: serversResource(handlers),
+    extensionName: "@swamp/hetzner-cloud",
+    version: "2026.01.01.1",
+  });
+}
+
+Deno.test("emits an optional, sensitive token global argument", () => {
+  const out = generateServers();
+  assertStringIncludes(out, "token: z.string().meta({ sensitive: true })");
+  // present in both GlobalArgsSchema (described) and InputsSchema (bare optional)
+  assertStringIncludes(
+    out,
+    "token: z.string().meta({ sensitive: true }).optional(),",
+  );
+});
+
+Deno.test("threads the token into every lib call but never the request body", () => {
+  const out = generateServers();
+  // auth-only: must never be serialized into a create/update body
+  assert(
+    !out.includes("body.token"),
+    "token must never be assigned into a request body",
+  );
+  // threaded as the trailing auth arg on each helper
+  assertStringIncludes(out, 'create("/servers", body, g.token)');
+  assertStringIncludes(
+    out,
+    'read("/servers", args.id, context.globalArgs.token)',
+  );
+  assertStringIncludes(out, 'update("/servers", existing.id, body, g.token)');
+  assertStringIncludes(
+    out,
+    'remove("/servers", args.id, context.globalArgs.token)',
+  );
+  assertStringIncludes(out, 'tryRead("/servers", existing.id, g.token)');
+});
+
+Deno.test("emits a list method when handlers.list is true", () => {
+  const out = generateServers({ list: true });
+  assertStringIncludes(out, "list: {");
+  assertStringIncludes(out, 'listAll("/servers", queryParams, g.token)');
+  assertStringIncludes(out, "label_selector");
+  assertStringIncludes(out, "result: { count: items.length }");
+});
+
+Deno.test("omits the list method when handlers.list is false", () => {
+  const out = generateServers({ list: false });
+  assert(!out.includes("list: {"), "no list method should be emitted");
+  assert(!out.includes("listAll"), "listAll should not be imported or called");
+});
+
+Deno.test("preserves create-required args as required (validation not weakened)", () => {
+  const out = generateServers();
+  const gas = out.slice(
+    out.indexOf("const GlobalArgsSchema"),
+    out.indexOf("const ResourceSchema"),
+  );
+  // required create props keep no `.optional()` in GlobalArgsSchema
+  assertStringIncludes(gas, `name: z.string().describe("Name of the server"),`);
+  assertStringIncludes(gas, `server_type: z.string().describe("Server type"),`);
+  assertStringIncludes(gas, `image: z.string().describe("Image"),`);
+  // the only optional addition is the auth token
+  assertStringIncludes(gas, "token: z.string().meta({ sensitive: true })");
 });
 
 // ---------------------------------------------------------------------------

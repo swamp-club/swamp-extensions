@@ -13,7 +13,14 @@
  */
 
 import { z } from "npm:zod@4.3.6";
-import { create, read, remove, tryRead, update } from "./_lib/hetzner.ts";
+import {
+  create,
+  listAll,
+  read,
+  remove,
+  tryRead,
+  update,
+} from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("Name of the SSH key."),
@@ -21,6 +28,9 @@ const GlobalArgsSchema = z.object({
     'User-defined labels (`key/value` pairs) for the Resource.\nFor more information, see "[Labels](#description/labels)".\n',
   ).optional(),
   public_key: z.string().describe("Public key."),
+  token: z.string().meta({ sensitive: true }).describe(
+    "Hetzner API token; overrides the HETZNER_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -38,12 +48,13 @@ const InputsSchema = z.object({
   name: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   public_key: z.string().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Hetzner Cloud ssh key. Registered at `@swamp/hetzner-cloud/ssh-keys`. */
 export const model = {
   type: "@swamp/hetzner-cloud/ssh-keys",
-  version: "2026.04.23.4",
+  version: "2026.05.28.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -80,6 +91,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.28.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -101,7 +117,7 @@ export const model = {
         if (g.name !== undefined) body.name = g.name;
         if (g.public_key !== undefined) body.public_key = g.public_key;
         if (g.labels !== undefined) body.labels = g.labels;
-        const result = await create("/ssh_keys", body) as ResourceData;
+        const result = await create("/ssh_keys", body, g.token) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -120,7 +136,11 @@ export const model = {
         id: z.number().int().describe("The ID of the ssh key"),
       }),
       execute: async (args: { id: number }, context: any) => {
-        const result = await read("/ssh_keys", args.id) as ResourceData;
+        const result = await read(
+          "/ssh_keys",
+          args.id,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -154,6 +174,7 @@ export const model = {
           "/ssh_keys",
           existing.id,
           body,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -169,7 +190,11 @@ export const model = {
         id: z.number().int().describe("The ID of the ssh key"),
       }),
       execute: async (args: { id: number }, context: any) => {
-        const { existed } = await remove("/ssh_keys", args.id);
+        const { existed } = await remove(
+          "/ssh_keys",
+          args.id,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -202,7 +227,7 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/ssh_keys", existing.id) as
+        const result = await tryRead("/ssh_keys", existing.id, g.token) as
           | ResourceData
           | null;
         if (result) {
@@ -219,6 +244,42 @@ export const model = {
           syncedAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
+      },
+    },
+    list: {
+      description:
+        "List ssh keys, optionally filtered by a Hetzner label selector",
+      arguments: z.object({
+        label_selector: z.string().describe(
+          "Hetzner label selector to filter results, e.g. env=production,role!=db",
+        ).optional(),
+      }),
+      execute: async (args: { label_selector?: string }, context: any) => {
+        const g = context.globalArgs;
+        const queryParams: Record<string, string> = {};
+        if (args.label_selector !== undefined) {
+          queryParams.label_selector = args.label_selector;
+        }
+        const items = await listAll(
+          "/ssh_keys",
+          queryParams,
+          g.token,
+        ) as ResourceData[];
+        const dataHandles: any[] = [];
+        for (const item of items) {
+          const instanceName =
+            (item.name?.toString() ?? item.id?.toString() ?? "unknown").replace(
+              /[\/\\]/g,
+              "_",
+            ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length } };
       },
     },
   },

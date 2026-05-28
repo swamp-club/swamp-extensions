@@ -534,26 +534,84 @@ export const model = {
     update: { ... },                       // if PUT exists
     delete: { ... },                       // if DELETE exists
     sync: { ... },                         // always present
+    list: { ... },                         // if a collection GET exists
   },
 };
 ```
 
+### Authentication and the `token` global argument
+
+Every model carries an optional `token` global argument, emitted with
+`z.string().meta({ sensitive: true }).optional()`. It lets users wire the API
+token from a vault — `token: ${{ vault.get(my-vault, hcloud-token) }}` — instead
+of exporting `HETZNER_API_TOKEN` into the shell. The `token` argument:
+
+- Takes precedence over the `HETZNER_API_TOKEN` env var when set.
+- Is **auth-only**: it is never written into a create/update request body — it
+  is threaded as a trailing argument to each lib helper, not iterated from
+  `createProperties`/`updateProperties`.
+- Is injected unless the resource already has a real property named `token`
+  (collision guard in `extensionModelGenerator.ts`).
+- Is mirrored into the `newFieldNames` list the pipeline feeds to
+  `computeUpgradesBlock`. The generator injects `token` into the emitted
+  `GlobalArgsSchema`, so the upgrade differ must also see it — otherwise the
+  next changed regeneration would read `token` from the committed schema, miss
+  it in `newFieldNames`, and emit a spurious `Removed: token` upgrade entry with
+  a destructive `upgradeAttributes`.
+
+Vault expressions are resolved by swamp's expression engine before the value
+reaches the model, so vault-sourced auth works regardless of the `sensitive`
+flag. `sensitive` is additional hardening: swamp-core redacts sensitive field
+values from run logs and reports and vaults them on write. (It does not
+currently redact `swamp model get` output — but a vault-sourced arg is stored
+there as the `vault.get(...)` expression, not the resolved secret, so nothing
+leaks for the recommended path.)
+
+### The `list` method
+
+A `list` method is generated for every resource whose collection path supports
+GET (detected as `handlers.list` in the pipeline — a GET on the non-`{id}`
+path). It takes an optional `label_selector` method argument, calls the
+paginated `listAll()` lib helper, and writes **one `state` resource per item**
+using the factory naming field (sanitized, with an `id` fallback for
+synthetic-name resources). It returns `{ dataHandles, result: { count } }`.
+
+`list` writes to the same `state` resource kind that `create`/`get`/`update`/
+`sync` manage — matching the GCP provider's list factory rather than a separate
+discovery kind. This is safe because a model can be instantiated for discovery
+without supplying create-required global arguments: swamp does not enforce
+required `globalArguments` at model-instantiation time (verified against
+`swamp model validate`), only the methods that consume them do. No
+"optional-everywhere" schema relaxation is needed, so the CRUD models' required
+markers are preserved unchanged.
+
 ### Shared lib (`_lib/hetzner.ts`)
 
-Exports: `create`, `read`, `tryRead`, `update`, `remove`
+Exports: `create`, `read`, `tryRead`, `listAll`, `update`, `remove`
 
 Key behaviors:
 
-- Token is read from `HETZNER_API_TOKEN` env var
-- Token is validated once against `GET /v1/locations` and cached
+- The token is resolved by `getToken(explicitToken?)`: an explicit token (from a
+  model's `token` global arg) takes precedence over the `HETZNER_API_TOKEN` env
+  var
+- Validated tokens are cached in a `Set<string>` so each distinct token (env var
+  or per-model) is validated against `GET /v1/locations` exactly once, with no
+  cross-model leakage
+- Every CRUD helper accepts an optional trailing `token` argument, threaded into
+  `request()` and on to `getToken()`
 - 404 responses are not thrown as errors (callers handle them)
-- `request()` accepts an optional `{ allowStatus: number[] }` option so callers
-  can opt specific non-OK statuses through as a `Response` instead of a thrown
-  `Error` — generalizes the built-in 404 special-case
+- `request()` accepts an optional `{ allowStatus, queryParams, token }` option:
+  `allowStatus` opts specific non-OK statuses through as a `Response` instead of
+  a thrown `Error` (generalizes the built-in 404 special-case); `queryParams`
+  are applied to the URL via `URL.searchParams`
+- `listAll()` paginates a collection endpoint, following
+  `meta.pagination.next_page` (per_page=50) until exhausted, accumulating every
+  item; a bounded page guard logs and returns the partial result rather than
+  silently truncating or looping forever on a malformed `next_page`
 - All other non-OK responses throw with method, path, status, and body
-- Response bodies are unwrapped via the `unwrap()` function (see Section 7)
+- Response bodies are unwrapped via `unwrap()` (single object) or `unwrapList()`
+  (collection arrays) — see Section 7
 - No `subResourceUpdate` or `discover` exports (Hetzner doesn't need them)
-- No `queryParams` support (Hetzner CRUD doesn't use query parameters)
 
 #### `remove()` retry on `resource_in_use` (swamp-club #41)
 

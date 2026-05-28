@@ -16,12 +16,13 @@ snapshot[`generateHetznerExtensionModel - all handlers, natural name 1`] = `
  */
 
 import { z } from "npm:zod@4.3.6";
-import { create, read, tryRead, remove, update } from "./_lib/hetzner.ts";
+import { create, read, tryRead, remove, update, listAll } from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("Name of the server"),
   server_type: z.string().describe("ID or name of the server type"),
   image: z.string().describe("ID or name of the image"),
+  token: z.string().meta({ sensitive: true }).describe("Hetzner API token; overrides the HETZNER_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
 });
 
 const ResourceSchema = z.object({
@@ -45,6 +46,7 @@ const InputsSchema = z.object({
   name: z.string().optional(),
   server_type: z.string().optional(),
   image: z.string().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Hetzner Cloud server. Registered at \`@swamp/hetzner-cloud/servers\`. */
@@ -71,7 +73,7 @@ export const model = {
         if (g.name !== undefined) body.name = g.name;
         if (g.server_type !== undefined) body.server_type = g.server_type;
         if (g.image !== undefined) body.image = g.image;
-        const result = await create("/servers", body) as ResourceData;
+        const result = await create("/servers", body, g.token) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -81,7 +83,7 @@ export const model = {
       description: "Get a server",
       arguments: z.object({ id: z.number().int().describe("The ID of the server") }),
       execute: async (args: { id: number }, context: any) => {
-        const result = await read("/servers", args.id) as ResourceData;
+        const result = await read("/servers", args.id, context.globalArgs.token) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString()).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -100,7 +102,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
-        const result = await update("/servers", existing.id, body) as ResourceData;
+        const result = await update("/servers", existing.id, body, g.token) as ResourceData;
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -109,7 +111,7 @@ export const model = {
       description: "Delete the server",
       arguments: z.object({ id: z.number().int().describe("The ID of the server") }),
       execute: async (args: { id: number }, context: any) => {
-        const { existed } = await remove("/servers", args.id);
+        const { existed } = await remove("/servers", args.id, context.globalArgs.token);
         const instanceName = (context.globalArgs.name?.toString() ?? args.id.toString()).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           id: args.id,
@@ -131,7 +133,7 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/servers", existing.id) as ResourceData | null;
+        const result = await tryRead("/servers", existing.id, g.token) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
@@ -142,6 +144,23 @@ export const model = {
           syncedAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
+      },
+    },
+    list: {
+      description: "List servers, optionally filtered by a Hetzner label selector",
+      arguments: z.object({ label_selector: z.string().describe("Hetzner label selector to filter results, e.g. env=production,role!=db").optional() }),
+      execute: async (args: { label_selector?: string }, context: any) => {
+        const g = context.globalArgs;
+        const queryParams: Record<string, string> = {};
+        if (args.label_selector !== undefined) queryParams.label_selector = args.label_selector;
+        const items = await listAll("/servers", queryParams, g.token) as ResourceData[];
+        const dataHandles: any[] = [];
+        for (const item of items) {
+          const instanceName = (item.name?.toString() ?? item.id?.toString() ?? "unknown").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+          const handle = await context.writeResource("state", instanceName, item);
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length } };
       },
     },
   },
@@ -165,11 +184,12 @@ snapshot[`generateHetznerExtensionModel - read-only (no update, no delete) 1`] =
  */
 
 import { z } from "npm:zod@4.3.6";
-import { create, read, tryRead } from "./_lib/hetzner.ts";
+import { create, read, tryRead, listAll } from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("Zone name"),
   ttl: z.number().int().describe("TTL").optional(),
+  token: z.string().meta({ sensitive: true }).describe("Hetzner API token; overrides the HETZNER_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
 });
 
 const ResourceSchema = z.object({
@@ -184,6 +204,7 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 const InputsSchema = z.object({
   name: z.string().optional(),
   ttl: z.number().int().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Hetzner Cloud zone. Registered at \`@swamp/hetzner-cloud/zones\`. */
@@ -209,7 +230,7 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
         if (g.ttl !== undefined) body.ttl = g.ttl;
-        const result = await create("/zones", body) as ResourceData;
+        const result = await create("/zones", body, g.token) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -219,7 +240,7 @@ export const model = {
       description: "Get a zone",
       arguments: z.object({ id: z.number().int().describe("The ID of the zone") }),
       execute: async (args: { id: number }, context: any) => {
-        const result = await read("/zones", args.id) as ResourceData;
+        const result = await read("/zones", args.id, context.globalArgs.token) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString()).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -236,7 +257,7 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/zones", existing.id) as ResourceData | null;
+        const result = await tryRead("/zones", existing.id, g.token) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
@@ -247,6 +268,23 @@ export const model = {
           syncedAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
+      },
+    },
+    list: {
+      description: "List zones, optionally filtered by a Hetzner label selector",
+      arguments: z.object({ label_selector: z.string().describe("Hetzner label selector to filter results, e.g. env=production,role!=db").optional() }),
+      execute: async (args: { label_selector?: string }, context: any) => {
+        const g = context.globalArgs;
+        const queryParams: Record<string, string> = {};
+        if (args.label_selector !== undefined) queryParams.label_selector = args.label_selector;
+        const items = await listAll("/zones", queryParams, g.token) as ResourceData[];
+        const dataHandles: any[] = [];
+        for (const item of items) {
+          const instanceName = (item.name?.toString() ?? item.id?.toString() ?? "unknown").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+          const handle = await context.writeResource("state", instanceName, item);
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length } };
       },
     },
   },
@@ -270,13 +308,14 @@ snapshot[`generateHetznerExtensionModel - synthetic name 1`] = `
  */
 
 import { z } from "npm:zod@4.3.6";
-import { create, read, tryRead, remove } from "./_lib/hetzner.ts";
+import { create, read, tryRead, remove, listAll } from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),
   type: z.enum(["ipv4", "ipv6"]).describe("IP type (ipv4 or ipv6)"),
   datacenter: z.string().describe("Datacenter name").optional(),
   assignee_type: z.string().describe("Resource type (server)"),
+  token: z.string().meta({ sensitive: true }).describe("Hetzner API token; overrides the HETZNER_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
 });
 
 const ResourceSchema = z.object({
@@ -296,6 +335,7 @@ const InputsSchema = z.object({
   type: z.enum(["ipv4", "ipv6"]).optional(),
   datacenter: z.string().optional(),
   assignee_type: z.string().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Hetzner Cloud primary ip. Registered at \`@swamp/hetzner-cloud/primary-ips\`. */
@@ -322,7 +362,7 @@ export const model = {
         if (g.type !== undefined) body.type = g.type;
         if (g.datacenter !== undefined) body.datacenter = g.datacenter;
         if (g.assignee_type !== undefined) body.assignee_type = g.assignee_type;
-        const result = await create("/primary_ips", body) as ResourceData;
+        const result = await create("/primary_ips", body, g.token) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -332,7 +372,7 @@ export const model = {
       description: "Get a primary ip",
       arguments: z.object({ id: z.number().int().describe("The ID of the primary ip") }),
       execute: async (args: { id: number }, context: any) => {
-        const result = await read("/primary_ips", args.id) as ResourceData;
+        const result = await read("/primary_ips", args.id, context.globalArgs.token) as ResourceData;
         const instanceName = (context.globalArgs.name?.toString() ?? args.id.toString()).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -342,7 +382,7 @@ export const model = {
       description: "Delete the primary ip",
       arguments: z.object({ id: z.number().int().describe("The ID of the primary ip") }),
       execute: async (args: { id: number }, context: any) => {
-        const { existed } = await remove("/primary_ips", args.id);
+        const { existed } = await remove("/primary_ips", args.id, context.globalArgs.token);
         const instanceName = (context.globalArgs.name?.toString() ?? args.id.toString()).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           id: args.id,
@@ -364,7 +404,7 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/primary_ips", existing.id) as ResourceData | null;
+        const result = await tryRead("/primary_ips", existing.id, g.token) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
@@ -375,6 +415,23 @@ export const model = {
           syncedAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
+      },
+    },
+    list: {
+      description: "List primary ips, optionally filtered by a Hetzner label selector",
+      arguments: z.object({ label_selector: z.string().describe("Hetzner label selector to filter results, e.g. env=production,role!=db").optional() }),
+      execute: async (args: { label_selector?: string }, context: any) => {
+        const g = context.globalArgs;
+        const queryParams: Record<string, string> = {};
+        if (args.label_selector !== undefined) queryParams.label_selector = args.label_selector;
+        const items = await listAll("/primary_ips", queryParams, g.token) as ResourceData[];
+        const dataHandles: any[] = [];
+        for (const item of items) {
+          const instanceName = (item.id?.toString() ?? "unknown").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+          const handle = await context.writeResource("state", instanceName, item);
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length } };
       },
     },
   },
@@ -398,11 +455,12 @@ snapshot[`generateHetznerExtensionModel - label-based naming 1`] = `
  */
 
 import { z } from "npm:zod@4.3.6";
-import { create, read, tryRead, remove, update } from "./_lib/hetzner.ts";
+import { create, read, tryRead, remove, update, listAll } from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
   label: z.string().describe("User-defined label"),
   type: z.string().describe("Placement group type"),
+  token: z.string().meta({ sensitive: true }).describe("Hetzner API token; overrides the HETZNER_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
 });
 
 const ResourceSchema = z.object({
@@ -416,6 +474,7 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 const InputsSchema = z.object({
   label: z.string().optional(),
   type: z.string().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Hetzner Cloud placement group. Registered at \`@swamp/hetzner-cloud/placement-groups\`. */
@@ -441,7 +500,7 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.label !== undefined) body.label = g.label;
         if (g.type !== undefined) body.type = g.type;
-        const result = await create("/placement_groups", body) as ResourceData;
+        const result = await create("/placement_groups", body, g.token) as ResourceData;
         const instanceName = (g.label?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -451,7 +510,7 @@ export const model = {
       description: "Get a placement group",
       arguments: z.object({ id: z.number().int().describe("The ID of the placement group") }),
       execute: async (args: { id: number }, context: any) => {
-        const result = await read("/placement_groups", args.id) as ResourceData;
+        const result = await read("/placement_groups", args.id, context.globalArgs.token) as ResourceData;
         const instanceName = (result.label?.toString() ?? args.id.toString()).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -470,7 +529,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
         if (g.label !== undefined) body.label = g.label;
-        const result = await update("/placement_groups", existing.id, body) as ResourceData;
+        const result = await update("/placement_groups", existing.id, body, g.token) as ResourceData;
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -479,7 +538,7 @@ export const model = {
       description: "Delete the placement group",
       arguments: z.object({ id: z.number().int().describe("The ID of the placement group") }),
       execute: async (args: { id: number }, context: any) => {
-        const { existed } = await remove("/placement_groups", args.id);
+        const { existed } = await remove("/placement_groups", args.id, context.globalArgs.token);
         const instanceName = (context.globalArgs.label?.toString() ?? args.id.toString()).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           id: args.id,
@@ -501,7 +560,7 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/placement_groups", existing.id) as ResourceData | null;
+        const result = await tryRead("/placement_groups", existing.id, g.token) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
@@ -512,6 +571,23 @@ export const model = {
           syncedAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
+      },
+    },
+    list: {
+      description: "List placement groups, optionally filtered by a Hetzner label selector",
+      arguments: z.object({ label_selector: z.string().describe("Hetzner label selector to filter results, e.g. env=production,role!=db").optional() }),
+      execute: async (args: { label_selector?: string }, context: any) => {
+        const g = context.globalArgs;
+        const queryParams: Record<string, string> = {};
+        if (args.label_selector !== undefined) queryParams.label_selector = args.label_selector;
+        const items = await listAll("/placement_groups", queryParams, g.token) as ResourceData[];
+        const dataHandles: any[] = [];
+        for (const item of items) {
+          const instanceName = (item.label?.toString() ?? item.id?.toString() ?? "unknown").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+          const handle = await context.writeResource("state", instanceName, item);
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length } };
       },
     },
   },
@@ -535,11 +611,12 @@ snapshot[`generateHetznerExtensionModel - with upgrades block 1`] = `
  */
 
 import { z } from "npm:zod@4.3.6";
-import { create, read, tryRead, remove, update } from "./_lib/hetzner.ts";
+import { create, read, tryRead, remove, update, listAll } from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("Name of the SSH key"),
   public_key: z.string().describe("Public key"),
+  token: z.string().meta({ sensitive: true }).describe("Hetzner API token; overrides the HETZNER_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
 });
 
 const ResourceSchema = z.object({
@@ -554,6 +631,7 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 const InputsSchema = z.object({
   name: z.string().optional(),
   public_key: z.string().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Hetzner Cloud ssh key. Registered at \`@swamp/hetzner-cloud/ssh-keys\`. */
@@ -589,7 +667,7 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
         if (g.public_key !== undefined) body.public_key = g.public_key;
-        const result = await create("/ssh_keys", body) as ResourceData;
+        const result = await create("/ssh_keys", body, g.token) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -599,7 +677,7 @@ export const model = {
       description: "Get a ssh key",
       arguments: z.object({ id: z.number().int().describe("The ID of the ssh key") }),
       execute: async (args: { id: number }, context: any) => {
-        const result = await read("/ssh_keys", args.id) as ResourceData;
+        const result = await read("/ssh_keys", args.id, context.globalArgs.token) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString()).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -618,7 +696,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
-        const result = await update("/ssh_keys", existing.id, body) as ResourceData;
+        const result = await update("/ssh_keys", existing.id, body, g.token) as ResourceData;
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -627,7 +705,7 @@ export const model = {
       description: "Delete the ssh key",
       arguments: z.object({ id: z.number().int().describe("The ID of the ssh key") }),
       execute: async (args: { id: number }, context: any) => {
-        const { existed } = await remove("/ssh_keys", args.id);
+        const { existed } = await remove("/ssh_keys", args.id, context.globalArgs.token);
         const instanceName = (context.globalArgs.name?.toString() ?? args.id.toString()).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           id: args.id,
@@ -649,7 +727,7 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/ssh_keys", existing.id) as ResourceData | null;
+        const result = await tryRead("/ssh_keys", existing.id, g.token) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
@@ -660,6 +738,23 @@ export const model = {
           syncedAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
+      },
+    },
+    list: {
+      description: "List ssh keys, optionally filtered by a Hetzner label selector",
+      arguments: z.object({ label_selector: z.string().describe("Hetzner label selector to filter results, e.g. env=production,role!=db").optional() }),
+      execute: async (args: { label_selector?: string }, context: any) => {
+        const g = context.globalArgs;
+        const queryParams: Record<string, string> = {};
+        if (args.label_selector !== undefined) queryParams.label_selector = args.label_selector;
+        const items = await listAll("/ssh_keys", queryParams, g.token) as ResourceData[];
+        const dataHandles: any[] = [];
+        for (const item of items) {
+          const instanceName = (item.name?.toString() ?? item.id?.toString() ?? "unknown").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+          const handle = await context.writeResource("state", instanceName, item);
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length } };
       },
     },
   },
@@ -683,7 +778,7 @@ snapshot[`generateHetznerExtensionModel - properties with enums and constraints 
  */
 
 import { z } from "npm:zod@4.3.6";
-import { create, read, tryRead, remove, update } from "./_lib/hetzner.ts";
+import { create, read, tryRead, remove, update, listAll } from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
   name: z.string().max(128).describe("Firewall name"),
@@ -692,6 +787,7 @@ const GlobalArgsSchema = z.object({
     protocol: z.enum(["tcp", "udp", "icmp", "esp", "gre"]),
     port: z.string().optional(),
   })).describe("Array of rules").optional(),
+  token: z.string().meta({ sensitive: true }).describe("Hetzner API token; overrides the HETZNER_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
 });
 
 const ResourceSchema = z.object({
@@ -712,6 +808,7 @@ const InputsSchema = z.object({
     protocol: z.enum(["tcp", "udp", "icmp", "esp", "gre"]),
     port: z.string().optional(),
   })).optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Hetzner Cloud firewall. Registered at \`@swamp/hetzner-cloud/firewalls\`. */
@@ -737,7 +834,7 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
         if (g.rules !== undefined) body.rules = g.rules;
-        const result = await create("/firewalls", body) as ResourceData;
+        const result = await create("/firewalls", body, g.token) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -747,7 +844,7 @@ export const model = {
       description: "Get a firewall",
       arguments: z.object({ id: z.number().int().describe("The ID of the firewall") }),
       execute: async (args: { id: number }, context: any) => {
-        const result = await read("/firewalls", args.id) as ResourceData;
+        const result = await read("/firewalls", args.id, context.globalArgs.token) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString()).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -765,7 +862,7 @@ export const model = {
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
-        const result = await update("/firewalls", existing.id, body) as ResourceData;
+        const result = await update("/firewalls", existing.id, body, g.token) as ResourceData;
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -774,7 +871,7 @@ export const model = {
       description: "Delete the firewall",
       arguments: z.object({ id: z.number().int().describe("The ID of the firewall") }),
       execute: async (args: { id: number }, context: any) => {
-        const { existed } = await remove("/firewalls", args.id);
+        const { existed } = await remove("/firewalls", args.id, context.globalArgs.token);
         const instanceName = (context.globalArgs.name?.toString() ?? args.id.toString()).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           id: args.id,
@@ -796,7 +893,7 @@ export const model = {
         );
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/firewalls", existing.id) as ResourceData | null;
+        const result = await tryRead("/firewalls", existing.id, g.token) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
@@ -807,6 +904,23 @@ export const model = {
           syncedAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
+      },
+    },
+    list: {
+      description: "List firewalls, optionally filtered by a Hetzner label selector",
+      arguments: z.object({ label_selector: z.string().describe("Hetzner label selector to filter results, e.g. env=production,role!=db").optional() }),
+      execute: async (args: { label_selector?: string }, context: any) => {
+        const g = context.globalArgs;
+        const queryParams: Record<string, string> = {};
+        if (args.label_selector !== undefined) queryParams.label_selector = args.label_selector;
+        const items = await listAll("/firewalls", queryParams, g.token) as ResourceData[];
+        const dataHandles: any[] = [];
+        for (const item of items) {
+          const instanceName = (item.name?.toString() ?? item.id?.toString() ?? "unknown").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
+          const handle = await context.writeResource("state", instanceName, item);
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length } };
       },
     },
   },

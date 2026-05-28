@@ -56,6 +56,8 @@ export interface HetznerResource {
     read: boolean;
     update: boolean;
     delete: boolean;
+    /** True when the collection path (e.g. GET /servers) supports listing */
+    list: boolean;
   };
   /** Field used to derive instance names (e.g., "name") */
   identifyingField: string;
@@ -176,6 +178,14 @@ export async function generateHetznerModels(options: {
         ...(isSyntheticName ? ["name"] : []),
         ...Object.keys(mergedProps),
       ];
+      // The generator injects an auth `token` global arg unless the resource
+      // already has one. Mirror that here so upgrade diffing sees the field that
+      // is actually emitted — otherwise the next changed regeneration would
+      // read `token` from the committed GlobalArgsSchema, miss it in
+      // newFieldNames, and emit a spurious "Removed: token" upgrade entry.
+      if (!newFieldNames.includes("token")) {
+        newFieldNames.push("token");
+      }
 
       const upgradesBlock = computeUpgradesBlock(
         status,
@@ -408,6 +418,7 @@ function mergeResourceOperations(
   let hasRead = false;
   let hasUpdate = false;
   let hasDelete = false;
+  let hasList = false;
 
   // Sort paths so single-resource paths (with {id}) come last and overwrite list responses
   const sortedPaths = Object.entries(paths).sort(([a], [b]) => {
@@ -446,6 +457,11 @@ function mergeResourceOperations(
       }
     }
 
+    if (methods.get && !isSingleResource) {
+      // Collection GET (e.g. GET /servers) enables the `list` discovery method
+      hasList = true;
+    }
+
     if (methods.delete) {
       hasDelete = true;
     }
@@ -479,6 +495,7 @@ function mergeResourceOperations(
       read: hasRead,
       update: hasUpdate,
       delete: hasDelete,
+      list: hasList,
     },
     identifyingField,
   };

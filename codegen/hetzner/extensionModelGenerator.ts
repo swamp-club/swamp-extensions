@@ -63,6 +63,7 @@ export function generateHetznerExtensionModel(
   const helperImports: string[] = ["create", "read", "tryRead"];
   if (resource.handlers.delete) helperImports.push("remove");
   if (resource.handlers.update) helperImports.push("update");
+  if (resource.handlers.list) helperImports.push("listAll");
   lines.push(
     `import { ${helperImports.join(", ")} } from "./_lib/hetzner.ts";`,
   );
@@ -75,6 +76,11 @@ export function generateHetznerExtensionModel(
 
   // GlobalArgsSchema — all create + update properties with full fidelity
   const globalArgsProps = buildGlobalArgsProperties(resource);
+  // The auth `token` arg is injected unless the resource already has a real
+  // property named "token" (guards against an API field collision).
+  const hasTokenProp = globalArgsProps.some((p) => p.nameOnly === "token");
+  const tokenArgLine =
+    `  token: z.string().meta({ sensitive: true }).describe("Hetzner API token; overrides the HETZNER_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),`;
   lines.push(`const GlobalArgsSchema = z.object({`);
   if (isSyntheticName) {
     lines.push(
@@ -83,6 +89,9 @@ export function generateHetznerExtensionModel(
   }
   for (const prop of globalArgsProps) {
     lines.push(`  ${prop.line},`);
+  }
+  if (!hasTokenProp) {
+    lines.push(tokenArgLine);
   }
   lines.push(`});`);
   lines.push("");
@@ -109,6 +118,9 @@ export function generateHetznerExtensionModel(
   }
   for (const prop of globalArgsProps) {
     lines.push(`  ${prop.nameOnly}: ${prop.baseExpr}.optional(),`);
+  }
+  if (!hasTokenProp) {
+    lines.push(`  token: z.string().meta({ sensitive: true }).optional(),`);
   }
   lines.push(`});`);
   lines.push("");
@@ -156,7 +168,7 @@ export function generateHetznerExtensionModel(
     );
   }
   lines.push(
-    `        const result = await create("${endpoint}", body) as ResourceData;`,
+    `        const result = await create("${endpoint}", body, g.token) as ResourceData;`,
   );
   lines.push(
     `        const instanceName = ${
@@ -180,7 +192,7 @@ export function generateHetznerExtensionModel(
     `      execute: async (args: { id: number }, context: any) => {`,
   );
   lines.push(
-    `        const result = await read("${endpoint}", args.id) as ResourceData;`,
+    `        const result = await read("${endpoint}", args.id, context.globalArgs.token) as ResourceData;`,
   );
   if (isSyntheticName) {
     lines.push(
@@ -242,7 +254,7 @@ export function generateHetznerExtensionModel(
       );
     }
     lines.push(
-      `        const result = await update("${endpoint}", existing.id, body) as ResourceData;`,
+      `        const result = await update("${endpoint}", existing.id, body, g.token) as ResourceData;`,
     );
     lines.push(
       `        const handle = await context.writeResource("state", instanceName, result);`,
@@ -265,7 +277,7 @@ export function generateHetznerExtensionModel(
       `      execute: async (args: { id: number }, context: any) => {`,
     );
     lines.push(
-      `        const { existed } = await remove("${endpoint}", args.id);`,
+      `        const { existed } = await remove("${endpoint}", args.id, context.globalArgs.token);`,
     );
     lines.push(
       `        const instanceName = ${
@@ -318,7 +330,7 @@ export function generateHetznerExtensionModel(
     `        const existing = JSON.parse(new TextDecoder().decode(content));`,
   );
   lines.push(
-    `        const result = await tryRead("${endpoint}", existing.id) as ResourceData | null;`,
+    `        const result = await tryRead("${endpoint}", existing.id, g.token) as ResourceData | null;`,
   );
   lines.push(`        if (result) {`);
   lines.push(
@@ -336,6 +348,47 @@ export function generateHetznerExtensionModel(
   lines.push(`        return { dataHandles: [handle] };`);
   lines.push(`      },`);
   lines.push(`    },`);
+
+  // list method — only when a collection GET exists. Discovery via an optional
+  // Hetzner label selector; writes one `state` resource per item (factory).
+  if (resource.handlers.list) {
+    const listNameExpr = isSyntheticName
+      ? `item.id?.toString() ?? "unknown"`
+      : `item.${namingField}?.toString() ?? item.id?.toString() ?? "unknown"`;
+    lines.push(`    list: {`);
+    lines.push(
+      `      description: "List ${singularName}s, optionally filtered by a Hetzner label selector",`,
+    );
+    lines.push(
+      `      arguments: z.object({ label_selector: z.string().describe("Hetzner label selector to filter results, e.g. env=production,role!=db").optional() }),`,
+    );
+    lines.push(
+      `      execute: async (args: { label_selector?: string }, context: any) => {`,
+    );
+    lines.push(`        const g = context.globalArgs;`);
+    lines.push(`        const queryParams: Record<string, string> = {};`);
+    lines.push(
+      `        if (args.label_selector !== undefined) queryParams.label_selector = args.label_selector;`,
+    );
+    lines.push(
+      `        const items = await listAll("${endpoint}", queryParams, g.token) as ResourceData[];`,
+    );
+    lines.push(`        const dataHandles: any[] = [];`);
+    lines.push(`        for (const item of items) {`);
+    lines.push(
+      `          const instanceName = ${wrapWithSanitize(listNameExpr)};`,
+    );
+    lines.push(
+      `          const handle = await context.writeResource("state", instanceName, item);`,
+    );
+    lines.push(`          dataHandles.push(handle);`);
+    lines.push(`        }`);
+    lines.push(
+      `        return { dataHandles, result: { count: items.length } };`,
+    );
+    lines.push(`      },`);
+    lines.push(`    },`);
+  }
 
   lines.push(`  },`);
   lines.push(`};`);

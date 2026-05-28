@@ -3,18 +3,26 @@
 
 const API_BASE = "https://api.hetzner.cloud/v1";
 
-let validatedToken: string | undefined;
+// Tokens validated against GET /locations are cached here so each distinct
+// token (env var or per-model `token` global arg) is validated exactly once.
+const validatedTokens = new Set<string>();
 
-async function getToken(): Promise<string> {
-  if (validatedToken) return validatedToken;
-
-  const token = Deno.env.get("HETZNER_API_TOKEN");
+/**
+ * Resolves the Hetzner API token. An explicit token (e.g. from a model's
+ * 'token' global argument, which may be wired with a vault.get(...) expression)
+ * takes precedence over the HETZNER_API_TOKEN environment variable.
+ */
+async function getToken(explicitToken?: string): Promise<string> {
+  const token = explicitToken ?? Deno.env.get("HETZNER_API_TOKEN");
   if (!token) {
     throw new Error(
-      "HETZNER_API_TOKEN environment variable is not set. " +
-        "Set it with: swamp vault set HETZNER_API_TOKEN <your-token>",
+      "No Hetzner API token found. Provide one via the model's 'token' global " +
+        "argument (wired with a vault.get(...) expression) or set the " +
+        "HETZNER_API_TOKEN environment variable.",
     );
   }
+
+  if (validatedTokens.has(token)) return token;
 
   // Validate the token by hitting a lightweight endpoint
   const resp = await fetch(`${API_BASE}/locations`, {
@@ -23,13 +31,13 @@ async function getToken(): Promise<string> {
   if (!resp.ok) {
     const text = await resp.text();
     throw new Error(
-      `HETZNER_API_TOKEN is invalid (GET /locations returned ${resp.status}): ${text}`,
+      `Hetzner API token is invalid (GET /locations returned ${resp.status}): ${text}`,
     );
   }
   // Drain the response body
   await resp.text();
 
-  validatedToken = token;
+  validatedTokens.add(token);
   return token;
 }
 
@@ -37,10 +45,21 @@ async function request(
   method: string,
   path: string,
   body?: Record<string, unknown>,
-  options?: { allowStatus?: number[] },
+  options?: {
+    allowStatus?: number[];
+    queryParams?: Record<string, string>;
+    token?: string;
+  },
 ): Promise<Response> {
-  const token = await getToken();
-  const url = `${API_BASE}${path}`;
+  const token = await getToken(options?.token);
+  let url = `${API_BASE}${path}`;
+  if (options?.queryParams) {
+    const u = new URL(url);
+    for (const [key, value] of Object.entries(options.queryParams)) {
+      u.searchParams.set(key, value);
+    }
+    url = u.toString();
+  }
   const headers: Record<string, string> = {
     "Authorization": `Bearer ${token}`,
     "Content-Type": "application/json",
@@ -83,11 +102,29 @@ function unwrap(data: Record<string, unknown>): Record<string, unknown> {
   return data;
 }
 
+/**
+ * Unwraps a Hetzner list envelope (e.g. `{ servers: [...], meta: {...} }`) to the
+ * inner array. Returns the first non-meta/links/action value that is an array.
+ */
+function unwrapList(data: Record<string, unknown>): Record<string, unknown>[] {
+  const keys = Object.keys(data).filter((k) =>
+    k !== "meta" && k !== "links" && k !== "actions" && k !== "action"
+  );
+  for (const key of keys) {
+    const value = data[key];
+    if (Array.isArray(value)) {
+      return value as Record<string, unknown>[];
+    }
+  }
+  return [];
+}
+
 export async function create(
   endpoint: string,
   body: Record<string, unknown>,
+  token?: string,
 ): Promise<Record<string, unknown>> {
-  const resp = await request("POST", endpoint, body);
+  const resp = await request("POST", endpoint, body, { token });
   const data = await resp.json();
   return unwrap(data);
 }
@@ -95,8 +132,9 @@ export async function create(
 export async function read(
   endpoint: string,
   id: number | string,
+  token?: string,
 ): Promise<Record<string, unknown>> {
-  const resp = await request("GET", `${endpoint}/${id}`);
+  const resp = await request("GET", `${endpoint}/${id}`, undefined, { token });
   if (resp.status === 404) {
     const text = await resp.text();
     throw new Error(
@@ -110,8 +148,9 @@ export async function read(
 export async function tryRead(
   endpoint: string,
   id: number | string,
+  token?: string,
 ): Promise<Record<string, unknown> | null> {
-  const resp = await request("GET", `${endpoint}/${id}`);
+  const resp = await request("GET", `${endpoint}/${id}`, undefined, { token });
   if (resp.status === 404) {
     await resp.text();
     return null;
@@ -120,12 +159,64 @@ export async function tryRead(
   return unwrap(data);
 }
 
+/**
+ * Lists every resource at a collection endpoint, following Hetzner's
+ * `meta.pagination.next_page` cursor until exhausted (per_page=50, the API max).
+ * `queryParams` (e.g. `{ label_selector: "env=prod" }`) are sent on every page.
+ *
+ * A bounded page guard prevents an infinite loop on a malformed `next_page`; if
+ * it trips, the partial result is returned and a warning is logged rather than
+ * silently truncating.
+ */
+export async function listAll(
+  endpoint: string,
+  queryParams?: Record<string, string>,
+  token?: string,
+): Promise<Record<string, unknown>[]> {
+  const perPage = 50;
+  const maxPages = 1000;
+  const items: Record<string, unknown>[] = [];
+  let page = 1;
+
+  for (let fetched = 0; fetched < maxPages; fetched++) {
+    const params: Record<string, string> = {
+      ...queryParams,
+      page: String(page),
+      per_page: String(perPage),
+    };
+    const resp = await request("GET", endpoint, undefined, {
+      queryParams: params,
+      token,
+    });
+    const data = await resp.json() as Record<string, unknown>;
+    for (const item of unwrapList(data)) {
+      items.push(item);
+    }
+
+    const meta = data.meta as
+      | { pagination?: { next_page?: number | null } }
+      | undefined;
+    const nextPage = meta?.pagination?.next_page;
+    if (nextPage === null || nextPage === undefined) {
+      return items;
+    }
+    page = nextPage;
+  }
+
+  console.warn(
+    `Hetzner listAll(${endpoint}): stopped after ${maxPages} pages ` +
+      `(${items.length} items); more may exist. Narrow with a label_selector.`,
+  );
+  return items;
+}
+
 export async function update(
   endpoint: string,
   id: number | string,
   body: Record<string, unknown>,
+  token?: string,
 ): Promise<Record<string, unknown>> {
-  const resp = await request("PUT", `${endpoint}/${id}`, body);
+  const resp = await request("PUT", `${endpoint}/${id}`, body, { token });
   if (resp.status === 404) {
     const text = await resp.text();
     throw new Error(
@@ -149,6 +240,7 @@ export async function update(
 export async function remove(
   endpoint: string,
   id: number | string,
+  token?: string,
 ): Promise<{ existed: boolean }> {
   const maxAttempts = 3;
   const pollDelay = 3000;
@@ -159,7 +251,7 @@ export async function remove(
       "DELETE",
       `${endpoint}/${id}`,
       undefined,
-      { allowStatus: [422] },
+      { allowStatus: [422], token },
     );
     if (resp.status !== 422) {
       return { existed: resp.status !== 404 };
