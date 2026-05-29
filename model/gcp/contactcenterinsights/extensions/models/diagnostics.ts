@@ -161,7 +161,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Contact Center AI Insights Diagnostics. Registered at `@swamp/gcp/contactcenterinsights/diagnostics`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/diagnostics",
-  version: "2026.05.26.1",
+  version: "2026.05.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -291,7 +298,7 @@ export const model = {
           "Optional. The CES App ID to filter diagnostics by.",
         ).optional(),
         appVersion: z.string().describe(
-          "Optional. The CES App version to filter diagnostics by.",
+          'Optional. The CES App version to filter diagnostics by. Setting to "-" filters to diagnostics created using "-" (the latest draft version). Note that reports created at different times may correspond to different draft instructions. Setting to "" (empty) retrieves all diagnostics for the app_id regardless of version.',
         ).optional(),
         filter: z.string().describe(
           'Optional. A filter to apply to the list (e.g. `create_time > "2023-01-01T00:00:00Z"`).',

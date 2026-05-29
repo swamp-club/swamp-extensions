@@ -115,11 +115,10 @@ const SubmitAutoEvaluationActionSchema = z.object({
 });
 
 const TagSchema = z.object({
-  Key: z.string().min(1).max(128).regex(
-    new RegExp("^(?!aws:)[a-zA-Z+-=._:/]+$"),
-  ).describe(
-    "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -",
-  ),
+  Key: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z+-=._:/]+$"))
+    .describe(
+      "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -",
+    ),
   Value: z.string().max(256).describe(
     "The value for the tag. You can specify a value that is 0 to 256 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -",
   ),
@@ -280,7 +279,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Connect Rule. Registered at `@swamp/aws/connect/rule`. */
 export const model = {
   type: "@swamp/aws/connect/rule",
-  version: "2026.05.27.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -309,6 +308,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.27.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

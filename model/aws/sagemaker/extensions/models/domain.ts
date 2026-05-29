@@ -210,6 +210,13 @@ const ResourceSpecSchema = z.object({
   ).describe(
     "The Amazon Resource Name (ARN) of the Lifecycle Configuration to attach to the Resource.",
   ).optional(),
+  TrainingPlanArn: z.string().min(0).max(2048).regex(
+    new RegExp(
+      "^(arn:aws[a-z\\-]*:sagemaker:[a-z0-9\\-]*:[0-9]{12}:training-plan/.*|None)$",
+    ),
+  ).describe(
+    "The Amazon Resource Name (ARN) of the training plan to use for the ResourceSpec.",
+  ).optional(),
 });
 
 const JupyterServerAppSettingsSchema = z.object({
@@ -831,6 +838,9 @@ const GlobalArgsSchema = z.object({
   TagPropagation: z.enum(["ENABLED", "DISABLED"]).describe(
     "Indicates whether the tags added to Domain, User Profile and Space entity is propagated to all SageMaker resources.",
   ).optional(),
+  HomeEfsFileSystemCreation: z.enum(["Enabled", "Disabled"]).describe(
+    "Indicates whether a home EFS file system is created for the domain. Set to Disabled to skip EFS creation and reduce domain creation time.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -886,6 +896,7 @@ const StateSchema = z.object({
   AppSecurityGroupManagement: z.string().optional(),
   SecurityGroupIdForDomainBoundary: z.string().optional(),
   TagPropagation: z.string().optional(),
+  HomeEfsFileSystemCreation: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1020,12 +1031,15 @@ const InputsSchema = z.object({
   TagPropagation: z.enum(["ENABLED", "DISABLED"]).describe(
     "Indicates whether the tags added to Domain, User Profile and Space entity is propagated to all SageMaker resources.",
   ).optional(),
+  HomeEfsFileSystemCreation: z.enum(["Enabled", "Disabled"]).describe(
+    "Indicates whether a home EFS file system is created for the domain. Set to Disabled to skip EFS creation and reduce domain creation time.",
+  ).optional(),
 });
 
 /** Swamp extension model for SageMaker Domain. Registered at `@swamp/aws/sagemaker/domain`. */
 export const model = {
   type: "@swamp/aws/sagemaker/domain",
-  version: "2026.05.09.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -1060,6 +1074,11 @@ export const model = {
     {
       toVersion: "2026.05.09.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: HomeEfsFileSystemCreation",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

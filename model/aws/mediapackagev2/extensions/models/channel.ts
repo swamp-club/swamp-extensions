@@ -39,9 +39,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   InputSwitchConfiguration: z.object({
     MQCSInputSwitching: z.boolean().describe(
-      "When true, AWS Elemental MediaPackage performs input switching based on the MQCS. Default is true. This setting is valid only when InputType is CMAF.",
+      "When true, AWS Elemental MediaPackage performs input switching based on the MQCS. Default is false. This setting is valid only when InputType is CMAF.",
     ).optional(),
-    PreferredInput: z.number().int().min(1).max(2).optional(),
+    PreferredInput: z.number().int().min(1).max(2).describe(
+      "For CMAF inputs, indicates which input MediaPackage should prefer when both inputs have equal MQCS scores. Select 1 to prefer the first ingest endpoint, or 2 to prefer the second ingest endpoint. If you don't specify a preferred input, MediaPackage uses its default switching behavior when MQCS scores are equal.",
+    ).optional(),
   }).describe(
     "The configuration for input switching based on the media quality confidence score (MQCS) as provided from AWS Elemental MediaLive.",
   ).optional(),
@@ -93,9 +95,11 @@ const InputsSchema = z.object({
   ).optional(),
   InputSwitchConfiguration: z.object({
     MQCSInputSwitching: z.boolean().describe(
-      "When true, AWS Elemental MediaPackage performs input switching based on the MQCS. Default is true. This setting is valid only when InputType is CMAF.",
+      "When true, AWS Elemental MediaPackage performs input switching based on the MQCS. Default is false. This setting is valid only when InputType is CMAF.",
     ).optional(),
-    PreferredInput: z.number().int().min(1).max(2).optional(),
+    PreferredInput: z.number().int().min(1).max(2).describe(
+      "For CMAF inputs, indicates which input MediaPackage should prefer when both inputs have equal MQCS scores. Select 1 to prefer the first ingest endpoint, or 2 to prefer the second ingest endpoint. If you don't specify a preferred input, MediaPackage uses its default switching behavior when MQCS scores are equal.",
+    ).optional(),
   }).describe(
     "The configuration for input switching based on the media quality confidence score (MQCS) as provided from AWS Elemental MediaLive.",
   ).optional(),
@@ -113,7 +117,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for MediaPackageV2 Channel. Registered at `@swamp/aws/mediapackagev2/channel`. */
 export const model = {
   type: "@swamp/aws/mediapackagev2/channel",
-  version: "2026.04.23.2",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -137,6 +141,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

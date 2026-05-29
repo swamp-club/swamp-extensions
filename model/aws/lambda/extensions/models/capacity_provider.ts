@@ -30,62 +30,28 @@ const TargetTrackingScalingPolicySchema = z.object({
 });
 
 const TagSchema = z.object({
-  Key: z.string().min(1).max(128).describe("The key name of the tag."),
   Value: z.string().min(0).max(256).describe("The value for the tag.")
     .optional(),
+  Key: z.string().min(1).max(128).describe("The key name of the tag."),
 });
 
 const GlobalArgsSchema = z.object({
-  CapacityProviderName: z.string().min(1).max(140).regex(
-    new RegExp(
-      "^(arn:aws[a-zA-Z-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:capacity-provider:[a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+$",
-    ),
-  ).optional(),
   CapacityProviderScalingConfig: z.object({
-    MaxVCpuCount: z.number().int().min(2).max(15000).describe(
-      "The maximum number of vCPUs that the capacity provider can provision across all compute instances.",
+    ScalingPolicies: z.array(TargetTrackingScalingPolicySchema).describe(
+      "A list of target tracking scaling policies for the capacity provider.",
     ).optional(),
     ScalingMode: z.enum(["Auto", "Manual"]).describe(
       "The scaling mode that determines how the capacity provider responds to changes in demand.",
     ).optional(),
-    ScalingPolicies: z.array(TargetTrackingScalingPolicySchema).describe(
-      "A list of target tracking scaling policies for the capacity provider.",
+    MaxVCpuCount: z.number().int().min(2).max(15000).describe(
+      "The maximum number of vCPUs that the capacity provider can provision across all compute instances.",
     ).optional(),
   }).describe("The scaling configuration for the capacity provider.")
     .optional(),
-  InstanceRequirements: z.object({
-    Architectures: z.array(z.enum(["x86_64", "arm64"])).describe(
-      "A list of supported CPU architectures for compute instances. Valid values include x86_64 and arm64.",
-    ).optional(),
-    AllowedInstanceTypes: z.array(
-      z.string().min(1).max(30).regex(new RegExp("^[a-zA-Z0-9\\.\\-]+$")),
-    ).describe(
-      "A list of EC2 instance types that the capacity provider is allowed to use. If not specified, all compatible instance types are allowed.",
-    ).optional(),
-    ExcludedInstanceTypes: z.array(
-      z.string().min(1).max(30).regex(new RegExp("^[a-zA-Z0-9\\.\\-]+$")),
-    ).describe(
-      "A list of EC2 instance types that the capacity provider should not use, even if they meet other requirements.",
-    ).optional(),
-  }).describe(
-    "The instance requirements for compute resources managed by the capacity provider.",
-  ).optional(),
   KmsKeyArn: z.string().min(0).max(10000).regex(
     new RegExp("^(arn:(aws[a-zA-Z-]*)?:[a-z0-9-.]+:.*)|()$"),
   ).describe(
     "The ARN of the KMS key used to encrypt the capacity provider's resources.",
-  ).optional(),
-  PermissionsConfig: z.object({
-    CapacityProviderOperatorRoleArn: z.string().min(0).max(10000).regex(
-      new RegExp(
-        "^arn:(aws[a-zA-Z-]*)?:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$",
-      ),
-    ).describe(
-      "The ARN of the IAM role that the capacity provider uses to manage compute instances and other AWS resources.",
-    ),
-  }).describe("The permissions configuration for the capacity provider."),
-  Tags: z.array(TagSchema).describe(
-    "A key-value pair that provides metadata for the capacity provider.",
   ).optional(),
   VpcConfig: z.object({
     SubnetIds: z.array(
@@ -99,57 +65,12 @@ const GlobalArgsSchema = z.object({
       "A list of security group IDs that control network access for compute instances managed by the capacity provider.",
     ),
   }).describe("The VPC configuration for the capacity provider."),
-});
-
-const StateSchema = z.object({
-  Arn: z.string().optional(),
-  CapacityProviderName: z.string(),
-  CapacityProviderScalingConfig: z.object({
-    MaxVCpuCount: z.number(),
-    ScalingMode: z.string(),
-    ScalingPolicies: z.array(TargetTrackingScalingPolicySchema),
-  }).optional(),
-  InstanceRequirements: z.object({
-    Architectures: z.array(z.string()),
-    AllowedInstanceTypes: z.array(z.string()),
-    ExcludedInstanceTypes: z.array(z.string()),
-  }).optional(),
-  KmsKeyArn: z.string().optional(),
-  PermissionsConfig: z.object({
-    CapacityProviderOperatorRoleArn: z.string(),
-  }).optional(),
-  State: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
-  VpcConfig: z.object({
-    SubnetIds: z.array(z.string()),
-    SecurityGroupIds: z.array(z.string()),
-  }).optional(),
-}).passthrough();
-
-type StateData = z.infer<typeof StateSchema>;
-
-const InputsSchema = z.object({
   CapacityProviderName: z.string().min(1).max(140).regex(
     new RegExp(
       "^(arn:aws[a-zA-Z-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:capacity-provider:[a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+$",
     ),
   ).optional(),
-  CapacityProviderScalingConfig: z.object({
-    MaxVCpuCount: z.number().int().min(2).max(15000).describe(
-      "The maximum number of vCPUs that the capacity provider can provision across all compute instances.",
-    ).optional(),
-    ScalingMode: z.enum(["Auto", "Manual"]).describe(
-      "The scaling mode that determines how the capacity provider responds to changes in demand.",
-    ).optional(),
-    ScalingPolicies: z.array(TargetTrackingScalingPolicySchema).describe(
-      "A list of target tracking scaling policies for the capacity provider.",
-    ).optional(),
-  }).describe("The scaling configuration for the capacity provider.")
-    .optional(),
   InstanceRequirements: z.object({
-    Architectures: z.array(z.enum(["x86_64", "arm64"])).describe(
-      "A list of supported CPU architectures for compute instances. Valid values include x86_64 and arm64.",
-    ).optional(),
     AllowedInstanceTypes: z.array(
       z.string().min(1).max(30).regex(new RegExp("^[a-zA-Z0-9\\.\\-]+$")),
     ).describe(
@@ -160,13 +81,104 @@ const InputsSchema = z.object({
     ).describe(
       "A list of EC2 instance types that the capacity provider should not use, even if they meet other requirements.",
     ).optional(),
+    Architectures: z.array(z.enum(["x86_64", "arm64"])).describe(
+      "A list of supported CPU architectures for compute instances. Valid values include x86_64 and arm64.",
+    ).optional(),
   }).describe(
     "The instance requirements for compute resources managed by the capacity provider.",
   ).optional(),
+  PermissionsConfig: z.object({
+    CapacityProviderOperatorRoleArn: z.string().min(0).max(10000).regex(
+      new RegExp(
+        "^arn:(aws[a-zA-Z-]*)?:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$",
+      ),
+    ).describe(
+      "The ARN of the IAM role that the capacity provider uses to manage compute instances and other AWS resources.",
+    ),
+  }).describe("The permissions configuration for the capacity provider."),
+  Tags: z.array(TagSchema).describe(
+    "A key-value pair that provides metadata for the capacity provider.",
+  ).optional(),
+});
+
+const StateSchema = z.object({
+  CapacityProviderScalingConfig: z.object({
+    ScalingPolicies: z.array(TargetTrackingScalingPolicySchema),
+    ScalingMode: z.string(),
+    MaxVCpuCount: z.number(),
+  }).optional(),
+  KmsKeyArn: z.string().optional(),
+  VpcConfig: z.object({
+    SubnetIds: z.array(z.string()),
+    SecurityGroupIds: z.array(z.string()),
+  }).optional(),
+  State: z.string().optional(),
+  CapacityProviderName: z.string(),
+  InstanceRequirements: z.object({
+    AllowedInstanceTypes: z.array(z.string()),
+    ExcludedInstanceTypes: z.array(z.string()),
+    Architectures: z.array(z.string()),
+  }).optional(),
+  Arn: z.string().optional(),
+  PermissionsConfig: z.object({
+    CapacityProviderOperatorRoleArn: z.string(),
+  }).optional(),
+  Tags: z.array(TagSchema).optional(),
+}).passthrough();
+
+type StateData = z.infer<typeof StateSchema>;
+
+const InputsSchema = z.object({
+  CapacityProviderScalingConfig: z.object({
+    ScalingPolicies: z.array(TargetTrackingScalingPolicySchema).describe(
+      "A list of target tracking scaling policies for the capacity provider.",
+    ).optional(),
+    ScalingMode: z.enum(["Auto", "Manual"]).describe(
+      "The scaling mode that determines how the capacity provider responds to changes in demand.",
+    ).optional(),
+    MaxVCpuCount: z.number().int().min(2).max(15000).describe(
+      "The maximum number of vCPUs that the capacity provider can provision across all compute instances.",
+    ).optional(),
+  }).describe("The scaling configuration for the capacity provider.")
+    .optional(),
   KmsKeyArn: z.string().min(0).max(10000).regex(
     new RegExp("^(arn:(aws[a-zA-Z-]*)?:[a-z0-9-.]+:.*)|()$"),
   ).describe(
     "The ARN of the KMS key used to encrypt the capacity provider's resources.",
+  ).optional(),
+  VpcConfig: z.object({
+    SubnetIds: z.array(
+      z.string().min(0).max(1024).regex(new RegExp("^subnet-[0-9a-z]*$")),
+    ).describe(
+      "A list of subnet IDs where the capacity provider launches compute instances.",
+    ).optional(),
+    SecurityGroupIds: z.array(
+      z.string().min(0).max(1024).regex(new RegExp("^sg-[0-9a-zA-Z]*$")),
+    ).describe(
+      "A list of security group IDs that control network access for compute instances managed by the capacity provider.",
+    ).optional(),
+  }).describe("The VPC configuration for the capacity provider.").optional(),
+  CapacityProviderName: z.string().min(1).max(140).regex(
+    new RegExp(
+      "^(arn:aws[a-zA-Z-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:capacity-provider:[a-zA-Z0-9-_]+)|[a-zA-Z0-9-_]+$",
+    ),
+  ).optional(),
+  InstanceRequirements: z.object({
+    AllowedInstanceTypes: z.array(
+      z.string().min(1).max(30).regex(new RegExp("^[a-zA-Z0-9\\.\\-]+$")),
+    ).describe(
+      "A list of EC2 instance types that the capacity provider is allowed to use. If not specified, all compatible instance types are allowed.",
+    ).optional(),
+    ExcludedInstanceTypes: z.array(
+      z.string().min(1).max(30).regex(new RegExp("^[a-zA-Z0-9\\.\\-]+$")),
+    ).describe(
+      "A list of EC2 instance types that the capacity provider should not use, even if they meet other requirements.",
+    ).optional(),
+    Architectures: z.array(z.enum(["x86_64", "arm64"])).describe(
+      "A list of supported CPU architectures for compute instances. Valid values include x86_64 and arm64.",
+    ).optional(),
+  }).describe(
+    "The instance requirements for compute resources managed by the capacity provider.",
   ).optional(),
   PermissionsConfig: z.object({
     CapacityProviderOperatorRoleArn: z.string().min(0).max(10000).regex(
@@ -181,24 +193,12 @@ const InputsSchema = z.object({
   Tags: z.array(TagSchema).describe(
     "A key-value pair that provides metadata for the capacity provider.",
   ).optional(),
-  VpcConfig: z.object({
-    SubnetIds: z.array(
-      z.string().min(0).max(1024).regex(new RegExp("^subnet-[0-9a-z]*$")),
-    ).describe(
-      "A list of subnet IDs where the capacity provider launches compute instances.",
-    ).optional(),
-    SecurityGroupIds: z.array(
-      z.string().min(0).max(1024).regex(new RegExp("^sg-[0-9a-zA-Z]*$")),
-    ).describe(
-      "A list of security group IDs that control network access for compute instances managed by the capacity provider.",
-    ).optional(),
-  }).describe("The VPC configuration for the capacity provider.").optional(),
 });
 
 /** Swamp extension model for Lambda CapacityProvider. Registered at `@swamp/aws/lambda/capacity-provider`. */
 export const model = {
   type: "@swamp/aws/lambda/capacity-provider",
-  version: "2026.04.23.2",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -222,6 +222,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

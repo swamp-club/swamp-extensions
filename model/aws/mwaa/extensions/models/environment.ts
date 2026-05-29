@@ -129,7 +129,11 @@ const GlobalArgsSchema = z.object({
   Tags: z.record(z.string(), z.unknown()).describe(
     "A map of tags for the environment.",
   ).optional(),
-  WebserverAccessMode: z.enum(["PRIVATE_ONLY", "PUBLIC_ONLY"]).describe(
+  WebserverAccessMode: z.enum([
+    "PRIVATE_ONLY",
+    "PUBLIC_ONLY",
+    "PUBLIC_AND_PRIVATE",
+  ]).describe(
     "Choice for mode of webserver access including over public internet or via private VPC endpoint.",
   ).optional(),
   EndpointManagement: z.enum(["CUSTOMER", "SERVICE"]).describe(
@@ -287,7 +291,11 @@ const InputsSchema = z.object({
   Tags: z.record(z.string(), z.unknown()).describe(
     "A map of tags for the environment.",
   ).optional(),
-  WebserverAccessMode: z.enum(["PRIVATE_ONLY", "PUBLIC_ONLY"]).describe(
+  WebserverAccessMode: z.enum([
+    "PRIVATE_ONLY",
+    "PUBLIC_ONLY",
+    "PUBLIC_AND_PRIVATE",
+  ]).describe(
     "Choice for mode of webserver access including over public internet or via private VPC endpoint.",
   ).optional(),
   EndpointManagement: z.enum(["CUSTOMER", "SERVICE"]).describe(
@@ -301,7 +309,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for MWAA Environment. Registered at `@swamp/aws/mwaa/environment`. */
 export const model = {
   type: "@swamp/aws/mwaa/environment",
-  version: "2026.05.27.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -330,6 +338,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.27.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

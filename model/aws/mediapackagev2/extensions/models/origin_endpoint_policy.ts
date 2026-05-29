@@ -26,9 +26,15 @@ const GlobalArgsSchema = z.object({
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
   CdnAuthConfiguration: z.object({
-    CdnIdentifierSecretArns: z.array(z.string().min(20).max(2048)),
-    SecretsRoleArn: z.string().min(20).max(2048),
-  }).optional(),
+    CdnIdentifierSecretArns: z.array(z.string().min(20).max(2048)).describe(
+      "The ARN for the secret in Secrets Manager that your CDN uses for authorization to access the endpoint.",
+    ),
+    SecretsRoleArn: z.string().min(20).max(2048).describe(
+      "The ARN for the IAM role that gives MediaPackage read access to Secrets Manager and KMS for CDN authorization.",
+    ),
+  }).describe(
+    "The settings to enable CDN authorization headers in MediaPackage.",
+  ).optional(),
   ChannelGroupName: z.string().min(1).max(256).regex(
     new RegExp("^[a-zA-Z0-9_-]+$"),
   ),
@@ -55,9 +61,15 @@ type StateData = z.infer<typeof StateSchema>;
 const InputsSchema = z.object({
   name: z.string().optional(),
   CdnAuthConfiguration: z.object({
-    CdnIdentifierSecretArns: z.array(z.string().min(20).max(2048)).optional(),
-    SecretsRoleArn: z.string().min(20).max(2048).optional(),
-  }).optional(),
+    CdnIdentifierSecretArns: z.array(z.string().min(20).max(2048)).describe(
+      "The ARN for the secret in Secrets Manager that your CDN uses for authorization to access the endpoint.",
+    ).optional(),
+    SecretsRoleArn: z.string().min(20).max(2048).describe(
+      "The ARN for the IAM role that gives MediaPackage read access to Secrets Manager and KMS for CDN authorization.",
+    ).optional(),
+  }).describe(
+    "The settings to enable CDN authorization headers in MediaPackage.",
+  ).optional(),
   ChannelGroupName: z.string().min(1).max(256).regex(
     new RegExp("^[a-zA-Z0-9_-]+$"),
   ).optional(),
@@ -72,7 +84,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for MediaPackageV2 OriginEndpointPolicy. Registered at `@swamp/aws/mediapackagev2/origin-endpoint-policy`. */
 export const model = {
   type: "@swamp/aws/mediapackagev2/origin-endpoint-policy",
-  version: "2026.05.27.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -106,6 +118,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.27.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

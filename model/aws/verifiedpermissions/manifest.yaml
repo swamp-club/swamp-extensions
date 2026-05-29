@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/verifiedpermissions"
-version: "2026.05.27.1"
+version: "2026.05.29.1"
 description: "AWS VERIFIEDPERMISSIONS infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,11 +10,12 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: policy_store
+  - Added: policy_store_alias
 models:
   - identity_source.ts
   - policy.ts
   - policy_store.ts
+  - policy_store_alias.ts
   - policy_template.ts
 additionalFiles:
   - LICENSE.txt

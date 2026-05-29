@@ -44,6 +44,7 @@ const FilterConfigurationSchema = z.object({
 
 const ScteDashSchema = z.object({
   AdMarkerDash: z.enum(["BINARY", "XML"]).optional(),
+  ScteInManifests: z.enum(["ALL", "MATCHES_FILTER"]).optional(),
 });
 
 const DashUtcTimingSchema = z.object({
@@ -179,10 +180,15 @@ const DashManifestConfigurationSchema = z.object({
   SubtitleConfiguration: DashSubtitleConfigurationSchema.describe(
     "The configuration for DASH subtitles.",
   ).optional(),
+  UriPathType: z.enum(["LEAF", "ROOT"]).optional(),
+  AvailabilityStartTimeConfiguration: z.object({
+    FixedAvailabilityStartTime: z.string().optional(),
+  }).optional(),
 });
 
 const ScteHlsSchema = z.object({
   AdMarkerHls: z.enum(["DATERANGE", "SCTE35_ENHANCED"]).optional(),
+  ScteInManifests: z.enum(["ALL", "MATCHES_FILTER"]).optional(),
 });
 
 const StartTagSchema = z.object({
@@ -223,6 +229,7 @@ const HlsManifestConfigurationSchema = z.object({
   UrlEncodeChildManifest: z.boolean().describe(
     "When enabled, MediaPackage URL-encodes the query string for API requests for HLS child manifests to comply with Amazon Web Services Signature Version 4 (SigV4) signature signing protocol. For more information, see Amazon Web Services Signature Version 4 for API requests in Identity and Access Management User Guide.",
   ).optional(),
+  UriPathType: z.enum(["LEAF", "ROOT"]).optional(),
 });
 
 const LowLatencyHlsManifestConfigurationSchema = z.object({
@@ -254,6 +261,7 @@ const LowLatencyHlsManifestConfigurationSchema = z.object({
   UrlEncodeChildManifest: z.boolean().describe(
     "When enabled, MediaPackage URL-encodes the query string for API requests for LL-HLS child manifests to comply with Amazon Web Services Signature Version 4 (SigV4) signature signing protocol. For more information, see Amazon Web Services Signature Version 4 for API requests in Identity and Access Management User Guide.",
   ).optional(),
+  UriPathType: z.enum(["LEAF", "ROOT"]).optional(),
 });
 
 const MssManifestConfigurationSchema = z.object({
@@ -282,11 +290,30 @@ const ScteSchema = z.object({
       "PROVIDER_OVERLAY_PLACEMENT_OPPORTUNITY",
       "DISTRIBUTOR_OVERLAY_PLACEMENT_OPPORTUNITY",
       "PROGRAM",
+      "CHAPTER",
+      "UNSCHEDULED_EVENT",
+      "ALTERNATE_CONTENT_OPPORTUNITY",
+      "NETWORK",
+      "PROVIDER_PROMO",
+      "DISTRIBUTOR_PROMO",
+      "PROVIDER_AD_BLOCK",
+      "DISTRIBUTOR_AD_BLOCK",
     ]),
   ).describe(
     "The SCTE-35 message types that you want to be treated as ad markers in the output.",
   ).optional(),
-  ScteInSegments: z.enum(["NONE", "ALL"]).optional(),
+  ScteInSegments: z.enum(["NONE", "ALL", "MATCHES_FILTER"]).optional(),
+  CustomAdTypes: z.array(
+    z.enum([
+      "PROGRAM",
+      "CHAPTER",
+      "UNSCHEDULED_EVENT",
+      "ALTERNATE_CONTENT_OPPORTUNITY",
+      "NETWORK",
+    ]),
+  ).describe(
+    "A list of additional non-Ad SCTE-35 event types to treat as advertisements. When configured, events matching these types produce ad markers (such as SCTE35-OUT and SCTE35-IN in HLS DATERANGE tags) in manifests. Valid values: PROGRAM | CHAPTER | UNSCHEDULED_EVENT | ALTERNATE_CONTENT_OPPORTUNITY | NETWORK  If you don't specify any values, the default is empty (only default ad types are used).",
+  ).optional(),
 });
 
 const EncryptionMethodSchema = z.object({
@@ -345,7 +372,7 @@ const SpekeKeyProviderSchema = z.object({
       "^arn:([^:\\n]+):acm:([^:\\n]+):([0-9]+):certificate/[a-zA-Z0-9-_]+$",
     ),
   ).describe(
-    "The ARN for the certificate that you imported to AWS Certificate Manager to add content key encryption to this endpoint. For this feature to work, your DRM key provider must support content key encryption.",
+    "The ARN for the certificate that you imported to Amazon Web Services Certificate Manager to add content key encryption to this endpoint. For this feature to work, your DRM key provider must support content key encryption.",
   ).optional(),
 });
 
@@ -435,9 +462,10 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "The segment configuration, including the segment name, duration, and other configuration values.",
   ).optional(),
-  StartoverWindowSeconds: z.number().int().min(60).max(1209600).describe(
+  StartoverWindowSeconds: z.number().int().min(0).max(1209600).describe(
     "The size of the window (in seconds) to create a window of the live stream that's available for on-demand viewing. Viewers can start-over or catch-up on content that falls within the window. The maximum startover window is 1,209,600 seconds (14 days).",
   ).optional(),
+  UriSeparator: z.enum(["UNDERSCORE", "HYPHEN"]).optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -468,6 +496,7 @@ const StateSchema = z.object({
     Encryption: EncryptionSchema,
   }).optional(),
   StartoverWindowSeconds: z.number().optional(),
+  UriSeparator: z.string().optional(),
   DashManifestUrls: z.array(z.string()).optional(),
   MssManifestUrls: z.array(z.string()).optional(),
   HlsManifestUrls: z.array(z.string()).optional(),
@@ -539,16 +568,17 @@ const InputsSchema = z.object({
   }).describe(
     "The segment configuration, including the segment name, duration, and other configuration values.",
   ).optional(),
-  StartoverWindowSeconds: z.number().int().min(60).max(1209600).describe(
+  StartoverWindowSeconds: z.number().int().min(0).max(1209600).describe(
     "The size of the window (in seconds) to create a window of the live stream that's available for on-demand viewing. Viewers can start-over or catch-up on content that falls within the window. The maximum startover window is 1,209,600 seconds (14 days).",
   ).optional(),
+  UriSeparator: z.enum(["UNDERSCORE", "HYPHEN"]).optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
 /** Swamp extension model for MediaPackageV2 OriginEndpoint. Registered at `@swamp/aws/mediapackagev2/origin-endpoint`. */
 export const model = {
   type: "@swamp/aws/mediapackagev2/origin-endpoint",
-  version: "2026.04.23.2",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -573,6 +603,11 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: UriSeparator",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
