@@ -617,7 +617,36 @@ key-only operations are mostly legacy.
 ### Token validation
 
 On first use, the token is validated against `GET /user/tokens/verify` (for API
-tokens) or `GET /user` (for API key). The result is cached for the session.
+tokens) or `GET /user` (for API key). Each distinct credential (an environment
+variable or a per-model global argument) is validated exactly once and cached in
+a `Set` keyed by the resolved credential, so multiple models using different
+vault-sourced credentials each validate once.
+
+### Vault-wireable credential arguments
+
+In addition to the environment variables, each generated model exposes optional,
+sensitive global arguments that can be wired with a `vault.get(...)` expression:
+
+- `apiToken` — overrides `CLOUDFLARE_API_TOKEN`.
+- `apiKey` + `email` — override `CLOUDFLARE_API_KEY` + `CLOUDFLARE_EMAIL` for
+  the legacy path.
+
+Resolution precedence is per-credential: an explicit argument takes precedence
+over the matching environment variable, and a token is preferred over the
+key+email pair. The arguments are emitted with `z.meta({ sensitive: true })`, so
+Swamp core redacts them from run logs, reports, and stored data. (They are not
+redacted from `swamp model get` output, but on the recommended `vault.get(...)`
+path the stored value is the expression, not the secret.)
+
+**Collision guard.** `apiToken` is injected unless a resource property already
+owns that name. The legacy `apiKey` + `email` pair is injected only when _both_
+names are free — several Cloudflare resources (e.g. `access/users`,
+`members/members`, `email/addresses`) already define an `email` property, so
+injecting `apiKey` without a paired `email` would leave the key+email path
+half-wired. Those models therefore fall back to the `CLOUDFLARE_API_KEY` +
+`CLOUDFLARE_EMAIL` environment variables for the legacy path; `apiToken` is
+unaffected. The injected field set is mirrored into `pipeline.ts`'s
+`newFieldNames` so upgrade diffing stays accurate.
 
 ---
 

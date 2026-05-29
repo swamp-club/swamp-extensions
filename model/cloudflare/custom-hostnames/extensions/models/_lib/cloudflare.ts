@@ -3,58 +3,83 @@
 
 const API_BASE = "https://api.cloudflare.com/client/v4";
 
-let validatedAuth: { style: "token"; token: string } | {
-  style: "key";
-  key: string;
-  email: string;
-} | undefined;
+type ResolvedAuth =
+  | { style: "token"; token: string }
+  | { style: "key"; key: string; email: string };
 
-async function getAuth(): Promise<typeof validatedAuth & object> {
-  if (validatedAuth) return validatedAuth;
+/**
+ * Auth overrides sourced from a model's global arguments. Each field, when set,
+ * takes precedence over the matching CLOUDFLARE_* environment variable and may
+ * be wired with a vault.get(...) expression so the credential is sourced from a
+ * vault rather than the environment.
+ */
+export interface AuthOverrides {
+  apiToken?: string;
+  apiKey?: string;
+  email?: string;
+}
 
-  const apiToken = Deno.env.get("CLOUDFLARE_API_TOKEN");
+// Credentials validated against the API are cached here so each distinct
+// credential (an env var OR a per-model apiToken / apiKey+email global arg) is
+// validated exactly once.
+const validatedCredentials = new Set<string>();
+
+/**
+ * Resolves Cloudflare credentials. Explicit overrides (e.g. from a model's
+ * apiToken / apiKey / email global arguments, which may be wired with a
+ * vault.get(...) expression) take precedence over the CLOUDFLARE_API_TOKEN /
+ * CLOUDFLARE_API_KEY / CLOUDFLARE_EMAIL environment variables. An API token is
+ * preferred over the legacy API key + email pair. Each distinct credential is
+ * validated exactly once.
+ */
+async function getAuth(overrides?: AuthOverrides): Promise<ResolvedAuth> {
+  const apiToken = overrides?.apiToken ?? Deno.env.get("CLOUDFLARE_API_TOKEN");
   if (apiToken) {
+    const auth: ResolvedAuth = { style: "token", token: apiToken };
+    if (validatedCredentials.has(`token:${apiToken}`)) return auth;
     const resp = await fetch(`${API_BASE}/user/tokens/verify`, {
       headers: { "Authorization": `Bearer ${apiToken}` },
     });
     if (!resp.ok) {
       const text = await resp.text();
       throw new Error(
-        `CLOUDFLARE_API_TOKEN is invalid (GET /user/tokens/verify returned ${resp.status}): ${text}`,
+        `Cloudflare API token is invalid (GET /user/tokens/verify returned ${resp.status}): ${text}`,
       );
     }
     await resp.text();
-    validatedAuth = { style: "token", token: apiToken };
-    return validatedAuth;
+    validatedCredentials.add(`token:${apiToken}`);
+    return auth;
   }
 
-  const apiKey = Deno.env.get("CLOUDFLARE_API_KEY");
-  const email = Deno.env.get("CLOUDFLARE_EMAIL");
+  const apiKey = overrides?.apiKey ?? Deno.env.get("CLOUDFLARE_API_KEY");
+  const email = overrides?.email ?? Deno.env.get("CLOUDFLARE_EMAIL");
   if (apiKey && email) {
+    const auth: ResolvedAuth = { style: "key", key: apiKey, email };
+    const cacheKey = `key:${email}:${apiKey}`;
+    if (validatedCredentials.has(cacheKey)) return auth;
     const resp = await fetch(`${API_BASE}/user`, {
       headers: { "X-Auth-Key": apiKey, "X-Auth-Email": email },
     });
     if (!resp.ok) {
       const text = await resp.text();
       throw new Error(
-        `CLOUDFLARE_API_KEY/EMAIL is invalid (GET /user returned ${resp.status}): ${text}`,
+        `Cloudflare API key/email is invalid (GET /user returned ${resp.status}): ${text}`,
       );
     }
     await resp.text();
-    validatedAuth = { style: "key", key: apiKey, email };
-    return validatedAuth;
+    validatedCredentials.add(cacheKey);
+    return auth;
   }
 
   throw new Error(
-    "Cloudflare credentials not set. Set CLOUDFLARE_API_TOKEN " +
-      "(recommended) or CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL. " +
-      "Use: swamp vault set CLOUDFLARE_API_TOKEN <your-token>",
+    "Cloudflare credentials not set. Provide an apiToken (recommended) or " +
+      "apiKey + email global argument (each wireable with a vault.get(...) " +
+      "expression), or set the CLOUDFLARE_API_TOKEN environment variable " +
+      "(recommended) or CLOUDFLARE_API_KEY + CLOUDFLARE_EMAIL.",
   );
 }
 
-function authHeaders(
-  auth: typeof validatedAuth & object,
-): Record<string, string> {
+function authHeaders(auth: ResolvedAuth): Record<string, string> {
   if (auth.style === "token") {
     return { "Authorization": `Bearer ${auth.token}` };
   }
@@ -65,11 +90,12 @@ async function request(
   method: string,
   path: string,
   body?: Record<string, unknown>,
+  auth?: AuthOverrides,
 ): Promise<Response> {
-  const auth = await getAuth();
+  const resolved = await getAuth(auth);
   const url = `${API_BASE}${path}`;
   const headers: Record<string, string> = {
-    ...authHeaders(auth),
+    ...authHeaders(resolved),
     ...(body ? { "Content-Type": "application/json" } : {}),
   };
 
@@ -135,8 +161,9 @@ function unwrap(data: Record<string, unknown>): Record<string, unknown> {
 export async function create(
   endpoint: string,
   body: Record<string, unknown>,
+  auth?: AuthOverrides,
 ): Promise<Record<string, unknown>> {
-  const resp = await request("POST", endpoint, body);
+  const resp = await request("POST", endpoint, body, auth);
   const data = await resp.json();
   return unwrap(data);
 }
@@ -144,8 +171,9 @@ export async function create(
 export async function read(
   endpoint: string,
   id: string,
+  auth?: AuthOverrides,
 ): Promise<Record<string, unknown>> {
-  const resp = await request("GET", `${endpoint}/${id}`);
+  const resp = await request("GET", `${endpoint}/${id}`, undefined, auth);
   if (resp.status === 404) {
     const text = await resp.text();
     throw new Error(
@@ -159,8 +187,9 @@ export async function read(
 export async function tryRead(
   endpoint: string,
   id: string,
+  auth?: AuthOverrides,
 ): Promise<Record<string, unknown> | null> {
-  const resp = await request("GET", `${endpoint}/${id}`);
+  const resp = await request("GET", `${endpoint}/${id}`, undefined, auth);
   if (resp.status === 404) {
     await resp.text();
     return null;
@@ -174,8 +203,9 @@ export async function update(
   id: string,
   body: Record<string, unknown>,
   method: "PATCH" | "PUT" = "PATCH",
+  auth?: AuthOverrides,
 ): Promise<Record<string, unknown>> {
-  const resp = await request(method, `${endpoint}/${id}`, body);
+  const resp = await request(method, `${endpoint}/${id}`, body, auth);
   if (resp.status === 404) {
     const text = await resp.text();
     throw new Error(
@@ -189,8 +219,9 @@ export async function update(
 export async function remove(
   endpoint: string,
   id: string,
+  auth?: AuthOverrides,
 ): Promise<{ existed: boolean }> {
-  const resp = await request("DELETE", `${endpoint}/${id}`);
+  const resp = await request("DELETE", `${endpoint}/${id}`, undefined, auth);
   if (resp.status === 404) {
     await resp.text();
     return { existed: false };
@@ -209,6 +240,7 @@ export async function listAll(
   endpoint: string,
   style: "page" | "cursor" | "none",
   queryParams?: Record<string, string>,
+  auth?: AuthOverrides,
 ): Promise<Record<string, unknown>[]> {
   const results: Record<string, unknown>[] = [];
   const params = new URLSearchParams(queryParams);
@@ -218,7 +250,12 @@ export async function listAll(
     let page = 1;
     while (true) {
       params.set("page", String(page));
-      const resp = await request("GET", `${endpoint}?${params.toString()}`);
+      const resp = await request(
+        "GET",
+        `${endpoint}?${params.toString()}`,
+        undefined,
+        auth,
+      );
       const data = await resp.json() as Record<string, unknown>;
       assertSuccess(data);
       const items = data.result;
@@ -237,7 +274,12 @@ export async function listAll(
     let cursor: string | undefined;
     while (true) {
       if (cursor) params.set("cursor", cursor);
-      const resp = await request("GET", `${endpoint}?${params.toString()}`);
+      const resp = await request(
+        "GET",
+        `${endpoint}?${params.toString()}`,
+        undefined,
+        auth,
+      );
       const data = await resp.json() as Record<string, unknown>;
       assertSuccess(data);
       const items = data.result;
@@ -250,7 +292,12 @@ export async function listAll(
       if (!cursor) break;
     }
   } else {
-    const resp = await request("GET", `${endpoint}?${params.toString()}`);
+    const resp = await request(
+      "GET",
+      `${endpoint}?${params.toString()}`,
+      undefined,
+      auth,
+    );
     const data = await resp.json() as Record<string, unknown>;
     assertSuccess(data);
     const items = data.result;
@@ -269,8 +316,9 @@ export async function tryFindByField(
   field: string,
   value: string,
   style: "page" | "cursor" | "none",
+  auth?: AuthOverrides,
 ): Promise<Record<string, unknown> | null> {
-  const items = await listAll(endpoint, style);
+  const items = await listAll(endpoint, style, undefined, auth);
   for (const item of items) {
     if (String(item[field]) === value) return item;
   }

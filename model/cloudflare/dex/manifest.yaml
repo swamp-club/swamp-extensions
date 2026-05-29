@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/cloudflare/dex"
-version: "2026.05.22.1"
+version: "2026.05.29.1"
 description: "Cloudflare dex infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,8 +10,8 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: dex_tests
-  - Added: rules
+  - Updated: dex_tests
+  - Updated: rules
 models:
   - dex_tests.ts
   - rules.ts

@@ -1,22 +1,32 @@
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { generateCloudflareLibFile } from "./libGenerator.ts";
 
+interface AuthOverrides {
+  apiToken?: string;
+  apiKey?: string;
+  email?: string;
+}
+
 interface CloudflareLib {
   create: (
     endpoint: string,
     body: Record<string, unknown>,
+    auth?: AuthOverrides,
   ) => Promise<Record<string, unknown>>;
   read: (
     endpoint: string,
     id: string,
+    auth?: AuthOverrides,
   ) => Promise<Record<string, unknown>>;
   tryRead: (
     endpoint: string,
     id: string,
+    auth?: AuthOverrides,
   ) => Promise<Record<string, unknown> | null>;
   remove: (
     endpoint: string,
     id: string,
+    auth?: AuthOverrides,
   ) => Promise<{ existed: boolean }>;
 }
 
@@ -346,6 +356,207 @@ Deno.test(
     } finally {
       await cleanup();
       restoreToken();
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Vault-wireable credential threading
+// ---------------------------------------------------------------------------
+
+/**
+ * Save and replace the three CLOUDFLARE_* env vars; deletes any not supplied.
+ * Returns a restore function that puts the original environment back. Mirrors
+ * the env-restore discipline of withTestToken for the auth-override tests.
+ */
+function withEnv(
+  vars: { token?: string; key?: string; email?: string },
+): () => void {
+  const keys = [
+    "CLOUDFLARE_API_TOKEN",
+    "CLOUDFLARE_API_KEY",
+    "CLOUDFLARE_EMAIL",
+  ] as const;
+  const originals = keys.map((k) => Deno.env.get(k));
+  const next: Record<string, string | undefined> = {
+    CLOUDFLARE_API_TOKEN: vars.token,
+    CLOUDFLARE_API_KEY: vars.key,
+    CLOUDFLARE_EMAIL: vars.email,
+  };
+  for (const k of keys) {
+    if (next[k] === undefined) Deno.env.delete(k);
+    else Deno.env.set(k, next[k]!);
+  }
+  return () => {
+    keys.forEach((k, i) => {
+      const original = originals[i];
+      if (original === undefined) Deno.env.delete(k);
+      else Deno.env.set(k, original);
+    });
+  };
+}
+
+/** Captures method, url, headers, and body for each stubbed fetch call. */
+interface CapturedRequest {
+  method: string;
+  url: string;
+  headers: Record<string, string>;
+  body: string | null;
+}
+
+function capturing(
+  captured: CapturedRequest[],
+  responses: Response[],
+): StubResponse[] {
+  return responses.map((resp) => async (req: Request) => {
+    captured.push({
+      method: req.method,
+      url: req.url,
+      headers: Object.fromEntries(req.headers.entries()),
+      body: req.body ? await req.clone().text() : null,
+    });
+    return resp;
+  });
+}
+
+Deno.test(
+  "auth: explicit apiToken override takes precedence over the env var",
+  { sanitizeResources: false },
+  async () => {
+    // Env holds a DIFFERENT token; the override must win.
+    const restore = withEnv({ token: "env-token" });
+    const { mod, cleanup } = await importFreshLib();
+    const captured: CapturedRequest[] = [];
+    try {
+      await withFetchQueue(
+        capturing(captured, [okTokenVerify(), cfResponse({ id: "abc123" })]),
+        async () => {
+          await mod.create("/zones/z1/dns_records", { type: "A" }, {
+            apiToken: "vault-token",
+          });
+        },
+      );
+      assertStringIncludes(captured[0].url, "/user/tokens/verify");
+      assertEquals(captured[0].headers["authorization"], "Bearer vault-token");
+      assertEquals(captured[1].headers["authorization"], "Bearer vault-token");
+    } finally {
+      await cleanup();
+      restore();
+    }
+  },
+);
+
+Deno.test(
+  "auth: explicit apiKey+email override uses key-style headers",
+  { sanitizeResources: false },
+  async () => {
+    // No token anywhere — the legacy key+email path must be selected.
+    const restore = withEnv({});
+    const { mod, cleanup } = await importFreshLib();
+    const captured: CapturedRequest[] = [];
+    try {
+      await withFetchQueue(
+        capturing(captured, [
+          cfResponse({ id: "u1" }),
+          cfResponse({ id: "abc123" }),
+        ]),
+        async () => {
+          await mod.read("/zones/z1/dns_records", "abc123", {
+            apiKey: "vault-key",
+            email: "vault@example.com",
+          });
+        },
+      );
+      // Validation hits GET /user, not /user/tokens/verify.
+      assertStringIncludes(captured[0].url, "/user");
+      assertEquals(captured[1].headers["x-auth-key"], "vault-key");
+      assertEquals(captured[1].headers["x-auth-email"], "vault@example.com");
+      assertEquals(captured[1].headers["authorization"], undefined);
+    } finally {
+      await cleanup();
+      restore();
+    }
+  },
+);
+
+Deno.test(
+  "auth: each distinct credential is validated exactly once",
+  { sanitizeResources: false },
+  async () => {
+    const restore = withEnv({});
+    const { mod, cleanup } = await importFreshLib();
+    const captured: CapturedRequest[] = [];
+    try {
+      await withFetchQueue(
+        capturing(captured, [
+          okTokenVerify(),
+          cfResponse({ id: "a" }),
+          cfResponse({ id: "b" }),
+        ]),
+        async () => {
+          const auth = { apiToken: "vault-token" };
+          await mod.read("/zones/z1/dns_records", "a", auth);
+          await mod.read("/zones/z1/dns_records", "b", auth);
+        },
+      );
+      // Only ONE verify call across two reads with the same token.
+      const verifyCalls = captured.filter((c) =>
+        c.url.includes("/user/tokens/verify")
+      );
+      assertEquals(verifyCalls.length, 1);
+      assertEquals(captured.length, 3);
+    } finally {
+      await cleanup();
+      restore();
+    }
+  },
+);
+
+Deno.test(
+  "auth: credentials are never written into a request body",
+  { sanitizeResources: false },
+  async () => {
+    const restore = withEnv({});
+    const { mod, cleanup } = await importFreshLib();
+    const captured: CapturedRequest[] = [];
+    try {
+      await withFetchQueue(
+        capturing(captured, [okTokenVerify(), cfResponse({ id: "abc123" })]),
+        async () => {
+          await mod.create("/zones/z1/dns_records", { type: "A" }, {
+            apiToken: "super-secret-token",
+          });
+        },
+      );
+      const postBody = captured[1].body ?? "";
+      assertEquals(postBody.includes("super-secret-token"), false);
+      assertEquals(postBody.includes("apiToken"), false);
+    } finally {
+      await cleanup();
+      restore();
+    }
+  },
+);
+
+Deno.test(
+  "auth: throws a helpful error when no credentials are available",
+  { sanitizeResources: false },
+  async () => {
+    const restore = withEnv({});
+    const { mod, cleanup } = await importFreshLib();
+    try {
+      await withFetchQueue([], async () => {
+        const err = await assertRejects(
+          () => mod.read("/zones/z1/dns_records", "abc123"),
+          Error,
+          "Cloudflare credentials not set",
+        );
+        assertStringIncludes(err.message, "vault.get");
+        assertStringIncludes(err.message, "CLOUDFLARE_API_TOKEN");
+      });
+    } finally {
+      await cleanup();
+      restore();
     }
   },
 );

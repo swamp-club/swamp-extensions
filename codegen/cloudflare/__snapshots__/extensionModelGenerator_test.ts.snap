@@ -22,6 +22,9 @@ const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   name: z.string().describe("Database name"),
   primary_location_hint: z.enum(["wnam", "enam", "weur", "eeur", "apac"]).describe("Location hint").optional(),
+  apiToken: z.string().meta({ sensitive: true }).describe("Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  apiKey: z.string().meta({ sensitive: true }).describe("Cloudflare API key for the legacy key+email auth path; overrides the CLOUDFLARE_API_KEY environment variable. Wire with a vault.get(...) expression. Requires email.").optional(),
+  email: z.string().meta({ sensitive: true }).describe("Cloudflare account email for the legacy key+email auth path; overrides the CLOUDFLARE_EMAIL environment variable. Requires apiKey.").optional(),
 });
 
 const ResourceSchema = z.object({
@@ -38,6 +41,9 @@ const InputsSchema = z.object({
   account_id: z.string().optional(),
   name: z.string().optional(),
   primary_location_hint: z.enum(["wnam", "enam", "weur", "eeur", "apac"]).optional(),
+  apiToken: z.string().meta({ sensitive: true }).optional(),
+  apiKey: z.string().meta({ sensitive: true }).optional(),
+  email: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Cloudflare Database. Registered at \`@swamp/cloudflare/d1/database\`. */
@@ -64,7 +70,7 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
         if (g.primary_location_hint !== undefined) body.primary_location_hint = g.primary_location_hint;
-        const result = await create(endpoint, body) as ResourceData;
+        const result = await create(endpoint, body, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email }) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -76,7 +82,7 @@ export const model = {
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/d1/database";
-        const result = await read(endpoint, args.id) as ResourceData;
+        const result = await read(endpoint, args.id, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email }) as ResourceData;
         const instanceName = (g.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -88,7 +94,7 @@ export const model = {
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/d1/database";
-        const { existed } = await remove(endpoint, args.id);
+        const { existed } = await remove(endpoint, args.id, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email });
         const instanceName = (context.globalArgs.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           id: args.id,
@@ -112,7 +118,7 @@ export const model = {
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
         if (!existing.id) throw new Error("Stored state has no id - cannot sync");
-        const result = await tryRead(endpoint, existing.id) as ResourceData | null;
+        const result = await tryRead(endpoint, existing.id, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email }) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
@@ -155,6 +161,9 @@ const GlobalArgsSchema = z.object({
   ttl: z.number().int().min(30).max(86400).describe("TTL").optional(),
   proxied: z.boolean().describe("Cloudflare proxy").optional(),
   type: z.enum(["A", "AAAA", "CNAME", "MX", "TXT"]).describe("Record type"),
+  apiToken: z.string().meta({ sensitive: true }).describe("Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  apiKey: z.string().meta({ sensitive: true }).describe("Cloudflare API key for the legacy key+email auth path; overrides the CLOUDFLARE_API_KEY environment variable. Wire with a vault.get(...) expression. Requires email.").optional(),
+  email: z.string().meta({ sensitive: true }).describe("Cloudflare account email for the legacy key+email auth path; overrides the CLOUDFLARE_EMAIL environment variable. Requires apiKey.").optional(),
 });
 
 const ResourceSchema = z.object({
@@ -175,6 +184,9 @@ const InputsSchema = z.object({
   ttl: z.number().int().min(30).max(86400).optional(),
   proxied: z.boolean().optional(),
   type: z.enum(["A", "AAAA", "CNAME", "MX", "TXT"]).optional(),
+  apiToken: z.string().meta({ sensitive: true }).optional(),
+  apiKey: z.string().meta({ sensitive: true }).optional(),
+  email: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Cloudflare DNS Record. Registered at \`@swamp/cloudflare/dns/dns-records\`. */
@@ -204,7 +216,7 @@ export const model = {
         if (g.content !== undefined) body.content = g.content;
         if (g.ttl !== undefined) body.ttl = g.ttl;
         if (g.proxied !== undefined) body.proxied = g.proxied;
-        const result = await create(endpoint, body) as ResourceData;
+        const result = await create(endpoint, body, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email }) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -216,7 +228,7 @@ export const model = {
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/zones/" + g.zone_id + "/dns_records";
-        const result = await read(endpoint, args.id) as ResourceData;
+        const result = await read(endpoint, args.id, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email }) as ResourceData;
         const instanceName = (g.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -239,7 +251,7 @@ export const model = {
         if (g.content !== undefined) body.content = g.content;
         if (g.ttl !== undefined) body.ttl = g.ttl;
         if (g.proxied !== undefined) body.proxied = g.proxied;
-        const result = await update(endpoint, existing.id, body, "PATCH") as ResourceData;
+        const result = await update(endpoint, existing.id, body, "PATCH", { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email }) as ResourceData;
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -250,7 +262,7 @@ export const model = {
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/zones/" + g.zone_id + "/dns_records";
-        const { existed } = await remove(endpoint, args.id);
+        const { existed } = await remove(endpoint, args.id, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email });
         const instanceName = (context.globalArgs.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           id: args.id,
@@ -274,7 +286,7 @@ export const model = {
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
         if (!existing.id) throw new Error("Stored state has no id - cannot sync");
-        const result = await tryRead(endpoint, existing.id) as ResourceData | null;
+        const result = await tryRead(endpoint, existing.id, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email }) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
@@ -316,6 +328,9 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe("Ruleset name"),
   kind: z.enum(["root", "zone", "managed"]).describe("Kind"),
   phase: z.string().describe("Phase"),
+  apiToken: z.string().meta({ sensitive: true }).describe("Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  apiKey: z.string().meta({ sensitive: true }).describe("Cloudflare API key for the legacy key+email auth path; overrides the CLOUDFLARE_API_KEY environment variable. Wire with a vault.get(...) expression. Requires email.").optional(),
+  email: z.string().meta({ sensitive: true }).describe("Cloudflare account email for the legacy key+email auth path; overrides the CLOUDFLARE_EMAIL environment variable. Requires apiKey.").optional(),
 }).refine(
   (d) => (d.account_id != null) !== (d.zone_id != null),
   "Exactly one of account_id or zone_id must be provided",
@@ -337,6 +352,9 @@ const InputsSchema = z.object({
   name: z.string().optional(),
   kind: z.enum(["root", "zone", "managed"]).optional(),
   phase: z.string().optional(),
+  apiToken: z.string().meta({ sensitive: true }).optional(),
+  apiKey: z.string().meta({ sensitive: true }).optional(),
+  email: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Cloudflare Ruleset. Registered at \`@swamp/cloudflare/rulesets/rulesets\`. */
@@ -365,7 +383,7 @@ export const model = {
         if (g.name !== undefined) body.name = g.name;
         if (g.kind !== undefined) body.kind = g.kind;
         if (g.phase !== undefined) body.phase = g.phase;
-        const result = await create(endpoint, body) as ResourceData;
+        const result = await create(endpoint, body, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email }) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -378,7 +396,7 @@ export const model = {
         const g = context.globalArgs;
         const scopePrefix = g.account_id ? "/accounts/" + g.account_id : "/zones/" + g.zone_id;
         const endpoint = scopePrefix + "/rulesets";
-        const result = await read(endpoint, args.id) as ResourceData;
+        const result = await read(endpoint, args.id, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email }) as ResourceData;
         const instanceName = (g.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -399,7 +417,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
-        const result = await update(endpoint, existing.id, body, "PUT") as ResourceData;
+        const result = await update(endpoint, existing.id, body, "PUT", { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email }) as ResourceData;
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -411,7 +429,7 @@ export const model = {
         const g = context.globalArgs;
         const scopePrefix = g.account_id ? "/accounts/" + g.account_id : "/zones/" + g.zone_id;
         const endpoint = scopePrefix + "/rulesets";
-        const { existed } = await remove(endpoint, args.id);
+        const { existed } = await remove(endpoint, args.id, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email });
         const instanceName = (context.globalArgs.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           id: args.id,
@@ -436,7 +454,7 @@ export const model = {
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
         if (!existing.id) throw new Error("Stored state has no id - cannot sync");
-        const result = await tryRead(endpoint, existing.id) as ResourceData | null;
+        const result = await tryRead(endpoint, existing.id, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email }) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
@@ -476,6 +494,9 @@ const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),
   enabled: z.boolean().describe("Whether the address map is enabled").optional(),
+  apiToken: z.string().meta({ sensitive: true }).describe("Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  apiKey: z.string().meta({ sensitive: true }).describe("Cloudflare API key for the legacy key+email auth path; overrides the CLOUDFLARE_API_KEY environment variable. Wire with a vault.get(...) expression. Requires email.").optional(),
+  email: z.string().meta({ sensitive: true }).describe("Cloudflare account email for the legacy key+email auth path; overrides the CLOUDFLARE_EMAIL environment variable. Requires apiKey.").optional(),
 });
 
 const ResourceSchema = z.object({
@@ -490,6 +511,9 @@ const InputsSchema = z.object({
   account_id: z.string().optional(),
   name: z.string().optional(),
   enabled: z.boolean().optional(),
+  apiToken: z.string().meta({ sensitive: true }).optional(),
+  apiKey: z.string().meta({ sensitive: true }).optional(),
+  email: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Cloudflare Address Map. Registered at \`@swamp/cloudflare/addressing/address-maps\`. */
@@ -515,7 +539,7 @@ export const model = {
         const endpoint = "/accounts/" + g.account_id + "/addressing/address_maps";
         const body: Record<string, unknown> = {};
         if (g.enabled !== undefined) body.enabled = g.enabled;
-        const result = await create(endpoint, body) as ResourceData;
+        const result = await create(endpoint, body, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email }) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -527,7 +551,7 @@ export const model = {
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/addressing/address_maps";
-        const result = await read(endpoint, args.id) as ResourceData;
+        const result = await read(endpoint, args.id, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email }) as ResourceData;
         const instanceName = (g.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -547,7 +571,7 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
         if (g.enabled !== undefined) body.enabled = g.enabled;
-        const result = await update(endpoint, existing.id, body, "PATCH") as ResourceData;
+        const result = await update(endpoint, existing.id, body, "PATCH", { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email }) as ResourceData;
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -558,7 +582,7 @@ export const model = {
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/addressing/address_maps";
-        const { existed } = await remove(endpoint, args.id);
+        const { existed } = await remove(endpoint, args.id, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email });
         const instanceName = (context.globalArgs.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           id: args.id,
@@ -582,7 +606,7 @@ export const model = {
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
         if (!existing.id) throw new Error("Stored state has no id - cannot sync");
-        const result = await tryRead(endpoint, existing.id) as ResourceData | null;
+        const result = await tryRead(endpoint, existing.id, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email }) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
@@ -621,6 +645,9 @@ import { create, read, tryRead, remove } from "./_lib/cloudflare.ts";
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   name: z.string().describe("Script name"),
+  apiToken: z.string().meta({ sensitive: true }).describe("Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  apiKey: z.string().meta({ sensitive: true }).describe("Cloudflare API key for the legacy key+email auth path; overrides the CLOUDFLARE_API_KEY environment variable. Wire with a vault.get(...) expression. Requires email.").optional(),
+  email: z.string().meta({ sensitive: true }).describe("Cloudflare account email for the legacy key+email auth path; overrides the CLOUDFLARE_EMAIL environment variable. Requires apiKey.").optional(),
 });
 
 const ResourceSchema = z.object({
@@ -635,6 +662,9 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 const InputsSchema = z.object({
   account_id: z.string().optional(),
   name: z.string().optional(),
+  apiToken: z.string().meta({ sensitive: true }).optional(),
+  apiKey: z.string().meta({ sensitive: true }).optional(),
+  email: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Cloudflare Worker Script. Registered at \`@swamp/cloudflare/workers/scripts\`. */
@@ -667,7 +697,7 @@ export const model = {
         const endpoint = "/accounts/" + g.account_id + "/workers/scripts";
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
-        const result = await create(endpoint, body) as ResourceData;
+        const result = await create(endpoint, body, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email }) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -679,7 +709,7 @@ export const model = {
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/workers/scripts";
-        const result = await read(endpoint, args.id) as ResourceData;
+        const result = await read(endpoint, args.id, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email }) as ResourceData;
         const instanceName = (g.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -691,7 +721,7 @@ export const model = {
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/workers/scripts";
-        const { existed } = await remove(endpoint, args.id);
+        const { existed } = await remove(endpoint, args.id, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email });
         const instanceName = (context.globalArgs.name?.toString() ?? args.id).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           id: args.id,
@@ -715,7 +745,7 @@ export const model = {
         if (!content) throw new Error("No data found - run create or get first");
         const existing = JSON.parse(new TextDecoder().decode(content));
         if (!existing.name) throw new Error("Stored state has no name - cannot sync");
-        const result = await tryRead(endpoint, existing.name) as ResourceData | null;
+        const result = await tryRead(endpoint, existing.name, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email }) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };

@@ -20,6 +20,15 @@ const GlobalArgsSchema = z.object({
   description: z.string().optional(),
   match: z.string().describe("The wirefilter expression to match."),
   name: z.string().describe("The name of the Rule."),
+  apiToken: z.string().meta({ sensitive: true }).describe(
+    "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  apiKey: z.string().meta({ sensitive: true }).describe(
+    "Cloudflare API key for the legacy key+email auth path; overrides the CLOUDFLARE_API_KEY environment variable. Wire with a vault.get(...) expression. Requires email.",
+  ).optional(),
+  email: z.string().meta({ sensitive: true }).describe(
+    "Cloudflare account email for the legacy key+email auth path; overrides the CLOUDFLARE_EMAIL environment variable. Requires apiKey.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -48,12 +57,22 @@ const InputsSchema = z.object({
   description: z.string().optional(),
   match: z.string().optional(),
   name: z.string().optional(),
+  apiToken: z.string().meta({ sensitive: true }).optional(),
+  apiKey: z.string().meta({ sensitive: true }).optional(),
+  email: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Cloudflare Rules. Registered at `@swamp/cloudflare/dex/rules`. */
 export const model = {
   type: "@swamp/cloudflare/dex/rules",
-  version: "2026.05.22.1",
+  version: "2026.05.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: apiToken, apiKey, email",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -75,7 +94,11 @@ export const model = {
         if (g.description !== undefined) body.description = g.description;
         if (g.match !== undefined) body.match = g.match;
         if (g.name !== undefined) body.name = g.name;
-        const result = await create(endpoint, body) as ResourceData;
+        const result = await create(endpoint, body, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -94,7 +117,11 @@ export const model = {
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/dex/rules";
-        const result = await read(endpoint, args.id) as ResourceData;
+        const result = await read(endpoint, args.id, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData;
         const instanceName = (g.name?.toString() ?? args.id).replace(
           /[\/\\]/g,
           "_",
@@ -128,12 +155,11 @@ export const model = {
         if (g.description !== undefined) body.description = g.description;
         if (g.match !== undefined) body.match = g.match;
         if (g.name !== undefined) body.name = g.name;
-        const result = await update(
-          endpoint,
-          existing.id,
-          body,
-          "PATCH",
-        ) as ResourceData;
+        const result = await update(endpoint, existing.id, body, "PATCH", {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -148,7 +174,11 @@ export const model = {
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/dex/rules";
-        const { existed } = await remove(endpoint, args.id);
+        const { existed } = await remove(endpoint, args.id, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        });
         const instanceName = (context.globalArgs.name?.toString() ?? args.id)
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
@@ -182,9 +212,11 @@ export const model = {
         if (!existing.id) {
           throw new Error("Stored state has no id - cannot sync");
         }
-        const result = await tryRead(endpoint, existing.id) as
-          | ResourceData
-          | null;
+        const result = await tryRead(endpoint, existing.id, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
             "state",

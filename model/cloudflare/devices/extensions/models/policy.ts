@@ -36,6 +36,12 @@ const GlobalArgsSchema = z.object({
   disable_auto_fallback: z.boolean().describe(
     "If the `dns_server` field of a fallback domain is not present, the client will fall back to a best guess of the default/system DNS resolvers unless this policy option is set to `true`.",
   ).optional(),
+  dns_search_suffixes: z.array(z.object({
+    description: z.string().optional(),
+    suffix: z.string(),
+  })).describe(
+    "List of DNS search suffixes to apply to clients. Suffixes are evaluated in order. Use an empty array to clear.",
+  ).optional(),
   enabled: z.boolean().describe(
     "Whether the policy will be applied to matching devices.",
   ).optional(),
@@ -92,6 +98,15 @@ const GlobalArgsSchema = z.object({
     allowed: z.array(z.string()),
     default: z.string(),
   }).describe("Virtual network access settings for the device.").optional(),
+  apiToken: z.string().meta({ sensitive: true }).describe(
+    "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  apiKey: z.string().meta({ sensitive: true }).describe(
+    "Cloudflare API key for the legacy key+email auth path; overrides the CLOUDFLARE_API_KEY environment variable. Wire with a vault.get(...) expression. Requires email.",
+  ).optional(),
+  email: z.string().meta({ sensitive: true }).describe(
+    "Cloudflare account email for the legacy key+email auth path; overrides the CLOUDFLARE_EMAIL environment variable. Requires apiKey.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -103,6 +118,10 @@ const ResourceSchema = z.object({
   default: z.boolean().optional(),
   description: z.string().optional(),
   disable_auto_fallback: z.boolean().optional(),
+  dns_search_suffixes: z.array(z.object({
+    description: z.string().optional(),
+    suffix: z.string().optional(),
+  })).optional(),
   enabled: z.boolean().optional(),
   exclude: z.array(z.object({
     address: z.string().optional(),
@@ -156,6 +175,10 @@ const InputsSchema = z.object({
   captive_portal: z.number().optional(),
   description: z.string().optional(),
   disable_auto_fallback: z.boolean().optional(),
+  dns_search_suffixes: z.array(z.object({
+    description: z.string().optional(),
+    suffix: z.string(),
+  })).optional(),
   enabled: z.boolean().optional(),
   exclude: z.array(z.object({
     address: z.string(),
@@ -184,12 +207,22 @@ const InputsSchema = z.object({
     allowed: z.array(z.string()),
     default: z.string(),
   }).optional(),
+  apiToken: z.string().meta({ sensitive: true }).optional(),
+  apiKey: z.string().meta({ sensitive: true }).optional(),
+  email: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Cloudflare Policy. Registered at `@swamp/cloudflare/devices/policy`. */
 export const model = {
   type: "@swamp/cloudflare/devices/policy",
-  version: "2026.05.22.1",
+  version: "2026.05.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: dns_search_suffixes, apiToken, apiKey, email",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -222,6 +255,9 @@ export const model = {
         if (g.description !== undefined) body.description = g.description;
         if (g.disable_auto_fallback !== undefined) {
           body.disable_auto_fallback = g.disable_auto_fallback;
+        }
+        if (g.dns_search_suffixes !== undefined) {
+          body.dns_search_suffixes = g.dns_search_suffixes;
         }
         if (g.enabled !== undefined) body.enabled = g.enabled;
         if (g.exclude !== undefined) body.exclude = g.exclude;
@@ -256,7 +292,11 @@ export const model = {
         if (g.virtual_networks !== undefined) {
           body.virtual_networks = g.virtual_networks;
         }
-        const result = await create(endpoint, body) as ResourceData;
+        const result = await create(endpoint, body, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -275,7 +315,11 @@ export const model = {
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/devices/policy";
-        const result = await read(endpoint, args.id) as ResourceData;
+        const result = await read(endpoint, args.id, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData;
         const instanceName = (g.name?.toString() ?? args.id).replace(
           /[\/\\]/g,
           "_",
@@ -321,6 +365,9 @@ export const model = {
         if (g.disable_auto_fallback !== undefined) {
           body.disable_auto_fallback = g.disable_auto_fallback;
         }
+        if (g.dns_search_suffixes !== undefined) {
+          body.dns_search_suffixes = g.dns_search_suffixes;
+        }
         if (g.enabled !== undefined) body.enabled = g.enabled;
         if (g.exclude !== undefined) body.exclude = g.exclude;
         if (g.exclude_office_ips !== undefined) {
@@ -354,12 +401,11 @@ export const model = {
         if (g.virtual_networks !== undefined) {
           body.virtual_networks = g.virtual_networks;
         }
-        const result = await update(
-          endpoint,
-          existing.id,
-          body,
-          "PATCH",
-        ) as ResourceData;
+        const result = await update(endpoint, existing.id, body, "PATCH", {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -374,7 +420,11 @@ export const model = {
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/devices/policy";
-        const { existed } = await remove(endpoint, args.id);
+        const { existed } = await remove(endpoint, args.id, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        });
         const instanceName = (context.globalArgs.name?.toString() ?? args.id)
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
@@ -408,9 +458,11 @@ export const model = {
         if (!existing.id) {
           throw new Error("Stored state has no id - cannot sync");
         }
-        const result = await tryRead(endpoint, existing.id) as
-          | ResourceData
-          | null;
+        const result = await tryRead(endpoint, existing.id, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
             "state",

@@ -30,7 +30,7 @@ const GlobalArgsSchema = z.object({
     "The identifier for the Custom CSR that was used.",
   ).optional(),
   deploy: z.enum(["staging", "production"]).describe(
-    "The environment to deploy the certificate to, defaults to production",
+    "The environment to deploy the certificate to, defaults to production.",
   ).optional(),
   geo_restrictions: z.object({
     label: z.enum(["us", "eu", "highest_security"]).optional(),
@@ -45,6 +45,15 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   type: z.enum(["legacy_custom", "sni_custom"]).describe(
     "The type 'legacy_custom' enables support for legacy clients which do not include SNI in the TLS handshake.",
+  ).optional(),
+  apiToken: z.string().meta({ sensitive: true }).describe(
+    "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  apiKey: z.string().meta({ sensitive: true }).describe(
+    "Cloudflare API key for the legacy key+email auth path; overrides the CLOUDFLARE_API_KEY environment variable. Wire with a vault.get(...) expression. Requires email.",
+  ).optional(),
+  email: z.string().meta({ sensitive: true }).describe(
+    "Cloudflare account email for the legacy key+email auth path; overrides the CLOUDFLARE_EMAIL environment variable. Requires apiKey.",
   ).optional(),
 });
 
@@ -97,12 +106,22 @@ const InputsSchema = z.object({
   policy: z.string().optional(),
   private_key: z.string().optional(),
   type: z.enum(["legacy_custom", "sni_custom"]).optional(),
+  apiToken: z.string().meta({ sensitive: true }).optional(),
+  apiKey: z.string().meta({ sensitive: true }).optional(),
+  email: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Cloudflare Custom Certificates. Registered at `@swamp/cloudflare/ssl/custom-certificates`. */
 export const model = {
   type: "@swamp/cloudflare/ssl/custom-certificates",
-  version: "2026.05.22.1",
+  version: "2026.05.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: apiToken, apiKey, email",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -131,7 +150,11 @@ export const model = {
         if (g.policy !== undefined) body.policy = g.policy;
         if (g.private_key !== undefined) body.private_key = g.private_key;
         if (g.type !== undefined) body.type = g.type;
-        const result = await create(endpoint, body) as ResourceData;
+        const result = await create(endpoint, body, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -152,7 +175,11 @@ export const model = {
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/zones/" + g.zone_id + "/custom_certificates";
-        const result = await read(endpoint, args.id) as ResourceData;
+        const result = await read(endpoint, args.id, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData;
         const instanceName = (g.name?.toString() ?? args.id).replace(
           /[\/\\]/g,
           "_",
@@ -192,12 +219,11 @@ export const model = {
         }
         if (g.policy !== undefined) body.policy = g.policy;
         if (g.private_key !== undefined) body.private_key = g.private_key;
-        const result = await update(
-          endpoint,
-          existing.id,
-          body,
-          "PATCH",
-        ) as ResourceData;
+        const result = await update(endpoint, existing.id, body, "PATCH", {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -214,7 +240,11 @@ export const model = {
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/zones/" + g.zone_id + "/custom_certificates";
-        const { existed } = await remove(endpoint, args.id);
+        const { existed } = await remove(endpoint, args.id, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        });
         const instanceName = (context.globalArgs.name?.toString() ?? args.id)
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
@@ -248,9 +278,11 @@ export const model = {
         if (!existing.id) {
           throw new Error("Stored state has no id - cannot sync");
         }
-        const result = await tryRead(endpoint, existing.id) as
-          | ResourceData
-          | null;
+        const result = await tryRead(endpoint, existing.id, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
             "state",

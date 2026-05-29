@@ -21,6 +21,15 @@ const GlobalArgsSchema = z.object({
   category: z.string().min(1).max(100),
   description: z.string().max(1000).optional(),
   name: z.string().min(1).max(255),
+  apiToken: z.string().meta({ sensitive: true }).describe(
+    "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  apiKey: z.string().meta({ sensitive: true }).describe(
+    "Cloudflare API key for the legacy key+email auth path; overrides the CLOUDFLARE_API_KEY environment variable. Wire with a vault.get(...) expression. Requires email.",
+  ).optional(),
+  email: z.string().meta({ sensitive: true }).describe(
+    "Cloudflare account email for the legacy key+email auth path; overrides the CLOUDFLARE_EMAIL environment variable. Requires apiKey.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -42,12 +51,22 @@ const InputsSchema = z.object({
   category: z.string().min(1).max(100).optional(),
   description: z.string().max(1000).optional(),
   name: z.string().min(1).max(255).optional(),
+  apiToken: z.string().meta({ sensitive: true }).optional(),
+  apiKey: z.string().meta({ sensitive: true }).optional(),
+  email: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Cloudflare Templates. Registered at `@swamp/cloudflare/cloudforce-one/templates`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/templates",
-  version: "2026.05.22.1",
+  version: "2026.05.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: apiToken, apiKey, email",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -71,7 +90,11 @@ export const model = {
         if (g.category !== undefined) body.category = g.category;
         if (g.description !== undefined) body.description = g.description;
         if (g.name !== undefined) body.name = g.name;
-        const result = await create(endpoint, body) as ResourceData;
+        const result = await create(endpoint, body, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -93,7 +116,11 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id +
           "/cloudforce-one/v2/brand-protection/letter/templates";
-        const result = await read(endpoint, args.id) as ResourceData;
+        const result = await read(endpoint, args.id, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData;
         const instanceName = (g.name?.toString() ?? args.id).replace(
           /[\/\\]/g,
           "_",
@@ -129,12 +156,11 @@ export const model = {
         if (g.category !== undefined) body.category = g.category;
         if (g.description !== undefined) body.description = g.description;
         if (g.name !== undefined) body.name = g.name;
-        const result = await update(
-          endpoint,
-          existing.id,
-          body,
-          "PUT",
-        ) as ResourceData;
+        const result = await update(endpoint, existing.id, body, "PUT", {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -152,7 +178,11 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id +
           "/cloudforce-one/v2/brand-protection/letter/templates";
-        const { existed } = await remove(endpoint, args.id);
+        const { existed } = await remove(endpoint, args.id, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        });
         const instanceName = (context.globalArgs.name?.toString() ?? args.id)
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
@@ -187,9 +217,11 @@ export const model = {
         if (!existing.id) {
           throw new Error("Stored state has no id - cannot sync");
         }
-        const result = await tryRead(endpoint, existing.id) as
-          | ResourceData
-          | null;
+        const result = await tryRead(endpoint, existing.id, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
             "state",

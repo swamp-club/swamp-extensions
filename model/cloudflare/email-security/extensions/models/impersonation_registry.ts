@@ -34,6 +34,9 @@ const GlobalArgsSchema = z.object({
     "SNOOPY-OFFICE_365",
     "SNOOPY-GOOGLE_DIRECTORY",
   ]).optional(),
+  apiToken: z.string().meta({ sensitive: true }).describe(
+    "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -72,12 +75,20 @@ const InputsSchema = z.object({
     "SNOOPY-OFFICE_365",
     "SNOOPY-GOOGLE_DIRECTORY",
   ]).optional(),
+  apiToken: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Cloudflare Impersonation Registry. Registered at `@swamp/cloudflare/email-security/impersonation-registry`. */
 export const model = {
   type: "@swamp/cloudflare/email-security/impersonation-registry",
-  version: "2026.05.22.1",
+  version: "2026.05.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: apiToken",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -115,7 +126,9 @@ export const model = {
         if (g.modified_at !== undefined) body.modified_at = g.modified_at;
         if (g.name !== undefined) body.name = g.name;
         if (g.provenance !== undefined) body.provenance = g.provenance;
-        const result = await create(endpoint, body) as ResourceData;
+        const result = await create(endpoint, body, {
+          apiToken: g.apiToken,
+        }) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -137,7 +150,9 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id +
           "/email-security/settings/impersonation_registry";
-        const result = await read(endpoint, args.id) as ResourceData;
+        const result = await read(endpoint, args.id, {
+          apiToken: g.apiToken,
+        }) as ResourceData;
         const instanceName = (g.name?.toString() ?? args.id).replace(
           /[\/\\]/g,
           "_",
@@ -187,12 +202,9 @@ export const model = {
         if (g.modified_at !== undefined) body.modified_at = g.modified_at;
         if (g.name !== undefined) body.name = g.name;
         if (g.provenance !== undefined) body.provenance = g.provenance;
-        const result = await update(
-          endpoint,
-          existing.id,
-          body,
-          "PATCH",
-        ) as ResourceData;
+        const result = await update(endpoint, existing.id, body, "PATCH", {
+          apiToken: g.apiToken,
+        }) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -210,7 +222,9 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id +
           "/email-security/settings/impersonation_registry";
-        const { existed } = await remove(endpoint, args.id);
+        const { existed } = await remove(endpoint, args.id, {
+          apiToken: g.apiToken,
+        });
         const instanceName = (context.globalArgs.name?.toString() ?? args.id)
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
@@ -245,9 +259,9 @@ export const model = {
         if (!existing.id) {
           throw new Error("Stored state has no id - cannot sync");
         }
-        const result = await tryRead(endpoint, existing.id) as
-          | ResourceData
-          | null;
+        const result = await tryRead(endpoint, existing.id, {
+          apiToken: g.apiToken,
+        }) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
             "state",

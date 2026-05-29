@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/cloudflare/email-security"
-version: "2026.05.22.1"
+version: "2026.05.29.1"
 description: "Cloudflare email-security infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,17 +10,19 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: allow_policies
-  - Added: block_senders
-  - Added: impersonation_registry
-  - Added: sending_domain_restrictions
-  - Added: trusted_domains
+  - Updated: allow_policies
+  - Updated: block_senders
+  - Updated: impersonation_registry
+  - Updated: sending_domain_restrictions
+  - Updated: trusted_domains
+  - Added: url_ignore_patterns
 models:
   - allow_policies.ts
   - block_senders.ts
   - impersonation_registry.ts
   - sending_domain_restrictions.ts
   - trusted_domains.ts
+  - url_ignore_patterns.ts
 additionalFiles:
   - LICENSE.txt
   - README.md

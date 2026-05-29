@@ -27,6 +27,15 @@ const GlobalArgsSchema = z.object({
   name: z.string().min(1).regex(new RegExp("^[A-Za-z0-9_]+$")).describe(
     "The unique name of the custom asset. Can only contain letters (A-Z, a-z), numbers (0-9), and underscores (_).",
   ),
+  apiToken: z.string().meta({ sensitive: true }).describe(
+    "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  apiKey: z.string().meta({ sensitive: true }).describe(
+    "Cloudflare API key for the legacy key+email auth path; overrides the CLOUDFLARE_API_KEY environment variable. Wire with a vault.get(...) expression. Requires email.",
+  ).optional(),
+  email: z.string().meta({ sensitive: true }).describe(
+    "Cloudflare account email for the legacy key+email auth path; overrides the CLOUDFLARE_EMAIL environment variable. Requires apiKey.",
+  ).optional(),
 }).refine(
   (d) => (d.account_id != null) !== (d.zone_id != null),
   "Exactly one of account_id or zone_id must be provided",
@@ -49,12 +58,22 @@ const InputsSchema = z.object({
   description: z.string().optional(),
   url: z.string().optional(),
   name: z.string().min(1).regex(new RegExp("^[A-Za-z0-9_]+$")).optional(),
+  apiToken: z.string().meta({ sensitive: true }).optional(),
+  apiKey: z.string().meta({ sensitive: true }).optional(),
+  email: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Cloudflare Assets. Registered at `@swamp/cloudflare/custom-pages/assets`. */
 export const model = {
   type: "@swamp/cloudflare/custom-pages/assets",
-  version: "2026.05.22.1",
+  version: "2026.05.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: apiToken, apiKey, email",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -79,7 +98,11 @@ export const model = {
         if (g.description !== undefined) body.description = g.description;
         if (g.name !== undefined) body.name = g.name;
         if (g.url !== undefined) body.url = g.url;
-        const result = await create(endpoint, body) as ResourceData;
+        const result = await create(endpoint, body, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -101,7 +124,11 @@ export const model = {
           ? "/accounts/" + g.account_id
           : "/zones/" + g.zone_id;
         const endpoint = scopePrefix + "/custom_pages/assets";
-        const result = await read(endpoint, args.id) as ResourceData;
+        const result = await read(endpoint, args.id, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData;
         const instanceName = (g.name?.toString() ?? args.id).replace(
           /[\/\\]/g,
           "_",
@@ -137,12 +164,11 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.description !== undefined) body.description = g.description;
         if (g.url !== undefined) body.url = g.url;
-        const result = await update(
-          endpoint,
-          existing.name,
-          body,
-          "PUT",
-        ) as ResourceData;
+        const result = await update(endpoint, existing.name, body, "PUT", {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -160,7 +186,11 @@ export const model = {
           ? "/accounts/" + g.account_id
           : "/zones/" + g.zone_id;
         const endpoint = scopePrefix + "/custom_pages/assets";
-        const { existed } = await remove(endpoint, args.id);
+        const { existed } = await remove(endpoint, args.id, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        });
         const instanceName = (context.globalArgs.name?.toString() ?? args.id)
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
@@ -197,9 +227,11 @@ export const model = {
         if (!existing.name) {
           throw new Error("Stored state has no name - cannot sync");
         }
-        const result = await tryRead(endpoint, existing.name) as
-          | ResourceData
-          | null;
+        const result = await tryRead(endpoint, existing.name, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
             "state",

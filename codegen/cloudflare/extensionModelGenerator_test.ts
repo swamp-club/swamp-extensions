@@ -1,4 +1,5 @@
 import { assertSnapshot } from "@std/testing/snapshot";
+import { assert, assertStringIncludes } from "@std/assert";
 import { generateCloudflareExtensionModel } from "./extensionModelGenerator.ts";
 import type { CloudflareProperty, CloudflareResource } from "./pipeline.ts";
 
@@ -276,5 +277,137 @@ Deno.test("generateCloudflareExtensionModel - with upgrades block", async (t) =>
       upgradesBlock:
         `  upgrades: [\n    {\n      toVersion: "2026.01.02.1",\n      description: "Added: metadata field",\n      upgradeAttributes: (old: Record<string, unknown>) => old,\n    },\n  ],`,
     }),
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Vault-wireable credential arguments
+// ---------------------------------------------------------------------------
+
+Deno.test("vault auth - injects all three sensitive args when no collision", () => {
+  const resource = makeResource({
+    resourcePath: "dns_records",
+    service: "dns",
+    modelSlug: "dns-records",
+    fileName: "dns_records.ts",
+    displayName: "DNS Record",
+    scope: "zone",
+    basePath: "/zones/{zone_id}/dns_records",
+    idPath: "/zones/{zone_id}/dns_records/{dns_record_id}",
+    idParam: "dns_record_id",
+    createProperties: {
+      name: { type: "string", description: "Record name" },
+      content: { type: "string", description: "Record content" },
+    },
+    updateProperties: {
+      content: { type: "string", description: "Record content" },
+    },
+    resourceProperties: { id: stringProp, name: stringProp },
+    requiredProperties: ["name"],
+    updateMethod: "PATCH",
+  });
+
+  const out = generateCloudflareExtensionModel({
+    resource,
+    extensionName: "@swamp/cloudflare/dns",
+    version: "2026.01.01.1",
+  });
+
+  // All three args present in GlobalArgsSchema, each flagged sensitive.
+  assertStringIncludes(
+    out,
+    `apiToken: z.string().meta({ sensitive: true }).describe(`,
+  );
+  assertStringIncludes(
+    out,
+    `apiKey: z.string().meta({ sensitive: true }).describe(`,
+  );
+  assertStringIncludes(
+    out,
+    `email: z.string().meta({ sensitive: true }).describe(`,
+  );
+  // Mirrored (without describe) in InputsSchema.
+  assertStringIncludes(
+    out,
+    `apiToken: z.string().meta({ sensitive: true }).optional(),`,
+  );
+  assertStringIncludes(
+    out,
+    `apiKey: z.string().meta({ sensitive: true }).optional(),`,
+  );
+  assertStringIncludes(
+    out,
+    `email: z.string().meta({ sensitive: true }).optional(),`,
+  );
+
+  // Threaded into every CRUD/sync call site.
+  const authObj = `{ apiToken: g.apiToken, apiKey: g.apiKey, email: g.email }`;
+  assertStringIncludes(out, `await create(endpoint, body, ${authObj})`);
+  assertStringIncludes(out, `await read(endpoint, args.id, ${authObj})`);
+  assertStringIncludes(
+    out,
+    `await update(endpoint, existing.id, body, "PATCH", ${authObj})`,
+  );
+  assertStringIncludes(out, `await remove(endpoint, args.id, ${authObj})`);
+  assertStringIncludes(out, `await tryRead(endpoint, existing.id, ${authObj})`);
+});
+
+Deno.test("vault auth - pair-guard suppresses apiKey+email when resource owns 'email'", () => {
+  // access/users-style resource: the schema itself defines an `email` property,
+  // so the legacy key+email pair must NOT be injected, but apiToken still is.
+  const resource = makeResource({
+    resourcePath: "access/users",
+    service: "access",
+    modelSlug: "users",
+    fileName: "users.ts",
+    displayName: "User",
+    scope: "account",
+    basePath: "/accounts/{account_id}/access/users",
+    idPath: "/accounts/{account_id}/access/users/{user_id}",
+    idParam: "user_id",
+    createProperties: {
+      name: { type: "string", description: "User name" },
+      email: { type: "string", description: "The email of the user." },
+    },
+    updateProperties: {},
+    resourceProperties: { id: stringProp, email: stringProp },
+    requiredProperties: ["email"],
+    handlers: { create: true, read: true, update: false, delete: true },
+  });
+
+  const out = generateCloudflareExtensionModel({
+    resource,
+    extensionName: "@swamp/cloudflare/access",
+    version: "2026.01.01.1",
+  });
+
+  // apiToken is still injected as a sensitive arg.
+  assertStringIncludes(
+    out,
+    `apiToken: z.string().meta({ sensitive: true }).describe(`,
+  );
+  // The legacy pair is suppressed — no sensitive apiKey/email args emitted.
+  assert(
+    !out.includes(`apiKey: z.string().meta({ sensitive: true })`),
+    "apiKey sensitive arg should be suppressed when email collides",
+  );
+  assert(
+    !out.includes(`email: z.string().meta({ sensitive: true })`),
+    "email sensitive arg should be suppressed when it collides with a property",
+  );
+  // The resource's own `email` property is preserved (non-sensitive).
+  assertStringIncludes(out, `email: z.string()`);
+  // Call sites thread only the apiToken override.
+  assertStringIncludes(
+    out,
+    `await create(endpoint, body, { apiToken: g.apiToken })`,
+  );
+  assertStringIncludes(
+    out,
+    `await read(endpoint, args.id, { apiToken: g.apiToken })`,
+  );
+  assertStringIncludes(
+    out,
+    `await remove(endpoint, args.id, { apiToken: g.apiToken })`,
   );
 });

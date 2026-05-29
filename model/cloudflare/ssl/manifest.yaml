@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/cloudflare/ssl"
-version: "2026.05.22.1"
+version: "2026.05.29.1"
 description: "Cloudflare ssl infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,13 +10,13 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: custom_trust_store
-  - Added: client_certificates
-  - Added: custom_certificates
-  - Added: custom_csrs
-  - Added: keyless_certificates
-  - Added: origin_tls_client_auth
-  - Added: certificates
+  - Updated: custom_trust_store
+  - Updated: client_certificates
+  - Updated: custom_certificates
+  - Updated: custom_csrs
+  - Updated: keyless_certificates
+  - Updated: origin_tls_client_auth
+  - Updated: certificates
 models:
   - certificates.ts
   - client_certificates.ts

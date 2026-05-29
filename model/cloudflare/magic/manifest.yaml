@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/cloudflare/magic"
-version: "2026.05.22.1"
+version: "2026.05.29.1"
 description: "Cloudflare magic infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,22 +10,22 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: rules
-  - Added: allowlist
-  - Added: prefixes
-  - Added: filters
-  - Added: rules_syn_protection
-  - Added: filters_tcp_flow_protection
-  - Added: rules_tcp_flow_protection
-  - Added: catalog-syncs
-  - Added: onramps
-  - Added: providers
-  - Added: connectors
-  - Added: gre_tunnels
-  - Added: ipsec_tunnels
-  - Added: redundancy_groups
-  - Added: routes
-  - Added: sites
+  - Updated: rules
+  - Updated: allowlist
+  - Updated: prefixes
+  - Updated: filters
+  - Updated: rules_syn_protection
+  - Updated: filters_tcp_flow_protection
+  - Updated: rules_tcp_flow_protection
+  - Updated: catalog-syncs
+  - Updated: onramps
+  - Updated: providers
+  - Updated: connectors
+  - Updated: gre_tunnels
+  - Updated: ipsec_tunnels
+  - Updated: redundancy_groups
+  - Updated: routes
+  - Updated: sites
 models:
   - allowlist.ts
   - catalog-syncs.ts

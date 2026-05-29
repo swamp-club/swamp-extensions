@@ -38,6 +38,9 @@ const GlobalArgsSchema = z.object({
     "Array of policies associated with this member.",
   ).optional(),
   email: z.string().max(90).describe("The contact email address of the user."),
+  apiToken: z.string().meta({ sensitive: true }).describe(
+    "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -126,12 +129,20 @@ const InputsSchema = z.object({
   }).optional(),
   policies: z.array(z.string()).optional(),
   email: z.string().max(90).optional(),
+  apiToken: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Cloudflare Members. Registered at `@swamp/cloudflare/members/members`. */
 export const model = {
   type: "@swamp/cloudflare/members/members",
-  version: "2026.05.22.1",
+  version: "2026.05.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: apiToken",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -154,7 +165,9 @@ export const model = {
         if (g.roles !== undefined) body.roles = g.roles;
         if (g.status !== undefined) body.status = g.status;
         if (g.policies !== undefined) body.policies = g.policies;
-        const result = await create(endpoint, body) as ResourceData;
+        const result = await create(endpoint, body, {
+          apiToken: g.apiToken,
+        }) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -173,7 +186,9 @@ export const model = {
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/members";
-        const result = await read(endpoint, args.id) as ResourceData;
+        const result = await read(endpoint, args.id, {
+          apiToken: g.apiToken,
+        }) as ResourceData;
         const instanceName = (g.name?.toString() ?? args.id).replace(
           /[\/\\]/g,
           "_",
@@ -209,12 +224,9 @@ export const model = {
         if (g.status !== undefined) body.status = g.status;
         if (g.user !== undefined) body.user = g.user;
         if (g.policies !== undefined) body.policies = g.policies;
-        const result = await update(
-          endpoint,
-          existing.id,
-          body,
-          "PUT",
-        ) as ResourceData;
+        const result = await update(endpoint, existing.id, body, "PUT", {
+          apiToken: g.apiToken,
+        }) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -229,7 +241,9 @@ export const model = {
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/members";
-        const { existed } = await remove(endpoint, args.id);
+        const { existed } = await remove(endpoint, args.id, {
+          apiToken: g.apiToken,
+        });
         const instanceName = (context.globalArgs.name?.toString() ?? args.id)
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
@@ -263,9 +277,9 @@ export const model = {
         if (!existing.id) {
           throw new Error("Stored state has no id - cannot sync");
         }
-        const result = await tryRead(endpoint, existing.id) as
-          | ResourceData
-          | null;
+        const result = await tryRead(endpoint, existing.id, {
+          apiToken: g.apiToken,
+        }) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
             "state",

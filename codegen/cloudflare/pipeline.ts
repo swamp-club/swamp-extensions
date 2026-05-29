@@ -317,8 +317,44 @@ export async function generateCloudflareModels(options: {
 
         if (status !== "unchanged") hasChanges = true;
 
-        // Compute upgrades block for changed/new models
-        const newFieldNames = Object.keys(resource.createProperties);
+        // Compute upgrades block for changed/new models. newFieldNames must
+        // mirror the EXACT top-level GlobalArgsSchema fields the generator
+        // emits — scope args, the synthetic name, the merged create+update
+        // properties, and the vault-wireable auth args — so upgrade diffing
+        // (computeUpgradesBlock) compares like-for-like. Otherwise the first
+        // changed regeneration emits spurious "Removed: account_id, zone_id,
+        // name, ..." entries. Keep this in lockstep with
+        // codegen/cloudflare/extensionModelGenerator.ts.
+        const mergedPropNames = new Set([
+          ...Object.keys(resource.updateProperties),
+          ...Object.keys(resource.createProperties),
+        ]);
+        const emittedFields: string[] = [];
+        if (resource.scope === "account") {
+          emittedFields.push("account_id");
+        } else if (resource.scope === "zone") {
+          emittedFields.push("zone_id");
+        } else {
+          emittedFields.push("account_id", "zone_id");
+        }
+        if (
+          resource.syntheticName && !mergedPropNames.has(resource.namingField)
+        ) {
+          emittedFields.push("name");
+        }
+        for (const name of mergedPropNames) emittedFields.push(name);
+        // Pair-guarded auth args (mirror the generator's collision logic).
+        if (!mergedPropNames.has("apiToken")) emittedFields.push("apiToken");
+        if (!mergedPropNames.has("apiKey") && !mergedPropNames.has("email")) {
+          emittedFields.push("apiKey", "email");
+        }
+        // extractGlobalArgsFieldNames (the on-disk side of the diff) only sees
+        // unquoted, valid-identifier field names; mirror that filter so quoted
+        // property names don't show up as phantom Added/Removed entries.
+        const validFieldName = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+        const newFieldNames = emittedFields.filter((n) =>
+          validFieldName.test(n)
+        );
         const upgradesBlock = computeUpgradesBlock(
           status,
           version,

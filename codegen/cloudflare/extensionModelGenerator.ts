@@ -89,6 +89,24 @@ export function generateCloudflareExtensionModel(
     ...Object.keys(resource.createProperties),
     ...Object.keys(resource.updateProperties),
   ]);
+
+  // Vault-wireable, sensitive credential args. `apiToken` is injected
+  // independently; the legacy `apiKey` + `email` pair is injected only when
+  // BOTH names are free, so a resource property named `email` (which several
+  // Cloudflare resources have) doesn't leave the key+email path half-wired —
+  // those models fall back to the CLOUDFLARE_* env vars for the legacy path.
+  // Each injected name is also mirrored into pipeline.ts's newFieldNames.
+  const injectApiToken = !allPropNames.has("apiToken");
+  const injectKeyPair = !allPropNames.has("apiKey") &&
+    !allPropNames.has("email");
+  const authParts: string[] = [];
+  if (injectApiToken) authParts.push("apiToken: g.apiToken");
+  if (injectKeyPair) authParts.push("apiKey: g.apiKey", "email: g.email");
+  // Trailing call-site argument: the auth overrides object, or "" when every
+  // credential name collided with a real property (env-var-only auth).
+  const authSuffix = authParts.length > 0
+    ? `, { ${authParts.join(", ")} }`
+    : "";
   if (resource.syntheticName && !allPropNames.has(resource.namingField)) {
     lines.push(
       `  name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),`,
@@ -96,6 +114,19 @@ export function generateCloudflareExtensionModel(
   }
   for (const prop of globalArgsProps) {
     lines.push(`  ${prop.line},`);
+  }
+  if (injectApiToken) {
+    lines.push(
+      `  apiToken: z.string().meta({ sensitive: true }).describe("Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),`,
+    );
+  }
+  if (injectKeyPair) {
+    lines.push(
+      `  apiKey: z.string().meta({ sensitive: true }).describe("Cloudflare API key for the legacy key+email auth path; overrides the CLOUDFLARE_API_KEY environment variable. Wire with a vault.get(...) expression. Requires email.").optional(),`,
+    );
+    lines.push(
+      `  email: z.string().meta({ sensitive: true }).describe("Cloudflare account email for the legacy key+email auth path; overrides the CLOUDFLARE_EMAIL environment variable. Requires apiKey.").optional(),`,
+    );
   }
   lines.push(`})${resource.scope === "both" ? buildDualScopeRefine() : ""};`);
   lines.push("");
@@ -130,6 +161,13 @@ export function generateCloudflareExtensionModel(
   }
   for (const prop of globalArgsProps) {
     lines.push(`  ${prop.nameOnly}: ${prop.baseExpr}.optional(),`);
+  }
+  if (injectApiToken) {
+    lines.push(`  apiToken: z.string().meta({ sensitive: true }).optional(),`);
+  }
+  if (injectKeyPair) {
+    lines.push(`  apiKey: z.string().meta({ sensitive: true }).optional(),`);
+    lines.push(`  email: z.string().meta({ sensitive: true }).optional(),`);
   }
   lines.push(`});`);
   lines.push("");
@@ -180,7 +218,7 @@ export function generateCloudflareExtensionModel(
     );
   }
   lines.push(
-    `        const result = await create(endpoint, body) as ResourceData;`,
+    `        const result = await create(endpoint, body${authSuffix}) as ResourceData;`,
   );
   lines.push(
     `        const instanceName = ${
@@ -206,7 +244,7 @@ export function generateCloudflareExtensionModel(
   lines.push(`        const g = context.globalArgs;`);
   lines.push(...buildEndpointLines(scopeType, relPath));
   lines.push(
-    `        const result = await read(endpoint, args.id) as ResourceData;`,
+    `        const result = await read(endpoint, args.id${authSuffix}) as ResourceData;`,
   );
   // Prefer globalArgs name over API response name — Cloudflare may transform
   // the name (e.g., appending the zone domain to DNS record names), so using
@@ -268,7 +306,7 @@ export function generateCloudflareExtensionModel(
       );
     }
     lines.push(
-      `        const result = await update(endpoint, existing.${resource.identifyingField}, body, "${resource.updateMethod}") as ResourceData;`,
+      `        const result = await update(endpoint, existing.${resource.identifyingField}, body, "${resource.updateMethod}"${authSuffix}) as ResourceData;`,
     );
     lines.push(
       `        const handle = await context.writeResource("state", instanceName, result);`,
@@ -291,7 +329,7 @@ export function generateCloudflareExtensionModel(
     lines.push(`        const g = context.globalArgs;`);
     lines.push(...buildEndpointLines(scopeType, relPath));
     lines.push(
-      `        const { existed } = await remove(endpoint, args.id);`,
+      `        const { existed } = await remove(endpoint, args.id${authSuffix});`,
     );
     lines.push(
       `        const instanceName = ${
@@ -346,7 +384,7 @@ export function generateCloudflareExtensionModel(
     `        if (!existing.${resource.identifyingField}) throw new Error("Stored state has no ${resource.identifyingField} - cannot sync");`,
   );
   lines.push(
-    `        const result = await tryRead(endpoint, existing.${resource.identifyingField}) as ResourceData | null;`,
+    `        const result = await tryRead(endpoint, existing.${resource.identifyingField}${authSuffix}) as ResourceData | null;`,
   );
   lines.push(`        if (result) {`);
   lines.push(

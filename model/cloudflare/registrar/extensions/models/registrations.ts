@@ -52,6 +52,15 @@ const GlobalArgsSchema = z.object({
   years: z.number().int().min(1).max(10).describe(
     "Number of years to register (1–10). If omitted, defaults to the\nminimum registration period required by the registry for this\nextension. For most extensions this is 1 year, but some extensions\nrequire longer minimum terms (e.g., `.ai` requires a minimum of\n2 years).\n\nThe registry for each extension may also enforce its own maximum\nregistration term. If the requested value exceeds the registry's\nmaximum, the registration will be rejected. When in doubt, use the\ndefault by omitting this field.\n",
   ).optional(),
+  apiToken: z.string().meta({ sensitive: true }).describe(
+    "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  apiKey: z.string().meta({ sensitive: true }).describe(
+    "Cloudflare API key for the legacy key+email auth path; overrides the CLOUDFLARE_API_KEY environment variable. Wire with a vault.get(...) expression. Requires email.",
+  ).optional(),
+  email: z.string().meta({ sensitive: true }).describe(
+    "Cloudflare account email for the legacy key+email auth path; overrides the CLOUDFLARE_EMAIL environment variable. Requires apiKey.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -92,12 +101,22 @@ const InputsSchema = z.object({
   domain_name: z.string().optional(),
   privacy_mode: z.enum(["redaction"]).optional(),
   years: z.number().int().min(1).max(10).optional(),
+  apiToken: z.string().meta({ sensitive: true }).optional(),
+  apiKey: z.string().meta({ sensitive: true }).optional(),
+  email: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Cloudflare Registrations. Registered at `@swamp/cloudflare/registrar/registrations`. */
 export const model = {
   type: "@swamp/cloudflare/registrar/registrations",
-  version: "2026.05.22.1",
+  version: "2026.05.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: apiToken, apiKey, email",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -122,7 +141,11 @@ export const model = {
         if (g.domain_name !== undefined) body.domain_name = g.domain_name;
         if (g.privacy_mode !== undefined) body.privacy_mode = g.privacy_mode;
         if (g.years !== undefined) body.years = g.years;
-        const result = await create(endpoint, body) as ResourceData;
+        const result = await create(endpoint, body, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -144,7 +167,11 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id +
           "/registrar/registrations";
-        const result = await read(endpoint, args.id) as ResourceData;
+        const result = await read(endpoint, args.id, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData;
         const instanceName = (g.name?.toString() ?? args.id).replace(
           /[\/\\]/g,
           "_",
@@ -177,12 +204,11 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
         if (g.auto_renew !== undefined) body.auto_renew = g.auto_renew;
-        const result = await update(
-          endpoint,
-          existing.id,
-          body,
-          "PATCH",
-        ) as ResourceData;
+        const result = await update(endpoint, existing.id, body, "PATCH", {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -214,9 +240,11 @@ export const model = {
         if (!existing.id) {
           throw new Error("Stored state has no id - cannot sync");
         }
-        const result = await tryRead(endpoint, existing.id) as
-          | ResourceData
-          | null;
+        const result = await tryRead(endpoint, existing.id, {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
             "state",
