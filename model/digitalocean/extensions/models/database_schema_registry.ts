@@ -25,6 +25,9 @@ const GlobalArgsSchema = z.object({
     "The type of the schema.",
   ),
   schema: z.string().describe("The schema definition in the specified format."),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -43,12 +46,20 @@ const InputsSchema = z.object({
   subject_name: z.string().optional(),
   schema_type: z.enum(["AVRO", "JSON", "PROTOBUF"]).optional(),
   schema: z.string().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean database schema registry. Registered at `@swamp/digitalocean/database-schema-registry`. */
 export const model = {
   type: "@swamp/digitalocean/database-schema-registry",
-  version: "2026.05.22.1",
+  version: "2026.05.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -75,7 +86,12 @@ export const model = {
         if (g.subject_name !== undefined) body.subject_name = g.subject_name;
         if (g.schema_type !== undefined) body.schema_type = g.schema_type;
         if (g.schema !== undefined) body.schema = g.schema;
-        const result = await create(endpoint, body) as ResourceData;
+        const result = await create(
+          endpoint,
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -95,7 +111,12 @@ export const model = {
         const g = context.globalArgs;
         const endpoint =
           `/v2/databases/${g.database_cluster_uuid}/schema-registry`;
-        const result = await read(endpoint, args.id) as ResourceData;
+        const result = await read(
+          endpoint,
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -120,7 +141,12 @@ export const model = {
         const g = context.globalArgs;
         const endpoint =
           `/v2/databases/${g.database_cluster_uuid}/schema-registry`;
-        const { existed } = await remove(endpoint, args.id);
+        const { existed } = await remove(
+          endpoint,
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -158,6 +184,8 @@ export const model = {
         const result = await tryRead(
           endpoint,
           existing.subject_name ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(

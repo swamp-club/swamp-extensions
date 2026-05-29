@@ -63,6 +63,9 @@ const GlobalArgsSchema = z.object({
   filesystem_label: z.string().describe(
     "The label applied to the filesystem. Labels for ext4 type filesystems may contain 16 characters while labels for xfs type filesystems are limited to 12 characters. May only be used in conjunction with filesystem_type.",
   ).optional(),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -111,12 +114,13 @@ const InputsSchema = z.object({
     "atl1",
   ]).optional(),
   filesystem_label: z.string().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean volume. Registered at `@swamp/digitalocean/volume`. */
 export const model = {
   type: "@swamp/digitalocean/volume",
-  version: "2026.05.15.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -163,6 +167,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -199,6 +208,7 @@ export const model = {
             "/v2/volumes",
             "name",
             g.name?.toString() ?? "",
+            g.token,
           );
           if (existing) {
             throw new Error(`Resource already exists with name: ${g.name}`);
@@ -219,7 +229,12 @@ export const model = {
         if (g.filesystem_label !== undefined) {
           body.filesystem_label = g.filesystem_label;
         }
-        const result = await create("/v2/volumes", body) as ResourceData;
+        const result = await create(
+          "/v2/volumes",
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -234,7 +249,12 @@ export const model = {
         id: z.union([z.string(), z.number()]).describe("The ID of the volume"),
       }),
       execute: async (args: { id: string | number }, context: any) => {
-        const result = await read("/v2/volumes", args.id) as ResourceData;
+        const result = await read(
+          "/v2/volumes",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -251,7 +271,12 @@ export const model = {
         id: z.union([z.string(), z.number()]).describe("The ID of the volume"),
       }),
       execute: async (args: { id: string | number }, context: any) => {
-        const { existed } = await remove("/v2/volumes", args.id);
+        const { existed } = await remove(
+          "/v2/volumes",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -287,6 +312,8 @@ export const model = {
         const result = await tryRead(
           "/v2/volumes",
           existing.id ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
@@ -357,6 +384,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-attach`;
         const handles = [];
@@ -428,6 +456,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-detach`;
         const handles = [];
@@ -501,6 +530,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-resize`;
         const handles = [];

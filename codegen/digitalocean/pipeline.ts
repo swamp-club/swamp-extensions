@@ -427,6 +427,14 @@ export async function generateDigitalOceanModels(options: {
         ...(isSyntheticName ? [syntheticField] : []),
         ...Object.keys(mergedProps),
       ];
+      // The generator injects an auth `token` global arg unless the resource
+      // already has one. Mirror that here so upgrade diffing sees the field that
+      // is actually emitted — otherwise the next changed regeneration would
+      // read `token` from the committed GlobalArgsSchema, miss it in
+      // newFieldNames, and emit a spurious "Removed: token" upgrade entry.
+      if (!newFieldNames.includes("token")) {
+        newFieldNames.push("token");
+      }
 
       const upgradesBlock = computeUpgradesBlock(
         status,

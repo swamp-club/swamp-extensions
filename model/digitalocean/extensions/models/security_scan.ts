@@ -19,6 +19,9 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -46,12 +49,13 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean security scan. Registered at `@swamp/digitalocean/security-scan`. */
 export const model = {
   type: "@swamp/digitalocean/security-scan",
-  version: "2026.05.15.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -88,6 +92,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -110,7 +119,12 @@ export const model = {
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");
         const body: Record<string, unknown> = {};
-        const result = await create("/v2/security/scans", body) as ResourceData;
+        const result = await create(
+          "/v2/security/scans",
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -130,6 +144,8 @@ export const model = {
         const result = await read(
           "/v2/security/scans",
           args.id,
+          undefined,
+          context.globalArgs.token,
         ) as ResourceData;
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
@@ -165,6 +181,8 @@ export const model = {
         const result = await tryRead(
           "/v2/security/scans",
           existing.scanid ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(

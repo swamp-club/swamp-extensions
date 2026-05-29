@@ -71,6 +71,9 @@ const GlobalArgsSchema = z.object({
   ]),
   value: z.number(),
   window: z.enum(["5m", "10m", "30m", "1h"]),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -148,12 +151,13 @@ const InputsSchema = z.object({
   ]).optional(),
   value: z.number().optional(),
   window: z.enum(["5m", "10m", "30m", "1h"]).optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean monitoring alert policy. Registered at `@swamp/digitalocean/monitoring-alert-policy`. */
 export const model = {
   type: "@swamp/digitalocean/monitoring-alert-policy",
-  version: "2026.05.15.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -190,6 +194,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -224,6 +233,8 @@ export const model = {
         const result = await create(
           "/v2/monitoring/alerts",
           body,
+          undefined,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -242,6 +253,8 @@ export const model = {
         const result = await read(
           "/v2/monitoring/alerts",
           args.uuid,
+          undefined,
+          context.globalArgs.token,
         ) as ResourceData;
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.uuid.toString()).replace(
@@ -287,6 +300,8 @@ export const model = {
           existing.uuid ?? existing.id,
           body,
           "PUT",
+          undefined,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -302,7 +317,12 @@ export const model = {
         uuid: z.string().describe("The UUID of the monitoring alert policy"),
       }),
       execute: async (args: { uuid: string }, context: any) => {
-        const { existed } = await remove("/v2/monitoring/alerts", args.uuid);
+        const { existed } = await remove(
+          "/v2/monitoring/alerts",
+          args.uuid,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.uuid.toString()).replace(
             /[\/\\]/g,
@@ -338,6 +358,8 @@ export const model = {
         const result = await tryRead(
           "/v2/monitoring/alerts",
           existing.uuid ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(

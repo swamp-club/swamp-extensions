@@ -22,6 +22,9 @@ const GlobalArgsSchema = z.object({
   ip_address: z.string().describe(
     "This optional attribute may contain an IP address. When provided, an A record will be automatically created pointing to the apex domain.",
   ).optional(),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -36,12 +39,13 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 const InputsSchema = z.object({
   name: z.string().optional(),
   ip_address: z.string().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean domain. Registered at `@swamp/digitalocean/domain`. */
 export const model = {
   type: "@swamp/digitalocean/domain",
-  version: "2026.05.15.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -83,6 +87,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -109,7 +118,12 @@ export const model = {
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");
         if (args.checkExists) {
-          const existing = await tryRead("/v2/domains", g.name);
+          const existing = await tryRead(
+            "/v2/domains",
+            g.name,
+            undefined,
+            g.token,
+          );
           if (existing) {
             throw new Error(`Resource already exists: ${g.name}`);
           }
@@ -117,7 +131,12 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
         if (g.ip_address !== undefined) body.ip_address = g.ip_address;
-        const result = await create("/v2/domains", body) as ResourceData;
+        const result = await create(
+          "/v2/domains",
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -132,7 +151,12 @@ export const model = {
         name: z.string().describe("The name of the domain"),
       }),
       execute: async (args: { name: string }, context: any) => {
-        const result = await read("/v2/domains", args.name) as ResourceData;
+        const result = await read(
+          "/v2/domains",
+          args.name,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.name.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -149,7 +173,12 @@ export const model = {
         name: z.string().describe("The name of the domain"),
       }),
       execute: async (args: { name: string }, context: any) => {
-        const { existed } = await remove("/v2/domains", args.name);
+        const { existed } = await remove(
+          "/v2/domains",
+          args.name,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.name.toString()).replace(
             /[\/\\]/g,
@@ -185,6 +214,8 @@ export const model = {
         const result = await tryRead(
           "/v2/domains",
           existing.name ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(

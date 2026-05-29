@@ -44,6 +44,9 @@ const GlobalArgsSchema = z.object({
     .describe(
       "Type of logsink integration.\n\n- Use `datadog` for Datadog integration **only with MongoDB clusters**.\n- For non-MongoDB clusters, use `rsyslog` for general syslog forwarding.\n- Other supported types include `elasticsearch` and `opensearch`.\n\nMore details about the configuration can be found in the `config` property.\n",
     ),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -94,12 +97,20 @@ const InputsSchema = z.object({
   sink_name: z.string().optional(),
   sink_type: z.enum(["rsyslog", "elasticsearch", "opensearch", "datadog"])
     .optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean database logsink. Registered at `@swamp/digitalocean/database-logsink`. */
 export const model = {
   type: "@swamp/digitalocean/database-logsink",
-  version: "2026.05.22.1",
+  version: "2026.05.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -125,7 +136,12 @@ export const model = {
         if (g.sink_name !== undefined) body.sink_name = g.sink_name;
         if (g.sink_type !== undefined) body.sink_type = g.sink_type;
         if (g.config !== undefined) body.config = g.config;
-        const result = await create(endpoint, body) as ResourceData;
+        const result = await create(
+          endpoint,
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -144,7 +160,12 @@ export const model = {
       execute: async (args: { id: string | number }, context: any) => {
         const g = context.globalArgs;
         const endpoint = `/v2/databases/${g.database_cluster_uuid}/logsink`;
-        const result = await read(endpoint, args.id) as ResourceData;
+        const result = await read(
+          endpoint,
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -182,6 +203,8 @@ export const model = {
           existing.sink_id ?? existing.id,
           body,
           "PUT",
+          undefined,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -201,7 +224,12 @@ export const model = {
       execute: async (args: { id: string | number }, context: any) => {
         const g = context.globalArgs;
         const endpoint = `/v2/databases/${g.database_cluster_uuid}/logsink`;
-        const { existed } = await remove(endpoint, args.id);
+        const { existed } = await remove(
+          endpoint,
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -238,6 +266,8 @@ export const model = {
         const result = await tryRead(
           endpoint,
           existing.sink_id ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(

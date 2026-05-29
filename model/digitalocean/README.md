@@ -19,8 +19,26 @@ of configurable properties and available methods for a model.
 
 ## Authentication
 
-Set the `DO_API_TOKEN` environment variable to your DigitalOcean personal access
-token. The token is validated against `/v2/account` on first use.
+Provide a DigitalOcean personal access token in one of two ways. An explicit
+`token` global argument takes precedence over the environment variable, and is
+validated against `/v2/account` on first use.
+
+**Option 1 — `token` global argument (recommended).** Wire it from a vault so
+the secret never lives in your shell environment:
+
+```yaml
+# in the model definition
+globalArguments:
+  token: ${{ vault.get(my-vault, do-token) }}
+```
+
+The `token` argument is marked sensitive: swamp redacts its value from run logs
+and reports and vaults it on write. A vault-sourced value is stored as the
+`vault.get(...)` expression and only resolved at execution time, so the raw
+secret never lands in the model definition.
+
+**Option 2 — `DO_API_TOKEN` environment variable.** Used when no `token`
+argument is set:
 
 ```bash
 export DO_API_TOKEN=your-token-here

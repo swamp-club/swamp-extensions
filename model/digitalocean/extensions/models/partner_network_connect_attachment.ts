@@ -63,6 +63,9 @@ const GlobalArgsSchema = z.object({
   redundancy_zone: z.enum(["MEGAPORT_BLUE", "MEGAPORT_RED"]).describe(
     "Optional redundancy zone for the partner attachment.",
   ).optional(),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -121,12 +124,13 @@ const InputsSchema = z.object({
   naas_provider: z.string().optional(),
   parent_uuid: z.string().optional(),
   redundancy_zone: z.enum(["MEGAPORT_BLUE", "MEGAPORT_RED"]).optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean partner network connect attachment. Registered at `@swamp/digitalocean/partner-network-connect-attachment`. */
 export const model = {
   type: "@swamp/digitalocean/partner-network-connect-attachment",
-  version: "2026.05.15.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -168,6 +172,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -198,6 +207,7 @@ export const model = {
             "/v2/partner_network_connect/attachments",
             "name",
             g.name?.toString() ?? "",
+            g.token,
           );
           if (existing) {
             throw new Error(`Resource already exists with name: ${g.name}`);
@@ -219,6 +229,8 @@ export const model = {
         const result = await create(
           "/v2/partner_network_connect/attachments",
           body,
+          undefined,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -239,6 +251,8 @@ export const model = {
         const result = await read(
           "/v2/partner_network_connect/attachments",
           args.id,
+          undefined,
+          context.globalArgs.token,
         ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
@@ -275,6 +289,8 @@ export const model = {
           existing.paid ?? existing.id,
           body,
           "PATCH",
+          undefined,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -295,6 +311,8 @@ export const model = {
         const { existed } = await remove(
           "/v2/partner_network_connect/attachments",
           args.id,
+          undefined,
+          context.globalArgs.token,
         );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
@@ -332,6 +350,8 @@ export const model = {
         const result = await tryRead(
           "/v2/partner_network_connect/attachments",
           existing.paid ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(

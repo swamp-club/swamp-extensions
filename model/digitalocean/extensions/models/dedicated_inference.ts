@@ -43,6 +43,9 @@ const GlobalArgsSchema = z.object({
   access_tokens: z.record(z.string(), z.unknown()).describe(
     "Key-value pairs for provider tokens (e.g. Hugging Face).",
   ).optional(),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -129,12 +132,13 @@ const InputsSchema = z.object({
     })),
   }).optional(),
   access_tokens: z.record(z.string(), z.unknown()).optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean dedicated inference. Registered at `@swamp/digitalocean/dedicated-inference`. */
 export const model = {
   type: "@swamp/digitalocean/dedicated-inference",
-  version: "2026.05.15.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -171,6 +175,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -198,6 +207,8 @@ export const model = {
         const result = await create(
           "/v2/dedicated-inferences",
           body,
+          undefined,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -218,6 +229,8 @@ export const model = {
         const result = await read(
           "/v2/dedicated-inferences",
           args.id,
+          undefined,
+          context.globalArgs.token,
         ) as ResourceData;
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
@@ -256,6 +269,8 @@ export const model = {
           existing.dedicatedinferenceid ?? existing.id,
           body,
           "PATCH",
+          undefined,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -273,7 +288,12 @@ export const model = {
         ),
       }),
       execute: async (args: { id: string | number }, context: any) => {
-        const { existed } = await remove("/v2/dedicated-inferences", args.id);
+        const { existed } = await remove(
+          "/v2/dedicated-inferences",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -309,6 +329,8 @@ export const model = {
         const result = await tryRead(
           "/v2/dedicated-inferences",
           existing.dedicatedinferenceid ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(

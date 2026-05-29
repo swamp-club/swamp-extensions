@@ -149,6 +149,9 @@ const GlobalArgsSchema = z.object({
   tag: z.string().describe(
     "The name of a Droplet tag corresponding to Droplets assigned to the load balancer.",
   ).optional(),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -302,12 +305,13 @@ const InputsSchema = z.object({
   target_load_balancer_ids: z.array(z.string()).optional(),
   tls_cipher_policy: z.enum(["DEFAULT", "STRONG"]).optional(),
   tag: z.string().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean load balancer. Registered at `@swamp/digitalocean/load-balancer`. */
 export const model = {
   type: "@swamp/digitalocean/load-balancer",
-  version: "2026.05.15.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -354,6 +358,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -390,6 +399,7 @@ export const model = {
             "/v2/load_balancers",
             "name",
             g.name?.toString() ?? "",
+            g.token,
           );
           if (existing) {
             throw new Error(`Resource already exists with name: ${g.name}`);
@@ -440,7 +450,12 @@ export const model = {
           body.tls_cipher_policy = g.tls_cipher_policy;
         }
         if (g.tag !== undefined) body.tag = g.tag;
-        let result = await create("/v2/load_balancers", body) as ResourceData;
+        let result = await create(
+          "/v2/load_balancers",
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         if (args.waitForReady !== false) {
           const resourceId = result.lbid ?? result.id;
           if (resourceId) {
@@ -452,6 +467,7 @@ export const model = {
                 "readyValues": ["active"],
                 "failedValues": ["errored"],
               },
+              g.token,
             ) as ResourceData;
           }
         }
@@ -474,6 +490,8 @@ export const model = {
         const result = await read(
           "/v2/load_balancers",
           args.id,
+          undefined,
+          context.globalArgs.token,
         ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
@@ -555,6 +573,8 @@ export const model = {
           existing.lbid ?? existing.id,
           body,
           "PUT",
+          undefined,
+          g.token,
         ) as ResourceData;
         if (args.waitForReady !== false) {
           const resourceId = result.lbid ?? result.id ?? existing.lbid ??
@@ -568,6 +588,7 @@ export const model = {
                 "readyValues": ["active"],
                 "failedValues": ["errored"],
               },
+              g.token,
             ) as ResourceData;
           }
         }
@@ -587,7 +608,12 @@ export const model = {
         ),
       }),
       execute: async (args: { id: string | number }, context: any) => {
-        const { existed } = await remove("/v2/load_balancers", args.id);
+        const { existed } = await remove(
+          "/v2/load_balancers",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -623,6 +649,8 @@ export const model = {
         const result = await tryRead(
           "/v2/load_balancers",
           existing.lbid ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(

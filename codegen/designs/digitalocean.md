@@ -903,8 +903,17 @@ Exports: `create`, `read`, `tryRead`, `tryFindByField`, `update`, `remove`,
 
 Key behaviors:
 
-- Token is read from `DO_API_TOKEN` env var
-- Token is validated once against `GET /v2/account` and cached
+- Token resolution: an explicit `token` (passed from a model's `token` global
+  argument, wireable with a `vault.get(...)` expression) takes precedence over
+  the `DO_API_TOKEN` env var. `getToken(explicitToken?)` resolves it and every
+  exported helper accepts a trailing `token?` argument that threads through to
+  the request.
+- The `token` global arg is emitted with `z.meta({ sensitive: true })` so swamp
+  redacts it from run logs, reports, and data storage. It is only ever sent as
+  the `Authorization: Bearer` header — never written into a request body.
+- Each distinct token is validated exactly once against `GET /v2/account` and
+  cached in a `Set` (so the env-var token and any per-model token are each
+  validated a single time)
 - 404 responses are not thrown as errors (callers handle them)
 - All other non-OK responses throw with method, path, status, and body
 - Response bodies are unwrapped via the `unwrap()` function (see Section 6)

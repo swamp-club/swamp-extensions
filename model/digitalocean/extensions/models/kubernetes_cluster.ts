@@ -164,6 +164,9 @@ const GlobalArgsSchema = z.object({
   })).describe(
     "An object specifying the details of the worker nodes available to the Kubernetes cluster.",
   ),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -355,12 +358,13 @@ const InputsSchema = z.object({
       updated_at: z.string().optional(),
     })).optional(),
   })).optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean kubernetes cluster. Registered at `@swamp/digitalocean/kubernetes-cluster`. */
 export const model = {
   type: "@swamp/digitalocean/kubernetes-cluster",
-  version: "2026.05.22.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -412,6 +416,11 @@ export const model = {
       description: "Added: sso, worker_subnet_uuid",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -448,6 +457,7 @@ export const model = {
             "/v2/kubernetes/clusters",
             "name",
             g.name?.toString() ?? "",
+            g.token,
           );
           if (existing) {
             throw new Error(`Resource already exists with name: ${g.name}`);
@@ -500,6 +510,8 @@ export const model = {
         let result = await create(
           "/v2/kubernetes/clusters",
           body,
+          undefined,
+          g.token,
         ) as ResourceData;
         if (args.waitForReady !== false) {
           const resourceId = result.clusterid ?? result.id;
@@ -512,6 +524,7 @@ export const model = {
                 "readyValues": ["running"],
                 "failedValues": ["error", "degraded"],
               },
+              g.token,
             ) as ResourceData;
           }
         }
@@ -534,6 +547,8 @@ export const model = {
         const result = await read(
           "/v2/kubernetes/clusters",
           args.id,
+          undefined,
+          context.globalArgs.token,
         ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
@@ -601,6 +616,8 @@ export const model = {
           existing.clusterid ?? existing.id,
           body,
           "PUT",
+          undefined,
+          g.token,
         ) as ResourceData;
         if (args.waitForReady !== false) {
           const resourceId = result.clusterid ?? result.id ??
@@ -614,6 +631,7 @@ export const model = {
                 "readyValues": ["running"],
                 "failedValues": ["error", "degraded"],
               },
+              g.token,
             ) as ResourceData;
           }
         }
@@ -633,7 +651,12 @@ export const model = {
         ),
       }),
       execute: async (args: { id: string | number }, context: any) => {
-        const { existed } = await remove("/v2/kubernetes/clusters", args.id);
+        const { existed } = await remove(
+          "/v2/kubernetes/clusters",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -669,6 +692,8 @@ export const model = {
         const result = await tryRead(
           "/v2/kubernetes/clusters",
           existing.clusterid ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
@@ -691,7 +716,10 @@ export const model = {
         "List available options for kubernetes cluster (versions, sizes, regions)",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
-        const result = await discover("/v2/kubernetes/options");
+        const result = await discover(
+          "/v2/kubernetes/options",
+          context.globalArgs.token,
+        );
         const handle = await context.writeResource("state", "options", result);
         return { dataHandles: [handle] };
       },

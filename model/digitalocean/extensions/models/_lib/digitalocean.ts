@@ -3,18 +3,26 @@
 
 const API_BASE = "https://api.digitalocean.com";
 
-let validatedToken: string | undefined;
+// Tokens validated against GET /v2/account are cached here so each distinct
+// token (env var or per-model `token` global arg) is validated exactly once.
+const validatedTokens = new Set<string>();
 
-async function getToken(): Promise<string> {
-  if (validatedToken) return validatedToken;
-
-  const token = Deno.env.get("DO_API_TOKEN");
+/**
+ * Resolves the DigitalOcean API token. An explicit token (e.g. from a model's
+ * 'token' global argument, which may be wired with a vault.get(...) expression)
+ * takes precedence over the DO_API_TOKEN environment variable.
+ */
+async function getToken(explicitToken?: string): Promise<string> {
+  const token = explicitToken ?? Deno.env.get("DO_API_TOKEN");
   if (!token) {
     throw new Error(
-      "DO_API_TOKEN environment variable is not set. " +
-        "Set it with: swamp vault set DO_API_TOKEN <your-token>",
+      "No DigitalOcean API token found. Provide one via the model's 'token' " +
+        "global argument (wired with a vault.get(...) expression) or set the " +
+        "DO_API_TOKEN environment variable.",
     );
   }
+
+  if (validatedTokens.has(token)) return token;
 
   // Validate the token by hitting /v2/account
   const resp = await fetch(`${API_BASE}/v2/account`, {
@@ -23,13 +31,13 @@ async function getToken(): Promise<string> {
   if (!resp.ok) {
     const text = await resp.text();
     throw new Error(
-      `DO_API_TOKEN is invalid (GET /v2/account returned ${resp.status}): ${text}`,
+      `DigitalOcean API token is invalid (GET /v2/account returned ${resp.status}): ${text}`,
     );
   }
   // Drain the response body
   await resp.text();
 
-  validatedToken = token;
+  validatedTokens.add(token);
   return token;
 }
 
@@ -51,8 +59,9 @@ async function request(
   path: string,
   body?: Record<string, unknown>,
   queryParams?: Record<string, string>,
+  explicitToken?: string,
 ): Promise<Response> {
-  const token = await getToken();
+  const token = await getToken(explicitToken);
   const url = buildUrl(path, queryParams);
   const headers: Record<string, string> = {
     "Authorization": `Bearer ${token}`,
@@ -99,8 +108,9 @@ export async function create(
   endpoint: string,
   body: Record<string, unknown>,
   queryParams?: Record<string, string>,
+  token?: string,
 ): Promise<Record<string, unknown>> {
-  const resp = await request("POST", endpoint, body, queryParams);
+  const resp = await request("POST", endpoint, body, queryParams, token);
   const text = await resp.text();
   if (!text) return {};
   const data = JSON.parse(text);
@@ -111,12 +121,14 @@ export async function read(
   endpoint: string,
   id: number | string,
   queryParams?: Record<string, string>,
+  token?: string,
 ): Promise<Record<string, unknown>> {
   const resp = await request(
     "GET",
     `${endpoint}/${id}`,
     undefined,
     queryParams,
+    token,
   );
   if (resp.status === 404) {
     const text = await resp.text();
@@ -132,12 +144,14 @@ export async function tryRead(
   endpoint: string,
   id: number | string,
   queryParams?: Record<string, string>,
+  token?: string,
 ): Promise<Record<string, unknown> | null> {
   const resp = await request(
     "GET",
     `${endpoint}/${id}`,
     undefined,
     queryParams,
+    token,
   );
   if (resp.status === 404) {
     await resp.text();
@@ -153,8 +167,15 @@ export async function update(
   body: Record<string, unknown>,
   method: "PATCH" | "PUT" = "PUT",
   queryParams?: Record<string, string>,
+  token?: string,
 ): Promise<Record<string, unknown>> {
-  const resp = await request(method, `${endpoint}/${id}`, body, queryParams);
+  const resp = await request(
+    method,
+    `${endpoint}/${id}`,
+    body,
+    queryParams,
+    token,
+  );
   if (resp.status === 404) {
     const text = await resp.text();
     throw new Error(
@@ -171,12 +192,14 @@ export async function remove(
   endpoint: string,
   id: number | string,
   queryParams?: Record<string, string>,
+  token?: string,
 ): Promise<{ existed: boolean }> {
   const resp = await request(
     "DELETE",
     `${endpoint}/${id}`,
     undefined,
     queryParams,
+    token,
   );
   return { existed: resp.status !== 404 };
 }
@@ -187,16 +210,24 @@ export async function subResourceUpdate(
   subPath: string,
   body: Record<string, unknown>,
   method: "PATCH" | "PUT" = "PUT",
+  token?: string,
 ): Promise<void> {
-  const resp = await request(method, `${endpoint}/${id}/${subPath}`, body);
+  const resp = await request(
+    method,
+    `${endpoint}/${id}/${subPath}`,
+    body,
+    undefined,
+    token,
+  );
   // Most sub-resource endpoints return 202/204 with no body — drain the response
   await resp.text();
 }
 
 export async function discover(
   endpoint: string,
+  token?: string,
 ): Promise<Record<string, unknown>> {
-  const resp = await request("GET", endpoint);
+  const resp = await request("GET", endpoint, undefined, undefined, token);
   const data = await resp.json();
   return unwrap(data);
 }
@@ -209,6 +240,7 @@ export async function tryFindByField(
   endpoint: string,
   field: string,
   value: string,
+  token?: string,
 ): Promise<Record<string, unknown> | null> {
   let page = 1;
   const perPage = 200;
@@ -217,7 +249,7 @@ export async function tryFindByField(
     const resp = await request("GET", endpoint, undefined, {
       page: String(page),
       per_page: String(perPage),
-    });
+    }, token);
     const data = await resp.json() as Record<string, unknown>;
 
     // Find the array in the response (skip meta/links)
@@ -247,12 +279,19 @@ export async function tryFindByField(
  */
 export async function pollAction(
   actionId: number | string,
+  token?: string,
 ): Promise<Record<string, unknown>> {
   const maxAttempts = 60;
   const pollDelay = 5000; // 5 seconds
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const resp = await request("GET", `/v2/actions/${actionId}`);
+    const resp = await request(
+      "GET",
+      `/v2/actions/${actionId}`,
+      undefined,
+      undefined,
+      token,
+    );
     if (resp.status === 404) {
       const text = await resp.text();
       throw new Error(
@@ -286,6 +325,7 @@ export async function createAndPollAction(
   resourceId: number | string,
   body: Record<string, unknown>,
   waitForCompletion = true,
+  token?: string,
 ): Promise<{
   action: Record<string, unknown>;
   resource?: Record<string, unknown>;
@@ -294,6 +334,8 @@ export async function createAndPollAction(
     "POST",
     `${endpoint}/${resourceId}/actions`,
     body,
+    undefined,
+    token,
   );
   const text = await resp.text();
   if (!text) return { action: {} };
@@ -314,10 +356,10 @@ export async function createAndPollAction(
     return { action };
   }
 
-  const completedAction = await pollAction(actionId as number | string);
+  const completedAction = await pollAction(actionId as number | string, token);
 
   // Re-read the parent resource to get updated state
-  const resource = await tryRead(endpoint, resourceId);
+  const resource = await tryRead(endpoint, resourceId, undefined, token);
 
   return {
     action: completedAction,
@@ -343,6 +385,7 @@ export async function pollResourceReady(
   endpoint: string,
   resourceId: number | string,
   config: ReadinessConfig,
+  token?: string,
 ): Promise<Record<string, unknown>> {
   const maxAttempts = 60;
   const pollDelay = 10000; // 10 seconds
@@ -350,7 +393,7 @@ export async function pollResourceReady(
   const fieldParts = config.statusField.split(".");
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const resource = await read(endpoint, resourceId);
+    const resource = await read(endpoint, resourceId, undefined, token);
 
     // Traverse dot-path to get the status value
     let currentStatus: unknown = resource;

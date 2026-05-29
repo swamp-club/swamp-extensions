@@ -29,6 +29,9 @@ const GlobalArgsSchema = z.object({
   public_key: z.string().describe(
     "The entire public key string that was uploaded. Embedded into the root user's `authorized_keys` file if you include this key during Droplet creation.",
   ),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -43,12 +46,13 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 const InputsSchema = z.object({
   name: z.string().optional(),
   public_key: z.string().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean ssh key. Registered at `@swamp/digitalocean/ssh-key`. */
 export const model = {
   type: "@swamp/digitalocean/ssh-key",
-  version: "2026.05.15.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -90,6 +94,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -120,6 +129,7 @@ export const model = {
             "/v2/account/keys",
             "name",
             g.name?.toString() ?? "",
+            g.token,
           );
           if (existing) {
             throw new Error(`Resource already exists with name: ${g.name}`);
@@ -128,7 +138,12 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.public_key !== undefined) body.public_key = g.public_key;
         if (g.name !== undefined) body.name = g.name;
-        const result = await create("/v2/account/keys", body) as ResourceData;
+        const result = await create(
+          "/v2/account/keys",
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -143,7 +158,12 @@ export const model = {
         id: z.union([z.string(), z.number()]).describe("The ID of the ssh key"),
       }),
       execute: async (args: { id: string | number }, context: any) => {
-        const result = await read("/v2/account/keys", args.id) as ResourceData;
+        const result = await read(
+          "/v2/account/keys",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -177,6 +197,8 @@ export const model = {
           existing.sshkeyidentifier ?? existing.id,
           body,
           "PUT",
+          undefined,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -192,7 +214,12 @@ export const model = {
         id: z.union([z.string(), z.number()]).describe("The ID of the ssh key"),
       }),
       execute: async (args: { id: string | number }, context: any) => {
-        const { existed } = await remove("/v2/account/keys", args.id);
+        const { existed } = await remove(
+          "/v2/account/keys",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -228,6 +255,8 @@ export const model = {
         const result = await tryRead(
           "/v2/account/keys",
           existing.sshkeyidentifier ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(

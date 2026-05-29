@@ -35,6 +35,9 @@ const GlobalArgsSchema = z.object({
   enabled: z.boolean().describe(
     "A boolean value indicating whether the check is enabled/disabled.",
   ),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -55,12 +58,13 @@ const InputsSchema = z.object({
   regions: z.array(z.enum(["us_east", "us_west", "eu_west", "se_asia"]))
     .optional(),
   enabled: z.boolean().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean uptime check. Registered at `@swamp/digitalocean/uptime-check`. */
 export const model = {
   type: "@swamp/digitalocean/uptime-check",
-  version: "2026.05.15.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -102,6 +106,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -132,6 +141,7 @@ export const model = {
             "/v2/uptime/checks",
             "name",
             g.name?.toString() ?? "",
+            g.token,
           );
           if (existing) {
             throw new Error(`Resource already exists with name: ${g.name}`);
@@ -143,7 +153,12 @@ export const model = {
         if (g.target !== undefined) body.target = g.target;
         if (g.regions !== undefined) body.regions = g.regions;
         if (g.enabled !== undefined) body.enabled = g.enabled;
-        const result = await create("/v2/uptime/checks", body) as ResourceData;
+        const result = await create(
+          "/v2/uptime/checks",
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -160,7 +175,12 @@ export const model = {
         ),
       }),
       execute: async (args: { id: string | number }, context: any) => {
-        const result = await read("/v2/uptime/checks", args.id) as ResourceData;
+        const result = await read(
+          "/v2/uptime/checks",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -198,6 +218,8 @@ export const model = {
           existing.id ?? existing.id,
           body,
           "PUT",
+          undefined,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -215,7 +237,12 @@ export const model = {
         ),
       }),
       execute: async (args: { id: string | number }, context: any) => {
-        const { existed } = await remove("/v2/uptime/checks", args.id);
+        const { existed } = await remove(
+          "/v2/uptime/checks",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -251,6 +278,8 @@ export const model = {
         const result = await tryRead(
           "/v2/uptime/checks",
           existing.id ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(

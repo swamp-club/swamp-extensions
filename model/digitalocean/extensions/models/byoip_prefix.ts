@@ -43,6 +43,9 @@ const GlobalArgsSchema = z.object({
   signature: z.string().describe(
     "The signature hash for the prefix creation request",
   ),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -86,12 +89,13 @@ const InputsSchema = z.object({
     "atl1",
   ]).optional(),
   signature: z.string().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean byoip prefix. Registered at `@swamp/digitalocean/byoip-prefix`. */
 export const model = {
   type: "@swamp/digitalocean/byoip-prefix",
-  version: "2026.05.15.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -128,6 +132,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -153,7 +162,12 @@ export const model = {
         if (g.prefix !== undefined) body.prefix = g.prefix;
         if (g.region !== undefined) body.region = g.region;
         if (g.signature !== undefined) body.signature = g.signature;
-        const result = await create("/v2/byoip_prefixes", body) as ResourceData;
+        const result = await create(
+          "/v2/byoip_prefixes",
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -171,6 +185,8 @@ export const model = {
         const result = await read(
           "/v2/byoip_prefixes",
           args.id,
+          undefined,
+          context.globalArgs.token,
         ) as ResourceData;
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
@@ -208,6 +224,8 @@ export const model = {
           existing.byoipprefixuuid ?? existing.id,
           body,
           "PATCH",
+          undefined,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -223,7 +241,12 @@ export const model = {
         id: z.string().describe("The UUID of the byoip prefix"),
       }),
       execute: async (args: { id: string }, context: any) => {
-        const { existed } = await remove("/v2/byoip_prefixes", args.id);
+        const { existed } = await remove(
+          "/v2/byoip_prefixes",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -259,6 +282,8 @@ export const model = {
         const result = await tryRead(
           "/v2/byoip_prefixes",
           existing.byoipprefixuuid ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(

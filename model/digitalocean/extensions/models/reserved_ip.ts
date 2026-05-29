@@ -50,6 +50,9 @@ const GlobalArgsSchema = z.object({
   project_id: z.string().describe(
     "The UUID of the project to which the reserved IP will be assigned.",
   ).optional(),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -193,12 +196,13 @@ const InputsSchema = z.object({
     "atl1",
   ]).optional(),
   project_id: z.string().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean reserved ip. Registered at `@swamp/digitalocean/reserved-ip`. */
 export const model = {
   type: "@swamp/digitalocean/reserved-ip",
-  version: "2026.05.15.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -240,6 +244,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -271,7 +280,12 @@ export const model = {
         if (g.droplet_id !== undefined) body.droplet_id = g.droplet_id;
         if (g.region !== undefined) body.region = g.region;
         if (g.project_id !== undefined) body.project_id = g.project_id;
-        const result = await create("/v2/reserved_ips", body) as ResourceData;
+        const result = await create(
+          "/v2/reserved_ips",
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -286,7 +300,12 @@ export const model = {
         ip: z.string().describe("The IP address of the reserved ip"),
       }),
       execute: async (args: { ip: string }, context: any) => {
-        const result = await read("/v2/reserved_ips", args.ip) as ResourceData;
+        const result = await read(
+          "/v2/reserved_ips",
+          args.ip,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.ip.toString()).replace(
             /[\/\\]/g,
@@ -306,7 +325,12 @@ export const model = {
         ip: z.string().describe("The IP address of the reserved ip"),
       }),
       execute: async (args: { ip: string }, context: any) => {
-        const { existed } = await remove("/v2/reserved_ips", args.ip);
+        const { existed } = await remove(
+          "/v2/reserved_ips",
+          args.ip,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.ip.toString()).replace(
             /[\/\\]/g,
@@ -342,6 +366,8 @@ export const model = {
         const result = await tryRead(
           "/v2/reserved_ips",
           existing.ip ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
@@ -382,6 +408,7 @@ export const model = {
             args.ip,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.ip}-assign`;
         const handles = [];
@@ -423,6 +450,7 @@ export const model = {
             args.ip,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.ip}-unassign`;
         const handles = [];

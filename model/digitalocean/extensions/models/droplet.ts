@@ -104,6 +104,9 @@ const GlobalArgsSchema = z.object({
   public_networking: z.boolean().describe(
     "An optional boolean indicating whether this Droplet should be created with public networking or not. By default, all Droplets are created with public networking available. If explicitly set to `false`, only private networking will be enabled, and public networking will be disabled; currently this means that it will not have any public static or Reserved IPv4 or IPv6 address, nor can one be assigned later. If explicitly set to `false`, `ipv6` must also be `false`.",
   ).optional(),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -263,12 +266,13 @@ const InputsSchema = z.object({
   vpc_uuid: z.string().optional(),
   with_droplet_agent: z.boolean().optional(),
   public_networking: z.boolean().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean droplet. Registered at `@swamp/digitalocean/droplet`. */
 export const model = {
   type: "@swamp/digitalocean/droplet",
-  version: "2026.05.15.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -320,6 +324,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -362,6 +371,7 @@ export const model = {
             "/v2/droplets",
             "name",
             g.name?.toString() ?? "",
+            g.token,
           );
           if (existing) {
             throw new Error(`Resource already exists with name: ${g.name}`);
@@ -390,7 +400,12 @@ export const model = {
         if (g.public_networking !== undefined) {
           body.public_networking = g.public_networking;
         }
-        let result = await create("/v2/droplets", body) as ResourceData;
+        let result = await create(
+          "/v2/droplets",
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         if (args.waitForReady !== false) {
           const resourceId = result.id ?? result.id;
           if (resourceId) {
@@ -402,6 +417,7 @@ export const model = {
                 "readyValues": ["active"],
                 "failedValues": ["errored"],
               },
+              g.token,
             ) as ResourceData;
           }
         }
@@ -419,7 +435,12 @@ export const model = {
         id: z.union([z.string(), z.number()]).describe("The ID of the droplet"),
       }),
       execute: async (args: { id: string | number }, context: any) => {
-        const result = await read("/v2/droplets", args.id) as ResourceData;
+        const result = await read(
+          "/v2/droplets",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -436,7 +457,12 @@ export const model = {
         id: z.union([z.string(), z.number()]).describe("The ID of the droplet"),
       }),
       execute: async (args: { id: string | number }, context: any) => {
-        const { existed } = await remove("/v2/droplets", args.id);
+        const { existed } = await remove(
+          "/v2/droplets",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -472,6 +498,8 @@ export const model = {
         const result = await tryRead(
           "/v2/droplets",
           existing.id ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
@@ -518,6 +546,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-change_backup_policy`;
         const handles = [];
@@ -568,6 +597,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-change_kernel`;
         const handles = [];
@@ -610,6 +640,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-disable_backups`;
         const handles = [];
@@ -662,6 +693,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-enable_backups`;
         const handles = [];
@@ -704,6 +736,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-enable_ipv6`;
         const handles = [];
@@ -746,6 +779,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-password_reset`;
         const handles = [];
@@ -788,6 +822,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-power_cycle`;
         const handles = [];
@@ -830,6 +865,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-power_off`;
         const handles = [];
@@ -872,6 +908,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-power_on`;
         const handles = [];
@@ -914,6 +951,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-reboot`;
         const handles = [];
@@ -964,6 +1002,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-rebuild`;
         const handles = [];
@@ -1012,6 +1051,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-rename`;
         const handles = [];
@@ -1067,6 +1107,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-resize`;
         const handles = [];
@@ -1117,6 +1158,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-restore`;
         const handles = [];
@@ -1159,6 +1201,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-shutdown`;
         const handles = [];
@@ -1209,6 +1252,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-snapshot`;
         const handles = [];

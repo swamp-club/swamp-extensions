@@ -53,6 +53,9 @@ const GlobalArgsSchema = z.object({
   size: z.string().describe(
     "The slug identifier for the type of Droplet used as workers in the node pool.",
   ),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -99,12 +102,20 @@ const InputsSchema = z.object({
   min_nodes: z.number().int().optional(),
   max_nodes: z.number().int().optional(),
   size: z.string().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean kubernetes cluster node pool. Registered at `@swamp/digitalocean/kubernetes-cluster-node-pool`. */
 export const model = {
   type: "@swamp/digitalocean/kubernetes-cluster-node-pool",
-  version: "2026.05.22.1",
+  version: "2026.05.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -135,6 +146,7 @@ export const model = {
             endpoint,
             "name",
             g.name?.toString() ?? "",
+            g.token,
           );
           if (existing) {
             throw new Error(`Resource already exists with name: ${g.name}`);
@@ -150,7 +162,12 @@ export const model = {
         if (g.auto_scale !== undefined) body.auto_scale = g.auto_scale;
         if (g.min_nodes !== undefined) body.min_nodes = g.min_nodes;
         if (g.max_nodes !== undefined) body.max_nodes = g.max_nodes;
-        const result = await create(endpoint, body) as ResourceData;
+        const result = await create(
+          endpoint,
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -169,7 +186,12 @@ export const model = {
       execute: async (args: { id: string | number }, context: any) => {
         const g = context.globalArgs;
         const endpoint = `/v2/kubernetes/clusters/${g.cluster_id}/node_pools`;
-        const result = await read(endpoint, args.id) as ResourceData;
+        const result = await read(
+          endpoint,
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -211,6 +233,8 @@ export const model = {
           existing.id ?? existing.id,
           body,
           "PUT",
+          undefined,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -230,7 +254,12 @@ export const model = {
       execute: async (args: { id: string | number }, context: any) => {
         const g = context.globalArgs;
         const endpoint = `/v2/kubernetes/clusters/${g.cluster_id}/node_pools`;
-        const { existed } = await remove(endpoint, args.id);
+        const { existed } = await remove(
+          endpoint,
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -264,9 +293,12 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead(endpoint, existing.id ?? existing.id) as
-          | ResourceData
-          | null;
+        const result = await tryRead(
+          endpoint,
+          existing.id ?? existing.id,
+          undefined,
+          g.token,
+        ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
             "state",

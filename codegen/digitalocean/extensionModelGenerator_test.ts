@@ -1,4 +1,5 @@
 import { assertSnapshot } from "@std/testing/snapshot";
+import { assertEquals, assertStringIncludes } from "@std/assert";
 import { generateDigitalOceanExtensionModel } from "./extensionModelGenerator.ts";
 import type { DigitalOceanProperty, DigitalOceanResource } from "./pipeline.ts";
 
@@ -617,4 +618,179 @@ Deno.test("generateDigitalOceanExtensionModel - with upgrades block", async (t) 
         `  upgrades: [\n    {\n      toVersion: "2026.01.02.1",\n      description: "Removed: description field",\n      upgradeAttributes: (old: Record<string, unknown>) => {\n        const { description: _desc, ...rest } = old;\n        return rest;\n      },\n    },\n  ],`,
     }),
   );
+});
+
+// ---------------------------------------------------------------------------
+// Token global argument (vault-wireable auth) — assertion-based tests
+// ---------------------------------------------------------------------------
+
+/** A representative resource exercising every method that threads the token. */
+function tokenResource(): DigitalOceanResource {
+  return makeResource({
+    displayName: "Droplet",
+    modelSlug: "droplet",
+    endpoint: "/v2/droplets",
+    identifyingField: "name",
+    idParam: "droplet_name",
+    createProperties: {
+      name: { type: "string", description: "The hostname for the Droplet" },
+    },
+    updateProperties: {
+      name: { type: "string", description: "The new hostname" },
+    },
+    resourceProperties: { id: intProp, name: stringProp, status: stringProp },
+    requiredProperties: ["name"],
+    updateMethod: "PATCH",
+  });
+}
+
+Deno.test("token arg - injected into GlobalArgsSchema with sensitive meta", () => {
+  const code = generateDigitalOceanExtensionModel({
+    resource: tokenResource(),
+    extensionName: "@swamp/digitalocean",
+    version: "2026.01.01.1",
+  });
+  // GlobalArgsSchema carries the sensitive, optional token arg, described as a
+  // vault-wireable override of DO_API_TOKEN.
+  assertStringIncludes(
+    code,
+    'token: z.string().meta({ sensitive: true }).describe("DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),',
+  );
+  // InputsSchema mirrors it (all-optional form).
+  assertStringIncludes(
+    code,
+    "token: z.string().meta({ sensitive: true }).optional(),",
+  );
+});
+
+Deno.test("token arg - threaded into create/get/update/delete/sync call sites", () => {
+  const code = generateDigitalOceanExtensionModel({
+    resource: tokenResource(),
+    extensionName: "@swamp/digitalocean",
+    version: "2026.01.01.1",
+  });
+  // create
+  assertStringIncludes(
+    code,
+    'await create("/v2/droplets", body, undefined, g.token)',
+  );
+  // get (uses context.globalArgs.token because g is conditional there)
+  assertStringIncludes(
+    code,
+    'await read("/v2/droplets", args.name, undefined, context.globalArgs.token)',
+  );
+  // update (token is the 6th positional arg, after method + queryParams)
+  assertStringIncludes(
+    code,
+    'body, "PATCH", undefined, g.token)',
+  );
+  // delete
+  assertStringIncludes(
+    code,
+    'await remove("/v2/droplets", args.name, undefined, context.globalArgs.token)',
+  );
+  // sync
+  assertStringIncludes(
+    code,
+    'await tryRead("/v2/droplets", existing.name ?? existing.id, undefined, g.token)',
+  );
+});
+
+Deno.test("token arg - threaded into action methods", () => {
+  const resource = makeResource({
+    displayName: "Droplet",
+    modelSlug: "droplet",
+    endpoint: "/v2/droplets",
+    createProperties: {
+      name: { type: "string", description: "The hostname" },
+    },
+    resourceProperties: { id: intProp, name: stringProp, status: stringProp },
+    requiredProperties: ["name"],
+    actions: [
+      {
+        actionType: "power_on",
+        properties: {},
+        requiredProperties: [],
+        nestedParams: false,
+      },
+    ],
+  });
+  const code = generateDigitalOceanExtensionModel({
+    resource,
+    extensionName: "@swamp/digitalocean",
+    version: "2026.01.01.1",
+  });
+  assertStringIncludes(
+    code,
+    "args.waitForCompletion ?? true, context.globalArgs.token)",
+  );
+});
+
+Deno.test("token arg - threaded into sub-resource methods", () => {
+  const resource = makeResource({
+    displayName: "Database Cluster",
+    modelSlug: "database-cluster",
+    endpoint: "/v2/databases",
+    identifyingField: "id",
+    idParam: "database_cluster_uuid",
+    createProperties: {
+      name: { type: "string", description: "A unique name" },
+    },
+    resourceProperties: { id: stringProp, name: stringProp },
+    requiredProperties: ["name"],
+    subResourceMethods: [
+      {
+        methodName: "resize",
+        subPath: "resize",
+        httpMethod: "PUT",
+        properties: { size: { type: "string", description: "The new size" } },
+        requiredProperties: ["size"],
+      },
+    ],
+  });
+  const code = generateDigitalOceanExtensionModel({
+    resource,
+    extensionName: "@swamp/digitalocean",
+    version: "2026.01.01.1",
+  });
+  // subResourceUpdate carries the token as its final positional argument.
+  assertStringIncludes(
+    code,
+    '"resize", body, "PUT", context.globalArgs.token)',
+  );
+  // The re-read after the sub-resource update also threads the token.
+  assertStringIncludes(
+    code,
+    'await read("/v2/databases", args.id, undefined, context.globalArgs.token)',
+  );
+});
+
+Deno.test("token arg - collision guard omits the injected arg when a real 'token' property exists", () => {
+  const resource = makeResource({
+    displayName: "Custom Thing",
+    modelSlug: "custom-thing",
+    endpoint: "/v2/custom",
+    createProperties: {
+      name: { type: "string", description: "The name" },
+      token: { type: "string", description: "A real API token field" },
+    },
+    resourceProperties: { id: intProp, name: stringProp },
+    requiredProperties: ["name"],
+  });
+  const code = generateDigitalOceanExtensionModel({
+    resource,
+    extensionName: "@swamp/digitalocean",
+    version: "2026.01.01.1",
+  });
+  // The injected sensitive token arg must NOT appear — the real schema property
+  // owns the `token` name. Exactly one `token:` field in GlobalArgsSchema.
+  assertEquals(code.includes("z.string().meta({ sensitive: true })"), false);
+  const globalArgs = code.slice(
+    code.indexOf("const GlobalArgsSchema = z.object({"),
+    code.indexOf("const ResourceSchema"),
+  );
+  const tokenLines = globalArgs.split("\n").filter((l) =>
+    /^\s{2}token:/.test(l)
+  );
+  assertEquals(tokenLines.length, 1);
 });

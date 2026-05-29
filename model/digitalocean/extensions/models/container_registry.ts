@@ -47,6 +47,9 @@ const GlobalArgsSchema = z.object({
   ]).describe(
     "Slug of the region where registry data is stored. When not provided, a region will be selected.",
   ).optional(),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -80,12 +83,13 @@ const InputsSchema = z.object({
     "syd1",
     "atl1",
   ]).optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean container registry. Registered at `@swamp/digitalocean/container-registry`. */
 export const model = {
   type: "@swamp/digitalocean/container-registry",
-  version: "2026.05.15.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -127,6 +131,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -153,7 +162,12 @@ export const model = {
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");
         if (args.checkExists) {
-          const existing = await tryRead("/v2/registries", g.name);
+          const existing = await tryRead(
+            "/v2/registries",
+            g.name,
+            undefined,
+            g.token,
+          );
           if (existing) {
             throw new Error(`Resource already exists: ${g.name}`);
           }
@@ -164,7 +178,12 @@ export const model = {
           body.subscription_tier_slug = g.subscription_tier_slug;
         }
         if (g.region !== undefined) body.region = g.region;
-        const result = await create("/v2/registries", body) as ResourceData;
+        const result = await create(
+          "/v2/registries",
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -179,7 +198,12 @@ export const model = {
         name: z.string().describe("The name of the container registry"),
       }),
       execute: async (args: { name: string }, context: any) => {
-        const result = await read("/v2/registries", args.name) as ResourceData;
+        const result = await read(
+          "/v2/registries",
+          args.name,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.name.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -196,7 +220,12 @@ export const model = {
         name: z.string().describe("The name of the container registry"),
       }),
       execute: async (args: { name: string }, context: any) => {
-        const { existed } = await remove("/v2/registries", args.name);
+        const { existed } = await remove(
+          "/v2/registries",
+          args.name,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.name.toString()).replace(
             /[\/\\]/g,
@@ -232,6 +261,8 @@ export const model = {
         const result = await tryRead(
           "/v2/registries",
           existing.name ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
@@ -254,7 +285,10 @@ export const model = {
         "List available options for container registry (versions, sizes, regions)",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
-        const result = await discover("/v2/registries/options");
+        const result = await discover(
+          "/v2/registries/options",
+          context.globalArgs.token,
+        );
         const handle = await context.writeResource("state", "options", result);
         return { dataHandles: [handle] };
       },

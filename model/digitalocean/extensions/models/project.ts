@@ -38,6 +38,9 @@ const GlobalArgsSchema = z.object({
   is_default: z.boolean().describe(
     "If true, all resources will be added to this project if no project is specified.",
   ).optional(),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -61,12 +64,13 @@ const InputsSchema = z.object({
   purpose: z.string().max(255).optional(),
   environment: z.enum(["Development", "Staging", "Production"]).optional(),
   is_default: z.boolean().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean project. Registered at `@swamp/digitalocean/project`. */
 export const model = {
   type: "@swamp/digitalocean/project",
-  version: "2026.05.15.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -108,6 +112,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -138,6 +147,7 @@ export const model = {
             "/v2/projects",
             "name",
             g.name?.toString() ?? "",
+            g.token,
           );
           if (existing) {
             throw new Error(`Resource already exists with name: ${g.name}`);
@@ -148,7 +158,12 @@ export const model = {
         if (g.description !== undefined) body.description = g.description;
         if (g.purpose !== undefined) body.purpose = g.purpose;
         if (g.environment !== undefined) body.environment = g.environment;
-        const result = await create("/v2/projects", body) as ResourceData;
+        const result = await create(
+          "/v2/projects",
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -163,7 +178,12 @@ export const model = {
         id: z.union([z.string(), z.number()]).describe("The ID of the project"),
       }),
       execute: async (args: { id: string | number }, context: any) => {
-        const result = await read("/v2/projects", args.id) as ResourceData;
+        const result = await read(
+          "/v2/projects",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -201,6 +221,8 @@ export const model = {
           existing.id ?? existing.id,
           body,
           "PATCH",
+          undefined,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -216,7 +238,12 @@ export const model = {
         id: z.union([z.string(), z.number()]).describe("The ID of the project"),
       }),
       execute: async (args: { id: string | number }, context: any) => {
-        const { existed } = await remove("/v2/projects", args.id);
+        const { existed } = await remove(
+          "/v2/projects",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -252,6 +279,8 @@ export const model = {
         const result = await tryRead(
           "/v2/projects",
           existing.id ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(

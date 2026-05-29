@@ -636,6 +636,9 @@ const GlobalArgsSchema = z.object({
   project_id: z.string().describe(
     "The ID of the project the app should be assigned to. If omitted, it will be assigned to your default project.\n<br><br>Requires `project:update` scope.\n",
   ).optional(),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -4143,12 +4146,13 @@ const InputsSchema = z.object({
   }).optional(),
   update_all_source_versions: z.boolean().optional(),
   project_id: z.string().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean app platform. Registered at `@swamp/digitalocean/app-platform`. */
 export const model = {
   type: "@swamp/digitalocean/app-platform",
-  version: "2026.05.22.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -4195,6 +4199,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -4219,7 +4228,12 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.spec !== undefined) body.spec = g.spec;
         if (g.project_id !== undefined) body.project_id = g.project_id;
-        const result = await create("/v2/apps", body) as ResourceData;
+        const result = await create(
+          "/v2/apps",
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -4236,7 +4250,12 @@ export const model = {
         ),
       }),
       execute: async (args: { id: string | number }, context: any) => {
-        const result = await read("/v2/apps", args.id) as ResourceData;
+        const result = await read(
+          "/v2/apps",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -4276,6 +4295,8 @@ export const model = {
           existing.id ?? existing.id,
           body,
           "PUT",
+          undefined,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -4293,7 +4314,12 @@ export const model = {
         ),
       }),
       execute: async (args: { id: string | number }, context: any) => {
-        const { existed } = await remove("/v2/apps", args.id);
+        const { existed } = await remove(
+          "/v2/apps",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -4326,9 +4352,12 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/v2/apps", existing.id ?? existing.id) as
-          | ResourceData
-          | null;
+        const result = await tryRead(
+          "/v2/apps",
+          existing.id ?? existing.id,
+          undefined,
+          g.token,
+        ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
             "state",

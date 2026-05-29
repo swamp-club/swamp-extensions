@@ -26,6 +26,9 @@ const GlobalArgsSchema = z.object({
     urn: z.string().regex(new RegExp("^do:kubernetes:.*")),
     name: z.string().optional(),
   })).describe("List of resources identified by their URNs.").optional(),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -61,12 +64,13 @@ const InputsSchema = z.object({
     urn: z.string().regex(new RegExp("^do:kubernetes:.*")),
     name: z.string().optional(),
   })).optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean monitoring sink. Registered at `@swamp/digitalocean/monitoring-sink`. */
 export const model = {
   type: "@swamp/digitalocean/monitoring-sink",
-  version: "2026.05.15.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -103,6 +107,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -132,6 +141,8 @@ export const model = {
         const result = await create(
           "/v2/monitoring/sinks",
           body,
+          undefined,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -150,6 +161,8 @@ export const model = {
         const result = await read(
           "/v2/monitoring/sinks",
           args.id,
+          undefined,
+          context.globalArgs.token,
         ) as ResourceData;
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
@@ -170,7 +183,12 @@ export const model = {
         id: z.string().describe("The UUID of the monitoring sink"),
       }),
       execute: async (args: { id: string }, context: any) => {
-        const { existed } = await remove("/v2/monitoring/sinks", args.id);
+        const { existed } = await remove(
+          "/v2/monitoring/sinks",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -206,6 +224,8 @@ export const model = {
         const result = await tryRead(
           "/v2/monitoring/sinks",
           existing.sinkuuid ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(

@@ -42,6 +42,9 @@ const GlobalArgsSchema = z.object({
   tag: z.string().describe(
     'The parameter tag for CAA records. Valid values are "issue", "issuewild", or "iodef"',
   ).optional(),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -71,12 +74,13 @@ const InputsSchema = z.object({
   weight: z.number().int().optional(),
   flags: z.number().int().optional(),
   tag: z.string().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean domain record. Registered at `@swamp/digitalocean/domain-record`. */
 export const model = {
   type: "@swamp/digitalocean/domain-record",
-  version: "2026.05.22.4",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.05.22.2",
@@ -105,6 +109,11 @@ export const model = {
         } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -138,7 +147,12 @@ export const model = {
         if (g.weight !== undefined) body.weight = g.weight;
         if (g.flags !== undefined) body.flags = g.flags;
         if (g.tag !== undefined) body.tag = g.tag;
-        const result = await create(endpoint, body) as ResourceData;
+        const result = await create(
+          endpoint,
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -157,7 +171,12 @@ export const model = {
       execute: async (args: { id: string | number }, context: any) => {
         const g = context.globalArgs;
         const endpoint = `/v2/domains/${g.domain_name}/records`;
-        const result = await read(endpoint, args.id) as ResourceData;
+        const result = await read(
+          endpoint,
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName =
           (context.globalArgs.instance_name?.toString() ?? args.id.toString())
             .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
@@ -201,6 +220,8 @@ export const model = {
           existing.id ?? existing.id,
           body,
           "PATCH",
+          undefined,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -220,7 +241,12 @@ export const model = {
       execute: async (args: { id: string | number }, context: any) => {
         const g = context.globalArgs;
         const endpoint = `/v2/domains/${g.domain_name}/records`;
-        const { existed } = await remove(endpoint, args.id);
+        const { existed } = await remove(
+          endpoint,
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.instance_name?.toString() ?? args.id.toString())
             .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
@@ -252,9 +278,12 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead(endpoint, existing.id ?? existing.id) as
-          | ResourceData
-          | null;
+        const result = await tryRead(
+          endpoint,
+          existing.id ?? existing.id,
+          undefined,
+          g.token,
+        ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
             "state",

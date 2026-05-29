@@ -54,6 +54,9 @@ const GlobalArgsSchema = z.object({
   ip_range: z.string().describe(
     "The range of IP addresses in the VPC in CIDR notation. Network ranges cannot overlap with other networks in the same account and must be in range of private addresses as defined in RFC1918. It may not be smaller than `/28` nor larger than `/16`. If no IP range is specified, a `/20` network range is generated that won't conflict with other VPC networks in your account.",
   ).optional(),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -91,12 +94,13 @@ const InputsSchema = z.object({
     "atl1",
   ]).optional(),
   ip_range: z.string().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean vpc. Registered at `@swamp/digitalocean/vpc`. */
 export const model = {
   type: "@swamp/digitalocean/vpc",
-  version: "2026.05.15.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -138,6 +142,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -168,6 +177,7 @@ export const model = {
             "/v2/vpcs",
             "name",
             g.name?.toString() ?? "",
+            g.token,
           );
           if (existing) {
             throw new Error(`Resource already exists with name: ${g.name}`);
@@ -178,7 +188,12 @@ export const model = {
         if (g.description !== undefined) body.description = g.description;
         if (g.region !== undefined) body.region = g.region;
         if (g.ip_range !== undefined) body.ip_range = g.ip_range;
-        const result = await create("/v2/vpcs", body) as ResourceData;
+        const result = await create(
+          "/v2/vpcs",
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -193,7 +208,12 @@ export const model = {
         id: z.union([z.string(), z.number()]).describe("The ID of the vpc"),
       }),
       execute: async (args: { id: string | number }, context: any) => {
-        const result = await read("/v2/vpcs", args.id) as ResourceData;
+        const result = await read(
+          "/v2/vpcs",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -229,6 +249,8 @@ export const model = {
           existing.id ?? existing.id,
           body,
           "PATCH",
+          undefined,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -244,7 +266,12 @@ export const model = {
         id: z.union([z.string(), z.number()]).describe("The ID of the vpc"),
       }),
       execute: async (args: { id: string | number }, context: any) => {
-        const { existed } = await remove("/v2/vpcs", args.id);
+        const { existed } = await remove(
+          "/v2/vpcs",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -277,9 +304,12 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/v2/vpcs", existing.id ?? existing.id) as
-          | ResourceData
-          | null;
+        const result = await tryRead(
+          "/v2/vpcs",
+          existing.id ?? existing.id,
+          undefined,
+          g.token,
+        ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
             "state",

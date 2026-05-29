@@ -33,6 +33,9 @@ const GlobalArgsSchema = z.object({
   type: z.string().describe(
     "One of different type of triggers. Currently only SCHEDULED is supported.",
   ),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -69,12 +72,20 @@ const InputsSchema = z.object({
   name: z.string().optional(),
   function: z.string().optional(),
   type: z.string().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean function namespace trigger. Registered at `@swamp/digitalocean/function-namespace-trigger`. */
 export const model = {
   type: "@swamp/digitalocean/function-namespace-trigger",
-  version: "2026.05.22.1",
+  version: "2026.05.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -101,7 +112,7 @@ export const model = {
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");
         if (args.checkExists) {
-          const existing = await tryRead(endpoint, g.name);
+          const existing = await tryRead(endpoint, g.name, undefined, g.token);
           if (existing) {
             throw new Error(`Resource already exists: ${g.name}`);
           }
@@ -114,7 +125,12 @@ export const model = {
         if (g.scheduled_details !== undefined) {
           body.scheduled_details = g.scheduled_details;
         }
-        const result = await create(endpoint, body) as ResourceData;
+        const result = await create(
+          endpoint,
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -131,7 +147,12 @@ export const model = {
       execute: async (args: { name: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = `/v2/functions/namespaces/${g.namespace_id}/triggers`;
-        const result = await read(endpoint, args.name) as ResourceData;
+        const result = await read(
+          endpoint,
+          args.name,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.name.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -169,6 +190,8 @@ export const model = {
           existing.name ?? existing.id,
           body,
           "PUT",
+          undefined,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -186,7 +209,12 @@ export const model = {
       execute: async (args: { name: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = `/v2/functions/namespaces/${g.namespace_id}/triggers`;
-        const { existed } = await remove(endpoint, args.name);
+        const { existed } = await remove(
+          endpoint,
+          args.name,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.name.toString()).replace(
             /[\/\\]/g,
@@ -220,9 +248,12 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead(endpoint, existing.name ?? existing.id) as
-          | ResourceData
-          | null;
+        const result = await tryRead(
+          endpoint,
+          existing.name ?? existing.id,
+          undefined,
+          g.token,
+        ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
             "state",

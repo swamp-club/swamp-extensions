@@ -44,6 +44,9 @@ const GlobalArgsSchema = z.object({
   period: z.enum(["2m", "3m", "5m", "10m", "15m", "30m", "1h"]).describe(
     "Period of time the threshold must be exceeded to trigger the alert.",
   ),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -78,12 +81,20 @@ const InputsSchema = z.object({
     })),
   }).optional(),
   period: z.enum(["2m", "3m", "5m", "10m", "15m", "30m", "1h"]).optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean uptime check alert. Registered at `@swamp/digitalocean/uptime-check-alert`. */
 export const model = {
   type: "@swamp/digitalocean/uptime-check-alert",
-  version: "2026.05.22.1",
+  version: "2026.05.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -114,6 +125,7 @@ export const model = {
             endpoint,
             "name",
             g.name?.toString() ?? "",
+            g.token,
           );
           if (existing) {
             throw new Error(`Resource already exists with name: ${g.name}`);
@@ -126,7 +138,12 @@ export const model = {
         if (g.comparison !== undefined) body.comparison = g.comparison;
         if (g.notifications !== undefined) body.notifications = g.notifications;
         if (g.period !== undefined) body.period = g.period;
-        const result = await create(endpoint, body) as ResourceData;
+        const result = await create(
+          endpoint,
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -145,7 +162,12 @@ export const model = {
       execute: async (args: { id: string | number }, context: any) => {
         const g = context.globalArgs;
         const endpoint = `/v2/uptime/checks/${g.check_id}/alerts`;
-        const result = await read(endpoint, args.id) as ResourceData;
+        const result = await read(
+          endpoint,
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -185,6 +207,8 @@ export const model = {
           existing.id ?? existing.id,
           body,
           "PUT",
+          undefined,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -204,7 +228,12 @@ export const model = {
       execute: async (args: { id: string | number }, context: any) => {
         const g = context.globalArgs;
         const endpoint = `/v2/uptime/checks/${g.check_id}/alerts`;
-        const { existed } = await remove(endpoint, args.id);
+        const { existed } = await remove(
+          endpoint,
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -238,9 +267,12 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead(endpoint, existing.id ?? existing.id) as
-          | ResourceData
-          | null;
+        const result = await tryRead(
+          endpoint,
+          existing.id ?? existing.id,
+          undefined,
+          g.token,
+        ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
             "state",

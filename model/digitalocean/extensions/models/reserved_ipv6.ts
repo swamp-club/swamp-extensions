@@ -28,6 +28,9 @@ const GlobalArgsSchema = z.object({
   region_slug: z.string().describe(
     "The slug identifier for the region the reserved IPv6 will be reserved to.",
   ),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -146,12 +149,13 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 const InputsSchema = z.object({
   name: z.string().optional(),
   region_slug: z.string().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean reserved ipv6. Registered at `@swamp/digitalocean/reserved-ipv6`. */
 export const model = {
   type: "@swamp/digitalocean/reserved-ipv6",
-  version: "2026.05.15.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -193,6 +197,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -222,7 +231,12 @@ export const model = {
         ).replace(/\.\./g, "_").replace(/\0/g, "");
         const body: Record<string, unknown> = {};
         if (g.region_slug !== undefined) body.region_slug = g.region_slug;
-        const result = await create("/v2/reserved_ipv6", body) as ResourceData;
+        const result = await create(
+          "/v2/reserved_ipv6",
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -239,7 +253,12 @@ export const model = {
         ),
       }),
       execute: async (args: { id: string | number }, context: any) => {
-        const result = await read("/v2/reserved_ipv6", args.id) as ResourceData;
+        const result = await read(
+          "/v2/reserved_ipv6",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -261,7 +280,12 @@ export const model = {
         ),
       }),
       execute: async (args: { id: string | number }, context: any) => {
-        const { existed } = await remove("/v2/reserved_ipv6", args.id);
+        const { existed } = await remove(
+          "/v2/reserved_ipv6",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -297,6 +321,8 @@ export const model = {
         const result = await tryRead(
           "/v2/reserved_ipv6",
           existing.reservedipv6 ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
@@ -343,6 +369,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-assign`;
         const handles = [];
@@ -386,6 +413,7 @@ export const model = {
             args.id,
             body,
             args.waitForCompletion ?? true,
+            context.globalArgs.token,
           );
         const actionInstanceName = `${args.id}-unassign`;
         const handles = [];

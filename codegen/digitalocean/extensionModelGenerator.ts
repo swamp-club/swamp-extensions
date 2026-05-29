@@ -124,6 +124,11 @@ export function generateDigitalOceanExtensionModel(
 
   // GlobalArgsSchema — all create + update properties with full fidelity
   const globalArgsProps = buildGlobalArgsProperties(resource);
+  // The auth `token` arg is injected unless the resource already has a real
+  // property named "token" (guards against an API field collision).
+  const hasTokenProp = globalArgsProps.some((p) => p.nameOnly === "token");
+  const tokenArgLine =
+    `  token: z.string().meta({ sensitive: true }).describe("DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),`;
   lines.push(`const GlobalArgsSchema = z.object({`);
   if (resource.parentParam) {
     lines.push(
@@ -137,6 +142,9 @@ export function generateDigitalOceanExtensionModel(
   }
   for (const prop of globalArgsProps) {
     lines.push(`  ${prop.line},`);
+  }
+  if (!hasTokenProp) {
+    lines.push(tokenArgLine);
   }
   lines.push(`});`);
   lines.push("");
@@ -167,6 +175,9 @@ export function generateDigitalOceanExtensionModel(
   }
   for (const prop of globalArgsProps) {
     lines.push(`  ${prop.nameOnly}: ${prop.baseExpr}.optional(),`);
+  }
+  if (!hasTokenProp) {
+    lines.push(`  token: z.string().meta({ sensitive: true }).optional(),`);
   }
   lines.push(`});`);
   lines.push("");
@@ -271,7 +282,7 @@ export function generateDigitalOceanExtensionModel(
   if (canDirectLookup) {
     lines.push(`        if (args.checkExists) {`);
     lines.push(
-      `          const existing = await tryRead(${ep()}, g.${namingField});`,
+      `          const existing = await tryRead(${ep()}, g.${namingField}, undefined, g.token);`,
     );
     lines.push(`          if (existing) {`);
     lines.push(
@@ -282,7 +293,7 @@ export function generateDigitalOceanExtensionModel(
   } else if (canListFilter) {
     lines.push(`        if (args.checkExists) {`);
     lines.push(
-      `          const existing = await tryFindByField(${ep()}, "${listFilterField}", g.${listFilterField}?.toString() ?? "");`,
+      `          const existing = await tryFindByField(${ep()}, "${listFilterField}", g.${listFilterField}?.toString() ?? "", g.token);`,
     );
     lines.push(`          if (existing) {`);
     lines.push(
@@ -302,7 +313,7 @@ export function generateDigitalOceanExtensionModel(
   if (hasReadiness) {
     // Create then optionally poll for readiness
     lines.push(
-      `        let result = await create(${ep()}, body) as ResourceData;`,
+      `        let result = await create(${ep()}, body, undefined, g.token) as ResourceData;`,
     );
     lines.push(`        if (args.waitForReady !== false) {`);
     lines.push(
@@ -312,13 +323,13 @@ export function generateDigitalOceanExtensionModel(
     lines.push(
       `            result = await pollResourceReady(${ep()}, resourceId as string | number, ${
         JSON.stringify(resource.readiness)
-      }) as ResourceData;`,
+      }, g.token) as ResourceData;`,
     );
     lines.push(`          }`);
     lines.push(`        }`);
   } else {
     lines.push(
-      `        const result = await create(${ep()}, body) as ResourceData;`,
+      `        const result = await create(${ep()}, body, undefined, g.token) as ResourceData;`,
     );
   }
 
@@ -348,7 +359,7 @@ export function generateDigitalOceanExtensionModel(
     lines.push(endpointLine);
   }
   lines.push(
-    `        const result = await read(${ep()}, args.${idArg.argName}) as ResourceData;`,
+    `        const result = await read(${ep()}, args.${idArg.argName}, undefined, context.globalArgs.token) as ResourceData;`,
   );
   if (isSyntheticName) {
     lines.push(
@@ -421,7 +432,7 @@ export function generateDigitalOceanExtensionModel(
     }
     if (hasReadiness) {
       lines.push(
-        `        let result = await update(${ep()}, existing.${identifyingField} ?? existing.id, body, "${resource.updateMethod}") as ResourceData;`,
+        `        let result = await update(${ep()}, existing.${identifyingField} ?? existing.id, body, "${resource.updateMethod}", undefined, g.token) as ResourceData;`,
       );
       lines.push(`        if (args.waitForReady !== false) {`);
       lines.push(
@@ -431,13 +442,13 @@ export function generateDigitalOceanExtensionModel(
       lines.push(
         `            result = await pollResourceReady(${ep()}, resourceId as string | number, ${
           JSON.stringify(resource.readiness)
-        }) as ResourceData;`,
+        }, g.token) as ResourceData;`,
       );
       lines.push(`          }`);
       lines.push(`        }`);
     } else {
       lines.push(
-        `        const result = await update(${ep()}, existing.${identifyingField} ?? existing.id, body, "${resource.updateMethod}") as ResourceData;`,
+        `        const result = await update(${ep()}, existing.${identifyingField} ?? existing.id, body, "${resource.updateMethod}", undefined, g.token) as ResourceData;`,
       );
     }
     lines.push(
@@ -467,7 +478,7 @@ export function generateDigitalOceanExtensionModel(
       lines.push(endpointLine);
     }
     lines.push(
-      `        const { existed } = await remove(${ep()}, args.${idArg.argName});`,
+      `        const { existed } = await remove(${ep()}, args.${idArg.argName}, undefined, context.globalArgs.token);`,
     );
     lines.push(
       `        const instanceName = ${
@@ -521,7 +532,7 @@ export function generateDigitalOceanExtensionModel(
     `        const existing = JSON.parse(new TextDecoder().decode(content));`,
   );
   lines.push(
-    `        const result = await tryRead(${ep()}, existing.${identifyingField} ?? existing.id) as ResourceData | null;`,
+    `        const result = await tryRead(${ep()}, existing.${identifyingField} ?? existing.id, undefined, g.token) as ResourceData | null;`,
   );
   lines.push(`        if (result) {`);
   lines.push(
@@ -591,7 +602,7 @@ export function generateDigitalOceanExtensionModel(
       `      execute: async (_args: Record<string, never>, context: any) => {`,
     );
     lines.push(
-      `        const result = await discover("${resource.discoveryEndpoint}");`,
+      `        const result = await discover("${resource.discoveryEndpoint}", context.globalArgs.token);`,
     );
     lines.push(
       `        const handle = await context.writeResource("state", "options", result);`,
@@ -770,7 +781,7 @@ function generateActionMethod(
 
   // Use createAndPollAction for polling support
   lines.push(
-    `        const { action: actionResult, resource: updatedResource } = await createAndPollAction("${endpoint}", args.${idArg.argName}, body, args.waitForCompletion ?? true);`,
+    `        const { action: actionResult, resource: updatedResource } = await createAndPollAction("${endpoint}", args.${idArg.argName}, body, args.waitForCompletion ?? true, context.globalArgs.token);`,
   );
   lines.push(
     "        const actionInstanceName = `${args." + idArg.argName + "}-" +
@@ -884,12 +895,14 @@ function generateSubResourceMethod(
   lines.push(
     `        await subResourceUpdate("${endpoint}", args.${idArg.argName}, ${
       JSON.stringify(subMethod.subPath)
-    }, body, ${JSON.stringify(subMethod.httpMethod)});`,
+    }, body, ${
+      JSON.stringify(subMethod.httpMethod)
+    }, context.globalArgs.token);`,
   );
 
   // Re-read the parent resource and write to state
   lines.push(
-    `        const result = await read("${endpoint}", args.${idArg.argName}) as ResourceData;`,
+    `        const result = await read("${endpoint}", args.${idArg.argName}, undefined, context.globalArgs.token) as ResourceData;`,
   );
   if (isSyntheticName) {
     lines.push(

@@ -18,6 +18,9 @@ import { create, read, remove, tryRead } from "./_lib/digitalocean.ts";
 const GlobalArgsSchema = z.object({
   database_cluster_uuid: z.string().describe("Parent resource identifier"),
   name: z.string().describe("The name of the database."),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -29,12 +32,20 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 const InputsSchema = z.object({
   database_cluster_uuid: z.string().optional(),
   name: z.string().optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean database db. Registered at `@swamp/digitalocean/database-db`. */
 export const model = {
   type: "@swamp/digitalocean/database-db",
-  version: "2026.05.22.1",
+  version: "2026.05.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -61,14 +72,19 @@ export const model = {
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");
         if (args.checkExists) {
-          const existing = await tryRead(endpoint, g.name);
+          const existing = await tryRead(endpoint, g.name, undefined, g.token);
           if (existing) {
             throw new Error(`Resource already exists: ${g.name}`);
           }
         }
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
-        const result = await create(endpoint, body) as ResourceData;
+        const result = await create(
+          endpoint,
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -85,7 +101,12 @@ export const model = {
       execute: async (args: { name: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = `/v2/databases/${g.database_cluster_uuid}/dbs`;
-        const result = await read(endpoint, args.name) as ResourceData;
+        const result = await read(
+          endpoint,
+          args.name,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.name.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -104,7 +125,12 @@ export const model = {
       execute: async (args: { name: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = `/v2/databases/${g.database_cluster_uuid}/dbs`;
-        const { existed } = await remove(endpoint, args.name);
+        const { existed } = await remove(
+          endpoint,
+          args.name,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.name.toString()).replace(
             /[\/\\]/g,
@@ -138,9 +164,12 @@ export const model = {
           throw new Error("No data found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead(endpoint, existing.name ?? existing.id) as
-          | ResourceData
-          | null;
+        const result = await tryRead(
+          endpoint,
+          existing.name ?? existing.id,
+          undefined,
+          g.token,
+        ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
             "state",

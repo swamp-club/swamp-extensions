@@ -19,6 +19,9 @@ const GlobalArgsSchema = z.object({
   name: z.string().max(255).regex(new RegExp("^[a-zA-Z0-9_\\-\\:]+$")).describe(
     'The name of the tag. Tags may contain letters, numbers, colons, dashes, and underscores.\nThere is a limit of 255 characters per tag.\n\n**Note:** Tag names are case stable, which means the capitalization you use when you first create a tag is canonical.\n\nWhen working with tags in the API, you must use the tag\'s canonical capitalization. For example, if you create a tag named "PROD", the URL to add that tag to a resource would be `https://api.digitalocean.com/v2/tags/PROD/resources` (not `/v2/tags/prod/resources`).\n\nTagged resources in the control panel will always display the canonical capitalization. For example, if you create a tag named "PROD", you can tag resources in the control panel by entering "prod". The tag will still display with its canonical capitalization, "PROD".\n',
   ).optional(),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -54,12 +57,13 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 const InputsSchema = z.object({
   name: z.string().max(255).regex(new RegExp("^[a-zA-Z0-9_\\-\\:]+$"))
     .optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean tag. Registered at `@swamp/digitalocean/tag`. */
 export const model = {
   type: "@swamp/digitalocean/tag",
-  version: "2026.05.15.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -101,6 +105,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -127,14 +136,24 @@ export const model = {
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");
         if (args.checkExists) {
-          const existing = await tryRead("/v2/tags", g.name);
+          const existing = await tryRead(
+            "/v2/tags",
+            g.name,
+            undefined,
+            g.token,
+          );
           if (existing) {
             throw new Error(`Resource already exists: ${g.name}`);
           }
         }
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
-        const result = await create("/v2/tags", body) as ResourceData;
+        const result = await create(
+          "/v2/tags",
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -147,7 +166,12 @@ export const model = {
       description: "Get a tag",
       arguments: z.object({ name: z.string().describe("The name of the tag") }),
       execute: async (args: { name: string }, context: any) => {
-        const result = await read("/v2/tags", args.name) as ResourceData;
+        const result = await read(
+          "/v2/tags",
+          args.name,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.name.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -162,7 +186,12 @@ export const model = {
       description: "Delete the tag",
       arguments: z.object({ name: z.string().describe("The name of the tag") }),
       execute: async (args: { name: string }, context: any) => {
-        const { existed } = await remove("/v2/tags", args.name);
+        const { existed } = await remove(
+          "/v2/tags",
+          args.name,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.name.toString()).replace(
             /[\/\\]/g,
@@ -198,6 +227,8 @@ export const model = {
         const result = await tryRead(
           "/v2/tags",
           existing.name ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(

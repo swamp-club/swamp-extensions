@@ -182,6 +182,9 @@ const GlobalArgsSchema = z.object({
     database_name: z.string(),
     backup_created_at: z.string().optional(),
   }).optional(),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -440,12 +443,13 @@ const InputsSchema = z.object({
     database_name: z.string(),
     backup_created_at: z.string().optional(),
   }).optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean database cluster. Registered at `@swamp/digitalocean/database-cluster`. */
 export const model = {
   type: "@swamp/digitalocean/database-cluster",
-  version: "2026.05.15.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -492,6 +496,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -528,6 +537,7 @@ export const model = {
             "/v2/databases",
             "name",
             g.name?.toString() ?? "",
+            g.token,
           );
           if (existing) {
             throw new Error(`Resource already exists with name: ${g.name}`);
@@ -571,7 +581,12 @@ export const model = {
         if (g.backup_restore !== undefined) {
           body.backup_restore = g.backup_restore;
         }
-        let result = await create("/v2/databases", body) as ResourceData;
+        let result = await create(
+          "/v2/databases",
+          body,
+          undefined,
+          g.token,
+        ) as ResourceData;
         if (args.waitForReady !== false) {
           const resourceId = result.id ?? result.id;
           if (resourceId) {
@@ -583,6 +598,7 @@ export const model = {
                 "readyValues": ["online"],
                 "failedValues": ["error"],
               },
+              g.token,
             ) as ResourceData;
           }
         }
@@ -600,7 +616,12 @@ export const model = {
         id: z.string().describe("The UUID of the database cluster"),
       }),
       execute: async (args: { id: string }, context: any) => {
-        const result = await read("/v2/databases", args.id) as ResourceData;
+        const result = await read(
+          "/v2/databases",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -617,7 +638,12 @@ export const model = {
         id: z.string().describe("The UUID of the database cluster"),
       }),
       execute: async (args: { id: string }, context: any) => {
-        const { existed } = await remove("/v2/databases", args.id);
+        const { existed } = await remove(
+          "/v2/databases",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -653,6 +679,8 @@ export const model = {
         const result = await tryRead(
           "/v2/databases",
           existing.id ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
@@ -690,8 +718,14 @@ export const model = {
           "autoscale",
           body,
           "PUT",
+          context.globalArgs.token,
         );
-        const result = await read("/v2/databases", args.id) as ResourceData;
+        const result = await read(
+          "/v2/databases",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -720,8 +754,14 @@ export const model = {
           "config",
           body,
           "PATCH",
+          context.globalArgs.token,
         );
-        const result = await read("/v2/databases", args.id) as ResourceData;
+        const result = await read(
+          "/v2/databases",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -761,8 +801,14 @@ export const model = {
           "eviction_policy",
           body,
           "PUT",
+          context.globalArgs.token,
         );
-        const result = await read("/v2/databases", args.id) as ResourceData;
+        const result = await read(
+          "/v2/databases",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -791,8 +837,14 @@ export const model = {
           "firewall",
           body,
           "PUT",
+          context.globalArgs.token,
         );
-        const result = await read("/v2/databases", args.id) as ResourceData;
+        const result = await read(
+          "/v2/databases",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -816,8 +868,14 @@ export const model = {
           "install_update",
           body,
           "PUT",
+          context.globalArgs.token,
         );
-        const result = await read("/v2/databases", args.id) as ResourceData;
+        const result = await read(
+          "/v2/databases",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -852,8 +910,14 @@ export const model = {
           "maintenance",
           body,
           "PUT",
+          context.globalArgs.token,
         );
-        const result = await read("/v2/databases", args.id) as ResourceData;
+        const result = await read(
+          "/v2/databases",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -881,8 +945,14 @@ export const model = {
           "migrate",
           body,
           "PUT",
+          context.globalArgs.token,
         );
-        const result = await read("/v2/databases", args.id) as ResourceData;
+        const result = await read(
+          "/v2/databases",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -928,8 +998,14 @@ export const model = {
           "resize",
           body,
           "PUT",
+          context.globalArgs.token,
         );
-        const result = await read("/v2/databases", args.id) as ResourceData;
+        const result = await read(
+          "/v2/databases",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -957,8 +1033,14 @@ export const model = {
           "sql_mode",
           body,
           "PUT",
+          context.globalArgs.token,
         );
-        const result = await read("/v2/databases", args.id) as ResourceData;
+        const result = await read(
+          "/v2/databases",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -986,8 +1068,14 @@ export const model = {
           "upgrade",
           body,
           "PUT",
+          context.globalArgs.token,
         );
-        const result = await read("/v2/databases", args.id) as ResourceData;
+        const result = await read(
+          "/v2/databases",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
@@ -1003,7 +1091,10 @@ export const model = {
         "List available options for database cluster (versions, sizes, regions)",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
-        const result = await discover("/v2/databases/options");
+        const result = await discover(
+          "/v2/databases/options",
+          context.globalArgs.token,
+        );
         const handle = await context.writeResource("state", "options", result);
         return { dataHandles: [handle] };
       },

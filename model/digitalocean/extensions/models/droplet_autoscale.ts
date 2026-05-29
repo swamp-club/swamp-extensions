@@ -65,6 +65,9 @@ const GlobalArgsSchema = z.object({
     user_data: z.string().optional(),
     public_networking: z.boolean().optional(),
   }),
+  token: z.string().meta({ sensitive: true }).describe(
+    "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
 });
 
 const ResourceSchema = z.object({
@@ -143,12 +146,13 @@ const InputsSchema = z.object({
     user_data: z.string().optional(),
     public_networking: z.boolean().optional(),
   }).optional(),
+  token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean droplet autoscale. Registered at `@swamp/digitalocean/droplet-autoscale`. */
 export const model = {
   type: "@swamp/digitalocean/droplet-autoscale",
-  version: "2026.05.15.1",
+  version: "2026.05.29.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -195,6 +199,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.29.1",
+      description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -225,6 +234,7 @@ export const model = {
             "/v2/droplets/autoscale",
             "name",
             g.name?.toString() ?? "",
+            g.token,
           );
           if (existing) {
             throw new Error(`Resource already exists with name: ${g.name}`);
@@ -239,6 +249,8 @@ export const model = {
         const result = await create(
           "/v2/droplets/autoscale",
           body,
+          undefined,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -259,6 +271,8 @@ export const model = {
         const result = await read(
           "/v2/droplets/autoscale",
           args.id,
+          undefined,
+          context.globalArgs.token,
         ) as ResourceData;
         const instanceName = (result.name?.toString() ?? args.id.toString())
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
@@ -297,6 +311,8 @@ export const model = {
           existing.autoscalepoolid ?? existing.id,
           body,
           "PUT",
+          undefined,
+          g.token,
         ) as ResourceData;
         const handle = await context.writeResource(
           "state",
@@ -314,7 +330,12 @@ export const model = {
         ),
       }),
       execute: async (args: { id: string | number }, context: any) => {
-        const { existed } = await remove("/v2/droplets/autoscale", args.id);
+        const { existed } = await remove(
+          "/v2/droplets/autoscale",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.id.toString()).replace(
             /[\/\\]/g,
@@ -350,6 +371,8 @@ export const model = {
         const result = await tryRead(
           "/v2/droplets/autoscale",
           existing.autoscalepoolid ?? existing.id,
+          undefined,
+          g.token,
         ) as ResourceData | null;
         if (result) {
           const handle = await context.writeResource(
