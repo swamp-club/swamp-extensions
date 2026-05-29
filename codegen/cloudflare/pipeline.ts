@@ -13,6 +13,7 @@ import { generateCloudflareReadme } from "../shared/readmeGenerator.ts";
 import {
   computeManifestVersion,
   computeModelVersion,
+  formatFile,
 } from "../shared/version.ts";
 import { computeUpgradesBlock } from "../shared/upgradesGenerator.ts";
 
@@ -398,7 +399,11 @@ export async function generateCloudflareModels(options: {
     const readmePath = `${serviceOutputDir}/README.md`;
     try {
       const existingReadme = await Deno.readTextFile(readmePath);
-      if (existingReadme !== readmeCode) hasChanges = true;
+      // Format the candidate README with deno fmt before comparing so that the
+      // comparison matches what's on disk (the pipeline runs deno fmt after
+      // writing, so the on-disk README is already formatted).
+      const formattedReadme = await formatFile(readmeCode, ".md");
+      if (existingReadme !== formattedReadme) hasChanges = true;
     } catch {
       hasChanges = true;
     }
