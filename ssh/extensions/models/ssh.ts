@@ -90,8 +90,23 @@ const SELECTOR_METHODS = [
  */
 export const model = {
   type: "@swamp/ssh",
-  version: "2026.05.19.1",
+  version: "2026.05.29.1",
   globalArguments: GlobalArgsSchema,
+
+  upgrades: [
+    {
+      toVersion: "2026.05.29.1",
+      description:
+        "Selector resolution overhaul (#485): a bare `hosts` string now " +
+        "matches an exact host name first, then a tag, instead of always " +
+        "being parsed as CEL. Added explicit `name:` / `tag:` / `cel:` " +
+        "prefixes. A bare CEL expression (no `cel:` prefix) still resolves " +
+        "but is deprecated — it logs a warning and will error in a future " +
+        "version. No globalArguments schema change; the selector is a " +
+        "per-method input.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
 
   resources: {
     host: {

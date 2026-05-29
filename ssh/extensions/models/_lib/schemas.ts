@@ -172,7 +172,14 @@ export const SelectorSchema = z.union([
   z.literal("all"),
   z.array(z.string().min(1)).min(1),
   z.string().min(1),
-]);
+]).describe(
+  'Host selector. Forms: "all" (every host); an array of exact host names; ' +
+    "or a string. A bare string matches an exact host name first, then a tag. " +
+    'Prefix to be explicit: "name:<host>", "tag:<tag>", or "cel:<expr>" ' +
+    'for a CEL predicate (e.g. cel:"prod" in host.tags). Use name:/tag: to ' +
+    "disambiguate when a host name collides with a tag. A bare CEL expression " +
+    "(no cel: prefix) still works but is deprecated — prefix it with cel:.",
+);
 
 export type Selector = z.infer<typeof SelectorSchema>;
 

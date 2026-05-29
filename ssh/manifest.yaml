@@ -1,12 +1,13 @@
 manifestVersion: 1
 name: "@swamp/ssh"
-version: "2026.05.25.1"
+version: "2026.05.29.1"
 description: |
   Run commands, copy files, and open port forwards across a declared set of
   hosts over SSH. Define the hosts once on the model, then target any subset
-  with a CEL expression (`'"prod" in host.tags'`), an explicit name list, or
-  `all`. Every host runs in parallel and records its own result resource, so
-  individual outcomes are auditable and workflows can gate on them.
+  by host name or tag (`controlplane`), an explicit name list, a CEL
+  expression (`'cel:"prod" in host.tags'`), or `all`. Every host runs in
+  parallel and records its own result resource, so individual outcomes are
+  auditable and workflows can gate on them.
 
   OpenSSH targets reuse long-lived connections via ControlMaster; Tailscale
   SSH targets authenticate with tailnet identity and bypass multiplexing.

@@ -1,8 +1,9 @@
 # @swamp/ssh
 
 Run commands, copy files, and open port forwards across a declared set of hosts
-over SSH. Define the hosts once on the model, then target any subset with a CEL
-expression (`'"prod" in host.tags'`), an explicit name list, or `all`. Every
+over SSH. Define the hosts once on the model, then target any subset by host
+name or tag (`controlplane`), an explicit name list, a CEL expression
+(`'cel:"prod" in host.tags'`), or `all`. Every
 host runs in parallel and records its own result resource, so individual
 outcomes are auditable and workflows can gate on them.
 
@@ -52,7 +53,7 @@ Run methods. Every selector-taking method **requires** a `hosts` argument
 ```bash
 swamp model method run awesome open --input hosts=all --json
 swamp model method run awesome exec \
-  --input hosts='"prod" in host.tags' \
+  --input hosts='tag:prod' \
   --input command='uptime' --json
 ```
 
@@ -181,16 +182,28 @@ the whole fleet.)
 
 ## Selectors
 
-Three forms, all valid for the `hosts` argument on every selector-taking
-method:
+Valid forms for the `hosts` argument on every selector-taking method:
 
 ```yaml
 hosts: all                                # every host in the fleet
 hosts: [web-1, web-2]                     # exact name list
-hosts: '"prod" in host.tags'              # bare CEL string, evaluated per host
+hosts: controlplane                       # bare: host name first, then tag
+hosts: name:controlplane-fsn1-0           # explicit host name
+hosts: tag:controlplane                   # explicit tag
+hosts: 'cel:"prod" in host.tags'          # CEL predicate, evaluated per host
 ```
 
-CEL variables visible to a selector:
+A **bare string** resolves to an exact host name first, then (if no name
+matches) to hosts carrying that tag. Use the `name:` / `tag:` prefixes to
+disambiguate when a host name collides with a tag value — a bare token always
+prefers the name. Use the `cel:` prefix for a predicate.
+
+> **Deprecated:** a bare string that is a CEL expression (no `cel:` prefix,
+> e.g. `'"prod" in host.tags'`) is still evaluated as CEL for backward
+> compatibility, but logs a deprecation warning and will error in a future
+> version. Add the `cel:` prefix.
+
+CEL variables visible to a `cel:` selector:
 
 ```
 host.name        : string
@@ -236,7 +249,7 @@ Each selected host emits a `masterAudit-<host>` event.
 
 ```yaml
 arguments:
-  hosts: '"prod" in host.tags'
+  hosts: 'cel:"prod" in host.tags'
   command: systemctl reload nginx
   sudo: true            # prefixes `sudo -n --`
   stdin: |              # optional, fed to the remote process's stdin
@@ -265,7 +278,7 @@ model never constructs a remote command line.
 
 ```yaml
 arguments:
-  hosts: '"web" in host.tags'
+  hosts: tag:web
   src: ./nginx.conf
   dst: /etc/nginx/nginx.conf
   direction: to         # "to" or "from"

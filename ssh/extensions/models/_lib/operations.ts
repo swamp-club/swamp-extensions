@@ -36,7 +36,12 @@ import {
   type Targeting,
 } from "./schemas.ts";
 import { type EffectiveHost, effectiveHosts } from "./hosts.ts";
-import { type CelEnvLike, selectHosts } from "./selectors.ts";
+import {
+  type CelEnvLike,
+  looksLikeCel,
+  parseSelector,
+  selectHosts,
+} from "./selectors.ts";
 import {
   checkMasterArgv,
   controlPath,
@@ -135,14 +140,45 @@ function binaries(g: GlobalArgs): RunnerBinaries {
 }
 
 /**
+ * Build the precise "matched no hosts" error for an empty selection. The
+ * wording mirrors how `selectHosts` interpreted the selector (see
+ * `parseSelector`) so the message names the exact corrected invocation — the
+ * primary migration channel for agent callers, which read the error text back.
+ */
+function noMatchMessage(selector: Selector): string {
+  if (selector === "all" || Array.isArray(selector)) {
+    return "Selector matched no hosts. Check the selector and the fleet's hosts[].";
+  }
+  const parsed = parseSelector(selector);
+  switch (parsed.kind) {
+    case "name":
+      return `No host named '${parsed.value}' in the fleet.`;
+    case "tag":
+      return `No host carrying tag '${parsed.value}' in the fleet.`;
+    case "cel":
+      return `Selector expression '${parsed.value}' matched no hosts.`;
+    case "bare":
+      if (looksLikeCel(parsed.value)) {
+        return `Selector expression '${parsed.value}' (interpreted as a ` +
+          `deprecated bare CEL expression) matched no hosts. Prefix with ` +
+          `'cel:' to use it as a predicate explicitly.`;
+      }
+      return `Selector '${parsed.value}' matched no host by name or tag. ` +
+        `Use hosts=name:${parsed.value}, hosts=tag:${parsed.value}, ` +
+        `hosts:json=["${parsed.value}"], or a predicate hosts='cel:...'.`;
+  }
+}
+
+/**
  * Resolve the selector to matched effective hosts.
  *
  * This is the execute-time home for two validations that can't live in
  * pre-flight checks (checks don't receive method args in swamp): a malformed
- * CEL selector surfaces as a clear error, and an empty match is rejected.
- * Both run before any process is spawned.
+ * CEL selector surfaces as a clear error, and an empty match is rejected with
+ * a form-aware message. Both run before any process is spawned. Exported for
+ * direct unit testing.
  */
-function resolveSelection(
+export function resolveSelection(
   ctx: FleetContext,
   g: GlobalArgs,
   selector: Selector,
@@ -166,9 +202,7 @@ function resolveSelection(
   }
 
   if (selected.length === 0) {
-    throw new Error(
-      "Selector matched no hosts. Check the expression and the fleet's hosts[].",
-    );
+    throw new Error(noMatchMessage(selector));
   }
   return selected;
 }

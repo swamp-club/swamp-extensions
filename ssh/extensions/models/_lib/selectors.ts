@@ -19,8 +19,10 @@
 
 /**
  * Selector evaluation. Takes the `hosts` argument from a method call —
- * `"all"`, an array of names, or a CEL string — and produces the matched
- * subset of `EffectiveHost[]`.
+ * `"all"`, an array of names, or a string (a bare name/tag, a `name:`/`tag:`/
+ * `cel:` prefixed form, or a deprecated bare CEL expression) — and produces
+ * the matched subset of `EffectiveHost[]`. See `parseSelector` for the string
+ * forms.
  *
  * CEL evaluation uses the per-call Environment supplied by the swamp host
  * via `ctx.createCelEnvironment()`. We register `matchesRegex` and
@@ -63,6 +65,7 @@ export interface CelEnvLike {
 /** Logger surface used by selector evaluation. Matches MethodContext.logger. */
 export interface SelectorLogger {
   debug(message: string, ...args: unknown[]): void;
+  warn(message: string, ...args: unknown[]): void;
 }
 
 /**
@@ -132,38 +135,67 @@ export function compile(
   };
 }
 
+/** A bare string selector classified by its leading prefix (if any). */
+export type ParsedSelector =
+  | { kind: "name"; value: string }
+  | { kind: "tag"; value: string }
+  | { kind: "cel"; value: string }
+  | { kind: "bare"; value: string };
+
 /**
- * Resolve a selector value to the matching subset of `hosts`.
+ * Classify a string selector by its leading `name:` / `tag:` / `cel:` prefix.
  *
- * Form rules:
- * - `"all"` returns every host.
- * - `string[]` selects exact names (an unknown name silently produces no
- *   matches for that entry — empty selection is caught by the
- *   `fleet-non-empty` check, not here).
- * - bare string is a CEL expression evaluated per host.
+ * Only a leading recognized prefix is treated as a prefix; the remainder is
+ * passed through verbatim (a `cel:` body may itself contain `:`, e.g. a
+ * ternary or a map literal, so we split on the first `:` only). A string with
+ * no recognized prefix is `bare` and resolved by host name, then tag.
  *
- * For CEL evaluation, a host whose expression throws an `EvaluationError`
- * (typically: missing attribute) does not match and produces a debug log
- * entry. Other errors propagate.
+ * Shared by `selectHosts` (resolution) and `resolveSelection` (error/warning
+ * wording) so both agree on how a selector was interpreted.
  */
-export function selectHosts(
-  selector: Selector,
-  hosts: EffectiveHost[],
+export function parseSelector(selector: string): ParsedSelector {
+  if (selector.startsWith("name:")) {
+    return { kind: "name", value: selector.slice(5) };
+  }
+  if (selector.startsWith("tag:")) {
+    return { kind: "tag", value: selector.slice(4) };
+  }
+  if (selector.startsWith("cel:")) {
+    return { kind: "cel", value: selector.slice(4) };
+  }
+  return { kind: "bare", value: selector };
+}
+
+/**
+ * Heuristic: does a bare string look like a CEL expression rather than a host
+ * name or tag?
+ *
+ * A host name matches `HostNamePattern` (^[A-Za-z0-9_][A-Za-z0-9_.-]*$) and a
+ * simple tag is the same shape, so the presence of ANY character that cannot
+ * appear in a name/tag — whitespace, a quote, a bracket/paren/brace, or a CEL
+ * operator character — is the signal that the string was meant as an
+ * expression. A pure `[A-Za-z0-9_.-]` token (including hyphenated/dotted host
+ * names like `controlplane-fsn1-0`) is NEVER treated as CEL.
+ *
+ * Note this is not a regression risk: under the old CEL-only behavior a single
+ * bare identifier (e.g. `prod`) already evaluated to a missing-key
+ * `EvaluationError` and matched nothing, so reinterpreting it as a name/tag
+ * lookup changes a guaranteed no-match into a useful one.
+ */
+export function looksLikeCel(value: string): boolean {
+  return /[\s'"()[\]{}=<>!&|+*/%]/.test(value);
+}
+
+/** Evaluate a CEL expression against every host, excluding soft attr misses. */
+function evalCelSelector(
   env: CelEnvLike,
+  expression: string,
+  hosts: EffectiveHost[],
   logger: SelectorLogger,
 ): EffectiveHost[] {
-  if (selector === "all") {
-    return [...hosts];
-  }
-
-  if (Array.isArray(selector)) {
-    const wanted = new Set(selector);
-    return hosts.filter((h) => wanted.has(h.name));
-  }
-
-  // CEL string. Helpers are scoped to this Environment.
+  // CEL helpers are scoped to this Environment.
   registerHelpers(env);
-  const predicate = compile(env, selector);
+  const predicate = compile(env, expression);
 
   const matched: EffectiveHost[] = [];
   for (const host of hosts) {
@@ -188,6 +220,68 @@ export function selectHosts(
     }
   }
   return matched;
+}
+
+/**
+ * Resolve a selector value to the matching subset of `hosts`.
+ *
+ * Form rules:
+ * - `"all"` returns every host.
+ * - `string[]` selects exact names (an unknown name silently produces no
+ *   matches for that entry — empty selection is caught by `resolveSelection`,
+ *   not here).
+ * - a string is resolved by its `parseSelector` classification:
+ *   - `name:<n>` → exact host name.
+ *   - `tag:<t>`  → hosts carrying tag `<t>`.
+ *   - `cel:<e>`  → CEL predicate `<e>` (explicit, no deprecation warning).
+ *   - bare       → exact host name, then (if none) exact tag. If neither
+ *     matches and the string `looksLikeCel`, it is evaluated as CEL as a
+ *     DEPRECATED fallback and a warning is logged steering the caller to
+ *     the `cel:` prefix.
+ *
+ * For CEL evaluation, a host whose expression throws an `EvaluationError`
+ * (typically: missing attribute) does not match and produces a debug log
+ * entry. Other errors (including parse errors) propagate.
+ */
+export function selectHosts(
+  selector: Selector,
+  hosts: EffectiveHost[],
+  env: CelEnvLike,
+  logger: SelectorLogger,
+): EffectiveHost[] {
+  if (selector === "all") {
+    return [...hosts];
+  }
+
+  if (Array.isArray(selector)) {
+    const wanted = new Set(selector);
+    return hosts.filter((h) => wanted.has(h.name));
+  }
+
+  const parsed = parseSelector(selector);
+  switch (parsed.kind) {
+    case "name":
+      return hosts.filter((h) => h.name === parsed.value);
+    case "tag":
+      return hosts.filter((h) => h.tags.includes(parsed.value));
+    case "cel":
+      return evalCelSelector(env, parsed.value, hosts, logger);
+    case "bare": {
+      const byName = hosts.filter((h) => h.name === parsed.value);
+      if (byName.length > 0) return byName;
+      const byTag = hosts.filter((h) => h.tags.includes(parsed.value));
+      if (byTag.length > 0) return byTag;
+      if (looksLikeCel(parsed.value)) {
+        logger.warn(
+          `Bare CEL selector '${parsed.value}' is deprecated and will error ` +
+            `in a future version; use hosts='cel:${parsed.value}' instead. ` +
+            `Interpreting as CEL for now.`,
+        );
+        return evalCelSelector(env, parsed.value, hosts, logger);
+      }
+      return [];
+    }
+  }
 }
 
 function looksLikeEvaluationError(err: unknown): boolean {
