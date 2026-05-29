@@ -90,7 +90,7 @@ const SELECTOR_METHODS = [
  */
 export const model = {
   type: "@swamp/ssh",
-  version: "2026.05.29.1",
+  version: "2026.05.29.2",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -104,6 +104,14 @@ export const model = {
         "but is deprecated — it logs a warning and will error in a future " +
         "version. No globalArguments schema change; the selector is a " +
         "per-method input.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.29.2",
+      description:
+        "Docs-only (#485 follow-up): correct the manifest `Highlights` " +
+        "selector description, which still described the removed bare-CEL " +
+        "form. No code, schema, or behavior change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

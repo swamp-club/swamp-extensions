@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/ssh"
-version: "2026.05.29.1"
+version: "2026.05.29.2"
 description: |
   Run commands, copy files, and open port forwards across a declared set of
   hosts over SSH. Define the hosts once on the model, then target any subset
@@ -21,9 +21,10 @@ description: |
   - Mix OpenSSH and Tailscale hosts in the same fleet.
   - Per-host operations land as one resource each — `run-<method>-<name>` —
     so you can diff, gate workflows, and audit individual hosts.
-  - Three selector forms: `"all"`, an explicit name list `["web-1"]`, or
-    a bare CEL string evaluated per host (e.g.
-    `'"prod" in host.tags && host.attrs.region == "us-east-1"'`).
+  - Selector forms: `"all"`, an explicit name list `["web-1"]`, a bare
+    host name or tag (`controlplane`), `name:`/`tag:`/`cel:` prefixes, or a
+    `cel:` predicate (e.g. `'cel:"prod" in host.tags'`). A bare CEL string
+    is deprecated — prefix it with `cel:`.
   - CEL helpers bundled on every call: `matchesRegex(s, pat)`,
     `cidrContains(cidr, addr)`.
   - Auth modes: key-based (file, agent, `IdentityAgent`) and
@@ -70,7 +71,7 @@ description: |
   # Run methods — every selector-taking method requires a `hosts` argument.
   swamp model method run awesome open --input hosts=all --json
   swamp model method run awesome exec \
-    --input hosts='"prod" in host.tags' \
+    --input hosts='tag:prod' \
     --input command='uptime' --json
   ```
 
