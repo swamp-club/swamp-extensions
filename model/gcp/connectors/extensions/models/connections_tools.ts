@@ -46,6 +46,9 @@ const LIST_CONFIG = {
       "location": "path",
       "required": true,
     },
+    "toolNames": {
+      "location": "query",
+    },
   },
 } as const;
 
@@ -186,7 +189,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Connectors Connections.Tools. Registered at `@swamp/gcp/connectors/connections-tools`. */
 export const model = {
   type: "@swamp/gcp/connectors/connections-tools",
-  version: "2026.05.27.1",
+  version: "2026.05.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -275,6 +278,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.27.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.31.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -382,6 +390,9 @@ export const model = {
           'headers to be used for the request. For example: headers:\'{"x-integration-connectors-managed-connection-id":"conn-id","x-integration-connectors-runtime-config":"runtime-cfg"}\'',
         ).optional(),
         pageSize: z.number().describe("Page size.").optional(),
+        toolNames: z.string().describe(
+          "List of tool names for selective tool fetching.",
+        ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
         ).optional(),
@@ -400,6 +411,9 @@ export const model = {
         }
         if (args["pageSize"] !== undefined) {
           params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["toolNames"] !== undefined) {
+          params["toolNames"] = String(args["toolNames"]);
         }
         const { items, nextPageToken } = await listResources(
           BASE_URL,

@@ -436,6 +436,15 @@ const GlobalArgsSchema = z.object({
     }).describe(
       "Tool to search public web data, powered by Vertex AI Search and Sec4 compliance.",
     ).optional(),
+    exaAiSearch: z.object({
+      apiKey: z.string().describe("Required. The API key for ExaAiSearch.")
+        .optional(),
+      customConfigs: z.record(z.string(), z.string()).describe(
+        "Optional. This field can be used to pass any parameter from the Exa.ai Search API.",
+      ).optional(),
+    }).describe(
+      "ExaAiSearch tool type. A tool that uses the Exa.ai search engine for grounding.",
+    ).optional(),
     functionDeclarations: z.array(z.object({
       behavior: z.enum(["UNSPECIFIED", "BLOCKING", "NON_BLOCKING"]).describe(
         "Optional. Specifies the function Behavior. If not specified, the system keeps the current function call behavior. This field is currently only supported by the BidiGenerateContent method.",
@@ -912,6 +921,10 @@ const StateSchema = z.object({
       blockingConfidence: z.string(),
       excludeDomains: z.array(z.string()),
     }),
+    exaAiSearch: z.object({
+      apiKey: z.string(),
+      customConfigs: z.record(z.string(), z.unknown()),
+    }),
     functionDeclarations: z.array(z.object({
       behavior: z.string(),
       description: z.string(),
@@ -1370,6 +1383,15 @@ const InputsSchema = z.object({
     }).describe(
       "Tool to search public web data, powered by Vertex AI Search and Sec4 compliance.",
     ).optional(),
+    exaAiSearch: z.object({
+      apiKey: z.string().describe("Required. The API key for ExaAiSearch.")
+        .optional(),
+      customConfigs: z.record(z.string(), z.string()).describe(
+        "Optional. This field can be used to pass any parameter from the Exa.ai Search API.",
+      ).optional(),
+    }).describe(
+      "ExaAiSearch tool type. A tool that uses the Exa.ai search engine for grounding.",
+    ).optional(),
     functionDeclarations: z.array(z.object({
       behavior: z.enum(["UNSPECIFIED", "BLOCKING", "NON_BLOCKING"]).describe(
         "Optional. Specifies the function Behavior. If not specified, the system keeps the current function call behavior. This field is currently only supported by the BidiGenerateContent method.",
@@ -1724,7 +1746,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Agent Platform CachedContents. Registered at `@swamp/gcp/aiplatform/cachedcontents`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/cachedcontents",
-  version: "2026.05.26.1",
+  version: "2026.05.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1818,6 +1840,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.31.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

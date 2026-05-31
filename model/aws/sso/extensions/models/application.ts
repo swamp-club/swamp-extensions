@@ -90,6 +90,7 @@ const StateSchema = z.object({
     Visibility: z.string(),
     SignInOptions: SignInOptionsSchema,
   }).optional(),
+  IdentityStoreArn: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -136,7 +137,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SSO Application. Registered at `@swamp/aws/sso/application`. */
 export const model = {
   type: "@swamp/aws/sso/application",
-  version: "2026.04.23.2",
+  version: "2026.05.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -165,6 +166,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.31.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

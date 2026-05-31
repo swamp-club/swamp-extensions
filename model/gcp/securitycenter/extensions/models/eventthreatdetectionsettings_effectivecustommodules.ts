@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud Security Command Center EventThreatDetectionSettings.EffectiveCustomModules.
  *
- * An EffectiveEventThreatDetectionCustomModule is the representation of an Event Threat Detection custom module at a specified level of the resource hierarchy: organization, folder, or project. If a custom module is inherited from a parent organization or folder, the value of the `enablement_state` property in EffectiveEventThreatDetectionCustomModule is set to the value that is effective in the parent, instead of `INHERITED`. For example, if the module is enabled in a parent organization or folder, the effective `enablement_state` for the module in all child folders or projects is also `enabled`. EffectiveEventThreatDetectionCustomModule is read-only.
+ * GCP securitycenter EventThreatDetectionSettings.EffectiveCustomModules resource
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -99,7 +99,7 @@ const InputsSchema = z.object({
 export const model = {
   type:
     "@swamp/gcp/securitycenter/eventthreatdetectionsettings-effectivecustommodules",
-  version: "2026.05.25.1",
+  version: "2026.05.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -161,13 +161,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.31.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
       description:
-        "An EffectiveEventThreatDetectionCustomModule is the representation of an Even...",
+        "GCP securitycenter EventThreatDetectionSettings.EffectiveCustomModules resource",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -259,9 +264,7 @@ export const model = {
     list: {
       description: "List effectiveCustomModules resources",
       arguments: z.object({
-        pageSize: z.number().describe(
-          "The maximum number of modules to return. The service may return fewer than this value. If unspecified, at most 10 configs will be returned. The maximum value is 1000; values above 1000 will be coerced to 1000.",
-        ).optional(),
+        pageSize: z.number().optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
         ).optional(),

@@ -138,6 +138,16 @@ const GlobalArgsSchema = z.object({
       "DEFAULT_CONTAINER_CATEGORY_COMPUTER_USE",
     ]).describe("Required. The category of the default container image.")
       .optional(),
+    resources: z.object({
+      limits: z.record(z.string(), z.string()).describe(
+        'Optional. The maximum amounts of compute resources allowed. Keys are resource names (e.g., "cpu", "memory"). Values are quantities (e.g., "500m", "1Gi").',
+      ).optional(),
+      requests: z.record(z.string(), z.string()).describe(
+        'Optional. The requested amounts of compute resources. Keys are resource names (e.g., "cpu", "memory"). Values are quantities (e.g., "250m", "512Mi").',
+      ).optional(),
+    }).describe(
+      "Message to define resource requests and limits (mirroring Kubernetes) for each sandbox instance created from this template.",
+    ).optional(),
   }).describe(
     "The default sandbox runtime environment for default container workloads.",
   ).optional(),
@@ -175,6 +185,10 @@ const StateSchema = z.object({
   }).optional(),
   defaultContainerEnvironment: z.object({
     defaultContainerCategory: z.string(),
+    resources: z.object({
+      limits: z.record(z.string(), z.unknown()),
+      requests: z.record(z.string(), z.unknown()),
+    }),
   }).optional(),
   displayName: z.string().optional(),
   egressControlConfig: z.object({
@@ -221,6 +235,16 @@ const InputsSchema = z.object({
       "DEFAULT_CONTAINER_CATEGORY_COMPUTER_USE",
     ]).describe("Required. The category of the default container image.")
       .optional(),
+    resources: z.object({
+      limits: z.record(z.string(), z.string()).describe(
+        'Optional. The maximum amounts of compute resources allowed. Keys are resource names (e.g., "cpu", "memory"). Values are quantities (e.g., "500m", "1Gi").',
+      ).optional(),
+      requests: z.record(z.string(), z.string()).describe(
+        'Optional. The requested amounts of compute resources. Keys are resource names (e.g., "cpu", "memory"). Values are quantities (e.g., "250m", "512Mi").',
+      ).optional(),
+    }).describe(
+      "Message to define resource requests and limits (mirroring Kubernetes) for each sandbox instance created from this template.",
+    ).optional(),
   }).describe(
     "The default sandbox runtime environment for default container workloads.",
   ).optional(),
@@ -244,7 +268,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Agent Platform ReasoningEngines.SandboxEnvironmentTemplates. Registered at `@swamp/gcp/aiplatform/reasoningengines-sandboxenvironmenttemplates`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines-sandboxenvironmenttemplates",
-  version: "2026.05.26.1",
+  version: "2026.05.31.1",
+  upgrades: [
+    {
+      toVersion: "2026.05.31.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

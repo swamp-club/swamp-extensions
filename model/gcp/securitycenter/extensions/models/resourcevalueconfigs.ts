@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud Security Command Center ResourceValueConfigs.
  *
- * A resource value configuration (RVC) is a mapping configuration of user's resources to resource values. Used in Attack path simulations.
+ * GCP securitycenter ResourceValueConfigs resource
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -107,32 +107,20 @@ const GlobalArgsSchema = z.object({
     "GOOGLE_CLOUD_PLATFORM",
     "AMAZON_WEB_SERVICES",
     "MICROSOFT_AZURE",
-  ]).describe("Cloud provider this configuration applies to").optional(),
-  createTime: z.string().describe(
-    "Output only. Timestamp this resource value configuration was created.",
-  ).optional(),
-  description: z.string().describe(
-    "Description of the resource value configuration.",
-  ).optional(),
-  name: z.string().describe("Name for the resource value configuration")
-    .optional(),
-  resourceLabelsSelector: z.record(z.string(), z.string()).describe(
-    'List of resource labels to search for, evaluated with `AND`. For example, `"resource_labels_selector": {"key": "value", "env": "prod"}` will match resources with labels "key": "value" `AND` "env": "prod" https://cloud.google.com/resource-manager/docs/creating-managing-labels',
-  ).optional(),
-  resourceType: z.string().describe(
-    'Apply resource_value only to resources that match resource_type. resource_type will be checked with `AND` of other resources. For example, "storage.googleapis.com/Bucket" with resource_value "HIGH" will apply "HIGH" value only to "storage.googleapis.com/Bucket" resources.',
-  ).optional(),
+  ]).optional(),
+  createTime: z.string().optional(),
+  description: z.string().optional(),
+  name: z.string().optional(),
+  resourceLabelsSelector: z.record(z.string(), z.string()).optional(),
+  resourceType: z.string().optional(),
   resourceValue: z.enum([
     "RESOURCE_VALUE_UNSPECIFIED",
     "HIGH",
     "MEDIUM",
     "LOW",
     "NONE",
-  ]).describe("Required. Resource value level this expression represents")
-    .optional(),
-  scope: z.string().describe(
-    'Project or folder to scope this configuration to. For example, "project/456" would apply this configuration only to resources in "project/456" scope will be checked with `AND` of other resources.',
-  ).optional(),
+  ]).optional(),
+  scope: z.string().optional(),
   sensitiveDataProtectionMapping: z.object({
     highSensitivityMapping: z.enum([
       "RESOURCE_VALUE_UNSPECIFIED",
@@ -140,27 +128,17 @@ const GlobalArgsSchema = z.object({
       "MEDIUM",
       "LOW",
       "NONE",
-    ]).describe(
-      "Resource value mapping for high-sensitivity Sensitive Data Protection findings",
-    ).optional(),
+    ]).optional(),
     mediumSensitivityMapping: z.enum([
       "RESOURCE_VALUE_UNSPECIFIED",
       "HIGH",
       "MEDIUM",
       "LOW",
       "NONE",
-    ]).describe(
-      "Resource value mapping for medium-sensitivity Sensitive Data Protection findings",
-    ).optional(),
-  }).describe(
-    "Resource value mapping for Sensitive Data Protection findings. If any of these mappings have a resource value that is not unspecified, the resource_value field will be ignored when reading this configuration.",
-  ).optional(),
-  tagValues: z.array(z.string()).describe(
-    'Required. Tag values combined with `AND` to check against. For Google Cloud resources, they are tag value IDs in the form of "tagValues/123". Example: `[ "tagValues/123", "tagValues/456", "tagValues/789" ]` https://cloud.google.com/resource-manager/docs/tags/tags-creating-and-managing',
-  ).optional(),
-  updateTime: z.string().describe(
-    "Output only. Timestamp this resource value configuration was last updated.",
-  ).optional(),
+    ]).optional(),
+  }).optional(),
+  tagValues: z.array(z.string()).optional(),
+  updateTime: z.string().optional(),
   parent: z.string().describe(
     "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
   ).optional(),
@@ -191,32 +169,20 @@ const InputsSchema = z.object({
     "GOOGLE_CLOUD_PLATFORM",
     "AMAZON_WEB_SERVICES",
     "MICROSOFT_AZURE",
-  ]).describe("Cloud provider this configuration applies to").optional(),
-  createTime: z.string().describe(
-    "Output only. Timestamp this resource value configuration was created.",
-  ).optional(),
-  description: z.string().describe(
-    "Description of the resource value configuration.",
-  ).optional(),
-  name: z.string().describe("Name for the resource value configuration")
-    .optional(),
-  resourceLabelsSelector: z.record(z.string(), z.string()).describe(
-    'List of resource labels to search for, evaluated with `AND`. For example, `"resource_labels_selector": {"key": "value", "env": "prod"}` will match resources with labels "key": "value" `AND` "env": "prod" https://cloud.google.com/resource-manager/docs/creating-managing-labels',
-  ).optional(),
-  resourceType: z.string().describe(
-    'Apply resource_value only to resources that match resource_type. resource_type will be checked with `AND` of other resources. For example, "storage.googleapis.com/Bucket" with resource_value "HIGH" will apply "HIGH" value only to "storage.googleapis.com/Bucket" resources.',
-  ).optional(),
+  ]).optional(),
+  createTime: z.string().optional(),
+  description: z.string().optional(),
+  name: z.string().optional(),
+  resourceLabelsSelector: z.record(z.string(), z.string()).optional(),
+  resourceType: z.string().optional(),
   resourceValue: z.enum([
     "RESOURCE_VALUE_UNSPECIFIED",
     "HIGH",
     "MEDIUM",
     "LOW",
     "NONE",
-  ]).describe("Required. Resource value level this expression represents")
-    .optional(),
-  scope: z.string().describe(
-    'Project or folder to scope this configuration to. For example, "project/456" would apply this configuration only to resources in "project/456" scope will be checked with `AND` of other resources.',
-  ).optional(),
+  ]).optional(),
+  scope: z.string().optional(),
   sensitiveDataProtectionMapping: z.object({
     highSensitivityMapping: z.enum([
       "RESOURCE_VALUE_UNSPECIFIED",
@@ -224,27 +190,17 @@ const InputsSchema = z.object({
       "MEDIUM",
       "LOW",
       "NONE",
-    ]).describe(
-      "Resource value mapping for high-sensitivity Sensitive Data Protection findings",
-    ).optional(),
+    ]).optional(),
     mediumSensitivityMapping: z.enum([
       "RESOURCE_VALUE_UNSPECIFIED",
       "HIGH",
       "MEDIUM",
       "LOW",
       "NONE",
-    ]).describe(
-      "Resource value mapping for medium-sensitivity Sensitive Data Protection findings",
-    ).optional(),
-  }).describe(
-    "Resource value mapping for Sensitive Data Protection findings. If any of these mappings have a resource value that is not unspecified, the resource_value field will be ignored when reading this configuration.",
-  ).optional(),
-  tagValues: z.array(z.string()).describe(
-    'Required. Tag values combined with `AND` to check against. For Google Cloud resources, they are tag value IDs in the form of "tagValues/123". Example: `[ "tagValues/123", "tagValues/456", "tagValues/789" ]` https://cloud.google.com/resource-manager/docs/tags/tags-creating-and-managing',
-  ).optional(),
-  updateTime: z.string().describe(
-    "Output only. Timestamp this resource value configuration was last updated.",
-  ).optional(),
+    ]).optional(),
+  }).optional(),
+  tagValues: z.array(z.string()).optional(),
+  updateTime: z.string().optional(),
   parent: z.string().describe(
     "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
   ).optional(),
@@ -253,7 +209,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Security Command Center ResourceValueConfigs. Registered at `@swamp/gcp/securitycenter/resourcevalueconfigs`. */
 export const model = {
   type: "@swamp/gcp/securitycenter/resourcevalueconfigs",
-  version: "2026.05.25.1",
+  version: "2026.05.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -315,13 +271,17 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.31.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description:
-        "A resource value configuration (RVC) is a mapping configuration of user's res...",
+      description: "GCP securitycenter ResourceValueConfigs resource",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -514,9 +474,7 @@ export const model = {
     list: {
       description: "List resourceValueConfigs resources",
       arguments: z.object({
-        pageSize: z.number().describe(
-          "The number of results to return. The service may return fewer than this value. If unspecified, at most 10 configs will be returned. The maximum value is 1000; values above 1000 will be coerced to 1000.",
-        ).optional(),
+        pageSize: z.number().optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
         ).optional(),

@@ -1,12 +1,12 @@
-// Auto-generated extension model for @swamp/gcp/securitycenter/valuedresources
+// Auto-generated extension model for @swamp/gcp/artifactregistry/repositories-prewarmedartifacts
 // Do not edit manually. Re-generate with: deno task generate:gcp
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Security Command Center ValuedResources.
+ * Swamp extension model for Google Cloud Artifact Registry Repositories.PrewarmedArtifacts.
  *
- * GCP securitycenter ValuedResources resource
+ * PrewarmedArtifact represents a streamed artifact.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -22,20 +22,18 @@ import {
   readViaList,
 } from "./_lib/gcp.ts";
 
-const BASE_URL = "https://securitycenter.googleapis.com/";
+const BASE_URL = "https://artifactregistry.googleapis.com/";
 
 const LIST_CONFIG = {
-  "id": "securitycenter.organizations.valuedResources.list",
-  "path": "v1/{+parent}/valuedResources",
+  "id":
+    "artifactregistry.projects.locations.repositories.prewarmedArtifacts.list",
+  "path": "v1/{+parent}/prewarmedArtifacts",
   "httpMethod": "GET",
   "parameterOrder": [
     "parent",
   ],
   "parameters": {
     "filter": {
-      "location": "query",
-    },
-    "orderBy": {
       "location": "query",
     },
     "pageSize": {
@@ -55,108 +53,35 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  parent: z.string().describe(
-    "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
+  location: z.string().describe(
+    "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
 });
 
 const StateSchema = z.object({
-  displayName: z.string().optional(),
-  exposedScore: z.number().optional(),
-  name: z.string(),
-  resource: z.string().optional(),
-  resourceType: z.string().optional(),
-  resourceValue: z.string().optional(),
-  resourceValueConfigsUsed: z.array(z.object({
-    name: z.string(),
-  })).optional(),
+  expirationTime: z.string().optional(),
+  location: z.string().optional(),
+  uri: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
-  parent: z.string().describe(
-    "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
+  location: z.string().describe(
+    "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Security Command Center ValuedResources. Registered at `@swamp/gcp/securitycenter/valuedresources`. */
+/** Swamp extension model for Google Cloud Artifact Registry Repositories.PrewarmedArtifacts. Registered at `@swamp/gcp/artifactregistry/repositories-prewarmedartifacts`. */
 export const model = {
-  type: "@swamp/gcp/securitycenter/valuedresources",
+  type: "@swamp/gcp/artifactregistry/repositories-prewarmedartifacts",
   version: "2026.05.31.1",
-  upgrades: [
-    {
-      toVersion: "2026.04.01.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.02.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.3",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.19.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.19.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.21.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.21.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.24.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.25.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.31.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "GCP securitycenter ValuedResources resource",
+      description: "PrewarmedArtifact represents a streamed artifact.",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -164,9 +89,9 @@ export const model = {
   },
   methods: {
     get: {
-      description: "Get a valuedResources",
+      description: "Get a prewarmedArtifacts",
       arguments: z.object({
-        identifier: z.string().describe("The name of the valuedResources"),
+        identifier: z.string().describe("The name of the prewarmedArtifacts"),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const projectId = await getProjectId();
@@ -193,7 +118,7 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync valuedResources state from GCP",
+      description: "Sync prewarmedArtifacts state from GCP",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -249,11 +174,14 @@ export const model = {
       },
     },
     list: {
-      description: "List valuedResources resources",
+      description: "List prewarmedArtifacts resources",
       arguments: z.object({
-        filter: z.string().optional(),
-        orderBy: z.string().optional(),
-        pageSize: z.number().optional(),
+        filter: z.string().describe(
+          "Optional. Filter should only support The location of the prewarmed artifacts. multi-region is not supported for this field.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of prewarmed artifacts to return. Maximum page size is 1,000. Default page size is 100.",
+        ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
         ).optional(),
@@ -262,12 +190,11 @@ export const model = {
         const g = context.globalArgs;
         const projectId = await getProjectId();
         const params: Record<string, string> = { project: projectId };
-        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
         if (args["filter"] !== undefined) {
           params["filter"] = String(args["filter"]);
-        }
-        if (args["orderBy"] !== undefined) {
-          params["orderBy"] = String(args["orderBy"]);
         }
         if (args["pageSize"] !== undefined) {
           params["pageSize"] = String(args["pageSize"]);
@@ -276,7 +203,7 @@ export const model = {
           BASE_URL,
           LIST_CONFIG,
           params,
-          "valuedResources",
+          "prewarmedArtifacts",
           (args.maxPages as number | undefined) ?? 10,
         );
         const dataHandles = [];

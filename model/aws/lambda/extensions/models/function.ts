@@ -27,7 +27,7 @@ const FileSystemConfigSchema = z.object({
       "^arn:aws[a-zA-Z-]*:elasticfilesystem:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:access-point/fsap-[a-f0-9]{17}$|^arn:aws[-a-z]*:s3files:[0-9a-z-:]+:file-system/fs-[0-9a-f]{17,40}/access-point/fsap-[0-9a-f]{17,40}$",
     ),
   ).describe(
-    "The Amazon Resource Name (ARN) of the Amazon EFS access point that provides access to the file system.",
+    "The Amazon Resource Name (ARN) of the Amazon EFS or Amazon S3 Files access point that provides access to the file system.",
   ),
   LocalMountPath: z.string().max(160).regex(
     new RegExp("^/mnt/[a-zA-Z0-9-_.]+$"),
@@ -112,7 +112,7 @@ const GlobalArgsSchema = z.object({
     "The number of simultaneous executions to reserve for the function.",
   ).optional(),
   FileSystemConfigs: z.array(FileSystemConfigSchema).describe(
-    "Connection settings for an Amazon EFS file system. To connect a function to a file system, a mount target must be available in every Availability Zone that your function connects to. If your template contains an [AWS::EFS::MountTarget](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-efs-mounttarget.html) resource, you must also specify a DependsOn attribute to ensure that the mount target is created or updated before the function. For more information about using the DependsOn attribute, see [DependsOn Attribute](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-attribute-dependson.html).",
+    "Connection settings for an Amazon EFS or Amazon S3 Files file system. To connect a function to a file system, a mount target must be available in every Availability Zone that your function connects to. If your template contains an [AWS::EFS::MountTarget](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-efs-mounttarget.html) or [AWS::S3Files::MountTarget](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-s3files-mounttarget.html) resource, you must also specify a DependsOn attribute to ensure that the mount target is created or updated before the function. For more information about using the DependsOn attribute, see [DependsOn Attribute](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-attribute-dependson.html).",
   ).optional(),
   FunctionName: z.string().min(1).describe(
     "The name of the Lambda function, up to 64 characters in length. If you don't specify a name, CFN generates one. If you specify a name, you cannot perform updates that require replacement of this resource. You can perform updates that require no or some interruption. If you must replace the resource, specify a new name.",
@@ -208,7 +208,6 @@ const GlobalArgsSchema = z.object({
     S3Key: z.string().min(1).max(1024).describe(
       "The Amazon S3 key of the deployment package.",
     ).optional(),
-    S3ObjectStorageMode: z.enum(["COPY", "REFERENCE"]).optional(),
     ImageUri: z.string().describe(
       "URI of a [container image](https://docs.aws.amazon.com/lambda/latest/dg/lambda-images.html) in the Amazon ECR registry.",
     ).optional(),
@@ -331,7 +330,6 @@ const StateSchema = z.object({
     S3Bucket: z.string(),
     ZipFile: z.string(),
     S3Key: z.string(),
-    S3ObjectStorageMode: z.string(),
     ImageUri: z.string(),
   }).optional(),
   Role: z.string().optional(),
@@ -409,7 +407,7 @@ const InputsSchema = z.object({
     "The number of simultaneous executions to reserve for the function.",
   ).optional(),
   FileSystemConfigs: z.array(FileSystemConfigSchema).describe(
-    "Connection settings for an Amazon EFS file system. To connect a function to a file system, a mount target must be available in every Availability Zone that your function connects to. If your template contains an [AWS::EFS::MountTarget](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-efs-mounttarget.html) resource, you must also specify a DependsOn attribute to ensure that the mount target is created or updated before the function. For more information about using the DependsOn attribute, see [DependsOn Attribute](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-attribute-dependson.html).",
+    "Connection settings for an Amazon EFS or Amazon S3 Files file system. To connect a function to a file system, a mount target must be available in every Availability Zone that your function connects to. If your template contains an [AWS::EFS::MountTarget](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-efs-mounttarget.html) or [AWS::S3Files::MountTarget](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-s3files-mounttarget.html) resource, you must also specify a DependsOn attribute to ensure that the mount target is created or updated before the function. For more information about using the DependsOn attribute, see [DependsOn Attribute](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-attribute-dependson.html).",
   ).optional(),
   FunctionName: z.string().min(1).describe(
     "The name of the Lambda function, up to 64 characters in length. If you don't specify a name, CFN generates one. If you specify a name, you cannot perform updates that require replacement of this resource. You can perform updates that require no or some interruption. If you must replace the resource, specify a new name.",
@@ -505,7 +503,6 @@ const InputsSchema = z.object({
     S3Key: z.string().min(1).max(1024).describe(
       "The Amazon S3 key of the deployment package.",
     ).optional(),
-    S3ObjectStorageMode: z.enum(["COPY", "REFERENCE"]).optional(),
     ImageUri: z.string().describe(
       "URI of a [container image](https://docs.aws.amazon.com/lambda/latest/dg/lambda-images.html) in the Amazon ECR registry.",
     ).optional(),
@@ -567,7 +564,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Lambda Function. Registered at `@swamp/aws/lambda/function`. */
 export const model = {
   type: "@swamp/aws/lambda/function",
-  version: "2026.04.23.2",
+  version: "2026.05.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -601,6 +598,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.31.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

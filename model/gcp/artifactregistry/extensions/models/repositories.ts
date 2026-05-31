@@ -799,7 +799,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Artifact Registry Repositories. Registered at `@swamp/gcp/artifactregistry/repositories`. */
 export const model = {
   type: "@swamp/gcp/artifactregistry/repositories",
-  version: "2026.05.25.1",
+  version: "2026.05.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -863,6 +863,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.31.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1213,6 +1218,55 @@ export const model = {
         return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
+    check_prewarmed_artifact: {
+      description: "check prewarmed artifact",
+      arguments: z.object({
+        streamLocation: z.any().optional(),
+        tag: z.any().optional(),
+        version: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["repository"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["streamLocation"] !== undefined) {
+          body["streamLocation"] = args["streamLocation"];
+        }
+        if (args["tag"] !== undefined) body["tag"] = args["tag"];
+        if (args["version"] !== undefined) body["version"] = args["version"];
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id":
+              "artifactregistry.projects.locations.repositories.checkPrewarmedArtifact",
+            "path": "v1/{+repository}:checkPrewarmedArtifact",
+            "httpMethod": "POST",
+            "parameterOrder": ["repository"],
+            "parameters": {
+              "repository": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+        );
+        return { result };
+      },
+    },
     export_artifact: {
       description: "export artifact",
       arguments: z.object({
@@ -1300,6 +1354,61 @@ export const model = {
           },
           params,
           {},
+        );
+        return { result };
+      },
+    },
+    prewarm_artifact: {
+      description: "prewarm artifact",
+      arguments: z.object({
+        force: z.any().optional(),
+        retentionDays: z.any().optional(),
+        streamLocation: z.any().optional(),
+        tag: z.any().optional(),
+        version: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["repository"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["force"] !== undefined) body["force"] = args["force"];
+        if (args["retentionDays"] !== undefined) {
+          body["retentionDays"] = args["retentionDays"];
+        }
+        if (args["streamLocation"] !== undefined) {
+          body["streamLocation"] = args["streamLocation"];
+        }
+        if (args["tag"] !== undefined) body["tag"] = args["tag"];
+        if (args["version"] !== undefined) body["version"] = args["version"];
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id":
+              "artifactregistry.projects.locations.repositories.prewarmArtifact",
+            "path": "v1/{+repository}:prewarmArtifact",
+            "httpMethod": "POST",
+            "parameterOrder": ["repository"],
+            "parameters": {
+              "repository": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
         );
         return { result };
       },

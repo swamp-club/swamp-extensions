@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud Security Command Center BigQueryExports.
  *
- * Configures how to deliver Findings to BigQuery Instance.
+ * GCP securitycenter BigQueryExports resource
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -120,20 +120,16 @@ const LIST_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
-  dataset: z.string().describe(
-    'The dataset to write findings\' updates to. Its format is "projects/[project_id]/datasets/[bigquery_dataset_id]". BigQuery Dataset unique ID must contain only letters (a-z, A-Z), numbers (0-9), or underscores (_).',
-  ).optional(),
-  description: z.string().describe(
-    "The description of the export (max of 1024 characters).",
-  ).optional(),
-  filter: z.string().describe(
-    "Expression that defines the filter to apply across create/update events of findings. The expression is a list of zero or more restrictions combined via logical operators `AND` and `OR`. Parentheses are supported, and `OR` has higher precedence than `AND`. Restrictions have the form ` ` and may have a `-` character in front of them to indicate negation. The fields map to those defined in the corresponding resource. The supported operators are: * `=` for all value types. * `>`, `=`, `<=` for integer values. * `:`, meaning substring matching, for strings. The supported value types are: * string literals in quotes. * integer literals without quotes. * boolean literals `true` and `false` without quotes.",
-  ).optional(),
-  name: z.string().describe(
-    'The relative resource name of this export. See: https://cloud.google.com/apis/design/resource_names#relative_resource_name. Example format: "organizations/{organization_id}/bigQueryExports/{export_id}" Example format: "folders/{folder_id}/bigQueryExports/{export_id}" Example format: "projects/{project_id}/bigQueryExports/{export_id}" This field is provided in responses, and is ignored when provided in create requests.',
-  ).optional(),
+  createTime: z.string().optional(),
+  dataset: z.string().optional(),
+  description: z.string().optional(),
+  filter: z.string().optional(),
+  mostRecentEditor: z.string().optional(),
+  name: z.string().optional(),
+  principal: z.string().optional(),
+  updateTime: z.string().optional(),
   bigQueryExportId: z.string().describe(
-    "Required. Unique identifier provided by the client within the parent scope. It must consist of only lowercase letters, numbers, and hyphens, must start with a letter, must end with either a letter or a number, and must be 63 characters or less.",
+    "The bigQueryExportId for this resource",
   ).optional(),
   parent: z.string().describe(
     "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
@@ -154,20 +150,16 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  dataset: z.string().describe(
-    'The dataset to write findings\' updates to. Its format is "projects/[project_id]/datasets/[bigquery_dataset_id]". BigQuery Dataset unique ID must contain only letters (a-z, A-Z), numbers (0-9), or underscores (_).',
-  ).optional(),
-  description: z.string().describe(
-    "The description of the export (max of 1024 characters).",
-  ).optional(),
-  filter: z.string().describe(
-    "Expression that defines the filter to apply across create/update events of findings. The expression is a list of zero or more restrictions combined via logical operators `AND` and `OR`. Parentheses are supported, and `OR` has higher precedence than `AND`. Restrictions have the form ` ` and may have a `-` character in front of them to indicate negation. The fields map to those defined in the corresponding resource. The supported operators are: * `=` for all value types. * `>`, `=`, `<=` for integer values. * `:`, meaning substring matching, for strings. The supported value types are: * string literals in quotes. * integer literals without quotes. * boolean literals `true` and `false` without quotes.",
-  ).optional(),
-  name: z.string().describe(
-    'The relative resource name of this export. See: https://cloud.google.com/apis/design/resource_names#relative_resource_name. Example format: "organizations/{organization_id}/bigQueryExports/{export_id}" Example format: "folders/{folder_id}/bigQueryExports/{export_id}" Example format: "projects/{project_id}/bigQueryExports/{export_id}" This field is provided in responses, and is ignored when provided in create requests.',
-  ).optional(),
+  createTime: z.string().optional(),
+  dataset: z.string().optional(),
+  description: z.string().optional(),
+  filter: z.string().optional(),
+  mostRecentEditor: z.string().optional(),
+  name: z.string().optional(),
+  principal: z.string().optional(),
+  updateTime: z.string().optional(),
   bigQueryExportId: z.string().describe(
-    "Required. Unique identifier provided by the client within the parent scope. It must consist of only lowercase letters, numbers, and hyphens, must start with a letter, must end with either a letter or a number, and must be 63 characters or less.",
+    "The bigQueryExportId for this resource",
   ).optional(),
   parent: z.string().describe(
     "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
@@ -177,7 +169,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Security Command Center BigQueryExports. Registered at `@swamp/gcp/securitycenter/bigqueryexports`. */
 export const model = {
   type: "@swamp/gcp/securitycenter/bigqueryexports",
-  version: "2026.05.25.1",
+  version: "2026.05.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -239,12 +231,17 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.31.1",
+      description: "Added: createTime, mostRecentEditor, principal, updateTime",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Configures how to deliver Findings to BigQuery Instance.",
+      description: "GCP securitycenter BigQueryExports resource",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -260,12 +257,18 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         const body: Record<string, unknown> = {};
+        if (g["createTime"] !== undefined) body["createTime"] = g["createTime"];
         if (g["dataset"] !== undefined) body["dataset"] = g["dataset"];
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
         }
         if (g["filter"] !== undefined) body["filter"] = g["filter"];
+        if (g["mostRecentEditor"] !== undefined) {
+          body["mostRecentEditor"] = g["mostRecentEditor"];
+        }
         if (g["name"] !== undefined) body["name"] = g["name"];
+        if (g["principal"] !== undefined) body["principal"] = g["principal"];
+        if (g["updateTime"] !== undefined) body["updateTime"] = g["updateTime"];
         if (g["bigQueryExportId"] !== undefined) {
           body["bigQueryExportId"] = g["bigQueryExportId"];
         }
@@ -357,11 +360,17 @@ export const model = {
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
+        if (g["createTime"] !== undefined) body["createTime"] = g["createTime"];
         if (g["dataset"] !== undefined) body["dataset"] = g["dataset"];
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
         }
         if (g["filter"] !== undefined) body["filter"] = g["filter"];
+        if (g["mostRecentEditor"] !== undefined) {
+          body["mostRecentEditor"] = g["mostRecentEditor"];
+        }
+        if (g["principal"] !== undefined) body["principal"] = g["principal"];
+        if (g["updateTime"] !== undefined) body["updateTime"] = g["updateTime"];
         for (const key of Object.keys(existing)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
@@ -469,9 +478,7 @@ export const model = {
     list: {
       description: "List bigQueryExports resources",
       arguments: z.object({
-        pageSize: z.number().describe(
-          "The maximum number of configs to return. The service may return fewer than this value. If unspecified, at most 10 configs will be returned. The maximum value is 1000; values above 1000 will be coerced to 1000.",
-        ).optional(),
+        pageSize: z.number().optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
         ).optional(),

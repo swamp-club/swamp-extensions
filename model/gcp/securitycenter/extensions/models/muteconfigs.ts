@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud Security Command Center MuteConfigs.
  *
- * A mute config is a Cloud SCC resource that contains the configuration to mute create/update events of findings.
+ * GCP securitycenter MuteConfigs resource
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -74,29 +74,15 @@ const DELETE_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
-  createTime: z.string().describe(
-    "Output only. The time at which the mute config was created. This field is set by the server and will be ignored if provided on config creation.",
-  ).optional(),
-  description: z.string().describe("A description of the mute config.")
+  createTime: z.string().optional(),
+  description: z.string().optional(),
+  expiryTime: z.string().optional(),
+  filter: z.string().optional(),
+  mostRecentEditor: z.string().optional(),
+  name: z.string().optional(),
+  type: z.enum(["MUTE_CONFIG_TYPE_UNSPECIFIED", "STATIC", "DYNAMIC"])
     .optional(),
-  expiryTime: z.string().describe(
-    "Optional. The expiry of the mute config. Only applicable for dynamic configs. If the expiry is set, when the config expires, it is removed from all findings.",
-  ).optional(),
-  filter: z.string().describe(
-    "Required. An expression that defines the filter to apply across create/update events of findings. While creating a filter string, be mindful of the scope in which the mute configuration is being created. E.g., If a filter contains project = X but is created under the project = Y scope, it might not match any findings. The following field and operator combinations are supported: * severity: `=`, `:` * category: `=`, `:` * resource.name: `=`, `:` * resource.project_name: `=`, `:` * resource.project_display_name: `=`, `:` * resource.folders.resource_folder: `=`, `:` * resource.parent_name: `=`, `:` * resource.parent_display_name: `=`, `:` * resource.type: `=`, `:` * finding_class: `=`, `:` * indicator.ip_addresses: `=`, `:` * indicator.domains: `=`, `:`",
-  ).optional(),
-  mostRecentEditor: z.string().describe(
-    "Output only. Email address of the user who last edited the mute config. This field is set by the server and will be ignored if provided on config creation or update.",
-  ).optional(),
-  name: z.string().describe(
-    "This field will be ignored if provided on config creation. Format `organizations/{organization}/muteConfigs/{mute_config}` `folders/{folder}/muteConfigs/{mute_config}` `projects/{project}/muteConfigs/{mute_config}` `organizations/{organization}/locations/global/muteConfigs/{mute_config}` `folders/{folder}/locations/global/muteConfigs/{mute_config}` `projects/{project}/locations/global/muteConfigs/{mute_config}`",
-  ).optional(),
-  type: z.enum(["MUTE_CONFIG_TYPE_UNSPECIFIED", "STATIC", "DYNAMIC"]).describe(
-    "Optional. The type of the mute config, which determines what type of mute state the config affects. The static mute state takes precedence over the dynamic mute state. Immutable after creation. STATIC by default if not set during creation.",
-  ).optional(),
-  updateTime: z.string().describe(
-    "Output only. The most recent time at which the mute config was updated. This field is set by the server and will be ignored if provided on config creation or update.",
-  ).optional(),
+  updateTime: z.string().optional(),
 });
 
 const StateSchema = z.object({
@@ -114,35 +100,21 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  createTime: z.string().describe(
-    "Output only. The time at which the mute config was created. This field is set by the server and will be ignored if provided on config creation.",
-  ).optional(),
-  description: z.string().describe("A description of the mute config.")
+  createTime: z.string().optional(),
+  description: z.string().optional(),
+  expiryTime: z.string().optional(),
+  filter: z.string().optional(),
+  mostRecentEditor: z.string().optional(),
+  name: z.string().optional(),
+  type: z.enum(["MUTE_CONFIG_TYPE_UNSPECIFIED", "STATIC", "DYNAMIC"])
     .optional(),
-  expiryTime: z.string().describe(
-    "Optional. The expiry of the mute config. Only applicable for dynamic configs. If the expiry is set, when the config expires, it is removed from all findings.",
-  ).optional(),
-  filter: z.string().describe(
-    "Required. An expression that defines the filter to apply across create/update events of findings. While creating a filter string, be mindful of the scope in which the mute configuration is being created. E.g., If a filter contains project = X but is created under the project = Y scope, it might not match any findings. The following field and operator combinations are supported: * severity: `=`, `:` * category: `=`, `:` * resource.name: `=`, `:` * resource.project_name: `=`, `:` * resource.project_display_name: `=`, `:` * resource.folders.resource_folder: `=`, `:` * resource.parent_name: `=`, `:` * resource.parent_display_name: `=`, `:` * resource.type: `=`, `:` * finding_class: `=`, `:` * indicator.ip_addresses: `=`, `:` * indicator.domains: `=`, `:`",
-  ).optional(),
-  mostRecentEditor: z.string().describe(
-    "Output only. Email address of the user who last edited the mute config. This field is set by the server and will be ignored if provided on config creation or update.",
-  ).optional(),
-  name: z.string().describe(
-    "This field will be ignored if provided on config creation. Format `organizations/{organization}/muteConfigs/{mute_config}` `folders/{folder}/muteConfigs/{mute_config}` `projects/{project}/muteConfigs/{mute_config}` `organizations/{organization}/locations/global/muteConfigs/{mute_config}` `folders/{folder}/locations/global/muteConfigs/{mute_config}` `projects/{project}/locations/global/muteConfigs/{mute_config}`",
-  ).optional(),
-  type: z.enum(["MUTE_CONFIG_TYPE_UNSPECIFIED", "STATIC", "DYNAMIC"]).describe(
-    "Optional. The type of the mute config, which determines what type of mute state the config affects. The static mute state takes precedence over the dynamic mute state. Immutable after creation. STATIC by default if not set during creation.",
-  ).optional(),
-  updateTime: z.string().describe(
-    "Output only. The most recent time at which the mute config was updated. This field is set by the server and will be ignored if provided on config creation or update.",
-  ).optional(),
+  updateTime: z.string().optional(),
 });
 
 /** Swamp extension model for Google Cloud Security Command Center MuteConfigs. Registered at `@swamp/gcp/securitycenter/muteconfigs`. */
 export const model = {
   type: "@swamp/gcp/securitycenter/muteconfigs",
-  version: "2026.05.25.1",
+  version: "2026.05.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -204,13 +176,17 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.05.31.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description:
-        "A mute config is a Cloud SCC resource that contains the configuration to mute...",
+      description: "GCP securitycenter MuteConfigs resource",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,

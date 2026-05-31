@@ -86,6 +86,7 @@ const StateSchema = z.object({
     containerStatusSummary: z.string(),
     deployTime: z.string(),
     id: z.string(),
+    sourceCodeUris: z.array(z.string()),
     sourceCommitUris: z.array(z.string()),
     undeployTime: z.string(),
   })).optional(),
@@ -131,7 +132,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Developer Connect InsightsConfigs.DeploymentEvents. Registered at `@swamp/gcp/developerconnect/insightsconfigs-deploymentevents`. */
 export const model = {
   type: "@swamp/gcp/developerconnect/insightsconfigs-deploymentevents",
-  version: "2026.05.25.1",
+  version: "2026.05.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -195,6 +196,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.31.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

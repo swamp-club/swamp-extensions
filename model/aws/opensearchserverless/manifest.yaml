@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/opensearchserverless"
-version: "2026.05.24.1"
+version: "2026.05.31.1"
 description: "AWS OPENSEARCHSERVERLESS infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,11 +10,12 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: collection
+  - Added: collection_index
 models:
   - access_policy.ts
   - collection.ts
   - collection_group.ts
+  - collection_index.ts
   - index.ts
   - lifecycle_policy.ts
   - security_config.ts

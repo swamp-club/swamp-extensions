@@ -134,9 +134,10 @@ const GlobalArgsSchema = z.object({
       "Size in GB of the disk (default is 100GB).",
     ).optional(),
     diskType: z.string().describe(
-      'Type of the disk (default is "pd-standard"). Valid values: "pd-ssd" (Persistent Disk Solid State Drive) "pd-standard" (Persistent Disk Hard Disk Drive) "pd-balanced" (Balanced Persistent Disk) "pd-extreme" (Extreme Persistent Disk)',
+      'Type of the disk (default is "pd-standard"). Valid values: "pd-ssd" (Persistent Disk Solid State Drive) "pd-standard" (Persistent Disk Hard Disk Drive) "pd-balanced" (Balanced Persistent Disk) "pd-extreme" (Extreme Persistent Disk) "hyperdisk-balanced" (Hyperdisk Balanced) "hyperdisk-extreme" (Hyperdisk Extreme) "hyperdisk-balanced-high-availability" (Hyperdisk Balanced High Availability) "hyperdisk-ml" (Hyperdisk ML) "hyperdisk-throughput" (Hyperdisk Throughput)',
     ).optional(),
-  }).describe("Represents the spec of persistent disk options.").optional(),
+  }).describe("Represents the spec of persistent disk and hyperdisk options.")
+    .optional(),
   description: z.string().describe(
     "The description of the NotebookRuntimeTemplate.",
   ).optional(),
@@ -394,9 +395,10 @@ const InputsSchema = z.object({
       "Size in GB of the disk (default is 100GB).",
     ).optional(),
     diskType: z.string().describe(
-      'Type of the disk (default is "pd-standard"). Valid values: "pd-ssd" (Persistent Disk Solid State Drive) "pd-standard" (Persistent Disk Hard Disk Drive) "pd-balanced" (Balanced Persistent Disk) "pd-extreme" (Extreme Persistent Disk)',
+      'Type of the disk (default is "pd-standard"). Valid values: "pd-ssd" (Persistent Disk Solid State Drive) "pd-standard" (Persistent Disk Hard Disk Drive) "pd-balanced" (Balanced Persistent Disk) "pd-extreme" (Extreme Persistent Disk) "hyperdisk-balanced" (Hyperdisk Balanced) "hyperdisk-extreme" (Hyperdisk Extreme) "hyperdisk-balanced-high-availability" (Hyperdisk Balanced High Availability) "hyperdisk-ml" (Hyperdisk ML) "hyperdisk-throughput" (Hyperdisk Throughput)',
     ).optional(),
-  }).describe("Represents the spec of persistent disk options.").optional(),
+  }).describe("Represents the spec of persistent disk and hyperdisk options.")
+    .optional(),
   description: z.string().describe(
     "The description of the NotebookRuntimeTemplate.",
   ).optional(),
@@ -580,7 +582,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Agent Platform NotebookRuntimeTemplates. Registered at `@swamp/gcp/aiplatform/notebookruntimetemplates`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/notebookruntimetemplates",
-  version: "2026.05.26.1",
+  version: "2026.05.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -664,6 +666,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.05.31.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
