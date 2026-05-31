@@ -54,11 +54,16 @@ swamp vault list-keys my-aws-sm --json
 Attach metadata to secrets via `swamp vault annotate` and inspect it with
 `swamp vault inspect`. Annotation fields map to native AWS primitives:
 
-| Field    | AWS primitive                            |
-| -------- | ---------------------------------------- |
-| `notes`  | Secret `Description` field               |
-| `labels` | Resource tags (key-value pairs)          |
-| `url`    | Tag with key `swamp:url`                 |
+| Field    | AWS primitive                                          |
+| -------- | ------------------------------------------------------ |
+| `notes`  | Secret `Description` field                             |
+| `labels` | Resource tags (key-value pairs)                        |
+| `url`    | Secret `Description` field (trailing `swamp:url=` line) |
+
+The `url` is stored in the `Description` rather than a tag because AWS tag
+values reject characters such as `?` and `&`, which are common in URLs with
+query strings. Annotations created before this change kept the `url` in a
+`swamp:url` tag; that tag is still read for backwards compatibility.
 
 ```bash
 swamp vault annotate my-aws-sm API_KEY \

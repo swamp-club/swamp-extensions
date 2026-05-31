@@ -94,6 +94,11 @@ interface SecretMetadata {
   tags: Map<string, string>;
 }
 
+// AWS Secrets Manager tag values are restricted to this charset (letters,
+// separators, numbers, and `_ . : / = + - @`). `?`, `&`, and `%` are NOT
+// allowed — see issue #495.
+const AWS_TAG_VALUE_PATTERN = /^[\p{L}\p{Z}\p{N}_.:/=+\-@]*$/u;
+
 /** Start a local HTTP server that simulates AWS Secrets Manager. */
 function startMockAwsServer(overrides: MockOverrides = {}): {
   url: string;
@@ -191,6 +196,17 @@ function startMockAwsServer(overrides: MockOverrides = {}): {
       if (overrides.TagResource) return mockResponse(overrides.TagResource);
       const meta = ensureMetadata(body.SecretId);
       for (const tag of body.Tags ?? []) {
+        // Mirror AWS's documented tag-value charset. Values containing
+        // characters outside this set — e.g. the `?` and `&` of a URL query
+        // string — are rejected by the real TagResource API. This is the
+        // regression guard for issue #495: if the URL is ever routed back
+        // through a tag, these tests fail loudly.
+        if (!AWS_TAG_VALUE_PATTERN.test(tag.Value)) {
+          return Response.json({
+            __type: "InvalidRequestException",
+            Message: "Request rejected by the downstream tagging service",
+          }, { status: 400 });
+        }
         meta.tags.set(tag.Key, tag.Value);
       }
       return Response.json({});
@@ -784,6 +800,189 @@ Deno.test({
           Message: "Too many tags",
         }),
       },
+    });
+  },
+});
+
+// --- issue #495: query-param URLs must not be routed through AWS tags ---
+
+Deno.test({
+  name: "aws-sm vault: URL with query params round-trips (issue #495)",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async (_secrets, metadata) => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      await provider.put("query-url", "value");
+
+      const ap = asAnnotationProvider(provider);
+      const url =
+        "https://console.aws.amazon.com/secretsmanager/secret?name=foo&region=us-east-1";
+      // Before the fix this rejected with InvalidRequestException because the
+      // URL was stored as a tag value (the mock TagResource enforces AWS's
+      // charset). It must now succeed by living in the Description instead.
+      await ap.putAnnotation("query-url", createVaultAnnotation({ url }));
+
+      const annotation = await ap.getAnnotation("query-url");
+      assert(annotation !== null);
+      assertEquals(annotation.url, url);
+      // The URL must NOT have been written as a tag.
+      assertEquals(metadata.get("query-url")?.tags.has("swamp:url"), false);
+    });
+  },
+});
+
+Deno.test({
+  name: "aws-sm vault: url-only update preserves existing notes",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      await provider.put("partial", "value");
+
+      const ap = asAnnotationProvider(provider);
+      await ap.putAnnotation(
+        "partial",
+        createVaultAnnotation({ notes: "Existing note" }),
+      );
+      // Update only the url — notes must survive.
+      await ap.putAnnotation(
+        "partial",
+        createVaultAnnotation({ url: "https://example.com/x?a=1&b=2" }),
+      );
+
+      const annotation = await ap.getAnnotation("partial");
+      assert(annotation !== null);
+      assertEquals(annotation.notes, "Existing note");
+      assertEquals(annotation.url, "https://example.com/x?a=1&b=2");
+    });
+  },
+});
+
+Deno.test({
+  name: "aws-sm vault: notes-only update preserves existing url",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      await provider.put("partial2", "value");
+
+      const ap = asAnnotationProvider(provider);
+      await ap.putAnnotation(
+        "partial2",
+        createVaultAnnotation({ url: "https://example.com/y?q=1" }),
+      );
+      // Update only the notes — url must survive.
+      await ap.putAnnotation(
+        "partial2",
+        createVaultAnnotation({ notes: "Added later" }),
+      );
+
+      const annotation = await ap.getAnnotation("partial2");
+      assert(annotation !== null);
+      assertEquals(annotation.url, "https://example.com/y?q=1");
+      assertEquals(annotation.notes, "Added later");
+    });
+  },
+});
+
+Deno.test({
+  name:
+    "aws-sm vault: notes-only update preserves a LEGACY swamp:url tag (ADV-1)",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async (secrets, metadata) => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      await provider.put("legacy", "value");
+      // Seed a pre-#495 secret: url lives in the swamp:url tag, not Description.
+      secrets.set("legacy", "value");
+      metadata.set("legacy", {
+        description: "",
+        tags: new Map([["swamp:url", "https://old.example.com/dash"]]),
+      });
+
+      const ap = asAnnotationProvider(provider);
+      await ap.putAnnotation(
+        "legacy",
+        createVaultAnnotation({ notes: "New note" }),
+      );
+
+      const annotation = await ap.getAnnotation("legacy");
+      assert(annotation !== null);
+      // The legacy url must not be dropped by a notes-only update.
+      assertEquals(annotation.url, "https://old.example.com/dash");
+      assertEquals(annotation.notes, "New note");
+    });
+  },
+});
+
+Deno.test({
+  name:
+    "aws-sm vault: getAnnotation reads a legacy swamp:url tag (back-compat)",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async (secrets, metadata) => {
+      vault.createProvider("test", { region: "us-east-1" });
+      secrets.set("legacy-read", "value");
+      metadata.set("legacy-read", {
+        description: "Some notes",
+        tags: new Map([["swamp:url", "https://legacy.example.com"]]),
+      });
+
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      const ap = asAnnotationProvider(provider);
+      const annotation = await ap.getAnnotation("legacy-read");
+      assert(annotation !== null);
+      assertEquals(annotation.url, "https://legacy.example.com");
+      assertEquals(annotation.notes, "Some notes");
+
+      const all = await ap.listAnnotations();
+      assertEquals(all.get("legacy-read")?.url, "https://legacy.example.com");
+    });
+  },
+});
+
+Deno.test({
+  name: "aws-sm vault: multi-line notes + url round-trip losslessly (ADV-4)",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      await provider.put("multiline", "value");
+
+      const ap = asAnnotationProvider(provider);
+      // Interior blank line and trailing whitespace must survive the round-trip.
+      const notes = "Line one\n\nLine three   ";
+      await ap.putAnnotation(
+        "multiline",
+        createVaultAnnotation({ notes, url: "https://example.com/z?p=1&q=2" }),
+      );
+
+      const annotation = await ap.getAnnotation("multiline");
+      assert(annotation !== null);
+      assertEquals(annotation.notes, notes);
+      assertEquals(annotation.url, "https://example.com/z?p=1&q=2");
+    });
+  },
+});
+
+Deno.test({
+  name: "aws-sm vault: annotating a missing secret fails via DescribeSecret",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      const ap = asAnnotationProvider(provider);
+      const err = await assertRejects(() =>
+        ap.putAnnotation(
+          "does-not-exist",
+          createVaultAnnotation({ url: "https://example.com" }),
+        )
+      );
+      assert(err instanceof AwsSmOperationError);
+      assert(
+        err.message.includes("AWS Secrets Manager DescribeSecret failed"),
+        `expected a wrapped DescribeSecret error, got: ${err.message}`,
+      );
     });
   },
 });

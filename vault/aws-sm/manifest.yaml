@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/aws-sm"
-version: "2026.05.23.1"
+version: "2026.05.31.1"
 description: |
   Read and write secrets stored in AWS Secrets Manager, with support for
   vault annotations (`swamp vault annotate` / `swamp vault inspect`).
@@ -29,7 +29,9 @@ description: |
   Annotations map to native AWS Secrets Manager primitives:
   - **notes** → secret Description field
   - **labels** → resource tags (key-value pairs)
-  - **url** → stored as a `swamp:url` tag
+  - **url** → secret Description field (trailing `swamp:url=` line; stored
+    there rather than a tag because AWS tag values reject URL characters like
+    `?` and `&`. A legacy `swamp:url` tag is still read for back-compat.)
 
   ```bash
   swamp vault annotate my-aws-sm API_KEY \
