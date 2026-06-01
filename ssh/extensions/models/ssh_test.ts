@@ -719,3 +719,158 @@ Deno.test("exec: selector matching no hosts throws from execute", async () => {
     resetCommandExecutor();
   }
 });
+
+// ---------------------------------------------------------------------------
+// non-zero exit propagation (#510)
+// ---------------------------------------------------------------------------
+
+/** Executor that returns a fixed non-zero exit code for every host. */
+function failExecutor(
+  code: number,
+  stderr = "",
+): { executor: CommandExecutor; requests: ExecRequest[] } {
+  const requests: ExecRequest[] = [];
+  const executor: CommandExecutor = (req) => {
+    requests.push(req);
+    return Promise.resolve({
+      code,
+      signal: null,
+      stdout: "",
+      stderr,
+    });
+  };
+  return { executor, requests };
+}
+
+Deno.test("exec: non-zero exit throws and names the failed host", async () => {
+  const h = makeHarness(FLEET, "exec");
+  const { executor } = failExecutor(255, "Connection closed\n");
+  setCommandExecutor(executor);
+  try {
+    const args = model.methods.exec.arguments.parse({
+      hosts: ["web-1"],
+      command: "uptime",
+    });
+    let msg = "";
+    try {
+      await model.methods.exec.execute(args, h.ctx);
+    } catch (e) {
+      msg = e instanceof Error ? e.message : String(e);
+    }
+    assert(msg.includes("exec failed"), msg);
+    assert(msg.includes("web-1"), msg);
+    assert(msg.includes("exit 255"), msg);
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("exec: resources are written before the throw", async () => {
+  const h = makeHarness(FLEET, "exec");
+  const { executor } = failExecutor(1);
+  setCommandExecutor(executor);
+  try {
+    const args = model.methods.exec.arguments.parse({
+      hosts: ["web-1"],
+      command: "false",
+    });
+    try {
+      await model.methods.exec.execute(args, h.ctx);
+    } catch {
+      // expected
+    }
+    assert(
+      h.resources.has("run-exec-web-1"),
+      "resource should be written before throw",
+    );
+    assertEquals(h.resources.get("run-exec-web-1")?.exitCode, 1);
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("script: non-zero exit throws", async () => {
+  const h = makeHarness(FLEET, "script");
+  const { executor } = failExecutor(2);
+  setCommandExecutor(executor);
+  try {
+    const args = model.methods.script.arguments.parse({
+      hosts: ["web-1"],
+      script: "exit 2",
+    });
+    let msg = "";
+    try {
+      await model.methods.script.execute(args, h.ctx);
+    } catch (e) {
+      msg = e instanceof Error ? e.message : String(e);
+    }
+    assert(msg.includes("script failed"), msg);
+    assert(msg.includes("web-1"), msg);
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("copy: non-zero exit throws", async () => {
+  const h = makeHarness(FLEET, "copy");
+  const { executor } = failExecutor(255, "scp: Connection closed\n");
+  setCommandExecutor(executor);
+  try {
+    const args = model.methods.copy.arguments.parse({
+      hosts: ["web-1"],
+      src: "./f",
+      dst: "/f",
+      direction: "to",
+    });
+    let msg = "";
+    try {
+      await model.methods.copy.execute(args, h.ctx);
+    } catch (e) {
+      msg = e instanceof Error ? e.message : String(e);
+    }
+    assert(msg.includes("copy failed"), msg);
+    assert(msg.includes("web-1"), msg);
+    assert(msg.includes("exit 255"), msg);
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("exec: fail-fast skipped hosts do not count as failures", async () => {
+  let callCount = 0;
+  const executor: CommandExecutor = () => {
+    callCount++;
+    if (callCount === 1) {
+      return Promise.resolve({
+        code: 1,
+        signal: null,
+        stdout: "",
+        stderr: "boom",
+      });
+    }
+    return Promise.resolve({ code: 0, signal: null, stdout: "", stderr: "" });
+  };
+  const h = makeHarness({ ...FLEET, failFast: true }, "exec");
+  setCommandExecutor(executor);
+  try {
+    const args = model.methods.exec.arguments.parse({
+      hosts: "all",
+      command: "uptime",
+    });
+    let msg = "";
+    try {
+      await model.methods.exec.execute(args, h.ctx);
+    } catch (e) {
+      msg = e instanceof Error ? e.message : String(e);
+    }
+    assert(msg.includes("exec failed"), msg);
+    // The error should reference the genuinely failed host, not
+    // every skipped host.
+    assert(
+      !msg.includes("skipped"),
+      "fail-fast skipped hosts should not appear in the error",
+    );
+  } finally {
+    resetCommandExecutor();
+  }
+});

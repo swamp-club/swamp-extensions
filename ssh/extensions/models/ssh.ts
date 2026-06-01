@@ -90,7 +90,7 @@ const SELECTOR_METHODS = [
  */
 export const model = {
   type: "@swamp/ssh",
-  version: "2026.05.29.2",
+  version: "2026.06.01.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -112,6 +112,16 @@ export const model = {
         "Docs-only (#485 follow-up): correct the manifest `Highlights` " +
         "selector description, which still described the removed bare-CEL " +
         "form. No code, schema, or behavior change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.01.1",
+      description:
+        "Fix (#510): exec, script, and copy now fail the method when any " +
+        "host process exits non-zero, is killed by a signal, or fails to " +
+        "spawn. Previously these methods always reported success even when " +
+        "the underlying process failed. RunResult resources are still " +
+        "written before the error is raised. No globalArguments schema change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

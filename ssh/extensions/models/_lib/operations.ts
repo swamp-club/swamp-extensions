@@ -207,6 +207,39 @@ export function resolveSelection(
   return selected;
 }
 
+/**
+ * Throw an aggregate error when any host in the result set experienced a
+ * genuine failure: non-zero exit, killed by signal, or a spawn/timeout
+ * error. Fail-fast "skipped" entries are informational and excluded.
+ *
+ * Called AFTER RunResult resources are written so diagnostic data is
+ * always persisted regardless of whether the method succeeds or fails.
+ */
+function throwOnHostFailures(
+  results: HostRunResult[],
+  method: string,
+): void {
+  const failed = results.filter((r) => {
+    if (r.exitCode !== null && r.exitCode !== 0) return true;
+    if (r.signal !== null) return true;
+    if (r.error !== undefined && !r.error.startsWith("skipped:")) return true;
+    return false;
+  });
+  if (failed.length === 0) return;
+
+  const details = failed.map((r) => {
+    const reason = r.error ??
+      (r.signal !== null ? `killed by ${r.signal}` : `exit ${r.exitCode}`);
+    const stderr = r.stderr ? `: ${r.stderr.trimEnd().split("\n").at(-1)}` : "";
+    return `${r.host} (${reason}${stderr})`;
+  });
+  throw new Error(
+    `${method} failed on ${failed.length}/${results.length} host(s): ${
+      details.join("; ")
+    }`,
+  );
+}
+
 /** Per-call run options shared by exec/script/copy. */
 function runOptions(
   g: GlobalArgs,
@@ -307,6 +340,7 @@ export async function runExec(
   for (const r of results) {
     handles.push(await writeRunResult(ctx, r, g.runHistory));
   }
+  throwOnHostFailures(results, "exec");
   return { dataHandles: handles };
 }
 
@@ -347,6 +381,7 @@ export async function runScript(
   for (const r of results) {
     handles.push(await writeRunResult(ctx, r, g.runHistory));
   }
+  throwOnHostFailures(results, "script");
   return { dataHandles: handles };
 }
 
@@ -393,6 +428,7 @@ export async function runCopy(
   for (const r of results) {
     handles.push(await writeRunResult(ctx, r, g.runHistory));
   }
+  throwOnHostFailures(results, "copy");
   return { dataHandles: handles };
 }
 

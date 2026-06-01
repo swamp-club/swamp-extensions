@@ -256,7 +256,9 @@ arguments:
     optional stdin
 ```
 
-Writes one `run-exec-<host>` per matched host.
+Writes one `run-exec-<host>` per matched host. Fails the method when any
+host exits non-zero, is killed by a signal, or fails to spawn — RunResult
+resources are written before the error is raised.
 
 ### `script`
 
@@ -272,7 +274,8 @@ arguments:
 ```
 
 Pipes the script over stdin to `sh -s --` (or chosen interpreter), so the
-model never constructs a remote command line.
+model never constructs a remote command line. Fails the method on non-zero
+exit (same semantics as `exec`).
 
 ### `copy`
 
@@ -285,6 +288,8 @@ arguments:
   recursive: false
   useRsync: false       # default scp; rsync when true
 ```
+
+Fails the method on non-zero exit (same semantics as `exec`).
 
 ### `forward`
 
