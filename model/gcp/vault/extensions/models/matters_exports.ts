@@ -124,6 +124,7 @@ const GlobalArgsSchema = z.object({
         "PST",
         "ICS",
         "XML",
+        "JSON",
       ]).describe("The file format for exported text messages.").optional(),
     }).describe("The options for Calendar exports.").optional(),
     driveOptions: z.object({
@@ -138,6 +139,7 @@ const GlobalArgsSchema = z.object({
         "PST",
         "ICS",
         "XML",
+        "JSON",
       ]).describe("The file format for exported messages.").optional(),
     }).describe("The options for Gemini exports.").optional(),
     groupsOptions: z.object({
@@ -147,6 +149,7 @@ const GlobalArgsSchema = z.object({
         "PST",
         "ICS",
         "XML",
+        "JSON",
       ]).describe("The file format for exported messages.").optional(),
     }).describe("Options for Groups exports.").optional(),
     hangoutsChatOptions: z.object({
@@ -156,6 +159,7 @@ const GlobalArgsSchema = z.object({
         "PST",
         "ICS",
         "XML",
+        "JSON",
       ]).describe("The file format for exported messages.").optional(),
     }).describe("Options for Chat exports.").optional(),
     mailOptions: z.object({
@@ -165,6 +169,7 @@ const GlobalArgsSchema = z.object({
         "PST",
         "ICS",
         "XML",
+        "JSON",
       ]).describe("The file format for exported messages.").optional(),
       exportLinkedDriveFiles: z.boolean().describe(
         "Optional. To enable exporting linked Drive files, set to **true**.",
@@ -185,6 +190,7 @@ const GlobalArgsSchema = z.object({
         "PST",
         "ICS",
         "XML",
+        "JSON",
       ]).describe("The file format for exported text messages.").optional(),
     }).describe("The options for Voice exports.").optional(),
   }).describe("Additional options for exports").optional(),
@@ -514,6 +520,7 @@ const InputsSchema = z.object({
         "PST",
         "ICS",
         "XML",
+        "JSON",
       ]).describe("The file format for exported text messages.").optional(),
     }).describe("The options for Calendar exports.").optional(),
     driveOptions: z.object({
@@ -528,6 +535,7 @@ const InputsSchema = z.object({
         "PST",
         "ICS",
         "XML",
+        "JSON",
       ]).describe("The file format for exported messages.").optional(),
     }).describe("The options for Gemini exports.").optional(),
     groupsOptions: z.object({
@@ -537,6 +545,7 @@ const InputsSchema = z.object({
         "PST",
         "ICS",
         "XML",
+        "JSON",
       ]).describe("The file format for exported messages.").optional(),
     }).describe("Options for Groups exports.").optional(),
     hangoutsChatOptions: z.object({
@@ -546,6 +555,7 @@ const InputsSchema = z.object({
         "PST",
         "ICS",
         "XML",
+        "JSON",
       ]).describe("The file format for exported messages.").optional(),
     }).describe("Options for Chat exports.").optional(),
     mailOptions: z.object({
@@ -555,6 +565,7 @@ const InputsSchema = z.object({
         "PST",
         "ICS",
         "XML",
+        "JSON",
       ]).describe("The file format for exported messages.").optional(),
       exportLinkedDriveFiles: z.boolean().describe(
         "Optional. To enable exporting linked Drive files, set to **true**.",
@@ -575,6 +586,7 @@ const InputsSchema = z.object({
         "PST",
         "ICS",
         "XML",
+        "JSON",
       ]).describe("The file format for exported text messages.").optional(),
     }).describe("The options for Voice exports.").optional(),
   }).describe("Additional options for exports").optional(),
@@ -772,7 +784,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Vault Matters.Exports. Registered at `@swamp/gcp/vault/matters-exports`. */
 export const model = {
   type: "@swamp/gcp/vault/matters-exports",
-  version: "2026.05.25.1",
+  version: "2026.06.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -831,6 +843,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

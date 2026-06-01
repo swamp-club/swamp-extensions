@@ -555,6 +555,18 @@ const GlobalArgsSchema = z.object({
     enable: z.boolean().describe(
       "Denotes whether to enable logging for the load balancer traffic served by this backend service. The default value is false.",
     ).optional(),
+    loggingHttpRequestHeaders: z.array(z.object({
+      headerName: z.string().describe("The name of the header to be logged.")
+        .optional(),
+    })).describe(
+      "The list of request headers that will be logged to Stackdriver.",
+    ).optional(),
+    loggingHttpResponseHeaders: z.array(z.object({
+      headerName: z.string().describe("The name of the header to be logged.")
+        .optional(),
+    })).describe(
+      "The list of response headers that will be logged to Stackdriver.",
+    ).optional(),
     optionalFields: z.array(z.string()).describe(
       'This field can only be specified if logging is enabled for this backend service and "logConfig.optionalMode" was set to CUSTOM. Contains a list of optional fields you want to include in the logs. For example: serverInstance, serverGkeDetails.cluster, serverGkeDetails.pod.podNamespace',
     ).optional(),
@@ -911,6 +923,12 @@ const StateSchema = z.object({
   localityLbPolicy: z.string().optional(),
   logConfig: z.object({
     enable: z.boolean(),
+    loggingHttpRequestHeaders: z.array(z.object({
+      headerName: z.string(),
+    })),
+    loggingHttpResponseHeaders: z.array(z.object({
+      headerName: z.string(),
+    })),
     optionalFields: z.array(z.string()),
     optionalMode: z.string(),
     sampleRate: z.number(),
@@ -1385,6 +1403,18 @@ const InputsSchema = z.object({
     enable: z.boolean().describe(
       "Denotes whether to enable logging for the load balancer traffic served by this backend service. The default value is false.",
     ).optional(),
+    loggingHttpRequestHeaders: z.array(z.object({
+      headerName: z.string().describe("The name of the header to be logged.")
+        .optional(),
+    })).describe(
+      "The list of request headers that will be logged to Stackdriver.",
+    ).optional(),
+    loggingHttpResponseHeaders: z.array(z.object({
+      headerName: z.string().describe("The name of the header to be logged.")
+        .optional(),
+    })).describe(
+      "The list of response headers that will be logged to Stackdriver.",
+    ).optional(),
     optionalFields: z.array(z.string()).describe(
       'This field can only be specified if logging is enabled for this backend service and "logConfig.optionalMode" was set to CUSTOM. Contains a list of optional fields you want to include in the logs. For example: serverInstance, serverGkeDetails.cluster, serverGkeDetails.pod.podNamespace',
     ).optional(),
@@ -1609,7 +1639,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine RegionBackendServices. Registered at `@swamp/gcp/compute/regionbackendservices`. */
 export const model = {
   type: "@swamp/gcp/compute/regionbackendservices",
-  version: "2026.05.26.1",
+  version: "2026.06.01.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1713,6 +1743,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

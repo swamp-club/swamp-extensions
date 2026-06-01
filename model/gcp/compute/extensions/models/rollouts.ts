@@ -115,6 +115,8 @@ const StateSchema = z.object({
   id: z.string().optional(),
   kind: z.string().optional(),
   name: z.string(),
+  pauseTime: z.string().optional(),
+  resumeTime: z.string().optional(),
   rolloutEntity: z.object({
     orchestratedEntity: z.object({
       conflictBehavior: z.string(),
@@ -149,7 +151,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine Rollouts. Registered at `@swamp/gcp/compute/rollouts`. */
 export const model = {
   type: "@swamp/gcp/compute/rollouts",
-  version: "2026.05.26.1",
+  version: "2026.06.01.1",
+  upgrades: [
+    {
+      toVersion: "2026.06.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -326,6 +335,47 @@ export const model = {
         return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
+    advance: {
+      description: "advance",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["rollout"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "compute.rollouts.advance",
+            "path": "projects/{project}/global/rollouts/{rollout}/advance",
+            "httpMethod": "POST",
+            "parameterOrder": ["project", "rollout"],
+            "parameters": {
+              "currentWaveNumber": { "location": "query" },
+              "project": { "location": "path", "required": true },
+              "requestId": { "location": "query" },
+              "rollout": { "location": "path", "required": true },
+            },
+          },
+          params,
+          {},
+        );
+        return { result };
+      },
+    },
     cancel: {
       description: "cancel",
       arguments: z.object({}),
@@ -358,6 +408,88 @@ export const model = {
               "project": { "location": "path", "required": true },
               "requestId": { "location": "query" },
               "rollback": { "location": "query" },
+              "rollout": { "location": "path", "required": true },
+            },
+          },
+          params,
+          {},
+        );
+        return { result };
+      },
+    },
+    pause: {
+      description: "pause",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["rollout"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "compute.rollouts.pause",
+            "path": "projects/{project}/global/rollouts/{rollout}/pause",
+            "httpMethod": "POST",
+            "parameterOrder": ["project", "rollout"],
+            "parameters": {
+              "etag": { "location": "query" },
+              "project": { "location": "path", "required": true },
+              "requestId": { "location": "query" },
+              "rollout": { "location": "path", "required": true },
+            },
+          },
+          params,
+          {},
+        );
+        return { result };
+      },
+    },
+    resume: {
+      description: "resume",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["rollout"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "compute.rollouts.resume",
+            "path": "projects/{project}/global/rollouts/{rollout}/resume",
+            "httpMethod": "POST",
+            "parameterOrder": ["project", "rollout"],
+            "parameters": {
+              "etag": { "location": "query" },
+              "project": { "location": "path", "required": true },
+              "requestId": { "location": "query" },
               "rollout": { "location": "path", "required": true },
             },
           },

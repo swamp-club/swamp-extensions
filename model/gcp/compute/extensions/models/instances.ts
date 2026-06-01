@@ -1075,6 +1075,9 @@ const StateSchema = z.object({
     }),
     physicalHost: z.string(),
     physicalHostTopology: z.object({
+      additionalAttributes: z.object({
+        acceleratorTopologyIds: z.record(z.string(), z.unknown()),
+      }),
       block: z.string(),
       cluster: z.string(),
       host: z.string(),
@@ -1853,7 +1856,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine Instances. Registered at `@swamp/gcp/compute/instances`. */
 export const model = {
   type: "@swamp/gcp/compute/instances",
-  version: "2026.05.26.1",
+  version: "2026.06.01.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1980,6 +1983,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

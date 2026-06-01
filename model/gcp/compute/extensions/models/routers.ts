@@ -473,6 +473,9 @@ const GlobalArgsSchema = z.object({
       "Timeout (in seconds) for UDP connections. Defaults to 30s if not set.",
     ).optional(),
   })).describe("A list of NAT services created in this router.").optional(),
+  nccGateway: z.string().describe(
+    "URI of the ncc_gateway to which this router associated.",
+  ).optional(),
   network: z.string().describe(
     "URI of the network to which this router belongs.",
   ),
@@ -601,6 +604,7 @@ const StateSchema = z.object({
     type: z.string(),
     udpIdleTimeoutSec: z.number(),
   })).optional(),
+  nccGateway: z.string().optional(),
   network: z.string().optional(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
@@ -918,6 +922,9 @@ const InputsSchema = z.object({
       "Timeout (in seconds) for UDP connections. Defaults to 30s if not set.",
     ).optional(),
   })).describe("A list of NAT services created in this router.").optional(),
+  nccGateway: z.string().describe(
+    "URI of the ncc_gateway to which this router associated.",
+  ).optional(),
   network: z.string().describe(
     "URI of the network to which this router belongs.",
   ).optional(),
@@ -937,7 +944,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Compute Engine Routers. Registered at `@swamp/gcp/compute/routers`. */
 export const model = {
   type: "@swamp/gcp/compute/routers",
-  version: "2026.05.25.1",
+  version: "2026.06.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1004,6 +1011,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.01.1",
+      description: "Added: nccGateway",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1041,6 +1053,7 @@ export const model = {
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["nats"] !== undefined) body["nats"] = g["nats"];
+        if (g["nccGateway"] !== undefined) body["nccGateway"] = g["nccGateway"];
         if (g["network"] !== undefined) body["network"] = g["network"];
         if (g["params"] !== undefined) body["params"] = g["params"];
         if (g["requestId"] !== undefined) body["requestId"] = g["requestId"];
@@ -1142,6 +1155,7 @@ export const model = {
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["nats"] !== undefined) body["nats"] = g["nats"];
+        if (g["nccGateway"] !== undefined) body["nccGateway"] = g["nccGateway"];
         if (g["network"] !== undefined) body["network"] = g["network"];
         if (g["params"] !== undefined) body["params"] = g["params"];
         for (const key of Object.keys(existing)) {
@@ -1659,6 +1673,7 @@ export const model = {
         md5AuthenticationKeys: z.any().optional(),
         name: z.any().optional(),
         nats: z.any().optional(),
+        nccGateway: z.any().optional(),
         network: z.any().optional(),
         params: z.any().optional(),
         region: z.any().optional(),
@@ -1706,6 +1721,9 @@ export const model = {
         }
         if (args["name"] !== undefined) body["name"] = args["name"];
         if (args["nats"] !== undefined) body["nats"] = args["nats"];
+        if (args["nccGateway"] !== undefined) {
+          body["nccGateway"] = args["nccGateway"];
+        }
         if (args["network"] !== undefined) body["network"] = args["network"];
         if (args["params"] !== undefined) body["params"] = args["params"];
         if (args["region"] !== undefined) body["region"] = args["region"];
