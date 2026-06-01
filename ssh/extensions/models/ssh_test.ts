@@ -318,6 +318,326 @@ Deno.test("exec: password auth puts SSHPASS in env, not argv", async () => {
 });
 
 // ---------------------------------------------------------------------------
+// identityContent (temp-key materialization across methods)
+// ---------------------------------------------------------------------------
+
+const PEM_CONTENT =
+  "-----BEGIN OPENSSH PRIVATE KEY-----\nfakekey\n-----END OPENSSH PRIVATE KEY-----\n";
+
+const FLEET_WITH_IDENTITY_CONTENT = {
+  ...FLEET,
+  transport: {
+    kind: "ssh",
+    user: "deploy",
+    identityContent: PEM_CONTENT,
+    controlMaster: { enabled: true, persistSec: 600 },
+  },
+};
+
+/** Extract the -i flag value from a captured ExecRequest. */
+function extractIdentityPath(req: ExecRequest): string | undefined {
+  const argv = [req.command, ...req.args];
+  const iIdx = argv.indexOf("-i");
+  return iIdx !== -1 ? argv[iIdx + 1] : undefined;
+}
+
+/** Assert a temp path no longer exists on disk. */
+async function assertFileRemoved(path: string, label: string): Promise<void> {
+  let exists = true;
+  try {
+    await Deno.stat(path);
+  } catch {
+    exists = false;
+  }
+  assert(!exists, `${label}: temp key file should be removed`);
+}
+
+Deno.test({
+  name:
+    "exec: identityContent materializes to temp file with correct content and passes -i",
+  fn: async () => {
+    const h = makeHarness(FLEET_WITH_IDENTITY_CONTENT, "exec");
+    let tempFileContent: string | undefined;
+    const requests: ExecRequest[] = [];
+    setCommandExecutor((req) => {
+      requests.push(req);
+      const tmpPath = extractIdentityPath(req);
+      if (tmpPath) {
+        tempFileContent = Deno.readTextFileSync(tmpPath);
+      }
+      return Promise.resolve({ code: 0, signal: null, stdout: "", stderr: "" });
+    });
+    try {
+      const args = model.methods.exec.arguments.parse({
+        hosts: ["web-1"],
+        command: "uptime",
+      });
+      await model.methods.exec.execute(args, h.ctx);
+
+      assertEquals(requests.length, 1);
+      const tmpPath = extractIdentityPath(requests[0]);
+      assert(tmpPath !== undefined, "expected -i flag in argv");
+      assert(tmpPath!.includes("swamp-ssh-key-"), "temp path has prefix");
+      assertEquals(tempFileContent, PEM_CONTENT, "temp file has PEM content");
+      await assertFileRemoved(tmpPath!, "exec");
+    } finally {
+      resetCommandExecutor();
+    }
+  },
+  // Deno.makeTempFile's internal handle may outlive the test callback.
+  sanitizeResources: false,
+});
+
+Deno.test({
+  name: "exec: identityContent temp file cleaned up even on host failure",
+  fn: async () => {
+    const h = makeHarness(FLEET_WITH_IDENTITY_CONTENT, "exec");
+    let capturedTmpPath: string | undefined;
+    setCommandExecutor((req) => {
+      capturedTmpPath = extractIdentityPath(req);
+      return Promise.resolve({
+        code: 1,
+        signal: null,
+        stdout: "",
+        stderr: "fail",
+      });
+    });
+    try {
+      const args = model.methods.exec.arguments.parse({
+        hosts: ["web-1"],
+        command: "false",
+      });
+      try {
+        await model.methods.exec.execute(args, h.ctx);
+        assert(false, "should have thrown");
+      } catch {
+        // Expected — throwOnHostFailures fires.
+      }
+      assert(capturedTmpPath !== undefined, "should have captured -i path");
+      await assertFileRemoved(capturedTmpPath!, "exec failure");
+    } finally {
+      resetCommandExecutor();
+    }
+  },
+  // Deno.makeTempFile's internal handle may outlive the test callback.
+  sanitizeResources: false,
+});
+
+Deno.test({
+  name: "script: identityContent materializes and cleans up",
+  fn: async () => {
+    const h = makeHarness(FLEET_WITH_IDENTITY_CONTENT, "script");
+    let capturedTmpPath: string | undefined;
+    let tempFileContent: string | undefined;
+    setCommandExecutor((req) => {
+      const p = extractIdentityPath(req);
+      if (p) {
+        capturedTmpPath = p;
+        tempFileContent = Deno.readTextFileSync(p);
+      }
+      return Promise.resolve({ code: 0, signal: null, stdout: "", stderr: "" });
+    });
+    try {
+      const args = model.methods.script.arguments.parse({
+        hosts: ["web-1"],
+        script: "echo hi",
+      });
+      await model.methods.script.execute(args, h.ctx);
+
+      assert(capturedTmpPath !== undefined, "expected -i flag");
+      assertEquals(tempFileContent, PEM_CONTENT, "temp file has PEM content");
+      await assertFileRemoved(capturedTmpPath!, "script");
+    } finally {
+      resetCommandExecutor();
+    }
+  },
+  // Deno.makeTempFile's internal handle may outlive the test callback.
+  sanitizeResources: false,
+});
+
+Deno.test({
+  name: "copy: identityContent materializes and cleans up",
+  fn: async () => {
+    const h = makeHarness(FLEET_WITH_IDENTITY_CONTENT, "copy");
+    let capturedTmpPath: string | undefined;
+    let tempFileContent: string | undefined;
+    setCommandExecutor((req) => {
+      const argv = [req.command, ...req.args];
+      const iIdx = argv.indexOf("-i");
+      if (iIdx !== -1) {
+        capturedTmpPath = argv[iIdx + 1];
+        tempFileContent = Deno.readTextFileSync(capturedTmpPath);
+      }
+      return Promise.resolve({ code: 0, signal: null, stdout: "", stderr: "" });
+    });
+    try {
+      const args = model.methods.copy.arguments.parse({
+        hosts: ["web-1"],
+        src: "./local",
+        dst: "/remote",
+        direction: "to",
+      });
+      await model.methods.copy.execute(args, h.ctx);
+
+      assert(capturedTmpPath !== undefined, "expected -i flag");
+      assertEquals(tempFileContent, PEM_CONTENT, "temp file has PEM content");
+      await assertFileRemoved(capturedTmpPath!, "copy");
+    } finally {
+      resetCommandExecutor();
+    }
+  },
+  // Deno.makeTempFile's internal handle may outlive the test callback.
+  sanitizeResources: false,
+});
+
+Deno.test({
+  name: "open: identityContent materializes and passes -i to master argv",
+  fn: async () => {
+    const h = makeHarness(FLEET_WITH_IDENTITY_CONTENT, "open");
+    let capturedTmpPath: string | undefined;
+    let tempFileContent: string | undefined;
+    setCommandExecutor((req) => {
+      const argv = [req.command, ...req.args];
+      const iIdx = argv.indexOf("-i");
+      if (iIdx !== -1) {
+        capturedTmpPath = argv[iIdx + 1];
+        tempFileContent = Deno.readTextFileSync(capturedTmpPath);
+      }
+      return Promise.resolve({ code: 0, signal: null, stdout: "", stderr: "" });
+    });
+    try {
+      const args = model.methods.open.arguments.parse({ hosts: ["web-1"] });
+      await model.methods.open.execute(args, h.ctx);
+
+      assert(capturedTmpPath !== undefined, "expected -i flag in open argv");
+      assertEquals(tempFileContent, PEM_CONTENT, "temp file has PEM content");
+      await assertFileRemoved(capturedTmpPath!, "open");
+    } finally {
+      resetCommandExecutor();
+    }
+  },
+  // Deno.makeTempFile's internal handle may outlive the test callback.
+  sanitizeResources: false,
+});
+
+Deno.test({
+  name:
+    "exec: mixed fleet — identityContent host gets temp -i, identityFile host keeps its path",
+  fn: async () => {
+    const mixedFleet = {
+      ...FLEET,
+      transport: {
+        kind: "ssh",
+        user: "deploy",
+        identityFile: "/original/key",
+        controlMaster: { enabled: true, persistSec: 600 },
+      },
+      hosts: [
+        {
+          name: "web-1",
+          address: "10.0.0.11",
+          tags: ["web"],
+          attrs: {},
+          transport: { identityContent: PEM_CONTENT, identityFile: undefined },
+        },
+        {
+          name: "web-2",
+          address: "10.0.0.12",
+          tags: ["web"],
+          attrs: {},
+        },
+      ],
+    };
+    const h = makeHarness(mixedFleet, "exec");
+    const requests: ExecRequest[] = [];
+    setCommandExecutor((req) => {
+      requests.push(req);
+      return Promise.resolve({ code: 0, signal: null, stdout: "", stderr: "" });
+    });
+    try {
+      const args = model.methods.exec.arguments.parse({
+        hosts: "all",
+        command: "uptime",
+      });
+      await model.methods.exec.execute(args, h.ctx);
+
+      assertEquals(requests.length, 2);
+
+      // web-1 should use a temp key (identityContent)
+      const web1Path = extractIdentityPath(requests[0]);
+      assert(web1Path !== undefined, "web-1 should have -i");
+      assert(
+        web1Path!.includes("swamp-ssh-key-"),
+        "web-1 should use temp key path",
+      );
+      await assertFileRemoved(web1Path!, "web-1 temp");
+
+      // web-2 should use the fleet default identityFile
+      const web2Path = extractIdentityPath(requests[1]);
+      assert(web2Path !== undefined, "web-2 should have -i");
+      assertEquals(web2Path, "/original/key", "web-2 keeps fleet identityFile");
+    } finally {
+      resetCommandExecutor();
+    }
+  },
+  // Deno.makeTempFile's internal handle may outlive the test callback.
+  sanitizeResources: false,
+});
+
+Deno.test({
+  name: "exec: host override identityContent over fleet identityFile",
+  fn: async () => {
+    const fleetWithOverride = {
+      ...FLEET,
+      transport: {
+        kind: "ssh",
+        user: "deploy",
+        identityFile: "/fleet/key",
+        controlMaster: { enabled: true, persistSec: 600 },
+      },
+      hosts: [
+        {
+          name: "web-1",
+          address: "10.0.0.11",
+          tags: [],
+          attrs: {},
+          transport: { identityContent: PEM_CONTENT, identityFile: undefined },
+        },
+      ],
+    };
+    const h = makeHarness(fleetWithOverride, "exec");
+    let tempFileContent: string | undefined;
+    let capturedPath: string | undefined;
+    setCommandExecutor((req) => {
+      capturedPath = extractIdentityPath(req);
+      if (capturedPath) {
+        tempFileContent = Deno.readTextFileSync(capturedPath);
+      }
+      return Promise.resolve({ code: 0, signal: null, stdout: "", stderr: "" });
+    });
+    try {
+      const args = model.methods.exec.arguments.parse({
+        hosts: ["web-1"],
+        command: "uptime",
+      });
+      await model.methods.exec.execute(args, h.ctx);
+
+      assert(capturedPath !== undefined, "expected -i flag");
+      assert(
+        capturedPath!.includes("swamp-ssh-key-"),
+        "should use temp path, not fleet /fleet/key",
+      );
+      assertEquals(tempFileContent, PEM_CONTENT, "temp file has PEM content");
+      await assertFileRemoved(capturedPath!, "override");
+    } finally {
+      resetCommandExecutor();
+    }
+  },
+  // Deno.makeTempFile's internal handle may outlive the test callback.
+  sanitizeResources: false,
+});
+
+// ---------------------------------------------------------------------------
 // script
 // ---------------------------------------------------------------------------
 

@@ -105,6 +105,64 @@ Deno.test("TransportSchema (ssh): extraOptions array entries validated", () => {
 });
 
 // ---------------------------------------------------------------------------
+// TransportSchema (ssh) — identityContent
+// ---------------------------------------------------------------------------
+
+Deno.test("TransportSchema (ssh): identityContent accepted alone", () => {
+  const t = TransportSchema.parse({
+    kind: "ssh",
+    identityContent:
+      "-----BEGIN OPENSSH PRIVATE KEY-----\nfake\n-----END OPENSSH PRIVATE KEY-----",
+  });
+  if (t.kind !== "ssh") throw new Error("unreachable");
+  assertEquals(
+    t.identityContent,
+    "-----BEGIN OPENSSH PRIVATE KEY-----\nfake\n-----END OPENSSH PRIVATE KEY-----",
+  );
+  assertEquals(t.identityFile, undefined);
+});
+
+Deno.test("TransportSchema (ssh): identityFile and identityContent mutually exclusive", () => {
+  const r = TransportSchema.safeParse({
+    kind: "ssh",
+    identityFile: "/tmp/key",
+    identityContent:
+      "-----BEGIN OPENSSH PRIVATE KEY-----\nfake\n-----END OPENSSH PRIVATE KEY-----",
+  });
+  assert(!r.success);
+});
+
+Deno.test("TransportSchema (ssh): identityContent empty string rejected", () => {
+  const r = TransportSchema.safeParse({
+    kind: "ssh",
+    identityContent: "",
+  });
+  assert(!r.success);
+});
+
+Deno.test("TransportSchema (ssh): neither identityFile nor identityContent is fine", () => {
+  const t = TransportSchema.parse({ kind: "ssh" });
+  if (t.kind !== "ssh") throw new Error("unreachable");
+  assertEquals(t.identityFile, undefined);
+  assertEquals(t.identityContent, undefined);
+});
+
+Deno.test("TransportOverrideSchema: identityContent accepted", () => {
+  const r = TransportOverrideSchema.parse({
+    identityContent: "PEM-CONTENT",
+  });
+  assertEquals(r.identityContent, "PEM-CONTENT");
+});
+
+Deno.test("TransportOverrideSchema: identityFile and identityContent mutually exclusive", () => {
+  const r = TransportOverrideSchema.safeParse({
+    identityFile: "/tmp/key",
+    identityContent: "PEM-CONTENT",
+  });
+  assert(!r.success);
+});
+
+// ---------------------------------------------------------------------------
 // TransportSchema (tailscale)
 // ---------------------------------------------------------------------------
 

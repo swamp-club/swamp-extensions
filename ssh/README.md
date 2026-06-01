@@ -88,7 +88,8 @@ workflow step.
 | `user`                   | Remote login user. |
 | `port`                   | TCP port. Defaults to 22. |
 | `auth`                   | `{kind:"key"}` (default) or `{kind:"password", password: …}`. See [Authentication](#authentication). |
-| `identityFile`           | Path to a private key. Passed as `-i <file>` whenever set. |
+| `identityFile`           | Path to a private key. Passed as `-i <file>` whenever set. Mutually exclusive with `identityContent`. |
+| `identityContent`        | PEM private key content (e.g. from `vault.get()`). Written to a temp file (mode 0600) for the session and removed afterward. Mutually exclusive with `identityFile`. |
 | `identityAgent`          | Path to an SSH agent socket (e.g. `~/.1password/agent.sock`). |
 | `identitiesOnly`         | If `true`, sets `IdentitiesOnly=yes` (refuse agent fallback). |
 | `knownHostsFile`         | Path to `known_hosts`. |
@@ -149,7 +150,23 @@ transport:
   user: deploy
   identityFile: ~/.ssh/awesome_ed25519
   identitiesOnly: true
+
+# Inline key content from a vault (no file on disk)
+transport:
+  kind: ssh
+  user: deploy
+  identityContent: ${{ vault.get('my-vault', 'SSH_PRIVATE_KEY') }}
+  identitiesOnly: true
 ```
+
+When `identityContent` is set, the runner writes the PEM body to a temporary
+file (mode 0600), passes it as `-i <tmpfile>` for the SSH session, and removes
+the file when the method completes. The key never appears in argv or persisted
+resources. This is the recommended approach for vault-stored private keys —
+no external scripting or pre-loaded ssh-agent required.
+
+`identityFile` and `identityContent` are mutually exclusive. Setting both
+is a validation error. Setting neither is fine — the SSH agent is consulted.
 
 ### `auth.kind: "password"`
 

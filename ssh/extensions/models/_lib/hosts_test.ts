@@ -145,6 +145,34 @@ Deno.test("effectiveHosts: preserves declaration order", () => {
   assertEquals(hs.map((h) => h.name), ["a", "b", "c"]);
 });
 
+Deno.test("mergeTransport: identityContent from base propagates", () => {
+  const base = TransportSchema.parse({
+    kind: "ssh",
+    identityContent: "PEM-FROM-VAULT",
+  });
+  const r = mergeTransport(base);
+  if (r.kind !== "ssh") throw new Error("unreachable");
+  assertEquals(r.identityContent, "PEM-FROM-VAULT");
+  assertEquals(r.identityFile, undefined);
+});
+
+Deno.test("mergeTransport: identityContent from override wins", () => {
+  const base = TransportSchema.parse({ kind: "ssh" });
+  const r = mergeTransport(base, { identityContent: "OVERRIDE-PEM" });
+  if (r.kind !== "ssh") throw new Error("unreachable");
+  assertEquals(r.identityContent, "OVERRIDE-PEM");
+});
+
+Deno.test("mergeTransport: override identityContent overrides base identityContent", () => {
+  const base = TransportSchema.parse({
+    kind: "ssh",
+    identityContent: "BASE-PEM",
+  });
+  const r = mergeTransport(base, { identityContent: "OVERRIDE-PEM" });
+  if (r.kind !== "ssh") throw new Error("unreachable");
+  assertEquals(r.identityContent, "OVERRIDE-PEM");
+});
+
 Deno.test("effectiveHosts: per-host attr is independent (no aliasing)", () => {
   const g = GlobalArgsSchema.parse({
     name: "test",

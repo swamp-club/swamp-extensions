@@ -85,6 +85,7 @@ function mergeSshTransport(
     port: pick(override.port, base.port),
     auth: pick(override.auth, base.auth),
     identityFile: pick(override.identityFile, base.identityFile),
+    identityContent: pick(override.identityContent, base.identityContent),
     identityAgent: pick(override.identityAgent, base.identityAgent),
     identitiesOnly: pick(override.identitiesOnly, base.identitiesOnly),
     knownHostsFile: pick(override.knownHostsFile, base.knownHostsFile),

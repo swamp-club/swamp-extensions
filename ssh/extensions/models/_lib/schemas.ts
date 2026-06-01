@@ -83,6 +83,12 @@ const SshTransportSchema = z.object({
   port: z.number().int().positive().max(65535).default(22),
   auth: AuthSchema.default({ kind: "key" }),
   identityFile: safeOptionValue("identityFile").optional(),
+  identityContent: z.string().min(1).meta({ sensitive: true }).optional()
+    .describe(
+      "PEM private key content — supply via `${{ vault.get('<vault>', '<key>') }}`. " +
+        "Mutually exclusive with `identityFile`. The key is written to a " +
+        "temporary file (mode 0600) for the SSH session and removed afterward.",
+    ),
   identityAgent: safeOptionValue("identityAgent").optional(),
   identitiesOnly: z.boolean().optional(),
   knownHostsFile: safeOptionValue("knownHostsFile").optional(),
@@ -105,10 +111,20 @@ const TailscaleTransportSchema = z.object({
   sshExtraArgs: z.array(safeOptionValue("sshExtraArgs[]")).default([]),
 });
 
-export const TransportSchema = z.discriminatedUnion("kind", [
+const _TransportUnion = z.discriminatedUnion("kind", [
   SshTransportSchema,
   TailscaleTransportSchema,
 ]);
+
+export const TransportSchema = _TransportUnion.refine(
+  (t) =>
+    t.kind !== "ssh" ||
+    !(t.identityFile !== undefined && t.identityContent !== undefined),
+  {
+    message:
+      "identityFile and identityContent are mutually exclusive — set one or neither",
+  },
+);
 
 export type Transport = z.infer<typeof TransportSchema>;
 export type SshTransport = z.infer<typeof SshTransportSchema>;
@@ -128,6 +144,7 @@ export const TransportOverrideSchema = z.object({
   port: z.number().int().positive().max(65535).optional(),
   auth: AuthSchema.optional(),
   identityFile: safeOptionValue("identityFile").optional(),
+  identityContent: z.string().min(1).meta({ sensitive: true }).optional(),
   identityAgent: safeOptionValue("identityAgent").optional(),
   identitiesOnly: z.boolean().optional(),
   knownHostsFile: safeOptionValue("knownHostsFile").optional(),
@@ -140,7 +157,13 @@ export const TransportOverrideSchema = z.object({
   controlMaster: ControlMasterSchema.partial().optional(),
   tailscaleBinary: z.string().min(1).optional(),
   sshExtraArgs: z.array(safeOptionValue("sshExtraArgs[]")).optional(),
-});
+}).refine(
+  (o) => !(o.identityFile !== undefined && o.identityContent !== undefined),
+  {
+    message:
+      "identityFile and identityContent are mutually exclusive — set one or neither",
+  },
+);
 
 export type TransportOverride = z.infer<typeof TransportOverrideSchema>;
 

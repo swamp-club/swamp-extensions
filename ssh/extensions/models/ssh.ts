@@ -90,7 +90,7 @@ const SELECTOR_METHODS = [
  */
 export const model = {
   type: "@swamp/ssh",
-  version: "2026.06.01.1",
+  version: "2026.06.01.2",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -122,6 +122,16 @@ export const model = {
         "spawn. Previously these methods always reported success even when " +
         "the underlying process failed. RunResult resources are still " +
         "written before the error is raised. No globalArguments schema change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.01.2",
+      description:
+        "Feature (#522): added optional `identityContent` field to ssh " +
+        "transport. Accepts inline PEM private key content (e.g. from " +
+        "vault.get()). Mutually exclusive with `identityFile`. The key is " +
+        "written to a temporary file (mode 0600) for the SSH session and " +
+        "removed afterward. No migration needed — additive schema change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/ssh"
-version: "2026.06.01.1"
+version: "2026.06.01.2"
 description: |
   Run commands, copy files, and open port forwards across a declared set of
   hosts over SSH. Define the hosts once on the model, then target any subset
@@ -27,9 +27,9 @@ description: |
     is deprecated — prefix it with `cel:`.
   - CEL helpers bundled on every call: `matchesRegex(s, pat)`,
     `cidrContains(cidr, addr)`.
-  - Auth modes: key-based (file, agent, `IdentityAgent`) and
-    password-based via `sshpass -e` with the password supplied through
-    `${{ vault.get('<vault>', '<key>') }}`.
+  - Auth modes: key-based (file, agent, `IdentityAgent`, inline content
+    via `identityContent`) and password-based via `sshpass -e` with the
+    password supplied through `${{ vault.get('<vault>', '<key>') }}`.
 
   ## Methods
 

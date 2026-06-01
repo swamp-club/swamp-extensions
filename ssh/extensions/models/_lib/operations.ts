@@ -287,6 +287,64 @@ function envFor(
   return spawnEnv(host, forwardedEnv(host, methodEnv));
 }
 
+// ---------------------------------------------------------------------------
+// Temp-key materialization for identityContent
+// ---------------------------------------------------------------------------
+
+interface MaterializedKeys {
+  hosts: EffectiveHost[];
+  tempPaths: Map<string, string>;
+}
+
+async function materializeTempKeys(
+  hosts: EffectiveHost[],
+): Promise<MaterializedKeys> {
+  const tempPaths = new Map<string, string>();
+  const patched: EffectiveHost[] = [];
+
+  try {
+    for (const host of hosts) {
+      if (
+        host.transport.kind === "ssh" &&
+        host.transport.identityContent !== undefined
+      ) {
+        const tmpFile = await Deno.makeTempFile({ prefix: "swamp-ssh-key-" });
+        tempPaths.set(host.name, tmpFile);
+        await Deno.writeTextFile(tmpFile, host.transport.identityContent, {
+          mode: 0o600,
+        });
+        patched.push({
+          ...host,
+          transport: {
+            ...host.transport,
+            identityFile: tmpFile,
+            identityContent: undefined,
+          },
+        });
+      } else {
+        patched.push(host);
+      }
+    }
+  } catch (err) {
+    await cleanupTempKeys(tempPaths);
+    throw err;
+  }
+
+  return { hosts: patched, tempPaths };
+}
+
+async function cleanupTempKeys(
+  tempPaths: Map<string, string>,
+): Promise<void> {
+  for (const path of tempPaths.values()) {
+    try {
+      await Deno.remove(path);
+    } catch {
+      // Already removed or never written — ignore.
+    }
+  }
+}
+
 /** Persist one RunResult resource and return its handle. */
 async function writeRunResult(
   ctx: FleetContext,
@@ -313,35 +371,42 @@ export async function runExec(
 ): Promise<{ dataHandles: DataHandle[] }> {
   const g = parseGlobals(ctx);
   const selected = resolveSelection(ctx, g, args.hosts);
-
-  const recordedArgs: Record<string, unknown> = {
-    command: args.command,
-    sudo: args.sudo ?? false,
-    hasStdin: args.stdin !== undefined,
-  };
-
-  const plans: HostPlan[] = [];
-  for (const host of selected) {
-    const actx = await argvContextFor(g, host, args.env);
-    const command = applySudo(args.command, args.sudo);
-    plans.push({
-      host,
-      argv: buildExecArgv(host, command, actx),
-      env: envFor(host, args.env),
-      stdin: args.stdin,
-    });
-  }
-
-  const results = await runHosts(
-    plans,
-    runOptions(g, args, "exec", recordedArgs),
+  const { hosts: materialized, tempPaths } = await materializeTempKeys(
+    selected,
   );
-  const handles: DataHandle[] = [];
-  for (const r of results) {
-    handles.push(await writeRunResult(ctx, r, g.runHistory));
+
+  try {
+    const recordedArgs: Record<string, unknown> = {
+      command: args.command,
+      sudo: args.sudo ?? false,
+      hasStdin: args.stdin !== undefined,
+    };
+
+    const plans: HostPlan[] = [];
+    for (const host of materialized) {
+      const actx = await argvContextFor(g, host, args.env);
+      const command = applySudo(args.command, args.sudo);
+      plans.push({
+        host,
+        argv: buildExecArgv(host, command, actx),
+        env: envFor(host, args.env),
+        stdin: args.stdin,
+      });
+    }
+
+    const results = await runHosts(
+      plans,
+      runOptions(g, args, "exec", recordedArgs),
+    );
+    const handles: DataHandle[] = [];
+    for (const r of results) {
+      handles.push(await writeRunResult(ctx, r, g.runHistory));
+    }
+    throwOnHostFailures(results, "exec");
+    return { dataHandles: handles };
+  } finally {
+    await cleanupTempKeys(tempPaths);
   }
-  throwOnHostFailures(results, "exec");
-  return { dataHandles: handles };
 }
 
 // ---------------------------------------------------------------------------
@@ -354,35 +419,42 @@ export async function runScript(
 ): Promise<{ dataHandles: DataHandle[] }> {
   const g = parseGlobals(ctx);
   const selected = resolveSelection(ctx, g, args.hosts);
-
-  const recordedArgs: Record<string, unknown> = {
-    interpreter: args.interpreter,
-    sudo: args.sudo ?? false,
-    scriptBytes: new TextEncoder().encode(args.script).length,
-  };
-
-  const plans: HostPlan[] = [];
-  for (const host of selected) {
-    const actx = await argvContextFor(g, host, args.env);
-    const remote = scriptRemoteCommand(args.interpreter, args.sudo);
-    plans.push({
-      host,
-      argv: buildExecArgv(host, remote, actx),
-      env: envFor(host, args.env),
-      stdin: args.script,
-    });
-  }
-
-  const results = await runHosts(
-    plans,
-    runOptions(g, args, "script", recordedArgs),
+  const { hosts: materialized, tempPaths } = await materializeTempKeys(
+    selected,
   );
-  const handles: DataHandle[] = [];
-  for (const r of results) {
-    handles.push(await writeRunResult(ctx, r, g.runHistory));
+
+  try {
+    const recordedArgs: Record<string, unknown> = {
+      interpreter: args.interpreter,
+      sudo: args.sudo ?? false,
+      scriptBytes: new TextEncoder().encode(args.script).length,
+    };
+
+    const plans: HostPlan[] = [];
+    for (const host of materialized) {
+      const actx = await argvContextFor(g, host, args.env);
+      const remote = scriptRemoteCommand(args.interpreter, args.sudo);
+      plans.push({
+        host,
+        argv: buildExecArgv(host, remote, actx),
+        env: envFor(host, args.env),
+        stdin: args.script,
+      });
+    }
+
+    const results = await runHosts(
+      plans,
+      runOptions(g, args, "script", recordedArgs),
+    );
+    const handles: DataHandle[] = [];
+    for (const r of results) {
+      handles.push(await writeRunResult(ctx, r, g.runHistory));
+    }
+    throwOnHostFailures(results, "script");
+    return { dataHandles: handles };
+  } finally {
+    await cleanupTempKeys(tempPaths);
   }
-  throwOnHostFailures(results, "script");
-  return { dataHandles: handles };
 }
 
 // ---------------------------------------------------------------------------
@@ -395,41 +467,48 @@ export async function runCopy(
 ): Promise<{ dataHandles: DataHandle[] }> {
   const g = parseGlobals(ctx);
   const selected = resolveSelection(ctx, g, args.hosts);
-
-  const recordedArgs: Record<string, unknown> = {
-    src: args.src,
-    dst: args.dst,
-    direction: args.direction,
-    recursive: args.recursive ?? false,
-    useRsync: args.useRsync ?? false,
-  };
-
-  const plans: HostPlan[] = [];
-  for (const host of selected) {
-    const actx = await argvContextFor(g, host, args.env);
-    plans.push({
-      host,
-      argv: buildCopyArgv(host, {
-        src: args.src,
-        dst: args.dst,
-        direction: args.direction,
-        recursive: args.recursive,
-        useRsync: args.useRsync,
-      }, actx),
-      env: envFor(host, args.env),
-    });
-  }
-
-  const results = await runHosts(
-    plans,
-    runOptions(g, args, "copy", recordedArgs),
+  const { hosts: materialized, tempPaths } = await materializeTempKeys(
+    selected,
   );
-  const handles: DataHandle[] = [];
-  for (const r of results) {
-    handles.push(await writeRunResult(ctx, r, g.runHistory));
+
+  try {
+    const recordedArgs: Record<string, unknown> = {
+      src: args.src,
+      dst: args.dst,
+      direction: args.direction,
+      recursive: args.recursive ?? false,
+      useRsync: args.useRsync ?? false,
+    };
+
+    const plans: HostPlan[] = [];
+    for (const host of materialized) {
+      const actx = await argvContextFor(g, host, args.env);
+      plans.push({
+        host,
+        argv: buildCopyArgv(host, {
+          src: args.src,
+          dst: args.dst,
+          direction: args.direction,
+          recursive: args.recursive,
+          useRsync: args.useRsync,
+        }, actx),
+        env: envFor(host, args.env),
+      });
+    }
+
+    const results = await runHosts(
+      plans,
+      runOptions(g, args, "copy", recordedArgs),
+    );
+    const handles: DataHandle[] = [];
+    for (const r of results) {
+      handles.push(await writeRunResult(ctx, r, g.runHistory));
+    }
+    throwOnHostFailures(results, "copy");
+    return { dataHandles: handles };
+  } finally {
+    await cleanupTempKeys(tempPaths);
   }
-  throwOnHostFailures(results, "copy");
-  return { dataHandles: handles };
 }
 
 // ---------------------------------------------------------------------------
@@ -514,78 +593,85 @@ export async function runOpen(
 ): Promise<{ dataHandles: DataHandle[] }> {
   const g = parseGlobals(ctx);
   const selected = resolveSelection(ctx, g, args.hosts);
+  const { hosts: materialized, tempPaths } = await materializeTempKeys(
+    selected,
+  );
   const bins = binaries(g);
 
-  const plans: HostPlan[] = [];
-  const tailscaleHandles: DataHandle[] = [];
-  for (const host of selected) {
-    if (host.transport.kind !== "ssh") {
-      tailscaleHandles.push(
-        await writeMasterAudit(
-          ctx,
-          host.name,
-          "open",
-          "ok",
-          "tailscale transport: no ControlMaster needed",
-        ),
-      );
-      continue;
+  try {
+    const plans: HostPlan[] = [];
+    const tailscaleHandles: DataHandle[] = [];
+    for (const host of materialized) {
+      if (host.transport.kind !== "ssh") {
+        tailscaleHandles.push(
+          await writeMasterAudit(
+            ctx,
+            host.name,
+            "open",
+            "ok",
+            "tailscale transport: no ControlMaster needed",
+          ),
+        );
+        continue;
+      }
+      if (!host.transport.controlMaster.enabled) {
+        tailscaleHandles.push(
+          await writeMasterAudit(
+            ctx,
+            host.name,
+            "open",
+            "ok",
+            "ControlMaster disabled for host",
+          ),
+        );
+        continue;
+      }
+      await ensureControlDir(g.name);
+      const cp = await controlPath(g.name, host);
+      plans.push({
+        host,
+        argv: openMasterArgv(bins.ssh, {
+          controlPath: cp,
+          persistSec: host.transport.controlMaster.persistSec,
+          identityFile: host.transport.identityFile,
+          identityAgent: host.transport.identityAgent,
+          identitiesOnly: host.transport.identitiesOnly,
+          user: host.transport.user,
+          address: host.address,
+          port: host.transport.port,
+          proxyJump: host.transport.proxyJump,
+          proxyCommand: host.transport.proxyCommand,
+        }),
+        env: envFor(host, args.env),
+      });
     }
-    if (!host.transport.controlMaster.enabled) {
-      tailscaleHandles.push(
-        await writeMasterAudit(
-          ctx,
-          host.name,
-          "open",
-          "ok",
-          "ControlMaster disabled for host",
-        ),
-      );
-      continue;
-    }
-    await ensureControlDir(g.name);
-    const cp = await controlPath(g.name, host);
-    plans.push({
-      host,
-      argv: openMasterArgv(bins.ssh, {
-        controlPath: cp,
-        persistSec: host.transport.controlMaster.persistSec,
-        identityFile: host.transport.identityFile,
-        identityAgent: host.transport.identityAgent,
-        identitiesOnly: host.transport.identitiesOnly,
-        user: host.transport.user,
-        address: host.address,
-        port: host.transport.port,
-        proxyJump: host.transport.proxyJump,
-        proxyCommand: host.transport.proxyCommand,
-      }),
-      env: envFor(host, args.env),
+
+    const results = await runHosts(plans, {
+      method: "open",
+      parallel: args.parallel ?? g.defaultParallel,
+      timeoutSec: args.timeoutSec ?? g.defaultTimeoutSec,
+      failFast: args.failFast ?? g.failFast,
+      capture: true,
+      recordedArgs: {},
     });
-  }
 
-  const results = await runHosts(plans, {
-    method: "open",
-    parallel: args.parallel ?? g.defaultParallel,
-    timeoutSec: args.timeoutSec ?? g.defaultTimeoutSec,
-    failFast: args.failFast ?? g.failFast,
-    capture: true,
-    recordedArgs: {},
-  });
-
-  const handles = [...tailscaleHandles];
-  for (const r of results) {
-    const outcome = r.error || r.exitCode !== 0 ? "error" : "ok";
-    handles.push(
-      await writeMasterAudit(
-        ctx,
-        r.host,
-        "open",
-        outcome,
-        r.error ?? (r.stderr || undefined),
-      ),
-    );
+    const handles = [...tailscaleHandles];
+    for (const r of results) {
+      const outcome = r.error || r.exitCode !== 0 ? "error" : "ok";
+      handles.push(
+        await writeMasterAudit(
+          ctx,
+          r.host,
+          "open",
+          outcome,
+          r.error ?? (r.stderr || undefined),
+        ),
+      );
+    }
+    return { dataHandles: handles };
+  } finally {
+    await cleanupTempKeys(tempPaths);
   }
-  return { dataHandles: handles };
 }
 
 export async function runCheck(
