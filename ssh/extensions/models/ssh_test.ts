@@ -637,6 +637,45 @@ Deno.test({
   sanitizeResources: false,
 });
 
+Deno.test({
+  name: "exec: identityContent without trailing newline gets one appended",
+  fn: async () => {
+    const pemNoNewline =
+      "-----BEGIN OPENSSH PRIVATE KEY-----\nfakekey\n-----END OPENSSH PRIVATE KEY-----";
+    const fleetNoNewline = {
+      ...FLEET,
+      transport: {
+        kind: "ssh",
+        user: "deploy",
+        identityContent: pemNoNewline,
+        controlMaster: { enabled: true, persistSec: 600 },
+      },
+    };
+    const h = makeHarness(fleetNoNewline, "exec");
+    let tempFileContent: string | undefined;
+    setCommandExecutor((req) => {
+      const p = extractIdentityPath(req);
+      if (p) tempFileContent = Deno.readTextFileSync(p);
+      return Promise.resolve({ code: 0, signal: null, stdout: "", stderr: "" });
+    });
+    try {
+      const args = model.methods.exec.arguments.parse({
+        hosts: ["web-1"],
+        command: "uptime",
+      });
+      await model.methods.exec.execute(args, h.ctx);
+      assertEquals(
+        tempFileContent,
+        pemNoNewline + "\n",
+        "trailing newline appended for OpenSSH compatibility",
+      );
+    } finally {
+      resetCommandExecutor();
+    }
+  },
+  sanitizeResources: false,
+});
+
 // ---------------------------------------------------------------------------
 // script
 // ---------------------------------------------------------------------------

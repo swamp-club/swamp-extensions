@@ -90,7 +90,7 @@ const SELECTOR_METHODS = [
  */
 export const model = {
   type: "@swamp/ssh",
-  version: "2026.06.01.2",
+  version: "2026.06.03.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -132,6 +132,16 @@ export const model = {
         "vault.get()). Mutually exclusive with `identityFile`. The key is " +
         "written to a temporary file (mode 0600) for the SSH session and " +
         "removed afterward. No migration needed — additive schema change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.03.1",
+      description:
+        "Fix (#511): materializeTempKeys now ensures identityContent ends " +
+        "with a trailing newline before writing to the temp file. OpenSSH " +
+        "rejects PEM keys without a trailing newline ('Load key: invalid " +
+        "format'), which could happen when vault-stored keys were stripped " +
+        "of their final newline. No globalArguments schema change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

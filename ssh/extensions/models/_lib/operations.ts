@@ -310,7 +310,9 @@ async function materializeTempKeys(
       ) {
         const tmpFile = await Deno.makeTempFile({ prefix: "swamp-ssh-key-" });
         tempPaths.set(host.name, tmpFile);
-        await Deno.writeTextFile(tmpFile, host.transport.identityContent, {
+        const ic = host.transport.identityContent;
+        const content = ic.endsWith("\n") ? ic : ic + "\n";
+        await Deno.writeTextFile(tmpFile, content, {
           mode: 0o600,
         });
         patched.push({
