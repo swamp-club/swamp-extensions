@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/cve/mini-shai-hulud"
-version: "2026.05.19.1"
+version: "2026.06.04.1"
 description: |
   Scans deno.lock and package-lock.json files for npm packages compromised
   in the May 2026 "Mini Shai-Hulud" supply chain attack (317 packages
@@ -31,7 +31,7 @@ description: |
 
   Source: https://safedep.io/mini-shai-hulud-strikes-again-314-npm-packages-compromised/
 
-repository: "https://github.com/systeminit/swamp-extensions"
+repository: "https://github.com/swamp-club/swamp-extensions"
 
 models:
   - mini_shai_hulud_detect.ts

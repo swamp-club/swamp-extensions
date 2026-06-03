@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/cve/dirtyfrag"
-version: "2026.05.08.5"
+version: "2026.06.04.1"
 description: |
   Detects and mitigates the Dirty Frag Linux local privilege escalation
   vulnerability class (CVE-2026-43284 + CVE-2026-43500), which chains two
@@ -23,7 +23,7 @@ description: |
   No packages required on target hosts — all checks use POSIX utilities and
   procfs/sysfs.
 
-repository: "https://github.com/systeminit/swamp-extensions"
+repository: "https://github.com/swamp-club/swamp-extensions"
 
 models:
   - dirtyfrag_detect.ts

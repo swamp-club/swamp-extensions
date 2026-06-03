@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/aws-sm"
-version: "2026.05.31.1"
+version: "2026.06.04.1"
 description: |
   Read and write secrets stored in AWS Secrets Manager, with support for
   vault annotations (`swamp vault annotate` / `swamp vault inspect`).
@@ -56,7 +56,7 @@ description: |
 
   Secret keys map directly to AWS Secrets Manager secret names, including
   path-style names such as `myapp/production/db-password`.
-repository: "https://github.com/systeminit/swamp-extensions"
+repository: "https://github.com/swamp-club/swamp-extensions"
 vaults:
   - aws_sm.ts
 additionalFiles:

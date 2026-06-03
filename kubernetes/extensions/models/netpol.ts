@@ -174,7 +174,7 @@ function buildPeer(peer: PeerInputType) {
 /** Kubernetes NetworkPolicy model. */
 export const model = {
   type: "@swamp/kubernetes/netpol",
-  version: "2026.05.27.2",
+  version: "2026.06.04.1",
   globalArguments: K8sGlobalArgsSchema,
   upgrades: [
     {

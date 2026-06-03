@@ -249,7 +249,7 @@ function normalizeReplicaSet(raw: V1ReplicaSet) {
 /** Kubernetes Deployment model. */
 export const model = {
   type: "@swamp/kubernetes/deployment",
-  version: "2026.05.27.2",
+  version: "2026.06.04.1",
   globalArguments: K8sGlobalArgsSchema,
   upgrades: [
     {

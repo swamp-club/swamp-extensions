@@ -1,5 +1,5 @@
 // Swamp, an Automation Framework
-// Copyright (C) 2026 System Initiative, Inc.
+// Copyright (C) 2026 Elder Swamp Club, Inc.
 //
 // This file is part of Swamp.
 //
@@ -604,7 +604,7 @@ async function scanHost(
 
 export const model = {
   type: "@swamp/cve/dirtyfrag",
-  version: "2026.05.08.5",
+  version: "2026.06.04.1",
   upgrades: [
     {
       toVersion: "2026.05.08.4",

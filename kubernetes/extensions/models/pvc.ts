@@ -121,7 +121,7 @@ function normalizePv(raw: V1PersistentVolume) {
 /** Kubernetes PersistentVolumeClaim model. */
 export const model = {
   type: "@swamp/kubernetes/pvc",
-  version: "2026.05.27.2",
+  version: "2026.06.04.1",
   globalArguments: K8sGlobalArgsSchema,
   upgrades: [
     {

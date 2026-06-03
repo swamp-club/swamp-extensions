@@ -1,5 +1,5 @@
 // Swamp, an Automation Framework
-// Copyright (C) 2026 System Initiative, Inc.
+// Copyright (C) 2026 Elder Swamp Club, Inc.
 //
 // This file is part of Swamp.
 //
@@ -497,7 +497,7 @@ type MethodContext = {
 
 export const model = {
   type: "@swamp/cve/mini-shai-hulud",
-  version: "2026.05.19.1",
+  version: "2026.06.04.1",
   globalArguments: GlobalArgsSchema,
   reports: [
     "@swamp/cve/mini-shai-hulud-report",

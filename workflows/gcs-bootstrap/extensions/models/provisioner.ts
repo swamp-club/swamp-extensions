@@ -28,7 +28,7 @@ import {
  */
 export const model = {
   type: "@swamp/gcs-datastore-bootstrap/provisioner",
-  version: "2026.04.22.3",
+  version: "2026.06.04.1",
   globalArguments: GlobalArgsSchema,
   resources: {
     state: {

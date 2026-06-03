@@ -1,7 +1,7 @@
 <!-- BEGIN swamp managed section - DO NOT EDIT -->
 # Project
 
-This repository is managed with [swamp](https://github.com/systeminit/swamp).
+This repository is managed with [swamp](https://github.com/swamp-club/swamp).
 
 ## Rules
 

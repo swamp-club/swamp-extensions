@@ -220,7 +220,7 @@ function normalizePodForNode(raw: V1Pod) {
 /** Kubernetes Node model. */
 export const model = {
   type: "@swamp/kubernetes/node",
-  version: "2026.05.27.2",
+  version: "2026.06.04.1",
   globalArguments: NodeGlobalArgsSchema,
   upgrades: [
     {

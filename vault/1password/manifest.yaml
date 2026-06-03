@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/1password"
-version: "2026.05.23.2"
+version: "2026.06.04.1"
 description: |
   Read, write, and annotate secrets stored in 1Password using the `op` CLI.
   Supports `swamp vault annotate` and `swamp vault inspect` for attaching
@@ -30,7 +30,7 @@ description: |
   - `item-name` — reads the `password` field of the named item
   - `item-name/field` — reads a specific field
   - `op://vault/item/field` — full 1Password URI (passthrough)
-repository: "https://github.com/systeminit/swamp-extensions"
+repository: "https://github.com/swamp-club/swamp-extensions"
 vaults:
   - onepassword.ts
 additionalFiles:

@@ -171,7 +171,7 @@ function normalizeHpa(raw: V2HorizontalPodAutoscaler) {
 /** Kubernetes HorizontalPodAutoscaler model. */
 export const model = {
   type: "@swamp/kubernetes/hpa",
-  version: "2026.05.27.2",
+  version: "2026.06.04.1",
   globalArguments: K8sGlobalArgsSchema,
   upgrades: [
     {
