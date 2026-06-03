@@ -144,6 +144,9 @@ const GlobalArgsSchema = z.object({
         "A [Cloud Function](https://cloud.google.com/functions) name.",
       ).optional(),
     }).describe("Wrapper for Cloud Function attributes.").optional(),
+    cloudRunJob: z.string().describe(
+      "A [Cloud Run](https://cloud.google.com/run) [job](https://docs.cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs#Job) URI. Applicable only to source endpoint. The format is: projects/{project}/locations/{location}/jobs/{job}",
+    ).optional(),
     cloudRunRevision: z.object({
       serviceUri: z.string().describe(
         "Output only. The URI of the Cloud Run service that the revision belongs to. The format is: projects/{project}/locations/{location}/services/{service}",
@@ -742,6 +745,9 @@ const GlobalArgsSchema = z.object({
         "A [Cloud Function](https://cloud.google.com/functions) name.",
       ).optional(),
     }).describe("Wrapper for Cloud Function attributes.").optional(),
+    cloudRunJob: z.string().describe(
+      "A [Cloud Run](https://cloud.google.com/run) [job](https://docs.cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs#Job) URI. Applicable only to source endpoint. The format is: projects/{project}/locations/{location}/jobs/{job}",
+    ).optional(),
     cloudRunRevision: z.object({
       serviceUri: z.string().describe(
         "Output only. The URI of the Cloud Run service that the revision belongs to. The format is: projects/{project}/locations/{location}/services/{service}",
@@ -839,6 +845,7 @@ const StateSchema = z.object({
     cloudFunction: z.object({
       uri: z.string(),
     }),
+    cloudRunJob: z.string(),
     cloudRunRevision: z.object({
       serviceUri: z.string(),
       uri: z.string(),
@@ -1051,6 +1058,7 @@ const StateSchema = z.object({
     cloudFunction: z.object({
       uri: z.string(),
     }),
+    cloudRunJob: z.string(),
     cloudRunRevision: z.object({
       serviceUri: z.string(),
       uri: z.string(),
@@ -1096,6 +1104,9 @@ const InputsSchema = z.object({
         "A [Cloud Function](https://cloud.google.com/functions) name.",
       ).optional(),
     }).describe("Wrapper for Cloud Function attributes.").optional(),
+    cloudRunJob: z.string().describe(
+      "A [Cloud Run](https://cloud.google.com/run) [job](https://docs.cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs#Job) URI. Applicable only to source endpoint. The format is: projects/{project}/locations/{location}/jobs/{job}",
+    ).optional(),
     cloudRunRevision: z.object({
       serviceUri: z.string().describe(
         "Output only. The URI of the Cloud Run service that the revision belongs to. The format is: projects/{project}/locations/{location}/services/{service}",
@@ -1694,6 +1705,9 @@ const InputsSchema = z.object({
         "A [Cloud Function](https://cloud.google.com/functions) name.",
       ).optional(),
     }).describe("Wrapper for Cloud Function attributes.").optional(),
+    cloudRunJob: z.string().describe(
+      "A [Cloud Run](https://cloud.google.com/run) [job](https://docs.cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs#Job) URI. Applicable only to source endpoint. The format is: projects/{project}/locations/{location}/jobs/{job}",
+    ).optional(),
     cloudRunRevision: z.object({
       serviceUri: z.string().describe(
         "Output only. The URI of the Cloud Run service that the revision belongs to. The format is: projects/{project}/locations/{location}/services/{service}",
@@ -1783,7 +1797,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Network Management Global.ConnectivityTests. Registered at `@swamp/gcp/networkmanagement/global-connectivitytests`. */
 export const model = {
   type: "@swamp/gcp/networkmanagement/global-connectivitytests",
-  version: "2026.05.27.1",
+  version: "2026.06.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1877,6 +1891,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.27.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

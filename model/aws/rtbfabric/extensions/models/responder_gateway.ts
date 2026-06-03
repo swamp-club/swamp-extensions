@@ -46,6 +46,7 @@ const GlobalArgsSchema = z.object({
     ),
   ).optional(),
   Port: z.number().int().min(1).max(65535),
+  GatewayType: z.enum(["EXTERNAL", "INTERNAL"]).optional(),
   ManagedEndpointConfiguration: z.record(z.string(), z.unknown()).optional(),
   SubnetIds: z.array(z.string()).describe(
     "The ID of one or more subnets in order to create a gateway.",
@@ -53,10 +54,18 @@ const GlobalArgsSchema = z.object({
   SecurityGroupIds: z.array(z.string()).describe(
     "The ID of one or more security groups in order to create a gateway.",
   ),
+  ListenerConfig: z.object({
+    Protocols: z.array(z.enum(["HTTP", "HTTPS"])),
+  }).optional(),
   VpcId: z.string().min(5).max(50),
   Protocol: z.enum(["HTTP", "HTTPS"]),
   Tags: z.array(TagSchema).describe("Tags to assign to the Responder Gateway.")
     .optional(),
+  AcmCertificateArn: z.string().regex(
+    new RegExp(
+      "arn:(aws|aws-cn|aws-us-gov):acm:([a-z0-9-]+):[0-9]{12}:certificate/.{1,2048}",
+    ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -68,15 +77,22 @@ const StateSchema = z.object({
   CreatedTimestamp: z.string().optional(),
   DomainName: z.string().optional(),
   Port: z.number().optional(),
+  GatewayType: z.string().optional(),
+  ExternalInboundEndpoint: z.string().optional(),
   GatewayId: z.string().optional(),
   ManagedEndpointConfiguration: z.record(z.string(), z.unknown()).optional(),
   SubnetIds: z.array(z.string()).optional(),
   SecurityGroupIds: z.array(z.string()).optional(),
+  ListenerConfig: z.object({
+    Protocols: z.array(z.string()),
+  }).optional(),
   VpcId: z.string().optional(),
   ResponderGatewayStatus: z.string().optional(),
+  CertificateAssociationStatus: z.string().optional(),
   Arn: z.string(),
   Protocol: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
+  AcmCertificateArn: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -94,6 +110,7 @@ const InputsSchema = z.object({
     ),
   ).optional(),
   Port: z.number().int().min(1).max(65535).optional(),
+  GatewayType: z.enum(["EXTERNAL", "INTERNAL"]).optional(),
   ManagedEndpointConfiguration: z.record(z.string(), z.unknown()).optional(),
   SubnetIds: z.array(z.string()).describe(
     "The ID of one or more subnets in order to create a gateway.",
@@ -101,16 +118,24 @@ const InputsSchema = z.object({
   SecurityGroupIds: z.array(z.string()).describe(
     "The ID of one or more security groups in order to create a gateway.",
   ).optional(),
+  ListenerConfig: z.object({
+    Protocols: z.array(z.enum(["HTTP", "HTTPS"])).optional(),
+  }).optional(),
   VpcId: z.string().min(5).max(50).optional(),
   Protocol: z.enum(["HTTP", "HTTPS"]).optional(),
   Tags: z.array(TagSchema).describe("Tags to assign to the Responder Gateway.")
     .optional(),
+  AcmCertificateArn: z.string().regex(
+    new RegExp(
+      "arn:(aws|aws-cn|aws-us-gov):acm:([a-z0-9-]+):[0-9]{12}:certificate/.{1,2048}",
+    ),
+  ).optional(),
 });
 
 /** Swamp extension model for RTBFabric ResponderGateway. Registered at `@swamp/aws/rtbfabric/responder-gateway`. */
 export const model = {
   type: "@swamp/aws/rtbfabric/responder-gateway",
-  version: "2026.05.27.1",
+  version: "2026.06.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -140,6 +165,11 @@ export const model = {
     {
       toVersion: "2026.05.27.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.03.1",
+      description: "Added: GatewayType, ListenerConfig, AcmCertificateArn",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

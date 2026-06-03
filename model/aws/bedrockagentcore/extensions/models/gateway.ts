@@ -94,7 +94,12 @@ const GlobalArgsSchema = z.object({
   AuthorizerConfiguration: z.object({
     CustomJWTAuthorizer: CustomJWTAuthorizerConfigurationSchema.optional(),
   }).optional(),
-  AuthorizerType: z.enum(["CUSTOM_JWT", "AWS_IAM", "NONE"]),
+  AuthorizerType: z.enum([
+    "CUSTOM_JWT",
+    "AWS_IAM",
+    "NONE",
+    "AUTHENTICATE_ONLY",
+  ]),
   Description: z.string().min(1).max(200).optional(),
   ExceptionLevel: z.enum(["DEBUG"]).optional(),
   InterceptorConfigurations: z.array(GatewayInterceptorConfigurationSchema)
@@ -122,7 +127,6 @@ const GlobalArgsSchema = z.object({
   ProtocolConfiguration: z.object({
     Mcp: MCPGatewayConfigurationSchema.optional(),
   }).optional(),
-  ProtocolType: z.enum(["MCP"]),
   RoleArn: z.string().min(1).max(2048).regex(
     new RegExp("^arn:[a-z0-9-]{1,20}:iam::([0-9]{12})?:role/.+$"),
   ),
@@ -157,7 +161,6 @@ const StateSchema = z.object({
   ProtocolConfiguration: z.object({
     Mcp: MCPGatewayConfigurationSchema,
   }).optional(),
-  ProtocolType: z.string().optional(),
   RoleArn: z.string().optional(),
   Status: z.string().optional(),
   StatusReasons: z.array(z.string()).optional(),
@@ -175,7 +178,8 @@ const InputsSchema = z.object({
   AuthorizerConfiguration: z.object({
     CustomJWTAuthorizer: CustomJWTAuthorizerConfigurationSchema.optional(),
   }).optional(),
-  AuthorizerType: z.enum(["CUSTOM_JWT", "AWS_IAM", "NONE"]).optional(),
+  AuthorizerType: z.enum(["CUSTOM_JWT", "AWS_IAM", "NONE", "AUTHENTICATE_ONLY"])
+    .optional(),
   Description: z.string().min(1).max(200).optional(),
   ExceptionLevel: z.enum(["DEBUG"]).optional(),
   InterceptorConfigurations: z.array(GatewayInterceptorConfigurationSchema)
@@ -203,7 +207,6 @@ const InputsSchema = z.object({
   ProtocolConfiguration: z.object({
     Mcp: MCPGatewayConfigurationSchema.optional(),
   }).optional(),
-  ProtocolType: z.enum(["MCP"]).optional(),
   RoleArn: z.string().min(1).max(2048).regex(
     new RegExp("^arn:[a-z0-9-]{1,20}:iam::([0-9]{12})?:role/.+$"),
   ).optional(),
@@ -219,7 +222,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for BedrockAgentCore Gateway. Registered at `@swamp/aws/bedrockagentcore/gateway`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/gateway",
-  version: "2026.04.23.2",
+  version: "2026.06.03.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -255,6 +258,14 @@ export const model = {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.03.1",
+      description: "Removed: ProtocolType",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { ProtocolType: _ProtocolType, ...rest } = old;
+        return rest;
+      },
     },
   ],
   globalArguments: GlobalArgsSchema,

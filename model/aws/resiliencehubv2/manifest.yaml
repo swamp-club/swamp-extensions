@@ -1,20 +1,20 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
-name: "@swamp/gcp/storagebatchoperations"
+name: "@swamp/aws/resiliencehubv2"
 version: "2026.06.03.1"
-description: "Google Cloud storagebatchoperations infrastructure models"
+description: "AWS RESILIENCEHUBV2 infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
-  - gcp
-  - google-cloud
-  - storagebatchoperations
+  - aws
+  - resiliencehubv2
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: jobs
+  - Added: policy, service, system
 models:
-  - jobs.ts
-  - locations.ts
+  - policy.ts
+  - service.ts
+  - system.ts
 additionalFiles:
   - LICENSE.txt
   - README.md

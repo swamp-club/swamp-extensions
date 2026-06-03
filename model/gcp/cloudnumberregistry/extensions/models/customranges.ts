@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud Number Registry CustomRanges.
  *
- * Message describing CustomRange object
+ * A CustomRange represents a user-defined IP address range.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -139,11 +139,13 @@ const LIST_CONFIG = {
 
 const GlobalArgsSchema = z.object({
   attributes: z.array(z.object({
-    key: z.string().describe("Required. Key of attribute").optional(),
-    value: z.string().describe("Required. Value of attribute").optional(),
+    key: z.string().describe("Required. The key of the attribute.").optional(),
+    value: z.string().describe("Required. The value of the attribute.")
+      .optional(),
   })).describe("Optional. The attributes of the CustomRange.").optional(),
-  description: z.string().describe("Optional. Description of the CustomRange.")
-    .optional(),
+  description: z.string().describe(
+    "Optional. The description of the CustomRange.",
+  ).optional(),
   ipv4CidrRange: z.string().describe(
     "Optional. The IPv4 CIDR range of the CustomRange.",
   ).optional(),
@@ -151,18 +153,20 @@ const GlobalArgsSchema = z.object({
     "Optional. The IPv6 CIDR range of the CustomRange.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. Labels as key value pairs",
+    "Optional. User-defined labels.",
   ).optional(),
-  name: z.string().describe("Required. Identifier. name of resource")
-    .optional(),
+  name: z.string().describe(
+    "Required. Identifier. The resource name of the CustomRange, in the format `projects/{project}/locations/{location}/customRanges/{custom_range}`.",
+  ).optional(),
   parentRange: z.string().describe(
-    "Optional. The parent range of the CustomRange. Do not allow setting parent range if realm is specified. Format must follow this pattern: projects/{project}/locations/{location}/customRanges/{custom_range}",
+    "Optional. The resource name of the parent CustomRange, in the format `projects/{project}/locations/{location}/customRanges/{custom_range}`. If specified, the parent CustomRange must be in the same RegistryBook. This field is mutually exclusive with the `realm` field, as the Realm is inherited from the parent CustomRange.",
   ).optional(),
   realm: z.string().describe(
-    "Optional. The realm of the CustomRange. The realm must be in the same project as the custom range. Do not allow setting realm if parent range is specified, since the realm should be inherited from the parent range. Format must follow this pattern: projects/{project}/locations/{location}/realms/{realm}",
+    "Optional. The resource name of the Realm associated with the CustomRange, in the format `projects/{project}/locations/{location}/realms/{realm}`. The Realm must be in the same project as the CustomRange. This field must not be set if the `parent_range` field is set, as the Realm will be inherited from the parent CustomRange.",
   ).optional(),
-  customRangeId: z.string().describe("Required. Id of the requesting object.")
-    .optional(),
+  customRangeId: z.string().describe(
+    "Required. The ID to use for the CustomRange, which will become the final segment of the resource name.",
+  ).optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
   ).optional(),
@@ -190,11 +194,13 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   attributes: z.array(z.object({
-    key: z.string().describe("Required. Key of attribute").optional(),
-    value: z.string().describe("Required. Value of attribute").optional(),
+    key: z.string().describe("Required. The key of the attribute.").optional(),
+    value: z.string().describe("Required. The value of the attribute.")
+      .optional(),
   })).describe("Optional. The attributes of the CustomRange.").optional(),
-  description: z.string().describe("Optional. Description of the CustomRange.")
-    .optional(),
+  description: z.string().describe(
+    "Optional. The description of the CustomRange.",
+  ).optional(),
   ipv4CidrRange: z.string().describe(
     "Optional. The IPv4 CIDR range of the CustomRange.",
   ).optional(),
@@ -202,18 +208,20 @@ const InputsSchema = z.object({
     "Optional. The IPv6 CIDR range of the CustomRange.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. Labels as key value pairs",
+    "Optional. User-defined labels.",
   ).optional(),
-  name: z.string().describe("Required. Identifier. name of resource")
-    .optional(),
+  name: z.string().describe(
+    "Required. Identifier. The resource name of the CustomRange, in the format `projects/{project}/locations/{location}/customRanges/{custom_range}`.",
+  ).optional(),
   parentRange: z.string().describe(
-    "Optional. The parent range of the CustomRange. Do not allow setting parent range if realm is specified. Format must follow this pattern: projects/{project}/locations/{location}/customRanges/{custom_range}",
+    "Optional. The resource name of the parent CustomRange, in the format `projects/{project}/locations/{location}/customRanges/{custom_range}`. If specified, the parent CustomRange must be in the same RegistryBook. This field is mutually exclusive with the `realm` field, as the Realm is inherited from the parent CustomRange.",
   ).optional(),
   realm: z.string().describe(
-    "Optional. The realm of the CustomRange. The realm must be in the same project as the custom range. Do not allow setting realm if parent range is specified, since the realm should be inherited from the parent range. Format must follow this pattern: projects/{project}/locations/{location}/realms/{realm}",
+    "Optional. The resource name of the Realm associated with the CustomRange, in the format `projects/{project}/locations/{location}/realms/{realm}`. The Realm must be in the same project as the CustomRange. This field must not be set if the `parent_range` field is set, as the Realm will be inherited from the parent CustomRange.",
   ).optional(),
-  customRangeId: z.string().describe("Required. Id of the requesting object.")
-    .optional(),
+  customRangeId: z.string().describe(
+    "Required. The ID to use for the CustomRange, which will become the final segment of the resource name.",
+  ).optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
   ).optional(),
@@ -225,7 +233,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Number Registry CustomRanges. Registered at `@swamp/gcp/cloudnumberregistry/customranges`. */
 export const model = {
   type: "@swamp/gcp/cloudnumberregistry/customranges",
-  version: "2026.05.26.1",
+  version: "2026.06.03.1",
   upgrades: [
     {
       toVersion: "2026.05.19.1",
@@ -257,12 +265,17 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Message describing CustomRange object",
+      description: "A CustomRange represents a user-defined IP address range.",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -512,7 +525,9 @@ export const model = {
     list: {
       description: "List customRanges resources",
       arguments: z.object({
-        filter: z.string().describe("Optional. Filtering results.").optional(),
+        filter: z.string().describe(
+          "Optional. Filter expression to filter the results.",
+        ).optional(),
         orderBy: z.string().describe(
           "Optional. Hint for how to order the results.",
         ).optional(),

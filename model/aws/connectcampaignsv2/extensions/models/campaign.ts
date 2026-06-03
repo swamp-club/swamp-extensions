@@ -185,6 +185,8 @@ const LocalTimeZoneConfigSchema = z.object({
   LocalTimeZoneDetection: z.array(z.enum(["ZIP_CODE", "AREA_CODE"])).describe(
     "Local TimeZone Detection method list",
   ).optional(),
+  LocalTimeZoneDetectionScope: z.enum(["PRIMARY_ONLY", "ALL_AVAILABLE"])
+    .describe("Local TimeZone Detection scope").optional(),
 });
 
 const TimeRangeSchema = z.object({
@@ -446,7 +448,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ConnectCampaignsV2 Campaign. Registered at `@swamp/aws/connectcampaignsv2/campaign`. */
 export const model = {
   type: "@swamp/aws/connectcampaignsv2/campaign",
-  version: "2026.05.27.1",
+  version: "2026.06.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -480,6 +482,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.27.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

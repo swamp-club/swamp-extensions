@@ -25,10 +25,14 @@ const OAuthCredentialProviderSchema = z.object({
   ProviderArn: z.string().regex(
     new RegExp("^arn:([^:]*):([^:]*):([^:]*):([0-9]{12})?:(.+)$"),
   ),
-  Scopes: z.array(z.string().min(1).max(64)),
+  Scopes: z.array(z.string().min(1).max(128)),
   CustomParameters: z.record(z.string(), z.string().min(1).max(2048))
     .optional(),
-  GrantType: z.enum(["AUTHORIZATION_CODE", "CLIENT_CREDENTIALS"]).optional(),
+  GrantType: z.enum([
+    "AUTHORIZATION_CODE",
+    "CLIENT_CREDENTIALS",
+    "TOKEN_EXCHANGE",
+  ]).optional(),
   DefaultReturnUrl: z.string().min(1).max(2048).regex(
     new RegExp("\\w+:(\\/?\\/?)[^\\s]+"),
   ).describe("Return URL for OAuth callback.").optional(),
@@ -50,7 +54,13 @@ const IamCredentialProviderSchema = z.object({
 });
 
 const CredentialProviderConfigurationSchema = z.object({
-  CredentialProviderType: z.enum(["GATEWAY_IAM_ROLE", "OAUTH", "API_KEY"]),
+  CredentialProviderType: z.enum([
+    "GATEWAY_IAM_ROLE",
+    "OAUTH",
+    "API_KEY",
+    "CALLER_IAM_CREDENTIALS",
+    "JWT_PASSTHROUGH",
+  ]),
   CredentialProvider: z.object({
     OauthCredentialProvider: OAuthCredentialProviderSchema.optional(),
     ApiKeyCredentialProvider: ApiKeyCredentialProviderSchema.optional(),
@@ -78,6 +88,12 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  AuthorizationData: z.object({
+    Oauth2: z.object({
+      AuthorizationUrl: z.string(),
+      UserId: z.string(),
+    }),
+  }).optional(),
   CreatedAt: z.string().optional(),
   CredentialProviderConfigurations: z.array(
     CredentialProviderConfigurationSchema,
@@ -96,6 +112,7 @@ const StateSchema = z.object({
   StatusReasons: z.array(z.string()).optional(),
   TargetId: z.string(),
   UpdatedAt: z.string().optional(),
+  ProtocolType: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -120,7 +137,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for BedrockAgentCore GatewayTarget. Registered at `@swamp/aws/bedrockagentcore/gateway-target`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/gateway-target",
-  version: "2026.04.23.2",
+  version: "2026.06.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -149,6 +166,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

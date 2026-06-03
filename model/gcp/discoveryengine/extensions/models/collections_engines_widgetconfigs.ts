@@ -397,7 +397,7 @@ const GlobalArgsSchema = z.object({
         "FEATURE_STATE_OFF",
       ]),
     ).describe(
-      "Output only. Feature config for the engine to opt in or opt out of features. Supported keys: * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `disable-mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `disable-canvas-workspace` * `disable-skills` * `enable-end-user-sharing-with-groups`",
+      "Output only. Feature config for the engine to opt in or opt out of features. Supported keys: * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `disable-mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `disable-canvas-workspace` * `disable-skills` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration`",
     ).optional(),
     generativeAnswerConfig: z.object({
       disableRelatedQuestions: z.boolean().describe(
@@ -441,6 +441,32 @@ const GlobalArgsSchema = z.object({
       "SEARCH_WITH_ANSWER",
       "SEARCH_WITH_FOLLOW_UPS",
     ]).describe("Describes widget (or web app) interaction type").optional(),
+    modelConfigInfo: z.object({
+      defaultModelId: z.string().describe(
+        "Output only. The `model_id` of the model that should be selected by default in the model selector when the end-user has not made an explicit choice. The value is always one of the `model_id`s present in `resolved_models`.",
+      ).optional(),
+      resolvedModels: z.array(z.object({
+        description: z.string().describe(
+          "Output only. Localized description text (e.g. `State-of-the-art reasoning`). Localized using the same locale as `display_name`.",
+        ).optional(),
+        displayName: z.string().describe(
+          "Output only. Localized display name of the model (e.g. `Gemini 3.1 Pro`). Localized server-side based on the LookupWidgetConfigRequest.language_code and LookupWidgetConfigRequest.region_code of the request.",
+        ).optional(),
+        icon: z.string().describe(
+          "Output only. GM3-compatible icon token associated with the model (e.g. `rocket_launch`, `bolt`, `graph_5`).",
+        ).optional(),
+        isPreview: z.boolean().describe(
+          'Output only. Whether the model is currently in preview. Clients should surface this via a "Preview" badge in the selector UI.',
+        ).optional(),
+        modelId: z.string().describe(
+          'Output only. Unique identifier of the model (e.g. `gemini-2.5-flash`, `gemini-3.1-pro-preview`). This is the same identifier that clients pass back to the assistant service to select this model. Virtual / "pseudo" models (e.g. `gemini-fast`) are also valid values here; they are resolved to the underlying concrete model on the backend.',
+        ).optional(),
+      })).describe(
+        "Output only. The list of models that are available to the end-user in the model selector, in the order in which they should be displayed.",
+      ).optional(),
+    }).describe(
+      "The resolved, server-side view of model selector configuration for the end-user. The backend computes this per-request by applying, in order: Mendel flag evaluation, regional availability rules based on the engine's location, and admin-panel overrides from `model_configs`. The backend is the single source of truth for this configuration; clients should render `resolved_models` directly in the model selector dropdown, in the order provided, without applying their own filtering, ordering, or localization.",
+    ).optional(),
     modelConfigs: z.record(
       z.string(),
       z.enum(["MODEL_STATE_UNSPECIFIED", "MODEL_ENABLED", "MODEL_DISABLED"]),
@@ -622,6 +648,16 @@ const StateSchema = z.object({
       resultCount: z.number(),
     }),
     interactionType: z.string(),
+    modelConfigInfo: z.object({
+      defaultModelId: z.string(),
+      resolvedModels: z.array(z.object({
+        description: z.string(),
+        displayName: z.string(),
+        icon: z.string(),
+        isPreview: z.boolean(),
+        modelId: z.string(),
+      })),
+    }),
     modelConfigs: z.record(z.string(), z.unknown()),
     resultDescriptionType: z.string(),
   }).optional(),
@@ -962,7 +998,7 @@ const InputsSchema = z.object({
         "FEATURE_STATE_OFF",
       ]),
     ).describe(
-      "Output only. Feature config for the engine to opt in or opt out of features. Supported keys: * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `disable-mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `disable-canvas-workspace` * `disable-skills` * `enable-end-user-sharing-with-groups`",
+      "Output only. Feature config for the engine to opt in or opt out of features. Supported keys: * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `disable-mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `disable-canvas-workspace` * `disable-skills` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration`",
     ).optional(),
     generativeAnswerConfig: z.object({
       disableRelatedQuestions: z.boolean().describe(
@@ -1006,6 +1042,32 @@ const InputsSchema = z.object({
       "SEARCH_WITH_ANSWER",
       "SEARCH_WITH_FOLLOW_UPS",
     ]).describe("Describes widget (or web app) interaction type").optional(),
+    modelConfigInfo: z.object({
+      defaultModelId: z.string().describe(
+        "Output only. The `model_id` of the model that should be selected by default in the model selector when the end-user has not made an explicit choice. The value is always one of the `model_id`s present in `resolved_models`.",
+      ).optional(),
+      resolvedModels: z.array(z.object({
+        description: z.string().describe(
+          "Output only. Localized description text (e.g. `State-of-the-art reasoning`). Localized using the same locale as `display_name`.",
+        ).optional(),
+        displayName: z.string().describe(
+          "Output only. Localized display name of the model (e.g. `Gemini 3.1 Pro`). Localized server-side based on the LookupWidgetConfigRequest.language_code and LookupWidgetConfigRequest.region_code of the request.",
+        ).optional(),
+        icon: z.string().describe(
+          "Output only. GM3-compatible icon token associated with the model (e.g. `rocket_launch`, `bolt`, `graph_5`).",
+        ).optional(),
+        isPreview: z.boolean().describe(
+          'Output only. Whether the model is currently in preview. Clients should surface this via a "Preview" badge in the selector UI.',
+        ).optional(),
+        modelId: z.string().describe(
+          'Output only. Unique identifier of the model (e.g. `gemini-2.5-flash`, `gemini-3.1-pro-preview`). This is the same identifier that clients pass back to the assistant service to select this model. Virtual / "pseudo" models (e.g. `gemini-fast`) are also valid values here; they are resolved to the underlying concrete model on the backend.',
+        ).optional(),
+      })).describe(
+        "Output only. The list of models that are available to the end-user in the model selector, in the order in which they should be displayed.",
+      ).optional(),
+    }).describe(
+      "The resolved, server-side view of model selector configuration for the end-user. The backend computes this per-request by applying, in order: Mendel flag evaluation, regional availability rules based on the engine's location, and admin-panel overrides from `model_configs`. The backend is the single source of truth for this configuration; clients should render `resolved_models` directly in the model selector dropdown, in the order provided, without applying their own filtering, ordering, or localization.",
+    ).optional(),
     modelConfigs: z.record(
       z.string(),
       z.enum(["MODEL_STATE_UNSPECIFIED", "MODEL_ENABLED", "MODEL_DISABLED"]),
@@ -1030,7 +1092,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Discovery Engine Collections.Engines.WidgetConfigs. Registered at `@swamp/gcp/discoveryengine/collections-engines-widgetconfigs`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-engines-widgetconfigs",
-  version: "2026.05.26.1",
+  version: "2026.06.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1134,6 +1196,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud Number Registry DiscoveredRanges.
  *
- * Message describing DiscoveredRange object
+ * A DiscoveredRange represents an IP address range automatically detected by the discovery pipeline.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -121,7 +121,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Number Registry DiscoveredRanges. Registered at `@swamp/gcp/cloudnumberregistry/discoveredranges`. */
 export const model = {
   type: "@swamp/gcp/cloudnumberregistry/discoveredranges",
-  version: "2026.05.26.1",
+  version: "2026.06.03.1",
   upgrades: [
     {
       toVersion: "2026.05.19.1",
@@ -153,12 +153,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Message describing DiscoveredRange object",
+      description:
+        "A DiscoveredRange represents an IP address range automatically detected by th...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -248,7 +254,9 @@ export const model = {
     list: {
       description: "List discoveredRanges resources",
       arguments: z.object({
-        filter: z.string().describe("Optional. Filtering results.").optional(),
+        filter: z.string().describe(
+          "Optional. Filter expression to filter the results.",
+        ).optional(),
         orderBy: z.string().describe(
           "Optional. Hint for how to order the results.",
         ).optional(),

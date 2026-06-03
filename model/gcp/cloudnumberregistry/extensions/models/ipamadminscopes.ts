@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud Number Registry IpamAdminScopes.
  *
- * Message describing IpamAdminScope object
+ * An IpamAdminScope defines the administrative boundary for IP address discovery and management. It configures which platforms and organizational scopes are enabled for IP tracking.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -141,18 +141,19 @@ const GlobalArgsSchema = z.object({
   enabledAddonPlatforms: z.array(
     z.enum(["ADD_ON_PLATFORM_UNSPECIFIED", "COMPUTE_ENGINE", "GCE"]),
   ).describe(
-    "Required. Addon platforms that are enabled for this IPAM admin scope. Cloud Number Registry only discovers the IP addresses from the enabled platforms.",
+    "Required. Add-on platforms that are enabled for this IpamAdminScope. Cloud Number Registry only discovers the IP addresses from the enabled platforms.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. Labels as key value pairs",
+    "Optional. User-defined labels.",
   ).optional(),
-  name: z.string().describe("Required. Identifier. name of resource")
-    .optional(),
+  name: z.string().describe(
+    "Required. Identifier. The resource name of the IpamAdminScope.",
+  ).optional(),
   scopes: z.array(z.string()).describe(
     'Required. Administrative scopes enabled for IP address discovery and management. For example, "organizations/1234567890". Minimum of 1 scope is required. In preview, only one organization scope is allowed.',
   ).optional(),
   ipamAdminScopeId: z.string().describe(
-    "Required. Id of the requesting object.",
+    "Required. The ID to use for the IpamAdminScope, which will become the final segment of the resource name.",
   ).optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -178,18 +179,19 @@ const InputsSchema = z.object({
   enabledAddonPlatforms: z.array(
     z.enum(["ADD_ON_PLATFORM_UNSPECIFIED", "COMPUTE_ENGINE", "GCE"]),
   ).describe(
-    "Required. Addon platforms that are enabled for this IPAM admin scope. Cloud Number Registry only discovers the IP addresses from the enabled platforms.",
+    "Required. Add-on platforms that are enabled for this IpamAdminScope. Cloud Number Registry only discovers the IP addresses from the enabled platforms.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. Labels as key value pairs",
+    "Optional. User-defined labels.",
   ).optional(),
-  name: z.string().describe("Required. Identifier. name of resource")
-    .optional(),
+  name: z.string().describe(
+    "Required. Identifier. The resource name of the IpamAdminScope.",
+  ).optional(),
   scopes: z.array(z.string()).describe(
     'Required. Administrative scopes enabled for IP address discovery and management. For example, "organizations/1234567890". Minimum of 1 scope is required. In preview, only one organization scope is allowed.',
   ).optional(),
   ipamAdminScopeId: z.string().describe(
-    "Required. Id of the requesting object.",
+    "Required. The ID to use for the IpamAdminScope, which will become the final segment of the resource name.",
   ).optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -202,7 +204,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Number Registry IpamAdminScopes. Registered at `@swamp/gcp/cloudnumberregistry/ipamadminscopes`. */
 export const model = {
   type: "@swamp/gcp/cloudnumberregistry/ipamadminscopes",
-  version: "2026.05.26.1",
+  version: "2026.06.03.1",
   upgrades: [
     {
       toVersion: "2026.05.19.1",
@@ -234,12 +236,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Message describing IpamAdminScope object",
+      description:
+        "An IpamAdminScope defines the administrative boundary for IP address discover...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -469,9 +477,11 @@ export const model = {
     list: {
       description: "List ipamAdminScopes resources",
       arguments: z.object({
-        filter: z.string().describe("Optional. Filtering results").optional(),
+        filter: z.string().describe(
+          "Optional. Filter expression to filter the results.",
+        ).optional(),
         orderBy: z.string().describe(
-          "Optional. Hint for how to order the results",
+          "Optional. Hint for how to order the results.",
         ).optional(),
         pageSize: z.number().describe(
           "Optional. Requested page size. Server may return fewer items than requested. If unspecified, server will pick an appropriate default.",

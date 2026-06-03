@@ -83,6 +83,7 @@ const StateSchema = z.object({
   membershipBatchCreatedEventData: z.object({
     memberships: z.array(z.object({
       membership: z.object({
+        affiliation: z.string(),
         createTime: z.string(),
         deleteTime: z.string(),
         groupMember: z.object({
@@ -104,6 +105,7 @@ const StateSchema = z.object({
   membershipBatchDeletedEventData: z.object({
     memberships: z.array(z.object({
       membership: z.object({
+        affiliation: z.string(),
         createTime: z.string(),
         deleteTime: z.string(),
         groupMember: z.object({
@@ -125,6 +127,7 @@ const StateSchema = z.object({
   membershipBatchUpdatedEventData: z.object({
     memberships: z.array(z.object({
       membership: z.object({
+        affiliation: z.string(),
         createTime: z.string(),
         deleteTime: z.string(),
         groupMember: z.object({
@@ -145,6 +148,7 @@ const StateSchema = z.object({
   }).optional(),
   membershipCreatedEventData: z.object({
     membership: z.object({
+      affiliation: z.string(),
       createTime: z.string(),
       deleteTime: z.string(),
       groupMember: z.object({
@@ -164,6 +168,7 @@ const StateSchema = z.object({
   }).optional(),
   membershipDeletedEventData: z.object({
     membership: z.object({
+      affiliation: z.string(),
       createTime: z.string(),
       deleteTime: z.string(),
       groupMember: z.object({
@@ -183,6 +188,7 @@ const StateSchema = z.object({
   }).optional(),
   membershipUpdatedEventData: z.object({
     membership: z.object({
+      affiliation: z.string(),
       createTime: z.string(),
       deleteTime: z.string(),
       groupMember: z.object({
@@ -1378,7 +1384,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Chat Spaces.SpaceEvents. Registered at `@swamp/gcp/chat/spaces-spaceevents`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces-spaceevents",
-  version: "2026.05.26.1",
+  version: "2026.06.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -1467,6 +1473,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

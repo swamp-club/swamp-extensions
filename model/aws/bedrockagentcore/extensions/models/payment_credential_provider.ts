@@ -21,13 +21,34 @@ import {
   updateResource,
 } from "./_lib/aws.ts";
 
+const SecretReferenceSchema = z.object({
+  SecretId: z.string().min(1).max(2048).describe(
+    "The ID or ARN of the secret in AWS Secrets Manager",
+  ),
+  JsonKey: z.string().min(1).max(128).describe(
+    "The JSON key within the secret that contains the credential value",
+  ),
+});
+
 const CoinbaseCdpConfigurationInputSchema = z.object({
   ApiKeyId: z.string().min(1).max(512).describe("The Coinbase CDP API key ID"),
   ApiKeySecret: z.string().min(1).max(2048).describe(
     "The Coinbase CDP API key secret",
-  ),
+  ).optional(),
+  ApiKeySecretSource: z.enum(["MANAGED", "EXTERNAL"]).describe(
+    "The source of the secret. Use MANAGED for service-managed secrets or EXTERNAL for customer-provided secrets.",
+  ).optional(),
+  ApiKeySecretConfig: SecretReferenceSchema.describe(
+    "A reference to a customer-provided secret stored in AWS Secrets Manager",
+  ).optional(),
   WalletSecret: z.string().min(1).max(2048).describe(
     "The Coinbase CDP wallet secret",
+  ).optional(),
+  WalletSecretSource: z.enum(["MANAGED", "EXTERNAL"]).describe(
+    "The source of the secret. Use MANAGED for service-managed secrets or EXTERNAL for customer-provided secrets.",
+  ).optional(),
+  WalletSecretConfig: SecretReferenceSchema.describe(
+    "A reference to a customer-provided secret stored in AWS Secrets Manager",
   ).optional(),
 });
 
@@ -35,10 +56,22 @@ const StripePrivyConfigurationInputSchema = z.object({
   AppId: z.string().min(1).max(512).describe("The app ID provided by Privy"),
   AppSecret: z.string().min(1).max(2048).describe(
     "The app secret provided by Privy",
-  ),
+  ).optional(),
+  AppSecretSource: z.enum(["MANAGED", "EXTERNAL"]).describe(
+    "The source of the secret. Use MANAGED for service-managed secrets or EXTERNAL for customer-provided secrets.",
+  ).optional(),
+  AppSecretConfig: SecretReferenceSchema.describe(
+    "A reference to a customer-provided secret stored in AWS Secrets Manager",
+  ).optional(),
   AuthorizationPrivateKey: z.string().min(1).max(4096).describe(
     "The authorization private key for the Stripe Privy integration",
-  ),
+  ).optional(),
+  AuthorizationPrivateKeySource: z.enum(["MANAGED", "EXTERNAL"]).describe(
+    "The source of the secret. Use MANAGED for service-managed secrets or EXTERNAL for customer-provided secrets.",
+  ).optional(),
+  AuthorizationPrivateKeyConfig: SecretReferenceSchema.describe(
+    "A reference to a customer-provided secret stored in AWS Secrets Manager",
+  ).optional(),
   AuthorizationId: z.string().min(1).max(512).describe(
     "The authorization ID for the Stripe Privy integration",
   ),
@@ -57,8 +90,20 @@ const CoinbaseCdpConfigurationOutputSchema = z.object({
   ApiKeySecretArn: SecretInfoSchema.describe(
     "Contains information about a secret in AWS Secrets Manager",
   ),
+  ApiKeySecretJsonKey: z.string().min(1).max(128).describe(
+    "The JSON key within the secret that contains the API key secret value",
+  ).optional(),
+  ApiKeySecretSource: z.enum(["MANAGED", "EXTERNAL"]).describe(
+    "The source of the secret. Use MANAGED for service-managed secrets or EXTERNAL for customer-provided secrets.",
+  ).optional(),
   WalletSecretArn: SecretInfoSchema.describe(
     "Contains information about a secret in AWS Secrets Manager",
+  ).optional(),
+  WalletSecretJsonKey: z.string().min(1).max(128).describe(
+    "The JSON key within the secret that contains the wallet secret value",
+  ).optional(),
+  WalletSecretSource: z.enum(["MANAGED", "EXTERNAL"]).describe(
+    "The source of the secret. Use MANAGED for service-managed secrets or EXTERNAL for customer-provided secrets.",
   ).optional(),
 });
 
@@ -67,9 +112,21 @@ const StripePrivyConfigurationOutputSchema = z.object({
   AppSecretArn: SecretInfoSchema.describe(
     "Contains information about a secret in AWS Secrets Manager",
   ),
+  AppSecretJsonKey: z.string().min(1).max(128).describe(
+    "The JSON key within the secret that contains the app secret value",
+  ).optional(),
+  AppSecretSource: z.enum(["MANAGED", "EXTERNAL"]).describe(
+    "The source of the secret. Use MANAGED for service-managed secrets or EXTERNAL for customer-provided secrets.",
+  ).optional(),
   AuthorizationPrivateKeyArn: SecretInfoSchema.describe(
     "Contains information about a secret in AWS Secrets Manager",
   ),
+  AuthorizationPrivateKeyJsonKey: z.string().min(1).max(128).describe(
+    "The JSON key within the secret that contains the authorization private key value",
+  ).optional(),
+  AuthorizationPrivateKeySource: z.enum(["MANAGED", "EXTERNAL"]).describe(
+    "The source of the secret. Use MANAGED for service-managed secrets or EXTERNAL for customer-provided secrets.",
+  ).optional(),
   AuthorizationId: z.string().min(1).max(512).describe(
     "The authorization ID for the Stripe Privy integration",
   ),
@@ -170,7 +227,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for BedrockAgentCore PaymentCredentialProvider. Registered at `@swamp/aws/bedrockagentcore/payment-credential-provider`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/payment-credential-provider",
-  version: "2026.05.19.1",
+  version: "2026.06.03.1",
+  upgrades: [
+    {
+      toVersion: "2026.06.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

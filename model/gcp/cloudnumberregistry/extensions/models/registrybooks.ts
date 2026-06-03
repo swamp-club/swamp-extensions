@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud Number Registry RegistryBooks.
  *
- * Message describing RegistryBook object
+ * A RegistryBook organizes and manages IP address space. It claims specific scopes (such as projects) and groups related Realms and Ranges.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -146,16 +146,16 @@ const LIST_CONFIG = {
 const GlobalArgsSchema = z.object({
   aggregatedData: z.object({
     customRangesCount: z.number().int().describe(
-      "Output only. Number of custom ranges in the RegistryBook.",
+      "Output only. Number of CustomRanges in the RegistryBook.",
     ).optional(),
     customRealmsCount: z.number().int().describe(
-      "Output only. Number of custom realms in the RegistryBook.",
+      "Output only. Number of custom Realms in the RegistryBook.",
     ).optional(),
     discoveredRangesCount: z.number().int().describe(
-      "Output only. Number of discovered ranges in the RegistryBook.",
+      "Output only. Number of DiscoveredRanges in the RegistryBook.",
     ).optional(),
     discoveredRealmsCount: z.number().int().describe(
-      "Output only. Number of discovered realms in the RegistryBook.",
+      "Output only. Number of discovered Realms in the RegistryBook.",
     ).optional(),
     uniqueScopesCount: z.number().int().describe(
       "Output only. Number of scopes unique to the RegistryBook.",
@@ -165,12 +165,14 @@ const GlobalArgsSchema = z.object({
     "Optional. List of scopes claimed by the RegistryBook. In Preview, Only project scope is supported. Each scope is in the format of projects/{project}. Each scope can only be claimed once.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. Labels as key value pairs",
+    "Optional. User-defined labels.",
   ).optional(),
-  name: z.string().describe("Required. Identifier. name of resource")
-    .optional(),
-  registryBookId: z.string().describe("Required. Id of the requesting object.")
-    .optional(),
+  name: z.string().describe(
+    "Required. Identifier. The resource name of the RegistryBook.",
+  ).optional(),
+  registryBookId: z.string().describe(
+    "Required. The ID to use for the RegistryBook, which will become the final segment of the resource name.",
+  ).optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
   ).optional(),
@@ -200,16 +202,16 @@ type StateData = z.infer<typeof StateSchema>;
 const InputsSchema = z.object({
   aggregatedData: z.object({
     customRangesCount: z.number().int().describe(
-      "Output only. Number of custom ranges in the RegistryBook.",
+      "Output only. Number of CustomRanges in the RegistryBook.",
     ).optional(),
     customRealmsCount: z.number().int().describe(
-      "Output only. Number of custom realms in the RegistryBook.",
+      "Output only. Number of custom Realms in the RegistryBook.",
     ).optional(),
     discoveredRangesCount: z.number().int().describe(
-      "Output only. Number of discovered ranges in the RegistryBook.",
+      "Output only. Number of DiscoveredRanges in the RegistryBook.",
     ).optional(),
     discoveredRealmsCount: z.number().int().describe(
-      "Output only. Number of discovered realms in the RegistryBook.",
+      "Output only. Number of discovered Realms in the RegistryBook.",
     ).optional(),
     uniqueScopesCount: z.number().int().describe(
       "Output only. Number of scopes unique to the RegistryBook.",
@@ -219,12 +221,14 @@ const InputsSchema = z.object({
     "Optional. List of scopes claimed by the RegistryBook. In Preview, Only project scope is supported. Each scope is in the format of projects/{project}. Each scope can only be claimed once.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. Labels as key value pairs",
+    "Optional. User-defined labels.",
   ).optional(),
-  name: z.string().describe("Required. Identifier. name of resource")
-    .optional(),
-  registryBookId: z.string().describe("Required. Id of the requesting object.")
-    .optional(),
+  name: z.string().describe(
+    "Required. Identifier. The resource name of the RegistryBook.",
+  ).optional(),
+  registryBookId: z.string().describe(
+    "Required. The ID to use for the RegistryBook, which will become the final segment of the resource name.",
+  ).optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
   ).optional(),
@@ -236,7 +240,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Number Registry RegistryBooks. Registered at `@swamp/gcp/cloudnumberregistry/registrybooks`. */
 export const model = {
   type: "@swamp/gcp/cloudnumberregistry/registrybooks",
-  version: "2026.05.26.1",
+  version: "2026.06.03.1",
   upgrades: [
     {
       toVersion: "2026.05.19.1",
@@ -268,12 +272,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Message describing RegistryBook object",
+      description:
+        "A RegistryBook organizes and manages IP address space. It claims specific sco...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -507,15 +517,18 @@ export const model = {
     list: {
       description: "List registryBooks resources",
       arguments: z.object({
-        filter: z.string().describe("Optional. Filtering results").optional(),
+        filter: z.string().describe(
+          "Optional. Filter expression to filter the results.",
+        ).optional(),
         orderBy: z.string().describe(
-          "Optional. Hint for how to order the results",
+          "Optional. Hint for how to order the results.",
         ).optional(),
         pageSize: z.number().describe(
           "Optional. Requested page size. Server may return fewer items than requested. If unspecified, server will pick an appropriate default.",
         ).optional(),
-        view: z.string().describe("Optional. The view of the RegistryBook.")
-          .optional(),
+        view: z.string().describe(
+          "Optional. The view of the RegistryBook to retrieve.",
+        ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
         ).optional(),

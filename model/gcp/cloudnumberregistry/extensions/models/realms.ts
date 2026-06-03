@@ -6,7 +6,7 @@
 /**
  * Swamp extension model for Google Cloud Number Registry Realms.
  *
- * Message describing Realm object
+ * A Realm represents a distinct network domain or security zone. It groups Ranges that share the same traffic and management characteristics. All the ranges in a Realm are routable to each other, meaning that they cannot overlap.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -146,10 +146,10 @@ const LIST_CONFIG = {
 const GlobalArgsSchema = z.object({
   aggregatedData: z.object({
     customRangesCount: z.number().int().describe(
-      "Output only. Number of custom ranges in the Realm.",
+      "Output only. Number of CustomRanges in the Realm.",
     ).optional(),
     discoveredRangesCount: z.number().int().describe(
-      "Output only. Number of discovered ranges in the Realm.",
+      "Output only. Number of DiscoveredRanges in the Realm.",
     ).optional(),
   }).describe("Aggregated data for the Realm.").optional(),
   discoveryMetadata: z.object({
@@ -169,7 +169,7 @@ const GlobalArgsSchema = z.object({
       "Output only. The canonical google.aip.dev/122 name of the source resource.",
     ).optional(),
     sourceSubId: z.string().describe(
-      'Output only. A single source resource can be the source of multiple CNR resources. This sub_id is used to distinguish between the different CNR resources derived from the same upstream resource. For example, a single subnetwork can be the source of multiple ranges, one for each protocol. In this case, the sub_id could be "private-ipv4" or "private-ipv6".',
+      'Output only. A single source resource can be the source of multiple CNR resources. This sub_id is used to distinguish between the different CNR resources derived from the same upstream resource. For example, a single subnetwork can be the source of multiple Ranges, one for each protocol. In this case, the sub_id could be "private-ipv4" or "private-ipv6".',
     ).optional(),
     state: z.enum([
       "RESOURCE_STATE_UNSPECIFIED",
@@ -181,19 +181,22 @@ const GlobalArgsSchema = z.object({
     updateTime: z.string().describe(
       "Output only. The time when the resource was last modified.",
     ).optional(),
-  }).describe("Discovery metadata of the discovered resource.").optional(),
+  }).describe(
+    "Metadata about a discovered resource, tracking event times, state, and source information.",
+  ).optional(),
   ipVersion: z.enum(["IP_VERSION_UNSPECIFIED", "IPV4", "IPV6"]).describe(
-    "Optional. IP version of the realm.",
+    "Optional. IP version of the Realm.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. Labels as key value pairs",
+    "Optional. User-defined labels.",
   ).optional(),
   managementType: z.enum(["MANAGEMENT_TYPE_UNSPECIFIED", "CNR", "USER"])
-    .describe("Required. Management type of realm.").optional(),
-  name: z.string().describe("Required. Identifier. Unique name/ID of the realm")
-    .optional(),
+    .describe("Required. Management type of the Realm.").optional(),
+  name: z.string().describe(
+    "Required. Identifier. The resource name of the Realm.",
+  ).optional(),
   registryBook: z.string().describe(
-    "Required. URI of the registry book that claims the realm.",
+    "Required. Name of the RegistryBook that claims the Realm.",
   ).optional(),
   trafficType: z.enum([
     "TRAFFIC_TYPE_UNSPECIFIED",
@@ -201,9 +204,10 @@ const GlobalArgsSchema = z.object({
     "INTERNET",
     "PRIVATE",
     "LINKLOCAL",
-  ]).describe("Required. Traffic type of realm.").optional(),
-  realmId: z.string().describe("Required. Id of the requesting object.")
-    .optional(),
+  ]).describe("Required. Traffic type of the Realm.").optional(),
+  realmId: z.string().describe(
+    "Required. The ID to use for the Realm, which will become the final segment of the resource name.",
+  ).optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request.",
   ).optional(),
@@ -242,10 +246,10 @@ type StateData = z.infer<typeof StateSchema>;
 const InputsSchema = z.object({
   aggregatedData: z.object({
     customRangesCount: z.number().int().describe(
-      "Output only. Number of custom ranges in the Realm.",
+      "Output only. Number of CustomRanges in the Realm.",
     ).optional(),
     discoveredRangesCount: z.number().int().describe(
-      "Output only. Number of discovered ranges in the Realm.",
+      "Output only. Number of DiscoveredRanges in the Realm.",
     ).optional(),
   }).describe("Aggregated data for the Realm.").optional(),
   discoveryMetadata: z.object({
@@ -265,7 +269,7 @@ const InputsSchema = z.object({
       "Output only. The canonical google.aip.dev/122 name of the source resource.",
     ).optional(),
     sourceSubId: z.string().describe(
-      'Output only. A single source resource can be the source of multiple CNR resources. This sub_id is used to distinguish between the different CNR resources derived from the same upstream resource. For example, a single subnetwork can be the source of multiple ranges, one for each protocol. In this case, the sub_id could be "private-ipv4" or "private-ipv6".',
+      'Output only. A single source resource can be the source of multiple CNR resources. This sub_id is used to distinguish between the different CNR resources derived from the same upstream resource. For example, a single subnetwork can be the source of multiple Ranges, one for each protocol. In this case, the sub_id could be "private-ipv4" or "private-ipv6".',
     ).optional(),
     state: z.enum([
       "RESOURCE_STATE_UNSPECIFIED",
@@ -277,19 +281,22 @@ const InputsSchema = z.object({
     updateTime: z.string().describe(
       "Output only. The time when the resource was last modified.",
     ).optional(),
-  }).describe("Discovery metadata of the discovered resource.").optional(),
+  }).describe(
+    "Metadata about a discovered resource, tracking event times, state, and source information.",
+  ).optional(),
   ipVersion: z.enum(["IP_VERSION_UNSPECIFIED", "IPV4", "IPV6"]).describe(
-    "Optional. IP version of the realm.",
+    "Optional. IP version of the Realm.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. Labels as key value pairs",
+    "Optional. User-defined labels.",
   ).optional(),
   managementType: z.enum(["MANAGEMENT_TYPE_UNSPECIFIED", "CNR", "USER"])
-    .describe("Required. Management type of realm.").optional(),
-  name: z.string().describe("Required. Identifier. Unique name/ID of the realm")
-    .optional(),
+    .describe("Required. Management type of the Realm.").optional(),
+  name: z.string().describe(
+    "Required. Identifier. The resource name of the Realm.",
+  ).optional(),
   registryBook: z.string().describe(
-    "Required. URI of the registry book that claims the realm.",
+    "Required. Name of the RegistryBook that claims the Realm.",
   ).optional(),
   trafficType: z.enum([
     "TRAFFIC_TYPE_UNSPECIFIED",
@@ -297,9 +304,10 @@ const InputsSchema = z.object({
     "INTERNET",
     "PRIVATE",
     "LINKLOCAL",
-  ]).describe("Required. Traffic type of realm.").optional(),
-  realmId: z.string().describe("Required. Id of the requesting object.")
-    .optional(),
+  ]).describe("Required. Traffic type of the Realm.").optional(),
+  realmId: z.string().describe(
+    "Required. The ID to use for the Realm, which will become the final segment of the resource name.",
+  ).optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request.",
   ).optional(),
@@ -311,7 +319,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Number Registry Realms. Registered at `@swamp/gcp/cloudnumberregistry/realms`. */
 export const model = {
   type: "@swamp/gcp/cloudnumberregistry/realms",
-  version: "2026.05.26.1",
+  version: "2026.06.03.1",
   upgrades: [
     {
       toVersion: "2026.05.19.1",
@@ -343,12 +351,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Message describing Realm object",
+      description:
+        "A Realm represents a distinct network domain or security zone. It groups Rang...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -600,15 +614,18 @@ export const model = {
     list: {
       description: "List realms resources",
       arguments: z.object({
-        filter: z.string().describe("Optional. Filtering results").optional(),
+        filter: z.string().describe(
+          "Optional. Filter expression to filter the results.",
+        ).optional(),
         orderBy: z.string().describe(
-          "Optional. Hint for how to order the results",
+          "Optional. Hint for how to order the results.",
         ).optional(),
         pageSize: z.number().describe(
           "Optional. Requested page size. Server may return fewer items than requested. If unspecified, server will pick an appropriate default.",
         ).optional(),
-        view: z.string().describe("Optional. The view of the Realm.")
-          .optional(),
+        view: z.string().describe(
+          "Optional. The view of the Realm to retrieve.",
+        ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
         ).optional(),

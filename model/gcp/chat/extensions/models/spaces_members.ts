@@ -183,6 +183,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  affiliation: z.string().optional(),
   createTime: z.string().optional(),
   deleteTime: z.string().optional(),
   groupMember: z.object({
@@ -247,7 +248,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Google Chat Spaces.Members. Registered at `@swamp/gcp/chat/spaces-members`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces-members",
-  version: "2026.05.25.1",
+  version: "2026.06.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -306,6 +307,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

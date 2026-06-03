@@ -23,8 +23,8 @@ import {
 } from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe(
-    "Name of the [Firewall](#tag/firewalls).\n\nLimited to a maximum of 128 characters.\n\nMust be unique per Project.\n",
+  name: z.string().min(1).max(128).describe(
+    "Name of the [Firewall](#tag/firewalls).\n\nMust be unique per Project.\n",
   ),
   labels: z.record(z.string(), z.unknown()).describe(
     'User-defined labels (`key/value` pairs) for the Resource.\nFor more information, see "[Labels](#description/labels)".\n',
@@ -88,7 +88,7 @@ const ResourceSchema = z.object({
 type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().optional(),
+  name: z.string().min(1).max(128).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   rules: z.array(z.object({
     description: z.string().max(255).optional(),
@@ -113,7 +113,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud firewall. Registered at `@swamp/hetzner-cloud/firewalls`. */
 export const model = {
   type: "@swamp/hetzner-cloud/firewalls",
-  version: "2026.05.28.1",
+  version: "2026.06.03.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -153,6 +153,11 @@ export const model = {
     {
       toVersion: "2026.05.28.1",
       description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.03.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

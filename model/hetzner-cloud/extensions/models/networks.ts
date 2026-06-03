@@ -23,7 +23,9 @@ import {
 } from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe("Name of the [Network](#tag/networks)."),
+  name: z.string().min(1).max(128).describe(
+    "Name of the [Network](#tag/networks).",
+  ),
   labels: z.record(z.string(), z.unknown()).describe(
     'User-defined labels (`key/value` pairs) for the Resource.\nFor more information, see "[Labels](#description/labels)".\n',
   ).optional(),
@@ -77,7 +79,7 @@ const ResourceSchema = z.object({
 type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().optional(),
+  name: z.string().min(1).max(128).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   expose_routes_to_vswitch: z.boolean().optional(),
   ip_range: z.string().optional(),
@@ -97,7 +99,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud network. Registered at `@swamp/hetzner-cloud/networks`. */
 export const model = {
   type: "@swamp/hetzner-cloud/networks",
-  version: "2026.05.28.1",
+  version: "2026.06.03.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -137,6 +139,11 @@ export const model = {
     {
       toVersion: "2026.05.28.1",
       description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.03.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
