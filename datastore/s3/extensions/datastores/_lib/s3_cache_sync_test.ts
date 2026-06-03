@@ -130,7 +130,7 @@ function createMockS3Client(): S3Client & {
       });
     },
 
-    listAllObjects(): Promise<
+    listAllObjects(subPrefix?: string): Promise<
       Array<{
         key: string;
         size: number;
@@ -139,13 +139,14 @@ function createMockS3Client(): S3Client & {
       }>
     > {
       counters.lists++;
-      return Promise.resolve(
-        [...storage.entries()].map(([key, body]) => ({
+      const entries = [...storage.entries()]
+        .filter(([key]) => !subPrefix || key.startsWith(subPrefix))
+        .map(([key, body]) => ({
           key,
           size: body.length,
           etag: etagFor(key, body),
-        })),
-      );
+        }));
+      return Promise.resolve(entries);
     },
   } as unknown as S3Client & {
     storage: Map<string, Uint8Array>;
@@ -3927,4 +3928,243 @@ Deno.test("scoped pull does not clear lazyPullActive", async () => {
   } finally {
     await Deno.remove(cachePath, { recursive: true });
   }
+});
+
+// ---------------------------------------------------------------------------
+// Namespace-scoped sync tests (swamp-club #533)
+// ---------------------------------------------------------------------------
+
+Deno.test("pullChanged with namespace fetches per-namespace index", async () => {
+  const s3 = createMockS3Client();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    // Keys include namespace prefix because local cache layout is namespaced
+    const nsIndex = encodeIndex({
+      "my-ns/data/model/1/raw": {
+        key: "my-ns/data/model/1/raw",
+        size: 5,
+        lastModified: new Date().toISOString(),
+      },
+    });
+    s3.storage.set("my-ns/.datastore-index.json", nsIndex);
+    s3.storage.set("my-ns/data/model/1/raw", new TextEncoder().encode("hello"));
+
+    const svc = new S3CacheSyncService(s3, cachePath);
+    const pulled = await svc.pullChanged({ namespace: "my-ns" });
+    assertEquals(pulled, 1);
+
+    const got = s3.gets.filter((k) => k.includes(".datastore-index.json"));
+    assertEquals(got, ["my-ns/.datastore-index.json"]);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged with namespace writes per-namespace index", async () => {
+  const s3 = createMockS3Client();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    await seedFile(cachePath, "data/model/1/raw", "hello");
+
+    const svc = new S3CacheSyncService(s3, cachePath);
+    const pushed = await svc.pushChanged({ namespace: "my-ns" });
+    assert((pushed as number) >= 1);
+
+    const indexPuts = s3.puts.filter((p) =>
+      p.key === "my-ns/.datastore-index.json"
+    );
+    assert(indexPuts.length > 0, "must write per-namespace index");
+
+    const globalPuts = s3.puts.filter((p) => p.key === ".datastore-index.json");
+    assertEquals(globalPuts.length, 0, "must not write global index");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged with namespace does not delete files outside namespace", async () => {
+  const s3 = createMockS3Client();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    s3.storage.set("other-ns/data/file.txt", new TextEncoder().encode("keep"));
+    const otherIndex = encodeIndex({
+      "other-ns/data/file.txt": {
+        key: "other-ns/data/file.txt",
+        size: 4,
+        lastModified: new Date().toISOString(),
+      },
+    });
+    s3.storage.set("other-ns/.datastore-index.json", otherIndex);
+
+    await seedFile(cachePath, "data/local.txt", "local");
+
+    const svc = new S3CacheSyncService(s3, cachePath);
+    await svc.pushChanged({ namespace: "my-ns" });
+
+    assert(
+      s3.storage.has("other-ns/data/file.txt"),
+      "files outside namespace must not be deleted",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("solo mode (no namespace) uses global index", async () => {
+  const s3 = createMockS3Client();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    const globalIndex = encodeIndex({
+      "data/file.txt": {
+        key: "data/file.txt",
+        size: 4,
+        lastModified: new Date().toISOString(),
+      },
+    });
+    s3.storage.set(".datastore-index.json", globalIndex);
+    s3.storage.set("data/file.txt", new TextEncoder().encode("data"));
+
+    const svc = new S3CacheSyncService(s3, cachePath);
+    const pulled = await svc.pullChanged();
+    assertEquals(pulled, 1);
+
+    const got = s3.gets.filter((k) => k.includes(".datastore-index.json"));
+    assertEquals(got, [".datastore-index.json"]);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("namespace assertion throws on mismatch", async () => {
+  const s3 = createMockS3Client();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    const svc = new S3CacheSyncService(s3, cachePath);
+    await svc.pullChanged({ namespace: "ns-a" });
+
+    await assertRejects(
+      () => svc.pushChanged({ namespace: "ns-b" }),
+      Error,
+      "Namespace mismatch",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("exportCatalog writes to namespace catalog path", async () => {
+  const s3 = createMockS3Client();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    const svc = new S3CacheSyncService(s3, cachePath);
+    await svc.exportCatalog("my-ns", [
+      { relPath: "data/file.txt", size: 10, lastModified: "2026-01-01" },
+    ]);
+
+    assert(s3.storage.has("my-ns/.catalog-export.json"));
+    const data = JSON.parse(
+      new TextDecoder().decode(s3.storage.get("my-ns/.catalog-export.json")!),
+    );
+    assertEquals(data.length, 1);
+    assertEquals(data[0].relPath, "data/file.txt");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pullForeignCatalogs skips missing catalogs silently", async () => {
+  const s3 = createMockS3Client();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    const catalog = JSON.stringify([
+      { relPath: "data/a.txt", size: 5, lastModified: "2026-01-01" },
+    ]);
+    s3.storage.set(
+      "ns-a/.catalog-export.json",
+      new TextEncoder().encode(catalog),
+    );
+
+    const svc = new S3CacheSyncService(s3, cachePath);
+    const results = await svc.pullForeignCatalogs(["ns-a", "ns-missing"]);
+
+    assertEquals(results.length, 1);
+    assertEquals(results[0].namespace, "ns-a");
+    assertEquals(results[0].rows.length, 1);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pullForeignCatalogs skips malformed JSON silently", async () => {
+  const s3 = createMockS3Client();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    s3.storage.set(
+      "ns-bad/.catalog-export.json",
+      new TextEncoder().encode("not valid json {{{"),
+    );
+
+    const svc = new S3CacheSyncService(s3, cachePath);
+    const results = await svc.pullForeignCatalogs(["ns-bad"]);
+    assertEquals(results.length, 0);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("fetchForeignContent returns bytes for existing file", async () => {
+  const s3 = createMockS3Client();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    const content = new TextEncoder().encode("foreign data");
+    s3.storage.set("other-ns/data/file.txt", content);
+
+    const svc = new S3CacheSyncService(s3, cachePath);
+    const result = await svc.fetchForeignContent("other-ns", "data/file.txt");
+    assertExists(result);
+    assertEquals(new TextDecoder().decode(result), "foreign data");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("fetchForeignContent returns null for missing file", async () => {
+  const s3 = createMockS3Client();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    const svc = new S3CacheSyncService(s3, cachePath);
+    const result = await svc.fetchForeignContent("other-ns", "no-such-file");
+    assertEquals(result, null);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("fetchForeignContent rejects path traversal", async () => {
+  const s3 = createMockS3Client();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    const svc = new S3CacheSyncService(s3, cachePath);
+    await assertRejects(
+      () => svc.fetchForeignContent("ns", "../../../etc/passwd"),
+      Error,
+      "Path traversal rejected",
+    );
+    await assertRejects(
+      () => svc.fetchForeignContent("ns", "/absolute/path"),
+      Error,
+      "Path traversal rejected",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("capabilities advertises namespacedSync", () => {
+  const s3 = createMockS3Client();
+  const svc = new S3CacheSyncService(s3, "/tmp/unused");
+  const caps = svc.capabilities();
+  assertEquals(caps.namespacedSync, true);
+  assertEquals(caps.scopedSync, true);
+  assertEquals(caps.lazyHydration, true);
 });

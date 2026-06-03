@@ -83,6 +83,13 @@ swamp datastore setup @swamp/s3-datastore \
 - **Scoped sync**: The extension advertises `scopedSync` capability. When the
   framework passes `context.models`, pull and push operate only on the
   specified models.
+- **Namespace-scoped sync**: When `options.namespace` is set, index operations
+  are scoped to `{namespace}/.datastore-index.json` and data walks are
+  restricted to the namespace subtree. Three additional methods support
+  multi-repo shared datastores: `exportCatalog` writes a catalog manifest,
+  `pullForeignCatalogs` fetches catalogs from other namespaces, and
+  `fetchForeignContent` downloads individual files from foreign namespaces.
+  Solo mode (no namespace) is fully backward compatible.
 
 ## Backward compatibility
 

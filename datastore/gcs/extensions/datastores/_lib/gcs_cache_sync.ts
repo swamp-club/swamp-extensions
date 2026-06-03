@@ -33,6 +33,8 @@
 import { dirname, join, normalize, relative } from "jsr:@std/path@1";
 import { ensureDir, walk } from "jsr:@std/fs@1";
 import type {
+  CatalogExportEntry,
+  CatalogExportRow,
   DatastoreSyncOptions,
   DatastoreSyncService,
   SyncCapabilities,
@@ -414,6 +416,8 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   private dirtyPaths: Set<string> = new Set();
   private bulkInvalidated = false;
   private lazyPullActive = false;
+  private namespace: string | undefined = undefined;
+  private namespaceBound = false;
 
   constructor(
     gcs: GcsClient,
@@ -429,6 +433,26 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     this.syncStatePath = join(cachePath, SYNC_STATE_FILE);
     this.pullConcurrency = options?.pullConcurrency ?? DEFAULT_PULL_CONCURRENCY;
     this.pushConcurrency = options?.pushConcurrency ?? DEFAULT_PUSH_CONCURRENCY;
+  }
+
+  private bindNamespace(ns: string | undefined): void {
+    if (!this.namespaceBound) {
+      this.namespace = ns;
+      this.namespaceBound = true;
+      return;
+    }
+    if (this.namespace !== ns) {
+      throw new Error(
+        `Namespace mismatch: bound to ${JSON.stringify(this.namespace)} ` +
+          `but called with ${JSON.stringify(ns)}`,
+      );
+    }
+  }
+
+  private indexKey(): string {
+    return this.namespace
+      ? `${this.namespace}/.datastore-index.json`
+      : ".datastore-index.json";
   }
 
   /**
@@ -641,7 +665,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     }
     let meta;
     try {
-      meta = await this.gcs.getMetadata(".datastore-index.json", signal);
+      meta = await this.gcs.getMetadata(this.indexKey(), signal);
     } catch {
       return null;
     }
@@ -672,7 +696,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     }
     let meta;
     try {
-      meta = await this.gcs.getMetadata(".datastore-index.json", signal);
+      meta = await this.gcs.getMetadata(this.indexKey(), signal);
     } catch {
       return null;
     }
@@ -758,7 +782,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     let generation: string | undefined;
     try {
       const response = await this.gcs.getObject(
-        ".datastore-index.json",
+        this.indexKey(),
         signal,
       );
       data = response.data;
@@ -837,7 +861,8 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     signal?: AbortSignal,
   ): Promise<string | null> {
     const discoverStart = Date.now();
-    const listing = await this.gcs.listAllObjects(undefined, signal);
+    const subPrefix = this.namespace ? `${this.namespace}/` : undefined;
+    const listing = await this.gcs.listAllObjects(subPrefix, signal);
     const filtered = listing.filter((entry) => !isInternalCacheFile(entry.key));
 
     if (filtered.length === 0) {
@@ -866,7 +891,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     const indexJson = JSON.stringify(this.index, null, 2);
     const indexData = new TextEncoder().encode(indexJson);
     const putResult = await retryWithBackoff(
-      () => this.gcs.putObject(".datastore-index.json", indexData, signal),
+      () => this.gcs.putObject(this.indexKey(), indexData, signal),
       { signal },
     );
     await ensureDir(this.cachePath);
@@ -911,6 +936,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     options?: DatastoreSyncOptions,
   ): Promise<number | void> {
     const signal = options?.signal;
+    this.bindNamespace(options?.namespace);
     throwIfAborted(signal);
 
     const skipFastPath = this.lazyPullActive && !options?.metadataOnly;
@@ -1111,6 +1137,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     options?: DatastoreSyncOptions,
   ): Promise<number | void> {
     const signal = options?.signal;
+    this.bindNamespace(options?.namespace);
     throwIfAborted(signal);
 
     const fastStart = Date.now();
@@ -1209,7 +1236,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       const indexJson = JSON.stringify(this.index, null, 2);
       const indexData = new TextEncoder().encode(indexJson);
       const putResult = await retryWithBackoff(
-        () => this.gcs.putObject(".datastore-index.json", indexData, signal),
+        () => this.gcs.putObject(this.indexKey(), indexData, signal),
         { signal },
       );
       await atomicWriteTextFile(this.indexPath, indexJson);
@@ -1411,7 +1438,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   }
 
   capabilities(): SyncCapabilities {
-    return { scopedSync: true, lazyHydration: true };
+    return { scopedSync: true, lazyHydration: true, namespacedSync: true };
   }
 
   async hydrateFile(
@@ -1424,6 +1451,62 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     } catch (error) {
       if (error instanceof NotFoundError) {
         return false;
+      }
+      throw error;
+    }
+  }
+
+  async exportCatalog(
+    namespace: string,
+    rows: CatalogExportRow[],
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const key = `${namespace}/.catalog-export.json`;
+    const data = new TextEncoder().encode(JSON.stringify(rows, null, 2));
+    await retryWithBackoff(
+      () => this.gcs.putObject(key, data, signal),
+      { signal },
+    );
+  }
+
+  async pullForeignCatalogs(
+    namespaces: string[],
+    signal?: AbortSignal,
+  ): Promise<CatalogExportEntry[]> {
+    const results: CatalogExportEntry[] = [];
+    for (const ns of namespaces) {
+      const key = `${ns}/.catalog-export.json`;
+      try {
+        const { data } = await this.gcs.getObject(key, signal);
+        const text = new TextDecoder().decode(data);
+        const rows = JSON.parse(text) as CatalogExportRow[];
+        if (!Array.isArray(rows)) continue;
+        results.push({ namespace: ns, rows });
+      } catch {
+        // Missing or malformed — skip silently
+      }
+    }
+    return results;
+  }
+
+  async fetchForeignContent(
+    namespace: string,
+    relPath: string,
+    signal?: AbortSignal,
+  ): Promise<Uint8Array | null> {
+    if (
+      relPath.startsWith("/") || relPath.startsWith("\\") ||
+      relPath.split("/").some((seg) => seg === "..")
+    ) {
+      throw new Error(`Path traversal rejected: ${relPath}`);
+    }
+    const key = `${namespace}/${relPath}`;
+    try {
+      const { data } = await this.gcs.getObject(key, signal);
+      return data;
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return null;
       }
       throw error;
     }

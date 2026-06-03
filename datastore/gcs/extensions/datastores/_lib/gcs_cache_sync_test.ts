@@ -144,7 +144,7 @@ function createMockGcsClient(): GcsClient & {
     },
 
     listAllObjects(
-      _subPrefix?: string,
+      subPrefix?: string,
       signal?: AbortSignal,
     ): Promise<
       Array<{
@@ -155,13 +155,14 @@ function createMockGcsClient(): GcsClient & {
       }>
     > {
       throwIfAborted(signal);
-      return Promise.resolve(
-        [...storage.entries()].map(([key, body]) => ({
+      const entries = [...storage.entries()]
+        .filter(([key]) => !subPrefix || key.startsWith(subPrefix))
+        .map(([key, body]) => ({
           key,
           size: body.length,
           generation: genFor(key),
-        })),
-      );
+        }));
+      return Promise.resolve(entries);
     },
   } as unknown as GcsClient & {
     storage: Map<string, Uint8Array>;
@@ -3403,4 +3404,247 @@ Deno.test("scoped pull does not clear lazyPullActive", async () => {
   } finally {
     await Deno.remove(cachePath, { recursive: true });
   }
+});
+
+// ---------------------------------------------------------------------------
+// Namespace-scoped sync tests (swamp-club #533)
+// ---------------------------------------------------------------------------
+
+Deno.test("pullChanged with namespace fetches per-namespace index", async () => {
+  const gcs = createMockGcsClient();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    const nsIndex = encodeIndex({
+      "my-ns/data/model/1/raw": {
+        key: "my-ns/data/model/1/raw",
+        size: 5,
+        lastModified: new Date().toISOString(),
+      },
+    });
+    gcs.storage.set("my-ns/.datastore-index.json", nsIndex);
+    gcs.storage.set(
+      "my-ns/data/model/1/raw",
+      new TextEncoder().encode("hello"),
+    );
+
+    const svc = new GcsCacheSyncService(gcs, cachePath);
+    const pulled = await svc.pullChanged({ namespace: "my-ns" });
+    assertEquals(pulled, 1);
+
+    const got = gcs.gets.filter((k) => k.includes(".datastore-index.json"));
+    assertEquals(got, ["my-ns/.datastore-index.json"]);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged with namespace writes per-namespace index", async () => {
+  const gcs = createMockGcsClient();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    await seedFile(cachePath, "data/model/1/raw", "hello");
+
+    const svc = new GcsCacheSyncService(gcs, cachePath);
+    const pushed = await svc.pushChanged({ namespace: "my-ns" });
+    assert((pushed as number) >= 1);
+
+    const indexPuts = gcs.puts.filter((p) =>
+      p.key === "my-ns/.datastore-index.json"
+    );
+    assert(indexPuts.length > 0, "must write per-namespace index");
+
+    const globalPuts = gcs.puts.filter((p) =>
+      p.key === ".datastore-index.json"
+    );
+    assertEquals(globalPuts.length, 0, "must not write global index");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged with namespace does not delete files outside namespace", async () => {
+  const gcs = createMockGcsClient();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    gcs.storage.set("other-ns/data/file.txt", new TextEncoder().encode("keep"));
+    const otherIndex = encodeIndex({
+      "other-ns/data/file.txt": {
+        key: "other-ns/data/file.txt",
+        size: 4,
+        lastModified: new Date().toISOString(),
+      },
+    });
+    gcs.storage.set("other-ns/.datastore-index.json", otherIndex);
+
+    await seedFile(cachePath, "data/local.txt", "local");
+
+    const svc = new GcsCacheSyncService(gcs, cachePath);
+    await svc.pushChanged({ namespace: "my-ns" });
+
+    assert(
+      gcs.storage.has("other-ns/data/file.txt"),
+      "files outside namespace must not be deleted",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("solo mode (no namespace) uses global index", async () => {
+  const gcs = createMockGcsClient();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    const globalIndex = encodeIndex({
+      "data/file.txt": {
+        key: "data/file.txt",
+        size: 4,
+        lastModified: new Date().toISOString(),
+      },
+    });
+    gcs.storage.set(".datastore-index.json", globalIndex);
+    gcs.storage.set("data/file.txt", new TextEncoder().encode("data"));
+
+    const svc = new GcsCacheSyncService(gcs, cachePath);
+    const pulled = await svc.pullChanged();
+    assertEquals(pulled, 1);
+
+    const got = gcs.gets.filter((k) => k.includes(".datastore-index.json"));
+    assertEquals(got, [".datastore-index.json"]);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("namespace assertion throws on mismatch", async () => {
+  const gcs = createMockGcsClient();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    const svc = new GcsCacheSyncService(gcs, cachePath);
+    await svc.pullChanged({ namespace: "ns-a" });
+
+    await assertRejects(
+      () => svc.pushChanged({ namespace: "ns-b" }),
+      Error,
+      "Namespace mismatch",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("exportCatalog writes to namespace catalog path", async () => {
+  const gcs = createMockGcsClient();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    const svc = new GcsCacheSyncService(gcs, cachePath);
+    await svc.exportCatalog("my-ns", [
+      { relPath: "data/file.txt", size: 10, lastModified: "2026-01-01" },
+    ]);
+
+    assert(gcs.storage.has("my-ns/.catalog-export.json"));
+    const data = JSON.parse(
+      new TextDecoder().decode(gcs.storage.get("my-ns/.catalog-export.json")!),
+    );
+    assertEquals(data.length, 1);
+    assertEquals(data[0].relPath, "data/file.txt");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pullForeignCatalogs skips missing catalogs silently", async () => {
+  const gcs = createMockGcsClient();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    const catalog = JSON.stringify([
+      { relPath: "data/a.txt", size: 5, lastModified: "2026-01-01" },
+    ]);
+    gcs.storage.set(
+      "ns-a/.catalog-export.json",
+      new TextEncoder().encode(catalog),
+    );
+
+    const svc = new GcsCacheSyncService(gcs, cachePath);
+    const results = await svc.pullForeignCatalogs(["ns-a", "ns-missing"]);
+
+    assertEquals(results.length, 1);
+    assertEquals(results[0].namespace, "ns-a");
+    assertEquals(results[0].rows.length, 1);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pullForeignCatalogs skips malformed JSON silently", async () => {
+  const gcs = createMockGcsClient();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    gcs.storage.set(
+      "ns-bad/.catalog-export.json",
+      new TextEncoder().encode("not valid json {{{"),
+    );
+
+    const svc = new GcsCacheSyncService(gcs, cachePath);
+    const results = await svc.pullForeignCatalogs(["ns-bad"]);
+    assertEquals(results.length, 0);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("fetchForeignContent returns bytes for existing file", async () => {
+  const gcs = createMockGcsClient();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    const content = new TextEncoder().encode("foreign data");
+    gcs.storage.set("other-ns/data/file.txt", content);
+
+    const svc = new GcsCacheSyncService(gcs, cachePath);
+    const result = await svc.fetchForeignContent("other-ns", "data/file.txt");
+    assertExists(result);
+    assertEquals(new TextDecoder().decode(result), "foreign data");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("fetchForeignContent returns null for missing file", async () => {
+  const gcs = createMockGcsClient();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    const svc = new GcsCacheSyncService(gcs, cachePath);
+    const result = await svc.fetchForeignContent("other-ns", "no-such-file");
+    assertEquals(result, null);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("fetchForeignContent rejects path traversal", async () => {
+  const gcs = createMockGcsClient();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    const svc = new GcsCacheSyncService(gcs, cachePath);
+    await assertRejects(
+      () => svc.fetchForeignContent("ns", "../../../etc/passwd"),
+      Error,
+      "Path traversal rejected",
+    );
+    await assertRejects(
+      () => svc.fetchForeignContent("ns", "/absolute/path"),
+      Error,
+      "Path traversal rejected",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("capabilities advertises namespacedSync", () => {
+  const gcs = createMockGcsClient();
+  const svc = new GcsCacheSyncService(gcs, "/tmp/unused");
+  const caps = svc.capabilities();
+  assertEquals(caps.namespacedSync, true);
+  assertEquals(caps.scopedSync, true);
+  assertEquals(caps.lazyHydration, true);
 });

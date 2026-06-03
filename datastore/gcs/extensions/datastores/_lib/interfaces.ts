@@ -99,6 +99,7 @@ export interface SyncContext {
 export interface SyncCapabilities {
   scopedSync: boolean;
   lazyHydration?: boolean;
+  namespacedSync?: boolean;
 }
 
 /** Optional flags passed to a sync operation. */
@@ -117,6 +118,22 @@ export interface DatastoreSyncOptions {
   context?: SyncContext;
   /** When true, skip downloading raw content files under data/ — pull only metadata.yaml, latest pointers, and non-data files. */
   metadataOnly?: boolean;
+  /** Namespace for multi-repo shared datastores. When set, scopes index and data operations to {namespace}/ prefix. */
+  namespace?: string;
+}
+
+/** A single row in a namespace catalog export. */
+export interface CatalogExportRow {
+  relPath: string;
+  size: number;
+  lastModified: string;
+  sha256?: string;
+}
+
+/** A catalog export entry returned by pullForeignCatalogs. */
+export interface CatalogExportEntry {
+  namespace: string;
+  rows: CatalogExportRow[];
 }
 
 /** Moves data between the local cache directory and the remote datastore. */
@@ -141,6 +158,23 @@ export interface DatastoreSyncService {
     relPath: string,
     options?: DatastoreSyncOptions,
   ): Promise<boolean>;
+  /** Writes a catalog export JSON to {namespace}/.catalog-export.json. */
+  exportCatalog?(
+    namespace: string,
+    rows: CatalogExportRow[],
+    signal?: AbortSignal,
+  ): Promise<void>;
+  /** Fetches catalog exports from foreign namespaces. Skips missing/malformed silently. */
+  pullForeignCatalogs?(
+    namespaces: string[],
+    signal?: AbortSignal,
+  ): Promise<CatalogExportEntry[]>;
+  /** Downloads a single file from a foreign namespace. Returns bytes or null if missing. */
+  fetchForeignContent?(
+    namespace: string,
+    relPath: string,
+    signal?: AbortSignal,
+  ): Promise<Uint8Array | null>;
 }
 
 /** Factory that produces the datastore's lock, verifier, and sync service. */

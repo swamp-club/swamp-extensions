@@ -204,6 +204,12 @@ The cache sync service maintains a local cache directory and syncs with GCS:
 - **Scoped sync** — advertises `capabilities().scopedSync = true`. When
   core passes `context.models`, pull reads partition files for just those
   models, avoiding the full monolithic index parse.
+- **Namespace-scoped sync** — when `options.namespace` is set, index
+  operations scope to `{namespace}/.datastore-index.json` and data walks
+  are restricted to the namespace subtree. Three additional methods support
+  multi-repo shared datastores: `exportCatalog`, `pullForeignCatalogs`,
+  and `fetchForeignContent`. Solo mode (no namespace) is fully backward
+  compatible.
 - **Fast path** — a `.datastore-sync-state.json` sidecar (v2) records the
   remote index's GCS `generation` from the last verified-clean sync,
   along with dirty paths and bulk-invalidation state.
