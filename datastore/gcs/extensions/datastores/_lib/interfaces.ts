@@ -189,4 +189,12 @@ export interface DatastoreProvider {
   resolveDatastorePath(repoDir: string): string;
   /** Optional hook to override the local cache path, keyed by `repoDir`. */
   resolveCachePath?(repoDir: string): string | undefined;
+  /** Registers a namespace manifest in the remote datastore for conflict detection. */
+  registerNamespace?(
+    datastorePath: string,
+    namespace: string,
+    repoId: string,
+  ): Promise<void>;
+  /** Lists all registered namespaces in the remote datastore. */
+  listNamespaces?(datastorePath: string): Promise<string[]>;
 }

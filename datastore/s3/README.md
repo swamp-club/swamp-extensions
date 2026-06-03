@@ -90,6 +90,12 @@ swamp datastore setup @swamp/s3-datastore \
   `pullForeignCatalogs` fetches catalogs from other namespaces, and
   `fetchForeignContent` downloads individual files from foreign namespaces.
   Solo mode (no namespace) is fully backward compatible.
+- **Namespace manifest support**: The provider implements `registerNamespace`
+  and `listNamespaces` for multi-repo conflict detection. `registerNamespace`
+  writes a `.namespace.json` manifest to `{namespace}/.namespace.json` in the
+  bucket, with check-then-write conflict detection (a second repo with a
+  different `repoId` is rejected). `listNamespaces` scans the bucket for all
+  registered namespace manifests and returns the namespace slugs.
 
 ## Backward compatibility
 

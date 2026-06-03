@@ -210,6 +210,13 @@ The cache sync service maintains a local cache directory and syncs with GCS:
   multi-repo shared datastores: `exportCatalog`, `pullForeignCatalogs`,
   and `fetchForeignContent`. Solo mode (no namespace) is fully backward
   compatible.
+- **Namespace manifest support** — the provider implements
+  `registerNamespace` and `listNamespaces` for multi-repo conflict
+  detection. `registerNamespace` writes a `.namespace.json` manifest to
+  `{namespace}/.namespace.json` in the bucket, with check-then-write
+  conflict detection (a second repo with a different `repoId` is
+  rejected). `listNamespaces` scans the bucket for all registered
+  namespace manifests and returns the namespace slugs.
 - **Fast path** — a `.datastore-sync-state.json` sidecar (v2) records the
   remote index's GCS `generation` from the last verified-clean sync,
   along with dirty paths and bulk-invalidation state.

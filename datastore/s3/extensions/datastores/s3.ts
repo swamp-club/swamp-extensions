@@ -1,5 +1,5 @@
 // Swamp, an Automation Framework
-// Copyright (C) 2026 System Initiative, Inc.
+// Copyright (C) 2026 Elder Swamp Club, Inc.
 //
 // This file is part of Swamp.
 //
@@ -146,6 +146,57 @@ class S3DatastoreProviderImpl implements DatastoreProvider {
   resolveCachePath(_repoDir: string): string | undefined {
     // Let swamp core determine the cache path based on repoId.
     return undefined;
+  }
+
+  async registerNamespace(
+    _datastorePath: string,
+    namespace: string,
+    repoId: string,
+  ): Promise<void> {
+    const s3 = new S3Client(this.config);
+    const key = `${namespace}/.namespace.json`;
+    const manifest = JSON.stringify(
+      { namespace, repoId, registeredAt: new Date().toISOString() },
+      null,
+      2,
+    );
+    const body = new TextEncoder().encode(manifest);
+
+    // Atomic first-writer-wins: putObjectConditional uses If-None-Match: *
+    const created = await s3.putObjectConditional(key, body);
+    if (created) return;
+
+    // Object already exists — check if it belongs to this repo
+    const { data } = await s3.getObject(key);
+    const text = new TextDecoder().decode(data);
+    const existing = JSON.parse(text) as {
+      namespace: string;
+      repoId: string;
+      registeredAt: string;
+    };
+    if (existing.repoId !== repoId) {
+      throw new Error(
+        `Namespace "${namespace}" is already registered by repo ${existing.repoId}`,
+      );
+    }
+    // Same repoId — idempotent re-registration, update timestamp
+    await s3.putObject(key, body);
+  }
+
+  async listNamespaces(_datastorePath: string): Promise<string[]> {
+    const s3 = new S3Client(this.config);
+    const entries = await s3.listAllObjects();
+    const namespaces: string[] = [];
+    for (const entry of entries) {
+      if (entry.key.endsWith("/.namespace.json")) {
+        const ns = entry.key.slice(
+          0,
+          entry.key.length - "/.namespace.json".length,
+        );
+        if (ns) namespaces.push(ns);
+      }
+    }
+    return namespaces;
   }
 }
 
