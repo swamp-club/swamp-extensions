@@ -34,7 +34,7 @@ const PredictiveConfigSchema = z.object({
 });
 
 const TimeoutConfigSchema = z.object({
-  DurationInSeconds: z.number().int().min(10).max(300).describe(
+  DurationInSeconds: z.number().int().min(1).max(300).describe(
     "Timeout duration for a preview contact in seconds",
   ).optional(),
 });
@@ -132,7 +132,7 @@ const EmailOutboundConfigSchema = z.object({
   ConnectSourceEmailAddress: z.string().min(1).max(255).regex(
     new RegExp("^[\\w-\\.\\+]+@([\\w-]+\\.)+[\\w-]{2,4}$"),
   ).describe("Email address used for Email messages"),
-  SourceEmailAddressDisplayName: z.string().min(1).max(127).describe(
+  SourceEmailAddressDisplayName: z.string().min(0).max(256).describe(
     "The name of the source email address display name",
   ).optional(),
   WisdomTemplateArn: z.string().min(20).max(500).regex(new RegExp("^arn:.*$"))
@@ -298,7 +298,9 @@ const GlobalArgsSchema = z.object({
       "Timestamp with no UTC offset or timezone",
     ),
     RefreshFrequency: z.string().min(0).max(50).regex(
-      new RegExp("^[a-zA-Z0-9.]*$"),
+      new RegExp(
+        "^P(?:([-+]?[0-9]+)D)?(T(?:([-+]?[0-9]+)H)?(?:([-+]?[0-9]+)M)?(?:([-+]?[0-9]+)(?:[.,]([0-9]{0,9}))?S)?)?$",
+      ),
     ).describe("Time duration in ISO 8601 format").optional(),
   }).describe("Campaign schedule").optional(),
   CommunicationTimeConfig: z.object({
@@ -323,7 +325,9 @@ const GlobalArgsSchema = z.object({
       "Maximum number of entries per participant. 0 indicates unlimited entries.",
     ),
     MinEntryInterval: z.string().min(0).max(50).regex(
-      new RegExp("^[a-zA-Z0-9.]*$"),
+      new RegExp(
+        "^P(?:([-+]?[0-9]+)D)?(T(?:([-+]?[0-9]+)H)?(?:([-+]?[0-9]+)M)?(?:([-+]?[0-9]+)(?:[.,]([0-9]{0,9}))?S)?)?$",
+      ),
     ).describe(
       "Minimum time interval between entries for the same participant in ISO 8601 duration format",
     ),
@@ -412,7 +416,9 @@ const InputsSchema = z.object({
       "Timestamp with no UTC offset or timezone",
     ).optional(),
     RefreshFrequency: z.string().min(0).max(50).regex(
-      new RegExp("^[a-zA-Z0-9.]*$"),
+      new RegExp(
+        "^P(?:([-+]?[0-9]+)D)?(T(?:([-+]?[0-9]+)H)?(?:([-+]?[0-9]+)M)?(?:([-+]?[0-9]+)(?:[.,]([0-9]{0,9}))?S)?)?$",
+      ),
     ).describe("Time duration in ISO 8601 format").optional(),
   }).describe("Campaign schedule").optional(),
   CommunicationTimeConfig: z.object({
@@ -437,7 +443,9 @@ const InputsSchema = z.object({
       "Maximum number of entries per participant. 0 indicates unlimited entries.",
     ).optional(),
     MinEntryInterval: z.string().min(0).max(50).regex(
-      new RegExp("^[a-zA-Z0-9.]*$"),
+      new RegExp(
+        "^P(?:([-+]?[0-9]+)D)?(T(?:([-+]?[0-9]+)H)?(?:([-+]?[0-9]+)M)?(?:([-+]?[0-9]+)(?:[.,]([0-9]{0,9}))?S)?)?$",
+      ),
     ).describe(
       "Minimum time interval between entries for the same participant in ISO 8601 duration format",
     ).optional(),
@@ -448,7 +456,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for ConnectCampaignsV2 Campaign. Registered at `@swamp/aws/connectcampaignsv2/campaign`. */
 export const model = {
   type: "@swamp/aws/connectcampaignsv2/campaign",
-  version: "2026.06.03.1",
+  version: "2026.06.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -487,6 +495,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

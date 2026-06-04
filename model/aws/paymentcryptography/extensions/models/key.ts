@@ -1,7 +1,7 @@
 // Auto-generated extension model for @swamp/aws/paymentcryptography/key
 // Do not edit manually. Re-generate with: deno task generate:aws
 
-// deno-lint-ignore-file no-explicit-any
+// deno-lint-ignore-file no-explicit-any no-control-regex
 
 /**
  * Swamp extension model for PaymentCryptography Key (AWS::PaymentCryptography::Key).
@@ -119,6 +119,9 @@ const GlobalArgsSchema = z.object({
   }),
   KeyCheckValueAlgorithm: z.enum(["CMAC", "ANSI_X9_24", "HMAC", "SHA_1"])
     .optional(),
+  Policy: z.string().min(1).max(20480).regex(
+    new RegExp("^[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+$"),
+  ).optional(),
   ReplicationRegions: z.array(
     z.string().regex(new RegExp("^[a-z]{2}-[a-z]{1,16}-[0-9]+$")),
   ).optional(),
@@ -139,6 +142,7 @@ const StateSchema = z.object({
   KeyIdentifier: z.string(),
   KeyOrigin: z.string().optional(),
   KeyState: z.string().optional(),
+  Policy: z.string().optional(),
   ReplicationRegions: z.array(z.string()).optional(),
   ReplicationStatus: z.record(z.string(), z.unknown()).optional(),
   Tags: z.array(TagSchema).optional(),
@@ -225,6 +229,9 @@ const InputsSchema = z.object({
   }).optional(),
   KeyCheckValueAlgorithm: z.enum(["CMAC", "ANSI_X9_24", "HMAC", "SHA_1"])
     .optional(),
+  Policy: z.string().min(1).max(20480).regex(
+    new RegExp("^[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+$"),
+  ).optional(),
   ReplicationRegions: z.array(
     z.string().regex(new RegExp("^[a-z]{2}-[a-z]{1,16}-[0-9]+$")),
   ).optional(),
@@ -234,7 +241,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for PaymentCryptography Key. Registered at `@swamp/aws/paymentcryptography/key`. */
 export const model = {
   type: "@swamp/aws/paymentcryptography/key",
-  version: "2026.04.23.2",
+  version: "2026.06.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -259,6 +266,11 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.04.1",
+      description: "Added: Policy",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

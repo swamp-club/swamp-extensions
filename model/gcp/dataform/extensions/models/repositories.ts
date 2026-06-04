@@ -150,6 +150,9 @@ const GlobalArgsSchema = z.object({
     effectiveDefaultBranch: z.string().describe(
       "Output only. The Git remote's effective default branch name. This is the default branch name of the Git remote if it is set, otherwise it is `main`.",
     ).optional(),
+    gitRepositoryLink: z.string().describe(
+      "Optional. Resource name for the GitRepositoryLink used for machine credentials. Must be in the format `projects/*/locations/*/connections/*/gitRepositoryLinks/*`",
+    ).optional(),
     sshAuthenticationConfig: z.object({
       hostPublicKey: z.string().describe(
         "Required. Content of a public SSH key to verify an identity of a remote Git host.",
@@ -216,6 +219,7 @@ const StateSchema = z.object({
     authenticationTokenSecretVersion: z.string(),
     defaultBranch: z.string(),
     effectiveDefaultBranch: z.string(),
+    gitRepositoryLink: z.string(),
     sshAuthenticationConfig: z.object({
       hostPublicKey: z.string(),
       userPrivateKeySecretVersion: z.string(),
@@ -261,6 +265,9 @@ const InputsSchema = z.object({
     ).optional(),
     effectiveDefaultBranch: z.string().describe(
       "Output only. The Git remote's effective default branch name. This is the default branch name of the Git remote if it is set, otherwise it is `main`.",
+    ).optional(),
+    gitRepositoryLink: z.string().describe(
+      "Optional. Resource name for the GitRepositoryLink used for machine credentials. Must be in the format `projects/*/locations/*/connections/*/gitRepositoryLinks/*`",
     ).optional(),
     sshAuthenticationConfig: z.object({
       hostPublicKey: z.string().describe(
@@ -320,7 +327,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Dataform Repositories. Registered at `@swamp/gcp/dataform/repositories`. */
 export const model = {
   type: "@swamp/gcp/dataform/repositories",
-  version: "2026.05.26.1",
+  version: "2026.06.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -404,6 +411,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

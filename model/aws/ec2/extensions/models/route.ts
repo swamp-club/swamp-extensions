@@ -65,6 +65,7 @@ const GlobalArgsSchema = z.object({
   VpcPeeringConnectionId: z.string().describe(
     "The ID of a VPC peering connection.",
   ).optional(),
+  OdbNetworkArn: z.string().optional(),
 });
 
 const StateSchema = z.object({
@@ -84,6 +85,7 @@ const StateSchema = z.object({
   TransitGatewayId: z.string().optional(),
   VpcEndpointId: z.string().optional(),
   VpcPeeringConnectionId: z.string().optional(),
+  OdbNetworkArn: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -131,12 +133,13 @@ const InputsSchema = z.object({
   VpcPeeringConnectionId: z.string().describe(
     "The ID of a VPC peering connection.",
   ).optional(),
+  OdbNetworkArn: z.string().optional(),
 });
 
 /** Swamp extension model for EC2 Route. Registered at `@swamp/aws/ec2/route`. */
 export const model = {
   type: "@swamp/aws/ec2/route",
-  version: "2026.04.23.2",
+  version: "2026.06.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -161,6 +164,11 @@ export const model = {
     {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.04.1",
+      description: "Added: OdbNetworkArn",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

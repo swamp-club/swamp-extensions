@@ -100,6 +100,11 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "An object specifying whether the RDMA shared device plugin should be enabled in the Kubernetes cluster.",
   ).optional(),
+  coredns_autoscaler: z.object({
+    enabled: z.boolean().optional(),
+  }).describe(
+    "An object specifying whether the Cluster Proportional Autoscaler (CPA) add-on for CoreDNS should be enabled for the Kubernetes cluster.",
+  ).optional(),
   region: z.enum([
     "nyc1",
     "sfo1",
@@ -253,6 +258,9 @@ const ResourceSchema = z.object({
   rdma_shared_dev_plugin: z.object({
     enabled: z.boolean().optional(),
   }).nullable().optional(),
+  coredns_autoscaler: z.object({
+    enabled: z.boolean().optional(),
+  }).nullable().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -306,6 +314,9 @@ const InputsSchema = z.object({
     enabled: z.boolean().optional(),
   }).optional(),
   rdma_shared_dev_plugin: z.object({
+    enabled: z.boolean().optional(),
+  }).optional(),
+  coredns_autoscaler: z.object({
     enabled: z.boolean().optional(),
   }).optional(),
   region: z.enum([
@@ -364,7 +375,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean kubernetes cluster. Registered at `@swamp/digitalocean/kubernetes-cluster`. */
 export const model = {
   type: "@swamp/digitalocean/kubernetes-cluster",
-  version: "2026.05.29.1",
+  version: "2026.06.04.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -419,6 +430,11 @@ export const model = {
     {
       toVersion: "2026.05.29.1",
       description: "Added: token",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.04.1",
+      description: "Added: coredns_autoscaler",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -506,6 +522,9 @@ export const model = {
         }
         if (g.rdma_shared_dev_plugin !== undefined) {
           body.rdma_shared_dev_plugin = g.rdma_shared_dev_plugin;
+        }
+        if (g.coredns_autoscaler !== undefined) {
+          body.coredns_autoscaler = g.coredns_autoscaler;
         }
         let result = await create(
           "/v2/kubernetes/clusters",
@@ -610,6 +629,9 @@ export const model = {
         }
         if (g.rdma_shared_dev_plugin !== undefined) {
           body.rdma_shared_dev_plugin = g.rdma_shared_dev_plugin;
+        }
+        if (g.coredns_autoscaler !== undefined) {
+          body.coredns_autoscaler = g.coredns_autoscaler;
         }
         let result = await update(
           "/v2/kubernetes/clusters",

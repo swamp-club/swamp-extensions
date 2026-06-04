@@ -445,6 +445,12 @@ const GlobalArgsSchema = z.object({
       "Required. GPU accelerator type to attach to an instance.",
     ).optional(),
   }).describe("Hardware constraints configuration.").optional(),
+  restartPolicy: z.enum([
+    "RESTART_POLICY_UNSPECIFIED",
+    "ALWAYS",
+    "ON_FAILURE",
+    "NEVER",
+  ]).describe("Optional. Restart policy for the Instance.").optional(),
   serviceAccount: z.string().optional(),
   terminalCondition: z.object({
     executionReason: z.enum([
@@ -757,6 +763,7 @@ const StateSchema = z.object({
   }).optional(),
   observedGeneration: z.string().optional(),
   reconciling: z.boolean().optional(),
+  restartPolicy: z.string().optional(),
   satisfiesPzs: z.boolean().optional(),
   serviceAccount: z.string().optional(),
   terminalCondition: z.object({
@@ -1122,6 +1129,12 @@ const InputsSchema = z.object({
       "Required. GPU accelerator type to attach to an instance.",
     ).optional(),
   }).describe("Hardware constraints configuration.").optional(),
+  restartPolicy: z.enum([
+    "RESTART_POLICY_UNSPECIFIED",
+    "ALWAYS",
+    "ON_FAILURE",
+    "NEVER",
+  ]).describe("Optional. Restart policy for the Instance.").optional(),
   serviceAccount: z.string().optional(),
   terminalCondition: z.object({
     executionReason: z.enum([
@@ -1291,7 +1304,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Run Admin Instances. Registered at `@swamp/gcp/run/instances`. */
 export const model = {
   type: "@swamp/gcp/run/instances",
-  version: "2026.05.27.1",
+  version: "2026.06.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1405,6 +1418,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.06.04.1",
+      description: "Added: restartPolicy",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1472,6 +1490,9 @@ export const model = {
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["nodeSelector"] !== undefined) {
           body["nodeSelector"] = g["nodeSelector"];
+        }
+        if (g["restartPolicy"] !== undefined) {
+          body["restartPolicy"] = g["restartPolicy"];
         }
         if (g["serviceAccount"] !== undefined) {
           body["serviceAccount"] = g["serviceAccount"];
@@ -1614,6 +1635,9 @@ export const model = {
         }
         if (g["nodeSelector"] !== undefined) {
           body["nodeSelector"] = g["nodeSelector"];
+        }
+        if (g["restartPolicy"] !== undefined) {
+          body["restartPolicy"] = g["restartPolicy"];
         }
         if (g["serviceAccount"] !== undefined) {
           body["serviceAccount"] = g["serviceAccount"];

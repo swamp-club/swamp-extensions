@@ -45,6 +45,9 @@ const GlobalArgsSchema = z.object({
   StandbyReplicas: z.enum(["ENABLED", "DISABLED"]).describe(
     "The possible standby replicas for the collection",
   ).optional(),
+  DeletionProtection: z.enum(["ENABLED", "DISABLED"]).describe(
+    "The deletion protection state of the collection",
+  ).optional(),
   CollectionGroupName: z.string().describe(
     "The name of the collection group to associate with the collection.",
   ).optional(),
@@ -72,6 +75,7 @@ const StateSchema = z.object({
   DashboardEndpoint: z.string().optional(),
   Type: z.string().optional(),
   StandbyReplicas: z.string().optional(),
+  DeletionProtection: z.string().optional(),
   CollectionGroupName: z.string().optional(),
   EncryptionConfig: z.object({
     AWSOwnedKey: z.boolean(),
@@ -106,6 +110,9 @@ const InputsSchema = z.object({
   StandbyReplicas: z.enum(["ENABLED", "DISABLED"]).describe(
     "The possible standby replicas for the collection",
   ).optional(),
+  DeletionProtection: z.enum(["ENABLED", "DISABLED"]).describe(
+    "The deletion protection state of the collection",
+  ).optional(),
   CollectionGroupName: z.string().describe(
     "The name of the collection group to associate with the collection.",
   ).optional(),
@@ -126,7 +133,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for OpenSearchServerless Collection. Registered at `@swamp/aws/opensearchserverless/collection`. */
 export const model = {
   type: "@swamp/aws/opensearchserverless/collection",
-  version: "2026.05.24.1",
+  version: "2026.06.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -161,6 +168,11 @@ export const model = {
     {
       toVersion: "2026.05.24.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.04.1",
+      description: "Added: DeletionProtection",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

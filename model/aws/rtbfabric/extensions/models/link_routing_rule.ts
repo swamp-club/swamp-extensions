@@ -1,10 +1,10 @@
-// Auto-generated extension model for @swamp/aws/bedrockagentcore/api-key-credential-provider
+// Auto-generated extension model for @swamp/aws/rtbfabric/link-routing-rule
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for BedrockAgentCore ApiKeyCredentialProvider (AWS::BedrockAgentCore::ApiKeyCredentialProvider).
+ * Swamp extension model for RTBFabric LinkRoutingRule (AWS::RTBFabric::LinkRoutingRule).
  *
  * Wraps the CloudFormation resource type as a swamp model so create,
  * get, update, delete, and sync can be driven through `swamp model`.
@@ -21,65 +21,81 @@ import {
   updateResource,
 } from "./_lib/aws.ts";
 
+const QueryStringKeyValuePairSchema = z.object({
+  Key: z.string().min(1).max(128).regex(new RegExp("^[A-Za-z0-9._~-]+$"))
+    .describe("Query string key — RFC 3986 unreserved characters."),
+  Value: z.string().min(1).max(128).regex(new RegExp("^[A-Za-z0-9._~-]+$"))
+    .describe("Query string value — RFC 3986 unreserved characters."),
+});
+
 const TagSchema = z.object({
-  Key: z.string().min(1).max(128).regex(
-    new RegExp("^[a-zA-Z0-9\\s._:/=+@-]*$"),
+  Key: z.string().min(1).max(128).describe(
+    "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
   ),
-  Value: z.string().min(0).max(256).regex(
-    new RegExp("^[a-zA-Z0-9\\s._:/=+@-]*$"),
-  ),
+  Value: z.string().min(0).max(256).describe(
+    "The value for the tag. You can specify a value that is 0 to 256 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
+  ).optional(),
 });
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  Name: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9\\-_]+$"))
-    .describe("The name of the API key credential provider"),
-  ApiKey: z.string().min(1).max(65536).describe(
-    "The API key to use for authentication",
-  ).optional(),
-  ApiKeySecretConfig: z.object({
-    SecretId: z.string().min(1).max(2048).describe(
-      "The ID or ARN of the secret in AWS Secrets Manager",
-    ),
-    JsonKey: z.string().min(1).max(128).describe(
-      "The JSON key within the secret that contains the credential value",
-    ),
+  GatewayId: z.string().regex(new RegExp("^rtb-gw-[a-z0-9-]{1,25}$")),
+  LinkId: z.string().regex(new RegExp("^link-[a-z0-9-]{1,25}$")),
+  Priority: z.number().int().min(1).max(1000),
+  Conditions: z.object({
+    HostHeader: z.string().min(1).max(255).regex(
+      new RegExp("^[A-Za-z0-9._~-]+$"),
+    ).describe(
+      "Exact host match — RFC 3986 unreserved characters. Mutually exclusive with HostHeaderWildcard.",
+    ).optional(),
+    HostHeaderWildcard: z.string().min(3).max(255).regex(
+      new RegExp("^[A-Za-z0-9._~*-]+$"),
+    ).describe(
+      "Wildcard host pattern (e.g., *.example.com) — RFC 3986 unreserved characters plus *. Mutually exclusive with HostHeader.",
+    ).optional(),
+    PathPrefix: z.string().min(1).max(128).regex(
+      new RegExp("^/[A-Za-z0-9._~/-]*$"),
+    ).describe(
+      "Path prefix matching — strict starts-with, must start with /. Mutually exclusive with PathExact.",
+    ).optional(),
+    PathExact: z.string().min(1).max(128).regex(
+      new RegExp("^/[A-Za-z0-9._~/-]*$"),
+    ).describe(
+      "Exact path match — must start with /. Mutually exclusive with PathPrefix.",
+    ).optional(),
+    QueryStringEquals: QueryStringKeyValuePairSchema.describe(
+      "Query string key=value pair match (single pair).",
+    ).optional(),
+    QueryStringExists: z.string().min(1).max(128).regex(
+      new RegExp("^[A-Za-z0-9._~-]+$"),
+    ).describe("Query string key presence check (any value accepted).")
+      .optional(),
   }).describe(
-    "Configuration for a customer-provided secret containing the API key",
-  ).optional(),
-  ApiKeySecretSource: z.enum(["MANAGED", "EXTERNAL"]).describe(
-    "The source of the API key secret. Use MANAGED for service-managed secrets or EXTERNAL for customer-provided secrets.",
-  ).optional(),
-  ApiKeySecretArn: z.object({
-    SecretArn: z.string().regex(
-      new RegExp(
-        "^arn:(aws|aws-us-gov):secretsmanager:[A-Za-z0-9-]{1,64}:[0-9]{12}:secret:[a-zA-Z0-9-_/+=.@!]+$",
-      ),
-    ).describe("The ARN of the secret in AWS Secrets Manager"),
-  }).describe("The ARN of the API key secret in AWS Secrets Manager")
+    "Conditions for a routing rule. All non-null fields must match (AND logic). At least one field must be set. HostHeader and HostHeaderWildcard are mutually exclusive. PathPrefix and PathExact are mutually exclusive.",
+  ),
+  Tags: z.array(TagSchema).describe("Tags to assign to the LinkRoutingRule.")
     .optional(),
-  Tags: z.array(TagSchema).describe(
-    "Tags to assign to the API key credential provider",
-  ).optional(),
 });
 
 const StateSchema = z.object({
-  Name: z.string().optional(),
-  ApiKey: z.string().optional(),
-  CredentialProviderArn: z.string(),
-  ApiKeySecretConfig: z.object({
-    SecretId: z.string(),
-    JsonKey: z.string(),
+  GatewayId: z.string().optional(),
+  LinkId: z.string().optional(),
+  RuleId: z.string().optional(),
+  Priority: z.number().optional(),
+  Conditions: z.object({
+    HostHeader: z.string(),
+    HostHeaderWildcard: z.string(),
+    PathPrefix: z.string(),
+    PathExact: z.string(),
+    QueryStringEquals: QueryStringKeyValuePairSchema,
+    QueryStringExists: z.string(),
   }).optional(),
-  ApiKeySecretSource: z.string().optional(),
-  ApiKeySecretArn: z.object({
-    SecretArn: z.string(),
-  }).optional(),
-  ApiKeySecretJsonKey: z.string().optional(),
-  CreatedTime: z.string().optional(),
-  LastUpdatedTime: z.string().optional(),
+  Status: z.string().optional(),
+  CreatedTimestamp: z.string().optional(),
+  UpdatedTimestamp: z.string().optional(),
+  Arn: z.string(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -87,73 +103,54 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
-  Name: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9\\-_]+$"))
-    .describe("The name of the API key credential provider").optional(),
-  ApiKey: z.string().min(1).max(65536).describe(
-    "The API key to use for authentication",
-  ).optional(),
-  ApiKeySecretConfig: z.object({
-    SecretId: z.string().min(1).max(2048).describe(
-      "The ID or ARN of the secret in AWS Secrets Manager",
-    ).optional(),
-    JsonKey: z.string().min(1).max(128).describe(
-      "The JSON key within the secret that contains the credential value",
-    ).optional(),
-  }).describe(
-    "Configuration for a customer-provided secret containing the API key",
-  ).optional(),
-  ApiKeySecretSource: z.enum(["MANAGED", "EXTERNAL"]).describe(
-    "The source of the API key secret. Use MANAGED for service-managed secrets or EXTERNAL for customer-provided secrets.",
-  ).optional(),
-  ApiKeySecretArn: z.object({
-    SecretArn: z.string().regex(
-      new RegExp(
-        "^arn:(aws|aws-us-gov):secretsmanager:[A-Za-z0-9-]{1,64}:[0-9]{12}:secret:[a-zA-Z0-9-_/+=.@!]+$",
-      ),
-    ).describe("The ARN of the secret in AWS Secrets Manager").optional(),
-  }).describe("The ARN of the API key secret in AWS Secrets Manager")
+  GatewayId: z.string().regex(new RegExp("^rtb-gw-[a-z0-9-]{1,25}$"))
     .optional(),
-  Tags: z.array(TagSchema).describe(
-    "Tags to assign to the API key credential provider",
+  LinkId: z.string().regex(new RegExp("^link-[a-z0-9-]{1,25}$")).optional(),
+  Priority: z.number().int().min(1).max(1000).optional(),
+  Conditions: z.object({
+    HostHeader: z.string().min(1).max(255).regex(
+      new RegExp("^[A-Za-z0-9._~-]+$"),
+    ).describe(
+      "Exact host match — RFC 3986 unreserved characters. Mutually exclusive with HostHeaderWildcard.",
+    ).optional(),
+    HostHeaderWildcard: z.string().min(3).max(255).regex(
+      new RegExp("^[A-Za-z0-9._~*-]+$"),
+    ).describe(
+      "Wildcard host pattern (e.g., *.example.com) — RFC 3986 unreserved characters plus *. Mutually exclusive with HostHeader.",
+    ).optional(),
+    PathPrefix: z.string().min(1).max(128).regex(
+      new RegExp("^/[A-Za-z0-9._~/-]*$"),
+    ).describe(
+      "Path prefix matching — strict starts-with, must start with /. Mutually exclusive with PathExact.",
+    ).optional(),
+    PathExact: z.string().min(1).max(128).regex(
+      new RegExp("^/[A-Za-z0-9._~/-]*$"),
+    ).describe(
+      "Exact path match — must start with /. Mutually exclusive with PathPrefix.",
+    ).optional(),
+    QueryStringEquals: QueryStringKeyValuePairSchema.describe(
+      "Query string key=value pair match (single pair).",
+    ).optional(),
+    QueryStringExists: z.string().min(1).max(128).regex(
+      new RegExp("^[A-Za-z0-9._~-]+$"),
+    ).describe("Query string key presence check (any value accepted).")
+      .optional(),
+  }).describe(
+    "Conditions for a routing rule. All non-null fields must match (AND logic). At least one field must be set. HostHeader and HostHeaderWildcard are mutually exclusive. PathPrefix and PathExact are mutually exclusive.",
   ).optional(),
+  Tags: z.array(TagSchema).describe("Tags to assign to the LinkRoutingRule.")
+    .optional(),
 });
 
-/** Swamp extension model for BedrockAgentCore ApiKeyCredentialProvider. Registered at `@swamp/aws/bedrockagentcore/api-key-credential-provider`. */
+/** Swamp extension model for RTBFabric LinkRoutingRule. Registered at `@swamp/aws/rtbfabric/link-routing-rule`. */
 export const model = {
-  type: "@swamp/aws/bedrockagentcore/api-key-credential-provider",
+  type: "@swamp/aws/rtbfabric/link-routing-rule",
   version: "2026.06.04.1",
-  upgrades: [
-    {
-      toVersion: "2026.04.03.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.3",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.04.1",
-      description: "Added: ApiKeySecretConfig, ApiKeySecretSource",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "BedrockAgentCore ApiKeyCredentialProvider resource state",
+      description: "RTBFabric LinkRoutingRule resource state",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -161,7 +158,7 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a BedrockAgentCore ApiKeyCredentialProvider",
+      description: "Create a RTBFabric LinkRoutingRule",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -171,7 +168,7 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await createResource(
-          "AWS::BedrockAgentCore::ApiKeyCredentialProvider",
+          "AWS::RTBFabric::LinkRoutingRule",
           desiredState,
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
@@ -187,15 +184,15 @@ export const model = {
       },
     },
     get: {
-      description: "Get a BedrockAgentCore ApiKeyCredentialProvider",
+      description: "Get a RTBFabric LinkRoutingRule",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the BedrockAgentCore ApiKeyCredentialProvider",
+          "The primary identifier of the RTBFabric LinkRoutingRule",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const result = await readResource(
-          "AWS::BedrockAgentCore::ApiKeyCredentialProvider",
+          "AWS::RTBFabric::LinkRoutingRule",
           args.identifier,
         ) as StateData;
         const instanceName =
@@ -212,7 +209,7 @@ export const model = {
       },
     },
     update: {
-      description: "Update a BedrockAgentCore ApiKeyCredentialProvider",
+      description: "Update a RTBFabric LinkRoutingRule",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -229,12 +226,12 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.CredentialProviderArn?.toString();
+        const identifier = existing.Arn?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         const currentState = await readResource(
-          "AWS::BedrockAgentCore::ApiKeyCredentialProvider",
+          "AWS::RTBFabric::LinkRoutingRule",
           identifier,
         ) as StateData;
         const desiredState: Record<string, unknown> = { ...currentState };
@@ -243,11 +240,10 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await updateResource(
-          "AWS::BedrockAgentCore::ApiKeyCredentialProvider",
+          "AWS::RTBFabric::LinkRoutingRule",
           identifier,
           currentState,
           desiredState,
-          ["Name"],
         );
         const handle = await context.writeResource(
           "state",
@@ -258,15 +254,15 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete a BedrockAgentCore ApiKeyCredentialProvider",
+      description: "Delete a RTBFabric LinkRoutingRule",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the BedrockAgentCore ApiKeyCredentialProvider",
+          "The primary identifier of the RTBFabric LinkRoutingRule",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const { existed } = await deleteResource(
-          "AWS::BedrockAgentCore::ApiKeyCredentialProvider",
+          "AWS::RTBFabric::LinkRoutingRule",
           args.identifier,
         );
         const instanceName =
@@ -284,8 +280,7 @@ export const model = {
       },
     },
     sync: {
-      description:
-        "Sync BedrockAgentCore ApiKeyCredentialProvider state from AWS",
+      description: "Sync RTBFabric LinkRoutingRule state from AWS",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -302,13 +297,13 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.CredentialProviderArn?.toString();
+        const identifier = existing.Arn?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         try {
           const result = await readResource(
-            "AWS::BedrockAgentCore::ApiKeyCredentialProvider",
+            "AWS::RTBFabric::LinkRoutingRule",
             identifier,
           ) as StateData;
           const handle = await context.writeResource(

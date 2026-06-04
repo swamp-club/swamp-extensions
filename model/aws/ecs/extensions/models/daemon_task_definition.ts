@@ -305,6 +305,7 @@ const GlobalArgsSchema = z.object({
   TaskRoleArn: z.string().describe(
     "The short name or full Amazon Resource Name (ARN) of the IAM role that grants containers in the daemon task permission to call Amazon Web Services APIs on your behalf.",
   ).optional(),
+  IpcMode: z.string().optional(),
   Volumes: z.array(VolumeSchema).describe(
     "The list of data volume definitions for the daemon task.",
   ).optional(),
@@ -319,6 +320,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Cpu: z.string().describe("The number of CPU units used by the daemon task.")
     .optional(),
+  PidMode: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -326,11 +328,13 @@ const StateSchema = z.object({
   ExecutionRoleArn: z.string().optional(),
   TaskRoleArn: z.string().optional(),
   DaemonTaskDefinitionArn: z.string(),
+  IpcMode: z.string().optional(),
   Volumes: z.array(VolumeSchema).optional(),
   Memory: z.string().optional(),
   ContainerDefinitions: z.array(DaemonContainerDefinitionSchema).optional(),
   Family: z.string().optional(),
   Cpu: z.string().optional(),
+  PidMode: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -344,6 +348,7 @@ const InputsSchema = z.object({
   TaskRoleArn: z.string().describe(
     "The short name or full Amazon Resource Name (ARN) of the IAM role that grants containers in the daemon task permission to call Amazon Web Services APIs on your behalf.",
   ).optional(),
+  IpcMode: z.string().optional(),
   Volumes: z.array(VolumeSchema).describe(
     "The list of data volume definitions for the daemon task.",
   ).optional(),
@@ -358,13 +363,14 @@ const InputsSchema = z.object({
   ).optional(),
   Cpu: z.string().describe("The number of CPU units used by the daemon task.")
     .optional(),
+  PidMode: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
 /** Swamp extension model for ECS DaemonTaskDefinition. Registered at `@swamp/aws/ecs/daemon-task-definition`. */
 export const model = {
   type: "@swamp/aws/ecs/daemon-task-definition",
-  version: "2026.05.14.1",
+  version: "2026.06.04.1",
   upgrades: [
     {
       toVersion: "2026.04.03.2",
@@ -394,6 +400,11 @@ export const model = {
     {
       toVersion: "2026.05.14.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.04.1",
+      description: "Added: IpcMode, PidMode",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -503,6 +514,8 @@ export const model = {
             "ExecutionRoleArn",
             "TaskRoleArn",
             "Volumes",
+            "PidMode",
+            "IpcMode",
           ],
         );
         const handle = await context.writeResource(

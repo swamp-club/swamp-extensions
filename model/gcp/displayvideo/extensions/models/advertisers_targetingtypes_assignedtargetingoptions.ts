@@ -322,6 +322,10 @@ const GlobalArgsSchema = z.object({
       "AUDIO_CONTENT_TYPE_MUSIC",
       "AUDIO_CONTENT_TYPE_BROADCAST",
       "AUDIO_CONTENT_TYPE_PODCAST",
+      "AUDIO_CONTENT_TYPE_CATCH_UP_RADIO",
+      "AUDIO_CONTENT_TYPE_WEB_RADIO",
+      "AUDIO_CONTENT_TYPE_VIDEO_GAME",
+      "AUDIO_CONTENT_TYPE_TEXT_TO_SPEECH",
     ]).describe("Required. The audio content type.").optional(),
   }).describe(
     "Details for audio content type assigned targeting option. This will be populated in the audio_content_type_details field when targeting_type is `TARGETING_TYPE_AUDIO_CONTENT_TYPE`. Explicitly targeting all options is not supported. Remove all audio content type targeting options to achieve this effect.",
@@ -1984,6 +1988,10 @@ const InputsSchema = z.object({
       "AUDIO_CONTENT_TYPE_MUSIC",
       "AUDIO_CONTENT_TYPE_BROADCAST",
       "AUDIO_CONTENT_TYPE_PODCAST",
+      "AUDIO_CONTENT_TYPE_CATCH_UP_RADIO",
+      "AUDIO_CONTENT_TYPE_WEB_RADIO",
+      "AUDIO_CONTENT_TYPE_VIDEO_GAME",
+      "AUDIO_CONTENT_TYPE_TEXT_TO_SPEECH",
     ]).describe("Required. The audio content type.").optional(),
   }).describe(
     "Details for audio content type assigned targeting option. This will be populated in the audio_content_type_details field when targeting_type is `TARGETING_TYPE_AUDIO_CONTENT_TYPE`. Explicitly targeting all options is not supported. Remove all audio content type targeting options to achieve this effect.",
@@ -3163,7 +3171,7 @@ const InputsSchema = z.object({
 export const model = {
   type:
     "@swamp/gcp/displayvideo/advertisers-targetingtypes-assignedtargetingoptions",
-  version: "2026.05.26.1",
+  version: "2026.06.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3257,6 +3265,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

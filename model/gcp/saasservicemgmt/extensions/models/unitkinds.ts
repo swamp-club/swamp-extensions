@@ -244,6 +244,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   annotations: z.record(z.string(), z.unknown()).optional(),
+  boundaryType: z.string().optional(),
   createTime: z.string().optional(),
   defaultFlagRevisions: z.array(z.string()).optional(),
   defaultRelease: z.string().optional(),
@@ -384,7 +385,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud App Lifecycle Manager UnitKinds. Registered at `@swamp/gcp/saasservicemgmt/unitkinds`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/unitkinds",
-  version: "2026.05.26.1",
+  version: "2026.06.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -478,6 +479,11 @@ export const model = {
     {
       toVersion: "2026.05.26.1",
       description: "Added: defaultFlagRevisions",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.04.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

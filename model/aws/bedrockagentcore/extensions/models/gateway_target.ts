@@ -68,6 +68,20 @@ const CredentialProviderConfigurationSchema = z.object({
   }).optional(),
 });
 
+const ManagedVpcResourceSchema = z.object({
+  VpcIdentifier: z.string().regex(
+    new RegExp("^vpc-(([0-9a-z]{8})|([0-9a-z]{17}))$"),
+  ),
+  SubnetIds: z.array(
+    z.string().regex(new RegExp("^subnet-[0-9a-zA-Z]{8,17}$")),
+  ),
+  EndpointIpAddressType: z.enum(["IPV4", "IPV6"]),
+  SecurityGroupIds: z.array(
+    z.string().regex(new RegExp("^sg-(([0-9a-z]{8})|([0-9a-z]{17}))$")),
+  ).optional(),
+  RoutingDomain: z.string().min(3).max(255).optional(),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -85,6 +99,16 @@ const GlobalArgsSchema = z.object({
     AllowedResponseHeaders: z.array(z.string()).optional(),
   }).optional(),
   Name: z.string().regex(new RegExp("^([0-9a-zA-Z][-]?){1,100}$")),
+  PrivateEndpoint: z.object({
+    SelfManagedLatticeResource: z.object({
+      ResourceConfigurationIdentifier: z.string().min(20).max(2048).regex(
+        new RegExp(
+          "^((rcfg-[0-9a-z]{17})|(arn:[a-z0-9\\-]+:vpc-lattice:[a-zA-Z0-9\\-]+:\\d{12}:resourceconfiguration/rcfg-[0-9a-z]{17}))$",
+        ),
+      ).optional(),
+    }).optional(),
+    ManagedVpcResource: ManagedVpcResourceSchema.optional(),
+  }).optional(),
 });
 
 const StateSchema = z.object({
@@ -108,6 +132,17 @@ const StateSchema = z.object({
     AllowedResponseHeaders: z.array(z.string()),
   }).optional(),
   Name: z.string().optional(),
+  PrivateEndpoint: z.object({
+    SelfManagedLatticeResource: z.object({
+      ResourceConfigurationIdentifier: z.string(),
+    }),
+    ManagedVpcResource: ManagedVpcResourceSchema,
+  }).optional(),
+  PrivateEndpointManagedResources: z.array(z.object({
+    Domain: z.string(),
+    ResourceGatewayArn: z.string(),
+    ResourceAssociationArn: z.string(),
+  })).optional(),
   Status: z.string().optional(),
   StatusReasons: z.array(z.string()).optional(),
   TargetId: z.string(),
@@ -132,12 +167,22 @@ const InputsSchema = z.object({
     AllowedResponseHeaders: z.array(z.string()).optional(),
   }).optional(),
   Name: z.string().regex(new RegExp("^([0-9a-zA-Z][-]?){1,100}$")).optional(),
+  PrivateEndpoint: z.object({
+    SelfManagedLatticeResource: z.object({
+      ResourceConfigurationIdentifier: z.string().min(20).max(2048).regex(
+        new RegExp(
+          "^((rcfg-[0-9a-z]{17})|(arn:[a-z0-9\\-]+:vpc-lattice:[a-zA-Z0-9\\-]+:\\d{12}:resourceconfiguration/rcfg-[0-9a-z]{17}))$",
+        ),
+      ).optional(),
+    }).optional(),
+    ManagedVpcResource: ManagedVpcResourceSchema.optional(),
+  }).optional(),
 });
 
 /** Swamp extension model for BedrockAgentCore GatewayTarget. Registered at `@swamp/aws/bedrockagentcore/gateway-target`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/gateway-target",
-  version: "2026.06.03.1",
+  version: "2026.06.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -172,6 +217,11 @@ export const model = {
     {
       toVersion: "2026.06.03.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.04.1",
+      description: "Added: PrivateEndpoint",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -40,6 +40,15 @@ const Oauth2DiscoverySchema = z.object({
   ).optional(),
 });
 
+const SecretReferenceSchema = z.object({
+  SecretId: z.string().min(1).max(2048).describe(
+    "The ID or ARN of the secret in AWS Secrets Manager",
+  ),
+  JsonKey: z.string().min(1).max(128).describe(
+    "The JSON key within the secret that contains the credential value",
+  ),
+});
+
 const TokenExchangeGrantTypeConfigSchema = z.object({
   ActorTokenContent: z.enum(["NONE", "M2M", "AWS_IAM_ID_TOKEN_JWT"]).describe(
     "The actor token content type",
@@ -68,6 +77,9 @@ const CustomOauth2ProviderConfigInputSchema = z.object({
   ClientSecret: z.string().min(1).max(2048).describe(
     "The client secret for the custom OAuth2 provider",
   ).optional(),
+  ClientSecretConfig: SecretReferenceSchema.describe(
+    "A reference to a customer-provided secret stored in AWS Secrets Manager",
+  ).optional(),
   OnBehalfOfTokenExchangeConfig: OnBehalfOfTokenExchangeConfigSchema.describe(
     "Configuration for on-behalf-of token exchange",
   ).optional(),
@@ -75,27 +87,42 @@ const CustomOauth2ProviderConfigInputSchema = z.object({
 
 const GoogleOauth2ProviderConfigInputSchema = z.object({
   ClientId: z.string().min(1).max(256),
-  ClientSecret: z.string().min(1).max(2048),
+  ClientSecret: z.string().min(1).max(2048).optional(),
+  ClientSecretConfig: SecretReferenceSchema.describe(
+    "A reference to a customer-provided secret stored in AWS Secrets Manager",
+  ).optional(),
 });
 
 const GithubOauth2ProviderConfigInputSchema = z.object({
   ClientId: z.string().min(1).max(256),
-  ClientSecret: z.string().min(1).max(2048),
+  ClientSecret: z.string().min(1).max(2048).optional(),
+  ClientSecretConfig: SecretReferenceSchema.describe(
+    "A reference to a customer-provided secret stored in AWS Secrets Manager",
+  ).optional(),
 });
 
 const SlackOauth2ProviderConfigInputSchema = z.object({
   ClientId: z.string().min(1).max(256),
-  ClientSecret: z.string().min(1).max(2048),
+  ClientSecret: z.string().min(1).max(2048).optional(),
+  ClientSecretConfig: SecretReferenceSchema.describe(
+    "A reference to a customer-provided secret stored in AWS Secrets Manager",
+  ).optional(),
 });
 
 const SalesforceOauth2ProviderConfigInputSchema = z.object({
   ClientId: z.string().min(1).max(256),
-  ClientSecret: z.string().min(1).max(2048),
+  ClientSecret: z.string().min(1).max(2048).optional(),
+  ClientSecretConfig: SecretReferenceSchema.describe(
+    "A reference to a customer-provided secret stored in AWS Secrets Manager",
+  ).optional(),
 });
 
 const MicrosoftOauth2ProviderConfigInputSchema = z.object({
   ClientId: z.string().min(1).max(256),
-  ClientSecret: z.string().min(1).max(2048),
+  ClientSecret: z.string().min(1).max(2048).optional(),
+  ClientSecretConfig: SecretReferenceSchema.describe(
+    "A reference to a customer-provided secret stored in AWS Secrets Manager",
+  ).optional(),
   TenantId: z.string().min(1).max(2048).describe(
     "The Microsoft Entra ID tenant ID",
   ).optional(),
@@ -103,17 +130,26 @@ const MicrosoftOauth2ProviderConfigInputSchema = z.object({
 
 const AtlassianOauth2ProviderConfigInputSchema = z.object({
   ClientId: z.string().min(1).max(256),
-  ClientSecret: z.string().min(1).max(2048),
+  ClientSecret: z.string().min(1).max(2048).optional(),
+  ClientSecretConfig: SecretReferenceSchema.describe(
+    "A reference to a customer-provided secret stored in AWS Secrets Manager",
+  ).optional(),
 });
 
 const LinkedinOauth2ProviderConfigInputSchema = z.object({
   ClientId: z.string().min(1).max(256),
-  ClientSecret: z.string().min(1).max(2048),
+  ClientSecret: z.string().min(1).max(2048).optional(),
+  ClientSecretConfig: SecretReferenceSchema.describe(
+    "A reference to a customer-provided secret stored in AWS Secrets Manager",
+  ).optional(),
 });
 
 const IncludedOauth2ProviderConfigInputSchema = z.object({
   ClientId: z.string().min(1).max(256),
-  ClientSecret: z.string().min(1).max(2048),
+  ClientSecret: z.string().min(1).max(2048).optional(),
+  ClientSecretConfig: SecretReferenceSchema.describe(
+    "A reference to a customer-provided secret stored in AWS Secrets Manager",
+  ).optional(),
   Issuer: z.string().describe(
     "Token issuer of your isolated OAuth2 application tenant",
   ).optional(),
@@ -236,6 +272,8 @@ const StateSchema = z.object({
   ClientSecretArn: z.object({
     SecretArn: z.string(),
   }).optional(),
+  ClientSecretJsonKey: z.string().optional(),
+  ClientSecretSource: z.string().optional(),
   CallbackUrl: z.string().optional(),
   Oauth2ProviderConfigOutput: z.object({
     OauthDiscovery: Oauth2DiscoverySchema,
@@ -334,7 +372,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for BedrockAgentCore OAuth2CredentialProvider. Registered at `@swamp/aws/bedrockagentcore/oauth2credential-provider`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/oauth2credential-provider",
-  version: "2026.05.09.1",
+  version: "2026.06.04.1",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
@@ -348,6 +386,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.09.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
