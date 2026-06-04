@@ -62,6 +62,57 @@ export const ContextInfoSchema = z.object({
   isCurrentContext: z.boolean(),
 }).passthrough();
 
+const TLS_ERROR_PATTERNS = [
+  "self-signed certificate",
+  "unable to verify the first certificate",
+  "certificate has expired",
+  "CERT_HAS_EXPIRED",
+  "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
+  "DEPTH_ZERO_SELF_SIGNED_CERT",
+  "ERR_TLS_CERT_ALTNAME_INVALID",
+];
+
+function isTlsError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return TLS_ERROR_PATTERNS.some((p) => msg.includes(p));
+}
+
+function wrapApiClient<T extends object>(
+  client: T,
+  clusterInfo: { server: string; context: string },
+): T {
+  const wrappedMethods = new Map<string | symbol, unknown>();
+  return new Proxy(client, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver);
+      if (typeof value !== "function") return value;
+      if (wrappedMethods.has(prop)) return wrappedMethods.get(prop);
+      const wrapped = (...args: unknown[]) => {
+        const result = value.apply(target, args);
+        if (result instanceof Promise) {
+          return result.catch((err: unknown) => {
+            if (isTlsError(err)) {
+              const orig = err instanceof Error ? err.message : String(err);
+              throw new Error(
+                `TLS verification failed for cluster "${clusterInfo.context}" ` +
+                  `(${clusterInfo.server}): ${orig}. ` +
+                  `Your kubeconfig credentials may be stale — the cluster CA ` +
+                  `may have rotated (e.g. cluster reprovisioned). Verify with: ` +
+                  `kubectl cluster-info --context "${clusterInfo.context}"`,
+                { cause: err },
+              );
+            }
+            throw err;
+          });
+        }
+        return result;
+      };
+      wrappedMethods.set(prop, wrapped);
+      return wrapped;
+    },
+  });
+}
+
 export function buildClient(globalArgs: K8sGlobalArgs) {
   const kc = new k8s.KubeConfig();
 
@@ -75,13 +126,41 @@ export function buildClient(globalArgs: K8sGlobalArgs) {
     kc.setCurrentContext(globalArgs.context);
   }
 
-  const coreApi = kc.makeApiClient(k8s.CoreV1Api);
-  const appsApi = kc.makeApiClient(k8s.AppsV1Api);
-  const batchApi = kc.makeApiClient(k8s.BatchV1Api);
-  const networkingApi = kc.makeApiClient(k8s.NetworkingV1Api);
-  const autoscalingApi = kc.makeApiClient(k8s.AutoscalingV2Api);
-  const rbacApi = kc.makeApiClient(k8s.RbacAuthorizationV1Api);
-  const metricsClient = new k8s.Metrics(kc);
+  const currentContext = kc.getCurrentContext();
+  const cluster = kc.getCurrentCluster();
+  const clusterInfo = {
+    server: cluster?.server ?? "unknown",
+    context: currentContext ?? "unknown",
+  };
+
+  const coreApi = wrapApiClient(
+    kc.makeApiClient(k8s.CoreV1Api),
+    clusterInfo,
+  );
+  const appsApi = wrapApiClient(
+    kc.makeApiClient(k8s.AppsV1Api),
+    clusterInfo,
+  );
+  const batchApi = wrapApiClient(
+    kc.makeApiClient(k8s.BatchV1Api),
+    clusterInfo,
+  );
+  const networkingApi = wrapApiClient(
+    kc.makeApiClient(k8s.NetworkingV1Api),
+    clusterInfo,
+  );
+  const autoscalingApi = wrapApiClient(
+    kc.makeApiClient(k8s.AutoscalingV2Api),
+    clusterInfo,
+  );
+  const rbacApi = wrapApiClient(
+    kc.makeApiClient(k8s.RbacAuthorizationV1Api),
+    clusterInfo,
+  );
+  const metricsClient = wrapApiClient(
+    new k8s.Metrics(kc),
+    clusterInfo,
+  );
 
   return {
     kc,

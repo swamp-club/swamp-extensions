@@ -164,7 +164,7 @@ function normalizeCronJob(raw: V1CronJob) {
 /** Kubernetes Job and CronJob model. */
 export const model = {
   type: "@swamp/kubernetes/job",
-  version: "2026.06.04.2",
+  version: "2026.06.05.1",
   globalArguments: K8sGlobalArgsSchema,
   upgrades: [
     {
@@ -183,6 +183,12 @@ export const model = {
       toVersion: "2026.06.04.2",
       description: "Version bump to publish missing upgrade entries from " +
         "2026.06.04.1. No code, schema, or behavior change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.05.1",
+      description: "Enrich TLS errors with cluster context and kubeconfig " +
+        "guidance when certificate verification fails.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

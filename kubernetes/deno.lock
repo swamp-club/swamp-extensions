@@ -1,6 +1,7 @@
 {
   "version": "5",
   "specifiers": {
+    "jsr:@std/assert@1": "1.0.19",
     "jsr:@std/assert@1.0.19": "1.0.19",
     "jsr:@std/internal@^1.0.12": "1.0.13",
     "jsr:@systeminit/swamp-testing@*": "0.20260521.16",
@@ -23,7 +24,7 @@
     "@systeminit/swamp-testing@0.20260521.16": {
       "integrity": "abf6bec3d7d367b158c7dc09ce292a906aec6d5ce575ced5572bae92d39b5b7f",
       "dependencies": [
-        "jsr:@std/assert",
+        "jsr:@std/assert@1.0.19",
         "npm:@marcbachmann/cel-js",
         "npm:zod@^4.3.6"
       ]

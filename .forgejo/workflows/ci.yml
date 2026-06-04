@@ -264,7 +264,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        task: [check, lint, fmt]
+        task: [check, lint, fmt, test]
     defaults:
       run:
         working-directory: kubernetes
@@ -279,6 +279,8 @@ jobs:
             deno fmt --check extensions/models/
           elif [ "${{ matrix.task }}" = "lint" ]; then
             deno lint extensions/models/
+          elif [ "${{ matrix.task }}" = "test" ]; then
+            deno test --allow-env --allow-net --allow-read --allow-write --allow-run=openssl --allow-sys extensions/models/
           else
             deno check extensions/models/*.ts
           fi
