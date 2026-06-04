@@ -103,6 +103,17 @@ Design documents explain each provider's schema-to-model mapping decisions:
 
 **Read the relevant design doc before modifying a provider's codegen pipeline.**
 
+## Pull Requests
+
+This repo is hosted on Forgejo at `git.swamp-club.com`. Use the `fgj` CLI
+(not `gh`) for all PR operations:
+
+```bash
+fgj pr create -R swamp-club/swamp-extensions -B main -H <branch> -t "title" -b "body"
+```
+
+Do not use `gh` — it targets GitHub, which is not the upstream for this repo.
+
 ## Publishing
 
 CI auto-publishes when `manifest.yaml` changes on main and the version is newer

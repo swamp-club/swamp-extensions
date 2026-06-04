@@ -171,7 +171,7 @@ function normalizeHpa(raw: V2HorizontalPodAutoscaler) {
 /** Kubernetes HorizontalPodAutoscaler model. */
 export const model = {
   type: "@swamp/kubernetes/hpa",
-  version: "2026.06.04.1",
+  version: "2026.06.04.2",
   globalArguments: K8sGlobalArgsSchema,
   upgrades: [
     {
@@ -184,6 +184,12 @@ export const model = {
       toVersion: "2026.06.04.1",
       description: "Copyright and branding update to Elder Swamp Club, Inc. " +
         "No code, schema, or behavior change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.04.2",
+      description: "Version bump to publish missing upgrade entries from " +
+        "2026.06.04.1. No code, schema, or behavior change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

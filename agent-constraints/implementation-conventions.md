@@ -137,8 +137,55 @@ the exact format the `issue-lifecycle` skill expects:
 - **Registry-publish fix**: "Verified locally: the validation that would
   have caught issue #<N> is now in place in `codegen/<provider>/<file>`
   and rejects the known-bad shape."
+- **Model version/upgrade change**: "Verified: instance at published
+  version `<old>` upgrades to `<new>` via `swamp extension source add`.
+  No version mismatch error on method run."
 - **Verification failed**: "Verification failed: <what still breaks>" —
   do not open a PR.
+
+## Upgrade Path Verification
+
+**Required when a change touches a model's `version` field or `upgrades`
+array.** Skip for brand-new extensions with no published version, and
+for vault/datastore extensions (they don't participate in the model
+upgrade system).
+
+Verify that an instance created at the currently published version can
+upgrade to the new version by stepping through the upgrade chain:
+
+```bash
+# 1. Set up a scratch swamp repo
+swamp init /tmp/upgrade-test --tool none --force
+
+# 2. Pull the currently published extension
+swamp extension pull @swamp/<extension>
+
+# 3. Create a model instance — this pins typeVersion to the published version
+swamp model create @swamp/<extension>/<type> upgrade-test
+
+# 4. Remove the registry extension so the local source takes precedence
+swamp extension rm @swamp/<extension> --force
+
+# 5. Add the local working copy as an extension source
+swamp extension source add <abs-path-to-extension-dir> --only models
+
+# 6. Run any method — the upgrade system applies the migration chain
+#    before method execution. If the upgrade entries are broken, this
+#    fails with "Last upgrade toVersion does not match model version".
+swamp model method run upgrade-test <method>
+
+# 7. Confirm typeVersion stepped to the new version
+swamp model get upgrade-test --json
+```
+
+The method in step 6 may fail for unrelated reasons (no cloud
+credentials, no kubectl, etc.) — that's fine. The upgrade validation
+runs before the method body. If step 6 does not produce a version
+mismatch error, the upgrade entries are correct.
+
+Issue #554 is the precedent: the branding commit bumped 20 model
+versions without adding upgrade entries, and the gap wasn't caught
+until users reported stuck models.
 
 ## Hard No List
 
@@ -175,8 +222,13 @@ Do not do any of these, regardless of apparent convenience:
 
 ## Creating PRs
 
-Use the `github-pr` skill to create pull requests. Before opening,
-confirm with the human that the change summary is correct.
+Use the `fgj` CLI to create pull requests (not `gh` — this repo is on
+Forgejo). Before opening, confirm with the human that the change
+summary is correct.
+
+```bash
+fgj pr create -R swamp-club/swamp-extensions -B main -H <branch> -t "title" -b "body"
+```
 
 After the PR is open, CI runs every job whose `paths-filter` matches:
 

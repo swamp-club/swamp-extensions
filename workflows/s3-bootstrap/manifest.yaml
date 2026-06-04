@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/s3-datastore-bootstrap"
-version: "2026.06.04.1"
+version: "2026.06.04.2"
 description: |
   One-shot bootstrap for @swamp/s3-datastore. Ships a single provisioner
   model that creates an S3 bucket and a least-privilege IAM managed policy,
