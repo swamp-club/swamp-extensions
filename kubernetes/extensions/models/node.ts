@@ -229,6 +229,12 @@ export const model = {
         "Version bump for extension-wide security fix in pod exec method",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.04.1",
+      description: "Copyright and branding update to Elder Swamp Club, Inc. " +
+        "No code, schema, or behavior change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     node: {

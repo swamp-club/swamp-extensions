@@ -33,6 +33,14 @@ export const model = {
   type: "@swamp/s3-datastore-bootstrap/provisioner",
   version: "2026.06.04.1",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.06.04.1",
+      description: "Copyright and branding update to Elder Swamp Club, Inc. " +
+        "No code, schema, or behavior change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     state: {
       description: "S3 bucket + IAM managed policy provisioned for swamp.",
