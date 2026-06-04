@@ -64,7 +64,7 @@ jobs:
           check_path kubernetes "kubernetes/"
           check_path workflows "workflows/"
           check_path cve "cve/"
-          check_path ci ".forgejo/workflows/" "scripts/"
+          check_path ci ".forgejo/workflows/" ".forgejo/prompts/" "scripts/"
 
   vault-check:
     name: vault/${{ matrix.vault }} - ${{ matrix.task }}
@@ -91,7 +91,7 @@ jobs:
           elif [ "${{ matrix.task }}" = "lint" ]; then
             deno lint extensions/vaults/
           elif [ "${{ matrix.task }}" = "test" ]; then
-            deno test --allow-env --allow-net --allow-sys extensions/vaults/
+            deno test --allow-env --allow-net --allow-sys --allow-read --allow-write extensions/vaults/
           else
             deno check extensions/vaults/*.ts
           fi

@@ -123,6 +123,35 @@ function createOpMock() {
     return JSON.stringify(item);
   }
 
+  function applyTemplateFields(
+    data: MockItemData,
+    template: Record<string, unknown>,
+  ): void {
+    const fields = template.fields as
+      | Array<Record<string, unknown>>
+      | undefined;
+    if (!fields) return;
+    for (const f of fields) {
+      const label = f.label as string;
+      const value = f.value as string;
+      const section = f.section as { id: string } | undefined;
+      if (section) {
+        const sectionLabel = (template.sections as
+          | Array<{ id: string; label: string }>
+          | undefined)
+          ?.find((s) => s.id === section.id)?.label ?? section.id;
+        if (!data.sectionFields.has(sectionLabel)) {
+          data.sectionFields.set(sectionLabel, new Map());
+        }
+        data.sectionFields.get(sectionLabel)!.set(label, value);
+      } else if (f.purpose === "NOTES") {
+        data.notes = value || undefined;
+      } else {
+        data.fields.set(label, value);
+      }
+    }
+  }
+
   return (cmd: string, args: string[]) => {
     if (cmd !== "op") {
       return { stdout: "", stderr: `unknown command: ${cmd}`, code: 1 };
@@ -168,6 +197,15 @@ function createOpMock() {
     }
 
     if (args[0] === "item" && args[1] === "create") {
+      const templateArg = args.find((a) => a.startsWith("--template="));
+      if (templateArg) {
+        const templatePath = templateArg.slice("--template=".length);
+        const template = JSON.parse(Deno.readTextFileSync(templatePath));
+        const title = template.title ?? "";
+        const data = ensureItem(title);
+        applyTemplateFields(data, template);
+        return { stdout: JSON.stringify({ title }), code: 0 };
+      }
       const titleIdx = args.indexOf("--title");
       const title = titleIdx >= 0 ? args[titleIdx + 1] : "";
       const fieldArg = args.find((a) => a.includes("=") && !a.startsWith("--"));
@@ -197,6 +235,14 @@ function createOpMock() {
         return { stdout: "", stderr: `item "${item}" not found`, code: 1 };
       }
       const data = items.get(item)!;
+
+      const templateArg = args.find((a) => a.startsWith("--template="));
+      if (templateArg) {
+        const templatePath = templateArg.slice("--template=".length);
+        const template = JSON.parse(Deno.readTextFileSync(templatePath));
+        applyTemplateFields(data, template);
+        return { stdout: "", code: 0 };
+      }
 
       for (let i = 3; i < args.length; i++) {
         const arg = args[i];
@@ -280,6 +326,38 @@ Deno.test("1password vault: get rejects for missing secret", async () => {
     });
     await assertRejects(() => provider.get("nonexistent"));
   });
+});
+
+Deno.test("1password vault: put round-trips JSON values without double-escaping", async () => {
+  const jsonValue =
+    '{"type":"service_account","project_id":"test","private_key":"-----BEGIN RSA PRIVATE KEY-----\\nMIIE...\\n-----END RSA PRIVATE KEY-----\\n"}';
+  const { result } = await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("gcp-creds", jsonValue);
+    return await provider.get("gcp-creds");
+  });
+
+  assertEquals(result, jsonValue);
+});
+
+Deno.test("1password vault: put via template preserves existing fields", async () => {
+  const { result } = await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("multi-field", "original-password");
+    await provider.put("multi-field/extra", "extra-value");
+    // Now update password with a JSON value (triggers template path)
+    await provider.put("multi-field", '{"updated":"true"}');
+    const password = await provider.get("multi-field");
+    const extra = await provider.get("multi-field/extra");
+    return { password, extra };
+  });
+
+  assertEquals(result.password, '{"updated":"true"}');
+  assertEquals(result.extra, "extra-value");
 });
 
 Deno.test("1password vault: put creates new item then updates", async () => {

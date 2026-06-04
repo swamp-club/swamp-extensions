@@ -232,6 +232,17 @@ class OnePasswordVaultProvider implements VaultProvider {
       );
     }
 
+    if (secretValue.includes('"')) {
+      await this.putViaTemplate(parsed, secretValue);
+    } else {
+      await this.putViaFieldAssignment(parsed, secretValue);
+    }
+  }
+
+  private async putViaFieldAssignment(
+    parsed: ParsedSecretKey,
+    secretValue: string,
+  ): Promise<void> {
     const editField = parsed.field.replace(/\//g, ".");
     const itemExists = await this.itemExists(parsed.item);
 
@@ -264,6 +275,137 @@ class OnePasswordVaultProvider implements VaultProvider {
         args.push("--account", this.opAccount);
       }
       await this.runOp(args);
+    }
+  }
+
+  private async putViaTemplate(
+    parsed: ParsedSecretKey,
+    secretValue: string,
+  ): Promise<void> {
+    const existingItem = await this.getItemJson(parsed.item);
+    const templatePath = Deno.makeTempFileSync({ suffix: ".json" });
+    try {
+      if (existingItem) {
+        const fields = existingItem.fields ?? [];
+        const editField = parsed.field.replace(/\//g, ".");
+        const dotIdx = editField.indexOf(".");
+        let found = false;
+
+        if (dotIdx >= 0) {
+          const sectionLabel = editField.slice(0, dotIdx);
+          const fieldLabel = editField.slice(dotIdx + 1);
+          let section = existingItem.sections?.find(
+            (s) => s.label === sectionLabel,
+          );
+          if (!section) {
+            const sectionId = `section-${sectionLabel}`;
+            section = { id: sectionId, label: sectionLabel };
+            existingItem.sections = existingItem.sections ?? [];
+            existingItem.sections.push(section);
+          }
+          for (const f of fields) {
+            if (f.section?.id === section.id && f.label === fieldLabel) {
+              f.value = secretValue;
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            fields.push({
+              id: `${section.id}-${fieldLabel}`,
+              type: "STRING",
+              label: fieldLabel,
+              value: secretValue,
+              section: { id: section.id },
+            });
+          }
+        } else {
+          for (const f of fields) {
+            if (f.label === editField) {
+              f.value = secretValue;
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            fields.push({
+              id: editField,
+              type: "STRING",
+              label: editField,
+              value: secretValue,
+            });
+          }
+        }
+
+        existingItem.fields = fields;
+        Deno.writeTextFileSync(templatePath, JSON.stringify(existingItem));
+
+        const args = [
+          "item",
+          "edit",
+          parsed.item,
+          `--template=${templatePath}`,
+          "--vault",
+          this.opVault,
+        ];
+        if (this.opAccount) {
+          args.push("--account", this.opAccount);
+        }
+        await this.runOp(args);
+      } else {
+        const editField = parsed.field.replace(/\//g, ".");
+        const dotIdx = editField.indexOf(".");
+        const fields: OpItemField[] = [];
+        const sections: Array<{ id: string; label: string }> = [];
+
+        if (dotIdx >= 0) {
+          const sectionLabel = editField.slice(0, dotIdx);
+          const fieldLabel = editField.slice(dotIdx + 1);
+          const sectionId = `section-${sectionLabel}`;
+          sections.push({ id: sectionId, label: sectionLabel });
+          fields.push({
+            id: `${sectionId}-${fieldLabel}`,
+            type: "STRING",
+            label: fieldLabel,
+            value: secretValue,
+            section: { id: sectionId },
+          });
+        } else {
+          fields.push({
+            id: editField,
+            type: "STRING",
+            label: editField,
+            value: secretValue,
+          });
+        }
+
+        const template = {
+          title: parsed.item,
+          category: "SECURE_NOTE",
+          sections,
+          fields,
+        };
+
+        Deno.writeTextFileSync(templatePath, JSON.stringify(template));
+
+        const args = [
+          "item",
+          "create",
+          `--template=${templatePath}`,
+          "--vault",
+          this.opVault,
+        ];
+        if (this.opAccount) {
+          args.push("--account", this.opAccount);
+        }
+        await this.runOp(args);
+      }
+    } finally {
+      try {
+        Deno.removeSync(templatePath);
+      } catch {
+        // Best-effort cleanup
+      }
     }
   }
 
