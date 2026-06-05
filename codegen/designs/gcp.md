@@ -60,14 +60,18 @@ Some APIs expose different resource sets across versions. The preferred version
 may lack resources needed for complete coverage. `ADDITIONAL_VERSIONS` maps API
 names to non-preferred versions that should also be fetched:
 
-| API   | Additional version | Resources included                  | Reason                                                         |
-| ----- | ------------------ | ----------------------------------- | -------------------------------------------------------------- |
-| `iam` | `v1`               | organizations/roles, projects/roles | v2 (preferred) only has Deny Policies; v1 has custom role CRUD |
+| API   | Additional version | Resources included                                                                                                            | Reason                                                                         |
+| ----- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `iam` | `v1`               | roles, serviceAccounts, keys, workforcePools, workloadIdentityPools, oauthClients, and their nested sub-resources (~14 total) | v2 (preferred) only has Deny Policies; v1 has the rest of the IAM surface area |
 
-During generation, resources from additional-version schemas are filtered by
-`ADDITIONAL_VERSION_RESOURCE_FILTER` to include only the specific resource paths
-needed. This prevents duplicating resources already covered by the preferred
-version or other APIs.
+During generation, resources from additional-version schemas can optionally be
+filtered by `ADDITIONAL_VERSION_RESOURCE_FILTER` to include only specific
+resource paths. APIs not listed in the filter pass all resources through. Scope
+deduplication (`deduplicateScopedResources`) handles merging
+projects/organizations/folders variants into a single model, so the filter is
+only needed when an additional version contains resources that genuinely
+conflict with the preferred version (not just scope variants). Currently no APIs
+require filtering.
 
 ### Skipped APIs
 

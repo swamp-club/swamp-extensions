@@ -44,16 +44,14 @@ const SKIP_APIS = new Set([
 // an additional version alongside the preferred one. The extra schema is saved
 // as `<name>-<version>.json` (e.g. `iam-v1.json`) and merged during generation.
 const ADDITIONAL_VERSIONS: Record<string, string[]> = {
-  iam: ["v1"], // v2 (preferred) only has Deny Policies; v1 has custom roles
+  iam: ["v1"], // v2 (preferred) only has Deny Policies; v1 has the rest of IAM
 };
 
 // When loading additional-version schemas, only include resources whose
 // post-deduplication path matches one of these entries. Scope prefixes
 // (projects/, organizations/) are already stripped by deduplicateScopedResources
-// before this filter applies.
-const ADDITIONAL_VERSION_RESOURCE_FILTER: Record<string, string[][]> = {
-  "iam-v1": [["roles"]],
-};
+// before this filter applies. APIs not listed here pass all resources through.
+const ADDITIONAL_VERSION_RESOURCE_FILTER: Record<string, string[][]> = {};
 
 // --- Public types ---
 
