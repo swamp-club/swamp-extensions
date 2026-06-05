@@ -1,10 +1,10 @@
-// Auto-generated extension model for @swamp/aws/connect/integration-association
+// Auto-generated extension model for @swamp/aws/bedrockagentcore/payment-manager
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Connect IntegrationAssociation (AWS::Connect::IntegrationAssociation).
+ * Swamp extension model for BedrockAgentCore PaymentManager (AWS::BedrockAgentCore::PaymentManager).
  *
  * Wraps the CloudFormation resource type as a swamp model so create,
  * get, update, delete, and sync can be driven through `swamp model`.
@@ -21,50 +21,87 @@ import {
   updateResource,
 } from "./_lib/aws.ts";
 
+const ClaimMatchValueTypeSchema = z.object({
+  MatchValueString: z.string().min(1).max(255).regex(
+    new RegExp("^[A-Za-z0-9_.-]+$"),
+  ).optional(),
+  MatchValueStringList: z.array(
+    z.string().min(1).max(255).regex(new RegExp("^[A-Za-z0-9_.-]+$")),
+  ).optional(),
+});
+
+const AuthorizingClaimMatchValueTypeSchema = z.object({
+  ClaimMatchValue: ClaimMatchValueTypeSchema,
+  ClaimMatchOperator: z.enum(["EQUALS", "CONTAINS", "CONTAINS_ANY"]),
+});
+
+const CustomClaimValidationTypeSchema = z.object({
+  InboundTokenClaimName: z.string().min(1).max(255).regex(
+    new RegExp("^[A-Za-z0-9_.:/-]+$"),
+  ),
+  InboundTokenClaimValueType: z.enum(["STRING", "STRING_ARRAY"]),
+  AuthorizingClaimMatchValue: AuthorizingClaimMatchValueTypeSchema,
+});
+
+const CustomJWTAuthorizerConfigurationSchema = z.object({
+  DiscoveryUrl: z.string().regex(
+    new RegExp("^.+/\\.well-known/openid-configuration$"),
+  ),
+  AllowedAudience: z.array(z.string()).optional(),
+  AllowedClients: z.array(z.string()).optional(),
+  AllowedScopes: z.array(
+    z.string().min(1).max(255).regex(
+      new RegExp("^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$"),
+    ),
+  ).optional(),
+  CustomClaims: z.array(CustomClaimValidationTypeSchema).optional(),
+});
+
 const TagSchema = z.object({
-  Key: z.string().min(1).max(128).regex(
-    new RegExp("^(?!aws:)[a-zA-Z+-=._:/]+$"),
-  ).describe("The key name of the tag."),
-  Value: z.string().min(0).max(256).describe("The value for the tag."),
+  Key: z.string().min(1).max(128),
+  Value: z.string().min(0).max(256),
 });
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  InstanceId: z.string().min(1).max(100).regex(
-    new RegExp(
-      "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
-    ),
-  ).describe("Amazon Connect instance identifier"),
-  IntegrationArn: z.string().min(1).max(140).describe(
-    "ARN of Integration being associated with the instance",
+  Name: z.string().regex(new RegExp("^[a-zA-Z][a-zA-Z0-9]{0,47}$")).describe(
+    "The name of the payment manager",
   ),
-  IntegrationType: z.enum([
-    "LEX_BOT",
-    "LAMBDA_FUNCTION",
-    "APPLICATION",
-    "CASES_DOMAIN",
-    "WISDOM_ASSISTANT",
-    "WISDOM_KNOWLEDGE_BASE",
-    "WISDOM_QUICK_RESPONSES",
-    "FILE_SCANNER",
-    "MESSAGE_PROCESSOR",
-    "Q_MESSAGE_TEMPLATES",
-    "SES_IDENTITY",
-  ]).describe(
-    "Specifies the integration type to be associated with the instance",
-  ),
-  Tags: z.array(TagSchema).describe(
-    "The tags used to organize, track, or control access for this resource.",
-  ).optional(),
+  Description: z.string().min(1).max(4096).regex(
+    new RegExp("^[a-zA-Z0-9\\s]+$"),
+  ).describe("A description of the payment manager").optional(),
+  AuthorizerType: z.enum(["CUSTOM_JWT", "AWS_IAM"]),
+  AuthorizerConfiguration: z.object({
+    CustomJWTAuthorizer: CustomJWTAuthorizerConfigurationSchema,
+  }).optional(),
+  RoleArn: z.string().min(1).max(2048).regex(
+    new RegExp("^arn:aws(-[^:]+)?:iam::([0-9]{12})?:role/.+$"),
+  ).describe("The ARN of the IAM role for the payment manager"),
+  WorkloadIdentityDetails: z.object({
+    WorkloadIdentityArn: z.string().min(1).max(1024),
+  }).optional(),
+  Tags: z.array(TagSchema).describe("Tags to assign to the payment manager")
+    .optional(),
 });
 
 const StateSchema = z.object({
-  IntegrationAssociationId: z.string().optional(),
-  InstanceId: z.string(),
-  IntegrationArn: z.string(),
-  IntegrationType: z.string(),
+  PaymentManagerArn: z.string(),
+  PaymentManagerId: z.string().optional(),
+  Name: z.string().optional(),
+  Description: z.string().optional(),
+  AuthorizerType: z.string().optional(),
+  AuthorizerConfiguration: z.object({
+    CustomJWTAuthorizer: CustomJWTAuthorizerConfigurationSchema,
+  }).optional(),
+  RoleArn: z.string().optional(),
+  WorkloadIdentityDetails: z.object({
+    WorkloadIdentityArn: z.string(),
+  }).optional(),
+  CreatedAt: z.string().optional(),
+  LastUpdatedAt: z.string().optional(),
+  Status: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -72,75 +109,35 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
-  InstanceId: z.string().min(1).max(100).regex(
-    new RegExp(
-      "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
-    ),
-  ).describe("Amazon Connect instance identifier").optional(),
-  IntegrationArn: z.string().min(1).max(140).describe(
-    "ARN of Integration being associated with the instance",
+  Name: z.string().regex(new RegExp("^[a-zA-Z][a-zA-Z0-9]{0,47}$")).describe(
+    "The name of the payment manager",
   ).optional(),
-  IntegrationType: z.enum([
-    "LEX_BOT",
-    "LAMBDA_FUNCTION",
-    "APPLICATION",
-    "CASES_DOMAIN",
-    "WISDOM_ASSISTANT",
-    "WISDOM_KNOWLEDGE_BASE",
-    "WISDOM_QUICK_RESPONSES",
-    "FILE_SCANNER",
-    "MESSAGE_PROCESSOR",
-    "Q_MESSAGE_TEMPLATES",
-    "SES_IDENTITY",
-  ]).describe(
-    "Specifies the integration type to be associated with the instance",
-  ).optional(),
-  Tags: z.array(TagSchema).describe(
-    "The tags used to organize, track, or control access for this resource.",
-  ).optional(),
+  Description: z.string().min(1).max(4096).regex(
+    new RegExp("^[a-zA-Z0-9\\s]+$"),
+  ).describe("A description of the payment manager").optional(),
+  AuthorizerType: z.enum(["CUSTOM_JWT", "AWS_IAM"]).optional(),
+  AuthorizerConfiguration: z.object({
+    CustomJWTAuthorizer: CustomJWTAuthorizerConfigurationSchema.optional(),
+  }).optional(),
+  RoleArn: z.string().min(1).max(2048).regex(
+    new RegExp("^arn:aws(-[^:]+)?:iam::([0-9]{12})?:role/.+$"),
+  ).describe("The ARN of the IAM role for the payment manager").optional(),
+  WorkloadIdentityDetails: z.object({
+    WorkloadIdentityArn: z.string().min(1).max(1024).optional(),
+  }).optional(),
+  Tags: z.array(TagSchema).describe("Tags to assign to the payment manager")
+    .optional(),
 });
 
-/** Swamp extension model for Connect IntegrationAssociation. Registered at `@swamp/aws/connect/integration-association`. */
+/** Swamp extension model for BedrockAgentCore PaymentManager. Registered at `@swamp/aws/bedrockagentcore/payment-manager`. */
 export const model = {
-  type: "@swamp/aws/connect/integration-association",
+  type: "@swamp/aws/bedrockagentcore/payment-manager",
   version: "2026.06.05.1",
-  upgrades: [
-    {
-      toVersion: "2026.04.01.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.05.1",
-      description: "Added: Tags",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Connect IntegrationAssociation resource state",
+      description: "BedrockAgentCore PaymentManager resource state",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -148,7 +145,7 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a Connect IntegrationAssociation",
+      description: "Create a BedrockAgentCore PaymentManager",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -158,7 +155,7 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await createResource(
-          "AWS::Connect::IntegrationAssociation",
+          "AWS::BedrockAgentCore::PaymentManager",
           desiredState,
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
@@ -174,15 +171,15 @@ export const model = {
       },
     },
     get: {
-      description: "Get a Connect IntegrationAssociation",
+      description: "Get a BedrockAgentCore PaymentManager",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the Connect IntegrationAssociation",
+          "The primary identifier of the BedrockAgentCore PaymentManager",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const result = await readResource(
-          "AWS::Connect::IntegrationAssociation",
+          "AWS::BedrockAgentCore::PaymentManager",
           args.identifier,
         ) as StateData;
         const instanceName =
@@ -199,7 +196,7 @@ export const model = {
       },
     },
     update: {
-      description: "Update a Connect IntegrationAssociation",
+      description: "Update a BedrockAgentCore PaymentManager",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -216,19 +213,12 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const idParts = [
-          existing.InstanceId?.toString(),
-          existing.IntegrationType?.toString(),
-          existing.IntegrationArn?.toString(),
-        ];
-        if (idParts.some((p) => !p)) {
-          throw new Error(
-            "Missing primary identifier fields in existing state",
-          );
+        const identifier = existing.PaymentManagerArn?.toString();
+        if (!identifier) {
+          throw new Error("No identifier found in existing state");
         }
-        const identifier = idParts.join("|");
         const currentState = await readResource(
-          "AWS::Connect::IntegrationAssociation",
+          "AWS::BedrockAgentCore::PaymentManager",
           identifier,
         ) as StateData;
         const desiredState: Record<string, unknown> = { ...currentState };
@@ -237,11 +227,11 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await updateResource(
-          "AWS::Connect::IntegrationAssociation",
+          "AWS::BedrockAgentCore::PaymentManager",
           identifier,
           currentState,
           desiredState,
-          ["InstanceId", "IntegrationArn", "IntegrationType"],
+          ["Name", "AuthorizerType", "AuthorizerConfiguration"],
         );
         const handle = await context.writeResource(
           "state",
@@ -252,15 +242,15 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete a Connect IntegrationAssociation",
+      description: "Delete a BedrockAgentCore PaymentManager",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the Connect IntegrationAssociation",
+          "The primary identifier of the BedrockAgentCore PaymentManager",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const { existed } = await deleteResource(
-          "AWS::Connect::IntegrationAssociation",
+          "AWS::BedrockAgentCore::PaymentManager",
           args.identifier,
         );
         const instanceName =
@@ -278,7 +268,7 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync Connect IntegrationAssociation state from AWS",
+      description: "Sync BedrockAgentCore PaymentManager state from AWS",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -295,20 +285,13 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const idParts = [
-          existing.InstanceId?.toString(),
-          existing.IntegrationType?.toString(),
-          existing.IntegrationArn?.toString(),
-        ];
-        if (idParts.some((p) => !p)) {
-          throw new Error(
-            "Missing primary identifier fields in existing state",
-          );
+        const identifier = existing.PaymentManagerArn?.toString();
+        if (!identifier) {
+          throw new Error("No identifier found in existing state");
         }
-        const identifier = idParts.join("|");
         try {
           const result = await readResource(
-            "AWS::Connect::IntegrationAssociation",
+            "AWS::BedrockAgentCore::PaymentManager",
             identifier,
           ) as StateData;
           const handle = await context.writeResource(

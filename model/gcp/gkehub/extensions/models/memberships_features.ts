@@ -1283,6 +1283,10 @@ const GlobalArgsSchema = z.object({
           "MODERNIZATION_MODERNIZED_SOAKING",
           "MODERNIZATION_FINALIZED",
           "MODERNIZATION_ROLLING_BACK_FLEET",
+          "MODERNIZATION_COMPATIBLE",
+          "MODERNIZATION_INCOMPATIBLE",
+          "MODERNIZATION_INCOMPATIBLE_FLEET_SCALE",
+          "MODERNIZATION_INCOMPATIBLE_FLEET_QUOTA",
         ]).describe(
           "Unique identifier of the condition which describes the condition recognizable to the user.",
         ).optional(),
@@ -2951,6 +2955,10 @@ const InputsSchema = z.object({
           "MODERNIZATION_MODERNIZED_SOAKING",
           "MODERNIZATION_FINALIZED",
           "MODERNIZATION_ROLLING_BACK_FLEET",
+          "MODERNIZATION_COMPATIBLE",
+          "MODERNIZATION_INCOMPATIBLE",
+          "MODERNIZATION_INCOMPATIBLE_FLEET_SCALE",
+          "MODERNIZATION_INCOMPATIBLE_FLEET_QUOTA",
         ]).describe(
           "Unique identifier of the condition which describes the condition recognizable to the user.",
         ).optional(),
@@ -3066,7 +3074,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud GKE Hub Memberships.Features. Registered at `@swamp/gcp/gkehub/memberships-features`. */
 export const model = {
   type: "@swamp/gcp/gkehub/memberships-features",
-  version: "2026.05.25.1",
+  version: "2026.06.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3135,6 +3143,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

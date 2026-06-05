@@ -269,6 +269,9 @@ const GlobalArgsSchema = z.object({
         inputVariableMapping: z.record(z.string(), z.unknown()).describe(
           "Optional. The mapping of the app variables names to the Dialogflow session parameters names to be sent to the Dialogflow agent as input.",
         ).optional(),
+        languageCodeVariable: z.string().describe(
+          "Optional. The name of the variable that contains the language code to be used for the Dialogflow session. If unspecified, the default language code of the Dialogflow agent will be used.",
+        ).optional(),
         outputVariableMapping: z.record(z.string(), z.unknown()).describe(
           "Optional. The mapping of the Dialogflow session parameters names to the app variables names to be sent back to the CES agent after the Dialogflow agent execution ends.",
         ).optional(),
@@ -1427,6 +1430,9 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         name: z.string().describe("Required. The name of the MCP tool.")
           .optional(),
+        nameOverride: z.string().describe(
+          "Optional. The name override of the MCP tool. This is populated if the name was overridden by a Toolset override.",
+        ).optional(),
         outputSchema: z.object({
           additionalProperties: z.unknown().describe(
             "Circular reference to Schema",
@@ -1493,6 +1499,10 @@ const GlobalArgsSchema = z.object({
           ).optional(),
         }).describe("Configuration for tools using Service Directory.")
           .optional(),
+        state: z.enum(["STATE_UNSPECIFIED", "ACTIVE", "INACTIVE", "STALE"])
+          .describe(
+            "Output only. The dynamic availability state of the tool on the external server.",
+          ).optional(),
         tlsConfig: z.object({
           caCerts: z.unknown().describe(
             "Required. Specifies a list of allowed custom CA certificates for HTTPS verification.",
@@ -1560,6 +1570,12 @@ const GlobalArgsSchema = z.object({
         pythonCode: z.string().describe(
           "Optional. The Python code to execute for the tool.",
         ).optional(),
+        serviceDirectoryConfig: z.object({
+          service: z.unknown().describe(
+            "Required. The name of [Service Directory](https://cloud.google.com/service-directory) service. Format: `projects/{project}/locations/{location}/namespaces/{namespace}/services/{service}`. Location of the service directory must be the same as the location of the app.",
+          ).optional(),
+        }).describe("Configuration for tools using Service Directory.")
+          .optional(),
       }).describe("A Python function tool.").optional(),
       remoteAgentTool: z.object({
         agentCard: z.object({
@@ -1804,6 +1820,9 @@ const GlobalArgsSchema = z.object({
             "Required. Specifies a list of allowed custom CA certificates for HTTPS verification.",
           ).optional(),
         }).describe("The TLS configuration.").optional(),
+        toolOverrides: z.array(z.unknown()).describe(
+          "Optional. Overrides for individual tools within this toolset. This allows overriding specific details like descriptions, names, or pinning the tools' states so they aren't fully dynamic.",
+        ).optional(),
       }).describe(
         "A toolset that contains a list of tools that are offered by the MCP server.",
       ).optional(),
@@ -1940,6 +1959,7 @@ const StateSchema = z.object({
         environmentId: z.string(),
         flowId: z.string(),
         inputVariableMapping: z.record(z.string(), z.unknown()),
+        languageCodeVariable: z.string(),
         outputVariableMapping: z.record(z.string(), z.unknown()),
         respectResponseInterruptionSettings: z.boolean(),
       }),
@@ -2382,6 +2402,7 @@ const StateSchema = z.object({
           uniqueItems: z.unknown(),
         }),
         name: z.string(),
+        nameOverride: z.string(),
         outputSchema: z.object({
           additionalProperties: z.unknown(),
           anyOf: z.unknown(),
@@ -2407,6 +2428,7 @@ const StateSchema = z.object({
         serviceDirectoryConfig: z.object({
           service: z.unknown(),
         }),
+        state: z.string(),
         tlsConfig: z.object({
           caCerts: z.unknown(),
         }),
@@ -2436,6 +2458,9 @@ const StateSchema = z.object({
         description: z.string(),
         name: z.string(),
         pythonCode: z.string(),
+        serviceDirectoryConfig: z.object({
+          service: z.unknown(),
+        }),
       }),
       remoteAgentTool: z.object({
         agentCard: z.object({
@@ -2530,6 +2555,7 @@ const StateSchema = z.object({
         tlsConfig: z.object({
           caCerts: z.unknown(),
         }),
+        toolOverrides: z.array(z.unknown()),
       }),
       name: z.string(),
       openApiToolset: z.object({
@@ -2722,6 +2748,9 @@ const InputsSchema = z.object({
         ).optional(),
         inputVariableMapping: z.record(z.string(), z.unknown()).describe(
           "Optional. The mapping of the app variables names to the Dialogflow session parameters names to be sent to the Dialogflow agent as input.",
+        ).optional(),
+        languageCodeVariable: z.string().describe(
+          "Optional. The name of the variable that contains the language code to be used for the Dialogflow session. If unspecified, the default language code of the Dialogflow agent will be used.",
         ).optional(),
         outputVariableMapping: z.record(z.string(), z.unknown()).describe(
           "Optional. The mapping of the Dialogflow session parameters names to the app variables names to be sent back to the CES agent after the Dialogflow agent execution ends.",
@@ -3881,6 +3910,9 @@ const InputsSchema = z.object({
         ).optional(),
         name: z.string().describe("Required. The name of the MCP tool.")
           .optional(),
+        nameOverride: z.string().describe(
+          "Optional. The name override of the MCP tool. This is populated if the name was overridden by a Toolset override.",
+        ).optional(),
         outputSchema: z.object({
           additionalProperties: z.unknown().describe(
             "Circular reference to Schema",
@@ -3947,6 +3979,10 @@ const InputsSchema = z.object({
           ).optional(),
         }).describe("Configuration for tools using Service Directory.")
           .optional(),
+        state: z.enum(["STATE_UNSPECIFIED", "ACTIVE", "INACTIVE", "STALE"])
+          .describe(
+            "Output only. The dynamic availability state of the tool on the external server.",
+          ).optional(),
         tlsConfig: z.object({
           caCerts: z.unknown().describe(
             "Required. Specifies a list of allowed custom CA certificates for HTTPS verification.",
@@ -4014,6 +4050,12 @@ const InputsSchema = z.object({
         pythonCode: z.string().describe(
           "Optional. The Python code to execute for the tool.",
         ).optional(),
+        serviceDirectoryConfig: z.object({
+          service: z.unknown().describe(
+            "Required. The name of [Service Directory](https://cloud.google.com/service-directory) service. Format: `projects/{project}/locations/{location}/namespaces/{namespace}/services/{service}`. Location of the service directory must be the same as the location of the app.",
+          ).optional(),
+        }).describe("Configuration for tools using Service Directory.")
+          .optional(),
       }).describe("A Python function tool.").optional(),
       remoteAgentTool: z.object({
         agentCard: z.object({
@@ -4258,6 +4300,9 @@ const InputsSchema = z.object({
             "Required. Specifies a list of allowed custom CA certificates for HTTPS verification.",
           ).optional(),
         }).describe("The TLS configuration.").optional(),
+        toolOverrides: z.array(z.unknown()).describe(
+          "Optional. Overrides for individual tools within this toolset. This allows overriding specific details like descriptions, names, or pinning the tools' states so they aren't fully dynamic.",
+        ).optional(),
       }).describe(
         "A toolset that contains a list of tools that are offered by the MCP server.",
       ).optional(),
@@ -4333,7 +4378,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Versions. Registered at `@swamp/gcp/ces/apps-versions`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-versions",
-  version: "2026.06.04.1",
+  version: "2026.06.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -4452,6 +4497,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.04.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

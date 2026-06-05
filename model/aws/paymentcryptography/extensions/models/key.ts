@@ -121,7 +121,8 @@ const GlobalArgsSchema = z.object({
     .optional(),
   Policy: z.string().min(1).max(20480).regex(
     new RegExp("^[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+$"),
-  ).optional(),
+  ).describe("The resource-based policy attached to the key, in JSON format.")
+    .optional(),
   ReplicationRegions: z.array(
     z.string().regex(new RegExp("^[a-z]{2}-[a-z]{1,16}-[0-9]+$")),
   ).optional(),
@@ -231,7 +232,8 @@ const InputsSchema = z.object({
     .optional(),
   Policy: z.string().min(1).max(20480).regex(
     new RegExp("^[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+$"),
-  ).optional(),
+  ).describe("The resource-based policy attached to the key, in JSON format.")
+    .optional(),
   ReplicationRegions: z.array(
     z.string().regex(new RegExp("^[a-z]{2}-[a-z]{1,16}-[0-9]+$")),
   ).optional(),
@@ -241,7 +243,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for PaymentCryptography Key. Registered at `@swamp/aws/paymentcryptography/key`. */
 export const model = {
   type: "@swamp/aws/paymentcryptography/key",
-  version: "2026.06.04.1",
+  version: "2026.06.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -271,6 +273,11 @@ export const model = {
     {
       toVersion: "2026.06.04.1",
       description: "Added: Policy",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.05.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

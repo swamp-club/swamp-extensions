@@ -83,6 +83,13 @@ const CustomOauth2ProviderConfigInputSchema = z.object({
   OnBehalfOfTokenExchangeConfig: OnBehalfOfTokenExchangeConfigSchema.describe(
     "Configuration for on-behalf-of token exchange",
   ).optional(),
+  ClientAuthenticationMethod: z.enum([
+    "CLIENT_SECRET_BASIC",
+    "CLIENT_SECRET_POST",
+    "AWS_IAM_ID_TOKEN_JWT",
+  ]).describe(
+    "The client authentication method to use when authenticating with the token endpoint",
+  ).optional(),
 });
 
 const GoogleOauth2ProviderConfigInputSchema = z.object({
@@ -248,6 +255,13 @@ const GlobalArgsSchema = z.object({
     OnBehalfOfTokenExchangeConfig: OnBehalfOfTokenExchangeConfigSchema.describe(
       "Configuration for on-behalf-of token exchange",
     ).optional(),
+    ClientAuthenticationMethod: z.enum([
+      "CLIENT_SECRET_BASIC",
+      "CLIENT_SECRET_POST",
+      "AWS_IAM_ID_TOKEN_JWT",
+    ]).describe(
+      "The client authentication method used when authenticating with the token endpoint",
+    ).optional(),
   }).describe("The output configuration for the OAuth2 provider").optional(),
   Tags: z.array(TagSchema).describe(
     "Tags to assign to the OAuth2 credential provider",
@@ -279,6 +293,7 @@ const StateSchema = z.object({
     OauthDiscovery: Oauth2DiscoverySchema,
     ClientId: z.string(),
     OnBehalfOfTokenExchangeConfig: OnBehalfOfTokenExchangeConfigSchema,
+    ClientAuthenticationMethod: z.string(),
   }).optional(),
   CreatedTime: z.string().optional(),
   LastUpdatedTime: z.string().optional(),
@@ -363,6 +378,13 @@ const InputsSchema = z.object({
     OnBehalfOfTokenExchangeConfig: OnBehalfOfTokenExchangeConfigSchema.describe(
       "Configuration for on-behalf-of token exchange",
     ).optional(),
+    ClientAuthenticationMethod: z.enum([
+      "CLIENT_SECRET_BASIC",
+      "CLIENT_SECRET_POST",
+      "AWS_IAM_ID_TOKEN_JWT",
+    ]).describe(
+      "The client authentication method used when authenticating with the token endpoint",
+    ).optional(),
   }).describe("The output configuration for the OAuth2 provider").optional(),
   Tags: z.array(TagSchema).describe(
     "Tags to assign to the OAuth2 credential provider",
@@ -372,7 +394,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for BedrockAgentCore OAuth2CredentialProvider. Registered at `@swamp/aws/bedrockagentcore/oauth2credential-provider`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/oauth2credential-provider",
-  version: "2026.06.04.1",
+  version: "2026.06.05.1",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
@@ -391,6 +413,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.04.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -63,7 +63,12 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ImageId: z.string().describe("A value that indicates the ID of the AMI.")
     .optional(),
-  Status: z.enum(["available", "inactive", "inactive-except-restore"]).describe(
+  Status: z.enum([
+    "available",
+    "inactive",
+    "inactive-except-restore",
+    "pending-validation",
+  ]).describe(
     "A value that indicates the status of a custom engine version (CEV).",
   ).optional(),
   DatabaseInstallationFiles: z.array(z.string()).optional(),
@@ -122,7 +127,12 @@ const InputsSchema = z.object({
   ).optional(),
   ImageId: z.string().describe("A value that indicates the ID of the AMI.")
     .optional(),
-  Status: z.enum(["available", "inactive", "inactive-except-restore"]).describe(
+  Status: z.enum([
+    "available",
+    "inactive",
+    "inactive-except-restore",
+    "pending-validation",
+  ]).describe(
     "A value that indicates the status of a custom engine version (CEV).",
   ).optional(),
   DatabaseInstallationFiles: z.array(z.string()).optional(),
@@ -134,7 +144,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for RDS CustomDBEngineVersion. Registered at `@swamp/aws/rds/custom-dbengine-version`. */
 export const model = {
   type: "@swamp/aws/rds/custom-dbengine-version",
-  version: "2026.05.06.1",
+  version: "2026.06.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -164,6 +174,11 @@ export const model = {
     {
       toVersion: "2026.05.06.1",
       description: "Added: DatabaseInstallationFiles",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.05.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

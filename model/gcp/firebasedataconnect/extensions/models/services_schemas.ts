@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Firebase Data Connect Services.Schemas.
+ * Swamp extension model for Google Cloud Firebase SQL Connect Services.Schemas.
  *
  * The application schema of a Firebase SQL Connect service.
  *
@@ -346,10 +346,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Firebase Data Connect Services.Schemas. Registered at `@swamp/gcp/firebasedataconnect/services-schemas`. */
+/** Swamp extension model for Google Cloud Firebase SQL Connect Services.Schemas. Registered at `@swamp/gcp/firebasedataconnect/services-schemas`. */
 export const model = {
   type: "@swamp/gcp/firebasedataconnect/services-schemas",
-  version: "2026.05.26.1",
+  version: "2026.06.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -438,6 +438,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

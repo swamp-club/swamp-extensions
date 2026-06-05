@@ -91,11 +91,14 @@ const TagSchema = z.object({
 });
 
 const AlarmPromQLCriteriaSchema = z.object({
-  Query: z.string().describe("The PromQL query string.").optional(),
-  PendingPeriod: z.number().int().describe("The pending period for the alarm.")
-    .optional(),
+  Query: z.string().describe(
+    "The PromQL query that the alarm evaluates. The query must return a result of vector type. Each entry in the vector result represents an alarm contributor.",
+  ).optional(),
+  PendingPeriod: z.number().int().describe(
+    "The duration, in seconds, that a contributor must be continuously breaching before it transitions to the ALARM state.",
+  ).optional(),
   RecoveryPeriod: z.number().int().describe(
-    "The recovery period for the alarm.",
+    "The duration, in seconds, that a contributor must continuously not be breaching before it transitions back to the OK state.",
   ).optional(),
 });
 
@@ -166,9 +169,13 @@ const GlobalArgsSchema = z.object({
     "A list of key-value pairs to associate with the alarm. You can associate as many as 50 tags with an alarm. To be able to associate tags with the alarm when you create the alarm, you must have the cloudwatch:TagResource permission. Tags can help you organize and categorize your resources. You can also use them to scope user permissions by granting a user permission to access or change only resources with certain tag values.",
   ).optional(),
   EvaluationCriteria: z.object({
-    PromQLCriteria: AlarmPromQLCriteriaSchema.optional(),
-  }).optional(),
-  EvaluationInterval: z.number().int().optional(),
+    PromQLCriteria: AlarmPromQLCriteriaSchema.describe(
+      "The PromQL criteria for the alarm evaluation.",
+    ).optional(),
+  }).describe("The evaluation criteria for the alarm.").optional(),
+  EvaluationInterval: z.number().int().describe(
+    "The frequency, in seconds, at which the alarm is evaluated.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -270,15 +277,19 @@ const InputsSchema = z.object({
     "A list of key-value pairs to associate with the alarm. You can associate as many as 50 tags with an alarm. To be able to associate tags with the alarm when you create the alarm, you must have the cloudwatch:TagResource permission. Tags can help you organize and categorize your resources. You can also use them to scope user permissions by granting a user permission to access or change only resources with certain tag values.",
   ).optional(),
   EvaluationCriteria: z.object({
-    PromQLCriteria: AlarmPromQLCriteriaSchema.optional(),
-  }).optional(),
-  EvaluationInterval: z.number().int().optional(),
+    PromQLCriteria: AlarmPromQLCriteriaSchema.describe(
+      "The PromQL criteria for the alarm evaluation.",
+    ).optional(),
+  }).describe("The evaluation criteria for the alarm.").optional(),
+  EvaluationInterval: z.number().int().describe(
+    "The frequency, in seconds, at which the alarm is evaluated.",
+  ).optional(),
 });
 
 /** Swamp extension model for CloudWatch Alarm. Registered at `@swamp/aws/cloudwatch/alarm`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/alarm",
-  version: "2026.04.23.2",
+  version: "2026.06.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -307,6 +318,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

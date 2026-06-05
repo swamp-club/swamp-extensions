@@ -46,6 +46,13 @@ const GlobalArgsSchema = z.object({
     "MEDIA_STREAMS",
     "CONTACT_TRACE_RECORDS",
     "AGENT_EVENTS",
+    "REAL_TIME_CONTACT_ANALYSIS_SEGMENTS",
+    "ATTACHMENTS",
+    "CONTACT_EVALUATIONS",
+    "SCREEN_RECORDINGS",
+    "REAL_TIME_CONTACT_ANALYSIS_CHAT_SEGMENTS",
+    "REAL_TIME_CONTACT_ANALYSIS_VOICE_SEGMENTS",
+    "EMAIL_MESSAGES",
   ]).describe(
     "Specifies the type of storage resource available for the instance",
   ),
@@ -126,6 +133,13 @@ const InputsSchema = z.object({
     "MEDIA_STREAMS",
     "CONTACT_TRACE_RECORDS",
     "AGENT_EVENTS",
+    "REAL_TIME_CONTACT_ANALYSIS_SEGMENTS",
+    "ATTACHMENTS",
+    "CONTACT_EVALUATIONS",
+    "SCREEN_RECORDINGS",
+    "REAL_TIME_CONTACT_ANALYSIS_CHAT_SEGMENTS",
+    "REAL_TIME_CONTACT_ANALYSIS_VOICE_SEGMENTS",
+    "EMAIL_MESSAGES",
   ]).describe(
     "Specifies the type of storage resource available for the instance",
   ).optional(),
@@ -170,7 +184,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Connect InstanceStorageConfig. Registered at `@swamp/aws/connect/instance-storage-config`. */
 export const model = {
   type: "@swamp/aws/connect/instance-storage-config",
-  version: "2026.04.23.2",
+  version: "2026.06.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -194,6 +208,11 @@ export const model = {
     },
     {
       toVersion: "2026.04.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

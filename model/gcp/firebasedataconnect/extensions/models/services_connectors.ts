@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Firebase Data Connect Services.Connectors.
+ * Swamp extension model for Google Cloud Firebase SQL Connect Services.Connectors.
  *
  * Connector consists of a set of operations, i.e. queries and mutations.
  *
@@ -263,10 +263,10 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
-/** Swamp extension model for Google Cloud Firebase Data Connect Services.Connectors. Registered at `@swamp/gcp/firebasedataconnect/services-connectors`. */
+/** Swamp extension model for Google Cloud Firebase SQL Connect Services.Connectors. Registered at `@swamp/gcp/firebasedataconnect/services-connectors`. */
 export const model = {
   type: "@swamp/gcp/firebasedataconnect/services-connectors",
-  version: "2026.05.25.1",
+  version: "2026.06.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -330,6 +330,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

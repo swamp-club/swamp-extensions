@@ -59,6 +59,12 @@ const ClusterKubernetesConfigSchema = z.object({
   ).optional(),
 });
 
+const ClusterNetworkInterfaceSchema = z.object({
+  InterfaceType: z.enum(["efa", "efa-only"]).describe(
+    "The type of network interface.",
+  ),
+});
+
 const ClusterLifeCycleConfigSchema = z.object({
   OnInitComplete: z.string().min(1).max(128).regex(new RegExp("^[\\S\\s]+$"))
     .describe(
@@ -136,6 +142,12 @@ const ScheduledUpdateConfigSchema = z.object({
   ).optional(),
 });
 
+const InstanceRequirementsSchema = z.object({
+  InstanceTypes: z.array(z.string()).describe(
+    "A list of instance types that can be used for this instance group.",
+  ),
+});
+
 const ClusterInstanceGroupSchema = z.object({
   SlurmConfig: ClusterSlurmConfigSchema.describe(
     "Slurm configuration for the instance group.",
@@ -151,6 +163,9 @@ const ClusterInstanceGroupSchema = z.object({
   ).optional(),
   KubernetesConfig: ClusterKubernetesConfigSchema.describe(
     "Kubernetes configuration for cluster nodes including labels and taints.",
+  ).optional(),
+  NetworkInterface: ClusterNetworkInterfaceSchema.describe(
+    "Specifies the network interface configuration for the instance group.",
   ).optional(),
   LifeCycleConfig: ClusterLifeCycleConfigSchema.describe(
     "The lifecycle configuration for a SageMaker HyperPod cluster. When omitted, the instance group uses Bootstrap mode. When provided with SourceS3Uri and OnCreate, uses Customer Managed mode. When provided with SourceS3Uri and OnInitComplete, uses Extended mode.",
@@ -187,9 +202,12 @@ const ClusterInstanceGroupSchema = z.object({
   ScheduledUpdateConfig: ScheduledUpdateConfigSchema.describe(
     "The configuration object of the schedule that SageMaker follows when updating the AMI.",
   ).optional(),
+  InstanceRequirements: InstanceRequirementsSchema.describe(
+    "The instance requirements for the instance group. Specifies a list of instance types that can be used.",
+  ).optional(),
   InstanceType: z.string().describe(
     "The instance type of the instance group of a SageMaker HyperPod cluster.",
-  ),
+  ).optional(),
   ExecutionRole: z.string().min(20).max(2048).regex(
     new RegExp("^arn:aws[a-z\\-]*:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$"),
   ).describe("The execution role for the instance group to assume."),
@@ -417,7 +435,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for SageMaker Cluster. Registered at `@swamp/aws/sagemaker/cluster`. */
 export const model = {
   type: "@swamp/aws/sagemaker/cluster",
-  version: "2026.06.04.1",
+  version: "2026.06.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -471,6 +489,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.04.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -573,21 +596,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          [
-            "ClusterName",
-            "VpcConfig",
-            "Eks",
-            "OverrideVpcConfig",
-            "ExecutionRole",
-            "InstanceGroupName",
-            "InstanceType",
-            "ThreadsPerCore",
-            "OverrideVpcConfig",
-            "ExecutionRole",
-            "InstanceGroupName",
-            "InstanceType",
-            "ThreadsPerCore",
-          ],
+          ["ClusterName", "VpcConfig", "Eks"],
         );
         const handle = await context.writeResource(
           "state",
