@@ -261,6 +261,91 @@ function createMockGcsServer(): {
   };
 }
 
+// Mock GCS server that does NOT enforce ifGenerationMatch=0 preconditions,
+// simulating backends like fake-gcs-server that may ignore generation
+// preconditions on the upload endpoint.
+function createMockGcsServerNoPreconditions(): {
+  server: Deno.HttpServer;
+  endpoint: string;
+  storage: Map<string, Uint8Array>;
+} {
+  const storage = new Map<string, Uint8Array>();
+
+  const server = Deno.serve({ port: 0, onListen() {} }, async (req) => {
+    const url = new URL(req.url);
+    const path = url.pathname;
+
+    if (req.method === "GET" && path.match(/\/storage\/v1\/b\/[^/]+\/o$/)) {
+      const prefix = url.searchParams.get("prefix") ?? "";
+      const items = [...storage.entries()]
+        .filter(([k]) => k.startsWith(prefix))
+        .map(([k, v]) => ({
+          name: k,
+          size: String(v.length),
+          generation: "1",
+          updated: "2026-01-01T00:00:00.000Z",
+        }));
+      return new Response(JSON.stringify({ kind: "storage#objects", items }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (
+      req.method === "GET" &&
+      path.match(/\/storage\/v1\/b\/[^/]+\/o\//) &&
+      url.searchParams.get("alt") === "media"
+    ) {
+      const objectName = decodeURIComponent(
+        path.replace(/^\/storage\/v1\/b\/[^/]+\/o\//, ""),
+      );
+      const data = storage.get(objectName);
+      if (data) {
+        return new Response(data.buffer as ArrayBuffer, {
+          status: 200,
+          headers: { "x-goog-generation": "1" },
+        });
+      }
+      return new Response(
+        JSON.stringify({ error: { code: 404, message: "Not Found" } }),
+        { status: 404, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    // Ignores ifGenerationMatch — always writes successfully
+    if (
+      req.method === "POST" &&
+      path.match(/\/upload\/storage\/v1\/b\/[^/]+\/o/)
+    ) {
+      const objectName = url.searchParams.get("name");
+      if (objectName) {
+        const body = new Uint8Array(await req.arrayBuffer());
+        storage.set(objectName, body);
+      }
+      return new Response(
+        JSON.stringify({ kind: "storage#object", generation: "1" }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    if (req.method === "GET" && path.match(/\/storage\/v1\/b\/[^/]+$/)) {
+      return new Response(
+        JSON.stringify({ kind: "storage#bucket", name: "test-bucket" }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    return new Response(null, { status: 404 });
+  });
+
+  const addr = server.addr as Deno.NetAddr;
+  return {
+    server,
+    endpoint: `http://localhost:${addr.port}`,
+    storage,
+  };
+}
+
 // GCS client uses fetch() with connection pooling which trips Deno's
 // resource leak detection.
 Deno.test({
@@ -378,6 +463,115 @@ Deno.test({
 
       const result = await provider.listNamespaces!("/tmp/ds");
       assertEquals(result.sort(), ["infra", "staging"]);
+    } finally {
+      await server.shutdown();
+    }
+  },
+});
+
+// --- Tests for conflict detection when backend ignores preconditions ---
+
+// GCS client uses fetch() with connection pooling which trips Deno's
+// resource leak detection.
+Deno.test({
+  name:
+    "registerNamespace detects conflict even when backend ignores ifGenerationMatch",
+  sanitizeResources: false,
+  fn: async () => {
+    const { server, endpoint } = createMockGcsServerNoPreconditions();
+
+    try {
+      const provider = datastore.createProvider({
+        bucket: "test-bucket",
+        apiEndpoint: endpoint,
+      });
+
+      await provider.registerNamespace!("/tmp/ds", "infra", "repo-aaa");
+      await assertRejects(
+        () => provider.registerNamespace!("/tmp/ds", "infra", "repo-bbb"),
+        Error,
+        "already registered by repo repo-aaa",
+      );
+    } finally {
+      await server.shutdown();
+    }
+  },
+});
+
+// GCS client uses fetch() with connection pooling which trips Deno's
+// resource leak detection.
+Deno.test({
+  name:
+    "registerNamespace re-registration succeeds when backend ignores ifGenerationMatch",
+  sanitizeResources: false,
+  fn: async () => {
+    const { server, endpoint } = createMockGcsServerNoPreconditions();
+
+    try {
+      const provider = datastore.createProvider({
+        bucket: "test-bucket",
+        apiEndpoint: endpoint,
+      });
+
+      await provider.registerNamespace!("/tmp/ds", "infra", "repo-aaa");
+      await provider.registerNamespace!("/tmp/ds", "infra", "repo-aaa");
+    } finally {
+      await server.shutdown();
+    }
+  },
+});
+
+// --- Tests for prefix configuration ---
+
+// GCS client uses fetch() with connection pooling which trips Deno's
+// resource leak detection.
+Deno.test({
+  name: "registerNamespace with prefix throws conflict when different repoId",
+  sanitizeResources: false,
+  fn: async () => {
+    const { server, endpoint } = createMockGcsServer();
+
+    try {
+      const provider = datastore.createProvider({
+        bucket: "test-bucket",
+        prefix: "shared-prefix",
+        apiEndpoint: endpoint,
+      });
+
+      await provider.registerNamespace!("/tmp/ds", "infra", "repo-aaa");
+      await assertRejects(
+        () => provider.registerNamespace!("/tmp/ds", "infra", "repo-bbb"),
+        Error,
+        "already registered by repo repo-aaa",
+      );
+    } finally {
+      await server.shutdown();
+    }
+  },
+});
+
+// GCS client uses fetch() with connection pooling which trips Deno's
+// resource leak detection.
+Deno.test({
+  name:
+    "registerNamespace with prefix detects conflict when backend ignores ifGenerationMatch",
+  sanitizeResources: false,
+  fn: async () => {
+    const { server, endpoint } = createMockGcsServerNoPreconditions();
+
+    try {
+      const provider = datastore.createProvider({
+        bucket: "test-bucket",
+        prefix: "shared-prefix",
+        apiEndpoint: endpoint,
+      });
+
+      await provider.registerNamespace!("/tmp/ds", "infra", "repo-aaa");
+      await assertRejects(
+        () => provider.registerNamespace!("/tmp/ds", "infra", "repo-bbb"),
+        Error,
+        "already registered by repo repo-aaa",
+      );
     } finally {
       await server.shutdown();
     }

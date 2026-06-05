@@ -29,7 +29,7 @@
  */
 
 import { z } from "npm:zod@4.3.6";
-import { join } from "jsr:@std/path@1";
+import { join } from "jsr:@std/path@1.1.4";
 import type {
   CatalogExportEntry,
   CatalogExportRow,
@@ -42,7 +42,7 @@ import type {
   LockOptions,
   SyncCapabilities,
 } from "./_lib/interfaces.ts";
-import { GcsClient } from "./_lib/gcs_client.ts";
+import { GcsClient, NotFoundError } from "./_lib/gcs_client.ts";
 import { GcsLock } from "./_lib/gcs_lock.ts";
 import { GcsDatastoreVerifier } from "./_lib/gcs_verifier.ts";
 import { GcsCacheSyncService } from "./_lib/gcs_cache_sync.ts";
@@ -160,19 +160,58 @@ class GcsDatastoreProviderImpl implements DatastoreProvider {
     repoId: string,
   ): Promise<void> {
     const gcs = new GcsClient(this.config);
+    if (/[/\\]|^\.\.?$|\.\.[\\/]/.test(namespace) || namespace.includes("\0")) {
+      throw new Error(
+        `Invalid namespace "${namespace}": must not contain path separators, "..", or null bytes`,
+      );
+    }
     const key = `${namespace}/.namespace.json`;
+
+    // Read-before-write: detect conflicts regardless of whether the
+    // backend enforces ifGenerationMatch=0 preconditions (some
+    // GCS-compatible backends like fake-gcs-server may not).
+    try {
+      const { data } = await gcs.getObject(key);
+      const text = new TextDecoder().decode(data);
+      const existing = JSON.parse(text) as {
+        namespace: string;
+        repoId: string;
+        registeredAt: string;
+      };
+      if (existing.repoId !== repoId) {
+        throw new Error(
+          `Namespace "${namespace}" is already registered by repo ${existing.repoId}`,
+        );
+      }
+      // Same repoId — idempotent re-registration, update timestamp
+      const manifest = JSON.stringify(
+        { namespace, repoId, registeredAt: new Date().toISOString() },
+        null,
+        2,
+      );
+      await gcs.putObject(key, new TextEncoder().encode(manifest));
+      return;
+    } catch (err) {
+      if (!(err instanceof NotFoundError)) throw err;
+    }
+
+    // No existing manifest — create with atomic first-writer-wins guard.
+    // The read-before-write above covers the sequential case; this
+    // putObjectConditional is the primary concurrency guard on compliant
+    // backends. On non-compliant backends both concurrent writers may
+    // pass the read check and succeed here — namespace registration is
+    // rare enough that this TOCTOU is acceptable (same design decision
+    // as .datastore.lock).
     const manifest = JSON.stringify(
       { namespace, repoId, registeredAt: new Date().toISOString() },
       null,
       2,
     );
     const body = new TextEncoder().encode(manifest);
-
-    // Atomic first-writer-wins: putObjectConditional uses ifGenerationMatch=0
     const created = await gcs.putObjectConditional(key, body);
     if (created !== null) return;
 
-    // Object already exists — check if it belongs to this repo
+    // Conditional write raced with another writer — re-check ownership
     const { data } = await gcs.getObject(key);
     const text = new TextDecoder().decode(data);
     const existing = JSON.parse(text) as {
@@ -185,7 +224,6 @@ class GcsDatastoreProviderImpl implements DatastoreProvider {
         `Namespace "${namespace}" is already registered by repo ${existing.repoId}`,
       );
     }
-    // Same repoId — idempotent re-registration, update timestamp
     await gcs.putObject(key, body);
   }
 

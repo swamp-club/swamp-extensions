@@ -90,7 +90,7 @@ export class GcsLock implements DistributedLock {
   private readonly ttlMs: number;
   private readonly retryIntervalMs: number;
   private readonly maxWaitMs: number;
-  private heartbeatId: number | undefined;
+  private heartbeatId: ReturnType<typeof setInterval> | undefined;
   private held = false;
   private releasing = false;
   private nonce: string | undefined;
@@ -224,12 +224,21 @@ export class GcsLock implements DistributedLock {
   }
 
   async forceRelease(expectedNonce: string): Promise<boolean> {
-    const current = await this.readLock();
-    if (!current || current.nonce !== expectedNonce) {
+    const result = await this.readLockWithGeneration();
+    if (!result || result.info.nonce !== expectedNonce) {
       return false;
     }
-    await this.gcs.deleteObject(this.lockKey);
-    return true;
+    try {
+      await this.gcs.deleteObject(
+        this.lockKey,
+        result.generation
+          ? { ifGenerationMatch: result.generation }
+          : undefined,
+      );
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -291,12 +300,19 @@ export class GcsLock implements DistributedLock {
     }
   }
 
-  private async readLock(): Promise<LockInfo | null> {
+  private async readLockWithGeneration(): Promise<
+    { info: LockInfo; generation: string | undefined } | null
+  > {
     try {
-      const { data } = await this.gcs.getObject(this.lockKey);
-      return decodeLockInfo(data);
+      const { data, generation } = await this.gcs.getObject(this.lockKey);
+      return { info: decodeLockInfo(data), generation };
     } catch {
       return null;
     }
+  }
+
+  private async readLock(): Promise<LockInfo | null> {
+    const result = await this.readLockWithGeneration();
+    return result?.info ?? null;
   }
 }
