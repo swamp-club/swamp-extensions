@@ -1,0 +1,580 @@
+// Auto-generated extension model for @swamp/gcp/notebooks/executions
+// Do not edit manually. Re-generate with: deno task generate:gcp
+
+// deno-lint-ignore-file no-explicit-any
+
+/**
+ * Swamp extension model for Google Cloud Notebooks Executions.
+ *
+ * The definition of a single executed notebook.
+ *
+ * Wraps the GCP resource as a swamp model so create, get, update,
+ * delete, and sync can be driven through `swamp model`.
+ *
+ * @module
+ */
+
+import { z } from "npm:zod@4.3.6";
+import {
+  createResource,
+  deleteResource,
+  getProjectId,
+  isResourceNotFoundError,
+  listResources,
+  readResource,
+} from "./_lib/gcp.ts";
+
+/** Construct the fully-qualified resource name from parent and short name. */
+function buildResourceName(parent: string, shortName: string): string {
+  return `${parent}/executions/${shortName}`;
+}
+
+const BASE_URL = "https://notebooks.googleapis.com/";
+
+const GET_CONFIG = {
+  "id": "notebooks.projects.locations.executions.get",
+  "path": "v1/{+name}",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "name",
+  ],
+  "parameters": {
+    "name": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const INSERT_CONFIG = {
+  "id": "notebooks.projects.locations.executions.create",
+  "path": "v1/{+parent}/executions",
+  "httpMethod": "POST",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "executionId": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const DELETE_CONFIG = {
+  "id": "notebooks.projects.locations.executions.delete",
+  "path": "v1/{+name}",
+  "httpMethod": "DELETE",
+  "parameterOrder": [
+    "name",
+  ],
+  "parameters": {
+    "name": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const LIST_CONFIG = {
+  "id": "notebooks.projects.locations.executions.list",
+  "path": "v1/{+parent}/executions",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "parent",
+  ],
+  "parameters": {
+    "filter": {
+      "location": "query",
+    },
+    "orderBy": {
+      "location": "query",
+    },
+    "pageSize": {
+      "location": "query",
+    },
+    "pageToken": {
+      "location": "query",
+    },
+    "parent": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const GlobalArgsSchema = z.object({
+  name: z.string().describe(
+    "Instance name for this resource (used as the unique identifier in the factory pattern)",
+  ),
+  description: z.string().describe("A brief description of this execution.")
+    .optional(),
+  executionTemplate: z.object({
+    acceleratorConfig: z.object({
+      coreCount: z.string().describe("Count of cores of this accelerator.")
+        .optional(),
+      type: z.enum([
+        "SCHEDULER_ACCELERATOR_TYPE_UNSPECIFIED",
+        "NVIDIA_TESLA_K80",
+        "NVIDIA_TESLA_P100",
+        "NVIDIA_TESLA_V100",
+        "NVIDIA_TESLA_P4",
+        "NVIDIA_TESLA_T4",
+        "NVIDIA_TESLA_A100",
+        "TPU_V2",
+        "TPU_V3",
+      ]).describe("Type of this accelerator.").optional(),
+    }).describe(
+      "Definition of a hardware accelerator. Note that not all combinations of `type` and `core_count` are valid. See [GPUs on Compute Engine](https://cloud.google.com/compute/docs/gpus) to find a valid combination. TPUs are not supported.",
+    ).optional(),
+    containerImageUri: z.string().describe(
+      "Container Image URI to a DLVM Example: 'gcr.io/deeplearning-platform-release/base-cu100' More examples can be found at: https://cloud.google.com/ai-platform/deep-learning-containers/docs/choosing-container",
+    ).optional(),
+    dataprocParameters: z.object({
+      cluster: z.string().describe(
+        "URI for cluster used to run Dataproc execution. Format: `projects/{PROJECT_ID}/regions/{REGION}/clusters/{CLUSTER_NAME}`",
+      ).optional(),
+    }).describe("Parameters used in Dataproc JobType executions.").optional(),
+    inputNotebookFile: z.string().describe(
+      "Path to the notebook file to execute. Must be in a Google Cloud Storage bucket. Format: `gs://{bucket_name}/{folder}/{notebook_file_name}` Ex: `gs://notebook_user/scheduled_notebooks/sentiment_notebook.ipynb`",
+    ).optional(),
+    jobType: z.enum(["JOB_TYPE_UNSPECIFIED", "VERTEX_AI", "DATAPROC"]).describe(
+      "The type of Job to be used on this execution.",
+    ).optional(),
+    kernelSpec: z.string().describe(
+      "Name of the kernel spec to use. This must be specified if the kernel spec name on the execution target does not match the name in the input notebook file.",
+    ).optional(),
+    labels: z.record(z.string(), z.string()).describe(
+      "Labels for execution. If execution is scheduled, a field included will be 'nbs-scheduled'. Otherwise, it is an immediate execution, and an included field will be 'nbs-immediate'. Use fields to efficiently index between various types of executions.",
+    ).optional(),
+    masterType: z.string().describe(
+      "Specifies the type of virtual machine to use for your training job's master worker. You must specify this field when `scaleTier` is set to `CUSTOM`. You can use certain Compute Engine machine types directly in this field. The following types are supported: - `n1-standard-4` - `n1-standard-8` - `n1-standard-16` - `n1-standard-32` - `n1-standard-64` - `n1-standard-96` - `n1-highmem-2` - `n1-highmem-4` - `n1-highmem-8` - `n1-highmem-16` - `n1-highmem-32` - `n1-highmem-64` - `n1-highmem-96` - `n1-highcpu-16` - `n1-highcpu-32` - `n1-highcpu-64` - `n1-highcpu-96` Alternatively, you can use the following legacy machine types: - `standard` - `large_model` - `complex_model_s` - `complex_model_m` - `complex_model_l` - `standard_gpu` - `complex_model_m_gpu` - `complex_model_l_gpu` - `standard_p100` - `complex_model_m_p100` - `standard_v100` - `large_model_v100` - `complex_model_m_v100` - `complex_model_l_v100` Finally, if you want to use a TPU for training, specify `cloud_tpu` in this field. Learn more about the [special configuration options for training with TPU](https://cloud.google.com/ai-platform/training/docs/using-tpus#configuring_a_custom_tpu_machine).",
+    ).optional(),
+    outputNotebookFolder: z.string().describe(
+      "Path to the notebook folder to write to. Must be in a Google Cloud Storage bucket path. Format: `gs://{bucket_name}/{folder}` Ex: `gs://notebook_user/scheduled_notebooks`",
+    ).optional(),
+    parameters: z.string().describe(
+      "Parameters used within the 'input_notebook_file' notebook.",
+    ).optional(),
+    paramsYamlFile: z.string().describe(
+      "Parameters to be overridden in the notebook during execution. Ref https://papermill.readthedocs.io/en/latest/usage-parameterize.html on how to specifying parameters in the input notebook and pass them here in an YAML file. Ex: `gs://notebook_user/scheduled_notebooks/sentiment_notebook_params.yaml`",
+    ).optional(),
+    scaleTier: z.enum([
+      "SCALE_TIER_UNSPECIFIED",
+      "BASIC",
+      "STANDARD_1",
+      "PREMIUM_1",
+      "BASIC_GPU",
+      "BASIC_TPU",
+      "CUSTOM",
+    ]).describe(
+      "Required. Scale tier of the hardware used for notebook execution. DEPRECATED Will be discontinued. As right now only CUSTOM is supported.",
+    ).optional(),
+    serviceAccount: z.string().describe(
+      "The email address of a service account to use when running the execution. You must have the `iam.serviceAccounts.actAs` permission for the specified service account.",
+    ).optional(),
+    tensorboard: z.string().describe(
+      "The name of a Vertex AI [Tensorboard] resource to which this execution will upload Tensorboard logs. Format: `projects/{project}/locations/{location}/tensorboards/{tensorboard}`",
+    ).optional(),
+    vertexAiParameters: z.object({
+      env: z.record(z.string(), z.string()).describe(
+        "Environment variables. At most 100 environment variables can be specified and unique. Example: `GCP_BUCKET=gs://my-bucket/samples/`",
+      ).optional(),
+      network: z.string().describe(
+        "The full name of the Compute Engine [network](https://cloud.google.com/compute/docs/networks-and-firewalls#networks) to which the Job should be peered. For example, `projects/12345/global/networks/myVPC`. [Format](https://cloud.google.com/compute/docs/reference/rest/v1/networks/insert) is of the form `projects/{project}/global/networks/{network}`. Where `{project}` is a project number, as in `12345`, and `{network}` is a network name. Private services access must already be configured for the network. If left unspecified, the job is not peered with any network.",
+      ).optional(),
+    }).describe("Parameters used in Vertex AI JobType executions.").optional(),
+  }).describe("The description a notebook execution workload.").optional(),
+  outputNotebookFile: z.string().describe(
+    "Output notebook file generated by this execution",
+  ).optional(),
+  executionId: z.string().describe(
+    "Required. User-defined unique ID of this execution.",
+  ).optional(),
+  location: z.string().describe(
+    "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
+  ).optional(),
+});
+
+const StateSchema = z.object({
+  createTime: z.string().optional(),
+  description: z.string().optional(),
+  displayName: z.string().optional(),
+  executionTemplate: z.object({
+    acceleratorConfig: z.object({
+      coreCount: z.string(),
+      type: z.string(),
+    }),
+    containerImageUri: z.string(),
+    dataprocParameters: z.object({
+      cluster: z.string(),
+    }),
+    inputNotebookFile: z.string(),
+    jobType: z.string(),
+    kernelSpec: z.string(),
+    labels: z.record(z.string(), z.unknown()),
+    masterType: z.string(),
+    outputNotebookFolder: z.string(),
+    parameters: z.string(),
+    paramsYamlFile: z.string(),
+    scaleTier: z.string(),
+    serviceAccount: z.string(),
+    tensorboard: z.string(),
+    vertexAiParameters: z.object({
+      env: z.record(z.string(), z.unknown()),
+      network: z.string(),
+    }),
+  }).optional(),
+  jobUri: z.string().optional(),
+  name: z.string(),
+  outputNotebookFile: z.string().optional(),
+  state: z.string().optional(),
+  updateTime: z.string().optional(),
+}).passthrough();
+
+type StateData = z.infer<typeof StateSchema>;
+
+const InputsSchema = z.object({
+  name: z.string().optional(),
+  description: z.string().describe("A brief description of this execution.")
+    .optional(),
+  executionTemplate: z.object({
+    acceleratorConfig: z.object({
+      coreCount: z.string().describe("Count of cores of this accelerator.")
+        .optional(),
+      type: z.enum([
+        "SCHEDULER_ACCELERATOR_TYPE_UNSPECIFIED",
+        "NVIDIA_TESLA_K80",
+        "NVIDIA_TESLA_P100",
+        "NVIDIA_TESLA_V100",
+        "NVIDIA_TESLA_P4",
+        "NVIDIA_TESLA_T4",
+        "NVIDIA_TESLA_A100",
+        "TPU_V2",
+        "TPU_V3",
+      ]).describe("Type of this accelerator.").optional(),
+    }).describe(
+      "Definition of a hardware accelerator. Note that not all combinations of `type` and `core_count` are valid. See [GPUs on Compute Engine](https://cloud.google.com/compute/docs/gpus) to find a valid combination. TPUs are not supported.",
+    ).optional(),
+    containerImageUri: z.string().describe(
+      "Container Image URI to a DLVM Example: 'gcr.io/deeplearning-platform-release/base-cu100' More examples can be found at: https://cloud.google.com/ai-platform/deep-learning-containers/docs/choosing-container",
+    ).optional(),
+    dataprocParameters: z.object({
+      cluster: z.string().describe(
+        "URI for cluster used to run Dataproc execution. Format: `projects/{PROJECT_ID}/regions/{REGION}/clusters/{CLUSTER_NAME}`",
+      ).optional(),
+    }).describe("Parameters used in Dataproc JobType executions.").optional(),
+    inputNotebookFile: z.string().describe(
+      "Path to the notebook file to execute. Must be in a Google Cloud Storage bucket. Format: `gs://{bucket_name}/{folder}/{notebook_file_name}` Ex: `gs://notebook_user/scheduled_notebooks/sentiment_notebook.ipynb`",
+    ).optional(),
+    jobType: z.enum(["JOB_TYPE_UNSPECIFIED", "VERTEX_AI", "DATAPROC"]).describe(
+      "The type of Job to be used on this execution.",
+    ).optional(),
+    kernelSpec: z.string().describe(
+      "Name of the kernel spec to use. This must be specified if the kernel spec name on the execution target does not match the name in the input notebook file.",
+    ).optional(),
+    labels: z.record(z.string(), z.string()).describe(
+      "Labels for execution. If execution is scheduled, a field included will be 'nbs-scheduled'. Otherwise, it is an immediate execution, and an included field will be 'nbs-immediate'. Use fields to efficiently index between various types of executions.",
+    ).optional(),
+    masterType: z.string().describe(
+      "Specifies the type of virtual machine to use for your training job's master worker. You must specify this field when `scaleTier` is set to `CUSTOM`. You can use certain Compute Engine machine types directly in this field. The following types are supported: - `n1-standard-4` - `n1-standard-8` - `n1-standard-16` - `n1-standard-32` - `n1-standard-64` - `n1-standard-96` - `n1-highmem-2` - `n1-highmem-4` - `n1-highmem-8` - `n1-highmem-16` - `n1-highmem-32` - `n1-highmem-64` - `n1-highmem-96` - `n1-highcpu-16` - `n1-highcpu-32` - `n1-highcpu-64` - `n1-highcpu-96` Alternatively, you can use the following legacy machine types: - `standard` - `large_model` - `complex_model_s` - `complex_model_m` - `complex_model_l` - `standard_gpu` - `complex_model_m_gpu` - `complex_model_l_gpu` - `standard_p100` - `complex_model_m_p100` - `standard_v100` - `large_model_v100` - `complex_model_m_v100` - `complex_model_l_v100` Finally, if you want to use a TPU for training, specify `cloud_tpu` in this field. Learn more about the [special configuration options for training with TPU](https://cloud.google.com/ai-platform/training/docs/using-tpus#configuring_a_custom_tpu_machine).",
+    ).optional(),
+    outputNotebookFolder: z.string().describe(
+      "Path to the notebook folder to write to. Must be in a Google Cloud Storage bucket path. Format: `gs://{bucket_name}/{folder}` Ex: `gs://notebook_user/scheduled_notebooks`",
+    ).optional(),
+    parameters: z.string().describe(
+      "Parameters used within the 'input_notebook_file' notebook.",
+    ).optional(),
+    paramsYamlFile: z.string().describe(
+      "Parameters to be overridden in the notebook during execution. Ref https://papermill.readthedocs.io/en/latest/usage-parameterize.html on how to specifying parameters in the input notebook and pass them here in an YAML file. Ex: `gs://notebook_user/scheduled_notebooks/sentiment_notebook_params.yaml`",
+    ).optional(),
+    scaleTier: z.enum([
+      "SCALE_TIER_UNSPECIFIED",
+      "BASIC",
+      "STANDARD_1",
+      "PREMIUM_1",
+      "BASIC_GPU",
+      "BASIC_TPU",
+      "CUSTOM",
+    ]).describe(
+      "Required. Scale tier of the hardware used for notebook execution. DEPRECATED Will be discontinued. As right now only CUSTOM is supported.",
+    ).optional(),
+    serviceAccount: z.string().describe(
+      "The email address of a service account to use when running the execution. You must have the `iam.serviceAccounts.actAs` permission for the specified service account.",
+    ).optional(),
+    tensorboard: z.string().describe(
+      "The name of a Vertex AI [Tensorboard] resource to which this execution will upload Tensorboard logs. Format: `projects/{project}/locations/{location}/tensorboards/{tensorboard}`",
+    ).optional(),
+    vertexAiParameters: z.object({
+      env: z.record(z.string(), z.string()).describe(
+        "Environment variables. At most 100 environment variables can be specified and unique. Example: `GCP_BUCKET=gs://my-bucket/samples/`",
+      ).optional(),
+      network: z.string().describe(
+        "The full name of the Compute Engine [network](https://cloud.google.com/compute/docs/networks-and-firewalls#networks) to which the Job should be peered. For example, `projects/12345/global/networks/myVPC`. [Format](https://cloud.google.com/compute/docs/reference/rest/v1/networks/insert) is of the form `projects/{project}/global/networks/{network}`. Where `{project}` is a project number, as in `12345`, and `{network}` is a network name. Private services access must already be configured for the network. If left unspecified, the job is not peered with any network.",
+      ).optional(),
+    }).describe("Parameters used in Vertex AI JobType executions.").optional(),
+  }).describe("The description a notebook execution workload.").optional(),
+  outputNotebookFile: z.string().describe(
+    "Output notebook file generated by this execution",
+  ).optional(),
+  executionId: z.string().describe(
+    "Required. User-defined unique ID of this execution.",
+  ).optional(),
+  location: z.string().describe(
+    "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
+  ).optional(),
+});
+
+/** Swamp extension model for Google Cloud Notebooks Executions. Registered at `@swamp/gcp/notebooks/executions`. */
+export const model = {
+  type: "@swamp/gcp/notebooks/executions",
+  version: "2026.06.05.1",
+  globalArguments: GlobalArgsSchema,
+  inputsSchema: InputsSchema,
+  resources: {
+    state: {
+      description: "The definition of a single executed notebook.",
+      schema: StateSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+  },
+  methods: {
+    create: {
+      description: "Create a executions",
+      arguments: z.object({
+        waitForReady: z.boolean().describe(
+          "Wait for the resource to reach a ready state after creation (default: true)",
+        ).optional(),
+      }),
+      execute: async (args: { waitForReady?: boolean }, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        const body: Record<string, unknown> = {};
+        if (g["description"] !== undefined) {
+          body["description"] = g["description"];
+        }
+        if (g["executionTemplate"] !== undefined) {
+          body["executionTemplate"] = g["executionTemplate"];
+        }
+        if (g["outputNotebookFile"] !== undefined) {
+          body["outputNotebookFile"] = g["outputNotebookFile"];
+        }
+        if (g["executionId"] !== undefined) {
+          body["executionId"] = g["executionId"];
+        }
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
+        }
+        const result = await createResource(
+          BASE_URL,
+          INSERT_CONFIG,
+          params,
+          body,
+          GET_CONFIG,
+          (args.waitForReady ?? true)
+            ? {
+              "statusField": "state",
+              "readyValues": ["RUNNING", "SUCCEEDED"],
+              "failedValues": ["FAILED"],
+            }
+            : undefined,
+          {
+            listConfig: LIST_CONFIG,
+            listParams: {
+              "parent": `projects/${projectId}/locations/${
+                String(g["location"] ?? "")
+              }`,
+            },
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
+          },
+        ) as StateData;
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    get: {
+      description: "Get a executions",
+      arguments: z.object({
+        identifier: z.string().describe("The name of the executions"),
+      }),
+      execute: async (args: { identifier: string }, context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const g = context.globalArgs;
+        params["name"] = buildResourceName(
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+          args.identifier,
+        );
+        const result = await readResource(
+          BASE_URL,
+          GET_CONFIG,
+          params,
+        ) as StateData;
+        const instanceName = (g.name?.toString() ?? args.identifier).replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    delete: {
+      description: "Delete the executions",
+      arguments: z.object({
+        identifier: z.string().describe("The name of the executions"),
+      }),
+      execute: async (args: { identifier: string }, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["name"] = buildResourceName(
+          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+          args.identifier,
+        );
+        const { existed } = await deleteResource(
+          BASE_URL,
+          DELETE_CONFIG,
+          params,
+        );
+        const instanceName = (g.name?.toString() ?? args.identifier).replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource("state", instanceName, {
+          identifier: args.identifier,
+          existed,
+          status: existed ? "deleted" : "not_found",
+          deletedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+    sync: {
+      description: "Sync executions state from GCP",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        try {
+          const params: Record<string, string> = { project: projectId };
+          const shortName = existing.name?.toString() ?? g["name"]?.toString();
+          if (!shortName) throw new Error("No identifier found");
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            shortName,
+          );
+          const result = await readResource(
+            BASE_URL,
+            GET_CONFIG,
+            params,
+          ) as StateData;
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            result,
+          );
+          return { dataHandles: [handle] };
+        } catch (error: unknown) {
+          if (isResourceNotFoundError(error)) {
+            const handle = await context.writeResource("state", instanceName, {
+              status: "not_found",
+              syncedAt: new Date().toISOString(),
+            });
+            return { dataHandles: [handle] };
+          }
+          throw error;
+        }
+      },
+    },
+    list: {
+      description: "List executions resources",
+      arguments: z.object({
+        filter: z.string().describe(
+          "Filter applied to resulting executions. Currently only supports filtering executions by a specified `schedule_id`. Format: `schedule_id=`",
+        ).optional(),
+        orderBy: z.string().describe("Sort by field.").optional(),
+        pageSize: z.number().describe("Maximum return size of the list call.")
+          .optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        const { items, nextPageToken } = await listResources(
+          BASE_URL,
+          LIST_CONFIG,
+          params,
+          "executions",
+          (args.maxPages as number | undefined) ?? 10,
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i] as StateData;
+          const instanceName = (item.name?.toString() ?? String(i)).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
+  },
+};

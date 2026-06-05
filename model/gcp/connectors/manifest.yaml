@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/connectors"
-version: "2026.05.31.1"
+version: "2026.06.05.1"
 description: "Google Cloud connectors infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,13 +11,27 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: connections_tools
+  - Added: locations, connections, connections_enduserauthentications, connections_eventsubscriptions, connections_runtimeactionschemas, connections_runtimeentityschemas, endpointattachments, global_customconnectors, global_customconnectors_customconnectorversions, global_managedzones, providers, providers_connectors, providers_connectors_versions, providers_connectors_versions_eventtypes
 models:
+  - connections.ts
   - connections_actions.ts
+  - connections_enduserauthentications.ts
   - connections_entitytypes.ts
   - connections_entitytypes_entities.ts
+  - connections_eventsubscriptions.ts
   - connections_resources.ts
+  - connections_runtimeactionschemas.ts
+  - connections_runtimeentityschemas.ts
   - connections_tools.ts
+  - endpointattachments.ts
+  - global_customconnectors.ts
+  - global_customconnectors_customconnectorversions.ts
+  - global_managedzones.ts
+  - locations.ts
+  - providers.ts
+  - providers_connectors.ts
+  - providers_connectors_versions.ts
+  - providers_connectors_versions_eventtypes.ts
 additionalFiles:
   - LICENSE.txt
   - README.md

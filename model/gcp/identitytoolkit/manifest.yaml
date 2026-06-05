@@ -1,0 +1,27 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/gcp/identitytoolkit"
+version: "2026.06.05.1"
+description: "Google Cloud identitytoolkit infrastructure models"
+repository: "https://github.com/systeminit/swamp-extensions"
+labels:
+  - gcp
+  - google-cloud
+  - identitytoolkit
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: defaultsupportedidps, defaultsupportedidpconfigs, inboundsamlconfigs, oauthidpconfigs, tenants, tenants_defaultsupportedidpconfigs, tenants_inboundsamlconfigs, tenants_oauthidpconfigs
+models:
+  - defaultsupportedidpconfigs.ts
+  - defaultsupportedidps.ts
+  - inboundsamlconfigs.ts
+  - oauthidpconfigs.ts
+  - tenants.ts
+  - tenants_defaultsupportedidpconfigs.ts
+  - tenants_inboundsamlconfigs.ts
+  - tenants_oauthidpconfigs.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

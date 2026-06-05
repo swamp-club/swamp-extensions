@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/dialogflow"
-version: "2026.05.27.1"
+version: "2026.06.05.1"
 description: "Google Cloud dialogflow infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,8 +11,19 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: agents_flows, agents_playbooks
+  - Added: agent_entitytypes, agent_environments, agent_environments_intents, agent_environments_users_sessions_contexts, agent_environments_users_sessions_entitytypes, agent_intents, agent_knowledgebases, agent_knowledgebases_documents, agent_sessions_contexts, agent_sessions_entitytypes, agent_versions, answerrecords, conversationdatasets, conversationmodels, conversationmodels_evaluations, conversationprofiles, conversations, conversations_messages, conversations_participants, generators, knowledgebases, knowledgebases_documents, generators_evaluations, siptrunks, tools
 models:
+  - agent_entitytypes.ts
+  - agent_environments.ts
+  - agent_environments_intents.ts
+  - agent_environments_users_sessions_contexts.ts
+  - agent_environments_users_sessions_entitytypes.ts
+  - agent_intents.ts
+  - agent_knowledgebases.ts
+  - agent_knowledgebases_documents.ts
+  - agent_sessions_contexts.ts
+  - agent_sessions_entitytypes.ts
+  - agent_versions.ts
   - agents.ts
   - agents_changelogs.ts
   - agents_entitytypes.ts
@@ -37,8 +48,22 @@ models:
   - agents_tools_versions.ts
   - agents_transitionroutegroups.ts
   - agents_webhooks.ts
+  - answerrecords.ts
+  - conversationdatasets.ts
+  - conversationmodels.ts
+  - conversationmodels_evaluations.ts
+  - conversationprofiles.ts
+  - conversations.ts
+  - conversations_messages.ts
+  - conversations_participants.ts
+  - generators.ts
+  - generators_evaluations.ts
+  - knowledgebases.ts
+  - knowledgebases_documents.ts
   - locations.ts
   - securitysettings.ts
+  - siptrunks.ts
+  - tools.ts
 additionalFiles:
   - LICENSE.txt
   - README.md

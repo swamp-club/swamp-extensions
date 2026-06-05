@@ -13,8 +13,8 @@ the live state in GCP. Available methods:
 - **delete** — remove the resource from GCP
 - **sync** — refresh all resource properties from the API
 
-Use `swamp model type describe @swamp/gcp/jobs/tenants_companies` to see the
-full list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/gcp/jobs/companies` to see the full list
+of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -59,17 +59,17 @@ gcloud config set project my-project
 ## Usage
 
 ```bash
-# Create a new tenants_companies model
-swamp model create @swamp/gcp/jobs/tenants_companies my-tenants_companies
+# Create a new companies model
+swamp model create @swamp/gcp/jobs/companies my-companies
 
 # Edit the model to configure its properties
-swamp model edit my-tenants_companies
+swamp model edit my-companies
 
 # Create the resource in GCP
-swamp model method run my-tenants_companies create
+swamp model method run my-companies create
 
 # Sync current state from GCP
-swamp model method run my-tenants_companies sync
+swamp model method run my-companies sync
 ```
 
 ## License

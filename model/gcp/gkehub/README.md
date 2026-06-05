@@ -13,7 +13,7 @@ the live state in GCP. Available methods:
 - **delete** — remove the resource from GCP
 - **sync** — refresh all resource properties from the API
 
-Use `swamp model type describe @swamp/gcp/gkehub/locations` to see the full list
+Use `swamp model type describe @swamp/gcp/gkehub/features` to see the full list
 of configurable properties and available methods for this model.
 
 ## Authentication
@@ -59,17 +59,17 @@ gcloud config set project my-project
 ## Usage
 
 ```bash
-# Create a new locations model
-swamp model create @swamp/gcp/gkehub/locations my-locations
+# Create a new features model
+swamp model create @swamp/gcp/gkehub/features my-features
 
 # Edit the model to configure its properties
-swamp model edit my-locations
+swamp model edit my-features
 
 # Create the resource in GCP
-swamp model method run my-locations create
+swamp model method run my-features create
 
 # Sync current state from GCP
-swamp model method run my-locations sync
+swamp model method run my-features sync
 ```
 
 ## License

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/displayvideo"
-version: "2026.06.04.1"
+version: "2026.06.05.1"
 description: "Google Cloud displayvideo infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: advertisers_adgroups, advertisers_adgroups_targetingtypes_assignedtargetingoptions, advertisers_lineitems, advertisers_lineitems_targetingtypes_assignedtargetingoptions, advertisers_targetingtypes_assignedtargetingoptions, partners_targetingtypes_assignedtargetingoptions
+  - Added: advertisers_manualtriggers, advertisers_youtubeadgroupads, advertisers_youtubeadgroups, advertisers_youtubeadgroups_targetingtypes_assignedtargetingoptions, firstandthirdpartyaudiences
 models:
   - advertisers.ts
   - advertisers_adassets.ts
@@ -30,14 +30,19 @@ models:
   - advertisers_lineitems_youtubeassettypes_youtubeassetassociations.ts
   - advertisers_locationlists.ts
   - advertisers_locationlists_assignedlocations.ts
+  - advertisers_manualtriggers.ts
   - advertisers_negativekeywordlists.ts
   - advertisers_negativekeywordlists_negativekeywords.ts
   - advertisers_targetingtypes_assignedtargetingoptions.ts
+  - advertisers_youtubeadgroupads.ts
+  - advertisers_youtubeadgroups.ts
+  - advertisers_youtubeadgroups_targetingtypes_assignedtargetingoptions.ts
   - combinedaudiences.ts
   - custombiddingalgorithms.ts
   - custombiddingalgorithms_rules.ts
   - custombiddingalgorithms_scripts.ts
   - customlists.ts
+  - firstandthirdpartyaudiences.ts
   - firstpartyandpartneraudiences.ts
   - floodlightgroups.ts
   - floodlightgroups_floodlightactivities.ts

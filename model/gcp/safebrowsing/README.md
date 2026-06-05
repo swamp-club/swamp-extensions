@@ -13,8 +13,8 @@ the live state in GCP. Available methods:
 - **delete** — remove the resource from GCP
 - **sync** — refresh all resource properties from the API
 
-Use `swamp model type describe @swamp/gcp/safebrowsing/hashlist` to see the full
-list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/gcp/safebrowsing/encodedfullhashes` to see
+the full list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -59,17 +59,17 @@ gcloud config set project my-project
 ## Usage
 
 ```bash
-# Create a new hashlist model
-swamp model create @swamp/gcp/safebrowsing/hashlist my-hashlist
+# Create a new encodedfullhashes model
+swamp model create @swamp/gcp/safebrowsing/encodedfullhashes my-encodedfullhashes
 
 # Edit the model to configure its properties
-swamp model edit my-hashlist
+swamp model edit my-encodedfullhashes
 
 # Create the resource in GCP
-swamp model method run my-hashlist create
+swamp model method run my-encodedfullhashes create
 
 # Sync current state from GCP
-swamp model method run my-hashlist sync
+swamp model method run my-encodedfullhashes sync
 ```
 
 ## License

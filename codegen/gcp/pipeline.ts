@@ -40,18 +40,10 @@ const SKIP_APIS = new Set([
   "poly", // Shutdown — returns 502
 ]);
 
-// APIs where the preferred version lacks resources we need. Each entry fetches
-// an additional version alongside the preferred one. The extra schema is saved
-// as `<name>-<version>.json` (e.g. `iam-v1.json`) and merged during generation.
-const ADDITIONAL_VERSIONS: Record<string, string[]> = {
-  iam: ["v1"], // v2 (preferred) only has Deny Policies; v1 has the rest of IAM
-};
-
-// When loading additional-version schemas, only include resources whose
-// post-deduplication path matches one of these entries. Scope prefixes
-// (projects/, organizations/) are already stripped by deduplicateScopedResources
-// before this filter applies. APIs not listed here pass all resources through.
-const ADDITIONAL_VERSION_RESOURCE_FILTER: Record<string, string[][]> = {};
+// Regex to detect additional-version schema filenames (e.g. "iam-v1.json").
+// Group 1 = base API name, group 2 = version string. Only matches stable
+// version suffixes (v1, v2, v23) — alpha/beta versions are never fetched.
+const ADDITIONAL_VERSION_FILENAME_RE = /^(.+)-(v\d+)$/;
 
 // --- Public types ---
 
@@ -437,44 +429,38 @@ export async function fetchGcpSchema(options?: {
       (skippedCount > 0 ? ` (${skippedCount} skipped)` : ""),
   );
 
-  // Fetch additional non-preferred versions for APIs that need them
+  // Fetch additional stable (non-alpha/beta) versions for every API that has
+  // more than one. Resources from these versions are merged during generation,
+  // with the preferred version winning for overlapping resource paths.
   let additionalFetched = 0;
-  for (const [apiName, versions] of Object.entries(ADDITIONAL_VERSIONS)) {
-    const allVersions = apisByName.get(apiName);
-    if (!allVersions) {
-      console.warn(
-        `ADDITIONAL_VERSIONS: API "${apiName}" not found in discovery directory`,
-      );
-      continue;
-    }
+  for (const [apiName, versions] of apisByName) {
+    if (SKIP_APIS.has(apiName)) continue;
 
-    for (const targetVersion of versions) {
-      const item = allVersions.find((v) => v.version === targetVersion);
-      if (!item) {
-        console.warn(
-          `ADDITIONAL_VERSIONS: version "${targetVersion}" not found for "${apiName}" (available: ${
-            allVersions.map((v) => v.version).join(", ")
-          })`,
-        );
-        continue;
-      }
+    const preferred = versions.find((v) => v.preferred);
+    if (!preferred) continue;
 
-      const filename = `${apiName}-${targetVersion}.json`;
+    const additionalStable = versions.filter((v) =>
+      v.version !== preferred.version &&
+      !v.version.includes("alpha") &&
+      !v.version.includes("beta")
+    );
+
+    for (const item of additionalStable) {
+      const filename = `${apiName}-${item.version}.json`;
       const filepath = `${outputDir}/${filename}`;
       try {
         const docResp = await fetchWithRetry(item.discoveryRestUrl);
         if (!docResp.ok) {
           console.warn(
-            `Failed to fetch ${apiName} ${targetVersion}: ${docResp.statusText}`,
+            `Failed to fetch ${apiName} ${item.version}: ${docResp.statusText}`,
           );
           continue;
         }
         const doc = await docResp.json();
         await Deno.writeTextFile(filepath, stableStringify(doc, 2));
         additionalFetched++;
-        console.log(`Fetched additional version: ${apiName} ${targetVersion}`);
       } catch (e) {
-        console.warn(`Error fetching ${apiName} ${targetVersion}: ${e}`);
+        console.warn(`Error fetching ${apiName} ${item.version}: ${e}`);
       }
     }
   }
@@ -502,46 +488,63 @@ export async function generateGcpModels(options: {
   const skipped: { service: string; resource: string; reason: string }[] = [];
   const errors: string[] = [];
 
-  let docCount = 0;
+  // Collect and sort schema files: preferred versions ({name}.json) before
+  // additional versions ({name}-{version}.json) so cross-version dedup
+  // always lets the preferred version win.
+  const schemaFiles: string[] = [];
   for await (const entry of Deno.readDir(schemasDir)) {
-    if (!entry.isFile || !entry.name.endsWith(".json")) continue;
+    if (entry.isFile && entry.name.endsWith(".json")) {
+      schemaFiles.push(entry.name);
+    }
+  }
+  schemaFiles.sort((a, b) => {
+    const aIsAdditional = ADDITIONAL_VERSION_FILENAME_RE.test(
+      a.replace(/\.json$/, ""),
+    );
+    const bIsAdditional = ADDITIONAL_VERSION_FILENAME_RE.test(
+      b.replace(/\.json$/, ""),
+    );
+    if (aIsAdditional !== bIsAdditional) return aIsAdditional ? 1 : -1;
+    return a.localeCompare(b);
+  });
 
-    const serviceName = entry.name.replace(".json", "");
+  // Track seen resource keys for cross-version dedup (preferred wins).
+  const seenResourceKeys = new Set<string>();
 
-    // Apply service filter — additional-version files (e.g. "iam-v1") pass
-    // when their base service (e.g. "iam") is in the filter list.
+  let docCount = 0;
+  for (const filename of schemaFiles) {
+    const stem = filename.replace(/\.json$/, "");
+    const versionMatch = stem.match(ADDITIONAL_VERSION_FILENAME_RE);
+    const isAdditionalVersion = versionMatch !== null;
+    const baseService = isAdditionalVersion ? versionMatch[1] : stem;
+
+    // Apply service filter — additional-version files pass when their
+    // base service is in the filter list.
     if (options.services) {
-      const baseService = Object.keys(ADDITIONAL_VERSIONS).find((base) =>
-        serviceName.startsWith(`${base}-`)
-      );
       if (
-        !options.services.includes(serviceName) &&
-        !(baseService && options.services.includes(baseService))
+        !options.services.includes(stem) &&
+        !options.services.includes(baseService)
       ) {
         continue;
       }
     }
 
     try {
-      const doc = await readGcpDiscoveryDocument(`${schemasDir}/${entry.name}`);
+      const doc = await readGcpDiscoveryDocument(`${schemasDir}/${filename}`);
       const resources = parseGcpDiscoveryDocument(doc);
 
-      // Filter resources from additional-version schemas to only allowed paths
-      const allowedPaths = ADDITIONAL_VERSION_RESOURCE_FILTER[serviceName];
       for (const resource of resources) {
-        if (allowedPaths) {
-          const matches = allowedPaths.some((prefix) =>
-            prefix.length === resource.resourcePath.length &&
-            prefix.every((seg, i) => seg === resource.resourcePath[i])
-          );
-          if (!matches) continue;
-        }
+        const resourceKey = `${resource.service}.${
+          resource.resourcePath.join(".")
+        }`;
+        if (seenResourceKeys.has(resourceKey)) continue;
+        seenResourceKeys.add(resourceKey);
         allResources.push(resource);
       }
 
       docCount++;
     } catch (e) {
-      errors.push(`${serviceName}: ${e}`);
+      errors.push(`${stem}: ${e}`);
     }
   }
 

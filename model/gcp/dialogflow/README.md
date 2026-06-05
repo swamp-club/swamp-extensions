@@ -13,7 +13,7 @@ the live state in GCP. Available methods:
 - **delete** — remove the resource from GCP
 - **sync** — refresh all resource properties from the API
 
-Use `swamp model type describe @swamp/gcp/dialogflow/agents_changelogs` to see
+Use `swamp model type describe @swamp/gcp/dialogflow/agent_entitytypes` to see
 the full list of configurable properties and available methods for this model.
 
 ## Authentication
@@ -59,17 +59,17 @@ gcloud config set project my-project
 ## Usage
 
 ```bash
-# Create a new agents_changelogs model
-swamp model create @swamp/gcp/dialogflow/agents_changelogs my-agents_changelogs
+# Create a new agent_entitytypes model
+swamp model create @swamp/gcp/dialogflow/agent_entitytypes my-agent_entitytypes
 
 # Edit the model to configure its properties
-swamp model edit my-agents_changelogs
+swamp model edit my-agent_entitytypes
 
 # Create the resource in GCP
-swamp model method run my-agents_changelogs create
+swamp model method run my-agent_entitytypes create
 
 # Sync current state from GCP
-swamp model method run my-agents_changelogs sync
+swamp model method run my-agent_entitytypes sync
 ```
 
 ## License

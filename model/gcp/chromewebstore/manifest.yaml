@@ -1,0 +1,20 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/gcp/chromewebstore"
+version: "2026.06.05.1"
+description: "Google Cloud chromewebstore infrastructure models"
+repository: "https://github.com/systeminit/swamp-extensions"
+labels:
+  - gcp
+  - google-cloud
+  - chromewebstore
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: items
+models:
+  - items.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

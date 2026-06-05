@@ -13,8 +13,8 @@ the live state in GCP. Available methods:
 - **delete** — remove the resource from GCP
 - **sync** — refresh all resource properties from the API
 
-Use `swamp model type describe @swamp/gcp/run/instances` to see the full list of
-configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/gcp/run/authorizeddomains` to see the full
+list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -59,17 +59,17 @@ gcloud config set project my-project
 ## Usage
 
 ```bash
-# Create a new instances model
-swamp model create @swamp/gcp/run/instances my-instances
+# Create a new authorizeddomains model
+swamp model create @swamp/gcp/run/authorizeddomains my-authorizeddomains
 
 # Edit the model to configure its properties
-swamp model edit my-instances
+swamp model edit my-authorizeddomains
 
 # Create the resource in GCP
-swamp model method run my-instances create
+swamp model method run my-authorizeddomains create
 
 # Sync current state from GCP
-swamp model method run my-instances sync
+swamp model method run my-authorizeddomains sync
 ```
 
 ## License

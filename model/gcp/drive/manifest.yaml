@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/drive"
-version: "2026.05.26.1"
+version: "2026.06.05.1"
 description: "Google Cloud drive infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,17 +11,20 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: approvals, changes, drives, files, permissions, teamdrives
+  - Added: children, parents, properties
 models:
   - about.ts
   - accessproposals.ts
   - approvals.ts
   - apps.ts
   - changes.ts
+  - children.ts
   - comments.ts
   - drives.ts
   - files.ts
+  - parents.ts
   - permissions.ts
+  - properties.ts
   - replies.ts
   - revisions.ts
   - teamdrives.ts

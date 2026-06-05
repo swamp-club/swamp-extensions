@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/tagmanager"
-version: "2026.05.29.1"
+version: "2026.06.05.1"
 description: "Google Cloud tagmanager infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,12 +11,17 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: accounts_containers_versions, accounts_containers_workspaces_variables
+  - Added: accounts_containers_folders, accounts_containers_folders_entities, accounts_containers_tags, accounts_containers_triggers, accounts_containers_variables, accounts_permissions
 models:
   - accounts.ts
   - accounts_containers.ts
   - accounts_containers_destinations.ts
   - accounts_containers_environments.ts
+  - accounts_containers_folders.ts
+  - accounts_containers_folders_entities.ts
+  - accounts_containers_tags.ts
+  - accounts_containers_triggers.ts
+  - accounts_containers_variables.ts
   - accounts_containers_version_headers.ts
   - accounts_containers_versions.ts
   - accounts_containers_workspaces.ts
@@ -29,6 +34,7 @@ models:
   - accounts_containers_workspaces_transformations.ts
   - accounts_containers_workspaces_triggers.ts
   - accounts_containers_workspaces_variables.ts
+  - accounts_permissions.ts
   - accounts_user_permissions.ts
 additionalFiles:
   - LICENSE.txt

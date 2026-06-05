@@ -13,8 +13,10 @@ the live state in GCP. Available methods:
 - **delete** — remove the resource from GCP
 - **sync** — refresh all resource properties from the API
 
-Use `swamp model type describe @swamp/gcp/gmailpostmastertools/domains` to see
-the full list of configurable properties and available methods for this model.
+Use
+`swamp model type describe @swamp/gcp/gmailpostmastertools/domains_trafficstats`
+to see the full list of configurable properties and available methods for this
+model.
 
 ## Authentication
 
@@ -59,17 +61,17 @@ gcloud config set project my-project
 ## Usage
 
 ```bash
-# Create a new domains model
-swamp model create @swamp/gcp/gmailpostmastertools/domains my-domains
+# Create a new domains_trafficstats model
+swamp model create @swamp/gcp/gmailpostmastertools/domains_trafficstats my-domains_trafficstats
 
 # Edit the model to configure its properties
-swamp model edit my-domains
+swamp model edit my-domains_trafficstats
 
 # Create the resource in GCP
-swamp model method run my-domains create
+swamp model method run my-domains_trafficstats create
 
 # Sync current state from GCP
-swamp model method run my-domains sync
+swamp model method run my-domains_trafficstats sync
 ```
 
 ## License

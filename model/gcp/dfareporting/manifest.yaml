@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/dfareporting"
-version: "2026.05.27.1"
+version: "2026.06.05.1"
 description: "Google Cloud dfareporting infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: floodlightactivities
+  - Added: inventoryitems, orders, projects
 models:
   - accountactiveadsummaries.ts
   - accountpermissiongroups.ts
@@ -47,17 +47,20 @@ models:
   - floodlightactivities.ts
   - floodlightactivitygroups.ts
   - floodlightconfigurations.ts
+  - inventoryitems.ts
   - languages.ts
   - metros.ts
   - mobileapps.ts
   - mobilecarriers.ts
   - operatingsystems.ts
   - operatingsystemversions.ts
+  - orders.ts
   - placementgroups.ts
   - placements.ts
   - placementstrategies.ts
   - platformtypes.ts
   - postalcodes.ts
+  - projects.ts
   - regions.ts
   - remarketinglists.ts
   - remarketinglistshares.ts

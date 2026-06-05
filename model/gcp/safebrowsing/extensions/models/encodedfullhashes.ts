@@ -1,0 +1,175 @@
+// Auto-generated extension model for @swamp/gcp/safebrowsing/encodedfullhashes
+// Do not edit manually. Re-generate with: deno task generate:gcp
+
+// deno-lint-ignore-file no-explicit-any
+
+/**
+ * Swamp extension model for Google Cloud Safe Browsing EncodedFullHashes.
+ *
+ * GCP safebrowsing EncodedFullHashes resource
+ *
+ * Wraps the GCP resource as a swamp model so create, get, update,
+ * delete, and sync can be driven through `swamp model`.
+ *
+ * @module
+ */
+
+import { z } from "npm:zod@4.3.6";
+import {
+  getProjectId,
+  isResourceNotFoundError,
+  readResource,
+} from "./_lib/gcp.ts";
+
+const BASE_URL = "https://safebrowsing.googleapis.com/";
+
+const GET_CONFIG = {
+  "id": "safebrowsing.encodedFullHashes.get",
+  "path": "v4/encodedFullHashes/{encodedRequest}",
+  "httpMethod": "GET",
+  "parameterOrder": [
+    "encodedRequest",
+  ],
+  "parameters": {
+    "clientId": {
+      "location": "query",
+    },
+    "clientVersion": {
+      "location": "query",
+    },
+    "encodedRequest": {
+      "location": "path",
+      "required": true,
+    },
+  },
+} as const;
+
+const GlobalArgsSchema = z.object({
+  name: z.string().describe(
+    "Instance name for this resource (used as the unique identifier in the factory pattern)",
+  ),
+});
+
+const StateSchema = z.object({
+  matches: z.array(z.object({
+    cacheDuration: z.string(),
+    platformType: z.string(),
+    threat: z.object({
+      digest: z.string(),
+      hash: z.string(),
+      url: z.string(),
+    }),
+    threatEntryMetadata: z.object({
+      entries: z.array(z.object({
+        key: z.unknown(),
+        value: z.unknown(),
+      })),
+    }),
+    threatEntryType: z.string(),
+    threatType: z.string(),
+  })).optional(),
+  minimumWaitDuration: z.string().optional(),
+  negativeCacheDuration: z.string().optional(),
+}).passthrough();
+
+type StateData = z.infer<typeof StateSchema>;
+
+const InputsSchema = z.object({
+  name: z.string().optional(),
+});
+
+/** Swamp extension model for Google Cloud Safe Browsing EncodedFullHashes. Registered at `@swamp/gcp/safebrowsing/encodedfullhashes`. */
+export const model = {
+  type: "@swamp/gcp/safebrowsing/encodedfullhashes",
+  version: "2026.06.05.1",
+  globalArguments: GlobalArgsSchema,
+  inputsSchema: InputsSchema,
+  resources: {
+    state: {
+      description: "GCP safebrowsing EncodedFullHashes resource",
+      schema: StateSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+  },
+  methods: {
+    get: {
+      description: "Get a encodedFullHashes",
+      arguments: z.object({
+        identifier: z.string().describe("The name of the encodedFullHashes"),
+      }),
+      execute: async (args: { identifier: string }, context: any) => {
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        const g = context.globalArgs;
+        params["encodedRequest"] = args.identifier;
+        const result = await readResource(
+          BASE_URL,
+          GET_CONFIG,
+          params,
+        ) as StateData;
+        const instanceName = (g.name?.toString() ?? args.identifier).replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    sync: {
+      description: "Sync encodedFullHashes state from GCP",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        try {
+          const params: Record<string, string> = { project: projectId };
+          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          if (!identifier) {
+            throw new Error(
+              "No identifier found in existing state or globalArgs",
+            );
+          }
+          params["encodedRequest"] = identifier;
+          const result = await readResource(
+            BASE_URL,
+            GET_CONFIG,
+            params,
+          ) as StateData;
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            result,
+          );
+          return { dataHandles: [handle] };
+        } catch (error: unknown) {
+          if (isResourceNotFoundError(error)) {
+            const handle = await context.writeResource("state", instanceName, {
+              status: "not_found",
+              syncedAt: new Date().toISOString(),
+            });
+            return { dataHandles: [handle] };
+          }
+          throw error;
+        }
+      },
+    },
+  },
+};

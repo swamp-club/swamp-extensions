@@ -138,7 +138,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Assured Workloads Workloads.Violations. Registered at `@swamp/gcp/assuredworkloads/workloads-violations`. */
 export const model = {
   type: "@swamp/gcp/assuredworkloads/workloads-violations",
-  version: "2026.05.25.1",
+  version: "2026.06.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -197,6 +197,11 @@ export const model = {
     },
     {
       toVersion: "2026.05.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -382,6 +387,42 @@ export const model = {
             "httpMethod": "POST",
             "parameterOrder": ["name"],
             "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
+        );
+        return { result };
+      },
+    },
+    batch_acknowledge_violations: {
+      description: "batch acknowledge violations",
+      arguments: z.object({
+        acknowledgeType: z.any().optional(),
+        comment: z.any().optional(),
+        names: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const projectId = await getProjectId();
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        const body: Record<string, unknown> = {};
+        if (args["acknowledgeType"] !== undefined) {
+          body["acknowledgeType"] = args["acknowledgeType"];
+        }
+        if (args["comment"] !== undefined) body["comment"] = args["comment"];
+        if (args["names"] !== undefined) body["names"] = args["names"];
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id":
+              "assuredworkloads.organizations.locations.workloads.violations.batchAcknowledgeViolations",
+            "path": "v1/{+parent}/violations:batchAcknowledgeViolations",
+            "httpMethod": "POST",
+            "parameterOrder": ["parent"],
+            "parameters": {
+              "parent": { "location": "path", "required": true },
+            },
           },
           params,
           body,

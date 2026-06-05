@@ -13,8 +13,8 @@ the live state in GCP. Available methods:
 - **delete** — remove the resource from GCP
 - **sync** — refresh all resource properties from the API
 
-Use `swamp model type describe @swamp/gcp/notebooks/instances` to see the full
-list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/gcp/notebooks/environments` to see the
+full list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -59,17 +59,17 @@ gcloud config set project my-project
 ## Usage
 
 ```bash
-# Create a new instances model
-swamp model create @swamp/gcp/notebooks/instances my-instances
+# Create a new environments model
+swamp model create @swamp/gcp/notebooks/environments my-environments
 
 # Edit the model to configure its properties
-swamp model edit my-instances
+swamp model edit my-environments
 
 # Create the resource in GCP
-swamp model method run my-instances create
+swamp model method run my-environments create
 
 # Sync current state from GCP
-swamp model method run my-instances sync
+swamp model method run my-environments sync
 ```
 
 ## License

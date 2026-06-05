@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/translate"
-version: "2026.05.25.1"
+version: "2026.06.05.1"
 description: "Google Cloud translate infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: locations, adaptivemtdatasets, adaptivemtdatasets_adaptivemtfiles, adaptivemtdatasets_adaptivemtfiles_adaptivemtsentences, adaptivemtdatasets_adaptivemtsentences, datasets, datasets_examples, glossaries, glossaries_glossaryentries, models
+  - Added: detections, languages, translations
 models:
   - adaptivemtdatasets.ts
   - adaptivemtdatasets_adaptivemtfiles.ts
@@ -19,10 +19,13 @@ models:
   - adaptivemtdatasets_adaptivemtsentences.ts
   - datasets.ts
   - datasets_examples.ts
+  - detections.ts
   - glossaries.ts
   - glossaries_glossaryentries.ts
+  - languages.ts
   - locations.ts
   - models.ts
+  - translations.ts
 additionalFiles:
   - LICENSE.txt
   - README.md

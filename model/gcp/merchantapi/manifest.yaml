@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/merchantapi"
-version: "2026.05.27.1"
+version: "2026.06.05.1"
 description: "Google Cloud merchantapi infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,10 +11,34 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: accounts_merchantreviews, accounts_productreviews
+  - Added: accounts, accounts_gbpaccounts, accounts_issues, accounts_omnichannelsettings, accounts_onlinereturnpolicies, accounts_programs, accounts_relationships, accounts_services, accounts_termsofserviceagreementstates, accounts_users, termsofservice, accounts_conversionsources, accounts_datasources, accounts_datasources_fileuploads, accounts_products_localinventories, accounts_products_regionalinventories, accounts_aggregateproductstatuses, accounts_lfpmerchantstates, accounts_lfpstores, accounts_notificationsubscriptions, accounts_products, accounts_promotions, accounts_limits, accounts_quotas
 models:
+  - accounts.ts
+  - accounts_aggregateproductstatuses.ts
+  - accounts_conversionsources.ts
+  - accounts_datasources.ts
+  - accounts_datasources_fileuploads.ts
+  - accounts_gbpaccounts.ts
+  - accounts_issues.ts
+  - accounts_lfpmerchantstates.ts
+  - accounts_lfpstores.ts
+  - accounts_limits.ts
   - accounts_merchantreviews.ts
+  - accounts_notificationsubscriptions.ts
+  - accounts_omnichannelsettings.ts
+  - accounts_onlinereturnpolicies.ts
   - accounts_productreviews.ts
+  - accounts_products.ts
+  - accounts_products_localinventories.ts
+  - accounts_products_regionalinventories.ts
+  - accounts_programs.ts
+  - accounts_promotions.ts
+  - accounts_quotas.ts
+  - accounts_relationships.ts
+  - accounts_services.ts
+  - accounts_termsofserviceagreementstates.ts
+  - accounts_users.ts
+  - termsofservice.ts
 additionalFiles:
   - LICENSE.txt
   - README.md

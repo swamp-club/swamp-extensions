@@ -51,27 +51,28 @@ separate document fetched from Google's Discovery API directory.
 4. Save each as `{name}.json` in `schemas/gcp/` with sorted keys for
    deterministic output
 5. Retry with exponential backoff (250ms base, 3 retries, 30s timeout)
-6. Fetch additional non-preferred versions listed in `ADDITIONAL_VERSIONS`
-   (saved as `{name}-{version}.json`, e.g. `iam-v1.json`)
+6. Auto-discover additional stable versions: for every API with more than one
+   stable (non-alpha/non-beta) version, fetch each non-preferred version and
+   save as `{name}-{version}.json` (e.g. `iam-v1.json`, `cloudbuild-v1.json`)
 
-### Additional versions
+### Cross-version resource merging
 
-Some APIs expose different resource sets across versions. The preferred version
-may lack resources needed for complete coverage. `ADDITIONAL_VERSIONS` maps API
-names to non-preferred versions that should also be fetched:
+Many GCP APIs expose different resource sets across versions. For example, IAM
+v2 (preferred) only has Deny Policies, while v1 has roles, serviceAccounts,
+keys, workforcePools, workloadIdentityPools, oauthClients, and ~14 total
+resources. The pipeline automatically discovers and merges resources from all
+stable versions of each API.
 
-| API   | Additional version | Resources included                                                                                                            | Reason                                                                         |
-| ----- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `iam` | `v1`               | roles, serviceAccounts, keys, workforcePools, workloadIdentityPools, oauthClients, and their nested sub-resources (~14 total) | v2 (preferred) only has Deny Policies; v1 has the rest of the IAM surface area |
+**Merge semantics**: Schema files are processed in deterministic order —
+preferred versions (`{name}.json`) before additional versions
+(`{name}-{version}.json`), both sorted alphabetically. A cross-version
+deduplication step tracks seen resource keys (`service.resourcePath`). The
+preferred version always wins: resources from additional versions are only
+included when no resource with the same key exists from the preferred version.
 
-During generation, resources from additional-version schemas can optionally be
-filtered by `ADDITIONAL_VERSION_RESOURCE_FILTER` to include only specific
-resource paths. APIs not listed in the filter pass all resources through. Scope
-deduplication (`deduplicateScopedResources`) handles merging
-projects/organizations/folders variants into a single model, so the filter is
-only needed when an additional version contains resources that genuinely
-conflict with the preferred version (not just scope variants). Currently no APIs
-require filtering.
+Within-document scope deduplication (`deduplicateScopedResources`) still runs
+first, merging projects/organizations/folders variants into a single model
+before cross-version dedup applies.
 
 ### Skipped APIs
 
