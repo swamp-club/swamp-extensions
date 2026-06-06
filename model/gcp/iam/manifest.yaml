@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/iam"
-version: "2026.06.05.1"
+version: "2026.06.06.2"
 description: "Google Cloud iam infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: workforcepools, workforcepools_providers, workforcepools_providers_keys, workforcepools_providers_scimtenants, workforcepools_providers_scimtenants_tokens, oauthclients, oauthclients_credentials, workloadidentitypools, workloadidentitypools_namespaces, workloadidentitypools_namespaces_managedidentities, workloadidentitypools_providers, workloadidentitypools_providers_keys, serviceaccounts, serviceaccounts_keys
+  - Updated: serviceaccounts
 models:
   - oauthclients.ts
   - oauthclients_credentials.ts
