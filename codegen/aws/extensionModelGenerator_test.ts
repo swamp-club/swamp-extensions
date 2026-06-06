@@ -112,6 +112,7 @@ Deno.test("generateAwsExtensionModel - all handlers, natural name", async (t) =>
     handlers: { create: true, read: true, update: true, delete: true },
     version: "2026.01.01.1",
     modelType: "@swamp/aws/s3/bucket",
+    domainPropertyNames: ["BucketName"],
   };
 
   await assertSnapshot(t, generateAwsExtensionModel(input));
@@ -151,6 +152,7 @@ Deno.test("generateAwsExtensionModel - synthetic name", async (t) => {
     handlers: { create: true, read: true, update: true, delete: true },
     version: "2026.01.01.1",
     modelType: "@swamp/aws/iam/role",
+    domainPropertyNames: ["RoleName", "AssumeRolePolicyDocument"],
   };
 
   await assertSnapshot(t, generateAwsExtensionModel(input));
@@ -189,6 +191,7 @@ Deno.test("generateAwsExtensionModel - composite primary identifier", async (t) 
     handlers: { create: true, read: true, update: true, delete: true },
     version: "2026.01.01.1",
     modelType: "@swamp/aws/ec2/subnet_route_table_association",
+    domainPropertyNames: ["SubnetId", "RouteTableId"],
   };
 
   await assertSnapshot(t, generateAwsExtensionModel(input));
@@ -227,6 +230,7 @@ Deno.test("generateAwsExtensionModel - createOnly properties filtered in update"
     handlers: { create: true, read: true, update: true, delete: true },
     version: "2026.01.01.1",
     modelType: "@swamp/aws/ec2/instance",
+    domainPropertyNames: ["InstanceType", "ImageId"],
   };
 
   await assertSnapshot(t, generateAwsExtensionModel(input));
@@ -264,6 +268,7 @@ Deno.test("generateAwsExtensionModel - read-only resource (no update, no delete)
     handlers: { create: true, read: true, update: false, delete: false },
     version: "2026.01.01.1",
     modelType: "@swamp/aws/cloudformation/stack_set",
+    domainPropertyNames: ["StackSetName"],
   };
 
   await assertSnapshot(t, generateAwsExtensionModel(input));
@@ -306,6 +311,7 @@ Deno.test("generateAwsExtensionModel - extracted schemas and StateSchema collisi
     handlers: { create: true, read: true, update: false, delete: true },
     version: "2026.01.01.1",
     modelType: "@swamp/aws/ecs/task_definition",
+    domainPropertyNames: ["Family"],
   };
 
   await assertSnapshot(t, generateAwsExtensionModel(input));
@@ -343,6 +349,7 @@ Deno.test("generateAwsExtensionModel - with upgrades block", async (t) => {
     handlers: { create: true, read: true, update: true, delete: true },
     version: "2026.01.02.1",
     modelType: "@swamp/aws/sqs/queue",
+    domainPropertyNames: ["QueueName"],
     upgradesBlock:
       `  upgrades: [\n    {\n      toVersion: "2026.01.02.1",\n      description: "Added: NewField",\n      upgradeAttributes: (old: Record<string, unknown>) => old,\n    },\n  ],`,
   };
@@ -402,6 +409,7 @@ Deno.test("generateAwsExtensionModel - with enrichment", async (t) => {
     handlers: { create: true, read: true, update: true, delete: true },
     version: "2026.01.01.1",
     modelType: "@swamp/aws/rds/dbcluster",
+    domainPropertyNames: ["DBClusterIdentifier"],
     enrichment: mockEnrichment,
   };
 

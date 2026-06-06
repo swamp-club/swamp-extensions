@@ -20,6 +20,7 @@ import {
   readResource,
   updateResource,
 } from "./_lib/aws.ts";
+import type { AwsCredentials } from "./_lib/aws.ts";
 
 const ClusterSettingsSchema = z.object({
   Value: z.string().describe(
@@ -91,6 +92,18 @@ const TagSchema = z.object({
 });
 
 const GlobalArgsSchema = z.object({
+  accessKeyId: z.string().meta({ sensitive: true }).describe(
+    "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).describe(
+    "AWS secret access key; overrides AWS_SECRET_ACCESS_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  sessionToken: z.string().meta({ sensitive: true }).describe(
+    "AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  region: z.string().describe(
+    "AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.",
+  ).optional(),
   ClusterSettings: z.array(ClusterSettingsSchema).describe(
     "The settings to use when creating a cluster. This parameter is used to turn on CloudWatch Container Insights with enhanced observability or CloudWatch Container Insights for a cluster. Container Insights with enhanced observability provides all the Container Insights metrics, plus additional task and container metrics. This version supports enhanced observability for Amazon ECS clusters using the Amazon EC2 and Fargate launch types. After you configure Container Insights with enhanced observability on Amazon ECS, Container Insights auto-collects detailed infrastructure telemetry from the cluster level down to the container level in your environment and displays these critical performance data in curated dashboards removing the heavy lifting in observability set-up. For more information, see [Monitor Amazon ECS containers using Container Insights with enhanced observability](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/cloudwatch-container-insights.html) in the *Amazon Elastic Container Service Developer Guide*.",
   ).optional(),
@@ -146,6 +159,10 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
+  accessKeyId: z.string().meta({ sensitive: true }).optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).optional(),
+  sessionToken: z.string().meta({ sensitive: true }).optional(),
+  region: z.string().optional(),
   ClusterSettings: z.array(ClusterSettingsSchema).describe(
     "The settings to use when creating a cluster. This parameter is used to turn on CloudWatch Container Insights with enhanced observability or CloudWatch Container Insights for a cluster. Container Insights with enhanced observability provides all the Container Insights metrics, plus additional task and container metrics. This version supports enhanced observability for Amazon ECS clusters using the Amazon EC2 and Fargate launch types. After you configure Container Insights with enhanced observability on Amazon ECS, Container Insights auto-collects detailed infrastructure telemetry from the cluster level down to the container level in your environment and displays these critical performance data in curated dashboards removing the heavy lifting in observability set-up. For more information, see [Monitor Amazon ECS containers using Container Insights with enhanced observability](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/cloudwatch-container-insights.html) in the *Amazon Elastic Container Service Developer Guide*.",
   ).optional(),
@@ -181,10 +198,26 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
+const _credentialKeys = new Set([
+  "accessKeyId",
+  "secretAccessKey",
+  "sessionToken",
+  "region",
+]);
+
+function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
+  return {
+    accessKeyId: g.accessKeyId as string | undefined,
+    secretAccessKey: g.secretAccessKey as string | undefined,
+    sessionToken: g.sessionToken as string | undefined,
+    region: g.region as string | undefined,
+  };
+}
+
 /** Swamp extension model for ECS Cluster. Registered at `@swamp/aws/ecs/cluster`. */
 export const model = {
   type: "@swamp/aws/ecs/cluster",
-  version: "2026.04.23.2",
+  version: "2026.06.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -211,6 +244,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.06.1",
+      description: "Added: accessKeyId, secretAccessKey, sessionToken, region",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -228,13 +266,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {
+          if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await createResource(
           "AWS::ECS::Cluster",
           desiredState,
+          credentials,
         ) as StateData;
         const instanceName =
           ((result.ClusterName ?? g.ClusterName)?.toString() ?? "current")
@@ -255,9 +296,11 @@ export const model = {
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
+        const credentials = _buildCredentials(context.globalArgs);
         const result = await readResource(
           "AWS::ECS::Cluster",
           args.identifier,
+          credentials,
         ) as StateData;
         const instanceName =
           ((result.ClusterName ?? context.globalArgs.ClusterName)?.toString() ??
@@ -276,6 +319,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const instanceName = (g.ClusterName?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -296,9 +340,11 @@ export const model = {
         const currentState = await readResource(
           "AWS::ECS::Cluster",
           identifier,
+          credentials,
         ) as StateData;
         const desiredState: Record<string, unknown> = { ...currentState };
         for (const [key, value] of Object.entries(g)) {
+          if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await updateResource(
@@ -307,6 +353,7 @@ export const model = {
           currentState,
           desiredState,
           ["ClusterName"],
+          credentials,
         );
         const handle = await context.writeResource(
           "state",
@@ -324,9 +371,11 @@ export const model = {
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
+        const credentials = _buildCredentials(context.globalArgs);
         const { existed } = await deleteResource(
           "AWS::ECS::Cluster",
           args.identifier,
+          credentials,
         );
         const instanceName =
           (context.globalArgs.ClusterName?.toString() ?? args.identifier)
@@ -345,6 +394,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const instanceName = (g.ClusterName?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -366,6 +416,7 @@ export const model = {
           const result = await readResource(
             "AWS::ECS::Cluster",
             identifier,
+            credentials,
           ) as StateData;
           const handle = await context.writeResource(
             "state",

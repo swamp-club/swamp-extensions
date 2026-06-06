@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/sso"
-version: "2026.05.31.1"
+version: "2026.06.06.1"
 description: "AWS SSO infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: application
+  - Updated: application, application_assignment, assignment, instance, instance_access_control_attribute_configuration, permission_set
 models:
   - application.ts
   - application_assignment.ts

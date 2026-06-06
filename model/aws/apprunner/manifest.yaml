@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/apprunner"
-version: "2026.04.23.3"
+version: "2026.06.06.1"
 description: "AWS APPRUNNER infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - apprunner
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: auto_scaling_configuration, observability_configuration, service, vpc_connector, vpc_ingress_connection
 models:
   - auto_scaling_configuration.ts
   - observability_configuration.ts

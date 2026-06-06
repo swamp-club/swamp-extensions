@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/medialive"
-version: "2026.05.27.1"
+version: "2026.06.06.1"
 description: "AWS MEDIALIVE infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: multiplexprogram
+  - Updated: channel_placement_group, cloud_watch_alarm_template, cloud_watch_alarm_template_group, cluster, event_bridge_rule_template, event_bridge_rule_template_group, multiplex, multiplexprogram, network, sdi_source, signal_map
 models:
   - channel_placement_group.ts
   - cloud_watch_alarm_template.ts

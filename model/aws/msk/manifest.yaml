@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/msk"
-version: "2026.05.27.1"
+version: "2026.06.06.1"
 description: "AWS MSK infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: cluster_policy
+  - Updated: batch_scram_secret, cluster, cluster_policy, configuration, replicator, serverless_cluster, topic, vpc_connection
 models:
   - batch_scram_secret.ts
   - cluster.ts

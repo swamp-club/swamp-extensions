@@ -17,8 +17,13 @@ snapshot[`generateAwsExtensionModel - all handlers, natural name 1`] = `
 
 import { z } from "npm:zod@4.3.6";
 import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from "./_lib/aws.ts";
+import type { AwsCredentials } from "./_lib/aws.ts";
 
 const GlobalArgsSchema = z.object({
+  accessKeyId: z.string().meta({ sensitive: true }).describe("AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).describe("AWS secret access key; overrides AWS_SECRET_ACCESS_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  sessionToken: z.string().meta({ sensitive: true }).describe("AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  region: z.string().describe("AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.").optional(),
   BucketName: z.string().describe("The name of the S3 bucket"),
 });
 
@@ -30,8 +35,23 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
+  accessKeyId: z.string().meta({ sensitive: true }).optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).optional(),
+  sessionToken: z.string().meta({ sensitive: true }).optional(),
+  region: z.string().optional(),
   BucketName: z.string().describe("The name of the S3 bucket").optional(),
 });
+
+const _credentialKeys = new Set(["accessKeyId","secretAccessKey","sessionToken","region"]);
+
+function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
+  return {
+    accessKeyId: g.accessKeyId as string | undefined,
+    secretAccessKey: g.secretAccessKey as string | undefined,
+    sessionToken: g.sessionToken as string | undefined,
+    region: g.region as string | undefined,
+  };
+}
 
 /** Swamp extension model for S3 Bucket. Registered at \`@swamp/aws/s3/bucket\`. */
 export const model = {
@@ -53,11 +73,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {
+          if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
-        const result = await createResource("AWS::S3::Bucket", desiredState) as StateData;
+        const result = await createResource("AWS::S3::Bucket", desiredState, credentials) as StateData;
         const instanceName = ((result.BucketName ?? g.BucketName)?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -67,7 +89,8 @@ export const model = {
       description: "Get a S3 Bucket",
       arguments: z.object({ identifier: z.string().describe("The primary identifier of the S3 Bucket") }),
       execute: async (args: { identifier: string }, context: any) => {
-        const result = await readResource("AWS::S3::Bucket", args.identifier) as StateData;
+        const credentials = _buildCredentials(context.globalArgs);
+        const result = await readResource("AWS::S3::Bucket", args.identifier, credentials) as StateData;
         const instanceName = ((result.BucketName ?? context.globalArgs.BucketName)?.toString() ?? args.identifier).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -78,6 +101,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const instanceName = (g.BucketName?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -86,12 +110,13 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const identifier = existing.BucketName?.toString();
         if (!identifier) throw new Error("No identifier found in existing state");
-        const currentState = await readResource("AWS::S3::Bucket", identifier) as StateData;
+        const currentState = await readResource("AWS::S3::Bucket", identifier, credentials) as StateData;
         const desiredState: Record<string, unknown> = { ...currentState };
         for (const [key, value] of Object.entries(g)) {
+          if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
-        const result = await updateResource("AWS::S3::Bucket", identifier, currentState, desiredState);
+        const result = await updateResource("AWS::S3::Bucket", identifier, currentState, desiredState, undefined, credentials);
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -100,7 +125,8 @@ export const model = {
       description: "Delete a S3 Bucket",
       arguments: z.object({ identifier: z.string().describe("The primary identifier of the S3 Bucket") }),
       execute: async (args: { identifier: string }, context: any) => {
-        const { existed } = await deleteResource("AWS::S3::Bucket", args.identifier);
+        const credentials = _buildCredentials(context.globalArgs);
+        const { existed } = await deleteResource("AWS::S3::Bucket", args.identifier, credentials);
         const instanceName = (context.globalArgs.BucketName?.toString() ?? args.identifier).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           identifier: args.identifier,
@@ -116,6 +142,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const instanceName = (g.BucketName?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -125,7 +152,7 @@ export const model = {
         const identifier = existing.BucketName?.toString();
         if (!identifier) throw new Error("No identifier found in existing state");
         try {
-          const result = await readResource("AWS::S3::Bucket", identifier) as StateData;
+          const result = await readResource("AWS::S3::Bucket", identifier, credentials) as StateData;
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
         } catch (error: unknown) {
@@ -163,9 +190,14 @@ snapshot[`generateAwsExtensionModel - synthetic name 1`] = `
 
 import { z } from "npm:zod@4.3.6";
 import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from "./_lib/aws.ts";
+import type { AwsCredentials } from "./_lib/aws.ts";
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),
+  accessKeyId: z.string().meta({ sensitive: true }).describe("AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).describe("AWS secret access key; overrides AWS_SECRET_ACCESS_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  sessionToken: z.string().meta({ sensitive: true }).describe("AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  region: z.string().describe("AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.").optional(),
   RoleName: z.string().describe("The name of the IAM role"),
   AssumeRolePolicyDocument: z.record(z.string(), z.unknown()).describe("The trust policy"),
 });
@@ -180,9 +212,24 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
+  accessKeyId: z.string().meta({ sensitive: true }).optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).optional(),
+  sessionToken: z.string().meta({ sensitive: true }).optional(),
+  region: z.string().optional(),
   RoleName: z.string().describe("The name of the IAM role").optional(),
   AssumeRolePolicyDocument: z.record(z.string(), z.unknown()).describe("The trust policy").optional(),
 });
+
+const _credentialKeys = new Set(["accessKeyId","secretAccessKey","sessionToken","region"]);
+
+function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
+  return {
+    accessKeyId: g.accessKeyId as string | undefined,
+    secretAccessKey: g.secretAccessKey as string | undefined,
+    sessionToken: g.sessionToken as string | undefined,
+    region: g.region as string | undefined,
+  };
+}
 
 /** Swamp extension model for IAM Role. Registered at \`@swamp/aws/iam/role\`. */
 export const model = {
@@ -204,12 +251,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {
           if (key === "name") continue;
+          if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
-        const result = await createResource("AWS::IAM::Role", desiredState) as StateData;
+        const result = await createResource("AWS::IAM::Role", desiredState, credentials) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -219,7 +268,8 @@ export const model = {
       description: "Get a IAM Role",
       arguments: z.object({ identifier: z.string().describe("The primary identifier of the IAM Role") }),
       execute: async (args: { identifier: string }, context: any) => {
-        const result = await readResource("AWS::IAM::Role", args.identifier) as StateData;
+        const credentials = _buildCredentials(context.globalArgs);
+        const result = await readResource("AWS::IAM::Role", args.identifier, credentials) as StateData;
         const instanceName = (context.globalArgs.name?.toString() ?? args.identifier).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -230,6 +280,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -238,13 +289,14 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const identifier = existing.Arn?.toString();
         if (!identifier) throw new Error("No identifier found in existing state");
-        const currentState = await readResource("AWS::IAM::Role", identifier) as StateData;
+        const currentState = await readResource("AWS::IAM::Role", identifier, credentials) as StateData;
         const desiredState: Record<string, unknown> = { ...currentState };
         for (const [key, value] of Object.entries(g)) {
           if (key === "name") continue;
+          if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
-        const result = await updateResource("AWS::IAM::Role", identifier, currentState, desiredState);
+        const result = await updateResource("AWS::IAM::Role", identifier, currentState, desiredState, undefined, credentials);
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -253,7 +305,8 @@ export const model = {
       description: "Delete a IAM Role",
       arguments: z.object({ identifier: z.string().describe("The primary identifier of the IAM Role") }),
       execute: async (args: { identifier: string }, context: any) => {
-        const { existed } = await deleteResource("AWS::IAM::Role", args.identifier);
+        const credentials = _buildCredentials(context.globalArgs);
+        const { existed } = await deleteResource("AWS::IAM::Role", args.identifier, credentials);
         const instanceName = (context.globalArgs.name?.toString() ?? args.identifier).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           identifier: args.identifier,
@@ -269,6 +322,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -278,7 +332,7 @@ export const model = {
         const identifier = existing.Arn?.toString();
         if (!identifier) throw new Error("No identifier found in existing state");
         try {
-          const result = await readResource("AWS::IAM::Role", identifier) as StateData;
+          const result = await readResource("AWS::IAM::Role", identifier, credentials) as StateData;
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
         } catch (error: unknown) {
@@ -316,9 +370,14 @@ snapshot[`generateAwsExtensionModel - composite primary identifier 1`] = `
 
 import { z } from "npm:zod@4.3.6";
 import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from "./_lib/aws.ts";
+import type { AwsCredentials } from "./_lib/aws.ts";
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),
+  accessKeyId: z.string().meta({ sensitive: true }).describe("AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).describe("AWS secret access key; overrides AWS_SECRET_ACCESS_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  sessionToken: z.string().meta({ sensitive: true }).describe("AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  region: z.string().describe("AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.").optional(),
   SubnetId: z.string().describe("The subnet ID"),
   RouteTableId: z.string().describe("The route table ID"),
 });
@@ -333,9 +392,24 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
+  accessKeyId: z.string().meta({ sensitive: true }).optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).optional(),
+  sessionToken: z.string().meta({ sensitive: true }).optional(),
+  region: z.string().optional(),
   SubnetId: z.string().describe("The subnet ID").optional(),
   RouteTableId: z.string().describe("The route table ID").optional(),
 });
+
+const _credentialKeys = new Set(["accessKeyId","secretAccessKey","sessionToken","region"]);
+
+function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
+  return {
+    accessKeyId: g.accessKeyId as string | undefined,
+    secretAccessKey: g.secretAccessKey as string | undefined,
+    sessionToken: g.sessionToken as string | undefined,
+    region: g.region as string | undefined,
+  };
+}
 
 /** Swamp extension model for EC2 SubnetRouteTableAssociation. Registered at \`@swamp/aws/ec2/subnet_route_table_association\`. */
 export const model = {
@@ -357,12 +431,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {
           if (key === "name") continue;
+          if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
-        const result = await createResource("AWS::EC2::SubnetRouteTableAssociation", desiredState) as StateData;
+        const result = await createResource("AWS::EC2::SubnetRouteTableAssociation", desiredState, credentials) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -372,7 +448,8 @@ export const model = {
       description: "Get a EC2 SubnetRouteTableAssociation",
       arguments: z.object({ identifier: z.string().describe("The primary identifier of the EC2 SubnetRouteTableAssociation") }),
       execute: async (args: { identifier: string }, context: any) => {
-        const result = await readResource("AWS::EC2::SubnetRouteTableAssociation", args.identifier) as StateData;
+        const credentials = _buildCredentials(context.globalArgs);
+        const result = await readResource("AWS::EC2::SubnetRouteTableAssociation", args.identifier, credentials) as StateData;
         const instanceName = (context.globalArgs.name?.toString() ?? args.identifier).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -383,6 +460,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -392,13 +470,14 @@ export const model = {
         const idParts = [existing.SubnetId?.toString(), existing.RouteTableId?.toString()];
         if (idParts.some((p) => !p)) throw new Error("Missing primary identifier fields in existing state");
         const identifier = idParts.join("|");
-        const currentState = await readResource("AWS::EC2::SubnetRouteTableAssociation", identifier) as StateData;
+        const currentState = await readResource("AWS::EC2::SubnetRouteTableAssociation", identifier, credentials) as StateData;
         const desiredState: Record<string, unknown> = { ...currentState };
         for (const [key, value] of Object.entries(g)) {
           if (key === "name") continue;
+          if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
-        const result = await updateResource("AWS::EC2::SubnetRouteTableAssociation", identifier, currentState, desiredState, ["SubnetId"]);
+        const result = await updateResource("AWS::EC2::SubnetRouteTableAssociation", identifier, currentState, desiredState, ["SubnetId"], credentials);
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -407,7 +486,8 @@ export const model = {
       description: "Delete a EC2 SubnetRouteTableAssociation",
       arguments: z.object({ identifier: z.string().describe("The primary identifier of the EC2 SubnetRouteTableAssociation") }),
       execute: async (args: { identifier: string }, context: any) => {
-        const { existed } = await deleteResource("AWS::EC2::SubnetRouteTableAssociation", args.identifier);
+        const credentials = _buildCredentials(context.globalArgs);
+        const { existed } = await deleteResource("AWS::EC2::SubnetRouteTableAssociation", args.identifier, credentials);
         const instanceName = (context.globalArgs.name?.toString() ?? args.identifier).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           identifier: args.identifier,
@@ -423,6 +503,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -433,7 +514,7 @@ export const model = {
         if (idParts.some((p) => !p)) throw new Error("Missing primary identifier fields in existing state");
         const identifier = idParts.join("|");
         try {
-          const result = await readResource("AWS::EC2::SubnetRouteTableAssociation", identifier) as StateData;
+          const result = await readResource("AWS::EC2::SubnetRouteTableAssociation", identifier, credentials) as StateData;
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
         } catch (error: unknown) {
@@ -471,9 +552,14 @@ snapshot[`generateAwsExtensionModel - createOnly properties filtered in update 1
 
 import { z } from "npm:zod@4.3.6";
 import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from "./_lib/aws.ts";
+import type { AwsCredentials } from "./_lib/aws.ts";
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),
+  accessKeyId: z.string().meta({ sensitive: true }).describe("AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).describe("AWS secret access key; overrides AWS_SECRET_ACCESS_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  sessionToken: z.string().meta({ sensitive: true }).describe("AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  region: z.string().describe("AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.").optional(),
   InstanceType: z.string().describe("The instance type"),
   ImageId: z.string().describe("The AMI ID"),
 });
@@ -488,9 +574,24 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
+  accessKeyId: z.string().meta({ sensitive: true }).optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).optional(),
+  sessionToken: z.string().meta({ sensitive: true }).optional(),
+  region: z.string().optional(),
   InstanceType: z.string().describe("The instance type").optional(),
   ImageId: z.string().describe("The AMI ID").optional(),
 });
+
+const _credentialKeys = new Set(["accessKeyId","secretAccessKey","sessionToken","region"]);
+
+function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
+  return {
+    accessKeyId: g.accessKeyId as string | undefined,
+    secretAccessKey: g.secretAccessKey as string | undefined,
+    sessionToken: g.sessionToken as string | undefined,
+    region: g.region as string | undefined,
+  };
+}
 
 /** Swamp extension model for EC2 Instance. Registered at \`@swamp/aws/ec2/instance\`. */
 export const model = {
@@ -512,12 +613,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {
           if (key === "name") continue;
+          if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
-        const result = await createResource("AWS::EC2::Instance", desiredState) as StateData;
+        const result = await createResource("AWS::EC2::Instance", desiredState, credentials) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -527,7 +630,8 @@ export const model = {
       description: "Get a EC2 Instance",
       arguments: z.object({ identifier: z.string().describe("The primary identifier of the EC2 Instance") }),
       execute: async (args: { identifier: string }, context: any) => {
-        const result = await readResource("AWS::EC2::Instance", args.identifier) as StateData;
+        const credentials = _buildCredentials(context.globalArgs);
+        const result = await readResource("AWS::EC2::Instance", args.identifier, credentials) as StateData;
         const instanceName = (context.globalArgs.name?.toString() ?? args.identifier).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -538,6 +642,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -546,13 +651,14 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const identifier = existing.InstanceId?.toString();
         if (!identifier) throw new Error("No identifier found in existing state");
-        const currentState = await readResource("AWS::EC2::Instance", identifier) as StateData;
+        const currentState = await readResource("AWS::EC2::Instance", identifier, credentials) as StateData;
         const desiredState: Record<string, unknown> = { ...currentState };
         for (const [key, value] of Object.entries(g)) {
           if (key === "name") continue;
+          if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
-        const result = await updateResource("AWS::EC2::Instance", identifier, currentState, desiredState, ["ImageId"]);
+        const result = await updateResource("AWS::EC2::Instance", identifier, currentState, desiredState, ["ImageId"], credentials);
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -561,7 +667,8 @@ export const model = {
       description: "Delete a EC2 Instance",
       arguments: z.object({ identifier: z.string().describe("The primary identifier of the EC2 Instance") }),
       execute: async (args: { identifier: string }, context: any) => {
-        const { existed } = await deleteResource("AWS::EC2::Instance", args.identifier);
+        const credentials = _buildCredentials(context.globalArgs);
+        const { existed } = await deleteResource("AWS::EC2::Instance", args.identifier, credentials);
         const instanceName = (context.globalArgs.name?.toString() ?? args.identifier).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           identifier: args.identifier,
@@ -577,6 +684,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -586,7 +694,7 @@ export const model = {
         const identifier = existing.InstanceId?.toString();
         if (!identifier) throw new Error("No identifier found in existing state");
         try {
-          const result = await readResource("AWS::EC2::Instance", identifier) as StateData;
+          const result = await readResource("AWS::EC2::Instance", identifier, credentials) as StateData;
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
         } catch (error: unknown) {
@@ -624,9 +732,14 @@ snapshot[`generateAwsExtensionModel - read-only resource (no update, no delete) 
 
 import { z } from "npm:zod@4.3.6";
 import { isResourceNotFoundError, readResource, createResource } from "./_lib/aws.ts";
+import type { AwsCredentials } from "./_lib/aws.ts";
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),
+  accessKeyId: z.string().meta({ sensitive: true }).describe("AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).describe("AWS secret access key; overrides AWS_SECRET_ACCESS_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  sessionToken: z.string().meta({ sensitive: true }).describe("AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  region: z.string().describe("AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.").optional(),
   StackSetName: z.string().describe("The name of the stack set"),
 });
 
@@ -639,8 +752,23 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
+  accessKeyId: z.string().meta({ sensitive: true }).optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).optional(),
+  sessionToken: z.string().meta({ sensitive: true }).optional(),
+  region: z.string().optional(),
   StackSetName: z.string().describe("The name of the stack set").optional(),
 });
+
+const _credentialKeys = new Set(["accessKeyId","secretAccessKey","sessionToken","region"]);
+
+function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
+  return {
+    accessKeyId: g.accessKeyId as string | undefined,
+    secretAccessKey: g.secretAccessKey as string | undefined,
+    sessionToken: g.sessionToken as string | undefined,
+    region: g.region as string | undefined,
+  };
+}
 
 /** Swamp extension model for CloudFormation StackSet. Registered at \`@swamp/aws/cloudformation/stack_set\`. */
 export const model = {
@@ -662,12 +790,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {
           if (key === "name") continue;
+          if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
-        const result = await createResource("AWS::CloudFormation::StackSet", desiredState) as StateData;
+        const result = await createResource("AWS::CloudFormation::StackSet", desiredState, credentials) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -677,7 +807,8 @@ export const model = {
       description: "Get a CloudFormation StackSet",
       arguments: z.object({ identifier: z.string().describe("The primary identifier of the CloudFormation StackSet") }),
       execute: async (args: { identifier: string }, context: any) => {
-        const result = await readResource("AWS::CloudFormation::StackSet", args.identifier) as StateData;
+        const credentials = _buildCredentials(context.globalArgs);
+        const result = await readResource("AWS::CloudFormation::StackSet", args.identifier, credentials) as StateData;
         const instanceName = (context.globalArgs.name?.toString() ?? args.identifier).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -688,6 +819,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -697,7 +829,7 @@ export const model = {
         const identifier = existing.StackSetId?.toString();
         if (!identifier) throw new Error("No identifier found in existing state");
         try {
-          const result = await readResource("AWS::CloudFormation::StackSet", identifier) as StateData;
+          const result = await readResource("AWS::CloudFormation::StackSet", identifier, credentials) as StateData;
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
         } catch (error: unknown) {
@@ -735,6 +867,7 @@ snapshot[`generateAwsExtensionModel - extracted schemas and StateSchema collisio
 
 import { z } from "npm:zod@4.3.6";
 import { isResourceNotFoundError, readResource, createResource, deleteResource } from "./_lib/aws.ts";
+import type { AwsCredentials } from "./_lib/aws.ts";
 
 const StateSchema = z.object({
   Memory: z.string().optional(),
@@ -742,6 +875,10 @@ const StateSchema = z.object({
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),
+  accessKeyId: z.string().meta({ sensitive: true }).describe("AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).describe("AWS secret access key; overrides AWS_SECRET_ACCESS_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  sessionToken: z.string().meta({ sensitive: true }).describe("AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  region: z.string().describe("AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.").optional(),
   Family: z.string().describe("The task family name"),
 });
 
@@ -754,8 +891,23 @@ type StateData = z.infer<typeof _StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
+  accessKeyId: z.string().meta({ sensitive: true }).optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).optional(),
+  sessionToken: z.string().meta({ sensitive: true }).optional(),
+  region: z.string().optional(),
   Family: z.string().describe("The task family name").optional(),
 });
+
+const _credentialKeys = new Set(["accessKeyId","secretAccessKey","sessionToken","region"]);
+
+function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
+  return {
+    accessKeyId: g.accessKeyId as string | undefined,
+    secretAccessKey: g.secretAccessKey as string | undefined,
+    sessionToken: g.sessionToken as string | undefined,
+    region: g.region as string | undefined,
+  };
+}
 
 /** Swamp extension model for ECS TaskDefinition. Registered at \`@swamp/aws/ecs/task_definition\`. */
 export const model = {
@@ -777,12 +929,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {
           if (key === "name") continue;
+          if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
-        const result = await createResource("AWS::ECS::TaskDefinition", desiredState) as StateData;
+        const result = await createResource("AWS::ECS::TaskDefinition", desiredState, credentials) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -792,7 +946,8 @@ export const model = {
       description: "Get a ECS TaskDefinition",
       arguments: z.object({ identifier: z.string().describe("The primary identifier of the ECS TaskDefinition") }),
       execute: async (args: { identifier: string }, context: any) => {
-        const result = await readResource("AWS::ECS::TaskDefinition", args.identifier) as StateData;
+        const credentials = _buildCredentials(context.globalArgs);
+        const result = await readResource("AWS::ECS::TaskDefinition", args.identifier, credentials) as StateData;
         const instanceName = (context.globalArgs.name?.toString() ?? args.identifier).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -802,7 +957,8 @@ export const model = {
       description: "Delete a ECS TaskDefinition",
       arguments: z.object({ identifier: z.string().describe("The primary identifier of the ECS TaskDefinition") }),
       execute: async (args: { identifier: string }, context: any) => {
-        const { existed } = await deleteResource("AWS::ECS::TaskDefinition", args.identifier);
+        const credentials = _buildCredentials(context.globalArgs);
+        const { existed } = await deleteResource("AWS::ECS::TaskDefinition", args.identifier, credentials);
         const instanceName = (context.globalArgs.name?.toString() ?? args.identifier).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           identifier: args.identifier,
@@ -818,6 +974,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -827,7 +984,7 @@ export const model = {
         const identifier = existing.TaskDefinitionArn?.toString();
         if (!identifier) throw new Error("No identifier found in existing state");
         try {
-          const result = await readResource("AWS::ECS::TaskDefinition", identifier) as StateData;
+          const result = await readResource("AWS::ECS::TaskDefinition", identifier, credentials) as StateData;
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
         } catch (error: unknown) {
@@ -865,9 +1022,14 @@ snapshot[`generateAwsExtensionModel - with upgrades block 1`] = `
 
 import { z } from "npm:zod@4.3.6";
 import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from "./_lib/aws.ts";
+import type { AwsCredentials } from "./_lib/aws.ts";
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),
+  accessKeyId: z.string().meta({ sensitive: true }).describe("AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).describe("AWS secret access key; overrides AWS_SECRET_ACCESS_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  sessionToken: z.string().meta({ sensitive: true }).describe("AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  region: z.string().describe("AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.").optional(),
   QueueName: z.string().describe("The name of the queue"),
 });
 
@@ -880,8 +1042,23 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
+  accessKeyId: z.string().meta({ sensitive: true }).optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).optional(),
+  sessionToken: z.string().meta({ sensitive: true }).optional(),
+  region: z.string().optional(),
   QueueName: z.string().describe("The name of the queue").optional(),
 });
+
+const _credentialKeys = new Set(["accessKeyId","secretAccessKey","sessionToken","region"]);
+
+function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
+  return {
+    accessKeyId: g.accessKeyId as string | undefined,
+    secretAccessKey: g.secretAccessKey as string | undefined,
+    sessionToken: g.sessionToken as string | undefined,
+    region: g.region as string | undefined,
+  };
+}
 
 /** Swamp extension model for SQS Queue. Registered at \`@swamp/aws/sqs/queue\`. */
 export const model = {
@@ -910,12 +1087,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {
           if (key === "name") continue;
+          if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
-        const result = await createResource("AWS::SQS::Queue", desiredState) as StateData;
+        const result = await createResource("AWS::SQS::Queue", desiredState, credentials) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -925,7 +1104,8 @@ export const model = {
       description: "Get a SQS Queue",
       arguments: z.object({ identifier: z.string().describe("The primary identifier of the SQS Queue") }),
       execute: async (args: { identifier: string }, context: any) => {
-        const result = await readResource("AWS::SQS::Queue", args.identifier) as StateData;
+        const credentials = _buildCredentials(context.globalArgs);
+        const result = await readResource("AWS::SQS::Queue", args.identifier, credentials) as StateData;
         const instanceName = (context.globalArgs.name?.toString() ?? args.identifier).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -936,6 +1116,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -944,13 +1125,14 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const identifier = existing.QueueUrl?.toString();
         if (!identifier) throw new Error("No identifier found in existing state");
-        const currentState = await readResource("AWS::SQS::Queue", identifier) as StateData;
+        const currentState = await readResource("AWS::SQS::Queue", identifier, credentials) as StateData;
         const desiredState: Record<string, unknown> = { ...currentState };
         for (const [key, value] of Object.entries(g)) {
           if (key === "name") continue;
+          if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
-        const result = await updateResource("AWS::SQS::Queue", identifier, currentState, desiredState);
+        const result = await updateResource("AWS::SQS::Queue", identifier, currentState, desiredState, undefined, credentials);
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -959,7 +1141,8 @@ export const model = {
       description: "Delete a SQS Queue",
       arguments: z.object({ identifier: z.string().describe("The primary identifier of the SQS Queue") }),
       execute: async (args: { identifier: string }, context: any) => {
-        const { existed } = await deleteResource("AWS::SQS::Queue", args.identifier);
+        const credentials = _buildCredentials(context.globalArgs);
+        const { existed } = await deleteResource("AWS::SQS::Queue", args.identifier, credentials);
         const instanceName = (context.globalArgs.name?.toString() ?? args.identifier).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           identifier: args.identifier,
@@ -975,6 +1158,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const instanceName = (g.name?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -984,7 +1168,7 @@ export const model = {
         const identifier = existing.QueueUrl?.toString();
         if (!identifier) throw new Error("No identifier found in existing state");
         try {
-          const result = await readResource("AWS::SQS::Queue", identifier) as StateData;
+          const result = await readResource("AWS::SQS::Queue", identifier, credentials) as StateData;
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
         } catch (error: unknown) {
@@ -1022,9 +1206,14 @@ snapshot[`generateAwsExtensionModel - with enrichment 1`] = `
 
 import { z } from "npm:zod@4.3.6";
 import { isResourceNotFoundError, readResource, createResource, updateResource, deleteResource } from "./_lib/aws.ts";
+import type { AwsCredentials } from "./_lib/aws.ts";
 import { DescribeDBClustersCommand, RDSClient } from "npm:@aws-sdk/client-rds@3.1021.0";
 
 const GlobalArgsSchema = z.object({
+  accessKeyId: z.string().meta({ sensitive: true }).describe("AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).describe("AWS secret access key; overrides AWS_SECRET_ACCESS_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  sessionToken: z.string().meta({ sensitive: true }).describe("AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
+  region: z.string().describe("AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.").optional(),
   DBClusterIdentifier: z.string().describe("The DB cluster identifier"),
 });
 
@@ -1046,8 +1235,23 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
+  accessKeyId: z.string().meta({ sensitive: true }).optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).optional(),
+  sessionToken: z.string().meta({ sensitive: true }).optional(),
+  region: z.string().optional(),
   DBClusterIdentifier: z.string().describe("The DB cluster identifier").optional(),
 });
+
+const _credentialKeys = new Set(["accessKeyId","secretAccessKey","sessionToken","region"]);
+
+function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
+  return {
+    accessKeyId: g.accessKeyId as string | undefined,
+    secretAccessKey: g.secretAccessKey as string | undefined,
+    sessionToken: g.sessionToken as string | undefined,
+    region: g.region as string | undefined,
+  };
+}
 
 /** Swamp extension model for RDS DBCluster. Registered at \`@swamp/aws/rds/dbcluster\`. */
 export const model = {
@@ -1069,11 +1273,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {
+          if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
-        const result = await createResource("AWS::RDS::DBCluster", desiredState) as StateData;
+        const result = await createResource("AWS::RDS::DBCluster", desiredState, credentials) as StateData;
         const instanceName = ((result.DBClusterIdentifier ?? g.DBClusterIdentifier)?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -1083,7 +1289,8 @@ export const model = {
       description: "Get a RDS DBCluster",
       arguments: z.object({ identifier: z.string().describe("The primary identifier of the RDS DBCluster") }),
       execute: async (args: { identifier: string }, context: any) => {
-        const result = await enrichState(await readResource("AWS::RDS::DBCluster", args.identifier) as StateData);
+        const credentials = _buildCredentials(context.globalArgs);
+        const result = await enrichState(await readResource("AWS::RDS::DBCluster", args.identifier, credentials) as StateData);
         const instanceName = ((result.DBClusterIdentifier ?? context.globalArgs.DBClusterIdentifier)?.toString() ?? args.identifier).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -1094,6 +1301,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const instanceName = (g.DBClusterIdentifier?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -1102,12 +1310,13 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const identifier = existing.DBClusterIdentifier?.toString();
         if (!identifier) throw new Error("No identifier found in existing state");
-        const currentState = await readResource("AWS::RDS::DBCluster", identifier) as StateData;
+        const currentState = await readResource("AWS::RDS::DBCluster", identifier, credentials) as StateData;
         const desiredState: Record<string, unknown> = { ...currentState };
         for (const [key, value] of Object.entries(g)) {
+          if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
-        const result = await updateResource("AWS::RDS::DBCluster", identifier, currentState, desiredState);
+        const result = await updateResource("AWS::RDS::DBCluster", identifier, currentState, desiredState, undefined, credentials);
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
       },
@@ -1116,7 +1325,8 @@ export const model = {
       description: "Delete a RDS DBCluster",
       arguments: z.object({ identifier: z.string().describe("The primary identifier of the RDS DBCluster") }),
       execute: async (args: { identifier: string }, context: any) => {
-        const { existed } = await deleteResource("AWS::RDS::DBCluster", args.identifier);
+        const credentials = _buildCredentials(context.globalArgs);
+        const { existed } = await deleteResource("AWS::RDS::DBCluster", args.identifier, credentials);
         const instanceName = (context.globalArgs.DBClusterIdentifier?.toString() ?? args.identifier).replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           identifier: args.identifier,
@@ -1132,6 +1342,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const instanceName = (g.DBClusterIdentifier?.toString() ?? "current").replace(/[\\\\/\\\\\\\\]/g, "_").replace(/\\\\.\\\\./g, "_").replace(/\\\\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType, context.modelId, instanceName,
@@ -1141,7 +1352,7 @@ export const model = {
         const identifier = existing.DBClusterIdentifier?.toString();
         if (!identifier) throw new Error("No identifier found in existing state");
         try {
-          const result = await enrichState(await readResource("AWS::RDS::DBCluster", identifier) as StateData);
+          const result = await enrichState(await readResource("AWS::RDS::DBCluster", identifier, credentials) as StateData);
           const handle = await context.writeResource("state", instanceName, result);
           return { dataHandles: [handle] };
         } catch (error: unknown) {

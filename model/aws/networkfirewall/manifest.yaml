@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/networkfirewall"
-version: "2026.04.23.3"
+version: "2026.06.06.1"
 description: "AWS NETWORKFIREWALL infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - networkfirewall
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: firewall, firewall_policy, logging_configuration, rule_group, tlsinspection_configuration, vpc_endpoint_association
 models:
   - firewall.ts
   - firewall_policy.ts

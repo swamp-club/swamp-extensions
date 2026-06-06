@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/gamelift"
-version: "2026.04.23.3"
+version: "2026.06.06.1"
 description: "AWS GAMELIFT infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - gamelift
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: alias, build, container_fleet, container_group_definition, fleet, game_server_group, game_session_queue, location, matchmaking_configuration, matchmaking_rule_set, script
 models:
   - alias.ts
   - build.ts

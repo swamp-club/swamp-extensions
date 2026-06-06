@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/ec2"
-version: "2026.06.04.1"
+version: "2026.06.06.1"
 description: "AWS EC2 infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: route
+  - Updated: capacity_manager_data_export, capacity_reservation, capacity_reservation_fleet, carrier_gateway, customer_gateway, dhcpoptions, ec2fleet, eip, eipassociation, egress_only_internet_gateway, enclave_certificate_iam_role_association, flow_log, gateway_route_table_association, host, ipam, ipamallocation, ipampool, ipampool_cidr, ipamprefix_list_resolver, ipamprefix_list_resolver_target, ipamresource_discovery, ipamresource_discovery_association, ipamscope, instance, instance_connect_endpoint, internet_gateway, ip_pool_route_table_association, key_pair, launch_template, local_gateway_route, local_gateway_route_table, local_gateway_route_table_vpcassociation, local_gateway_route_table_virtual_interface_group_association, local_gateway_virtual_interface, local_gateway_virtual_interface_group, nat_gateway, network_acl, network_insights_access_scope, network_insights_access_scope_analysis, network_insights_analysis, network_insights_path, network_interface, network_interface_attachment, network_performance_metric_subscription, placement_group, prefix_list, route, route_server, route_server_association, route_server_endpoint, route_server_peer, route_server_propagation, route_table, security_group, security_group_egress, security_group_ingress, security_group_vpc_association, snapshot_block_public_access, spot_fleet, sql_ha_standby_detected_instance, subnet, subnet_cidr_block, subnet_network_acl_association, subnet_route_table_association, traffic_mirror_filter, traffic_mirror_filter_rule, traffic_mirror_session, traffic_mirror_target, transit_gateway, transit_gateway_attachment, transit_gateway_connect, transit_gateway_connect_peer, transit_gateway_metering_policy, transit_gateway_metering_policy_entry, transit_gateway_multicast_domain, transit_gateway_multicast_domain_association, transit_gateway_multicast_group_member, transit_gateway_multicast_group_source, transit_gateway_peering_attachment, transit_gateway_route, transit_gateway_route_table, transit_gateway_route_table_association, transit_gateway_route_table_propagation, transit_gateway_vpc_attachment, vpc, vpcblock_public_access_exclusion, vpcblock_public_access_options, vpccidr_block, vpcdhcpoptions_association, vpcencryption_control, vpcendpoint, vpcendpoint_connection_notification, vpcendpoint_service, vpcendpoint_service_permissions, vpcgateway_attachment, vpcpeering_connection, vpnconcentrator, vpnconnection, vpnconnection_route, vpngateway, verified_access_endpoint, verified_access_group, verified_access_instance, verified_access_trust_provider, volume, volume_attachment
 models:
   - capacity_manager_data_export.ts
   - capacity_reservation.ts

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/datasync"
-version: "2026.04.23.3"
+version: "2026.06.06.1"
 description: "AWS DATASYNC infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - datasync
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: agent, location_azure_blob, location_efs, location_fsx_lustre, location_fsx_ontap, location_fsx_open_zfs, location_fsx_windows, location_hdfs, location_nfs, location_object_storage, location_s3, location_smb, task
 models:
   - agent.ts
   - location_azure_blob.ts

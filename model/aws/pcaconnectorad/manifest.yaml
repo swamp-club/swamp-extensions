@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/pcaconnectorad"
-version: "2026.05.27.1"
+version: "2026.06.06.1"
 description: "AWS PCACONNECTORAD infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: service_principal_name, template_group_access_control_entry
+  - Updated: connector, directory_registration, service_principal_name, template, template_group_access_control_entry
 models:
   - connector.ts
   - directory_registration.ts

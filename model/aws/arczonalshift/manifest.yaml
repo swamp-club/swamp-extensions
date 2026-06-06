@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/arczonalshift"
-version: "2026.04.23.3"
+version: "2026.06.06.1"
 description: "AWS ARCZONALSHIFT infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - arczonalshift
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: autoshift_observer_notification_status, zonal_autoshift_configuration
 models:
   - autoshift_observer_notification_status.ts
   - zonal_autoshift_configuration.ts

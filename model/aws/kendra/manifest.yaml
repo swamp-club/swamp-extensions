@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/kendra"
-version: "2026.05.27.1"
+version: "2026.06.06.1"
 description: "AWS KENDRA infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: data_source
+  - Updated: data_source, faq, index
 models:
   - data_source.ts
   - faq.ts

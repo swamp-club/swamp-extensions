@@ -20,6 +20,7 @@ import {
   readResource,
   updateResource,
 } from "./_lib/aws.ts";
+import type { AwsCredentials } from "./_lib/aws.ts";
 
 const InvokedBySchema = z.object({
   StandardMessages: z.enum(["AUTO", "ALL", "MENTIONS", "NONE"]).describe(
@@ -60,6 +61,18 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
+  accessKeyId: z.string().meta({ sensitive: true }).describe(
+    "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).describe(
+    "AWS secret access key; overrides AWS_SECRET_ACCESS_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  sessionToken: z.string().meta({ sensitive: true }).describe(
+    "AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  region: z.string().describe(
+    "AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.",
+  ).optional(),
   AppInstanceArn: z.string().min(5).max(1600).regex(
     new RegExp(
       "^arn:[a-z0-9-\\.]{1,63}:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[^/].{0,1023}$",
@@ -99,6 +112,10 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
+  accessKeyId: z.string().meta({ sensitive: true }).optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).optional(),
+  sessionToken: z.string().meta({ sensitive: true }).optional(),
+  region: z.string().optional(),
   AppInstanceArn: z.string().min(5).max(1600).regex(
     new RegExp(
       "^arn:[a-z0-9-\\.]{1,63}:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[^/].{0,1023}$",
@@ -121,10 +138,33 @@ const InputsSchema = z.object({
     .optional(),
 });
 
+const _credentialKeys = new Set([
+  "accessKeyId",
+  "secretAccessKey",
+  "sessionToken",
+  "region",
+]);
+
+function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
+  return {
+    accessKeyId: g.accessKeyId as string | undefined,
+    secretAccessKey: g.secretAccessKey as string | undefined,
+    sessionToken: g.sessionToken as string | undefined,
+    region: g.region as string | undefined,
+  };
+}
+
 /** Swamp extension model for Chime AppInstanceBot. Registered at `@swamp/aws/chime/app-instance-bot`. */
 export const model = {
   type: "@swamp/aws/chime/app-instance-bot",
-  version: "2026.05.05.1",
+  version: "2026.06.06.1",
+  upgrades: [
+    {
+      toVersion: "2026.06.06.1",
+      description: "Added: accessKeyId, secretAccessKey, sessionToken, region",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -141,14 +181,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {
           if (key === "name") continue;
+          if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await createResource(
           "AWS::Chime::AppInstanceBot",
           desiredState,
+          credentials,
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
@@ -170,9 +213,11 @@ export const model = {
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
+        const credentials = _buildCredentials(context.globalArgs);
         const result = await readResource(
           "AWS::Chime::AppInstanceBot",
           args.identifier,
+          credentials,
         ) as StateData;
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.identifier).replace(
@@ -192,6 +237,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -212,10 +258,12 @@ export const model = {
         const currentState = await readResource(
           "AWS::Chime::AppInstanceBot",
           identifier,
+          credentials,
         ) as StateData;
         const desiredState: Record<string, unknown> = { ...currentState };
         for (const [key, value] of Object.entries(g)) {
           if (key === "name") continue;
+          if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await updateResource(
@@ -224,6 +272,7 @@ export const model = {
           currentState,
           desiredState,
           ["AppInstanceArn"],
+          credentials,
         );
         const handle = await context.writeResource(
           "state",
@@ -241,9 +290,11 @@ export const model = {
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
+        const credentials = _buildCredentials(context.globalArgs);
         const { existed } = await deleteResource(
           "AWS::Chime::AppInstanceBot",
           args.identifier,
+          credentials,
         );
         const instanceName =
           (context.globalArgs.name?.toString() ?? args.identifier).replace(
@@ -264,6 +315,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -285,6 +337,7 @@ export const model = {
           const result = await readResource(
             "AWS::Chime::AppInstanceBot",
             identifier,
+            credentials,
           ) as StateData;
           const handle = await context.writeResource(
             "state",

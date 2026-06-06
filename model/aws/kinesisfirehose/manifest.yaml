@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/kinesisfirehose"
-version: "2026.04.23.3"
+version: "2026.06.06.1"
 description: "AWS KINESISFIREHOSE infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - kinesisfirehose
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: delivery_stream
 models:
   - delivery_stream.ts
 additionalFiles:

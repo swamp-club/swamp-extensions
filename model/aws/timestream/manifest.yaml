@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/timestream"
-version: "2026.05.27.1"
+version: "2026.06.06.1"
 description: "AWS TIMESTREAM infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: influx_dbinstance
+  - Updated: database, influx_dbcluster, influx_dbinstance, scheduled_query, table
 models:
   - database.ts
   - influx_dbcluster.ts

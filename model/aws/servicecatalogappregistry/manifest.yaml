@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/servicecatalogappregistry"
-version: "2026.05.27.1"
+version: "2026.06.06.1"
 description: "AWS SERVICECATALOGAPPREGISTRY infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: attribute_group
+  - Updated: application, attribute_group, attribute_group_association, resource_association
 models:
   - application.ts
   - attribute_group.ts

@@ -55,6 +55,8 @@ export interface AwsExtensionModelInput {
   };
   /** Parsed list method enrichment to emit as a list method */
   listMethod?: AwsExtensionModelListMethod;
+  /** Domain property names from splitAwsProperties — used for credential field collision checks */
+  domainPropertyNames: string[];
 }
 
 /**
@@ -144,6 +146,9 @@ export function generateAwsExtensionModel(
   lines.push(
     `import { ${helperImports.join(", ")} } from "./_lib/aws.ts";`,
   );
+  lines.push(
+    `import type { AwsCredentials } from "./_lib/aws.ts";`,
+  );
   if (input.enrichment) {
     for (const imp of input.enrichment.source.imports) {
       lines.push(imp);
@@ -177,11 +182,51 @@ export function generateAwsExtensionModel(
     }
   }
 
+  // Determine which credential fields collide with domain properties.
+  // CF properties are PascalCase so collisions are extremely unlikely,
+  // but we guard defensively (mirrors Hetzner's hasTokenProp guard).
+  const domainPropNames = new Set(input.domainPropertyNames);
+  const credentialFields = [
+    {
+      name: "accessKeyId",
+      sensitive: true,
+      desc:
+        "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+    },
+    {
+      name: "secretAccessKey",
+      sensitive: true,
+      desc:
+        "AWS secret access key; overrides AWS_SECRET_ACCESS_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+    },
+    {
+      name: "sessionToken",
+      sensitive: true,
+      desc:
+        "AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+    },
+    {
+      name: "region",
+      sensitive: false,
+      desc:
+        "AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.",
+    },
+  ];
+  const injectedCredFields = credentialFields.filter(
+    (f) => !domainPropNames.has(f.name),
+  );
+
   // GlobalArgsSchema — domain properties with full fidelity
   lines.push(`const GlobalArgsSchema = z.object({`);
   if (isSyntheticName) {
     lines.push(
       `  name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),`,
+    );
+  }
+  for (const f of injectedCredFields) {
+    const meta = f.sensitive ? `.meta({ sensitive: true })` : "";
+    lines.push(
+      `  ${f.name}: z.string()${meta}.describe("${f.desc}").optional(),`,
     );
   }
   if (zodResult.inputSchemaBody) {
@@ -220,6 +265,10 @@ export function generateAwsExtensionModel(
   if (isSyntheticName) {
     lines.push(`  name: z.string().optional(),`);
   }
+  for (const f of injectedCredFields) {
+    const meta = f.sensitive ? `.meta({ sensitive: true })` : "";
+    lines.push(`  ${f.name}: z.string()${meta}.optional(),`);
+  }
   if (zodResult.inputSchemaBody) {
     // Make all fields optional in InputsSchema
     const inputLines = zodResult.inputSchemaBody.split("\n");
@@ -243,6 +292,28 @@ export function generateAwsExtensionModel(
   // Determine primary identifier field and createOnlyProperties
   const primaryId = onlyProperties.primaryIdentifier[0] || "ResourceIdentifier";
   const createOnlyProperties = onlyProperties.createOnly;
+
+  // Credential key set for filtering globalArgs when building desiredState
+  const credKeyNames = injectedCredFields.map((f) => f.name);
+  lines.push(
+    `const _credentialKeys = new Set(${JSON.stringify(credKeyNames)});`,
+  );
+  lines.push("");
+  const injectedCredNames = new Set(injectedCredFields.map((f) => f.name));
+  lines.push(
+    `function _buildCredentials(g: Record<string, unknown>): AwsCredentials {`,
+  );
+  lines.push(`  return {`);
+  for (const f of credentialFields) {
+    if (injectedCredNames.has(f.name)) {
+      lines.push(`    ${f.name}: g.${f.name} as string | undefined,`);
+    } else {
+      lines.push(`    ${f.name}: undefined,`);
+    }
+  }
+  lines.push(`  };`);
+  lines.push(`}`);
+  lines.push("");
 
   // Resource description
   const resourceDesc = typeNameToDescription(typeName);
@@ -278,17 +349,19 @@ export function generateAwsExtensionModel(
       `      execute: async (_args: Record<string, never>, context: any) => {`,
     );
     lines.push(`        const g = context.globalArgs;`);
+    lines.push(`        const credentials = _buildCredentials(g);`);
     lines.push(`        const desiredState: Record<string, unknown> = {};`);
     lines.push(`        for (const [key, value] of Object.entries(g)) {`);
     if (isSyntheticName) {
       lines.push(`          if (key === "name") continue;`);
     }
+    lines.push(`          if (_credentialKeys.has(key)) continue;`);
     lines.push(
       `          if (value !== undefined) desiredState[key] = value;`,
     );
     lines.push(`        }`);
     lines.push(
-      `        const result = await createResource("${typeName}", desiredState) as StateData;`,
+      `        const result = await createResource("${typeName}", desiredState, credentials) as StateData;`,
     );
     if (isSyntheticName) {
       lines.push(
@@ -323,13 +396,16 @@ export function generateAwsExtensionModel(
     lines.push(
       `      execute: async (args: { identifier: string }, context: any) => {`,
     );
+    lines.push(
+      `        const credentials = _buildCredentials(context.globalArgs);`,
+    );
     if (input.enrichment) {
       lines.push(
-        `        const result = await ${input.enrichment.functionExport}(await readResource("${typeName}", args.identifier) as StateData);`,
+        `        const result = await ${input.enrichment.functionExport}(await readResource("${typeName}", args.identifier, credentials) as StateData);`,
       );
     } else {
       lines.push(
-        `        const result = await readResource("${typeName}", args.identifier) as StateData;`,
+        `        const result = await readResource("${typeName}", args.identifier, credentials) as StateData;`,
       );
     }
     if (isSyntheticName) {
@@ -368,6 +444,7 @@ export function generateAwsExtensionModel(
       `      execute: async (_args: Record<string, never>, context: any) => {`,
     );
     lines.push(`        const g = context.globalArgs;`);
+    lines.push(`        const credentials = _buildCredentials(g);`);
     if (isSyntheticName) {
       lines.push(
         `        const instanceName = ${
@@ -419,7 +496,7 @@ export function generateAwsExtensionModel(
     }
 
     lines.push(
-      `        const currentState = await readResource("${typeName}", identifier) as StateData;`,
+      `        const currentState = await readResource("${typeName}", identifier, credentials) as StateData;`,
     );
     lines.push(
       `        const desiredState: Record<string, unknown> = { ...currentState };`,
@@ -428,6 +505,7 @@ export function generateAwsExtensionModel(
     if (isSyntheticName) {
       lines.push(`          if (key === "name") continue;`);
     }
+    lines.push(`          if (_credentialKeys.has(key)) continue;`);
     lines.push(
       `          if (value !== undefined) desiredState[key] = value;`,
     );
@@ -436,11 +514,11 @@ export function generateAwsExtensionModel(
       lines.push(
         `        const result = await updateResource("${typeName}", identifier, currentState, desiredState, ${
           JSON.stringify(createOnlyProperties)
-        });`,
+        }, credentials);`,
       );
     } else {
       lines.push(
-        `        const result = await updateResource("${typeName}", identifier, currentState, desiredState);`,
+        `        const result = await updateResource("${typeName}", identifier, currentState, desiredState, undefined, credentials);`,
       );
     }
     lines.push(
@@ -462,7 +540,10 @@ export function generateAwsExtensionModel(
       `      execute: async (args: { identifier: string }, context: any) => {`,
     );
     lines.push(
-      `        const { existed } = await deleteResource("${typeName}", args.identifier);`,
+      `        const credentials = _buildCredentials(context.globalArgs);`,
+    );
+    lines.push(
+      `        const { existed } = await deleteResource("${typeName}", args.identifier, credentials);`,
     );
     if (isSyntheticName) {
       lines.push(
@@ -509,6 +590,7 @@ export function generateAwsExtensionModel(
       `      execute: async (_args: Record<string, never>, context: any) => {`,
     );
     lines.push(`        const g = context.globalArgs;`);
+    lines.push(`        const credentials = _buildCredentials(g);`);
     if (isSyntheticName) {
       lines.push(
         `        const instanceName = ${
@@ -561,11 +643,11 @@ export function generateAwsExtensionModel(
     lines.push(`        try {`);
     if (input.enrichment) {
       lines.push(
-        `          const result = await ${input.enrichment.functionExport}(await readResource("${typeName}", identifier) as StateData);`,
+        `          const result = await ${input.enrichment.functionExport}(await readResource("${typeName}", identifier, credentials) as StateData);`,
       );
     } else {
       lines.push(
-        `          const result = await readResource("${typeName}", identifier) as StateData;`,
+        `          const result = await readResource("${typeName}", identifier, credentials) as StateData;`,
       );
     }
     lines.push(
@@ -593,8 +675,6 @@ export function generateAwsExtensionModel(
 
   // list method (from enrichment listMethod config)
   if (input.listMethod) {
-    const primaryId = onlyProperties.primaryIdentifier[0] ||
-      "ResourceIdentifier";
     lines.push(`    list: {`);
     lines.push(
       `      description: "${input.listMethod.description}",`,
@@ -716,4 +796,22 @@ export function typeNameToServiceName(typeName: string): string {
     throw new Error(`Invalid typeName format: ${typeName}`);
   }
   return parts[1].toLowerCase();
+}
+
+export const AWS_CREDENTIAL_FIELD_NAMES = [
+  "accessKeyId",
+  "secretAccessKey",
+  "sessionToken",
+  "region",
+] as const;
+
+/**
+ * Returns the credential field names that should be injected for a resource,
+ * excluding any that collide with domain property names.
+ */
+export function getInjectedCredentialFields(
+  domainPropertyNames: string[],
+): string[] {
+  const domainSet = new Set(domainPropertyNames);
+  return AWS_CREDENTIAL_FIELD_NAMES.filter((f) => !domainSet.has(f));
 }

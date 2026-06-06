@@ -10,6 +10,7 @@ import {
 import { generateZodSchemas } from "../shared/zodGenerator.ts";
 import {
   generateAwsExtensionModel,
+  getInjectedCredentialFields,
   resolveNamingField,
   type ResourceHandlers,
   typeNameToModelSlug,
@@ -332,6 +333,7 @@ export async function generateAwsModels(options: {
             description: rawEnrichment.listMethod.description,
           }
           : undefined;
+        const domainPropertyNames = Object.keys(domainProperties);
         const candidateCode = generateAwsExtensionModel({
           typeName,
           zodResult,
@@ -342,6 +344,7 @@ export async function generateAwsModels(options: {
           modelType,
           enrichment,
           listMethod,
+          domainPropertyNames,
         });
 
         const { version, status, existingContent } = await computeModelVersion(
@@ -359,7 +362,8 @@ export async function generateAwsModels(options: {
         );
         const newFieldNames = [
           ...(isSyntheticName ? ["name"] : []),
-          ...Object.keys(domainProperties),
+          ...domainPropertyNames,
+          ...getInjectedCredentialFields(domainPropertyNames),
         ];
 
         const upgradesBlock = computeUpgradesBlock(
@@ -381,6 +385,7 @@ export async function generateAwsModels(options: {
           upgradesBlock,
           enrichment,
           listMethod,
+          domainPropertyNames,
         });
 
         models.push({ filePath, sourceCode });

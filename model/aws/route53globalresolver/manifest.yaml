@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/route53globalresolver"
-version: "2026.05.01.1"
+version: "2026.06.06.1"
 description: "AWS ROUTE53GLOBALRESOLVER infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - route53globalresolver
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: access_source, access_token, dns_view, firewall_domain_list, firewall_rule, global_resolver, hosted_zone_association
 models:
   - access_source.ts
   - access_token.ts

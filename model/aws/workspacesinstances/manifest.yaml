@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/workspacesinstances"
-version: "2026.04.23.3"
+version: "2026.06.06.1"
 description: "AWS WORKSPACESINSTANCES infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - workspacesinstances
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: volume, volume_association, workspace_instance
 models:
   - volume.ts
   - volume_association.ts

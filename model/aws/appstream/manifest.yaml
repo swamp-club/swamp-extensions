@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/appstream"
-version: "2026.06.04.1"
+version: "2026.06.06.1"
 description: "AWS APPSTREAM infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: user
+  - Updated: app_block, app_block_builder, application, application_entitlement_association, application_fleet_association, directory_config, entitlement, image_builder, stack, stack_user_association, user
 models:
   - app_block.ts
   - app_block_builder.ts

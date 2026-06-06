@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/lambda"
-version: "2026.06.04.1"
+version: "2026.06.06.1"
 description: "AWS LAMBDA infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: capacity_provider
+  - Updated: alias, capacity_provider, code_signing_config, event_invoke_config, event_source_mapping, function, layer_version, layer_version_permission, permission, url, version
 models:
   - alias.ts
   - capacity_provider.ts

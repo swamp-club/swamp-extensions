@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/workspacesweb"
-version: "2026.05.27.1"
+version: "2026.06.06.1"
 description: "AWS WORKSPACESWEB infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: session_logger
+  - Updated: browser_settings, data_protection_settings, identity_provider, ip_access_settings, network_settings, portal, session_logger, trust_store, user_access_logging_settings, user_settings
 models:
   - browser_settings.ts
   - data_protection_settings.ts

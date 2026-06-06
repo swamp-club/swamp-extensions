@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/rtbfabric"
-version: "2026.06.04.1"
+version: "2026.06.06.1"
 description: "AWS RTBFABRIC infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: link_routing_rule
+  - Updated: inbound_external_link, link, link_routing_rule, outbound_external_link, requester_gateway, responder_gateway
 models:
   - inbound_external_link.ts
   - link.ts

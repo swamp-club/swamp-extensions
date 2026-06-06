@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/iotsitewise"
-version: "2026.04.23.3"
+version: "2026.06.06.1"
 description: "AWS IOTSITEWISE infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - iotsitewise
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: access_policy, asset, asset_model, computation_model, dashboard, dataset, gateway, portal, project
 models:
   - access_policy.ts
   - asset.ts

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/vpclattice"
-version: "2026.05.27.1"
+version: "2026.06.06.1"
 description: "AWS VPCLATTICE infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: auth_policy, resource_configuration, resource_policy
+  - Updated: access_log_subscription, auth_policy, domain_verification, listener, resource_configuration, resource_gateway, resource_policy, rule, service, service_network, service_network_resource_association, service_network_service_association, service_network_vpc_association, target_group
 models:
   - access_log_subscription.ts
   - auth_policy.ts

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/eks"
-version: "2026.05.06.1"
+version: "2026.06.06.1"
 description: "AWS EKS infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - eks
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: access_entry, addon, capability, cluster, fargate_profile, identity_provider_config, nodegroup, pod_identity_association
 models:
   - access_entry.ts
   - addon.ts

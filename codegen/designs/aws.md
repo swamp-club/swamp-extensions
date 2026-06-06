@@ -588,7 +588,7 @@ The generator:
 ## 9. Zod Schema Generation
 
 Each generated model contains three Zod schemas. The Zod generation is shared
-with Hetzner and DigitalOcean via `src/codegen/zodGenerator.ts`.
+with Hetzner and DigitalOcean via `codegen/shared/zodGenerator.ts`.
 
 ### GlobalArgsSchema — full fidelity input validation
 
@@ -708,7 +708,7 @@ normalizer handles these by:
 ## 10. Versioning and Change Detection
 
 The AWS pipeline uses the same shared CalVer versioning system as Hetzner and
-DigitalOcean (see `src/pipeline/version.ts`).
+DigitalOcean (see `codegen/shared/version.ts`).
 
 ### CalVer format
 
@@ -808,7 +808,9 @@ Exports: `createResource`, `readResource`, `updateResource`, `deleteResource`
 
 Key behaviors:
 
-- CloudControl client reads `AWS_REGION` env var (default: `us-east-1`)
+- CloudControl client accepts optional explicit credentials; falls back to the
+  AWS SDK default credential chain and `AWS_REGION` env var (default:
+  `us-east-1`)
 - All commands use exponential backoff + jitter retry on throttling
 - Async operations (create, update, delete) poll until terminal state
 - Update computes JSON patch internally, filtering create-only properties
@@ -817,6 +819,62 @@ Key behaviors:
 
 The same `_lib/aws.ts` file is written into every service directory. The content
 is identical across services — it's a static helper, not service-specific.
+
+### Authentication and credential global arguments
+
+Every generated model includes four optional credential global arguments
+injected by `extensionModelGenerator.ts`:
+
+| Field             | Sensitive | Overrides env var       | Description                             |
+| ----------------- | --------- | ----------------------- | --------------------------------------- |
+| `accessKeyId`     | yes       | `AWS_ACCESS_KEY_ID`     | AWS access key ID                       |
+| `secretAccessKey` | yes       | `AWS_SECRET_ACCESS_KEY` | AWS secret access key                   |
+| `sessionToken`    | yes       | `AWS_SESSION_TOKEN`     | Session token for temporary credentials |
+| `region`          | no        | `AWS_REGION`            | AWS region (defaults to `us-east-1`)    |
+
+**Precedence**: explicit global argument > environment variable > SDK default
+chain. Users can wire these with `vault.get(...)` expressions in their model
+YAML:
+
+```yaml
+globalArgs:
+  accessKeyId: ${{ vault.get(my-vault, aws-access-key) }}
+  secretAccessKey: ${{ vault.get(my-vault, aws-secret-key) }}
+  region: us-west-2
+```
+
+**Sensitive handling**: `accessKeyId`, `secretAccessKey`, and `sessionToken` are
+emitted with `z.meta({ sensitive: true })` in both `GlobalArgsSchema` and
+`InputsSchema`. Swamp core auto-redacts sensitive fields in run logs, reports,
+and data storage. `region` is not sensitive — it's a plain region name.
+
+**Collision guard**: if a CloudFormation resource has a domain property whose
+name collides with a credential field name, the credential field is not injected
+for that resource. This mirrors the Hetzner provider's `hasTokenProp` guard.
+Collisions are extremely unlikely since CF properties use PascalCase (e.g.,
+`AccessKeyId`) while the credential fields are camelCase.
+
+**Credential filtering**: the `create` and `update` methods iterate over
+`globalArgs` to build the `desiredState` sent to CloudControl. Credential keys
+are filtered out of this loop via a `_credentialKeys` set — they are auth
+config, not resource properties. A `_buildCredentials` helper extracts the
+credential fields into an `AwsCredentials` object that is passed to each lib
+CRUD function.
+
+**No credential validation**: unlike Hetzner (which validates the token by
+hitting `GET /locations`), the AWS provider does not pre-validate credentials.
+The AWS SDK already throws clear errors for bad credentials, and an STS
+`GetCallerIdentity` call would add latency and an extra SDK dependency.
+
+**Upgrade diffing**: the credential field names are added to `newFieldNames` in
+`pipeline.ts` so the upgrade differ sees them. Without this, a regeneration
+after the fields appear in committed models would emit spurious "Removed"
+upgrade entries.
+
+**Known limitation**: hand-written list method enrichments (e.g.,
+`codegen/aws/enrichments/rds-dbcluster-list.enrich.ts`) create their own SDK
+clients and do not receive vault-expression credentials. This is tracked
+separately from the credential injection feature.
 
 ### Naming conventions
 

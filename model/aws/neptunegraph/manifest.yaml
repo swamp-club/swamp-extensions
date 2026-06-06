@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/neptunegraph"
-version: "2026.05.18.1"
+version: "2026.06.06.1"
 description: "AWS NEPTUNEGRAPH infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - neptunegraph
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: graph, graph_snapshot, private_graph_endpoint
 models:
   - graph.ts
   - graph_snapshot.ts

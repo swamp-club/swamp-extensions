@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/ssmcontacts"
-version: "2026.04.23.3"
+version: "2026.06.06.1"
 description: "AWS SSMCONTACTS infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - ssmcontacts
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: contact, contact_channel, plan, rotation
 models:
   - contact.ts
   - contact_channel.ts

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/chatbot"
-version: "2026.04.23.3"
+version: "2026.06.06.1"
 description: "AWS CHATBOT infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - chatbot
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: custom_action, microsoft_teams_channel_configuration, slack_channel_configuration
 models:
   - custom_action.ts
   - microsoft_teams_channel_configuration.ts

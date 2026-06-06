@@ -20,6 +20,7 @@ import {
   readResource,
   updateResource,
 } from "./_lib/aws.ts";
+import type { AwsCredentials } from "./_lib/aws.ts";
 
 const PolicySchema = z.object({
   PolicyDocument: z.record(z.string(), z.unknown()).describe(
@@ -40,6 +41,18 @@ const TagSchema = z.object({
 });
 
 const GlobalArgsSchema = z.object({
+  accessKeyId: z.string().meta({ sensitive: true }).describe(
+    "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).describe(
+    "AWS secret access key; overrides AWS_SECRET_ACCESS_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  sessionToken: z.string().meta({ sensitive: true }).describe(
+    "AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  region: z.string().describe(
+    "AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.",
+  ).optional(),
   Path: z.string().describe(
     "The path for the user name. For more information about paths, see [IAM identifiers](https://docs.aws.amazon.com/IAM/latest/UserGuide/Using_Identifiers.html) in the *IAM User Guide*. This parameter is optional. If it is not included, it defaults to a slash (/). This parameter allows (through its [regex pattern](https://docs.aws.amazon.com/http://wikipedia.org/wiki/regex)) a string of characters consisting of either a forward slash (/) by itself or a string that must begin and end with forward slashes. In addition, it can contain any ASCII character from the! ( \\u0021) through the DEL character ( \\u007F), including most punctuation characters, digits, and upper and lowercased letters.",
   ).optional(),
@@ -89,6 +102,10 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
+  accessKeyId: z.string().meta({ sensitive: true }).optional(),
+  secretAccessKey: z.string().meta({ sensitive: true }).optional(),
+  sessionToken: z.string().meta({ sensitive: true }).optional(),
+  region: z.string().optional(),
   Path: z.string().describe(
     "The path for the user name. For more information about paths, see [IAM identifiers](https://docs.aws.amazon.com/IAM/latest/UserGuide/Using_Identifiers.html) in the *IAM User Guide*. This parameter is optional. If it is not included, it defaults to a slash (/). This parameter allows (through its [regex pattern](https://docs.aws.amazon.com/http://wikipedia.org/wiki/regex)) a string of characters consisting of either a forward slash (/) by itself or a string that must begin and end with forward slashes. In addition, it can contain any ASCII character from the! ( \\u0021) through the DEL character ( \\u007F), including most punctuation characters, digits, and upper and lowercased letters.",
   ).optional(),
@@ -120,10 +137,26 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
+const _credentialKeys = new Set([
+  "accessKeyId",
+  "secretAccessKey",
+  "sessionToken",
+  "region",
+]);
+
+function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
+  return {
+    accessKeyId: g.accessKeyId as string | undefined,
+    secretAccessKey: g.secretAccessKey as string | undefined,
+    sessionToken: g.sessionToken as string | undefined,
+    region: g.region as string | undefined,
+  };
+}
+
 /** Swamp extension model for IAM User. Registered at `@swamp/aws/iam/user`. */
 export const model = {
   type: "@swamp/aws/iam/user",
-  version: "2026.05.27.1",
+  version: "2026.06.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -155,6 +188,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.06.1",
+      description: "Added: accessKeyId, secretAccessKey, sessionToken, region",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -172,13 +210,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {
+          if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await createResource(
           "AWS::IAM::User",
           desiredState,
+          credentials,
         ) as StateData;
         const instanceName =
           ((result.UserName ?? g.UserName)?.toString() ?? "current").replace(
@@ -201,9 +242,11 @@ export const model = {
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
+        const credentials = _buildCredentials(context.globalArgs);
         const result = await readResource(
           "AWS::IAM::User",
           args.identifier,
+          credentials,
         ) as StateData;
         const instanceName =
           ((result.UserName ?? context.globalArgs.UserName)?.toString() ??
@@ -222,6 +265,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const instanceName = (g.UserName?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -242,9 +286,11 @@ export const model = {
         const currentState = await readResource(
           "AWS::IAM::User",
           identifier,
+          credentials,
         ) as StateData;
         const desiredState: Record<string, unknown> = { ...currentState };
         for (const [key, value] of Object.entries(g)) {
+          if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await updateResource(
@@ -253,6 +299,7 @@ export const model = {
           currentState,
           desiredState,
           ["UserName"],
+          credentials,
         );
         const handle = await context.writeResource(
           "state",
@@ -270,9 +317,11 @@ export const model = {
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
+        const credentials = _buildCredentials(context.globalArgs);
         const { existed } = await deleteResource(
           "AWS::IAM::User",
           args.identifier,
+          credentials,
         );
         const instanceName =
           (context.globalArgs.UserName?.toString() ?? args.identifier).replace(
@@ -293,6 +342,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
         const instanceName = (g.UserName?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -314,6 +364,7 @@ export const model = {
           const result = await readResource(
             "AWS::IAM::User",
             identifier,
+            credentials,
           ) as StateData;
           const handle = await context.writeResource(
             "state",

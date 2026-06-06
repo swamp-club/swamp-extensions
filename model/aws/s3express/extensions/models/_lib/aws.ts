@@ -11,10 +11,29 @@ import {
 } from "npm:@aws-sdk/client-cloudcontrol@3.1021.0";
 import jsonpatch from "npm:fast-json-patch@3.1.1";
 
-function createClient(): CloudControlClient {
-  return new CloudControlClient({
-    region: Deno.env.get("AWS_REGION") || "us-east-1",
-  });
+export interface AwsCredentials {
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  sessionToken?: string;
+  region?: string;
+}
+
+function createClient(credentials?: AwsCredentials): CloudControlClient {
+  const region = credentials?.region ?? Deno.env.get("AWS_REGION") ??
+    "us-east-1";
+  const config: Record<string, unknown> = { region };
+
+  if (credentials?.accessKeyId && credentials?.secretAccessKey) {
+    config.credentials = {
+      accessKeyId: credentials.accessKeyId,
+      secretAccessKey: credentials.secretAccessKey,
+      ...(credentials.sessionToken
+        ? { sessionToken: credentials.sessionToken }
+        : {}),
+    };
+  }
+
+  return new CloudControlClient(config);
 }
 
 function delay(ms: number): Promise<void> {
@@ -138,8 +157,9 @@ async function pollOperationStatus(
 export async function createResource(
   typeName: string,
   desiredState: Record<string, unknown>,
+  credentials?: AwsCredentials,
 ): Promise<Record<string, unknown>> {
-  const client = createClient();
+  const client = createClient(credentials);
 
   console.log(`[CREATE] Starting create for ${typeName}`);
 
@@ -212,8 +232,9 @@ export async function createResource(
 export async function readResource(
   typeName: string,
   identifier: string,
+  credentials?: AwsCredentials,
 ): Promise<Record<string, unknown>> {
-  const client = createClient();
+  const client = createClient(credentials);
 
   console.log(`[READ] Fetching ${typeName} identifier: ${identifier}`);
 
@@ -246,8 +267,9 @@ export async function updateResource(
   currentState: Record<string, unknown>,
   desiredState: Record<string, unknown>,
   createOnlyProperties?: string[],
+  credentials?: AwsCredentials,
 ): Promise<Record<string, unknown>> {
-  const client = createClient();
+  const client = createClient(credentials);
   const createOnlySet = new Set(createOnlyProperties ?? []);
 
   console.log(
@@ -334,8 +356,9 @@ export async function updateResource(
 export async function deleteResource(
   typeName: string,
   identifier: string,
+  credentials?: AwsCredentials,
 ): Promise<{ existed: boolean }> {
-  const client = createClient();
+  const client = createClient(credentials);
 
   console.log(
     `[DELETE] Starting delete for ${typeName} identifier: ${identifier}`,

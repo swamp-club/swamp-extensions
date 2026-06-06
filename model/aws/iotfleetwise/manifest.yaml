@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/iotfleetwise"
-version: "2026.05.27.1"
+version: "2026.06.06.1"
 description: "AWS IOTFLEETWISE infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: vehicle
+  - Updated: campaign, decoder_manifest, fleet, model_manifest, signal_catalog, state_template, vehicle
 models:
   - campaign.ts
   - decoder_manifest.ts

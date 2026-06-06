@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/odb"
-version: "2026.05.09.1"
+version: "2026.06.06.1"
 description: "AWS ODB infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - odb
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: cloud_autonomous_vm_cluster, cloud_exadata_infrastructure, cloud_vm_cluster, odb_network, odb_peering_connection
 models:
   - cloud_autonomous_vm_cluster.ts
   - cloud_exadata_infrastructure.ts

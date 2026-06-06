@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/detective"
-version: "2026.04.23.3"
+version: "2026.06.06.1"
 description: "AWS DETECTIVE infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - detective
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: graph, member_invitation, organization_admin
 models:
   - graph.ts
   - member_invitation.ts
