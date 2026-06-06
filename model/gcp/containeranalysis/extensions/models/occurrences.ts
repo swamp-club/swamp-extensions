@@ -132,8 +132,6 @@ const GlobalArgsSchema = z.object({
   aiSkillAnalysis: z.object({
     findings: z.array(z.object({
       category: z.string().describe("Category of the finding.").optional(),
-      details: z.string().describe("Description of the finding category.")
-        .optional(),
       location: z.object({
         filePath: z.string().describe(
           "Relative path of the file containing the finding.",
@@ -143,16 +141,13 @@ const GlobalArgsSchema = z.object({
         ).optional(),
       }).describe("Location details with file path and line number.")
         .optional(),
-      scanner: z.enum(["SCANNER_UNSPECIFIED", "STATIC", "LLM"]).describe(
+      scanner: z.string().describe(
         "Scanner determines which engine (e.g. static, llm) emitted the finding.",
       ).optional(),
-      severity: z.enum(["SEVERITY_UNSPECIFIED", "CRITICAL", "HIGH"]).describe(
-        "Severity of the finding.",
-      ).optional(),
+      severity: z.string().describe("Severity of the finding.").optional(),
     })).describe("Findings produced by the analysis.").optional(),
-    maxSeverity: z.enum(["SEVERITY_UNSPECIFIED", "CRITICAL", "HIGH"]).describe(
-      "Maximum severity found among findings.",
-    ).optional(),
+    maxSeverity: z.string().describe("Maximum severity found among findings.")
+      .optional(),
     skillName: z.string().describe(
       "Name of the skill that produced this analysis.",
     ).optional(),
@@ -1330,142 +1325,6 @@ const GlobalArgsSchema = z.object({
     }).describe(
       "Common Vulnerability Scoring System. For details, see https://www.first.org/cvss/specification-document This is a message we will try to use for storing various versions of CVSS rather than making a separate proto for storing a specific version.",
     ).optional(),
-    cvssV4: z.object({
-      attackComplexity: z.enum([
-        "ATTACK_COMPLEXITY_UNSPECIFIED",
-        "ATTACK_COMPLEXITY_LOW",
-        "ATTACK_COMPLEXITY_HIGH",
-        "ATTACK_COMPLEXITY_MEDIUM",
-      ]).describe("Attack Complexity (AC). Defined in CVSS v2, v3, v4.")
-        .optional(),
-      attackRequirements: z.enum([
-        "ATTACK_REQUIREMENTS_UNSPECIFIED",
-        "ATTACK_REQUIREMENTS_NONE",
-        "ATTACK_REQUIREMENTS_PRESENT",
-      ]).describe("Attack Requirements (AT). Defined in CVSS v4.").optional(),
-      attackVector: z.enum([
-        "ATTACK_VECTOR_UNSPECIFIED",
-        "ATTACK_VECTOR_NETWORK",
-        "ATTACK_VECTOR_ADJACENT",
-        "ATTACK_VECTOR_LOCAL",
-        "ATTACK_VECTOR_PHYSICAL",
-      ]).describe("Attack Vector (AV). Defined in CVSS v2, v3, v4.").optional(),
-      authentication: z.enum([
-        "AUTHENTICATION_UNSPECIFIED",
-        "AUTHENTICATION_MULTIPLE",
-        "AUTHENTICATION_SINGLE",
-        "AUTHENTICATION_NONE",
-      ]).describe("Authentication (Au). Defined in CVSS v2.").optional(),
-      availabilityImpact: z.enum([
-        "IMPACT_UNSPECIFIED",
-        "IMPACT_HIGH",
-        "IMPACT_LOW",
-        "IMPACT_NONE",
-        "IMPACT_PARTIAL",
-        "IMPACT_COMPLETE",
-      ]).describe("Availability Impact (A). Defined in CVSS v2, v3.")
-        .optional(),
-      baseScore: z.number().describe(
-        "The base score is a function of the base metric scores.",
-      ).optional(),
-      confidentialityImpact: z.enum([
-        "IMPACT_UNSPECIFIED",
-        "IMPACT_HIGH",
-        "IMPACT_LOW",
-        "IMPACT_NONE",
-        "IMPACT_PARTIAL",
-        "IMPACT_COMPLETE",
-      ]).describe("Confidentiality Impact (C). Defined in CVSS v2, v3.")
-        .optional(),
-      exploitabilityScore: z.number().optional(),
-      impactScore: z.number().optional(),
-      integrityImpact: z.enum([
-        "IMPACT_UNSPECIFIED",
-        "IMPACT_HIGH",
-        "IMPACT_LOW",
-        "IMPACT_NONE",
-        "IMPACT_PARTIAL",
-        "IMPACT_COMPLETE",
-      ]).describe("Integrity Impact (I). Defined in CVSS v2, v3.").optional(),
-      privilegesRequired: z.enum([
-        "PRIVILEGES_REQUIRED_UNSPECIFIED",
-        "PRIVILEGES_REQUIRED_NONE",
-        "PRIVILEGES_REQUIRED_LOW",
-        "PRIVILEGES_REQUIRED_HIGH",
-      ]).describe("Privileges Required (PR). Defined in CVSS v3, v4.")
-        .optional(),
-      scope: z.enum(["SCOPE_UNSPECIFIED", "SCOPE_UNCHANGED", "SCOPE_CHANGED"])
-        .describe("Scope (S). Defined in CVSS v3.").optional(),
-      subsequentSystemAvailabilityImpact: z.enum([
-        "IMPACT_UNSPECIFIED",
-        "IMPACT_HIGH",
-        "IMPACT_LOW",
-        "IMPACT_NONE",
-        "IMPACT_PARTIAL",
-        "IMPACT_COMPLETE",
-      ]).describe(
-        "Subsequent System Availability Impact (SA). Defined in CVSS v4.",
-      ).optional(),
-      subsequentSystemConfidentialityImpact: z.enum([
-        "IMPACT_UNSPECIFIED",
-        "IMPACT_HIGH",
-        "IMPACT_LOW",
-        "IMPACT_NONE",
-        "IMPACT_PARTIAL",
-        "IMPACT_COMPLETE",
-      ]).describe(
-        "Subsequent System Confidentiality Impact (SC). Defined in CVSS v4.",
-      ).optional(),
-      subsequentSystemIntegrityImpact: z.enum([
-        "IMPACT_UNSPECIFIED",
-        "IMPACT_HIGH",
-        "IMPACT_LOW",
-        "IMPACT_NONE",
-        "IMPACT_PARTIAL",
-        "IMPACT_COMPLETE",
-      ]).describe(
-        "Subsequent System Integrity Impact (SI). Defined in CVSS v4.",
-      ).optional(),
-      userInteraction: z.enum([
-        "USER_INTERACTION_UNSPECIFIED",
-        "USER_INTERACTION_NONE",
-        "USER_INTERACTION_REQUIRED",
-        "USER_INTERACTION_PASSIVE",
-        "USER_INTERACTION_ACTIVE",
-      ]).describe("User Interaction (UI). Defined in CVSS v3, v4.").optional(),
-      vulnerableSystemAvailabilityImpact: z.enum([
-        "IMPACT_UNSPECIFIED",
-        "IMPACT_HIGH",
-        "IMPACT_LOW",
-        "IMPACT_NONE",
-        "IMPACT_PARTIAL",
-        "IMPACT_COMPLETE",
-      ]).describe(
-        "Vulnerable System Availability Impact (VA). Defined in CVSS v4.",
-      ).optional(),
-      vulnerableSystemConfidentialityImpact: z.enum([
-        "IMPACT_UNSPECIFIED",
-        "IMPACT_HIGH",
-        "IMPACT_LOW",
-        "IMPACT_NONE",
-        "IMPACT_PARTIAL",
-        "IMPACT_COMPLETE",
-      ]).describe(
-        "Vulnerable System Confidentiality Impact (VC). Defined in CVSS v4.",
-      ).optional(),
-      vulnerableSystemIntegrityImpact: z.enum([
-        "IMPACT_UNSPECIFIED",
-        "IMPACT_HIGH",
-        "IMPACT_LOW",
-        "IMPACT_NONE",
-        "IMPACT_PARTIAL",
-        "IMPACT_COMPLETE",
-      ]).describe(
-        "Vulnerable System Integrity Impact (VI). Defined in CVSS v4.",
-      ).optional(),
-    }).describe(
-      "Common Vulnerability Scoring System. For details, see https://www.first.org/cvss/specification-document This is a message we will try to use for storing various versions of CVSS rather than making a separate proto for storing a specific version.",
-    ).optional(),
     cvssVersion: z.enum([
       "CVSS_VERSION_UNSPECIFIED",
       "CVSS_VERSION_2",
@@ -1845,7 +1704,6 @@ const StateSchema = z.object({
   aiSkillAnalysis: z.object({
     findings: z.array(z.object({
       category: z.string(),
-      details: z.string(),
       location: z.object({
         filePath: z.string(),
         lineNumber: z.string(),
@@ -2371,27 +2229,6 @@ const StateSchema = z.object({
       vulnerableSystemConfidentialityImpact: z.string(),
       vulnerableSystemIntegrityImpact: z.string(),
     }),
-    cvssV4: z.object({
-      attackComplexity: z.string(),
-      attackRequirements: z.string(),
-      attackVector: z.string(),
-      authentication: z.string(),
-      availabilityImpact: z.string(),
-      baseScore: z.number(),
-      confidentialityImpact: z.string(),
-      exploitabilityScore: z.number(),
-      impactScore: z.number(),
-      integrityImpact: z.string(),
-      privilegesRequired: z.string(),
-      scope: z.string(),
-      subsequentSystemAvailabilityImpact: z.string(),
-      subsequentSystemConfidentialityImpact: z.string(),
-      subsequentSystemIntegrityImpact: z.string(),
-      userInteraction: z.string(),
-      vulnerableSystemAvailabilityImpact: z.string(),
-      vulnerableSystemConfidentialityImpact: z.string(),
-      vulnerableSystemIntegrityImpact: z.string(),
-    }),
     cvssVersion: z.string(),
     cvssv3: z.object({
       attackComplexity: z.string(),
@@ -2500,8 +2337,6 @@ const InputsSchema = z.object({
   aiSkillAnalysis: z.object({
     findings: z.array(z.object({
       category: z.string().describe("Category of the finding.").optional(),
-      details: z.string().describe("Description of the finding category.")
-        .optional(),
       location: z.object({
         filePath: z.string().describe(
           "Relative path of the file containing the finding.",
@@ -2511,16 +2346,13 @@ const InputsSchema = z.object({
         ).optional(),
       }).describe("Location details with file path and line number.")
         .optional(),
-      scanner: z.enum(["SCANNER_UNSPECIFIED", "STATIC", "LLM"]).describe(
+      scanner: z.string().describe(
         "Scanner determines which engine (e.g. static, llm) emitted the finding.",
       ).optional(),
-      severity: z.enum(["SEVERITY_UNSPECIFIED", "CRITICAL", "HIGH"]).describe(
-        "Severity of the finding.",
-      ).optional(),
+      severity: z.string().describe("Severity of the finding.").optional(),
     })).describe("Findings produced by the analysis.").optional(),
-    maxSeverity: z.enum(["SEVERITY_UNSPECIFIED", "CRITICAL", "HIGH"]).describe(
-      "Maximum severity found among findings.",
-    ).optional(),
+    maxSeverity: z.string().describe("Maximum severity found among findings.")
+      .optional(),
     skillName: z.string().describe(
       "Name of the skill that produced this analysis.",
     ).optional(),
@@ -3698,142 +3530,6 @@ const InputsSchema = z.object({
     }).describe(
       "Common Vulnerability Scoring System. For details, see https://www.first.org/cvss/specification-document This is a message we will try to use for storing various versions of CVSS rather than making a separate proto for storing a specific version.",
     ).optional(),
-    cvssV4: z.object({
-      attackComplexity: z.enum([
-        "ATTACK_COMPLEXITY_UNSPECIFIED",
-        "ATTACK_COMPLEXITY_LOW",
-        "ATTACK_COMPLEXITY_HIGH",
-        "ATTACK_COMPLEXITY_MEDIUM",
-      ]).describe("Attack Complexity (AC). Defined in CVSS v2, v3, v4.")
-        .optional(),
-      attackRequirements: z.enum([
-        "ATTACK_REQUIREMENTS_UNSPECIFIED",
-        "ATTACK_REQUIREMENTS_NONE",
-        "ATTACK_REQUIREMENTS_PRESENT",
-      ]).describe("Attack Requirements (AT). Defined in CVSS v4.").optional(),
-      attackVector: z.enum([
-        "ATTACK_VECTOR_UNSPECIFIED",
-        "ATTACK_VECTOR_NETWORK",
-        "ATTACK_VECTOR_ADJACENT",
-        "ATTACK_VECTOR_LOCAL",
-        "ATTACK_VECTOR_PHYSICAL",
-      ]).describe("Attack Vector (AV). Defined in CVSS v2, v3, v4.").optional(),
-      authentication: z.enum([
-        "AUTHENTICATION_UNSPECIFIED",
-        "AUTHENTICATION_MULTIPLE",
-        "AUTHENTICATION_SINGLE",
-        "AUTHENTICATION_NONE",
-      ]).describe("Authentication (Au). Defined in CVSS v2.").optional(),
-      availabilityImpact: z.enum([
-        "IMPACT_UNSPECIFIED",
-        "IMPACT_HIGH",
-        "IMPACT_LOW",
-        "IMPACT_NONE",
-        "IMPACT_PARTIAL",
-        "IMPACT_COMPLETE",
-      ]).describe("Availability Impact (A). Defined in CVSS v2, v3.")
-        .optional(),
-      baseScore: z.number().describe(
-        "The base score is a function of the base metric scores.",
-      ).optional(),
-      confidentialityImpact: z.enum([
-        "IMPACT_UNSPECIFIED",
-        "IMPACT_HIGH",
-        "IMPACT_LOW",
-        "IMPACT_NONE",
-        "IMPACT_PARTIAL",
-        "IMPACT_COMPLETE",
-      ]).describe("Confidentiality Impact (C). Defined in CVSS v2, v3.")
-        .optional(),
-      exploitabilityScore: z.number().optional(),
-      impactScore: z.number().optional(),
-      integrityImpact: z.enum([
-        "IMPACT_UNSPECIFIED",
-        "IMPACT_HIGH",
-        "IMPACT_LOW",
-        "IMPACT_NONE",
-        "IMPACT_PARTIAL",
-        "IMPACT_COMPLETE",
-      ]).describe("Integrity Impact (I). Defined in CVSS v2, v3.").optional(),
-      privilegesRequired: z.enum([
-        "PRIVILEGES_REQUIRED_UNSPECIFIED",
-        "PRIVILEGES_REQUIRED_NONE",
-        "PRIVILEGES_REQUIRED_LOW",
-        "PRIVILEGES_REQUIRED_HIGH",
-      ]).describe("Privileges Required (PR). Defined in CVSS v3, v4.")
-        .optional(),
-      scope: z.enum(["SCOPE_UNSPECIFIED", "SCOPE_UNCHANGED", "SCOPE_CHANGED"])
-        .describe("Scope (S). Defined in CVSS v3.").optional(),
-      subsequentSystemAvailabilityImpact: z.enum([
-        "IMPACT_UNSPECIFIED",
-        "IMPACT_HIGH",
-        "IMPACT_LOW",
-        "IMPACT_NONE",
-        "IMPACT_PARTIAL",
-        "IMPACT_COMPLETE",
-      ]).describe(
-        "Subsequent System Availability Impact (SA). Defined in CVSS v4.",
-      ).optional(),
-      subsequentSystemConfidentialityImpact: z.enum([
-        "IMPACT_UNSPECIFIED",
-        "IMPACT_HIGH",
-        "IMPACT_LOW",
-        "IMPACT_NONE",
-        "IMPACT_PARTIAL",
-        "IMPACT_COMPLETE",
-      ]).describe(
-        "Subsequent System Confidentiality Impact (SC). Defined in CVSS v4.",
-      ).optional(),
-      subsequentSystemIntegrityImpact: z.enum([
-        "IMPACT_UNSPECIFIED",
-        "IMPACT_HIGH",
-        "IMPACT_LOW",
-        "IMPACT_NONE",
-        "IMPACT_PARTIAL",
-        "IMPACT_COMPLETE",
-      ]).describe(
-        "Subsequent System Integrity Impact (SI). Defined in CVSS v4.",
-      ).optional(),
-      userInteraction: z.enum([
-        "USER_INTERACTION_UNSPECIFIED",
-        "USER_INTERACTION_NONE",
-        "USER_INTERACTION_REQUIRED",
-        "USER_INTERACTION_PASSIVE",
-        "USER_INTERACTION_ACTIVE",
-      ]).describe("User Interaction (UI). Defined in CVSS v3, v4.").optional(),
-      vulnerableSystemAvailabilityImpact: z.enum([
-        "IMPACT_UNSPECIFIED",
-        "IMPACT_HIGH",
-        "IMPACT_LOW",
-        "IMPACT_NONE",
-        "IMPACT_PARTIAL",
-        "IMPACT_COMPLETE",
-      ]).describe(
-        "Vulnerable System Availability Impact (VA). Defined in CVSS v4.",
-      ).optional(),
-      vulnerableSystemConfidentialityImpact: z.enum([
-        "IMPACT_UNSPECIFIED",
-        "IMPACT_HIGH",
-        "IMPACT_LOW",
-        "IMPACT_NONE",
-        "IMPACT_PARTIAL",
-        "IMPACT_COMPLETE",
-      ]).describe(
-        "Vulnerable System Confidentiality Impact (VC). Defined in CVSS v4.",
-      ).optional(),
-      vulnerableSystemIntegrityImpact: z.enum([
-        "IMPACT_UNSPECIFIED",
-        "IMPACT_HIGH",
-        "IMPACT_LOW",
-        "IMPACT_NONE",
-        "IMPACT_PARTIAL",
-        "IMPACT_COMPLETE",
-      ]).describe(
-        "Vulnerable System Integrity Impact (VI). Defined in CVSS v4.",
-      ).optional(),
-    }).describe(
-      "Common Vulnerability Scoring System. For details, see https://www.first.org/cvss/specification-document This is a message we will try to use for storing various versions of CVSS rather than making a separate proto for storing a specific version.",
-    ).optional(),
     cvssVersion: z.enum([
       "CVSS_VERSION_UNSPECIFIED",
       "CVSS_VERSION_2",
@@ -4211,7 +3907,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Container Analysis Occurrences. Registered at `@swamp/gcp/containeranalysis/occurrences`. */
 export const model = {
   type: "@swamp/gcp/containeranalysis/occurrences",
-  version: "2026.06.05.1",
+  version: "2026.06.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -4334,6 +4030,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

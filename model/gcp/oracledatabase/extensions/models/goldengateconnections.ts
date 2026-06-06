@@ -976,7 +976,7 @@ const GlobalArgsSchema = z.object({
         "Optional. Connect descriptor or Easy Connect Naming method used to connect to a database.",
       ).optional(),
       gcpOracleDatabaseId: z.string().describe(
-        "Optional. Database instance id of database in Oracle Database @ Google Cloud. If gcp_oracle_database_id is provided, connection_string must be empty.",
+        "Optional. Autonomous AI Database instance id of database in Oracle Database @ Google Cloud. If gcp_oracle_database_id is provided, connection_string must be empty. Format: projects/{project}/locations/{location}/autonomousDatabases/{autonomous_database}",
       ).optional(),
       password: z.string().describe(
         "Optional. Input only. The password Oracle Goldengate uses in plain text.",
@@ -2430,7 +2430,7 @@ const InputsSchema = z.object({
         "Optional. Connect descriptor or Easy Connect Naming method used to connect to a database.",
       ).optional(),
       gcpOracleDatabaseId: z.string().describe(
-        "Optional. Database instance id of database in Oracle Database @ Google Cloud. If gcp_oracle_database_id is provided, connection_string must be empty.",
+        "Optional. Autonomous AI Database instance id of database in Oracle Database @ Google Cloud. If gcp_oracle_database_id is provided, connection_string must be empty. Format: projects/{project}/locations/{location}/autonomousDatabases/{autonomous_database}",
       ).optional(),
       password: z.string().describe(
         "Optional. Input only. The password Oracle Goldengate uses in plain text.",
@@ -2638,10 +2638,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud GoldengateConnections. Registered at `@swamp/gcp/oracledatabase/goldengateconnections`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/goldengateconnections",
-  version: "2026.05.27.1",
+  version: "2026.06.06.1",
   upgrades: [
     {
       toVersion: "2026.05.27.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
