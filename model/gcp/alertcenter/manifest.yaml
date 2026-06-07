@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/alertcenter"
-version: "2026.05.25.2"
+version: "2026.06.07.1"
 description: "Google Cloud alertcenter infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: alerts
+  - Updated: alerts, alerts_feedback
 models:
   - alerts.ts
   - alerts_feedback.ts

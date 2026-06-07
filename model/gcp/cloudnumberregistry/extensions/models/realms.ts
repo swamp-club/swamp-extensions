@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   createResource,
   deleteResource,
+  type ExplicitGcpCredentials,
   getProjectId,
   isResourceNotFoundError,
   listResources,
@@ -144,6 +145,15 @@ const LIST_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
+  accessToken: z.string().meta({ sensitive: true }).describe(
+    "GCP OAuth2 access token; overrides GCP_ACCESS_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  credentialsJson: z.string().meta({ sensitive: true }).describe(
+    "GCP service account JSON credentials; overrides GOOGLE_APPLICATION_CREDENTIALS_JSON environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  project: z.string().describe(
+    "GCP project ID; overrides GCP_PROJECT / GOOGLE_CLOUD_PROJECT environment variables.",
+  ).optional(),
   aggregatedData: z.object({
     customRangesCount: z.number().int().describe(
       "Output only. Number of CustomRanges in the Realm.",
@@ -244,6 +254,9 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
+  accessToken: z.string().meta({ sensitive: true }).optional(),
+  credentialsJson: z.string().meta({ sensitive: true }).optional(),
+  project: z.string().optional(),
   aggregatedData: z.object({
     customRangesCount: z.number().int().describe(
       "Output only. Number of CustomRanges in the Realm.",
@@ -316,10 +329,22 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
+const _credentialKeys = new Set(["accessToken", "credentialsJson", "project"]);
+
+function _buildGcpCredentials(
+  g: Record<string, unknown>,
+): ExplicitGcpCredentials {
+  return {
+    accessToken: g.accessToken as string | undefined,
+    credentialsJson: g.credentialsJson as string | undefined,
+    project: g.project as string | undefined,
+  };
+}
+
 /** Swamp extension model for Google Cloud Number Registry Realms. Registered at `@swamp/gcp/cloudnumberregistry/realms`. */
 export const model = {
   type: "@swamp/gcp/cloudnumberregistry/realms",
-  version: "2026.06.03.1",
+  version: "2026.06.07.1",
   upgrades: [
     {
       toVersion: "2026.05.19.1",
@@ -356,6 +381,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.07.1",
+      description: "Added: accessToken, credentialsJson, project",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -374,7 +404,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
@@ -423,6 +454,7 @@ export const model = {
             matchField: "name",
             matchValue: String(g["name"] ?? ""),
           },
+          credentials,
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
@@ -440,9 +472,10 @@ export const model = {
         identifier: z.string().describe("The name of the realms"),
       }),
       execute: async (args: { identifier: string }, context: any) => {
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
           `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
@@ -451,6 +484,7 @@ export const model = {
           BASE_URL,
           GET_CONFIG,
           params,
+          credentials,
         ) as StateData;
         const instanceName =
           ((result.name ?? g.name)?.toString() ?? args.identifier).replace(
@@ -470,7 +504,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -521,6 +556,8 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          credentials,
         ) as StateData;
         const handle = await context.writeResource(
           "state",
@@ -537,7 +574,8 @@ export const model = {
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
           `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
@@ -547,6 +585,7 @@ export const model = {
           BASE_URL,
           DELETE_CONFIG,
           params,
+          credentials,
         );
         const instanceName = (g.name?.toString() ?? args.identifier).replace(
           /[\/\\]/g,
@@ -566,7 +605,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -592,6 +632,7 @@ export const model = {
             BASE_URL,
             GET_CONFIG,
             params,
+            credentials,
           ) as StateData;
           const handle = await context.writeResource(
             "state",
@@ -632,7 +673,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
@@ -653,6 +695,7 @@ export const model = {
           params,
           "realms",
           (args.maxPages as number | undefined) ?? 10,
+          credentials,
         );
         const dataHandles = [];
         for (let i = 0; i < items.length; i++) {

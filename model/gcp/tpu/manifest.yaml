@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/tpu"
-version: "2026.06.05.1"
+version: "2026.06.07.1"
 description: "Google Cloud tpu infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: tensorflowversions
+  - Updated: locations, acceleratortypes, nodes, queuedresources, runtimeversions, tensorflowversions
 models:
   - acceleratortypes.ts
   - locations.ts

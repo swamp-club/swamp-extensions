@@ -427,25 +427,62 @@ bodies. It is only used for:
 
 ## 8. Authentication
 
-The `_lib/gcp.ts` helper supports the full GCP credential chain.
+The `_lib/gcp.ts` helper supports the full GCP credential chain, with optional
+vault-expression credentials taking highest precedence.
 
 ### Credential resolution order
 
-1. **`GCP_ACCESS_TOKEN`** — pre-obtained OAuth2 access token (convenient for
+1. **Explicit credentials** (from `globalArgs`) — `accessToken` or
+   `credentialsJson` fields wired via `vault.get(...)` expressions. These take
+   absolute precedence over all environment variables.
+2. **`GCP_ACCESS_TOKEN`** — pre-obtained OAuth2 access token (convenient for
    vault-stored tokens; does **not** require `gcloud` CLI). Requires
    `GCP_PROJECT` or `GOOGLE_CLOUD_PROJECT` to be set.
-2. **`GOOGLE_APPLICATION_CREDENTIALS_JSON`** — inline service account JSON
+3. **`GOOGLE_APPLICATION_CREDENTIALS_JSON`** — inline service account JSON
    (convenient for swamp vaults)
-3. **`GOOGLE_APPLICATION_CREDENTIALS`** — file path to a service account JSON
+4. **`GOOGLE_APPLICATION_CREDENTIALS`** — file path to a service account JSON
    file (standard Google SDK env var)
-4. **Application Default Credentials** — `gcloud auth application-default login`
+5. **Application Default Credentials** — `gcloud auth application-default login`
    or GCE/Cloud Run metadata server
 
-Options 2–4 require the `gcloud` CLI to be installed.
+Options 3–5 require the `gcloud` CLI to be installed.
+
+### Vault expression credential fields
+
+Every generated GCP model includes three optional sensitive global arguments:
+
+| Field             | Sensitive | Description                                                           |
+| ----------------- | --------- | --------------------------------------------------------------------- |
+| `accessToken`     | yes       | GCP OAuth2 access token; overrides `GCP_ACCESS_TOKEN`                 |
+| `credentialsJson` | yes       | Service account JSON; overrides `GOOGLE_APPLICATION_CREDENTIALS_JSON` |
+| `project`         | no        | GCP project ID; overrides `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT`      |
+
+These fields use `z.meta({ sensitive: true })` where applicable, so swamp-core
+redacts them from run logs, reports, and data storage.
+
+Wire them in model YAML with vault expressions:
+
+```yaml
+globalArguments:
+  credentialsJson: "{{ vault.get('gcp-sa-key', 'json') }}"
+  project: "my-project-id"
+```
+
+**Collision guard:** If a GCP resource already has a domain property named
+`accessToken`, `credentialsJson`, or `project`, that credential field is not
+injected for that specific service. The collision guard mirrors the AWS pattern.
+A few services (apigee, cloudshell, connectors, dialogflow, integrations) have
+`accessToken` as a domain property — those services fall back to the env-var
+chain for token auth but can still use `credentialsJson`.
+
+**Enrichment limitation:** Enrichment methods (e.g., serviceaccounts, storage-
+buckets) call `request()` directly and do not currently thread credentials from
+global args. Enrichment method calls fall back to the env-var chain even when
+vault-expression credentials are configured.
 
 ### Service account activation
 
-For options 2 and 3, the service account is activated via:
+For options 3 and 4, the service account is activated via:
 
 ```sh
 gcloud auth activate-service-account {email} --key-file {tmpfile}
@@ -456,11 +493,11 @@ The access token is cached for the duration of the process.
 
 ### Project ID resolution
 
-The project ID is read from the service account JSON's `project_id` field.
-Overridden by `GCP_PROJECT` or `GOOGLE_CLOUD_PROJECT` env vars. For ADC without
-a service account, falls back to `gcloud config get-value project`. When using
-`GCP_ACCESS_TOKEN`, the project ID must be provided via `GCP_PROJECT` or
-`GOOGLE_CLOUD_PROJECT`.
+The project ID is resolved in order: explicit `project` global arg → service
+account JSON's `project_id` field → `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT` env
+vars → `gcloud config get-value project` (ADC only). When using
+`GCP_ACCESS_TOKEN` without an explicit `project` arg, the project ID must be
+provided via `GCP_PROJECT` or `GOOGLE_CLOUD_PROJECT`.
 
 ### Quota project header
 
@@ -473,7 +510,7 @@ don't need one), the header is omitted.
 
 ### gcloud CLI check
 
-On first credential request (for options 2–4), the helper verifies
+On first credential request (for options 3–5), the helper verifies
 `gcloud --version` succeeds. If not installed, a clear error with the install
 link is thrown.
 

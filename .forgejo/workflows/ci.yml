@@ -717,9 +717,21 @@ jobs:
           echo "${CLAUDE_CHECKSUM}  ${RUNNER_TEMP}/review/claude" | sha256sum -c -
           chmod +x ${RUNNER_TEMP}/review/claude
 
-          CHANGED_FILES=$(cat ${RUNNER_TEMP}/review/changed-files.txt)
           OUTPUT_DIR="${GITHUB_WORKSPACE}/.review-output"
           mkdir -p "$OUTPUT_DIR"
+
+          CHANGED_COUNT=$(wc -l < ${RUNNER_TEMP}/review/changed-files.txt | tr -d ' ')
+          if [ "$CHANGED_COUNT" -gt 500 ]; then
+            grep -v '^model/' ${RUNNER_TEMP}/review/changed-files.txt > ${RUNNER_TEMP}/review/source-files.txt || true
+            MODEL_COUNT=$(grep -c '^model/' ${RUNNER_TEMP}/review/changed-files.txt || echo 0)
+            SOURCE_FILES=$(cat ${RUNNER_TEMP}/review/source-files.txt)
+            CHANGED_FILES="${SOURCE_FILES}
+
+          [Plus ${MODEL_COUNT} auto-generated files under model/ — these are codegen output. Review the codegen source files above; use git diff to spot-check generated output if needed.]"
+          else
+            CHANGED_FILES=$(cat ${RUNNER_TEMP}/review/changed-files.txt)
+          fi
+
           PROMPT="$(cat .forgejo/prompts/review.md)
 
           OUTPUT_DIR: ${OUTPUT_DIR}
@@ -834,9 +846,21 @@ jobs:
           echo "${CLAUDE_CHECKSUM}  ${RUNNER_TEMP}/review/claude" | sha256sum -c -
           chmod +x ${RUNNER_TEMP}/review/claude
 
-          CHANGED_FILES=$(cat ${RUNNER_TEMP}/review/changed-files.txt)
           OUTPUT_DIR="${GITHUB_WORKSPACE}/.review-output"
           mkdir -p "$OUTPUT_DIR"
+
+          CHANGED_COUNT=$(wc -l < ${RUNNER_TEMP}/review/changed-files.txt | tr -d ' ')
+          if [ "$CHANGED_COUNT" -gt 500 ]; then
+            grep -v '^model/' ${RUNNER_TEMP}/review/changed-files.txt > ${RUNNER_TEMP}/review/source-files.txt || true
+            MODEL_COUNT=$(grep -c '^model/' ${RUNNER_TEMP}/review/changed-files.txt || echo 0)
+            SOURCE_FILES=$(cat ${RUNNER_TEMP}/review/source-files.txt)
+            CHANGED_FILES="${SOURCE_FILES}
+
+          [Plus ${MODEL_COUNT} auto-generated files under model/ — these are codegen output. Review the codegen source files above; use git diff to spot-check generated output if needed.]"
+          else
+            CHANGED_FILES=$(cat ${RUNNER_TEMP}/review/changed-files.txt)
+          fi
+
           PROMPT="$(cat .forgejo/prompts/adversarial.md)
 
           OUTPUT_DIR: ${OUTPUT_DIR}
@@ -927,9 +951,21 @@ jobs:
           echo "${CLAUDE_CHECKSUM}  ${RUNNER_TEMP}/review/claude" | sha256sum -c -
           chmod +x ${RUNNER_TEMP}/review/claude
 
-          CHANGED_FILES=$(cat ${RUNNER_TEMP}/review/changed-files.txt)
           OUTPUT_DIR="${GITHUB_WORKSPACE}/.review-output"
           mkdir -p "$OUTPUT_DIR"
+
+          CHANGED_COUNT=$(wc -l < ${RUNNER_TEMP}/review/changed-files.txt | tr -d ' ')
+          if [ "$CHANGED_COUNT" -gt 500 ]; then
+            grep -v '^model/' ${RUNNER_TEMP}/review/changed-files.txt > ${RUNNER_TEMP}/review/source-files.txt || true
+            MODEL_COUNT=$(grep -c '^model/' ${RUNNER_TEMP}/review/changed-files.txt || echo 0)
+            SOURCE_FILES=$(cat ${RUNNER_TEMP}/review/source-files.txt)
+            CHANGED_FILES="${SOURCE_FILES}
+
+          [Plus ${MODEL_COUNT} auto-generated files under model/ — these are codegen output. Review the codegen source files above; use git diff to spot-check generated output if needed.]"
+          else
+            CHANGED_FILES=$(cat ${RUNNER_TEMP}/review/changed-files.txt)
+          fi
+
           PROMPT="$(cat .forgejo/prompts/ci-security.md)
 
           OUTPUT_DIR: ${OUTPUT_DIR}

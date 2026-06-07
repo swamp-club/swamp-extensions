@@ -698,8 +698,12 @@ export async function generateGcpModels(options: {
         const { synthetic: isSyntheticName } = resolveGcpNamingField(
           resource,
         );
+        const domainPropNames = new Set(Object.keys(resource.domainProperties));
+        const credFieldNames = ["accessToken", "credentialsJson", "project"]
+          .filter((f) => !domainPropNames.has(f));
         const newFieldNames = [
           ...(isSyntheticName ? ["name"] : []),
+          ...credFieldNames,
           ...Object.keys(resource.domainProperties),
         ];
 

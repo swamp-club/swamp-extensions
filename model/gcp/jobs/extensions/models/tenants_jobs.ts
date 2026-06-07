@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   createResource,
   deleteResource,
+  type ExplicitGcpCredentials,
   getProjectId,
   isResourceNotFoundError,
   listResources,
@@ -123,6 +124,15 @@ const LIST_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
+  accessToken: z.string().meta({ sensitive: true }).describe(
+    "GCP OAuth2 access token; overrides GCP_ACCESS_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  credentialsJson: z.string().meta({ sensitive: true }).describe(
+    "GCP service account JSON credentials; overrides GOOGLE_APPLICATION_CREDENTIALS_JSON environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  project: z.string().describe(
+    "GCP project ID; overrides GCP_PROJECT / GOOGLE_CLOUD_PROJECT environment variables.",
+  ).optional(),
   addresses: z.array(z.string()).describe(
     "Strongly recommended for the best service experience. Location(s) where the employer is looking to hire for this job posting. Specifying the full street address(es) of the hiring location enables better API results, especially job searches by commute time. At most 50 locations are allowed for best search performance. If a job has more locations, it is suggested to split it into multiple jobs with unique requisition_ids (e.g. 'ReqA' becomes 'ReqA-1', 'ReqA-2', and so on.) as multiple jobs with the same company, language_code and requisition_id are not allowed. If the original requisition_id must be preserved, a custom field should be used for storage. It is also suggested to group the locations that close to each other in the same job for better search experience. Jobs with multiple addresses must have their addresses with the same LocationType to allow location filtering to work properly. (For example, a Job with addresses \"1600 Amphitheatre Parkway, Mountain View, CA, USA\" and \"London, UK\" may not have location filters applied correctly at search time since the first is a LocationType.STREET_ADDRESS and the second is a LocationType.LOCALITY.) If a job needs to have multiple addresses, it is suggested to split it into multiple jobs with same LocationTypes. The maximum number of allowed characters is 500.",
   ).optional(),
@@ -632,6 +642,9 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
+  accessToken: z.string().meta({ sensitive: true }).optional(),
+  credentialsJson: z.string().meta({ sensitive: true }).optional(),
+  project: z.string().optional(),
   addresses: z.array(z.string()).describe(
     "Strongly recommended for the best service experience. Location(s) where the employer is looking to hire for this job posting. Specifying the full street address(es) of the hiring location enables better API results, especially job searches by commute time. At most 50 locations are allowed for best search performance. If a job has more locations, it is suggested to split it into multiple jobs with unique requisition_ids (e.g. 'ReqA' becomes 'ReqA-1', 'ReqA-2', and so on.) as multiple jobs with the same company, language_code and requisition_id are not allowed. If the original requisition_id must be preserved, a custom field should be used for storage. It is also suggested to group the locations that close to each other in the same job for better search experience. Jobs with multiple addresses must have their addresses with the same LocationType to allow location filtering to work properly. (For example, a Job with addresses \"1600 Amphitheatre Parkway, Mountain View, CA, USA\" and \"London, UK\" may not have location filters applied correctly at search time since the first is a LocationType.STREET_ADDRESS and the second is a LocationType.LOCALITY.) If a job needs to have multiple addresses, it is suggested to split it into multiple jobs with same LocationTypes. The maximum number of allowed characters is 500.",
   ).optional(),
@@ -1027,10 +1040,22 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
+const _credentialKeys = new Set(["accessToken", "credentialsJson", "project"]);
+
+function _buildGcpCredentials(
+  g: Record<string, unknown>,
+): ExplicitGcpCredentials {
+  return {
+    accessToken: g.accessToken as string | undefined,
+    credentialsJson: g.credentialsJson as string | undefined,
+    project: g.project as string | undefined,
+  };
+}
+
 /** Swamp extension model for Google Cloud Talent Solution Tenants.Jobs. Registered at `@swamp/gcp/jobs/tenants-jobs`. */
 export const model = {
   type: "@swamp/gcp/jobs/tenants-jobs",
-  version: "2026.05.25.1",
+  version: "2026.06.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1102,6 +1127,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.07.1",
+      description: "Added: accessToken, credentialsJson, project",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1120,7 +1150,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
@@ -1211,6 +1242,7 @@ export const model = {
             matchField: "name",
             matchValue: String(g["name"] ?? ""),
           },
+          credentials,
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
@@ -1228,9 +1260,10 @@ export const model = {
         identifier: z.string().describe("The name of the jobs"),
       }),
       execute: async (args: { identifier: string }, context: any) => {
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
           `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
@@ -1239,6 +1272,7 @@ export const model = {
           BASE_URL,
           GET_CONFIG,
           params,
+          credentials,
         ) as StateData;
         const instanceName =
           ((result.name ?? g.name)?.toString() ?? args.identifier).replace(
@@ -1258,7 +1292,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -1353,6 +1388,8 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          credentials,
         ) as StateData;
         const handle = await context.writeResource(
           "state",
@@ -1369,7 +1406,8 @@ export const model = {
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
           `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
@@ -1379,6 +1417,7 @@ export const model = {
           BASE_URL,
           DELETE_CONFIG,
           params,
+          credentials,
         );
         const instanceName = (g.name?.toString() ?? args.identifier).replace(
           /[\/\\]/g,
@@ -1398,7 +1437,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -1424,6 +1464,7 @@ export const model = {
             BASE_URL,
             GET_CONFIG,
             params,
+            credentials,
           ) as StateData;
           const handle = await context.writeResource(
             "state",
@@ -1461,7 +1502,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
@@ -1481,6 +1523,7 @@ export const model = {
           params,
           "jobs",
           (args.maxPages as number | undefined) ?? 10,
+          credentials,
         );
         const dataHandles = [];
         for (let i = 0; i < items.length; i++) {
@@ -1506,7 +1549,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
@@ -1526,6 +1570,10 @@ export const model = {
           },
           params,
           body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
         );
         return { result };
       },
@@ -1537,7 +1585,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
@@ -1557,6 +1606,10 @@ export const model = {
           },
           params,
           body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
         );
         return { result };
       },
@@ -1569,7 +1622,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
@@ -1592,6 +1646,10 @@ export const model = {
           },
           params,
           body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
         );
         return { result };
       },
@@ -1617,7 +1675,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
@@ -1673,6 +1732,10 @@ export const model = {
           },
           params,
           body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
         );
         return { result };
       },
@@ -1698,7 +1761,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
@@ -1754,6 +1818,10 @@ export const model = {
           },
           params,
           body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
         );
         return { result };
       },

@@ -17,6 +17,7 @@
 import { z } from "npm:zod@4.3.6";
 import {
   createResource,
+  type ExplicitGcpCredentials,
   getProjectId,
   isResourceNotFoundError,
   listResources,
@@ -104,6 +105,15 @@ const LIST_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
+  accessToken: z.string().meta({ sensitive: true }).describe(
+    "GCP OAuth2 access token; overrides GCP_ACCESS_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  credentialsJson: z.string().meta({ sensitive: true }).describe(
+    "GCP service account JSON credentials; overrides GOOGLE_APPLICATION_CREDENTIALS_JSON environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  project: z.string().describe(
+    "GCP project ID; overrides GCP_PROJECT / GOOGLE_CLOUD_PROJECT environment variables.",
+  ).optional(),
   criteria: z.object({
     filter: z.string().describe(
       'Optional. When you define a snooze, you can also define a filter for that snooze. The filter is a string containing one or more key-value pairs. The string uses the standard https://google.aip.dev/160 filter syntax. If you define a filter for a snooze, then the snooze can only apply to one alert policy. When the snooze is active, incidents won\'t be created when the incident would have key-value pairs (labels) that match those specified by the filter in the snooze.Snooze filters support resource, metric, and metadata labels. If multiple labels are used, then they must be connected with an AND operator. For example, the following filter applies the snooze to incidents that have a resource label with an instance ID of 1234567890, a metric label with an instance name of test_group, a metadata user label with a key of foo and a value of bar, and a metadata system label with a key of region and a value of us-central1: "filter": "resource.labels.instance_id=\\"1234567890\\" AND metric.labels.instance_name=\\"test_group\\" AND metadata.user_labels.foo=\\"bar\\" AND metadata.system_labels.region=\\"us-central1\\""',
@@ -150,6 +160,9 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
+  accessToken: z.string().meta({ sensitive: true }).optional(),
+  credentialsJson: z.string().meta({ sensitive: true }).optional(),
+  project: z.string().optional(),
   criteria: z.object({
     filter: z.string().describe(
       'Optional. When you define a snooze, you can also define a filter for that snooze. The filter is a string containing one or more key-value pairs. The string uses the standard https://google.aip.dev/160 filter syntax. If you define a filter for a snooze, then the snooze can only apply to one alert policy. When the snooze is active, incidents won\'t be created when the incident would have key-value pairs (labels) that match those specified by the filter in the snooze.Snooze filters support resource, metric, and metadata labels. If multiple labels are used, then they must be connected with an AND operator. For example, the following filter applies the snooze to incidents that have a resource label with an instance ID of 1234567890, a metric label with an instance name of test_group, a metadata user label with a key of foo and a value of bar, and a metadata system label with a key of region and a value of us-central1: "filter": "resource.labels.instance_id=\\"1234567890\\" AND metric.labels.instance_name=\\"test_group\\" AND metadata.user_labels.foo=\\"bar\\" AND metadata.system_labels.region=\\"us-central1\\""',
@@ -180,10 +193,22 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
+const _credentialKeys = new Set(["accessToken", "credentialsJson", "project"]);
+
+function _buildGcpCredentials(
+  g: Record<string, unknown>,
+): ExplicitGcpCredentials {
+  return {
+    accessToken: g.accessToken as string | undefined,
+    credentialsJson: g.credentialsJson as string | undefined,
+    project: g.project as string | undefined,
+  };
+}
+
 /** Swamp extension model for Google Cloud Monitoring Snoozes. Registered at `@swamp/gcp/monitoring/snoozes`. */
 export const model = {
   type: "@swamp/gcp/monitoring/snoozes",
-  version: "2026.05.25.1",
+  version: "2026.06.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -250,6 +275,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.07.1",
+      description: "Added: accessToken, credentialsJson, project",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -268,7 +298,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
@@ -303,6 +334,7 @@ export const model = {
             matchField: "displayName",
             matchValue: String(g["displayName"] ?? ""),
           },
+          credentials,
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
@@ -320,9 +352,10 @@ export const model = {
         identifier: z.string().describe("The name of the snoozes"),
       }),
       execute: async (args: { identifier: string }, context: any) => {
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
           `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
@@ -331,6 +364,7 @@ export const model = {
           BASE_URL,
           GET_CONFIG,
           params,
+          credentials,
         ) as StateData;
         const instanceName =
           ((result.name ?? g.name)?.toString() ?? args.identifier).replace(
@@ -350,7 +384,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -389,6 +424,8 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          credentials,
         ) as StateData;
         const handle = await context.writeResource(
           "state",
@@ -403,7 +440,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -429,6 +467,7 @@ export const model = {
             BASE_URL,
             GET_CONFIG,
             params,
+            credentials,
           ) as StateData;
           const handle = await context.writeResource(
             "state",
@@ -463,7 +502,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
@@ -480,6 +520,7 @@ export const model = {
           params,
           "snoozes",
           (args.maxPages as number | undefined) ?? 10,
+          credentials,
         );
         const dataHandles = [];
         for (let i = 0; i < items.length; i++) {

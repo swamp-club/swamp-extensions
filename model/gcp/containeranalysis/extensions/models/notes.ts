@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   createResource,
   deleteResource,
+  type ExplicitGcpCredentials,
   getProjectId,
   isResourceNotFoundError,
   listResources,
@@ -129,6 +130,15 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
+  accessToken: z.string().meta({ sensitive: true }).describe(
+    "GCP OAuth2 access token; overrides GCP_ACCESS_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  credentialsJson: z.string().meta({ sensitive: true }).describe(
+    "GCP service account JSON credentials; overrides GOOGLE_APPLICATION_CREDENTIALS_JSON environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  project: z.string().describe(
+    "GCP project ID; overrides GCP_PROJECT / GOOGLE_CLOUD_PROJECT environment variables.",
+  ).optional(),
   aiSkillAnalysis: z.object({}).describe(
     "AISkillAnalysisNote provides the metadata of an AI-based skill analysis.",
   ).optional(),
@@ -649,6 +659,142 @@ const GlobalArgsSchema = z.object({
       ]).optional(),
     }).describe(
       "Common Vulnerability Scoring System version 3. For details, see https://www.first.org/cvss/specification-document",
+    ).optional(),
+    cvssV4: z.object({
+      attackComplexity: z.enum([
+        "ATTACK_COMPLEXITY_UNSPECIFIED",
+        "ATTACK_COMPLEXITY_LOW",
+        "ATTACK_COMPLEXITY_HIGH",
+        "ATTACK_COMPLEXITY_MEDIUM",
+      ]).describe("Attack Complexity (AC). Defined in CVSS v2, v3, v4.")
+        .optional(),
+      attackRequirements: z.enum([
+        "ATTACK_REQUIREMENTS_UNSPECIFIED",
+        "ATTACK_REQUIREMENTS_NONE",
+        "ATTACK_REQUIREMENTS_PRESENT",
+      ]).describe("Attack Requirements (AT). Defined in CVSS v4.").optional(),
+      attackVector: z.enum([
+        "ATTACK_VECTOR_UNSPECIFIED",
+        "ATTACK_VECTOR_NETWORK",
+        "ATTACK_VECTOR_ADJACENT",
+        "ATTACK_VECTOR_LOCAL",
+        "ATTACK_VECTOR_PHYSICAL",
+      ]).describe("Attack Vector (AV). Defined in CVSS v2, v3, v4.").optional(),
+      authentication: z.enum([
+        "AUTHENTICATION_UNSPECIFIED",
+        "AUTHENTICATION_MULTIPLE",
+        "AUTHENTICATION_SINGLE",
+        "AUTHENTICATION_NONE",
+      ]).describe("Authentication (Au). Defined in CVSS v2.").optional(),
+      availabilityImpact: z.enum([
+        "IMPACT_UNSPECIFIED",
+        "IMPACT_HIGH",
+        "IMPACT_LOW",
+        "IMPACT_NONE",
+        "IMPACT_PARTIAL",
+        "IMPACT_COMPLETE",
+      ]).describe("Availability Impact (A). Defined in CVSS v2, v3.")
+        .optional(),
+      baseScore: z.number().describe(
+        "The base score is a function of the base metric scores.",
+      ).optional(),
+      confidentialityImpact: z.enum([
+        "IMPACT_UNSPECIFIED",
+        "IMPACT_HIGH",
+        "IMPACT_LOW",
+        "IMPACT_NONE",
+        "IMPACT_PARTIAL",
+        "IMPACT_COMPLETE",
+      ]).describe("Confidentiality Impact (C). Defined in CVSS v2, v3.")
+        .optional(),
+      exploitabilityScore: z.number().optional(),
+      impactScore: z.number().optional(),
+      integrityImpact: z.enum([
+        "IMPACT_UNSPECIFIED",
+        "IMPACT_HIGH",
+        "IMPACT_LOW",
+        "IMPACT_NONE",
+        "IMPACT_PARTIAL",
+        "IMPACT_COMPLETE",
+      ]).describe("Integrity Impact (I). Defined in CVSS v2, v3.").optional(),
+      privilegesRequired: z.enum([
+        "PRIVILEGES_REQUIRED_UNSPECIFIED",
+        "PRIVILEGES_REQUIRED_NONE",
+        "PRIVILEGES_REQUIRED_LOW",
+        "PRIVILEGES_REQUIRED_HIGH",
+      ]).describe("Privileges Required (PR). Defined in CVSS v3, v4.")
+        .optional(),
+      scope: z.enum(["SCOPE_UNSPECIFIED", "SCOPE_UNCHANGED", "SCOPE_CHANGED"])
+        .describe("Scope (S). Defined in CVSS v3.").optional(),
+      subsequentSystemAvailabilityImpact: z.enum([
+        "IMPACT_UNSPECIFIED",
+        "IMPACT_HIGH",
+        "IMPACT_LOW",
+        "IMPACT_NONE",
+        "IMPACT_PARTIAL",
+        "IMPACT_COMPLETE",
+      ]).describe(
+        "Subsequent System Availability Impact (SA). Defined in CVSS v4.",
+      ).optional(),
+      subsequentSystemConfidentialityImpact: z.enum([
+        "IMPACT_UNSPECIFIED",
+        "IMPACT_HIGH",
+        "IMPACT_LOW",
+        "IMPACT_NONE",
+        "IMPACT_PARTIAL",
+        "IMPACT_COMPLETE",
+      ]).describe(
+        "Subsequent System Confidentiality Impact (SC). Defined in CVSS v4.",
+      ).optional(),
+      subsequentSystemIntegrityImpact: z.enum([
+        "IMPACT_UNSPECIFIED",
+        "IMPACT_HIGH",
+        "IMPACT_LOW",
+        "IMPACT_NONE",
+        "IMPACT_PARTIAL",
+        "IMPACT_COMPLETE",
+      ]).describe(
+        "Subsequent System Integrity Impact (SI). Defined in CVSS v4.",
+      ).optional(),
+      userInteraction: z.enum([
+        "USER_INTERACTION_UNSPECIFIED",
+        "USER_INTERACTION_NONE",
+        "USER_INTERACTION_REQUIRED",
+        "USER_INTERACTION_PASSIVE",
+        "USER_INTERACTION_ACTIVE",
+      ]).describe("User Interaction (UI). Defined in CVSS v3, v4.").optional(),
+      vulnerableSystemAvailabilityImpact: z.enum([
+        "IMPACT_UNSPECIFIED",
+        "IMPACT_HIGH",
+        "IMPACT_LOW",
+        "IMPACT_NONE",
+        "IMPACT_PARTIAL",
+        "IMPACT_COMPLETE",
+      ]).describe(
+        "Vulnerable System Availability Impact (VA). Defined in CVSS v4.",
+      ).optional(),
+      vulnerableSystemConfidentialityImpact: z.enum([
+        "IMPACT_UNSPECIFIED",
+        "IMPACT_HIGH",
+        "IMPACT_LOW",
+        "IMPACT_NONE",
+        "IMPACT_PARTIAL",
+        "IMPACT_COMPLETE",
+      ]).describe(
+        "Vulnerable System Confidentiality Impact (VC). Defined in CVSS v4.",
+      ).optional(),
+      vulnerableSystemIntegrityImpact: z.enum([
+        "IMPACT_UNSPECIFIED",
+        "IMPACT_HIGH",
+        "IMPACT_LOW",
+        "IMPACT_NONE",
+        "IMPACT_PARTIAL",
+        "IMPACT_COMPLETE",
+      ]).describe(
+        "Vulnerable System Integrity Impact (VI). Defined in CVSS v4.",
+      ).optional(),
+    }).describe(
+      "Common Vulnerability Scoring System. For details, see https://www.first.org/cvss/specification-document This is a message we will try to use for storing various versions of CVSS rather than making a separate proto for storing a specific version.",
     ).optional(),
     cvssVersion: z.enum([
       "CVSS_VERSION_UNSPECIFIED",
@@ -1099,6 +1245,27 @@ const StateSchema = z.object({
       scope: z.string(),
       userInteraction: z.string(),
     }),
+    cvssV4: z.object({
+      attackComplexity: z.string(),
+      attackRequirements: z.string(),
+      attackVector: z.string(),
+      authentication: z.string(),
+      availabilityImpact: z.string(),
+      baseScore: z.number(),
+      confidentialityImpact: z.string(),
+      exploitabilityScore: z.number(),
+      impactScore: z.number(),
+      integrityImpact: z.string(),
+      privilegesRequired: z.string(),
+      scope: z.string(),
+      subsequentSystemAvailabilityImpact: z.string(),
+      subsequentSystemConfidentialityImpact: z.string(),
+      subsequentSystemIntegrityImpact: z.string(),
+      userInteraction: z.string(),
+      vulnerableSystemAvailabilityImpact: z.string(),
+      vulnerableSystemConfidentialityImpact: z.string(),
+      vulnerableSystemIntegrityImpact: z.string(),
+    }),
     cvssVersion: z.string(),
     details: z.array(z.object({
       affectedCpeUri: z.string(),
@@ -1195,6 +1362,9 @@ type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
   name: z.string().optional(),
+  accessToken: z.string().meta({ sensitive: true }).optional(),
+  credentialsJson: z.string().meta({ sensitive: true }).optional(),
+  project: z.string().optional(),
   aiSkillAnalysis: z.object({}).describe(
     "AISkillAnalysisNote provides the metadata of an AI-based skill analysis.",
   ).optional(),
@@ -1716,6 +1886,142 @@ const InputsSchema = z.object({
     }).describe(
       "Common Vulnerability Scoring System version 3. For details, see https://www.first.org/cvss/specification-document",
     ).optional(),
+    cvssV4: z.object({
+      attackComplexity: z.enum([
+        "ATTACK_COMPLEXITY_UNSPECIFIED",
+        "ATTACK_COMPLEXITY_LOW",
+        "ATTACK_COMPLEXITY_HIGH",
+        "ATTACK_COMPLEXITY_MEDIUM",
+      ]).describe("Attack Complexity (AC). Defined in CVSS v2, v3, v4.")
+        .optional(),
+      attackRequirements: z.enum([
+        "ATTACK_REQUIREMENTS_UNSPECIFIED",
+        "ATTACK_REQUIREMENTS_NONE",
+        "ATTACK_REQUIREMENTS_PRESENT",
+      ]).describe("Attack Requirements (AT). Defined in CVSS v4.").optional(),
+      attackVector: z.enum([
+        "ATTACK_VECTOR_UNSPECIFIED",
+        "ATTACK_VECTOR_NETWORK",
+        "ATTACK_VECTOR_ADJACENT",
+        "ATTACK_VECTOR_LOCAL",
+        "ATTACK_VECTOR_PHYSICAL",
+      ]).describe("Attack Vector (AV). Defined in CVSS v2, v3, v4.").optional(),
+      authentication: z.enum([
+        "AUTHENTICATION_UNSPECIFIED",
+        "AUTHENTICATION_MULTIPLE",
+        "AUTHENTICATION_SINGLE",
+        "AUTHENTICATION_NONE",
+      ]).describe("Authentication (Au). Defined in CVSS v2.").optional(),
+      availabilityImpact: z.enum([
+        "IMPACT_UNSPECIFIED",
+        "IMPACT_HIGH",
+        "IMPACT_LOW",
+        "IMPACT_NONE",
+        "IMPACT_PARTIAL",
+        "IMPACT_COMPLETE",
+      ]).describe("Availability Impact (A). Defined in CVSS v2, v3.")
+        .optional(),
+      baseScore: z.number().describe(
+        "The base score is a function of the base metric scores.",
+      ).optional(),
+      confidentialityImpact: z.enum([
+        "IMPACT_UNSPECIFIED",
+        "IMPACT_HIGH",
+        "IMPACT_LOW",
+        "IMPACT_NONE",
+        "IMPACT_PARTIAL",
+        "IMPACT_COMPLETE",
+      ]).describe("Confidentiality Impact (C). Defined in CVSS v2, v3.")
+        .optional(),
+      exploitabilityScore: z.number().optional(),
+      impactScore: z.number().optional(),
+      integrityImpact: z.enum([
+        "IMPACT_UNSPECIFIED",
+        "IMPACT_HIGH",
+        "IMPACT_LOW",
+        "IMPACT_NONE",
+        "IMPACT_PARTIAL",
+        "IMPACT_COMPLETE",
+      ]).describe("Integrity Impact (I). Defined in CVSS v2, v3.").optional(),
+      privilegesRequired: z.enum([
+        "PRIVILEGES_REQUIRED_UNSPECIFIED",
+        "PRIVILEGES_REQUIRED_NONE",
+        "PRIVILEGES_REQUIRED_LOW",
+        "PRIVILEGES_REQUIRED_HIGH",
+      ]).describe("Privileges Required (PR). Defined in CVSS v3, v4.")
+        .optional(),
+      scope: z.enum(["SCOPE_UNSPECIFIED", "SCOPE_UNCHANGED", "SCOPE_CHANGED"])
+        .describe("Scope (S). Defined in CVSS v3.").optional(),
+      subsequentSystemAvailabilityImpact: z.enum([
+        "IMPACT_UNSPECIFIED",
+        "IMPACT_HIGH",
+        "IMPACT_LOW",
+        "IMPACT_NONE",
+        "IMPACT_PARTIAL",
+        "IMPACT_COMPLETE",
+      ]).describe(
+        "Subsequent System Availability Impact (SA). Defined in CVSS v4.",
+      ).optional(),
+      subsequentSystemConfidentialityImpact: z.enum([
+        "IMPACT_UNSPECIFIED",
+        "IMPACT_HIGH",
+        "IMPACT_LOW",
+        "IMPACT_NONE",
+        "IMPACT_PARTIAL",
+        "IMPACT_COMPLETE",
+      ]).describe(
+        "Subsequent System Confidentiality Impact (SC). Defined in CVSS v4.",
+      ).optional(),
+      subsequentSystemIntegrityImpact: z.enum([
+        "IMPACT_UNSPECIFIED",
+        "IMPACT_HIGH",
+        "IMPACT_LOW",
+        "IMPACT_NONE",
+        "IMPACT_PARTIAL",
+        "IMPACT_COMPLETE",
+      ]).describe(
+        "Subsequent System Integrity Impact (SI). Defined in CVSS v4.",
+      ).optional(),
+      userInteraction: z.enum([
+        "USER_INTERACTION_UNSPECIFIED",
+        "USER_INTERACTION_NONE",
+        "USER_INTERACTION_REQUIRED",
+        "USER_INTERACTION_PASSIVE",
+        "USER_INTERACTION_ACTIVE",
+      ]).describe("User Interaction (UI). Defined in CVSS v3, v4.").optional(),
+      vulnerableSystemAvailabilityImpact: z.enum([
+        "IMPACT_UNSPECIFIED",
+        "IMPACT_HIGH",
+        "IMPACT_LOW",
+        "IMPACT_NONE",
+        "IMPACT_PARTIAL",
+        "IMPACT_COMPLETE",
+      ]).describe(
+        "Vulnerable System Availability Impact (VA). Defined in CVSS v4.",
+      ).optional(),
+      vulnerableSystemConfidentialityImpact: z.enum([
+        "IMPACT_UNSPECIFIED",
+        "IMPACT_HIGH",
+        "IMPACT_LOW",
+        "IMPACT_NONE",
+        "IMPACT_PARTIAL",
+        "IMPACT_COMPLETE",
+      ]).describe(
+        "Vulnerable System Confidentiality Impact (VC). Defined in CVSS v4.",
+      ).optional(),
+      vulnerableSystemIntegrityImpact: z.enum([
+        "IMPACT_UNSPECIFIED",
+        "IMPACT_HIGH",
+        "IMPACT_LOW",
+        "IMPACT_NONE",
+        "IMPACT_PARTIAL",
+        "IMPACT_COMPLETE",
+      ]).describe(
+        "Vulnerable System Integrity Impact (VI). Defined in CVSS v4.",
+      ).optional(),
+    }).describe(
+      "Common Vulnerability Scoring System. For details, see https://www.first.org/cvss/specification-document This is a message we will try to use for storing various versions of CVSS rather than making a separate proto for storing a specific version.",
+    ).optional(),
     cvssVersion: z.enum([
       "CVSS_VERSION_UNSPECIFIED",
       "CVSS_VERSION_2",
@@ -1993,10 +2299,22 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
+const _credentialKeys = new Set(["accessToken", "credentialsJson", "project"]);
+
+function _buildGcpCredentials(
+  g: Record<string, unknown>,
+): ExplicitGcpCredentials {
+  return {
+    accessToken: g.accessToken as string | undefined,
+    credentialsJson: g.credentialsJson as string | undefined,
+    project: g.project as string | undefined,
+  };
+}
+
 /** Swamp extension model for Google Cloud Container Analysis Notes. Registered at `@swamp/gcp/containeranalysis/notes`. */
 export const model = {
   type: "@swamp/gcp/containeranalysis/notes",
-  version: "2026.06.06.1",
+  version: "2026.06.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2122,6 +2440,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.07.1",
+      description: "Added: accessToken, credentialsJson, project",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -2139,7 +2462,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
@@ -2208,6 +2532,7 @@ export const model = {
             matchField: "name",
             matchValue: String(g["name"] ?? ""),
           },
+          credentials,
         ) as StateData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
@@ -2227,9 +2552,10 @@ export const model = {
         identifier: z.string().describe("The name of the notes"),
       }),
       execute: async (args: { identifier: string }, context: any) => {
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
           `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
@@ -2238,6 +2564,7 @@ export const model = {
           BASE_URL,
           GET_CONFIG,
           params,
+          credentials,
         ) as StateData;
         const instanceName = (g.name?.toString() ?? args.identifier).replace(
           /[\/\\]/g,
@@ -2256,7 +2583,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -2329,6 +2657,8 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          credentials,
         ) as StateData;
         const handle = await context.writeResource(
           "state",
@@ -2345,7 +2675,8 @@ export const model = {
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
           `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
@@ -2355,6 +2686,7 @@ export const model = {
           BASE_URL,
           DELETE_CONFIG,
           params,
+          credentials,
         );
         const instanceName = (g.name?.toString() ?? args.identifier).replace(
           /[\/\\]/g,
@@ -2374,7 +2706,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -2400,6 +2733,7 @@ export const model = {
             BASE_URL,
             GET_CONFIG,
             params,
+            credentials,
           ) as StateData;
           const handle = await context.writeResource(
             "state",
@@ -2435,7 +2769,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
@@ -2455,6 +2790,7 @@ export const model = {
           params,
           "notes",
           (args.maxPages as number | undefined) ?? 10,
+          credentials,
         );
         const dataHandles = [];
         for (let i = 0; i < items.length; i++) {
@@ -2480,7 +2816,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
@@ -2500,6 +2837,10 @@ export const model = {
           },
           params,
           body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
         );
         return { result };
       },
@@ -2511,7 +2852,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         const content = await context.dataRepository.getContent(
           context.modelType,
@@ -2542,6 +2884,10 @@ export const model = {
           },
           params,
           body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
         );
         return { result };
       },
@@ -2553,7 +2899,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         const content = await context.dataRepository.getContent(
           context.modelType,
@@ -2584,6 +2931,10 @@ export const model = {
           },
           params,
           body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
         );
         return { result };
       },
@@ -2595,7 +2946,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         const content = await context.dataRepository.getContent(
           context.modelType,
@@ -2629,6 +2981,10 @@ export const model = {
           },
           params,
           body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
         );
         return { result };
       },

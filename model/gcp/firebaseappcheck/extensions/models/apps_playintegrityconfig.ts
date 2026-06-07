@@ -17,6 +17,7 @@
 import { z } from "npm:zod@4.3.6";
 import {
   createResource,
+  type ExplicitGcpCredentials,
   getProjectId,
   isResourceNotFoundError,
   readResource,
@@ -59,6 +60,15 @@ const PATCH_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
+  accessToken: z.string().meta({ sensitive: true }).describe(
+    "GCP OAuth2 access token; overrides GCP_ACCESS_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  credentialsJson: z.string().meta({ sensitive: true }).describe(
+    "GCP service account JSON credentials; overrides GOOGLE_APPLICATION_CREDENTIALS_JSON environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  project: z.string().describe(
+    "GCP project ID; overrides GCP_PROJECT / GOOGLE_CLOUD_PROJECT environment variables.",
+  ).optional(),
   accountDetails: z.object({
     requireLicensed: z.boolean().describe(
       "Specifies whether the caller must have received the [`LICENSED` verdict](https://developer.android.com/google/play/integrity/verdicts#account-details-field). For additional details about scenarios where your users will receive this `LICENSED` label, see [the default responses table](https://developer.android.com/google/play/integrity/setup#default). If set to `true`, apps without the `LICENSED` app licensing verdict will be rejected. If set to `false`, any app licensing verdict is allowed. The default value is `false`.",
@@ -111,6 +121,9 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
+  accessToken: z.string().meta({ sensitive: true }).optional(),
+  credentialsJson: z.string().meta({ sensitive: true }).optional(),
+  project: z.string().optional(),
   accountDetails: z.object({
     requireLicensed: z.boolean().describe(
       "Specifies whether the caller must have received the [`LICENSED` verdict](https://developer.android.com/google/play/integrity/verdicts#account-details-field). For additional details about scenarios where your users will receive this `LICENSED` label, see [the default responses table](https://developer.android.com/google/play/integrity/setup#default). If set to `true`, apps without the `LICENSED` app licensing verdict will be rejected. If set to `false`, any app licensing verdict is allowed. The default value is `false`.",
@@ -146,10 +159,22 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
+const _credentialKeys = new Set(["accessToken", "credentialsJson", "project"]);
+
+function _buildGcpCredentials(
+  g: Record<string, unknown>,
+): ExplicitGcpCredentials {
+  return {
+    accessToken: g.accessToken as string | undefined,
+    credentialsJson: g.credentialsJson as string | undefined,
+    project: g.project as string | undefined,
+  };
+}
+
 /** Swamp extension model for Google Cloud Firebase App Check Apps.PlayIntegrityConfig. Registered at `@swamp/gcp/firebaseappcheck/apps-playintegrityconfig`. */
 export const model = {
   type: "@swamp/gcp/firebaseappcheck/apps-playintegrityconfig",
-  version: "2026.05.25.1",
+  version: "2026.06.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -216,6 +241,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.07.1",
+      description: "Added: accessToken, credentialsJson, project",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -235,14 +265,16 @@ export const model = {
         identifier: z.string().describe("The name of the playIntegrityConfig"),
       }),
       execute: async (args: { identifier: string }, context: any) => {
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
         params["name"] = args.identifier;
         const result = await readResource(
           BASE_URL,
           GET_CONFIG,
           params,
+          credentials,
         ) as StateData;
         const instanceName =
           ((result.name ?? g.name)?.toString() ?? args.identifier).replace(
@@ -262,7 +294,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -303,6 +336,8 @@ export const model = {
           params,
           body,
           GET_CONFIG,
+          undefined,
+          credentials,
         ) as StateData;
         const handle = await context.writeResource(
           "state",
@@ -317,7 +352,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -344,6 +380,7 @@ export const model = {
             BASE_URL,
             GET_CONFIG,
             params,
+            credentials,
           ) as StateData;
           const handle = await context.writeResource(
             "state",
@@ -368,7 +405,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
@@ -387,6 +425,10 @@ export const model = {
           },
           params,
           {},
+          undefined,
+          undefined,
+          undefined,
+          credentials,
         );
         return { result };
       },

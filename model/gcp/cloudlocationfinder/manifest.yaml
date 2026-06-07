@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/cloudlocationfinder"
-version: "2026.05.26.1"
+version: "2026.06.07.1"
 description: "Google Cloud cloudlocationfinder infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: locations
+  - Updated: locations, cloudlocations
 models:
   - cloudlocations.ts
   - locations.ts

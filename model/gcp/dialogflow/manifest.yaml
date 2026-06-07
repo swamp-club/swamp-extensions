@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/dialogflow"
-version: "2026.06.05.1"
+version: "2026.06.07.1"
 description: "Google Cloud dialogflow infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: agent_entitytypes, agent_environments, agent_environments_intents, agent_environments_users_sessions_contexts, agent_environments_users_sessions_entitytypes, agent_intents, agent_knowledgebases, agent_knowledgebases_documents, agent_sessions_contexts, agent_sessions_entitytypes, agent_versions, answerrecords, conversationdatasets, conversationmodels, conversationmodels_evaluations, conversationprofiles, conversations, conversations_messages, conversations_participants, generators, knowledgebases, knowledgebases_documents, generators_evaluations, siptrunks, tools
+  - Updated: locations, agents, agents_changelogs, agents_entitytypes, agents_environments, agents_environments_continuoustestresults, agents_environments_deployments, agents_environments_experiments, agents_environments_sessions_entitytypes, agents_flows, agents_flows_pages, agents_flows_transitionroutegroups, agents_flows_versions, agents_generators, agents_intents, agents_playbooks, agents_playbooks_examples, agents_playbooks_versions, agents_sessions_entitytypes, agents_testcases, agents_testcases_results, agents_tools, agents_tools_versions, agents_transitionroutegroups, agents_webhooks, securitysettings, agent_entitytypes, agent_environments, agent_environments_intents, agent_environments_users_sessions_contexts, agent_environments_users_sessions_entitytypes, agent_intents, agent_knowledgebases, agent_knowledgebases_documents, agent_sessions_contexts, agent_sessions_entitytypes, agent_versions, answerrecords, conversationdatasets, conversationmodels, conversationmodels_evaluations, conversationprofiles, conversations, conversations_messages, conversations_participants, generators, knowledgebases, knowledgebases_documents, generators_evaluations, siptrunks, tools
 models:
   - agent_entitytypes.ts
   - agent_environments.ts

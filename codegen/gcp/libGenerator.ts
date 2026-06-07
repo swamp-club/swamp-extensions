@@ -27,6 +27,12 @@ interface GcpCredentials {
   accessToken: string;
 }
 
+export interface ExplicitGcpCredentials {
+  accessToken?: string;
+  credentialsJson?: string;
+  project?: string;
+}
+
 let cachedCredentials: GcpCredentials | undefined;
 let cachedAt = 0;
 const TOKEN_TTL_MS = 50 * 60 * 1000; // 50 minutes (tokens expire at 60)
@@ -77,17 +83,33 @@ async function ensureGcloudInstalled(): Promise<void> {
  * The GCP_PROJECT environment variable overrides the project ID from
  * credentials when set.
  */
-async function getCredentials(): Promise<GcpCredentials> {
+async function getCredentials(explicit?: ExplicitGcpCredentials): Promise<GcpCredentials> {
+  // Explicit credentials from global args take highest precedence (vault expressions).
+  if (explicit?.accessToken) {
+    const projectId = explicit.project ?? Deno.env.get("GCP_PROJECT")?.trim() ?? Deno.env.get("GOOGLE_CLOUD_PROJECT")?.trim() ?? "";
+    return { projectId, accessToken: explicit.accessToken };
+  }
+  if (explicit?.credentialsJson) {
+    const creds = await activateServiceAccountFromJson(explicit.credentialsJson);
+    if (explicit.project) {
+      return { projectId: explicit.project, accessToken: creds.accessToken };
+    }
+    return creds;
+  }
+
   // Direct access token is always read fresh from the env (no caching).
   // Env reads are free, and we don't know when the token was minted so
   // a TTL-based cache would be wrong.
   const directToken = Deno.env.get("GCP_ACCESS_TOKEN")?.trim();
   if (directToken) {
-    const projectId = Deno.env.get("GCP_PROJECT")?.trim() || Deno.env.get("GOOGLE_CLOUD_PROJECT")?.trim();
+    const projectId = explicit?.project ?? Deno.env.get("GCP_PROJECT")?.trim() ?? Deno.env.get("GOOGLE_CLOUD_PROJECT")?.trim();
     return { projectId: projectId ?? "", accessToken: directToken };
   }
 
   if (cachedCredentials && (Date.now() - cachedAt) < TOKEN_TTL_MS) {
+    if (explicit?.project) {
+      return { projectId: explicit.project, accessToken: cachedCredentials.accessToken };
+    }
     return cachedCredentials;
   }
   cachedCredentials = undefined;
@@ -99,6 +121,9 @@ async function getCredentials(): Promise<GcpCredentials> {
   if (credJson) {
     cachedCredentials = await activateServiceAccountFromJson(credJson);
     cachedAt = Date.now();
+    if (explicit?.project) {
+      return { projectId: explicit.project, accessToken: cachedCredentials.accessToken };
+    }
     return cachedCredentials;
   }
 
@@ -115,12 +140,18 @@ async function getCredentials(): Promise<GcpCredentials> {
     }
     cachedCredentials = await activateServiceAccountFromJson(fileContent);
     cachedAt = Date.now();
+    if (explicit?.project) {
+      return { projectId: explicit.project, accessToken: cachedCredentials.accessToken };
+    }
     return cachedCredentials;
   }
 
   // Fall back to Application Default Credentials (gcloud auth)
   cachedCredentials = await getApplicationDefaultCredentials();
   cachedAt = Date.now();
+  if (explicit?.project) {
+    return { projectId: explicit.project, accessToken: cachedCredentials.accessToken };
+  }
   return cachedCredentials;
 }
 
@@ -319,8 +350,9 @@ export async function request(
   method: string,
   url: string,
   body?: Record<string, unknown>,
+  credentials?: ExplicitGcpCredentials,
 ): Promise<Response> {
-  const creds = await getCredentials();
+  const creds = await getCredentials(credentials);
   const headers: Record<string, string> = {
     "Authorization": \`Bearer \${creds.accessToken}\`,
     "Content-Type": "application/json",
@@ -339,7 +371,7 @@ export async function request(
   if (resp.status === 401) {
     await resp.text(); // drain body
     cachedCredentials = undefined;
-    const freshCreds = await getCredentials();
+    const freshCreds = await getCredentials(credentials);
     const retryHeaders: Record<string, string> = {
       "Authorization": \`Bearer \${freshCreds.accessToken}\`,
       "Content-Type": "application/json",
@@ -361,13 +393,13 @@ export async function request(
  * Polls a GCP Long Running Operation until completion.
  * Returns the final operation response.
  */
-async function pollOperation(operationUrl: string): Promise<any> {
+async function pollOperation(operationUrl: string, credentials?: ExplicitGcpCredentials): Promise<any> {
   const maxAttempts = 20;
   const baseDelay = 2000; // 2 seconds
   const maxDelay = 30000; // 30 seconds
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const resp = await request("GET", operationUrl);
+    const resp = await request("GET", operationUrl, undefined, credentials);
     if (!resp.ok) {
       const text = await resp.text();
       throw new Error(\`Failed to poll operation: \${resp.status} \${text}\`);
@@ -482,15 +514,16 @@ export async function createResource(
   readConfig?: GcpMethodConfig,
   readiness?: ReadinessConfig,
   idempotency?: IdempotencyConfig,
+  credentials?: ExplicitGcpCredentials,
 ): Promise<any> {
   const url = buildUrl(baseUrl, config, params);
-  const resp = await request(config.httpMethod, url, body);
+  const resp = await request(config.httpMethod, url, body, credentials);
 
   if (resp.status === 409 && idempotency) {
     const conflictBody = await resp.text();
     const existing = await tryReadViaList(
       baseUrl, idempotency.listConfig, idempotency.listParams,
-      idempotency.matchField, idempotency.matchValue,
+      idempotency.matchField, idempotency.matchValue, credentials,
     );
     if (existing) return existing;
     throw new Error(\`Create failed (409): \${conflictBody}. Idempotency fallback also found no match via list.\`);
@@ -510,7 +543,7 @@ export async function createResource(
     if (!isOperationDone(result)) {
       // Operation is still in progress — poll until done
       const opUrl = getOperationUrl(baseUrl, result, config.path);
-      operation = await pollOperation(opUrl);
+      operation = await pollOperation(opUrl, credentials);
     }
 
     // Check for errors in the completed operation
@@ -520,7 +553,7 @@ export async function createResource(
       if (isAlreadyExistsError(opErr) && idempotency) {
         const existing = await tryReadViaList(
           baseUrl, idempotency.listConfig, idempotency.listParams,
-          idempotency.matchField, idempotency.matchValue,
+          idempotency.matchField, idempotency.matchValue, credentials,
         );
         if (existing) return existing;
       }
@@ -536,13 +569,13 @@ export async function createResource(
     if (readConfig) {
       try {
         const readUrl = appendFieldsParam(buildUrl(baseUrl, readConfig, params));
-        const readResp = await request("GET", readUrl);
+        const readResp = await request("GET", readUrl, undefined, credentials);
         if (readResp.ok) {
           result = await readResp.json();
         } else if (operation.response && typeof operation.response === "object") {
           result = operation.response;
         } else if (operation.targetLink) {
-          const targetResp = await request("GET", appendFieldsParam(operation.targetLink));
+          const targetResp = await request("GET", appendFieldsParam(operation.targetLink), undefined, credentials);
           if (targetResp.ok) {
             result = await targetResp.json();
           }
@@ -552,7 +585,7 @@ export async function createResource(
         if (operation.response && typeof operation.response === "object") {
           result = operation.response;
         } else if (operation.targetLink) {
-          const targetResp = await request("GET", appendFieldsParam(operation.targetLink));
+          const targetResp = await request("GET", appendFieldsParam(operation.targetLink), undefined, credentials);
           if (targetResp.ok) {
             result = await targetResp.json();
           }
@@ -579,7 +612,7 @@ export async function createResource(
       await new Promise((resolve) => setTimeout(resolve, pollDelay));
       // Re-read the resource to check status
       const readUrl = appendFieldsParam(buildUrl(baseUrl, readConfig, params));
-      const readResp = await request("GET", readUrl);
+      const readResp = await request("GET", readUrl, undefined, credentials);
       if (readResp.ok) {
         result = await readResp.json();
       } else {
@@ -598,9 +631,10 @@ export async function readResource(
   baseUrl: string,
   config: GcpMethodConfig,
   params: Record<string, string>,
+  credentials?: ExplicitGcpCredentials,
 ): Promise<any> {
   const url = appendFieldsParam(buildUrl(baseUrl, config, params));
-  const resp = await request("GET", url);
+  const resp = await request("GET", url, undefined, credentials);
 
   if (!resp.ok) {
     const text = await resp.text();
@@ -619,13 +653,14 @@ export async function readViaList(
   params: Record<string, string>,
   filterField: string,
   filterValue: string,
+  credentials?: ExplicitGcpCredentials,
 ): Promise<any> {
   const baseUrlBuilt = appendFieldsParam(buildUrl(baseUrl, config, params));
   const maxPages = 100;
   let url = baseUrlBuilt;
 
   for (let page = 0; page < maxPages; page++) {
-    const resp = await request("GET", url);
+    const resp = await request("GET", url, undefined, credentials);
 
     if (!resp.ok) {
       const text = await resp.text();
@@ -663,6 +698,7 @@ export async function listResources(
   params: Record<string, string>,
   arrayField: string,
   maxPages: number = 10,
+  credentials?: ExplicitGcpCredentials,
 ): Promise<{ items: any[]; nextPageToken?: string }> {
   const allItems: any[] = [];
   let baseUrlBuilt = buildUrl(baseUrl, config, params);
@@ -673,7 +709,7 @@ export async function listResources(
   let lastNextPageToken: string | undefined;
 
   for (let page = 0; page < maxPages; page++) {
-    const resp = await request("GET", url);
+    const resp = await request("GET", url, undefined, credentials);
 
     if (!resp.ok) {
       const text = await resp.text();
@@ -705,9 +741,10 @@ export async function tryReadResource(
   baseUrl: string,
   config: GcpMethodConfig,
   params: Record<string, string>,
+  credentials?: ExplicitGcpCredentials,
 ): Promise<any | null> {
   const url = appendFieldsParam(buildUrl(baseUrl, config, params));
-  const resp = await request("GET", url);
+  const resp = await request("GET", url, undefined, credentials);
 
   if (resp.status === 404) {
     await resp.text(); // drain body
@@ -738,9 +775,10 @@ export async function updateResource(
   body: Record<string, unknown>,
   readConfig?: GcpMethodConfig,
   readiness?: ReadinessConfig,
+  credentials?: ExplicitGcpCredentials,
 ): Promise<any> {
   const url = buildUrl(baseUrl, config, params);
-  const resp = await request(config.httpMethod, url, body);
+  const resp = await request(config.httpMethod, url, body, credentials);
 
   if (!resp.ok) {
     const text = await resp.text();
@@ -754,7 +792,7 @@ export async function updateResource(
 
     if (!isOperationDone(result)) {
       const opUrl = getOperationUrl(baseUrl, result, config.path);
-      operation = await pollOperation(opUrl);
+      operation = await pollOperation(opUrl, credentials);
     }
 
     checkOperationError(operation);
@@ -762,7 +800,7 @@ export async function updateResource(
     // Read the resource for final state
     if (readConfig) {
       const readUrl = appendFieldsParam(buildUrl(baseUrl, readConfig, params));
-      const readResp = await request("GET", readUrl);
+      const readResp = await request("GET", readUrl, undefined, credentials);
       if (readResp.ok) {
         result = await readResp.json();
       }
@@ -785,7 +823,7 @@ export async function updateResource(
       }
       await new Promise((resolve) => setTimeout(resolve, pollDelay));
       const readUrl = appendFieldsParam(buildUrl(baseUrl, readConfig, params));
-      const readResp = await request("GET", readUrl);
+      const readResp = await request("GET", readUrl, undefined, credentials);
       if (readResp.ok) {
         result = await readResp.json();
       } else {
@@ -805,9 +843,10 @@ export async function deleteResource(
   baseUrl: string,
   config: GcpMethodConfig,
   params: Record<string, string>,
+  credentials?: ExplicitGcpCredentials,
 ): Promise<{ existed: boolean }> {
   const url = buildUrl(baseUrl, config, params);
-  const resp = await request(config.httpMethod, url);
+  const resp = await request(config.httpMethod, url, undefined, credentials);
 
   if (resp.status === 404) {
     await resp.text(); // drain body
@@ -831,7 +870,7 @@ export async function deleteResource(
     let operation = result;
     if (!isOperationDone(result)) {
       const opUrl = getOperationUrl(baseUrl, result, config.path);
-      operation = await pollOperation(opUrl);
+      operation = await pollOperation(opUrl, credentials);
     }
     checkOperationError(operation);
   }
@@ -875,13 +914,14 @@ export async function tryReadViaList(
   params: Record<string, string>,
   filterField: string,
   filterValue: string,
+  credentials?: ExplicitGcpCredentials,
 ): Promise<any | null> {
   const baseUrlBuilt = appendFieldsParam(buildUrl(baseUrl, config, params));
   const maxPages = 100;
   let url = baseUrlBuilt;
 
   for (let page = 0; page < maxPages; page++) {
-    const resp = await request("GET", url);
+    const resp = await request("GET", url, undefined, credentials);
     if (!resp.ok) {
       await resp.text();
       return null;
@@ -908,8 +948,8 @@ export async function tryReadViaList(
 /**
  * Gets the project ID from cached credentials.
  */
-export async function getProjectId(): Promise<string> {
-  const creds = await getCredentials();
+export async function getProjectId(credentials?: ExplicitGcpCredentials): Promise<string> {
+  const creds = await getCredentials(credentials);
   return creds.projectId;
 }
 `;

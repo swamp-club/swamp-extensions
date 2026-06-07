@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/osconfig"
-version: "2026.06.05.1"
+version: "2026.06.07.1"
 description: "Google Cloud osconfig infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: instances_inventories, instances_ospolicyassignments_reports, instances_vulnerabilityreports, ospolicyassignments, patchdeployments, patchjobs, patchjobs_instancedetails
+  - Updated: global_policyorchestrators, instances_inventories, instances_ospolicyassignments_reports, instances_vulnerabilityreports, ospolicyassignments, patchdeployments, patchjobs, patchjobs_instancedetails
 models:
   - global_policyorchestrators.ts
   - instances_inventories.ts

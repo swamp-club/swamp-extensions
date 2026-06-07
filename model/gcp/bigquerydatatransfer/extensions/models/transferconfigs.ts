@@ -18,6 +18,7 @@ import { z } from "npm:zod@4.3.6";
 import {
   createResource,
   deleteResource,
+  type ExplicitGcpCredentials,
   getProjectId,
   isResourceNotFoundError,
   listResources,
@@ -138,6 +139,15 @@ const LIST_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
+  accessToken: z.string().meta({ sensitive: true }).describe(
+    "GCP OAuth2 access token; overrides GCP_ACCESS_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  credentialsJson: z.string().meta({ sensitive: true }).describe(
+    "GCP service account JSON credentials; overrides GOOGLE_APPLICATION_CREDENTIALS_JSON environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+  ).optional(),
+  project: z.string().describe(
+    "GCP project ID; overrides GCP_PROJECT / GOOGLE_CLOUD_PROJECT environment variables.",
+  ).optional(),
   dataRefreshWindowDays: z.number().int().describe(
     "The number of days to look back to automatically refresh the data. For example, if `data_refresh_window_days = 10`, then every day BigQuery reingests data for [today-10, today-1], rather than ingesting data for just [today-1]. Only valid if the data source supports the feature. Set the value to 0 to use the default value.",
   ).optional(),
@@ -183,6 +193,13 @@ const GlobalArgsSchema = z.object({
     "NATIVE",
     "BIGLAKE",
   ]).describe("The classification of the destination table.").optional(),
+  metadataDestination: z.object({
+    dataplexConfiguration: z.object({
+      entryGroup: z.string().describe(
+        "Required. The Dataplex Universal Catalog entry group for importing the metadata. entry_group has the format of `projects/{project_id}/locations/{region}/entryGroups/{entry_group_id}`.",
+      ).optional(),
+    }).describe("Configuration for Dataplex destination.").optional(),
+  }).describe("The metadata destination of the transfer config.").optional(),
   name: z.string().describe(
     "Identifier. The resource name of the transfer config. Transfer config names have the form either `projects/{project_id}/locations/{region}/transferConfigs/{config_id}` or `projects/{project_id}/transferConfigs/{config_id}`, where `config_id` is usually a UUID, even though it is not guaranteed or required. The name is ignored when creating a transfer config.",
   ).optional(),
@@ -268,6 +285,11 @@ const StateSchema = z.object({
     message: z.string(),
   }).optional(),
   managedTableType: z.string().optional(),
+  metadataDestination: z.object({
+    dataplexConfiguration: z.object({
+      entryGroup: z.string(),
+    }),
+  }).optional(),
   name: z.string(),
   nextRunTime: z.string().optional(),
   notificationPubsubTopic: z.string().optional(),
@@ -300,6 +322,9 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
+  accessToken: z.string().meta({ sensitive: true }).optional(),
+  credentialsJson: z.string().meta({ sensitive: true }).optional(),
+  project: z.string().optional(),
   dataRefreshWindowDays: z.number().int().describe(
     "The number of days to look back to automatically refresh the data. For example, if `data_refresh_window_days = 10`, then every day BigQuery reingests data for [today-10, today-1], rather than ingesting data for just [today-1]. Only valid if the data source supports the feature. Set the value to 0 to use the default value.",
   ).optional(),
@@ -345,6 +370,13 @@ const InputsSchema = z.object({
     "NATIVE",
     "BIGLAKE",
   ]).describe("The classification of the destination table.").optional(),
+  metadataDestination: z.object({
+    dataplexConfiguration: z.object({
+      entryGroup: z.string().describe(
+        "Required. The Dataplex Universal Catalog entry group for importing the metadata. entry_group has the format of `projects/{project_id}/locations/{region}/entryGroups/{entry_group_id}`.",
+      ).optional(),
+    }).describe("Configuration for Dataplex destination.").optional(),
+  }).describe("The metadata destination of the transfer config.").optional(),
   name: z.string().describe(
     "Identifier. The resource name of the transfer config. Transfer config names have the form either `projects/{project_id}/locations/{region}/transferConfigs/{config_id}` or `projects/{project_id}/transferConfigs/{config_id}`, where `config_id` is usually a UUID, even though it is not guaranteed or required. The name is ignored when creating a transfer config.",
   ).optional(),
@@ -411,10 +443,22 @@ const InputsSchema = z.object({
   ).optional(),
 });
 
+const _credentialKeys = new Set(["accessToken", "credentialsJson", "project"]);
+
+function _buildGcpCredentials(
+  g: Record<string, unknown>,
+): ExplicitGcpCredentials {
+  return {
+    accessToken: g.accessToken as string | undefined,
+    credentialsJson: g.credentialsJson as string | undefined,
+    project: g.project as string | undefined,
+  };
+}
+
 /** Swamp extension model for Google Cloud BigQuery Data Transfer TransferConfigs. Registered at `@swamp/gcp/bigquerydatatransfer/transferconfigs`. */
 export const model = {
   type: "@swamp/gcp/bigquerydatatransfer/transferconfigs",
-  version: "2026.05.25.1",
+  version: "2026.06.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -481,6 +525,12 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.07.1",
+      description:
+        "Added: accessToken, credentialsJson, project, metadataDestination",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -503,7 +553,8 @@ export const model = {
       }),
       execute: async (args: { waitForReady?: boolean }, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
@@ -531,6 +582,9 @@ export const model = {
         if (g["error"] !== undefined) body["error"] = g["error"];
         if (g["managedTableType"] !== undefined) {
           body["managedTableType"] = g["managedTableType"];
+        }
+        if (g["metadataDestination"] !== undefined) {
+          body["metadataDestination"] = g["metadataDestination"];
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["notificationPubsubTopic"] !== undefined) {
@@ -581,6 +635,7 @@ export const model = {
             matchField: "displayName",
             matchValue: String(g["displayName"] ?? ""),
           },
+          credentials,
         ) as StateData;
         const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
           .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
@@ -598,9 +653,10 @@ export const model = {
         identifier: z.string().describe("The name of the transferConfigs"),
       }),
       execute: async (args: { identifier: string }, context: any) => {
-        const projectId = await getProjectId();
-        const params: Record<string, string> = { project: projectId };
         const g = context.globalArgs;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
           `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
           args.identifier,
@@ -609,6 +665,7 @@ export const model = {
           BASE_URL,
           GET_CONFIG,
           params,
+          credentials,
         ) as StateData;
         const instanceName =
           ((result.name ?? g.name)?.toString() ?? args.identifier).replace(
@@ -632,7 +689,8 @@ export const model = {
       }),
       execute: async (args: { waitForReady?: boolean }, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -672,6 +730,9 @@ export const model = {
         if (g["managedTableType"] !== undefined) {
           body["managedTableType"] = g["managedTableType"];
         }
+        if (g["metadataDestination"] !== undefined) {
+          body["metadataDestination"] = g["metadataDestination"];
+        }
         if (g["notificationPubsubTopic"] !== undefined) {
           body["notificationPubsubTopic"] = g["notificationPubsubTopic"];
         }
@@ -706,6 +767,7 @@ export const model = {
               "failedValues": ["FAILED"],
             }
             : undefined,
+          credentials,
         ) as StateData;
         const handle = await context.writeResource(
           "state",
@@ -722,7 +784,8 @@ export const model = {
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
           `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
@@ -732,6 +795,7 @@ export const model = {
           BASE_URL,
           DELETE_CONFIG,
           params,
+          credentials,
         );
         const instanceName = (g.name?.toString() ?? args.identifier).replace(
           /[\/\\]/g,
@@ -751,7 +815,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -777,6 +842,7 @@ export const model = {
             BASE_URL,
             GET_CONFIG,
             params,
+            credentials,
           ) as StateData;
           const handle = await context.writeResource(
             "state",
@@ -811,7 +877,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
@@ -828,6 +895,7 @@ export const model = {
           params,
           "transferConfigs",
           (args.maxPages as number | undefined) ?? 10,
+          credentials,
         );
         const dataHandles = [];
         for (let i = 0; i < items.length; i++) {
@@ -854,7 +922,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
@@ -878,6 +947,10 @@ export const model = {
           },
           params,
           body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
         );
         return { result };
       },
@@ -890,7 +963,8 @@ export const model = {
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
-        const projectId = await getProjectId();
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
@@ -916,6 +990,10 @@ export const model = {
           },
           params,
           body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
         );
         return { result };
       },

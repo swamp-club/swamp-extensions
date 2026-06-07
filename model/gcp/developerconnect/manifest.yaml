@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/developerconnect"
-version: "2026.05.31.1"
+version: "2026.06.07.1"
 description: "Google Cloud developerconnect infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: insightsconfigs_deploymentevents
+  - Updated: locations, accountconnectors, accountconnectors_users, connections, connections_gitrepositorylinks, insightsconfigs, insightsconfigs_deploymentevents
 models:
   - accountconnectors.ts
   - accountconnectors_users.ts

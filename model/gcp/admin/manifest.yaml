@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/admin"
-version: "2026.06.05.1"
+version: "2026.06.07.1"
 description: "Google Cloud admin infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: applications, transfers, asps, chromeosdevices, customer_devices_chromeos_commands, customers, customers_chrome_printservers, customers_chrome_printers, domainaliases, domains, groups, groups_aliases, members, mobiledevices, orgunits, privileges, resources_buildings, resources_calendars, resources_features, roleassignments, roles, schemas, tokens, users, users_aliases, users_photos, verificationcodes
+  - Updated: applications, transfers, asps, chromeosdevices, customer_devices_chromeos_commands, customers, customers_chrome_printservers, customers_chrome_printers, domainaliases, domains, groups, groups_aliases, members, mobiledevices, orgunits, privileges, resources_buildings, resources_calendars, resources_features, roleassignments, roles, schemas, tokens, users, users_aliases, users_photos, verificationcodes, activities, customerusagereports, entityusagereports, userusagereport
 models:
   - activities.ts
   - applications.ts

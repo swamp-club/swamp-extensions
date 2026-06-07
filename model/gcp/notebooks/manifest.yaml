@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/notebooks"
-version: "2026.06.05.1"
+version: "2026.06.07.1"
 description: "Google Cloud notebooks infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: environments, executions, runtimes, schedules
+  - Updated: locations, instances, environments, executions, runtimes, schedules
 models:
   - environments.ts
   - executions.ts

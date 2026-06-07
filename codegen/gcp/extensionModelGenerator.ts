@@ -137,7 +137,9 @@ export function generateGcpExtensionModel(
   if (resource.handlers.update) helperImports.push("updateResource");
   if (input.enrichment) helperImports.push("request");
   lines.push(
-    `import { ${helperImports.sort().join(", ")} } from "./_lib/gcp.ts";`,
+    `import { type ExplicitGcpCredentials, ${
+      helperImports.sort().join(", ")
+    } } from "./_lib/gcp.ts";`,
   );
   if (input.enrichment) {
     for (const imp of input.enrichment.source.imports) {
@@ -238,11 +240,45 @@ export function generateGcpExtensionModel(
     }
   }
 
+  // Determine which credential fields collide with domain properties.
+  // GCP properties are camelCase so collisions are unlikely, but we guard
+  // defensively (mirrors AWS's collision guard).
+  const domainPropNames = new Set(Object.keys(resource.domainProperties));
+  const credentialFields = [
+    {
+      name: "accessToken",
+      sensitive: true,
+      desc:
+        "GCP OAuth2 access token; overrides GCP_ACCESS_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+    },
+    {
+      name: "credentialsJson",
+      sensitive: true,
+      desc:
+        "GCP service account JSON credentials; overrides GOOGLE_APPLICATION_CREDENTIALS_JSON environment variable. Wire with a vault.get(...) expression to source it from a vault.",
+    },
+    {
+      name: "project",
+      sensitive: false,
+      desc:
+        "GCP project ID; overrides GCP_PROJECT / GOOGLE_CLOUD_PROJECT environment variables.",
+    },
+  ];
+  const injectedCredFields = credentialFields.filter(
+    (f) => !domainPropNames.has(f.name),
+  );
+
   // GlobalArgsSchema
   lines.push(`const GlobalArgsSchema = z.object({`);
   if (isSyntheticName) {
     lines.push(
       `  name: z.string().describe("Instance name for this resource (used as the unique identifier in the factory pattern)"),`,
+    );
+  }
+  for (const f of injectedCredFields) {
+    const meta = f.sensitive ? `.meta({ sensitive: true })` : "";
+    lines.push(
+      `  ${f.name}: z.string()${meta}.describe("${f.desc}").optional(),`,
     );
   }
   if (zodResult.inputSchemaBody) {
@@ -272,6 +308,10 @@ export function generateGcpExtensionModel(
   if (isSyntheticName) {
     lines.push(`  name: z.string().optional(),`);
   }
+  for (const f of injectedCredFields) {
+    const meta = f.sensitive ? `.meta({ sensitive: true })` : "";
+    lines.push(`  ${f.name}: z.string()${meta}.optional(),`);
+  }
   if (zodResult.inputSchemaBody) {
     const inputLines = zodResult.inputSchemaBody.split("\n");
     for (const line of inputLines) {
@@ -287,6 +327,28 @@ export function generateGcpExtensionModel(
     }
   }
   lines.push(`});`);
+  lines.push("");
+
+  // Credential key set for filtering globalArgs when building request bodies
+  const credKeyNames = injectedCredFields.map((f) => f.name);
+  lines.push(
+    `const _credentialKeys = new Set(${JSON.stringify(credKeyNames)});`,
+  );
+  lines.push("");
+  const injectedCredNames = new Set(injectedCredFields.map((f) => f.name));
+  lines.push(
+    `function _buildGcpCredentials(g: Record<string, unknown>): ExplicitGcpCredentials {`,
+  );
+  lines.push(`  return {`);
+  for (const f of credentialFields) {
+    if (injectedCredNames.has(f.name)) {
+      lines.push(`    ${f.name}: g.${f.name} as string | undefined,`);
+    } else {
+      lines.push(`    ${f.name}: undefined,`);
+    }
+  }
+  lines.push(`  };`);
+  lines.push(`}`);
   lines.push("");
 
   // Resource description
@@ -340,7 +402,8 @@ export function generateGcpExtensionModel(
       );
     }
     lines.push(`        const g = context.globalArgs;`);
-    lines.push(`        const projectId = await getProjectId();`);
+    lines.push(`        const credentials = _buildGcpCredentials(g);`);
+    lines.push(`        const projectId = await getProjectId(credentials);`);
     lines.push(
       `        const params: Record<string, string> = { project: projectId };`,
     );
@@ -451,19 +514,17 @@ export function generateGcpExtensionModel(
 
     // Build createResource args including optional readiness config
     const createArgs = ["BASE_URL", "INSERT_CONFIG", "params", "body"];
-    if (readConfigRef || resource.readiness || hasIdempotentCreate) {
-      createArgs.push(readConfigRef || "undefined");
-    }
-    if (resource.readiness || hasIdempotentCreate) {
-      if (resource.readiness) {
-        createArgs.push(
-          `(args.waitForReady ?? true) ? ${
-            JSON.stringify(resource.readiness)
-          } : undefined`,
-        );
-      } else {
-        createArgs.push("undefined");
-      }
+    // Always push readConfig, readiness, and idempotency (even as undefined)
+    // so credentials can be the last positional arg
+    createArgs.push(readConfigRef || "undefined");
+    if (resource.readiness) {
+      createArgs.push(
+        `(args.waitForReady ?? true) ? ${
+          JSON.stringify(resource.readiness)
+        } : undefined`,
+      );
+    } else {
+      createArgs.push("undefined");
     }
     // Idempotent create: pass list config for already-exists fallback
     if (hasIdempotentCreate && resource.methodConfigs.list) {
@@ -518,7 +579,10 @@ export function generateGcpExtensionModel(
           JSON.stringify(matchField)
         }] ?? "") }`,
       );
+    } else {
+      createArgs.push("undefined");
     }
+    createArgs.push("credentials");
     lines.push(
       `        const result = await createResource(${
         createArgs.join(", ")
@@ -560,11 +624,12 @@ export function generateGcpExtensionModel(
     lines.push(
       `      execute: async (args: { identifier: string }, context: any) => {`,
     );
-    lines.push(`        const projectId = await getProjectId();`);
+    lines.push(`        const g = context.globalArgs;`);
+    lines.push(`        const credentials = _buildGcpCredentials(g);`);
+    lines.push(`        const projectId = await getProjectId(credentials);`);
     lines.push(
       `        const params: Record<string, string> = { project: projectId };`,
     );
-    lines.push(`        const g = context.globalArgs;`);
 
     if (resource.listOnly && resource.methodConfigs.list) {
       // listOnly: add params from globalArgs, then list + filter
@@ -580,7 +645,7 @@ export function generateGcpExtensionModel(
         );
       }
       lines.push(
-        `        const result = await readViaList(BASE_URL, LIST_CONFIG, params, "${primaryId}", args.identifier) as StateData;`,
+        `        const result = await readViaList(BASE_URL, LIST_CONFIG, params, "${primaryId}", args.identifier, credentials) as StateData;`,
       );
     } else if (resource.methodConfigs.get) {
       // Normal GET
@@ -616,7 +681,7 @@ export function generateGcpExtensionModel(
         }
       }
       lines.push(
-        `        const result = await readResource(BASE_URL, GET_CONFIG, params) as StateData;`,
+        `        const result = await readResource(BASE_URL, GET_CONFIG, params, credentials) as StateData;`,
       );
     }
 
@@ -667,7 +732,8 @@ export function generateGcpExtensionModel(
       );
     }
     lines.push(`        const g = context.globalArgs;`);
-    lines.push(`        const projectId = await getProjectId();`);
+    lines.push(`        const credentials = _buildGcpCredentials(g);`);
+    lines.push(`        const projectId = await getProjectId(credentials);`);
 
     if (isSyntheticName) {
       lines.push(
@@ -790,16 +856,17 @@ export function generateGcpExtensionModel(
       "params",
       "body",
     ];
-    if (readConfigRef || resource.readiness) {
-      updateArgs.push(readConfigRef || "undefined");
-    }
+    updateArgs.push(readConfigRef || "undefined");
     if (resource.readiness) {
       updateArgs.push(
         `(args.waitForReady ?? true) ? ${
           JSON.stringify(resource.readiness)
         } : undefined`,
       );
+    } else {
+      updateArgs.push("undefined");
     }
+    updateArgs.push("credentials");
     lines.push(
       `        const result = await updateResource(${
         updateArgs.join(", ")
@@ -826,7 +893,8 @@ export function generateGcpExtensionModel(
       `      execute: async (args: { identifier: string }, context: any) => {`,
     );
     lines.push(`        const g = context.globalArgs;`);
-    lines.push(`        const projectId = await getProjectId();`);
+    lines.push(`        const credentials = _buildGcpCredentials(g);`);
+    lines.push(`        const projectId = await getProjectId(credentials);`);
     lines.push(
       `        const params: Record<string, string> = { project: projectId };`,
     );
@@ -862,7 +930,7 @@ export function generateGcpExtensionModel(
     }
 
     lines.push(
-      `        const { existed } = await deleteResource(BASE_URL, DELETE_CONFIG, params);`,
+      `        const { existed } = await deleteResource(BASE_URL, DELETE_CONFIG, params, credentials);`,
     );
 
     if (isSyntheticName) {
@@ -906,7 +974,8 @@ export function generateGcpExtensionModel(
       `      execute: async (_args: Record<string, never>, context: any) => {`,
     );
     lines.push(`        const g = context.globalArgs;`);
-    lines.push(`        const projectId = await getProjectId();`);
+    lines.push(`        const credentials = _buildGcpCredentials(g);`);
+    lines.push(`        const projectId = await getProjectId(credentials);`);
 
     if (isSyntheticName) {
       lines.push(
@@ -982,7 +1051,7 @@ export function generateGcpExtensionModel(
         `          if (!identifier) throw new Error("No identifier found in existing state or globalArgs");`,
       );
       lines.push(
-        `          const result = await readViaList(BASE_URL, LIST_CONFIG, params, "${primaryId}", identifier) as StateData;`,
+        `          const result = await readViaList(BASE_URL, LIST_CONFIG, params, "${primaryId}", identifier, credentials) as StateData;`,
       );
     } else if (resource.methodConfigs.get) {
       lines.push(
@@ -1049,7 +1118,7 @@ export function generateGcpExtensionModel(
         }
       }
       lines.push(
-        `          const result = await readResource(BASE_URL, GET_CONFIG, params) as StateData;`,
+        `          const result = await readResource(BASE_URL, GET_CONFIG, params, credentials) as StateData;`,
       );
     }
 
@@ -1112,20 +1181,14 @@ export function generateGcpExtensionModel(
     );
     lines.push(`      }),`);
 
-    // Determine if globalArgs are needed for path params
     const listConfig = resource.methodConfigs.list!;
-    const listNonProjectParams = listConfig.parameterOrder.filter(
-      (p) => p !== "project" && p !== "projectId",
-    );
-    const listNeedsG = listNonProjectParams.length > 0;
 
     lines.push(
       `      execute: async (args: Record<string, unknown>, context: any) => {`,
     );
-    if (listNeedsG) {
-      lines.push(`        const g = context.globalArgs;`);
-    }
-    lines.push(`        const projectId = await getProjectId();`);
+    lines.push(`        const g = context.globalArgs;`);
+    lines.push(`        const credentials = _buildGcpCredentials(g);`);
+    lines.push(`        const projectId = await getProjectId(credentials);`);
     lines.push(
       `        const params: Record<string, string> = { project: projectId };`,
     );
@@ -1172,7 +1235,7 @@ export function generateGcpExtensionModel(
     lines.push(
       `        const { items, nextPageToken } = await listResources(BASE_URL, LIST_CONFIG, params, ${
         JSON.stringify(arrayField)
-      }, (args.maxPages as number | undefined) ?? 10);`,
+      }, (args.maxPages as number | undefined) ?? 10, credentials);`,
     );
     lines.push(`        const dataHandles = [];`);
     lines.push(`        for (let i = 0; i < items.length; i++) {`);
@@ -1259,18 +1322,14 @@ export function generateGcpExtensionModel(
     }
 
     const needsExistingState = paramsNeedingState.length > 0;
-    const needsG = paramsFromGlobalArgs.length > 0 || needsExistingState;
-    const needsContext = needsG || needsExistingState;
     const argsPrefix = argProps.length > 0 ? "args" : "_args";
-    const contextPrefix = needsContext ? "context" : "_context";
 
     lines.push(
-      `      execute: async (${argsPrefix}: Record<string, unknown>, ${contextPrefix}: any) => {`,
+      `      execute: async (${argsPrefix}: Record<string, unknown>, context: any) => {`,
     );
-    if (needsG) {
-      lines.push(`        const g = ${contextPrefix}.globalArgs;`);
-    }
-    lines.push(`        const projectId = await getProjectId();`);
+    lines.push(`        const g = context.globalArgs;`);
+    lines.push(`        const credentials = _buildGcpCredentials(g);`);
+    lines.push(`        const projectId = await getProjectId(credentials);`);
     lines.push(
       `        const params: Record<string, string> = { project: projectId };`,
     );
@@ -1329,10 +1388,10 @@ export function generateGcpExtensionModel(
     if (needsExistingState) {
       const instanceNameRef = isSyntheticName ? "name" : namingField;
       lines.push(
-        `        const content = await ${contextPrefix}.dataRepository.getContent(`,
+        `        const content = await context.dataRepository.getContent(`,
       );
       lines.push(
-        `          ${contextPrefix}.modelType, ${contextPrefix}.modelId, ${
+        `          context.modelType, context.modelId, ${
           wrapWithSanitize(`g.${instanceNameRef}?.toString() ?? "current"`)
         },`,
       );
@@ -1380,7 +1439,7 @@ export function generateGcpExtensionModel(
     lines.push(
       `        const result = await createResource(BASE_URL, ${actionConfigStr}, params, ${
         argProps.length > 0 ? "body" : "{}"
-      });`,
+      }, undefined, undefined, undefined, credentials);`,
     );
 
     lines.push(`        return { result };`);

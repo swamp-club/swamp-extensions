@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/websecurityscanner"
-version: "2026.05.25.2"
+version: "2026.06.07.1"
 description: "Google Cloud websecurityscanner infrastructure models"
 repository: "https://github.com/systeminit/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: scanconfigs_scanruns_findingtypestats
+  - Updated: scanconfigs, scanconfigs_scanruns, scanconfigs_scanruns_crawledurls, scanconfigs_scanruns_findingtypestats, scanconfigs_scanruns_findings
 models:
   - scanconfigs.ts
   - scanconfigs_scanruns.ts
