@@ -690,13 +690,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Compute changed files
         id: changed
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           mkdir -p "${RUNNER_TEMP}/review"
-          git fetch origin main
-          git diff --name-only origin/main..HEAD > ${RUNNER_TEMP}/review/changed-files.txt || true
+          git diff --name-only "${BASE_SHA}...${HEAD_SHA}" > ${RUNNER_TEMP}/review/changed-files.txt || true
           COUNT=$(wc -l < ${RUNNER_TEMP}/review/changed-files.txt | tr -d ' ')
           echo "Changed files in scope: $COUNT"
           cat ${RUNNER_TEMP}/review/changed-files.txt
@@ -819,13 +823,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Compute changed files
         id: changed
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           mkdir -p "${RUNNER_TEMP}/review"
-          git fetch origin main
-          git diff --name-only origin/main..HEAD > ${RUNNER_TEMP}/review/changed-files.txt || true
+          git diff --name-only "${BASE_SHA}...${HEAD_SHA}" > ${RUNNER_TEMP}/review/changed-files.txt || true
           COUNT=$(wc -l < ${RUNNER_TEMP}/review/changed-files.txt | tr -d ' ')
           echo "Changed files in scope: $COUNT"
           cat ${RUNNER_TEMP}/review/changed-files.txt
@@ -924,13 +932,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Compute changed files
         id: changed
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           mkdir -p "${RUNNER_TEMP}/review"
-          git fetch origin main
-          git diff --name-only origin/main..HEAD | grep -E '^\.(forgejo|github)/|^scripts/' > ${RUNNER_TEMP}/review/changed-files.txt || true
+          git diff --name-only "${BASE_SHA}...${HEAD_SHA}" | grep -E '^\.(forgejo|github)/|^scripts/' > ${RUNNER_TEMP}/review/changed-files.txt || true
           COUNT=$(wc -l < ${RUNNER_TEMP}/review/changed-files.txt | tr -d ' ')
           echo "Changed workflow/CI files in scope: $COUNT"
           cat ${RUNNER_TEMP}/review/changed-files.txt
