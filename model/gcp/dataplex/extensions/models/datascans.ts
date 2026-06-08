@@ -961,6 +961,71 @@ const GlobalArgsSchema = z.object({
   labels: z.record(z.string(), z.string()).describe(
     "Optional. User-defined labels for the scan.",
   ).optional(),
+  unstructuredDataProfileResult: z.object({
+    description: z.string().describe("Output only. The inferred description.")
+      .optional(),
+    graphProfile: z.object({
+      edgeTypes: z.array(z.object({
+        description: z.string().describe(
+          "Output only. Description of the edge type.",
+        ).optional(),
+        extractionHints: z.object({
+          cardinality: z.unknown().describe(
+            'Output only. Expected connectivity topology and bounds of this relationship. Format: "Topology - Description" Example: "1:N - One company can have multiple financial reports."',
+          ).optional(),
+        }).describe("Extraction hints (edge-level).").optional(),
+        fields: z.array(z.unknown()).describe(
+          "Output only. Fields of the edge type.",
+        ).optional(),
+        foreignKeys: z.array(z.unknown()).describe(
+          "Output only. Defines the Foreign Key constraints for the edge.",
+        ).optional(),
+        name: z.string().describe("Output only. Name of the edge type.")
+          .optional(),
+        sourceNodeType: z.string().describe("Output only. Source node type.")
+          .optional(),
+        targetNodeType: z.string().describe("Output only. Target node type.")
+          .optional(),
+      })).describe("Output only. Edge types.").optional(),
+      nodeTypes: z.array(z.object({
+        description: z.string().describe(
+          "Output only. Description of the node type.",
+        ).optional(),
+        extractionHints: z.object({
+          cardinality: z.unknown().describe(
+            'Output only. Expected occurrence frequency of this node type within a document. Format: "Bounds - Description" Example: "0:N - A document may contain multiple people names."',
+          ).optional(),
+        }).describe("Extraction hints (node-level).").optional(),
+        fields: z.array(z.unknown()).describe(
+          "Output only. Fields of the node type.",
+        ).optional(),
+        name: z.string().describe("Output only. Name of the node type.")
+          .optional(),
+        primaryKeys: z.array(z.unknown()).describe(
+          "Output only. Field names forming the primary keys. The order in this array defines the key's ordinal positions for composite keys.",
+        ).optional(),
+      })).describe("Output only. Node types.").optional(),
+    }).describe(
+      "Contains the strict structure for graph-profile for semantic inference scan result.",
+    ).optional(),
+    partialFailureMessage: z.string().describe(
+      "Output only. Optional message for partial failures (e.g. node type extraction failed).",
+    ).optional(),
+  }).describe("Contains the result of an unstructured data profile scan.")
+    .optional(),
+  unstructuredDataProfileSpec: z.object({
+    customizedPrompt: z.string().describe(
+      "Optional. Customized prompt for unstructured data profile. The field will be used as part of the prompt, could be some instruction, specifying skill, or specific area to focus.",
+    ).optional(),
+    globalEndpointEnabled: z.boolean().describe(
+      "Optional. Whether to use the global model.",
+    ).optional(),
+    graphProfilePublishingEnabled: z.boolean().describe(
+      "Optional. Whether to publish graph-profile as aspect on the catalog entry.",
+    ).optional(),
+  }).describe(
+    "Contains the specification for an unstructured data profile scan.",
+  ).optional(),
   dataScanId: z.string().describe(
     'Optional. DataScan identifier. If not provided, a unique ID will be generated with the prefix "data-scan-". Must contain only lowercase letters, numbers and hyphens. Must start with a letter. Must end with a number or a letter. Must be between 1-63 characters. Must be unique within the customer project / location.',
   ).optional(),
@@ -1327,6 +1392,37 @@ const StateSchema = z.object({
   state: z.string().optional(),
   type: z.string().optional(),
   uid: z.string().optional(),
+  unstructuredDataProfileResult: z.object({
+    description: z.string(),
+    graphProfile: z.object({
+      edgeTypes: z.array(z.object({
+        description: z.string(),
+        extractionHints: z.object({
+          cardinality: z.unknown(),
+        }),
+        fields: z.array(z.unknown()),
+        foreignKeys: z.array(z.unknown()),
+        name: z.string(),
+        sourceNodeType: z.string(),
+        targetNodeType: z.string(),
+      })),
+      nodeTypes: z.array(z.object({
+        description: z.string(),
+        extractionHints: z.object({
+          cardinality: z.unknown(),
+        }),
+        fields: z.array(z.unknown()),
+        name: z.string(),
+        primaryKeys: z.array(z.unknown()),
+      })),
+    }),
+    partialFailureMessage: z.string(),
+  }).optional(),
+  unstructuredDataProfileSpec: z.object({
+    customizedPrompt: z.string(),
+    globalEndpointEnabled: z.boolean(),
+    graphProfilePublishingEnabled: z.boolean(),
+  }).optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -2147,6 +2243,71 @@ const InputsSchema = z.object({
   labels: z.record(z.string(), z.string()).describe(
     "Optional. User-defined labels for the scan.",
   ).optional(),
+  unstructuredDataProfileResult: z.object({
+    description: z.string().describe("Output only. The inferred description.")
+      .optional(),
+    graphProfile: z.object({
+      edgeTypes: z.array(z.object({
+        description: z.string().describe(
+          "Output only. Description of the edge type.",
+        ).optional(),
+        extractionHints: z.object({
+          cardinality: z.unknown().describe(
+            'Output only. Expected connectivity topology and bounds of this relationship. Format: "Topology - Description" Example: "1:N - One company can have multiple financial reports."',
+          ).optional(),
+        }).describe("Extraction hints (edge-level).").optional(),
+        fields: z.array(z.unknown()).describe(
+          "Output only. Fields of the edge type.",
+        ).optional(),
+        foreignKeys: z.array(z.unknown()).describe(
+          "Output only. Defines the Foreign Key constraints for the edge.",
+        ).optional(),
+        name: z.string().describe("Output only. Name of the edge type.")
+          .optional(),
+        sourceNodeType: z.string().describe("Output only. Source node type.")
+          .optional(),
+        targetNodeType: z.string().describe("Output only. Target node type.")
+          .optional(),
+      })).describe("Output only. Edge types.").optional(),
+      nodeTypes: z.array(z.object({
+        description: z.string().describe(
+          "Output only. Description of the node type.",
+        ).optional(),
+        extractionHints: z.object({
+          cardinality: z.unknown().describe(
+            'Output only. Expected occurrence frequency of this node type within a document. Format: "Bounds - Description" Example: "0:N - A document may contain multiple people names."',
+          ).optional(),
+        }).describe("Extraction hints (node-level).").optional(),
+        fields: z.array(z.unknown()).describe(
+          "Output only. Fields of the node type.",
+        ).optional(),
+        name: z.string().describe("Output only. Name of the node type.")
+          .optional(),
+        primaryKeys: z.array(z.unknown()).describe(
+          "Output only. Field names forming the primary keys. The order in this array defines the key's ordinal positions for composite keys.",
+        ).optional(),
+      })).describe("Output only. Node types.").optional(),
+    }).describe(
+      "Contains the strict structure for graph-profile for semantic inference scan result.",
+    ).optional(),
+    partialFailureMessage: z.string().describe(
+      "Output only. Optional message for partial failures (e.g. node type extraction failed).",
+    ).optional(),
+  }).describe("Contains the result of an unstructured data profile scan.")
+    .optional(),
+  unstructuredDataProfileSpec: z.object({
+    customizedPrompt: z.string().describe(
+      "Optional. Customized prompt for unstructured data profile. The field will be used as part of the prompt, could be some instruction, specifying skill, or specific area to focus.",
+    ).optional(),
+    globalEndpointEnabled: z.boolean().describe(
+      "Optional. Whether to use the global model.",
+    ).optional(),
+    graphProfilePublishingEnabled: z.boolean().describe(
+      "Optional. Whether to publish graph-profile as aspect on the catalog entry.",
+    ).optional(),
+  }).describe(
+    "Contains the specification for an unstructured data profile scan.",
+  ).optional(),
   dataScanId: z.string().describe(
     'Optional. DataScan identifier. If not provided, a unique ID will be generated with the prefix "data-scan-". Must contain only lowercase letters, numbers and hyphens. Must start with a letter. Must end with a number or a letter. Must be between 1-63 characters. Must be unique within the customer project / location.',
   ).optional(),
@@ -2170,7 +2331,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex DataScans. Registered at `@swamp/gcp/dataplex/datascans`. */
 export const model = {
   type: "@swamp/gcp/dataplex/datascans",
-  version: "2026.06.07.1",
+  version: "2026.06.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2296,6 +2457,12 @@ export const model = {
       description: "Added: accessToken, credentialsJson, project",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.08.1",
+      description:
+        "Added: unstructuredDataProfileResult, unstructuredDataProfileSpec",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -2366,6 +2533,14 @@ export const model = {
           body["executionStatus"] = g["executionStatus"];
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        if (g["unstructuredDataProfileResult"] !== undefined) {
+          body["unstructuredDataProfileResult"] =
+            g["unstructuredDataProfileResult"];
+        }
+        if (g["unstructuredDataProfileSpec"] !== undefined) {
+          body["unstructuredDataProfileSpec"] =
+            g["unstructuredDataProfileSpec"];
+        }
         if (g["dataScanId"] !== undefined) body["dataScanId"] = g["dataScanId"];
         if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
@@ -2513,6 +2688,14 @@ export const model = {
           body["executionStatus"] = g["executionStatus"];
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        if (g["unstructuredDataProfileResult"] !== undefined) {
+          body["unstructuredDataProfileResult"] =
+            g["unstructuredDataProfileResult"];
+        }
+        if (g["unstructuredDataProfileSpec"] !== undefined) {
+          body["unstructuredDataProfileSpec"] =
+            g["unstructuredDataProfileSpec"];
+        }
         for (const key of Object.keys(existing)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||

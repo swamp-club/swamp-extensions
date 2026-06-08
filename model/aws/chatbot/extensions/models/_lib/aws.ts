@@ -31,6 +31,11 @@ function createClient(credentials?: AwsCredentials): CloudControlClient {
         ? { sessionToken: credentials.sessionToken }
         : {}),
     };
+  } else if (credentials?.accessKeyId || credentials?.secretAccessKey) {
+    console.warn(
+      "[AWS] Partial credentials: both accessKeyId and secretAccessKey must be provided. " +
+        "Falling back to the default credential chain.",
+    );
   }
 
   return new CloudControlClient(config);

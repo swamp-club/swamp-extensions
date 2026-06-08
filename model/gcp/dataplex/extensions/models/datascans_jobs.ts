@@ -422,6 +422,37 @@ const StateSchema = z.object({
   state: z.string().optional(),
   type: z.string().optional(),
   uid: z.string().optional(),
+  unstructuredDataProfileResult: z.object({
+    description: z.string(),
+    graphProfile: z.object({
+      edgeTypes: z.array(z.object({
+        description: z.string(),
+        extractionHints: z.object({
+          cardinality: z.unknown(),
+        }),
+        fields: z.array(z.unknown()),
+        foreignKeys: z.array(z.unknown()),
+        name: z.string(),
+        sourceNodeType: z.string(),
+        targetNodeType: z.string(),
+      })),
+      nodeTypes: z.array(z.object({
+        description: z.string(),
+        extractionHints: z.object({
+          cardinality: z.unknown(),
+        }),
+        fields: z.array(z.unknown()),
+        name: z.string(),
+        primaryKeys: z.array(z.unknown()),
+      })),
+    }),
+    partialFailureMessage: z.string(),
+  }).optional(),
+  unstructuredDataProfileSpec: z.object({
+    customizedPrompt: z.string(),
+    globalEndpointEnabled: z.boolean(),
+    graphProfilePublishingEnabled: z.boolean(),
+  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -451,7 +482,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex DataScans.Jobs. Registered at `@swamp/gcp/dataplex/datascans-jobs`. */
 export const model = {
   type: "@swamp/gcp/dataplex/datascans-jobs",
-  version: "2026.06.07.1",
+  version: "2026.06.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -561,6 +592,11 @@ export const model = {
     {
       toVersion: "2026.06.07.1",
       description: "Added: accessToken, credentialsJson, project",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
