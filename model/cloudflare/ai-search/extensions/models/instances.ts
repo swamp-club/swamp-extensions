@@ -1,3 +1,22 @@
+// Swamp, an Automation Framework
+// Copyright (C) 2026 Elder Swamp Club, Inc.
+//
+// This file is part of Swamp.
+//
+// Swamp is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License version 3
+// as published by the Free Software Foundation, with the Swamp
+// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
+// file).
+//
+// Swamp is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+
 // Auto-generated extension model for @swamp/cloudflare/ai-search/instances
 // Do not edit manually. Re-generate with: deno task generate:cloudflare
 
@@ -159,10 +178,10 @@ const GlobalArgsSchema = z.object({
   score_threshold: z.number().min(0).max(1).optional(),
   source_params: z.object({
     exclude_items: z.array(
-      z.string().regex(new RegExp("^[*/\\\\]?[\\w\\-/.\\\\?*:=&%]+$")),
+      z.string().max(512).regex(new RegExp("^[*/\\\\]?[\\w\\-/.\\\\?*:=&%]+$")),
     ).optional(),
     include_items: z.array(
-      z.string().regex(new RegExp("^[*/\\\\]?[\\w\\-/.\\\\?*:=&%]+$")),
+      z.string().max(512).regex(new RegExp("^[*/\\\\]?[\\w\\-/.\\\\?*:=&%]+$")),
     ).optional(),
     prefix: z.string().optional(),
     r2_jurisdiction: z.string().optional(),
@@ -500,10 +519,10 @@ const InputsSchema = z.object({
   score_threshold: z.number().min(0).max(1).optional(),
   source_params: z.object({
     exclude_items: z.array(
-      z.string().regex(new RegExp("^[*/\\\\]?[\\w\\-/.\\\\?*:=&%]+$")),
+      z.string().max(512).regex(new RegExp("^[*/\\\\]?[\\w\\-/.\\\\?*:=&%]+$")),
     ).optional(),
     include_items: z.array(
-      z.string().regex(new RegExp("^[*/\\\\]?[\\w\\-/.\\\\?*:=&%]+$")),
+      z.string().max(512).regex(new RegExp("^[*/\\\\]?[\\w\\-/.\\\\?*:=&%]+$")),
     ).optional(),
     prefix: z.string().optional(),
     r2_jurisdiction: z.string().optional(),
@@ -585,11 +604,21 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Instances. Registered at `@swamp/cloudflare/ai-search/instances`. */
 export const model = {
   type: "@swamp/cloudflare/ai-search/instances",
-  version: "2026.05.29.1",
+  version: "2026.06.08.2",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
       description: "Added: apiToken, apiKey, email",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.08.2",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

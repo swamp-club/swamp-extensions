@@ -2,6 +2,7 @@
 // Each file exports `const model = { ... }` using the swamp extension model pattern.
 
 import type { CloudflareProperty, CloudflareResource } from "./pipeline.ts";
+import { generateCopyrightHeader } from "../shared/licenseGenerator.ts";
 import { wrapWithSanitize } from "../shared/instanceName.ts";
 
 const VALID_JS_IDENT = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
@@ -24,6 +25,8 @@ export function generateCloudflareExtensionModel(
 
   const lines: string[] = [];
 
+  lines.push(generateCopyrightHeader());
+  lines.push("");
   lines.push(
     `// Auto-generated extension model for ${modelType}`,
   );

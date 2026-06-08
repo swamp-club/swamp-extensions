@@ -12,7 +12,7 @@ Deno.test("generateManifest - full manifest with release notes and additional fi
       modelFiles: ["servers.ts", "ssh_keys.ts", "volumes.ts"],
       releaseNotes: "- Updated: servers, volumes\n- New: ssh_keys",
       additionalFiles: ["README.md", "LICENSE.txt"],
-      repository: "https://github.com/systeminit/swamp-extensions",
+      repository: "https://github.com/swamp-club/swamp-extensions",
       platforms: [],
     }),
   );

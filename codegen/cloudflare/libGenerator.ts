@@ -1,12 +1,16 @@
 // Generates _lib/cloudflare.ts — shared HTTP client and CRUD helpers for Cloudflare models
 
+import { generateCopyrightHeader } from "../shared/licenseGenerator.ts";
+
 /**
  * Generates the shared helper file that all Cloudflare extension models import.
  * Contains auth, HTTP client, response envelope unwrapping, rate-limit retry,
  * pagination helpers, and CRUD operations.
  */
 export function generateCloudflareLibFile(): string {
-  return `// Auto-generated shared helper for Cloudflare extension models.
+  return `${generateCopyrightHeader()}
+
+// Auto-generated shared helper for Cloudflare extension models.
 // Do not edit manually. Re-generate with: deno task generate:cloudflare
 
 const API_BASE = "https://api.cloudflare.com/client/v4";

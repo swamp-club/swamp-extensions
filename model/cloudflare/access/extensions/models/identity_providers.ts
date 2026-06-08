@@ -1,3 +1,22 @@
+// Swamp, an Automation Framework
+// Copyright (C) 2026 Elder Swamp Club, Inc.
+//
+// This file is part of Swamp.
+//
+// Swamp is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License version 3
+// as published by the Free Software Foundation, with the Swamp
+// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
+// file).
+//
+// Swamp is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+
 // Auto-generated extension model for @swamp/cloudflare/access/identity-providers
 // Do not edit manually. Re-generate with: deno task generate:cloudflare
 
@@ -36,6 +55,9 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "The name of the identity provider, shown to users on the login page.",
   ),
+  read_only: z.boolean().describe(
+    "Indicates that the identity provider is immutable and cannot be updated or deleted via the API.\n",
+  ).optional(),
   saml_certificate_set: z.object({
     created_at: z.string(),
     current_certificate: z.object({
@@ -128,6 +150,7 @@ const ResourceSchema = z.object({
     }).optional(),
     id: z.string().optional(),
     name: z.string().optional(),
+    read_only: z.boolean().optional(),
     saml_certificate_set: z.object({
       created_at: z.string().optional(),
       current_certificate: z.object({
@@ -171,6 +194,7 @@ const InputsSchema = z.object({
   }).optional(),
   id: z.string().max(36).optional(),
   name: z.string().optional(),
+  read_only: z.boolean().optional(),
   saml_certificate_set: z.object({
     created_at: z.string(),
     current_certificate: z.object({
@@ -218,11 +242,21 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Identity Providers. Registered at `@swamp/cloudflare/access/identity-providers`. */
 export const model = {
   type: "@swamp/cloudflare/access/identity-providers",
-  version: "2026.05.29.1",
+  version: "2026.06.08.2",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
       description: "Added: apiToken, apiKey, email",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.08.1",
+      description: "Added: read_only",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.08.2",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -250,6 +284,7 @@ export const model = {
         if (g.config !== undefined) body.config = g.config;
         if (g.id !== undefined) body.id = g.id;
         if (g.name !== undefined) body.name = g.name;
+        if (g.read_only !== undefined) body.read_only = g.read_only;
         if (g.saml_certificate_set !== undefined) {
           body.saml_certificate_set = g.saml_certificate_set;
         }
@@ -327,6 +362,7 @@ export const model = {
         if (g.config !== undefined) body.config = g.config;
         if (g.id !== undefined) body.id = g.id;
         if (g.name !== undefined) body.name = g.name;
+        if (g.read_only !== undefined) body.read_only = g.read_only;
         if (g.saml_certificate_set !== undefined) {
           body.saml_certificate_set = g.saml_certificate_set;
         }

@@ -16,6 +16,7 @@ import {
   formatFile,
 } from "../shared/version.ts";
 import { computeUpgradesBlock } from "../shared/upgradesGenerator.ts";
+import { serializeWithCycleDetection } from "../shared/serialize.ts";
 
 const CLOUDFLARE_SPEC_URL =
   "https://raw.githubusercontent.com/cloudflare/api-schemas/refs/heads/main/openapi.json";
@@ -438,7 +439,7 @@ export async function generateCloudflareModels(options: {
       modelFiles: modelFileNames,
       additionalFiles: ["LICENSE.txt", "README.md"],
       releaseNotes: releaseNotes || undefined,
-      repository: "https://github.com/systeminit/swamp-extensions",
+      repository: "https://github.com/swamp-club/swamp-extensions",
       platforms: [],
     });
 
@@ -459,7 +460,7 @@ export async function generateCloudflareModels(options: {
       modelFiles: modelFileNames,
       additionalFiles: ["LICENSE.txt", "README.md"],
       releaseNotes: releaseNotes || undefined,
-      repository: "https://github.com/systeminit/swamp-extensions",
+      repository: "https://github.com/swamp-club/swamp-extensions",
       platforms: [],
     });
 
@@ -535,58 +536,68 @@ export async function fetchCloudflareSchema(options?: {
   }
 }
 
-/**
- * Serialize a dereferenced OpenAPI spec to JSON, correctly handling both
- * shared $ref targets (same JS object from multiple locations) and true
- * circular references. Uses ancestor tracking so shared refs are serialized
- * fully while true cycles are replaced with "[Circular]".
- */
-function serializeWithCycleDetection(
-  root: unknown,
-): string {
-  const ancestors = new Set<object>();
-
-  function serialize(value: unknown): unknown {
-    if (value === null || typeof value !== "object") return value;
-
-    const obj = value as object;
-
-    if (ancestors.has(obj)) return "[Circular]";
-
-    ancestors.add(obj);
-
-    let result: unknown;
-    if (Array.isArray(obj)) {
-      result = obj.map((item) => serialize(item));
-    } else {
-      const out: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(obj)) {
-        out[k] = serialize(v);
-      }
-      result = out;
-    }
-
-    ancestors.delete(obj);
-    return result;
-  }
-
-  return JSON.stringify(serialize(root), null, 2);
-}
-
 // --- OpenAPI parsing ---
 
-// deno-lint-ignore no-explicit-any
-type Spec = any;
+interface OApiSchema {
+  $ref?: string;
+  type?: string;
+  description?: string;
+  properties?: Record<string, OApiSchema>;
+  required?: string[];
+  anyOf?: OApiSchema[];
+  oneOf?: OApiSchema[];
+  allOf?: OApiSchema[];
+  enum?: (string | number)[];
+  items?: OApiSchema;
+  format?: string;
+  readOnly?: boolean;
+  minimum?: number;
+  maximum?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  default?: unknown;
+}
+
+interface OApiParameter {
+  name: string;
+  in?: string;
+  required?: boolean;
+}
+
+interface OApiOperation {
+  requestBody?: {
+    content?: Record<string, { schema?: OApiSchema }>;
+  };
+  responses?: Record<string, {
+    content?: Record<string, { schema?: OApiSchema }>;
+  }>;
+  parameters?: OApiParameter[];
+}
+
+interface OApiPathItem {
+  get?: OApiOperation;
+  post?: OApiOperation;
+  put?: OApiOperation;
+  patch?: OApiOperation;
+  delete?: OApiOperation;
+  [method: string]: OApiOperation | undefined;
+}
+
+interface OApiSpec {
+  paths?: Record<string, OApiPathItem>;
+  [key: string]: unknown;
+}
 
 /**
  * Parse the Cloudflare OpenAPI spec, group endpoints by service,
  * and extract resource definitions.
  */
-export function parseResources(spec: Spec): {
+export function parseResources(spec: OApiSpec): {
   resources: CloudflareResource[];
   skipped: { path: string; reason: string }[];
 } {
-  const paths: Record<string, Record<string, Spec>> = spec.paths ?? {};
+  const paths: Record<string, OApiPathItem> = spec.paths ?? {};
   const skipped: { path: string; reason: string }[] = [];
 
   // Group paths into base+ID endpoint pairs
@@ -821,8 +832,8 @@ function buildResource(
   basePath: string,
   idPath: string,
   idParam: string,
-  paths: Record<string, Record<string, Spec>>,
-  spec: Spec,
+  paths: Record<string, OApiPathItem>,
+  spec: OApiSpec,
 ): CloudflareResource | null {
   const baseMethods = paths[basePath];
   const idMethods = paths[idPath];
@@ -929,12 +940,12 @@ function resolveNamingField(
 }
 
 function detectPagination(
-  getOp: Spec | undefined,
+  getOp: OApiOperation | undefined,
 ): "page" | "cursor" | "none" {
   if (!getOp?.parameters) return "none";
-  const queryParams = (getOp.parameters as Spec[])
-    .filter((p: Spec) => !p.in || p.in === "query")
-    .map((p: Spec) => p.name as string);
+  const queryParams = (getOp.parameters ?? [])
+    .filter((p) => !p.in || p.in === "query")
+    .map((p) => p.name);
   if (queryParams.includes("cursor")) return "cursor";
   if (queryParams.includes("page")) return "page";
   return "none";
@@ -948,8 +959,8 @@ function detectPagination(
  * (e.g., DNS records use anyOf[oneOf[allOf[shared, specific]]]).
  */
 function extractRequestBody(
-  operation: Spec,
-  spec: Spec,
+  operation: OApiOperation | undefined,
+  spec: OApiSpec,
 ): { properties: Record<string, CloudflareProperty>; required: string[] } {
   const body = operation?.requestBody;
   if (!body) return { properties: {}, required: [] };
@@ -964,7 +975,7 @@ function extractRequestBody(
 
   const properties: Record<string, CloudflareProperty> = {};
   for (const [name, propSchema] of Object.entries(flattened.properties)) {
-    properties[name] = normalizeProperty(propSchema as Spec, spec);
+    properties[name] = normalizeProperty(propSchema, spec);
   }
 
   return {
@@ -978,7 +989,7 @@ function extractRequestBody(
  * properties+required object by merging all branches.
  * For disjunctions (anyOf/oneOf), required uses intersection.
  */
-function flattenSchema(schema: Spec, spec: Spec): Spec {
+function flattenSchema(schema: OApiSchema, spec: OApiSpec): OApiSchema {
   if (!schema || typeof schema !== "object") return {};
 
   const resolved = resolveSchema(schema, spec);
@@ -988,15 +999,18 @@ function flattenSchema(schema: Spec, spec: Spec): Spec {
 
   // anyOf or oneOf — merge all branch properties, intersect required
   if (resolved.anyOf || resolved.oneOf) {
-    const branches = (resolved.anyOf ?? resolved.oneOf) as Spec[];
+    const branches = resolved.anyOf ?? resolved.oneOf!;
     return flattenDisjunction(branches, spec);
   }
 
   return resolved;
 }
 
-function flattenDisjunction(branches: Spec[], spec: Spec): Spec {
-  const allProps: Record<string, Spec> = {};
+function flattenDisjunction(
+  branches: OApiSchema[],
+  spec: OApiSpec,
+): OApiSchema {
+  const allProps: Record<string, OApiSchema> = {};
   const requiredSets: Set<string>[] = [];
 
   for (const branch of branches) {
@@ -1009,7 +1023,7 @@ function flattenDisjunction(branches: Spec[], spec: Spec): Spec {
       }
     }
     if (flattened.required) {
-      requiredSets.push(new Set(flattened.required as string[]));
+      requiredSets.push(new Set(flattened.required));
     }
   }
 
@@ -1037,8 +1051,8 @@ function flattenDisjunction(branches: Spec[], spec: Spec): Spec {
  * Cloudflare envelope (allOf[api-response-common, {result: ...}]).
  */
 function extractResponseProperties(
-  operation: Spec,
-  spec: Spec,
+  operation: OApiOperation | undefined,
+  spec: OApiSpec,
 ): Record<string, CloudflareProperty> {
   const responses = operation?.responses;
   if (!responses) return {};
@@ -1070,9 +1084,9 @@ function extractResponseProperties(
  * Pattern: allOf[{success, errors, messages}, {result: <resource>}]
  */
 function extractResultFromEnvelope(
-  schema: Spec,
-  spec: Spec,
-): Spec | null {
+  schema: OApiSchema,
+  spec: OApiSpec,
+): OApiSchema | null {
   // Direct `result` property
   if (schema.properties?.result) {
     const resultSchema = resolveSchema(schema.properties.result, spec);
@@ -1110,12 +1124,12 @@ function extractResultFromEnvelope(
 }
 
 function normalizeProperties(
-  schema: Spec,
-  spec: Spec,
+  schema: OApiSchema,
+  spec: OApiSpec,
 ): Record<string, CloudflareProperty> {
   const result: Record<string, CloudflareProperty> = {};
   for (const [name, propSchema] of Object.entries(schema.properties ?? {})) {
-    result[name] = normalizeProperty(propSchema as Spec, spec);
+    result[name] = normalizeProperty(propSchema, spec);
   }
   return result;
 }
@@ -1127,16 +1141,16 @@ function normalizeProperties(
  * The spec has already been dereferenced but allOf/oneOf/anyOf still
  * need flattening.
  */
-function resolveSchema(schema: Spec, spec: Spec): Spec {
+function resolveSchema(schema: OApiSchema, spec: OApiSpec): OApiSchema {
   if (!schema || typeof schema !== "object") return schema ?? {};
 
   if (schema.$ref) {
-    const refPath = (schema.$ref as string).replace(/^#\//, "").split("/");
-    let current: Spec = spec;
+    const refPath = schema.$ref.replace(/^#\//, "").split("/");
+    let current: unknown = spec;
     for (const segment of refPath) {
-      current = current?.[segment];
+      current = (current as Record<string, unknown>)?.[segment];
     }
-    return current ? resolveSchema(current, spec) : {};
+    return current ? resolveSchema(current as OApiSchema, spec) : {};
   }
 
   if (schema.allOf) {
@@ -1146,8 +1160,8 @@ function resolveSchema(schema: Spec, spec: Spec): Spec {
   return schema;
 }
 
-function mergeAllOf(allOf: Spec[], spec: Spec): Spec {
-  const merged: Spec = {};
+function mergeAllOf(allOf: OApiSchema[], spec: OApiSpec): OApiSchema {
+  const merged: OApiSchema = {};
   for (const item of allOf) {
     const resolved = resolveSchema(item, spec);
     if (resolved.properties) {
@@ -1170,7 +1184,10 @@ function mergeAllOf(allOf: Spec[], spec: Spec): Spec {
 /**
  * Normalize an OpenAPI property schema into CloudflareProperty.
  */
-function normalizeProperty(schema: Spec, spec: Spec): CloudflareProperty {
+function normalizeProperty(
+  schema: OApiSchema,
+  spec: OApiSpec,
+): CloudflareProperty {
   if (!schema || typeof schema !== "object") {
     return { type: "string" };
   }
@@ -1179,7 +1196,7 @@ function normalizeProperty(schema: Spec, spec: Spec): CloudflareProperty {
 
   // Handle oneOf — pick the first non-null variant
   if (resolved.oneOf) {
-    for (const variant of resolved.oneOf as Spec[]) {
+    for (const variant of resolved.oneOf) {
       const resolvedVariant = resolveSchema(variant, spec);
       if (resolvedVariant.type && resolvedVariant.type !== "null") {
         return normalizeProperty(resolvedVariant, spec);
@@ -1190,7 +1207,7 @@ function normalizeProperty(schema: Spec, spec: Spec): CloudflareProperty {
 
   // Handle anyOf similarly
   if (resolved.anyOf) {
-    for (const variant of resolved.anyOf as Spec[]) {
+    for (const variant of resolved.anyOf) {
       const resolvedVariant = resolveSchema(variant, spec);
       if (resolvedVariant.type && resolvedVariant.type !== "null") {
         return normalizeProperty(resolvedVariant, spec);
@@ -1202,7 +1219,7 @@ function normalizeProperty(schema: Spec, spec: Spec): CloudflareProperty {
   const type = resolved.type ?? "string";
 
   const prop: CloudflareProperty = {
-    type: type === "integer" ? "integer" : type,
+    type: (type === "integer" ? "integer" : type) as CloudflareProperty["type"],
     description: resolved.description,
   };
 
@@ -1228,7 +1245,7 @@ function normalizeProperty(schema: Spec, spec: Spec): CloudflareProperty {
   if (type === "object" && resolved.properties) {
     prop.properties = {};
     for (const [name, childSchema] of Object.entries(resolved.properties)) {
-      prop.properties[name] = normalizeProperty(childSchema as Spec, spec);
+      prop.properties[name] = normalizeProperty(childSchema, spec);
     }
     if (resolved.required && Array.isArray(resolved.required)) {
       prop.requiredProperties = resolved.required;

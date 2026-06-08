@@ -1,3 +1,22 @@
+// Swamp, an Automation Framework
+// Copyright (C) 2026 Elder Swamp Club, Inc.
+//
+// This file is part of Swamp.
+//
+// Swamp is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License version 3
+// as published by the Free Software Foundation, with the Swamp
+// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
+// file).
+//
+// Swamp is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+
 // Auto-generated extension model for @swamp/cloudflare/zerotrust/hostname
 // Do not edit manually. Re-generate with: deno task generate:cloudflare
 
@@ -41,6 +60,7 @@ const ResourceSchema = z.object({
   deleted_at: z.string().optional(),
   hostname: z.string().optional(),
   id: z.string(),
+  tun_type: z.string().optional(),
   tunnel_id: z.string().optional(),
   tunnel_name: z.string().optional(),
 }).passthrough();
@@ -61,11 +81,21 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Hostname. Registered at `@swamp/cloudflare/zerotrust/hostname`. */
 export const model = {
   type: "@swamp/cloudflare/zerotrust/hostname",
-  version: "2026.05.29.1",
+  version: "2026.06.08.2",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
       description: "Added: apiToken, apiKey, email",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.08.2",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

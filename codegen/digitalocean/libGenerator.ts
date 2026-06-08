@@ -1,5 +1,7 @@
 // Generates _lib/digitalocean.ts — shared HTTP client and CRUD helpers for DigitalOcean models
 
+import { generateCopyrightHeader } from "../shared/licenseGenerator.ts";
+
 /**
  * Generates the shared helper file that all DigitalOcean extension models import.
  * Contains auth, HTTP client, response unwrapping, CRUD operations,
@@ -8,7 +10,9 @@
  * token validation via /v2/account, action/readiness polling.
  */
 export function generateDigitalOceanLibFile(): string {
-  return `// Auto-generated shared helper for DigitalOcean extension models.
+  return `${generateCopyrightHeader()}
+
+// Auto-generated shared helper for DigitalOcean extension models.
 // Do not edit manually. Re-generate with: deno task generate:digitalocean
 
 const API_BASE = "https://api.digitalocean.com";

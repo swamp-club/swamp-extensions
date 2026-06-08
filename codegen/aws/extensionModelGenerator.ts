@@ -3,6 +3,7 @@
 
 import type { ZodGeneratorResult } from "../shared/zodGenerator.ts";
 import type { CfSchema, OnlyProperties } from "../shared/schema/types.ts";
+import { generateCopyrightHeader } from "../shared/licenseGenerator.ts";
 import { wrapWithSanitize } from "../shared/instanceName.ts";
 import type { ParsedEnrichmentSource } from "./enrichments/types.ts";
 
@@ -104,6 +105,8 @@ export function generateAwsExtensionModel(
     : "StateSchema";
 
   // Header
+  lines.push(generateCopyrightHeader());
+  lines.push("");
   lines.push(`// Auto-generated extension model for ${modelType}`);
   lines.push(
     `// Do not edit manually. Re-generate with: deno task generate:aws`,

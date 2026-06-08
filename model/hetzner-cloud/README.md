@@ -1,6 +1,6 @@
 # @swamp/hetzner-cloud
 
-Auto-generated [swamp](https://github.com/systeminit/swamp) extension models for
+Auto-generated [swamp](https://github.com/swamp-club/swamp) extension models for
 Hetzner Cloud resources.
 
 Each model represents a single Hetzner Cloud resource (e.g., a server, a

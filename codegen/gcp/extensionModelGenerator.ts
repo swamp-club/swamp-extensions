@@ -5,6 +5,7 @@ import type { ZodGeneratorResult } from "../shared/zodGenerator.ts";
 import type { OnlyProperties } from "../shared/schema/types.ts";
 import type { GcpParsedResource } from "./pipeline.ts";
 import type { ParsedEnrichmentSource } from "./enrichments/types.ts";
+import { generateCopyrightHeader } from "../shared/licenseGenerator.ts";
 import { wrapWithSanitize } from "../shared/instanceName.ts";
 
 /**
@@ -52,14 +53,16 @@ export function generateGcpExtensionModel(
 
   const lines: string[] = [];
 
-  // Detect control character regex escapes for lint directive
+  // Detect if generated code contains control character regex escape sequences.
+  // Deno lint's no-control-regex flags \\xNN and \\uNNNN (double-backslash escapes)
+  // where NN/NNNN is in the control range (00-1F).
   const allContent = [
     zodResult.inputSchemaBody,
     zodResult.resourceSchemaBody,
     ...zodResult.extractedSchemas.map((s) => s.declaration),
   ].join("\n");
   const controlCharPattern =
-    /\\x0[0-9a-fA-F]|\\x1[0-9a-fA-F]|\\u000[0-9a-fA-F]|\\u001[0-9a-fA-F]/;
+    /\\\\x0[0-9a-fA-F]|\\\\x1[0-9a-fA-F]|\\\\u000[0-9a-fA-F]|\\\\u001[0-9a-fA-F]/;
   const withoutDescriptions = allContent.replace(
     /\.describe\(\s*"(?:[^"\\]|\\.)*"\s*,?\s*\)/g,
     "",
@@ -75,6 +78,8 @@ export function generateGcpExtensionModel(
     : "StateSchema";
 
   // Header
+  lines.push(generateCopyrightHeader());
+  lines.push("");
   lines.push(`// Auto-generated extension model for ${modelType}`);
   lines.push(
     `// Do not edit manually. Re-generate with: deno task generate:gcp`,
@@ -1309,9 +1314,9 @@ export function generateGcpExtensionModel(
     const paramsNeedingState: string[] = [];
     const actionParentLikeParams = new Set(["parent", "ownerName"]);
     for (const paramName of nonProjectParams) {
-      const safeName = safeIdent(paramName);
+      const safeParamName = safeIdent(paramName);
       if (
-        resource.domainProperties[safeName] ||
+        resource.domainProperties[safeParamName] ||
         actionParentLikeParams.has(paramName) ||
         paramName === "name"
       ) {

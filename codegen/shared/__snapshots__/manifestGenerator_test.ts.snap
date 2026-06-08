@@ -6,7 +6,7 @@ manifestVersion: 1
 name: "@swamp/hetzner-cloud"
 version: "2026.04.03.1"
 description: "Hetzner Cloud infrastructure models"
-repository: "https://github.com/systeminit/swamp-extensions"
+repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
   - hetzner
   - cloud

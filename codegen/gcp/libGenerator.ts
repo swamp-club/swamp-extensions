@@ -4,12 +4,16 @@
 // templates for URL building, and Long Running Operation (LRO) polling
 // for async operations.
 
+import { generateCopyrightHeader } from "../shared/licenseGenerator.ts";
+
 /**
  * Generates the shared helper file that all GCP extension models import.
  * Contains auth, HTTP client, URL building, LRO polling, and CRUD operations.
  */
 export function generateGcpLibFile(): string {
-  return `// Auto-generated shared helper for GCP extension models.
+  return `${generateCopyrightHeader()}
+
+// Auto-generated shared helper for GCP extension models.
 // Do not edit manually. Re-generate with: deno task generate:gcp
 
 // deno-lint-ignore-file no-explicit-any

@@ -1,9 +1,9 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/documentai"
-version: "2026.06.07.1"
+version: "2026.06.08.2"
 description: "Google Cloud documentai infrastructure models"
-repository: "https://github.com/systeminit/swamp-extensions"
+repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
   - gcp
   - google-cloud

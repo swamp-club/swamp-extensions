@@ -1,6 +1,6 @@
 # @swamp/aws/events
 
-Auto-generated [swamp](https://github.com/systeminit/swamp) extension models for
+Auto-generated [swamp](https://github.com/swamp-club/swamp) extension models for
 AWS EVENTS resources.
 
 Each model represents a single AWS resource (e.g., a VPC, an S3 bucket, an IAM

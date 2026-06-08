@@ -1,3 +1,22 @@
+// Swamp, an Automation Framework
+// Copyright (C) 2026 Elder Swamp Club, Inc.
+//
+// This file is part of Swamp.
+//
+// Swamp is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License version 3
+// as published by the Free Software Foundation, with the Swamp
+// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
+// file).
+//
+// Swamp is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+
 // Auto-generated extension model for @swamp/cloudflare/containers/applications
 // Do not edit manually. Re-generate with: deno task generate:cloudflare
 
@@ -17,41 +36,10 @@ import { create, read, remove, tryRead, update } from "./_lib/cloudflare.ts";
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  affinities: z.object({
-    colocation: z.enum(["datacenter"]).optional(),
-    hardware_generation: z.enum(["highest-overall-performance"]).optional(),
-  }).describe(
-    "Defines affinity in application scheduling. (This still an experimental feature, some schedulers might not work with these affinities).\n",
-  ).optional(),
   configuration: z.object({
     authorized_keys: z.array(z.object({
       name: z.string().optional(),
       public_key: z.string(),
-    })).optional(),
-    checks: z.array(z.object({
-      attempts_before_failure: z.number().int().optional(),
-      grace_period: z.string().optional(),
-      http: z.object({
-        body: z.string().optional(),
-        headers: z.record(z.string(), z.unknown()).optional(),
-        method: z.enum([
-          "GET",
-          "POST",
-          "PATCH",
-          "PUT",
-          "OPTIONS",
-          "DELETE",
-          "HEAD",
-        ]).optional(),
-        path: z.string().optional(),
-      }).optional(),
-      interval: z.string(),
-      kind: z.enum(["health", "ready"]),
-      name: z.string().optional(),
-      port: z.string(),
-      timeout: z.string(),
-      tls: z.boolean().optional(),
-      type: z.enum(["http", "tcp"]),
     })).optional(),
     command: z.array(z.string()).optional(),
     disk: z.object({
@@ -62,7 +50,6 @@ const GlobalArgsSchema = z.object({
       searches: z.array(z.string()).optional(),
       servers: z.array(z.string()).optional(),
     }).optional(),
-    durable_object_offset_instances: z.number().int().optional(),
     entrypoint: z.array(z.string()).optional(),
     environment_variables: z.array(z.object({
       name: z.string(),
@@ -90,29 +77,10 @@ const GlobalArgsSchema = z.object({
     metadata_service: z.object({
       enabled: z.boolean(),
     }).optional(),
-    network: z.object({
-      assign_ipv4: z.enum(["none", "predefined", "account"]).optional(),
-      assign_ipv6: z.enum(["none", "predefined", "account"]).optional(),
-      egress_from_landing_colo: z.boolean().optional(),
-      ipv4_prefix_length: z.number().int().min(1).max(32).optional(),
-      ipv6_prefix_length: z.number().int().min(1).max(128).optional(),
-      mode: z.enum(["public", "public-by-port", "private"]).optional(),
-    }).optional(),
     observability: z.object({
       logs: z.object({
         enabled: z.boolean().optional(),
       }).optional(),
-    }).optional(),
-    ports: z.array(z.object({
-      assign_port: z.array(z.object({
-        end: z.number().int(),
-        start: z.number().int(),
-      })).optional(),
-      name: z.string(),
-      port: z.number().int().optional(),
-    })).optional(),
-    provisioner: z.object({
-      type: z.enum(["none", "cloudinit"]),
     }).optional(),
     secrets: z.array(z.object({
       name: z.string(),
@@ -149,27 +117,15 @@ const GlobalArgsSchema = z.object({
     target_instance_percentage: z.number().int().min(1).max(99).optional(),
   }).describe("Settings for application observability such as logging.")
     .optional(),
-  priorities: z.object({
-    default: z.number().int().min(1).max(100),
-  }).describe(
-    'Defines priorities of application instances that are taken into account in scheduling decisions\nand used to determine what instances should be evicted in the face of resource scarcity.\nThe feature is experimental and only supported with the "gpu" scheduling policy.\n',
-  ).optional(),
   rollout_active_grace_period: z.number().int().min(0).max(604800).describe(
     "Grace period for active instances to stay alive before becoming eligible for shutdown signal due to a rollout, in seconds.\nDefaults to 0.\n",
   ).optional(),
-  scheduling_policy: z.enum([
-    "moon",
-    "gpu",
-    "regional",
-    "fill_metals",
-    "default",
-  ]).describe("The scheduling policy to use for an application"),
+  scheduling_policy: z.enum(["default"]).describe(
+    "The scheduling policy to use for an application",
+  ),
   durable_objects: z.object({
     namespace_id: z.string(),
   }).describe("Durable object configuration using a namespace ID").optional(),
-  jobs: z.boolean().describe(
-    "Application config denoting deployments with Jobs type",
-  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -184,31 +140,10 @@ const GlobalArgsSchema = z.object({
 const ResourceSchema = z.object({
   account_id: z.string().optional(),
   active_rollout_id: z.string().optional(),
-  affinities: z.object({
-    colocation: z.string().optional(),
-    hardware_generation: z.string().optional(),
-  }).optional(),
   configuration: z.object({
     authorized_keys: z.array(z.object({
       name: z.string().optional(),
       public_key: z.string().optional(),
-    })).optional(),
-    checks: z.array(z.object({
-      attempts_before_failure: z.number().optional(),
-      grace_period: z.string().optional(),
-      http: z.object({
-        body: z.string().optional(),
-        headers: z.record(z.string(), z.unknown()).optional(),
-        method: z.string().optional(),
-        path: z.string().optional(),
-      }).optional(),
-      interval: z.string().optional(),
-      kind: z.string().optional(),
-      name: z.string().optional(),
-      port: z.string().optional(),
-      timeout: z.string().optional(),
-      tls: z.boolean().optional(),
-      type: z.string().optional(),
     })).optional(),
     command: z.array(z.string()).optional(),
     disk: z.object({
@@ -219,7 +154,6 @@ const ResourceSchema = z.object({
       searches: z.array(z.string()).optional(),
       servers: z.array(z.string()).optional(),
     }).optional(),
-    durable_object_offset_instances: z.number().optional(),
     entrypoint: z.array(z.string()).optional(),
     environment_variables: z.array(z.object({
       name: z.string().optional(),
@@ -240,29 +174,10 @@ const ResourceSchema = z.object({
     metadata_service: z.object({
       enabled: z.boolean().optional(),
     }).optional(),
-    network: z.object({
-      assign_ipv4: z.string().optional(),
-      assign_ipv6: z.string().optional(),
-      egress_from_landing_colo: z.boolean().optional(),
-      ipv4_prefix_length: z.number().optional(),
-      ipv6_prefix_length: z.number().optional(),
-      mode: z.string().optional(),
-    }).optional(),
     observability: z.object({
       logs: z.object({
         enabled: z.boolean().optional(),
       }).optional(),
-    }).optional(),
-    ports: z.array(z.object({
-      assign_port: z.array(z.object({
-        end: z.number().optional(),
-        start: z.number().optional(),
-      })).optional(),
-      name: z.string().optional(),
-      port: z.number().optional(),
-    })).optional(),
-    provisioner: z.object({
-      type: z.string().optional(),
     }).optional(),
     secrets: z.array(z.object({
       name: z.string().optional(),
@@ -309,12 +224,8 @@ const ResourceSchema = z.object({
   }).optional(),
   id: z.string(),
   instances: z.number().optional(),
-  jobs: z.boolean().optional(),
   max_instances: z.number().optional(),
   name: z.string().optional(),
-  network: z.object({
-    bandwidth_limit_mbps: z.number().optional(),
-  }).optional(),
   observability: z.object({
     logs: z.object({
       enabled: z.boolean().optional(),
@@ -322,212 +233,7 @@ const ResourceSchema = z.object({
     target_instance_count: z.number().optional(),
     target_instance_percentage: z.number().optional(),
   }).optional(),
-  priorities: z.object({
-    default: z.number().optional(),
-  }).optional(),
   rollout_active_grace_period: z.number().optional(),
-  scheduling_hint: z.object({
-    current: z.object({
-      configuration: z.object({
-        affinities: z.object({
-          colocation: z.string().optional(),
-          hardware_generation: z.string().optional(),
-        }).optional(),
-        authorized_keys: z.array(z.object({
-          name: z.string().optional(),
-          public_key: z.string().optional(),
-        })).optional(),
-        checks: z.array(z.object({
-          attempts_before_failure: z.number().optional(),
-          grace_period: z.string().optional(),
-          http: z.object({
-            body: z.string().optional(),
-            headers: z.record(z.string(), z.unknown()).optional(),
-            method: z.string().optional(),
-            path: z.string().optional(),
-          }).optional(),
-          interval: z.string().optional(),
-          kind: z.string().optional(),
-          name: z.string().optional(),
-          port: z.string().optional(),
-          timeout: z.string().optional(),
-          tls: z.boolean().optional(),
-          type: z.string().optional(),
-        })).optional(),
-        command: z.array(z.string()).optional(),
-        disk: z.object({
-          size: z.string().optional(),
-          size_mb: z.number().optional(),
-        }).optional(),
-        dns: z.object({
-          searches: z.array(z.string()).optional(),
-          servers: z.array(z.string()).optional(),
-        }).optional(),
-        durable_object_offset_instances: z.number().optional(),
-        entrypoint: z.array(z.string()).optional(),
-        environment_variables: z.array(z.object({
-          name: z.string().optional(),
-          value: z.string().optional(),
-        })).optional(),
-        experimental_flags: z.array(z.string()).optional(),
-        image: z.string().optional(),
-        instance_type: z.string().optional(),
-        labels: z.array(z.object({
-          name: z.string().optional(),
-          value: z.string().optional(),
-        })).optional(),
-        lifecycle: z.object({
-          max_termination_duration: z.string().optional(),
-        }).optional(),
-        memory: z.string().optional(),
-        memory_mib: z.number().optional(),
-        metadata_service: z.object({
-          enabled: z.boolean().optional(),
-        }).optional(),
-        network: z.object({
-          assign_ipv4: z.string().optional(),
-          assign_ipv6: z.string().optional(),
-          egress_from_landing_colo: z.boolean().optional(),
-          ipv4_prefix_length: z.number().optional(),
-          ipv6_prefix_length: z.number().optional(),
-          mode: z.string().optional(),
-        }).optional(),
-        observability: z.object({
-          logs: z.object({
-            enabled: z.boolean().optional(),
-          }).optional(),
-        }).optional(),
-        ports: z.array(z.object({
-          assign_port: z.array(z.object({
-            end: z.number().optional(),
-            start: z.number().optional(),
-          })).optional(),
-          name: z.string().optional(),
-          port: z.number().optional(),
-        })).optional(),
-        provisioner: z.object({
-          type: z.string().optional(),
-        }).optional(),
-        secrets: z.array(z.object({
-          name: z.string().optional(),
-          secret: z.string().optional(),
-          type: z.string().optional(),
-        })).optional(),
-        ssh_public_key_ids: z.array(z.string()).optional(),
-        trusted_user_ca_keys: z.array(z.object({
-          name: z.string().optional(),
-          public_key: z.string().optional(),
-        })).optional(),
-        vcpu: z.number().optional(),
-        wrangler_ssh: z.object({
-          enabled: z.boolean().optional(),
-          port: z.number().optional(),
-        }).optional(),
-      }).optional(),
-      instances: z.number().optional(),
-      version: z.number().optional(),
-    }).optional(),
-    target: z.object({
-      configuration: z.object({
-        affinities: z.object({
-          colocation: z.string().optional(),
-          hardware_generation: z.string().optional(),
-        }).optional(),
-        authorized_keys: z.array(z.object({
-          name: z.string().optional(),
-          public_key: z.string().optional(),
-        })).optional(),
-        checks: z.array(z.object({
-          attempts_before_failure: z.number().optional(),
-          grace_period: z.string().optional(),
-          http: z.object({
-            body: z.string().optional(),
-            headers: z.record(z.string(), z.unknown()).optional(),
-            method: z.string().optional(),
-            path: z.string().optional(),
-          }).optional(),
-          interval: z.string().optional(),
-          kind: z.string().optional(),
-          name: z.string().optional(),
-          port: z.string().optional(),
-          timeout: z.string().optional(),
-          tls: z.boolean().optional(),
-          type: z.string().optional(),
-        })).optional(),
-        command: z.array(z.string()).optional(),
-        disk: z.object({
-          size: z.string().optional(),
-          size_mb: z.number().optional(),
-        }).optional(),
-        dns: z.object({
-          searches: z.array(z.string()).optional(),
-          servers: z.array(z.string()).optional(),
-        }).optional(),
-        durable_object_offset_instances: z.number().optional(),
-        entrypoint: z.array(z.string()).optional(),
-        environment_variables: z.array(z.object({
-          name: z.string().optional(),
-          value: z.string().optional(),
-        })).optional(),
-        experimental_flags: z.array(z.string()).optional(),
-        image: z.string().optional(),
-        instance_type: z.string().optional(),
-        labels: z.array(z.object({
-          name: z.string().optional(),
-          value: z.string().optional(),
-        })).optional(),
-        lifecycle: z.object({
-          max_termination_duration: z.string().optional(),
-        }).optional(),
-        memory: z.string().optional(),
-        memory_mib: z.number().optional(),
-        metadata_service: z.object({
-          enabled: z.boolean().optional(),
-        }).optional(),
-        network: z.object({
-          assign_ipv4: z.string().optional(),
-          assign_ipv6: z.string().optional(),
-          egress_from_landing_colo: z.boolean().optional(),
-          ipv4_prefix_length: z.number().optional(),
-          ipv6_prefix_length: z.number().optional(),
-          mode: z.string().optional(),
-        }).optional(),
-        observability: z.object({
-          logs: z.object({
-            enabled: z.boolean().optional(),
-          }).optional(),
-        }).optional(),
-        ports: z.array(z.object({
-          assign_port: z.array(z.object({
-            end: z.number().optional(),
-            start: z.number().optional(),
-          })).optional(),
-          name: z.string().optional(),
-          port: z.number().optional(),
-        })).optional(),
-        provisioner: z.object({
-          type: z.string().optional(),
-        }).optional(),
-        secrets: z.array(z.object({
-          name: z.string().optional(),
-          secret: z.string().optional(),
-          type: z.string().optional(),
-        })).optional(),
-        ssh_public_key_ids: z.array(z.string()).optional(),
-        trusted_user_ca_keys: z.array(z.object({
-          name: z.string().optional(),
-          public_key: z.string().optional(),
-        })).optional(),
-        vcpu: z.number().optional(),
-        wrangler_ssh: z.object({
-          enabled: z.boolean().optional(),
-          port: z.number().optional(),
-        }).optional(),
-      }).optional(),
-      instances: z.number().optional(),
-      version: z.number().optional(),
-    }).optional(),
-  }).optional(),
   scheduling_policy: z.string().optional(),
   updated_at: z.string().optional(),
   version: z.number().optional(),
@@ -537,39 +243,10 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
   account_id: z.string().optional(),
-  affinities: z.object({
-    colocation: z.enum(["datacenter"]).optional(),
-    hardware_generation: z.enum(["highest-overall-performance"]).optional(),
-  }).optional(),
   configuration: z.object({
     authorized_keys: z.array(z.object({
       name: z.string().optional(),
       public_key: z.string(),
-    })).optional(),
-    checks: z.array(z.object({
-      attempts_before_failure: z.number().int().optional(),
-      grace_period: z.string().optional(),
-      http: z.object({
-        body: z.string().optional(),
-        headers: z.record(z.string(), z.unknown()).optional(),
-        method: z.enum([
-          "GET",
-          "POST",
-          "PATCH",
-          "PUT",
-          "OPTIONS",
-          "DELETE",
-          "HEAD",
-        ]).optional(),
-        path: z.string().optional(),
-      }).optional(),
-      interval: z.string(),
-      kind: z.enum(["health", "ready"]),
-      name: z.string().optional(),
-      port: z.string(),
-      timeout: z.string(),
-      tls: z.boolean().optional(),
-      type: z.enum(["http", "tcp"]),
     })).optional(),
     command: z.array(z.string()).optional(),
     disk: z.object({
@@ -580,7 +257,6 @@ const InputsSchema = z.object({
       searches: z.array(z.string()).optional(),
       servers: z.array(z.string()).optional(),
     }).optional(),
-    durable_object_offset_instances: z.number().int().optional(),
     entrypoint: z.array(z.string()).optional(),
     environment_variables: z.array(z.object({
       name: z.string(),
@@ -608,29 +284,10 @@ const InputsSchema = z.object({
     metadata_service: z.object({
       enabled: z.boolean(),
     }).optional(),
-    network: z.object({
-      assign_ipv4: z.enum(["none", "predefined", "account"]).optional(),
-      assign_ipv6: z.enum(["none", "predefined", "account"]).optional(),
-      egress_from_landing_colo: z.boolean().optional(),
-      ipv4_prefix_length: z.number().int().min(1).max(32).optional(),
-      ipv6_prefix_length: z.number().int().min(1).max(128).optional(),
-      mode: z.enum(["public", "public-by-port", "private"]).optional(),
-    }).optional(),
     observability: z.object({
       logs: z.object({
         enabled: z.boolean().optional(),
       }).optional(),
-    }).optional(),
-    ports: z.array(z.object({
-      assign_port: z.array(z.object({
-        end: z.number().int(),
-        start: z.number().int(),
-      })).optional(),
-      name: z.string(),
-      port: z.number().int().optional(),
-    })).optional(),
-    provisioner: z.object({
-      type: z.enum(["none", "cloudinit"]),
     }).optional(),
     secrets: z.array(z.object({
       name: z.string(),
@@ -662,21 +319,11 @@ const InputsSchema = z.object({
     target_instance_count: z.number().int().min(1).optional(),
     target_instance_percentage: z.number().int().min(1).max(99).optional(),
   }).optional(),
-  priorities: z.object({
-    default: z.number().int().min(1).max(100),
-  }).optional(),
   rollout_active_grace_period: z.number().int().min(0).max(604800).optional(),
-  scheduling_policy: z.enum([
-    "moon",
-    "gpu",
-    "regional",
-    "fill_metals",
-    "default",
-  ]).optional(),
+  scheduling_policy: z.enum(["default"]).optional(),
   durable_objects: z.object({
     namespace_id: z.string(),
   }).optional(),
-  jobs: z.boolean().optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
@@ -685,7 +332,27 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Applications. Registered at `@swamp/cloudflare/containers/applications`. */
 export const model = {
   type: "@swamp/cloudflare/containers/applications",
-  version: "2026.05.29.1",
+  version: "2026.06.08.2",
+  upgrades: [
+    {
+      toVersion: "2026.06.08.1",
+      description: "Removed: affinities, priorities, jobs",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          affinities: _affinities,
+          priorities: _priorities,
+          jobs: _jobs,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
+    {
+      toVersion: "2026.06.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -705,18 +372,15 @@ export const model = {
         const endpoint = "/accounts/" + g.account_id +
           "/containers/applications";
         const body: Record<string, unknown> = {};
-        if (g.affinities !== undefined) body.affinities = g.affinities;
         if (g.configuration !== undefined) body.configuration = g.configuration;
         if (g.constraints !== undefined) body.constraints = g.constraints;
         if (g.durable_objects !== undefined) {
           body.durable_objects = g.durable_objects;
         }
         if (g.instances !== undefined) body.instances = g.instances;
-        if (g.jobs !== undefined) body.jobs = g.jobs;
         if (g.max_instances !== undefined) body.max_instances = g.max_instances;
         if (g.name !== undefined) body.name = g.name;
         if (g.observability !== undefined) body.observability = g.observability;
-        if (g.priorities !== undefined) body.priorities = g.priorities;
         if (g.rollout_active_grace_period !== undefined) {
           body.rollout_active_grace_period = g.rollout_active_grace_period;
         }
@@ -785,14 +449,12 @@ export const model = {
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
-        if (g.affinities !== undefined) body.affinities = g.affinities;
         if (g.configuration !== undefined) body.configuration = g.configuration;
         if (g.constraints !== undefined) body.constraints = g.constraints;
         if (g.instances !== undefined) body.instances = g.instances;
         if (g.max_instances !== undefined) body.max_instances = g.max_instances;
         if (g.name !== undefined) body.name = g.name;
         if (g.observability !== undefined) body.observability = g.observability;
-        if (g.priorities !== undefined) body.priorities = g.priorities;
         if (g.rollout_active_grace_period !== undefined) {
           body.rollout_active_grace_period = g.rollout_active_grace_period;
         }

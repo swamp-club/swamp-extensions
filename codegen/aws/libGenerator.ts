@@ -1,11 +1,15 @@
 // Generates _lib/aws.ts — shared CloudControl helpers for AWS extension models
 
+import { generateCopyrightHeader } from "../shared/licenseGenerator.ts";
+
 /**
  * Generates the shared helper file that all AWS extension models import.
  * Contains CloudControl client creation, retry logic, polling, and CRUD operations.
  */
 export function generateAwsLibFile(): string {
-  return `// Auto-generated shared helper for AWS CloudControl extension models.
+  return `${generateCopyrightHeader()}
+
+// Auto-generated shared helper for AWS CloudControl extension models.
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 import {

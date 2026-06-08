@@ -7,6 +7,7 @@ import type {
   DigitalOceanResource,
   DigitalOceanSubResourceMethod,
 } from "./pipeline.ts";
+import { generateCopyrightHeader } from "../shared/licenseGenerator.ts";
 import { wrapWithSanitize } from "../shared/instanceName.ts";
 
 // DigitalOcean regions for z.enum generation
@@ -64,6 +65,8 @@ export function generateDigitalOceanExtensionModel(
   const lines: string[] = [];
 
   // Header
+  lines.push(generateCopyrightHeader());
+  lines.push("");
   lines.push(`// Auto-generated extension model for ${modelType}`);
   lines.push(
     `// Do not edit manually. Re-generate with: deno task generate:digitalocean`,

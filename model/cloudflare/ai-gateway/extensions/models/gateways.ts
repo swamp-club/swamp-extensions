@@ -1,3 +1,22 @@
+// Swamp, an Automation Framework
+// Copyright (C) 2026 Elder Swamp Club, Inc.
+//
+// This file is part of Swamp.
+//
+// Swamp is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License version 3
+// as published by the Free Software Foundation, with the Swamp
+// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
+// file).
+//
+// Swamp is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+
 // Auto-generated extension model for @swamp/cloudflare/ai-gateway/gateways
 // Do not edit manually. Re-generate with: deno task generate:cloudflare
 
@@ -69,7 +88,7 @@ const GlobalArgsSchema = z.object({
   logpush: z.boolean().optional(),
   logpush_public_key: z.string().min(16).max(1024).optional(),
   otel: z.array(z.object({
-    authorization: z.string().max(256),
+    authorization: z.string().max(256).optional(),
     content_type: z.enum(["json", "protobuf"]).optional(),
     headers: z.record(z.string(), z.unknown()),
     url: z.string().max(2048),
@@ -86,6 +105,26 @@ const GlobalArgsSchema = z.object({
   retry_max_attempts: z.number().int().min(1).max(5).describe(
     "Maximum number of retry attempts for failed requests (1-5)",
   ).optional(),
+  spend_limits: z.object({
+    enabled: z.boolean().optional(),
+    rules: z.array(z.object({
+      enabled: z.boolean().optional(),
+      id: z.string().min(1).regex(new RegExp("^[a-zA-Z0-9_-]+$")).optional(),
+      limit: z.number().min(0),
+      limitType: z.enum(["cost"]),
+      metadata: z.record(z.string(), z.unknown()).optional(),
+      model: z.object({
+        mode: z.enum(["filter"]),
+        values: z.array(z.string()),
+      }).optional(),
+      provider: z.object({
+        mode: z.enum(["filter"]),
+        values: z.array(z.string()),
+      }).optional(),
+      technique: z.enum(["fixed", "sliding"]).optional(),
+      window: z.number().int().min(0),
+    })).optional(),
+  }).optional(),
   store_id: z.string().optional(),
   stripe: z.object({
     authorization: z.string(),
@@ -175,6 +214,26 @@ const ResourceSchema = z.object({
   retry_backoff: z.string().optional(),
   retry_delay: z.number().optional(),
   retry_max_attempts: z.number().optional(),
+  spend_limits: z.object({
+    enabled: z.boolean().optional(),
+    rules: z.array(z.object({
+      enabled: z.boolean().optional(),
+      id: z.string().optional(),
+      limit: z.number().optional(),
+      limitType: z.string().optional(),
+      metadata: z.record(z.string(), z.unknown()).optional(),
+      model: z.object({
+        mode: z.string().optional(),
+        values: z.array(z.string()).optional(),
+      }).optional(),
+      provider: z.object({
+        mode: z.string().optional(),
+        values: z.array(z.string()).optional(),
+      }).optional(),
+      technique: z.string().optional(),
+      window: z.number().optional(),
+    })).optional(),
+  }).optional(),
   store_id: z.string().optional(),
   stripe: z.object({
     authorization: z.string().optional(),
@@ -240,7 +299,7 @@ const InputsSchema = z.object({
   logpush: z.boolean().optional(),
   logpush_public_key: z.string().min(16).max(1024).optional(),
   otel: z.array(z.object({
-    authorization: z.string().max(256),
+    authorization: z.string().max(256).optional(),
     content_type: z.enum(["json", "protobuf"]).optional(),
     headers: z.record(z.string(), z.unknown()),
     url: z.string().max(2048),
@@ -251,6 +310,26 @@ const InputsSchema = z.object({
   retry_backoff: z.enum(["constant", "linear", "exponential"]).optional(),
   retry_delay: z.number().int().min(0).max(5000).optional(),
   retry_max_attempts: z.number().int().min(1).max(5).optional(),
+  spend_limits: z.object({
+    enabled: z.boolean().optional(),
+    rules: z.array(z.object({
+      enabled: z.boolean().optional(),
+      id: z.string().min(1).regex(new RegExp("^[a-zA-Z0-9_-]+$")).optional(),
+      limit: z.number().min(0),
+      limitType: z.enum(["cost"]),
+      metadata: z.record(z.string(), z.unknown()).optional(),
+      model: z.object({
+        mode: z.enum(["filter"]),
+        values: z.array(z.string()),
+      }).optional(),
+      provider: z.object({
+        mode: z.enum(["filter"]),
+        values: z.array(z.string()),
+      }).optional(),
+      technique: z.enum(["fixed", "sliding"]).optional(),
+      window: z.number().int().min(0),
+    })).optional(),
+  }).optional(),
   store_id: z.string().optional(),
   stripe: z.object({
     authorization: z.string(),
@@ -271,11 +350,21 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Gateways. Registered at `@swamp/cloudflare/ai-gateway/gateways`. */
 export const model = {
   type: "@swamp/cloudflare/ai-gateway/gateways",
-  version: "2026.05.29.1",
+  version: "2026.06.08.2",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
       description: "Added: apiToken, apiKey, email",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.08.1",
+      description: "Added: spend_limits",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.08.2",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -429,6 +518,7 @@ export const model = {
         if (g.retry_max_attempts !== undefined) {
           body.retry_max_attempts = g.retry_max_attempts;
         }
+        if (g.spend_limits !== undefined) body.spend_limits = g.spend_limits;
         if (g.store_id !== undefined) body.store_id = g.store_id;
         if (g.stripe !== undefined) body.stripe = g.stripe;
         if (g.workers_ai_billing_mode !== undefined) {

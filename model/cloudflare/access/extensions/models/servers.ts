@@ -1,3 +1,22 @@
+// Swamp, an Automation Framework
+// Copyright (C) 2026 Elder Swamp Club, Inc.
+//
+// This file is part of Swamp.
+//
+// Swamp is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License version 3
+// as published by the Free Software Foundation, with the Swamp
+// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
+// file).
+//
+// Swamp is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+
 // Auto-generated extension model for @swamp/cloudflare/access/servers
 // Do not edit manually. Re-generate with: deno task generate:cloudflare
 
@@ -20,7 +39,7 @@ const GlobalArgsSchema = z.object({
   auth_credentials: z.string().optional(),
   description: z.string().max(512).optional(),
   is_shared_oauth_callback_enabled: z.boolean().describe(
-    "When true, the gateway worker uses the shared Cloudflare-owned OAuth callback endpoint as the redirect_uri for upstream on-behalf OAuth, instead of the customer portal hostname. New servers default to true; existing servers default to false. Effective behavior is gated by the gateway worker's per-env rollout mode KV key.",
+    "When true, the gateway worker uses the shared Cloudflare-owned OAuth callback endpoint as the redirect_uri for upstream on-behalf OAuth, instead of the customer portal hostname. New public server creates default to true; existing servers default to false from migration until explicitly updated. Effective behavior is gated by the gateway worker's per-env rollout mode KV key.",
   ).optional(),
   name: z.string().max(350),
   updated_prompts: z.array(z.object({
@@ -130,11 +149,21 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Servers. Registered at `@swamp/cloudflare/access/servers`. */
 export const model = {
   type: "@swamp/cloudflare/access/servers",
-  version: "2026.05.29.1",
+  version: "2026.06.08.2",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
       description: "Added: apiToken, apiKey, email",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.08.2",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

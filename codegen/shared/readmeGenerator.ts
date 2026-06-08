@@ -55,7 +55,7 @@ export function generateAwsReadme(
 ): string {
   return `# ${extensionName}
 
-Auto-generated [swamp](https://github.com/systeminit/swamp) extension models
+Auto-generated [swamp](https://github.com/swamp-club/swamp) extension models
 for AWS ${serviceName.toUpperCase()} resources.
 
 Each model represents a single AWS resource (e.g., a VPC, an S3 bucket, an IAM
@@ -125,7 +125,7 @@ AGPLv3 — see [LICENSE.txt](./LICENSE.txt).
 export function generateHetznerReadme(): string {
   return `# @swamp/hetzner-cloud
 
-Auto-generated [swamp](https://github.com/systeminit/swamp) extension models
+Auto-generated [swamp](https://github.com/swamp-club/swamp) extension models
 for Hetzner Cloud resources.
 
 Each model represents a single Hetzner Cloud resource (e.g., a server, a
@@ -204,7 +204,7 @@ export function generateGcpReadme(
 ): string {
   return `# ${extensionName}
 
-Auto-generated [swamp](https://github.com/systeminit/swamp) extension models
+Auto-generated [swamp](https://github.com/swamp-club/swamp) extension models
 for Google Cloud ${serviceName} resources.
 
 Each model represents a single GCP resource. Models have **domain properties**
@@ -288,7 +288,7 @@ AGPLv3 — see [LICENSE.txt](./LICENSE.txt).
 export function generateDigitalOceanReadme(): string {
   return `# @swamp/digitalocean
 
-Auto-generated [swamp](https://github.com/systeminit/swamp) extension models
+Auto-generated [swamp](https://github.com/swamp-club/swamp) extension models
 for DigitalOcean resources.
 
 Each model represents a single DigitalOcean resource (e.g., a Droplet, a
@@ -365,7 +365,7 @@ export function generateCloudflareReadme(
 ): string {
   return `# ${extensionName}
 
-Auto-generated [swamp](https://github.com/systeminit/swamp) extension models
+Auto-generated [swamp](https://github.com/swamp-club/swamp) extension models
 for Cloudflare ${serviceName} resources.
 
 Each model represents a single Cloudflare resource. Models have **domain

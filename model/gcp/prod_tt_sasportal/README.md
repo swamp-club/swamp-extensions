@@ -1,6 +1,6 @@
 # @swamp/gcp/prod_tt_sasportal
 
-Auto-generated [swamp](https://github.com/systeminit/swamp) extension models for
+Auto-generated [swamp](https://github.com/swamp-club/swamp) extension models for
 Google Cloud prod_tt_sasportal resources.
 
 Each model represents a single GCP resource. Models have **domain properties**

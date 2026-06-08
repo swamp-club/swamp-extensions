@@ -1,6 +1,6 @@
 # @swamp/gcp/appsmarket
 
-Auto-generated [swamp](https://github.com/systeminit/swamp) extension models for
+Auto-generated [swamp](https://github.com/swamp-club/swamp) extension models for
 Google Cloud appsmarket resources.
 
 Each model represents a single GCP resource. Models have **domain properties**

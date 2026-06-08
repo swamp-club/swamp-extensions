@@ -1,6 +1,6 @@
 # @swamp/digitalocean
 
-Auto-generated [swamp](https://github.com/systeminit/swamp) extension models for
+Auto-generated [swamp](https://github.com/swamp-club/swamp) extension models for
 DigitalOcean resources.
 
 Each model represents a single DigitalOcean resource (e.g., a Droplet, a volume,

@@ -1,6 +1,6 @@
 # @swamp/aws/config
 
-Auto-generated [swamp](https://github.com/systeminit/swamp) extension models for
+Auto-generated [swamp](https://github.com/swamp-club/swamp) extension models for
 AWS CONFIG resources.
 
 Each model represents a single AWS resource (e.g., a VPC, an S3 bucket, an IAM

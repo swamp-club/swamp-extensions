@@ -17,6 +17,7 @@ import {
   formatFile,
 } from "../shared/version.ts";
 import { computeUpgradesBlock } from "../shared/upgradesGenerator.ts";
+import { serializeWithCycleDetection } from "../shared/serialize.ts";
 
 const DO_SPEC_URL =
   "https://api-engineering.nyc3.cdn.digitaloceanspaces.com/spec-ci/DigitalOcean-public.v2.yaml";
@@ -530,7 +531,7 @@ export async function generateDigitalOceanModels(options: {
     modelFiles: modelFileNames,
     additionalFiles,
     releaseNotes,
-    repository: "https://github.com/systeminit/swamp-extensions",
+    repository: "https://github.com/swamp-club/swamp-extensions",
     platforms: [],
   });
   const hasChangedModels = modelChanges.some((c) =>
@@ -553,7 +554,7 @@ export async function generateDigitalOceanModels(options: {
     modelFiles: modelFileNames,
     additionalFiles,
     releaseNotes,
-    repository: "https://github.com/systeminit/swamp-extensions",
+    repository: "https://github.com/swamp-club/swamp-extensions",
     platforms: [],
   });
   const manifest: DigitalOceanGeneratedFile = {
@@ -578,8 +579,46 @@ export async function generateDigitalOceanModels(options: {
 
 // --- OpenAPI parsing ---
 
-// deno-lint-ignore no-explicit-any
-type OpenApiSpec = any;
+interface OApiSchema {
+  $ref?: string;
+  type?: string;
+  description?: string;
+  properties?: Record<string, OApiSchema>;
+  required?: string[];
+  anyOf?: OApiSchema[];
+  oneOf?: OApiSchema[];
+  allOf?: OApiSchema[];
+  enum?: (string | number)[];
+  items?: OApiSchema;
+  format?: string;
+  readOnly?: boolean;
+  minimum?: number;
+  maximum?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  default?: unknown;
+  nullable?: boolean;
+  discriminator?: { mapping?: Record<string, string> };
+}
+
+interface OApiOperation {
+  requestBody?: {
+    content?: Record<string, { schema?: OApiSchema }>;
+  };
+  responses?: Record<string, {
+    content?: Record<string, { schema?: OApiSchema }>;
+  }>;
+  parameters?: Array<
+    { name: string; in?: string; required?: boolean; schema?: OApiSchema }
+  >;
+  description?: string;
+}
+
+interface OApiSpec {
+  paths?: Record<string, Record<string, OApiOperation>>;
+  [key: string]: unknown;
+}
 
 interface EndpointGroup {
   /** The base path without ID segment, e.g., "/v2/droplets" */
@@ -588,19 +627,17 @@ interface EndpointGroup {
   idPath: string | null;
   /** ID parameter name, e.g., "droplet_id" */
   idParam: string | null;
-  // deno-lint-ignore no-explicit-any
-  baseOps: Record<string, any>;
-  // deno-lint-ignore no-explicit-any
-  idOps: Record<string, any>;
+  baseOps: Record<string, OApiOperation>;
+  idOps: Record<string, OApiOperation>;
 }
 
 function parseResources(
-  spec: OpenApiSpec,
+  spec: OApiSpec,
 ): {
   resources: DigitalOceanResource[];
   skipped: { path: string; reason: string }[];
 } {
-  const paths: Record<string, Record<string, OpenApiSpec>> = spec.paths ?? {};
+  const paths: Record<string, Record<string, OApiOperation>> = spec.paths ?? {};
   const skipped: { path: string; reason: string }[] = [];
 
   // Group paths into base (no ID) and ID (with ID) variants
@@ -610,7 +647,7 @@ function parseResources(
   // e.g. "/v2/droplets/{droplet_id}/actions" → basePath "/v2/droplets"
   const actionEndpoints = new Map<
     string,
-    { path: string; postOp: OpenApiSpec }
+    { path: string; postOp: OApiOperation }
   >();
 
   // Collect sub-resource method endpoints: basePath → list of sub-resource info
@@ -621,7 +658,7 @@ function parseResources(
       subPath: string;
       path: string;
       httpMethod: "PUT" | "PATCH";
-      ops: Record<string, OpenApiSpec>;
+      ops: Record<string, OApiOperation>;
     }>
   >();
 
@@ -948,7 +985,7 @@ function resolveIdentifierField(
 function buildResource(
   basePath: string,
   group: EndpointGroup,
-  spec: OpenApiSpec,
+  spec: OApiSpec,
 ): DigitalOceanResource | null {
   const displayName = buildDisplayName(basePath);
   const modelSlug = displayName.toLowerCase().replace(/\s+/g, "-");
@@ -1040,9 +1077,9 @@ function buildResource(
  * discriminator.mapping to discover action types and their parameters.
  */
 function parseActions(
-  postOp: OpenApiSpec,
+  postOp: OApiOperation,
   _actionPath: string,
-  spec: OpenApiSpec,
+  spec: OApiSpec,
 ): DigitalOceanAction[] {
   const body = postOp.requestBody;
   if (!body) return [];
@@ -1062,11 +1099,12 @@ function parseActions(
     // Resolve schema ref to component schema
     // schemaRef looks like "#/components/schemas/droplet_action_rename"
     const refPath = (schemaRef as string).replace("#/", "").split("/");
-    let componentSchema: OpenApiSpec = spec;
+    let resolved: unknown = spec;
     for (const part of refPath) {
-      componentSchema = componentSchema?.[part];
+      resolved = (resolved as Record<string, unknown>)?.[part];
     }
-    if (!componentSchema) continue;
+    if (!resolved) continue;
+    const componentSchema = resolved as OApiSchema;
 
     const action = parseActionSchema(actionType, componentSchema);
     actions.push(action);
@@ -1081,7 +1119,7 @@ function parseActions(
  */
 function parseActionSchema(
   actionType: string,
-  componentSchema: OpenApiSpec,
+  componentSchema: OApiSchema,
 ): DigitalOceanAction {
   // Flatten allOf to get all properties
   const flattened = flattenSchemaProperties(componentSchema);
@@ -1097,7 +1135,7 @@ function parseActionSchema(
     // Skip the "type" discriminator field
     if (name === "type") continue;
 
-    const schema = propSchema as OpenApiSpec;
+    const schema = propSchema;
 
     // Skip readOnly properties
     if (schema.readOnly) continue;
@@ -1107,9 +1145,8 @@ function parseActionSchema(
       nestedParams = true;
       const paramsRequired = new Set<string>(schema.required ?? []);
       for (const [pName, pSchema] of Object.entries(schema.properties)) {
-        const pSchemaTyped = pSchema as OpenApiSpec;
-        if (pSchemaTyped.readOnly) continue;
-        properties[pName] = normalizeProperty(pSchemaTyped);
+        if (pSchema.readOnly) continue;
+        properties[pName] = normalizeProperty(pSchema);
         if (paramsRequired.has(pName)) {
           requiredProperties.push(pName);
         }
@@ -1143,9 +1180,9 @@ function parseSubResourceMethods(
     subPath: string;
     path: string;
     httpMethod: "PUT" | "PATCH";
-    ops: Record<string, OpenApiSpec>;
+    ops: Record<string, OApiOperation>;
   }>,
-  spec: OpenApiSpec,
+  spec: OApiSpec,
 ): DigitalOceanSubResourceMethod[] {
   const methods: DigitalOceanSubResourceMethod[] = [];
 
@@ -1176,8 +1213,8 @@ function parseSubResourceMethods(
  * Flatten allOf/anyOf/oneOf at every level using BFS.
  */
 function flattenSchemaProperties(
-  schema: OpenApiSpec,
-): OpenApiSpec {
+  schema: OApiSchema,
+): OApiSchema {
   if (!schema || typeof schema !== "object") return schema ?? {};
 
   // Handle allOf/anyOf/oneOf
@@ -1196,7 +1233,7 @@ function flattenSchemaProperties(
  * Recursively collect all `required` fields from a schema,
  * including those nested inside `allOf` branches.
  */
-function collectAllRequired(schema: OpenApiSpec): string[] {
+function collectAllRequired(schema: OApiSchema): string[] {
   const result: string[] = [];
   if (schema.required) {
     result.push(...schema.required);
@@ -1209,12 +1246,11 @@ function collectAllRequired(schema: OpenApiSpec): string[] {
   return result;
 }
 
-function flattenOfStatements(schema: OpenApiSpec): OpenApiSpec {
+function flattenOfStatements(schema: OApiSchema): OApiSchema {
   const isAllOf = !!schema.allOf;
   const isOneOfOrAnyOf = !!(schema.oneOf || schema.anyOf);
   const items = schema.allOf ?? schema.anyOf ?? schema.oneOf ?? [];
-  // deno-lint-ignore no-explicit-any
-  const merged: any = { ...schema };
+  const merged: OApiSchema = { ...schema };
   delete merged.allOf;
   delete merged.anyOf;
   delete merged.oneOf;
@@ -1262,7 +1298,7 @@ function flattenOfStatements(schema: OpenApiSpec): OpenApiSpec {
   // For oneOf/anyOf: intersect required fields across all branches.
   // Fields required in EVERY branch are universally required.
   if (isOneOfOrAnyOf && items.length > 0) {
-    const branchRequiredSets = items.map((item: OpenApiSpec) =>
+    const branchRequiredSets = items.map((item: OApiSchema) =>
       new Set(collectAllRequired(flattenSchemaProperties(item)))
     );
     const intersection = [...branchRequiredSets[0]].filter((field: string) =>
@@ -1281,7 +1317,7 @@ function flattenOfStatements(schema: OpenApiSpec): OpenApiSpec {
 /**
  * Normalize a property: handle oneOf/anyOf smooshing, format cleanup.
  */
-function normalizeProperty(schema: OpenApiSpec): DigitalOceanProperty {
+function normalizeProperty(schema: OApiSchema): DigitalOceanProperty {
   if (!schema || typeof schema !== "object") {
     return { type: "string" };
   }
@@ -1291,7 +1327,7 @@ function normalizeProperty(schema: OpenApiSpec): DigitalOceanProperty {
   // Handle oneOf/anyOf — pick non-string primitive if available
   if (resolved.oneOf || resolved.anyOf) {
     const variants = resolved.oneOf ?? resolved.anyOf ?? [];
-    let picked: OpenApiSpec | null = null;
+    let picked: OApiSchema | null = null;
     for (const variant of variants) {
       const flat = flattenSchemaProperties(variant);
       if (flat.type && flat.type !== "null" && flat.type !== "string") {
@@ -1347,7 +1383,7 @@ function normalizeProperty(schema: OpenApiSpec): DigitalOceanProperty {
   const type = resolved.type ?? "string";
 
   const prop: DigitalOceanProperty = {
-    type: type === "integer" ? "integer" : type,
+    type: type === "integer" ? "integer" : type as DigitalOceanProperty["type"],
   };
 
   if (resolved.description) prop.description = resolved.description;
@@ -1373,7 +1409,7 @@ function normalizeProperty(schema: OpenApiSpec): DigitalOceanProperty {
   if (type === "object" && resolved.properties) {
     prop.properties = {};
     for (const [name, childSchema] of Object.entries(resolved.properties)) {
-      prop.properties[name] = normalizeProperty(childSchema as OpenApiSpec);
+      prop.properties[name] = normalizeProperty(childSchema as OApiSchema);
     }
     if (resolved.required && Array.isArray(resolved.required)) {
       prop.requiredProperties = resolved.required;
@@ -1391,8 +1427,8 @@ function normalizeProperty(schema: OpenApiSpec): DigitalOceanProperty {
 // --- Request/Response extraction ---
 
 function extractRequestBodyProperties(
-  operation: OpenApiSpec,
-  _spec: OpenApiSpec,
+  operation: OApiOperation,
+  _spec: OApiSpec,
   endpoint?: string,
 ): { properties: Record<string, DigitalOceanProperty>; required: string[] } {
   const body = operation.requestBody;
@@ -1411,11 +1447,11 @@ function extractRequestBodyProperties(
     // Skip read-only properties — they belong in the response, not in create/update bodies
     if (
       typeof propSchema === "object" && propSchema !== null &&
-      (propSchema as OpenApiSpec).readOnly
+      (propSchema as OApiSchema).readOnly
     ) {
       continue;
     }
-    const prop = normalizeProperty(propSchema as OpenApiSpec);
+    const prop = normalizeProperty(propSchema as OApiSchema);
     // Tag region properties
     if (name === "region") {
       prop.isRegion = true;
@@ -1438,9 +1474,9 @@ function extractRequestBodyProperties(
 }
 
 function extractResponseProperties(
-  operation: OpenApiSpec,
+  operation: OApiOperation,
   basePath: string,
-  _spec: OpenApiSpec,
+  _spec: OApiSpec,
 ): Record<string, DigitalOceanProperty> {
   const responses = operation.responses;
   if (!responses) return {};
@@ -1465,14 +1501,14 @@ function extractResponseProperties(
 
   if (envelopeKeys.length === 0) return {};
 
-  let resourceSchema: OpenApiSpec;
+  let resourceSchema: OApiSchema;
 
   if (isListEndpoint) {
     // For list endpoints, find the array property and extract items
     let found = false;
     for (const key of envelopeKeys) {
       const propSchema = flattenSchemaProperties(
-        schema.properties[key] as OpenApiSpec,
+        schema.properties[key] as OApiSchema,
       );
       if (propSchema.type === "array" && propSchema.items) {
         resourceSchema = flattenSchemaProperties(propSchema.items);
@@ -1485,7 +1521,7 @@ function extractResponseProperties(
     // For single resource, unwrap the first non-links/meta property that is an object
     const innerKey = envelopeKeys[0];
     const innerSchema = flattenSchemaProperties(
-      schema.properties[innerKey] as OpenApiSpec,
+      schema.properties[innerKey] as OApiSchema,
     );
     if (innerSchema.properties) {
       resourceSchema = innerSchema;
@@ -1505,50 +1541,9 @@ function extractResponseProperties(
     const [name, propSchema] of Object.entries(resourceSchema!.properties)
   ) {
     if (name === "links" || name === "meta") continue;
-    const prop = normalizeProperty(propSchema as OpenApiSpec);
+    const prop = normalizeProperty(propSchema as OApiSchema);
     properties[name] = prop;
   }
 
   return properties;
-}
-
-// --- Circular reference-safe serialization ---
-
-/**
- * Serialize a dereferenced OpenAPI spec to JSON, correctly handling both
- * shared $ref targets (same JS object from multiple locations) and true
- * circular references. Uses ancestor tracking so shared refs are serialized
- * fully while true cycles are replaced with "[Circular]".
- */
-function serializeWithCycleDetection(
-  root: unknown,
-): string {
-  const ancestors = new Set<object>();
-
-  function serialize(value: unknown): unknown {
-    if (value === null || typeof value !== "object") return value;
-
-    const obj = value as object;
-
-    // True cycle: this object is an ancestor on the current path
-    if (ancestors.has(obj)) return "[Circular]";
-
-    ancestors.add(obj);
-
-    let result: unknown;
-    if (Array.isArray(obj)) {
-      result = obj.map((item) => serialize(item));
-    } else {
-      const out: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(obj)) {
-        out[k] = serialize(v);
-      }
-      result = out;
-    }
-
-    ancestors.delete(obj);
-    return result;
-  }
-
-  return JSON.stringify(serialize(root), null, 2);
 }

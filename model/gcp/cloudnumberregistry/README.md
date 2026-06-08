@@ -1,6 +1,6 @@
 # @swamp/gcp/cloudnumberregistry
 
-Auto-generated [swamp](https://github.com/systeminit/swamp) extension models for
+Auto-generated [swamp](https://github.com/swamp-club/swamp) extension models for
 Google Cloud cloudnumberregistry resources.
 
 Each model represents a single GCP resource. Models have **domain properties**

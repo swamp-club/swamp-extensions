@@ -282,7 +282,7 @@ export async function generateHetznerModels(options: {
     modelFiles: modelFileNames,
     additionalFiles,
     releaseNotes,
-    repository: "https://github.com/systeminit/swamp-extensions",
+    repository: "https://github.com/swamp-club/swamp-extensions",
     platforms: [],
   });
   const hasChangedModels = modelChanges.some((c) =>
@@ -305,7 +305,7 @@ export async function generateHetznerModels(options: {
     modelFiles: modelFileNames,
     additionalFiles,
     releaseNotes,
-    repository: "https://github.com/systeminit/swamp-extensions",
+    repository: "https://github.com/swamp-club/swamp-extensions",
     platforms: [],
   });
   const manifest: HetznerGeneratedFile = {
@@ -332,21 +332,62 @@ export async function generateHetznerModels(options: {
 
 interface PathGroup {
   noun: string;
-  paths: Record<string, Record<string, OpenApiOperation>>;
+  paths: Record<string, Record<string, OApiOperation>>;
 }
 
-interface OpenApiOperation {
-  // deno-lint-ignore no-explicit-any
-  [key: string]: any;
+interface OApiSchema {
+  $ref?: string;
+  type?: string;
+  description?: string;
+  properties?: Record<string, OApiSchema>;
+  required?: string[];
+  anyOf?: OApiSchema[];
+  oneOf?: OApiSchema[];
+  allOf?: OApiSchema[];
+  enum?: (string | number)[];
+  items?: OApiSchema;
+  format?: string;
+  readOnly?: boolean;
+  writeOnly?: boolean;
+  minimum?: number;
+  maximum?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  default?: unknown;
+  nullable?: boolean;
+}
+
+interface OApiParameter {
+  name: string;
+  in?: string;
+  required?: boolean;
+  schema?: OApiSchema;
+}
+
+interface OApiOperation {
+  requestBody?: {
+    content?: Record<string, { schema?: OApiSchema }>;
+  };
+  responses?: Record<string, {
+    content?: Record<string, { schema?: OApiSchema }>;
+  }>;
+  parameters?: OApiParameter[];
+  description?: string;
+  [key: string]: unknown;
+}
+
+interface OApiSpec {
+  paths?: Record<string, Record<string, OApiOperation>>;
+  [key: string]: unknown;
 }
 
 /**
  * Parse the Hetzner OpenAPI spec, group endpoints by noun,
  * and extract resource definitions.
  */
-// deno-lint-ignore no-explicit-any
-function parseResources(spec: any): HetznerResource[] {
-  const paths: Record<string, Record<string, OpenApiOperation>> = spec.paths ??
+function parseResources(spec: OApiSpec): HetznerResource[] {
+  const paths: Record<string, Record<string, OApiOperation>> = spec.paths ??
     {};
 
   // Group paths by noun (second URL segment after base)
@@ -375,7 +416,7 @@ function parseResources(spec: any): HetznerResource[] {
     if (!groups.has(noun)) {
       groups.set(noun, { noun, paths: {} });
     }
-    groups.get(noun)!.paths[path] = methods as Record<string, OpenApiOperation>;
+    groups.get(noun)!.paths[path] = methods as Record<string, OApiOperation>;
   }
 
   const resources: HetznerResource[] = [];
@@ -405,10 +446,8 @@ function parseResources(spec: any): HetznerResource[] {
  */
 function mergeResourceOperations(
   noun: string,
-  // deno-lint-ignore no-explicit-any
-  paths: Record<string, Record<string, any>>,
-  // deno-lint-ignore no-explicit-any
-  spec: any,
+  paths: Record<string, Record<string, OApiOperation>>,
+  spec: OApiSpec,
 ): HetznerResource | null {
   let postBody: Record<string, HetznerProperty> = {};
   let postRequired: string[] = [];
@@ -505,10 +544,8 @@ function mergeResourceOperations(
  * Extract properties from a request body schema.
  */
 function extractRequestBody(
-  // deno-lint-ignore no-explicit-any
-  operation: any,
-  // deno-lint-ignore no-explicit-any
-  spec: any,
+  operation: OApiOperation,
+  spec: OApiSpec,
 ): { properties: Record<string, HetznerProperty>; required: string[] } {
   const body = operation.requestBody;
   if (!body) return { properties: {}, required: [] };
@@ -536,10 +573,8 @@ function extractRequestBody(
  * Handles Hetzner's envelope pattern (e.g., { "server": { ... }, "root_password": "..." })
  */
 function extractResponseBody(
-  // deno-lint-ignore no-explicit-any
-  operation: any,
-  // deno-lint-ignore no-explicit-any
-  spec: any,
+  operation: OApiOperation,
+  spec: OApiSpec,
 ): { properties: Record<string, HetznerProperty> } {
   const responses = operation.responses;
   if (!responses) return { properties: {} };
@@ -584,10 +619,8 @@ function extractResponseBody(
 }
 
 function extractPropertiesFromSchema(
-  // deno-lint-ignore no-explicit-any
-  schema: any,
-  // deno-lint-ignore no-explicit-any
-  spec: any,
+  schema: OApiSchema,
+  spec: OApiSpec,
 ): { properties: Record<string, HetznerProperty> } {
   const properties: Record<string, HetznerProperty> = {};
   if (!schema.properties) return { properties };
@@ -606,18 +639,18 @@ function extractPropertiesFromSchema(
 /**
  * Resolve a $ref pointer in the OpenAPI spec.
  */
-// deno-lint-ignore no-explicit-any
-function resolveRef(schema: any, spec: any): any {
-  if (!schema || typeof schema !== "object") return schema ?? {};
+function resolveRef(schema: OApiSchema, spec: OApiSpec): OApiSchema {
+  if (!schema || typeof schema !== "object") {
+    return (schema ?? {}) as OApiSchema;
+  }
 
   if (schema.$ref) {
     const refPath = schema.$ref.replace(/^#\//, "").split("/");
-    // deno-lint-ignore no-explicit-any
-    let current: any = spec;
+    let current: unknown = spec;
     for (const segment of refPath) {
-      current = current?.[segment];
+      current = (current as Record<string, unknown>)[segment];
     }
-    return current ? resolveRef(current, spec) : {};
+    return current ? resolveRef(current as OApiSchema, spec) : {};
   }
 
   // Handle allOf by merging
@@ -631,10 +664,8 @@ function resolveRef(schema: any, spec: any): any {
 /**
  * Merge an allOf array into a single schema.
  */
-// deno-lint-ignore no-explicit-any
-function mergeAllOf(allOf: any[], spec: any): any {
-  // deno-lint-ignore no-explicit-any
-  const merged: any = {};
+function mergeAllOf(allOf: OApiSchema[], spec: OApiSpec): OApiSchema {
+  const merged: OApiSchema = {};
   for (const item of allOf) {
     const resolved = resolveRef(item, spec);
     if (resolved.properties) {
@@ -658,8 +689,10 @@ function mergeAllOf(allOf: any[], spec: any): any {
  * Normalize an OpenAPI property schema into our HetznerProperty type.
  * Handles oneOf, allOf, and nested objects.
  */
-// deno-lint-ignore no-explicit-any
-function normalizeHetznerProperty(schema: any, spec: any): HetznerProperty {
+function normalizeHetznerProperty(
+  schema: OApiSchema,
+  spec: OApiSpec,
+): HetznerProperty {
   if (!schema || typeof schema !== "object") {
     return { type: "string" };
   }
@@ -692,7 +725,7 @@ function normalizeHetznerProperty(schema: any, spec: any): HetznerProperty {
   const type = resolved.type ?? "string";
 
   const prop: HetznerProperty = {
-    type: type === "integer" ? "integer" : type,
+    type: (type === "integer" ? "integer" : type) as HetznerProperty["type"],
     description: resolved.description,
   };
 

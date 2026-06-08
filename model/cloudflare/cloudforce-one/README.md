@@ -1,6 +1,6 @@
 # @swamp/cloudflare/cloudforce-one
 
-Auto-generated [swamp](https://github.com/systeminit/swamp) extension models for
+Auto-generated [swamp](https://github.com/swamp-club/swamp) extension models for
 Cloudflare cloudforce-one resources.
 
 Each model represents a single Cloudflare resource. Models have **domain

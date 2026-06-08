@@ -1,6 +1,6 @@
 # @swamp/cloudflare/workers-kv
 
-Auto-generated [swamp](https://github.com/systeminit/swamp) extension models for
+Auto-generated [swamp](https://github.com/swamp-club/swamp) extension models for
 Cloudflare workers-kv resources.
 
 Each model represents a single Cloudflare resource. Models have **domain

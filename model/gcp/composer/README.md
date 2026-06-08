@@ -1,6 +1,6 @@
 # @swamp/gcp/composer
 
-Auto-generated [swamp](https://github.com/systeminit/swamp) extension models for
+Auto-generated [swamp](https://github.com/swamp-club/swamp) extension models for
 Google Cloud composer resources.
 
 Each model represents a single GCP resource. Models have **domain properties**

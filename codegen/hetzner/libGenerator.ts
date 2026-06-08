@@ -1,11 +1,15 @@
 // Generates _lib/hetzner.ts — shared HTTP client and CRUD helpers for Hetzner Cloud models
 
+import { generateCopyrightHeader } from "../shared/licenseGenerator.ts";
+
 /**
  * Generates the shared helper file that all Hetzner extension models import.
  * Contains auth, HTTP client, response unwrapping, and CRUD operations.
  */
 export function generateHetznerLibFile(): string {
-  return `// Auto-generated shared helper for Hetzner Cloud extension models.
+  return `${generateCopyrightHeader()}
+
+// Auto-generated shared helper for Hetzner Cloud extension models.
 // Do not edit manually. Re-generate with: deno task generate:hetzner
 
 const API_BASE = "https://api.hetzner.cloud/v1";

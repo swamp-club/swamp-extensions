@@ -2,6 +2,7 @@
 // Each file exports `const model = { ... }` using the swamp extension model pattern.
 
 import type { HetznerProperty, HetznerResource } from "./pipeline.ts";
+import { generateCopyrightHeader } from "../shared/licenseGenerator.ts";
 import { wrapWithSanitize } from "../shared/instanceName.ts";
 
 export interface ExtensionModelInput {
@@ -28,6 +29,8 @@ export function generateHetznerExtensionModel(
   const lines: string[] = [];
 
   // Header
+  lines.push(generateCopyrightHeader());
+  lines.push("");
   lines.push(
     `// Auto-generated extension model for ${modelType}`,
   );

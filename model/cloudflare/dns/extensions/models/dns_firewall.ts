@@ -1,3 +1,22 @@
+// Swamp, an Automation Framework
+// Copyright (C) 2026 Elder Swamp Club, Inc.
+//
+// This file is part of Swamp.
+//
+// Swamp is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License version 3
+// as published by the Free Software Foundation, with the Swamp
+// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
+// file).
+//
+// Swamp is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+
 // Auto-generated extension model for @swamp/cloudflare/dns/dns-firewall
 // Do not edit manually. Re-generate with: deno task generate:cloudflare
 
@@ -39,12 +58,15 @@ const GlobalArgsSchema = z.object({
     "This setting controls how long DNS Firewall should cache negative\nresponses (e.g., NXDOMAIN) from the upstream servers.\n\nThis setting does not affect the TTL value in the DNS response\nCloudflare returns to clients. Cloudflare will always forward the TTL\nvalue received from upstream nameservers.\n",
   ).optional(),
   ratelimit: z.number().min(100).max(1000000000).describe(
-    "Ratelimit in queries per second per datacenter (applies to DNS queries sent to the upstream nameservers configured on the cluster)",
+    "Maximum number of DNS queries per second that will be forwarded to your upstream nameservers. The limit is enforced per server, where each server receives a fraction of the configured value. The actual aggregate rate for a data center may vary depending on how many servers are present. Responses served from cache do not count toward this limit. Set to null to disable rate limiting.",
   ).optional(),
   retries: z.number().min(0).max(2).describe(
     "Number of retries for fetching DNS responses from upstream nameservers (not counting the initial attempt)",
   ).optional(),
   upstream_ips: z.array(z.string()).optional(),
+  dns_firewall_ip_count: z.number().int().min(1).max(10).describe(
+    "Number of IPv4 addresses to assign to the DNS Firewall cluster. Only used during cluster creation and cannot be changed later.",
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -92,6 +114,7 @@ const InputsSchema = z.object({
   ratelimit: z.number().min(100).max(1000000000).optional(),
   retries: z.number().min(0).max(2).optional(),
   upstream_ips: z.array(z.string()).optional(),
+  dns_firewall_ip_count: z.number().int().min(1).max(10).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
@@ -100,11 +123,21 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Dns Firewall. Registered at `@swamp/cloudflare/dns/dns-firewall`. */
 export const model = {
   type: "@swamp/cloudflare/dns/dns-firewall",
-  version: "2026.05.29.1",
+  version: "2026.06.08.2",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
       description: "Added: apiToken, apiKey, email",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.08.1",
+      description: "Added: dns_firewall_ip_count",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.08.2",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -146,6 +179,9 @@ export const model = {
         if (g.ratelimit !== undefined) body.ratelimit = g.ratelimit;
         if (g.retries !== undefined) body.retries = g.retries;
         if (g.upstream_ips !== undefined) body.upstream_ips = g.upstream_ips;
+        if (g.dns_firewall_ip_count !== undefined) {
+          body.dns_firewall_ip_count = g.dns_firewall_ip_count;
+        }
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

@@ -1,3 +1,22 @@
+// Swamp, an Automation Framework
+// Copyright (C) 2026 Elder Swamp Club, Inc.
+//
+// This file is part of Swamp.
+//
+// Swamp is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License version 3
+// as published by the Free Software Foundation, with the Swamp
+// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
+// file).
+//
+// Swamp is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+
 // Auto-generated extension model for @swamp/cloudflare/gateway/locations
 // Do not edit manually. Re-generate with: deno task generate:cloudflare
 
@@ -51,9 +70,6 @@ const GlobalArgsSchema = z.object({
     }),
   }).describe("Configure the destination endpoints for this location.")
     .optional(),
-  max_ttl_secs: z.number().int().min(60).max(36000).describe(
-    "Specify the maximum TTL, in seconds, applied to DNS response records.\nRecords whose upstream TTL exceeds this value are served with the\ncapped value. When null or absent, no cap is applied at this tier.\n",
-  ).optional(),
   name: z.string().describe("Specify the location name."),
   networks: z.array(z.object({
     network: z.string(),
@@ -106,7 +122,6 @@ const ResourceSchema = z.object({
   ip: z.string().optional(),
   ipv4_destination: z.string().optional(),
   ipv4_destination_backup: z.string().optional(),
-  max_ttl_secs: z.number().optional(),
   name: z.string().optional(),
   networks: z.array(z.object({
     network: z.string().optional(),
@@ -145,7 +160,6 @@ const InputsSchema = z.object({
       })).optional(),
     }),
   }).optional(),
-  max_ttl_secs: z.number().int().min(60).max(36000).optional(),
   name: z.string().optional(),
   networks: z.array(z.object({
     network: z.string(),
@@ -158,11 +172,24 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Locations. Registered at `@swamp/cloudflare/gateway/locations`. */
 export const model = {
   type: "@swamp/cloudflare/gateway/locations",
-  version: "2026.05.29.1",
+  version: "2026.06.08.2",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
       description: "Added: max_ttl_secs, apiToken, apiKey, email",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.08.1",
+      description: "Removed: max_ttl_secs",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { max_ttl_secs: _max_ttl_secs, ...rest } = old;
+        return rest;
+      },
+    },
+    {
+      toVersion: "2026.06.08.2",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -192,7 +219,6 @@ export const model = {
         }
         if (g.ecs_support !== undefined) body.ecs_support = g.ecs_support;
         if (g.endpoints !== undefined) body.endpoints = g.endpoints;
-        if (g.max_ttl_secs !== undefined) body.max_ttl_secs = g.max_ttl_secs;
         if (g.name !== undefined) body.name = g.name;
         if (g.networks !== undefined) body.networks = g.networks;
         const result = await create(endpoint, body, {
@@ -263,7 +289,6 @@ export const model = {
         }
         if (g.ecs_support !== undefined) body.ecs_support = g.ecs_support;
         if (g.endpoints !== undefined) body.endpoints = g.endpoints;
-        if (g.max_ttl_secs !== undefined) body.max_ttl_secs = g.max_ttl_secs;
         if (g.name !== undefined) body.name = g.name;
         if (g.networks !== undefined) body.networks = g.networks;
         const result = await update(endpoint, existing.id, body, "PUT", {

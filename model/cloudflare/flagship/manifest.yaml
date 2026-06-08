@@ -1,0 +1,19 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/cloudflare/flagship"
+version: "2026.06.08.2"
+description: "Cloudflare flagship infrastructure models"
+repository: "https://github.com/swamp-club/swamp-extensions"
+labels:
+  - cloudflare
+  - flagship
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Updated: apps
+models:
+  - apps.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

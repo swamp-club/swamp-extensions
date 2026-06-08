@@ -1,3 +1,22 @@
+// Swamp, an Automation Framework
+// Copyright (C) 2026 Elder Swamp Club, Inc.
+//
+// This file is part of Swamp.
+//
+// Swamp is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License version 3
+// as published by the Free Software Foundation, with the Swamp
+// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
+// file).
+//
+// Swamp is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+
 // Auto-generated extension model for @swamp/cloudflare/access/portals
 // Do not edit manually. Re-generate with: deno task generate:cloudflare
 
@@ -32,7 +51,6 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   servers: z.array(z.object({
     default_disabled: z.boolean().optional(),
-    is_shared_oauth_callback_enabled: z.boolean().optional(),
     on_behalf: z.boolean().optional(),
     server_id: z.string().min(1).max(32).regex(
       new RegExp("^[a-z0-9_]+(?:-[a-z0-9_]+)*$"),
@@ -139,7 +157,6 @@ const InputsSchema = z.object({
   secure_web_gateway: z.boolean().optional(),
   servers: z.array(z.object({
     default_disabled: z.boolean().optional(),
-    is_shared_oauth_callback_enabled: z.boolean().optional(),
     on_behalf: z.boolean().optional(),
     server_id: z.string().min(1).max(32).regex(
       new RegExp("^[a-z0-9_]+(?:-[a-z0-9_]+)*$"),
@@ -172,11 +189,21 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Portals. Registered at `@swamp/cloudflare/access/portals`. */
 export const model = {
   type: "@swamp/cloudflare/access/portals",
-  version: "2026.05.29.1",
+  version: "2026.06.08.2",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
       description: "Added: apiToken, apiKey, email",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.08.2",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
