@@ -60,7 +60,7 @@ const GlobalArgsSchema = z.object({
   DomainName: z.string().describe("The domain name."),
   Stage: z.string().describe("The API stage."),
   ApiMappingKey: z.string().describe("The API mapping key.").optional(),
-  ApiId: z.string().describe("The identifier of the API."),
+  ApiId: z.string().describe("The API identifier."),
 });
 
 const StateSchema = z.object({
@@ -82,7 +82,7 @@ const InputsSchema = z.object({
   DomainName: z.string().describe("The domain name.").optional(),
   Stage: z.string().describe("The API stage.").optional(),
   ApiMappingKey: z.string().describe("The API mapping key.").optional(),
-  ApiId: z.string().describe("The identifier of the API.").optional(),
+  ApiId: z.string().describe("The API identifier.").optional(),
 });
 
 const _credentialKeys = new Set([
@@ -104,7 +104,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGatewayV2 ApiMapping. Registered at `@swamp/aws/apigatewayv2/api-mapping`. */
 export const model = {
   type: "@swamp/aws/apigatewayv2/api-mapping",
-  version: "2026.06.08.1",
+  version: "2026.06.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -138,6 +138,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

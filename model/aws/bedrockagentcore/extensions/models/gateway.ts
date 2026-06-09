@@ -101,10 +101,20 @@ const GatewayInterceptorConfigurationSchema = z.object({
   InputConfiguration: InterceptorInputConfigurationSchema.optional(),
 });
 
+const SessionConfigurationSchema = z.object({
+  SessionTimeoutInSeconds: z.number().int().min(900).max(28800).optional(),
+});
+
+const StreamingConfigurationSchema = z.object({
+  EnableResponseStreaming: z.boolean().optional(),
+});
+
 const MCPGatewayConfigurationSchema = z.object({
   SupportedVersions: z.array(z.string()).optional(),
   Instructions: z.string().min(1).max(2048).optional(),
   SearchType: z.enum(["SEMANTIC"]).optional(),
+  SessionConfiguration: SessionConfigurationSchema.optional(),
+  StreamingConfiguration: StreamingConfigurationSchema.optional(),
 });
 
 const GlobalArgsSchema = z.object({
@@ -274,7 +284,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Gateway. Registered at `@swamp/aws/bedrockagentcore/gateway`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/gateway",
-  version: "2026.06.08.1",
+  version: "2026.06.09.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -326,6 +336,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

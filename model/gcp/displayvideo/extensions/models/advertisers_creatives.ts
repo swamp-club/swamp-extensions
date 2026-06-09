@@ -492,6 +492,7 @@ const GlobalArgsSchema = z.object({
         "EXCHANGE_TUBI",
         "EXCHANGE_SNAP",
         "EXCHANGE_CADENT",
+        "EXCHANGE_EXTE",
       ]).describe("The exchange reviewing the creative.").optional(),
       status: z.enum([
         "REVIEW_STATUS_UNSPECIFIED",
@@ -1030,6 +1031,7 @@ const InputsSchema = z.object({
         "EXCHANGE_TUBI",
         "EXCHANGE_SNAP",
         "EXCHANGE_CADENT",
+        "EXCHANGE_EXTE",
       ]).describe("The exchange reviewing the creative.").optional(),
       status: z.enum([
         "REVIEW_STATUS_UNSPECIFIED",
@@ -1127,7 +1129,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.Creatives. Registered at `@swamp/gcp/displayvideo/advertisers-creatives`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-creatives",
-  version: "2026.06.08.1",
+  version: "2026.06.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1196,6 +1198,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

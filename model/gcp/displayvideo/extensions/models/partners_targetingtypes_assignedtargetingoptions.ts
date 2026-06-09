@@ -729,6 +729,7 @@ const GlobalArgsSchema = z.object({
       "EXCHANGE_TUBI",
       "EXCHANGE_SNAP",
       "EXCHANGE_CADENT",
+      "EXCHANGE_EXTE",
     ]).describe("Required. The enum value for the exchange.").optional(),
   }).describe(
     "Details for assigned exchange targeting option. This will be populated in the details field of an AssignedTargetingOption when targeting_type is `TARGETING_TYPE_EXCHANGE`.",
@@ -1068,6 +1069,7 @@ const GlobalArgsSchema = z.object({
     "TARGETING_TYPE_YOUTUBE_CHANNEL",
     "TARGETING_TYPE_SESSION_POSITION",
     "TARGETING_TYPE_CONTENT_THEME_EXCLUSION",
+    "TARGETING_TYPE_YOUTUBE_CHANNEL_PACK",
   ]).describe(
     "Output only. Identifies the type of this assigned targeting option.",
   ).optional(),
@@ -1514,6 +1516,16 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Details for YouTube channel assigned targeting option. This will be populated in the youtube_channel_details field when targeting_type is `TARGETING_TYPE_YOUTUBE_CHANNEL`.",
   ).optional(),
+  youtubeChannelPackDetails: z.object({
+    channelPackId: z.string().describe(
+      "Required. The ID of the YouTube channel pack.",
+    ).optional(),
+    negative: z.boolean().describe(
+      "Optional. Indicates if this option is being negatively targeted.",
+    ).optional(),
+  }).describe(
+    "Details for YouTube channel pack assigned targeting option. This will be populated in the youtube_channel_pack_details field when targeting_type is `TARGETING_TYPE_YOUTUBE_CHANNEL_PACK`.",
+  ).optional(),
   youtubeVideoDetails: z.object({
     negative: z.boolean().describe(
       "Indicates if this option is being negatively targeted.",
@@ -1819,6 +1831,10 @@ const StateSchema = z.object({
   }).optional(),
   youtubeChannelDetails: z.object({
     channelId: z.string(),
+    negative: z.boolean(),
+  }).optional(),
+  youtubeChannelPackDetails: z.object({
+    channelPackId: z.string(),
     negative: z.boolean(),
   }).optional(),
   youtubeVideoDetails: z.object({
@@ -2398,6 +2414,7 @@ const InputsSchema = z.object({
       "EXCHANGE_TUBI",
       "EXCHANGE_SNAP",
       "EXCHANGE_CADENT",
+      "EXCHANGE_EXTE",
     ]).describe("Required. The enum value for the exchange.").optional(),
   }).describe(
     "Details for assigned exchange targeting option. This will be populated in the details field of an AssignedTargetingOption when targeting_type is `TARGETING_TYPE_EXCHANGE`.",
@@ -2737,6 +2754,7 @@ const InputsSchema = z.object({
     "TARGETING_TYPE_YOUTUBE_CHANNEL",
     "TARGETING_TYPE_SESSION_POSITION",
     "TARGETING_TYPE_CONTENT_THEME_EXCLUSION",
+    "TARGETING_TYPE_YOUTUBE_CHANNEL_PACK",
   ]).describe(
     "Output only. Identifies the type of this assigned targeting option.",
   ).optional(),
@@ -3183,6 +3201,16 @@ const InputsSchema = z.object({
   }).describe(
     "Details for YouTube channel assigned targeting option. This will be populated in the youtube_channel_details field when targeting_type is `TARGETING_TYPE_YOUTUBE_CHANNEL`.",
   ).optional(),
+  youtubeChannelPackDetails: z.object({
+    channelPackId: z.string().describe(
+      "Required. The ID of the YouTube channel pack.",
+    ).optional(),
+    negative: z.boolean().describe(
+      "Optional. Indicates if this option is being negatively targeted.",
+    ).optional(),
+  }).describe(
+    "Details for YouTube channel pack assigned targeting option. This will be populated in the youtube_channel_pack_details field when targeting_type is `TARGETING_TYPE_YOUTUBE_CHANNEL_PACK`.",
+  ).optional(),
   youtubeVideoDetails: z.object({
     negative: z.boolean().describe(
       "Indicates if this option is being negatively targeted.",
@@ -3212,7 +3240,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/displayvideo/partners-targetingtypes-assignedtargetingoptions",
-  version: "2026.06.08.1",
+  version: "2026.06.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3322,6 +3350,11 @@ export const model = {
     {
       toVersion: "2026.06.08.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.09.1",
+      description: "Added: youtubeChannelPackDetails",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -3499,6 +3532,9 @@ export const model = {
         }
         if (g["youtubeChannelDetails"] !== undefined) {
           body["youtubeChannelDetails"] = g["youtubeChannelDetails"];
+        }
+        if (g["youtubeChannelPackDetails"] !== undefined) {
+          body["youtubeChannelPackDetails"] = g["youtubeChannelPackDetails"];
         }
         if (g["youtubeVideoDetails"] !== undefined) {
           body["youtubeVideoDetails"] = g["youtubeVideoDetails"];

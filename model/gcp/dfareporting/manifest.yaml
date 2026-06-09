@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/dfareporting"
-version: "2026.06.08.2"
+version: "2026.06.09.1"
 description: "Google Cloud dfareporting infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -10,8 +10,6 @@ labels:
   - dfareporting
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: accountactiveadsummaries, accountpermissiongroups, accountpermissions, accountuserprofiles, accounts, ads, advertisergroups, advertiserinvoices, advertiserlandingpages, advertisers, billingassignments, billingprofiles, billingrates, browsers, campaigncreativeassociations, campaigns, changelogs, cities, connectiontypes, contentcategories, countries, creativefieldvalues, creativefields, creativegroups, creatives, directorysites, dynamicfeeds, dynamicprofiles, dynamictargetingkeys, eventtags, files, floodlightactivities, floodlightactivitygroups, floodlightconfigurations, languages, metros, mobileapps, mobilecarriers, operatingsystemversions, operatingsystems, placementgroups, placementstrategies, placements, platformtypes, postalcodes, regions, remarketinglistshares, remarketinglists, reports, reports_files, sites, sizes, studiocreatives, subaccounts, targetableremarketinglists, targetingtemplates, tvcampaigndetails, tvcampaignsummaries, userprofiles, userrolepermissiongroups, userrolepermissions, userroles, videoformats, inventoryitems, orders, projects
 models:
   - accountactiveadsummaries.ts
   - accountpermissiongroups.ts
@@ -47,20 +45,17 @@ models:
   - floodlightactivities.ts
   - floodlightactivitygroups.ts
   - floodlightconfigurations.ts
-  - inventoryitems.ts
   - languages.ts
   - metros.ts
   - mobileapps.ts
   - mobilecarriers.ts
   - operatingsystems.ts
   - operatingsystemversions.ts
-  - orders.ts
   - placementgroups.ts
   - placements.ts
   - placementstrategies.ts
   - platformtypes.ts
   - postalcodes.ts
-  - projects.ts
   - regions.ts
   - remarketinglists.ts
   - remarketinglistshares.ts

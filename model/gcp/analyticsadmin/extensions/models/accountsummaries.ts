@@ -79,6 +79,7 @@ const StateSchema = z.object({
   displayName: z.string().optional(),
   name: z.string(),
   propertySummaries: z.array(z.object({
+    canEdit: z.boolean(),
     displayName: z.string(),
     parent: z.string(),
     property: z.string(),
@@ -110,7 +111,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Analytics Admin AccountSummaries. Registered at `@swamp/gcp/analyticsadmin/accountsummaries`. */
 export const model = {
   type: "@swamp/gcp/analyticsadmin/accountsummaries",
-  version: "2026.06.08.1",
+  version: "2026.06.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -189,6 +190,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

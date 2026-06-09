@@ -55,7 +55,9 @@ const DomainNameConfigurationSchema = z.object({
   CertificateArn: z.string().describe(
     "An AWS-managed certificate that will be used by the edge-optimized endpoint for this domain name. AWS Certificate Manager is the only supported source.",
   ).optional(),
-  IpAddressType: z.string().optional(),
+  IpAddressType: z.string().describe(
+    "The IP address types that can invoke the domain name. Use ipv4 to allow only IPv4 addresses to invoke your domain name, or use dualstack to allow both IPv4 and IPv6 addresses to invoke your domain name.",
+  ).optional(),
 });
 
 const GlobalArgsSchema = z.object({
@@ -91,7 +93,9 @@ const GlobalArgsSchema = z.object({
     "API_MAPPING_ONLY",
     "ROUTING_RULE_THEN_API_MAPPING",
     "ROUTING_RULE_ONLY",
-  ]).optional(),
+  ]).describe(
+    "The routing mode API Gateway uses to route traffic to your APIs.",
+  ).optional(),
   Tags: z.record(z.string(), z.string()).describe(
     "The collection of tags associated with a domain name.",
   ).optional(),
@@ -138,7 +142,9 @@ const InputsSchema = z.object({
     "API_MAPPING_ONLY",
     "ROUTING_RULE_THEN_API_MAPPING",
     "ROUTING_RULE_ONLY",
-  ]).optional(),
+  ]).describe(
+    "The routing mode API Gateway uses to route traffic to your APIs.",
+  ).optional(),
   Tags: z.record(z.string(), z.string()).describe(
     "The collection of tags associated with a domain name.",
   ).optional(),
@@ -163,7 +169,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGatewayV2 DomainName. Registered at `@swamp/aws/apigatewayv2/domain-name`. */
 export const model = {
   type: "@swamp/aws/apigatewayv2/domain-name",
-  version: "2026.06.08.1",
+  version: "2026.06.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -197,6 +203,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -89,7 +89,7 @@ const GlobalArgsSchema = z.object({
   ExternalInvocationConfiguration: z.object({
     Enabled: z.boolean().describe(
       "Specifies whether the flow module resource is enabled for external invocation",
-    ),
+    ).optional(),
   }).describe(
     "Defines the external invocation configuration of the flow module resource",
   ).optional(),
@@ -166,7 +166,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect ContactFlowModule. Registered at `@swamp/aws/connect/contact-flow-module`. */
 export const model = {
   type: "@swamp/aws/connect/contact-flow-module",
-  version: "2026.06.08.1",
+  version: "2026.06.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -200,6 +200,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -229,6 +229,7 @@ const GlobalArgsSchema = z.object({
           "SDF_VERSION_9",
           "SDF_VERSION_9_1",
           "SDF_VERSION_9_2",
+          "SDF_VERSION_10",
         ]).describe("Required. The version of SDF being used.").optional(),
       }).describe("Structured Data File (SDF) related settings.").optional(),
     }).describe("Structured Data Files (SDF) settings of an advertiser.")
@@ -433,6 +434,7 @@ const InputsSchema = z.object({
           "SDF_VERSION_9",
           "SDF_VERSION_9_1",
           "SDF_VERSION_9_2",
+          "SDF_VERSION_10",
         ]).describe("Required. The version of SDF being used.").optional(),
       }).describe("Structured Data File (SDF) related settings.").optional(),
     }).describe("Structured Data Files (SDF) settings of an advertiser.")
@@ -501,7 +503,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers. Registered at `@swamp/gcp/displayvideo/advertisers`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers",
-  version: "2026.06.08.1",
+  version: "2026.06.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -575,6 +577,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

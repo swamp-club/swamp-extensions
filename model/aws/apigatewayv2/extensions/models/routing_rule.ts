@@ -42,31 +42,43 @@ import {
 import type { AwsCredentials } from "./_lib/aws.ts";
 
 const MatchHeaderValueSchema = z.object({
-  Header: z.string(),
-  ValueGlob: z.string(),
+  Header: z.string().describe(
+    "The case insensitive header name to be matched. The header name must be less than 40 characters and the only allowed characters are a-z, A-Z, 0-9, and the following special characters: ``*?-!#$%&'.^_`|~.``.",
+  ),
+  ValueGlob: z.string().describe(
+    "The case sensitive header glob value to be matched against entire header value. The header glob value must be less than 128 characters and the only allowed characters are a-z, A-Z, 0-9, and the following special characters: ``*?-!#$%&'.^_`|~. Wildcard matching is supported for header glob values but must be for *prefix-match, suffix-match*, or *infix*-match``.",
+  ),
 });
 
 const MatchHeadersSchema = z.object({
-  AnyOf: z.array(MatchHeaderValueSchema),
+  AnyOf: z.array(MatchHeaderValueSchema).describe(
+    "The header name and header value glob to be matched. The matchHeaders condition is matched if any of the header name and header value globs are matched.",
+  ),
 });
 
 const MatchBasePathsSchema = z.object({
-  AnyOf: z.array(z.string()),
+  AnyOf: z.array(z.string()).describe(
+    "The string of the case sensitive base path to be matched.",
+  ),
 });
 
 const ConditionSchema = z.object({
-  MatchHeaders: MatchHeadersSchema.optional(),
-  MatchBasePaths: MatchBasePathsSchema.optional(),
+  MatchHeaders: MatchHeadersSchema.describe("The headers to be matched.")
+    .optional(),
+  MatchBasePaths: MatchBasePathsSchema.describe("The base path to be matched.")
+    .optional(),
 });
 
 const ActionInvokeApiSchema = z.object({
-  ApiId: z.string(),
-  Stage: z.string(),
-  StripBasePath: z.boolean().optional(),
+  ApiId: z.string().describe("The API identifier of the target API."),
+  Stage: z.string().describe("The name of the target stage."),
+  StripBasePath: z.boolean().describe(
+    "The strip base path setting. When true, API Gateway strips the incoming matched base path when forwarding the request to the target API.",
+  ).optional(),
 });
 
 const ActionSchema = z.object({
-  InvokeApi: ActionInvokeApiSchema,
+  InvokeApi: ActionInvokeApiSchema.describe("Represents an InvokeApi action."),
 });
 
 const GlobalArgsSchema = z.object({
@@ -85,12 +97,16 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.",
   ).optional(),
-  DomainNameArn: z.string().describe(
-    "The amazon resource name (ARN) of the domain name resource.",
+  DomainNameArn: z.string().describe("The ARN of the domain name."),
+  Priority: z.number().int().describe(
+    "The order in which API Gateway evaluates a rule. Priority is evaluated from the lowest value to the highest value. Rules can't have the same priority. Priority values 1-1,000,000 are supported.",
   ),
-  Priority: z.number().int(),
-  Conditions: z.array(ConditionSchema),
-  Actions: z.array(ActionSchema),
+  Conditions: z.array(ConditionSchema).describe(
+    "The conditions of the routing rule.",
+  ),
+  Actions: z.array(ActionSchema).describe(
+    "The resulting action based on matching a routing rules condition. Only InvokeApi is supported.",
+  ),
 });
 
 const StateSchema = z.object({
@@ -110,12 +126,16 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  DomainNameArn: z.string().describe(
-    "The amazon resource name (ARN) of the domain name resource.",
+  DomainNameArn: z.string().describe("The ARN of the domain name.").optional(),
+  Priority: z.number().int().describe(
+    "The order in which API Gateway evaluates a rule. Priority is evaluated from the lowest value to the highest value. Rules can't have the same priority. Priority values 1-1,000,000 are supported.",
   ).optional(),
-  Priority: z.number().int().optional(),
-  Conditions: z.array(ConditionSchema).optional(),
-  Actions: z.array(ActionSchema).optional(),
+  Conditions: z.array(ConditionSchema).describe(
+    "The conditions of the routing rule.",
+  ).optional(),
+  Actions: z.array(ActionSchema).describe(
+    "The resulting action based on matching a routing rules condition. Only InvokeApi is supported.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -137,7 +157,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGatewayV2 RoutingRule. Registered at `@swamp/aws/apigatewayv2/routing-rule`. */
 export const model = {
   type: "@swamp/aws/apigatewayv2/routing-rule",
-  version: "2026.06.08.1",
+  version: "2026.06.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -171,6 +191,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

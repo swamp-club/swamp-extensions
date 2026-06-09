@@ -132,7 +132,9 @@ const GlobalArgsSchema = z.object({
   ApiKeySelectionExpression: z.string().describe(
     "An API key selection expression. Supported only for WebSocket APIs. See [API Key Selection Expressions](https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-websocket-api-selection-expressions.html#apigateway-websocket-api-apikey-selection-expressions).",
   ).optional(),
-  IpAddressType: z.string().optional(),
+  IpAddressType: z.string().describe(
+    "The IP address types that can invoke the API. Use ipv4 to allow only IPv4 addresses to invoke your API, or use dualstack to allow both IPv4 and IPv6 addresses to invoke your API. Don’t use IP address type for an HTTP API based on an OpenAPI specification. Instead, specify the IP address type in the OpenAPI specification.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -253,7 +255,9 @@ const InputsSchema = z.object({
   ApiKeySelectionExpression: z.string().describe(
     "An API key selection expression. Supported only for WebSocket APIs. See [API Key Selection Expressions](https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-websocket-api-selection-expressions.html#apigateway-websocket-api-apikey-selection-expressions).",
   ).optional(),
-  IpAddressType: z.string().optional(),
+  IpAddressType: z.string().describe(
+    "The IP address types that can invoke the API. Use ipv4 to allow only IPv4 addresses to invoke your API, or use dualstack to allow both IPv4 and IPv6 addresses to invoke your API. Don’t use IP address type for an HTTP API based on an OpenAPI specification. Instead, specify the IP address type in the OpenAPI specification.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -275,7 +279,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGatewayV2 Api. Registered at `@swamp/aws/apigatewayv2/api`. */
 export const model = {
   type: "@swamp/aws/apigatewayv2/api",
-  version: "2026.06.08.1",
+  version: "2026.06.09.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -314,6 +318,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.09.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

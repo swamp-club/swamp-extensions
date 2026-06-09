@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/youtube"
-version: "2026.06.08.2"
+version: "2026.06.09.1"
 description: "Google Cloud youtube infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: activities, captions, channelsections, channels, commentthreads, comments, i18nlanguages, i18nregions, livebroadcasts, livechatmessages, livechatmoderators, livestreams, members, membershipslevels, playlistimages, playlistitems, playlists, search, subscriptions, superchatevents, thirdpartylinks, videoabusereportreasons, videocategories, videotrainability, videos
+  - Updated: thirdpartylinks
 models:
   - activities.ts
   - captions.ts
