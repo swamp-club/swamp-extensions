@@ -94,12 +94,16 @@ This is simpler than DigitalOcean's base+ID pairing because Hetzner doesn't use
 versioned prefixes like `/v2/` consistently, and the noun is always the first
 meaningful segment.
 
-### Why POST is required
+### Qualification criteria
 
-A noun must have at least one POST endpoint to qualify as a resource. Without a
-create operation, there's nothing to codegen — the model pattern requires
-provisioning capability. Read-only resources (like locations or pricing) are
-skipped.
+A noun qualifies as a resource when it has at least one usable operation: a
+collection GET (list), a single-resource GET (get), a POST (create), a PUT
+(update), or a DELETE (delete). Nouns with none of these are skipped. This means
+the pipeline generates models for both CRUD resources (servers, firewalls, etc.)
+and GET-only reference resources (server_types, locations, datacenters, isos,
+load_balancer_types, pricing). The generated methods match the available
+operations — a GET-only resource gets `list` and `get` but no `create`,
+`update`, `delete`, or `sync`.
 
 ### Exclusion rules
 
@@ -116,20 +120,26 @@ Unlike the DigitalOcean pipeline, there is no:
   discovery endpoints to match to parents
 - **Sub-resource detection heuristic** — paths deeper than `/{noun}/{id}` are
   simply skipped
-- **Top-level exclusion list** — all nouns with POST are candidates
+- **Top-level exclusion list** — all nouns with any GET/POST/PUT/DELETE are
+  candidates
 - **Operation count limits** — Hetzner resources are uniform enough that
   complexity filtering isn't needed
 
 ---
 
-## 4. CRUD Operation Identification
+## 4. Operation Identification
 
 ### HTTP method to operation mapping
+
+All operations are conditional — a resource only gets the methods matching the
+HTTP methods present in the spec. A GET-only resource (e.g. `server_types`) gets
+`list` and `get` but no `create`, `update`, or `delete`.
 
 | HTTP Method | Operation | Where                                       |
 | ----------- | --------- | ------------------------------------------- |
 | POST        | Create    | Collection path (`/servers`)                |
 | GET         | Read      | Single-resource path (`/servers/{id}`) only |
+| GET         | List      | Collection path (`/servers`)                |
 | PUT         | Update    | Single-resource path                        |
 | DELETE      | Delete    | Single-resource path                        |
 
@@ -512,29 +522,45 @@ outputs/hetzner-cloud/
 
 ### Model export shape
 
-Every model file exports `const model = { ... }` with:
+Every model file exports `const model = { ... }`. Methods are conditional — only
+operations that the API supports are emitted.
+
+**CRUD resource** (e.g. servers — has POST, GET, PUT, DELETE):
 
 ```typescript
 export const model = {
   type: "@swamp/hetzner-cloud/servers",    // unique type identifier
   version: "2026.03.07.1",                // CalVer
-  globalArguments: GlobalArgsSchema,        // Zod: create+update args
+  globalArguments: GlobalArgsSchema,        // Zod: create+update args + token
   inputsSchema: InputsSchema,              // Zod: optional overrides
   resources: {
-    state: {                               // primary resource state
-      description: "Server resource state",
-      schema: ResourceSchema,
-      lifetime: "infinite",
-      garbageCollection: 10,               // minutes
-    },
+    state: { ... },                        // primary resource state
   },
   methods: {
-    create: { ... },                       // always present
-    get: { ... },                          // always present
+    create: { ... },                       // if POST exists
+    get: { ... },                          // if single-resource GET exists
     update: { ... },                       // if PUT exists
     delete: { ... },                       // if DELETE exists
-    sync: { ... },                         // always present
-    list: { ... },                         // if a collection GET exists
+    sync: { ... },                         // if both POST and GET exist
+    list: { ... },                         // if collection GET exists
+  },
+};
+```
+
+**GET-only reference resource** (e.g. server_types — only GET):
+
+```typescript
+export const model = {
+  type: "@swamp/hetzner-cloud/server-types",
+  version: "2026.06.10.1",
+  globalArguments: GlobalArgsSchema,        // Zod: token only (no create/update args)
+  inputsSchema: InputsSchema,              // Zod: token only
+  resources: {
+    state: { ... },
+  },
+  methods: {
+    get: { ... },                          // single-resource GET
+    list: { ... },                         // collection GET
   },
 };
 ```

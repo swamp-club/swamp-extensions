@@ -25,8 +25,8 @@
 /**
  * Swamp extension model for a Hetzner Cloud placement group.
  *
- * Wraps the `/placement_groups` API as a swamp model so create, get, update,
- * delete, and sync can be driven through `swamp model`.
+ * Wraps the `/placement_groups` API as a swamp model so create, get, update, delete, sync, list
+ * can be driven through `swamp model`.
  *
  * @module
  */
@@ -73,7 +73,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud placement group. Registered at `@swamp/hetzner-cloud/placement-groups`. */
 export const model = {
   type: "@swamp/hetzner-cloud/placement-groups",
-  version: "2026.06.08.1",
+  version: "2026.06.10.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -117,6 +117,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

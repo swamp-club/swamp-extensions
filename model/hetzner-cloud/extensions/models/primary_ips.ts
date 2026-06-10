@@ -25,8 +25,8 @@
 /**
  * Swamp extension model for a Hetzner Cloud primary ip.
  *
- * Wraps the `/primary_ips` API as a swamp model so create, get, update,
- * delete, and sync can be driven through `swamp model`.
+ * Wraps the `/primary_ips` API as a swamp model so create, get, update, delete, sync, list
+ * can be driven through `swamp model`.
  *
  * @module
  */
@@ -138,7 +138,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud primary ip. Registered at `@swamp/hetzner-cloud/primary-ips`. */
 export const model = {
   type: "@swamp/hetzner-cloud/primary-ips",
-  version: "2026.06.08.1",
+  version: "2026.06.10.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -182,6 +182,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

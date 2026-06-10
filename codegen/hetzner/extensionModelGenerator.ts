@@ -43,16 +43,26 @@ export function generateHetznerExtensionModel(
 
   // Module-level JSDoc
   const singular = singularize(resource.modelSlug).replace(/-/g, " ");
+  const availableOps = [
+    resource.handlers.create ? "create" : "",
+    resource.handlers.read ? "get" : "",
+    resource.handlers.update ? "update" : "",
+    resource.handlers.delete ? "delete" : "",
+    resource.handlers.create ? "sync" : "",
+    resource.handlers.list ? "list" : "",
+  ].filter(Boolean);
   lines.push(`/**`);
   lines.push(
     ` * Swamp extension model for a Hetzner Cloud ${singular}.`,
   );
   lines.push(` *`);
   lines.push(
-    ` * Wraps the \`${endpoint}\` API as a swamp model so create, get, update,`,
+    ` * Wraps the \`${endpoint}\` API as a swamp model so ${
+      availableOps.join(", ")
+    }`,
   );
   lines.push(
-    ` * delete, and sync can be driven through \`swamp model\`.`,
+    ` * can be driven through \`swamp model\`.`,
   );
   lines.push(` *`);
   lines.push(` * @module`);
@@ -63,13 +73,20 @@ export function generateHetznerExtensionModel(
   // zod standalone — it doesn't read the package's deno.json import map.
   lines.push(`import { z } from "npm:zod@4.3.6";`);
 
-  const helperImports: string[] = ["create", "read", "tryRead"];
+  const helperImports: string[] = [];
+  if (resource.handlers.create) helperImports.push("create");
+  if (resource.handlers.read) helperImports.push("read");
+  if (resource.handlers.create && resource.handlers.read) {
+    helperImports.push("tryRead");
+  }
   if (resource.handlers.delete) helperImports.push("remove");
   if (resource.handlers.update) helperImports.push("update");
   if (resource.handlers.list) helperImports.push("listAll");
-  lines.push(
-    `import { ${helperImports.join(", ")} } from "./_lib/hetzner.ts";`,
-  );
+  if (helperImports.length > 0) {
+    lines.push(
+      `import { ${helperImports.join(", ")} } from "./_lib/hetzner.ts";`,
+    );
+  }
   lines.push("");
 
   // Determine the naming field for factory-pattern instance names
@@ -154,72 +171,76 @@ export function generateHetznerExtensionModel(
   lines.push(`  },`);
   lines.push(`  methods: {`);
 
-  // create method
-  lines.push(`    create: {`);
-  lines.push(
-    `      description: "Create a ${singularName}",`,
-  );
-  lines.push(`      arguments: z.object({}),`);
-  lines.push(
-    `      execute: async (_args: Record<string, never>, context: any) => {`,
-  );
-  lines.push(`        const g = context.globalArgs;`);
-  lines.push(`        const body: Record<string, unknown> = {};`);
-  for (const name of Object.keys(resource.createProperties)) {
+  // create method — only if POST handler exists
+  if (resource.handlers.create) {
+    lines.push(`    create: {`);
     lines.push(
-      `        if (g.${name} !== undefined) body.${name} = g.${name};`,
+      `      description: "Create a ${singularName}",`,
     );
+    lines.push(`      arguments: z.object({}),`);
+    lines.push(
+      `      execute: async (_args: Record<string, never>, context: any) => {`,
+    );
+    lines.push(`        const g = context.globalArgs;`);
+    lines.push(`        const body: Record<string, unknown> = {};`);
+    for (const name of Object.keys(resource.createProperties)) {
+      lines.push(
+        `        if (g.${name} !== undefined) body.${name} = g.${name};`,
+      );
+    }
+    lines.push(
+      `        const result = await create("${endpoint}", body, g.token) as ResourceData;`,
+    );
+    lines.push(
+      `        const instanceName = ${
+        wrapWithSanitize(`g.${namingField}?.toString() ?? "current"`)
+      };`,
+    );
+    lines.push(
+      `        const handle = await context.writeResource("state", instanceName, result);`,
+    );
+    lines.push(`        return { dataHandles: [handle] };`);
+    lines.push(`      },`);
+    lines.push(`    },`);
   }
-  lines.push(
-    `        const result = await create("${endpoint}", body, g.token) as ResourceData;`,
-  );
-  lines.push(
-    `        const instanceName = ${
-      wrapWithSanitize(`g.${namingField}?.toString() ?? "current"`)
-    };`,
-  );
-  lines.push(
-    `        const handle = await context.writeResource("state", instanceName, result);`,
-  );
-  lines.push(`        return { dataHandles: [handle] };`);
-  lines.push(`      },`);
-  lines.push(`    },`);
 
-  // get method
-  lines.push(`    get: {`);
-  lines.push(`      description: "Get a ${singularName}",`);
-  lines.push(
-    `      arguments: z.object({ id: z.number().int().describe("The ID of the ${singularName}") }),`,
-  );
-  lines.push(
-    `      execute: async (args: { id: number }, context: any) => {`,
-  );
-  lines.push(
-    `        const result = await read("${endpoint}", args.id, context.globalArgs.token) as ResourceData;`,
-  );
-  if (isSyntheticName) {
+  // get method — only if single-resource GET handler exists
+  if (resource.handlers.read) {
+    lines.push(`    get: {`);
+    lines.push(`      description: "Get a ${singularName}",`);
     lines.push(
-      `        const instanceName = ${
-        wrapWithSanitize(
-          `context.globalArgs.${namingField}?.toString() ?? args.id.toString()`,
-        )
-      };`,
+      `      arguments: z.object({ id: z.number().int().describe("The ID of the ${singularName}") }),`,
     );
-  } else {
     lines.push(
-      `        const instanceName = ${
-        wrapWithSanitize(
-          `result.${namingField}?.toString() ?? args.id.toString()`,
-        )
-      };`,
+      `      execute: async (args: { id: number }, context: any) => {`,
     );
+    lines.push(
+      `        const result = await read("${endpoint}", args.id, context.globalArgs.token) as ResourceData;`,
+    );
+    if (isSyntheticName) {
+      lines.push(
+        `        const instanceName = ${
+          wrapWithSanitize(
+            `context.globalArgs.${namingField}?.toString() ?? args.id.toString()`,
+          )
+        };`,
+      );
+    } else {
+      lines.push(
+        `        const instanceName = ${
+          wrapWithSanitize(
+            `result.${namingField}?.toString() ?? args.id.toString()`,
+          )
+        };`,
+      );
+    }
+    lines.push(
+      `        const handle = await context.writeResource("state", instanceName, result);`,
+    );
+    lines.push(`        return { dataHandles: [handle] };`);
+    lines.push(`      },`);
+    lines.push(`    },`);
   }
-  lines.push(
-    `        const handle = await context.writeResource("state", instanceName, result);`,
-  );
-  lines.push(`        return { dataHandles: [handle] };`);
-  lines.push(`      },`);
-  lines.push(`    },`);
 
   // update method — only if PUT handler exists
   if (resource.handlers.update) {
@@ -304,53 +325,55 @@ export function generateHetznerExtensionModel(
     lines.push(`    },`);
   }
 
-  // sync method — always generated
-  lines.push(`    sync: {`);
-  lines.push(
-    `      description: "Sync ${singularName} state from Hetzner",`,
-  );
-  lines.push(`      arguments: z.object({}),`);
-  lines.push(
-    `      execute: async (_args: Record<string, never>, context: any) => {`,
-  );
-  lines.push(`        const g = context.globalArgs;`);
-  lines.push(
-    `        const instanceName = ${
-      wrapWithSanitize(`g.${namingField}?.toString() ?? "current"`)
-    };`,
-  );
-  lines.push(
-    `        const content = await context.dataRepository.getContent(`,
-  );
-  lines.push(
-    `          context.modelType, context.modelId, instanceName,`,
-  );
-  lines.push(`        );`);
-  lines.push(
-    `        if (!content) throw new Error("No data found - run create or get first");`,
-  );
-  lines.push(
-    `        const existing = JSON.parse(new TextDecoder().decode(content));`,
-  );
-  lines.push(
-    `        const result = await tryRead("${endpoint}", existing.id, g.token) as ResourceData | null;`,
-  );
-  lines.push(`        if (result) {`);
-  lines.push(
-    `          const handle = await context.writeResource("state", instanceName, result);`,
-  );
-  lines.push(`          return { dataHandles: [handle] };`);
-  lines.push(`        }`);
-  lines.push(
-    `        const handle = await context.writeResource("state", instanceName, {`,
-  );
-  lines.push(`          id: existing.id,`);
-  lines.push(`          status: "not_found",`);
-  lines.push(`          syncedAt: new Date().toISOString(),`);
-  lines.push(`        });`);
-  lines.push(`        return { dataHandles: [handle] };`);
-  lines.push(`      },`);
-  lines.push(`    },`);
+  // sync method — only for resources with create (tracks provisioned state)
+  if (resource.handlers.create && resource.handlers.read) {
+    lines.push(`    sync: {`);
+    lines.push(
+      `      description: "Sync ${singularName} state from Hetzner",`,
+    );
+    lines.push(`      arguments: z.object({}),`);
+    lines.push(
+      `      execute: async (_args: Record<string, never>, context: any) => {`,
+    );
+    lines.push(`        const g = context.globalArgs;`);
+    lines.push(
+      `        const instanceName = ${
+        wrapWithSanitize(`g.${namingField}?.toString() ?? "current"`)
+      };`,
+    );
+    lines.push(
+      `        const content = await context.dataRepository.getContent(`,
+    );
+    lines.push(
+      `          context.modelType, context.modelId, instanceName,`,
+    );
+    lines.push(`        );`);
+    lines.push(
+      `        if (!content) throw new Error("No data found - run create or get first");`,
+    );
+    lines.push(
+      `        const existing = JSON.parse(new TextDecoder().decode(content));`,
+    );
+    lines.push(
+      `        const result = await tryRead("${endpoint}", existing.id, g.token) as ResourceData | null;`,
+    );
+    lines.push(`        if (result) {`);
+    lines.push(
+      `          const handle = await context.writeResource("state", instanceName, result);`,
+    );
+    lines.push(`          return { dataHandles: [handle] };`);
+    lines.push(`        }`);
+    lines.push(
+      `        const handle = await context.writeResource("state", instanceName, {`,
+    );
+    lines.push(`          id: existing.id,`);
+    lines.push(`          status: "not_found",`);
+    lines.push(`          syncedAt: new Date().toISOString(),`);
+    lines.push(`        });`);
+    lines.push(`        return { dataHandles: [handle] };`);
+    lines.push(`      },`);
+    lines.push(`    },`);
+  }
 
   // list method — only when a collection GET exists. Discovery via an optional
   // Hetzner label selector; writes one `state` resource per item (factory).
@@ -414,6 +437,9 @@ function resolveNamingField(
   }
   if (resource.createProperties.label) {
     return { field: "label", synthetic: false };
+  }
+  if (resource.resourceProperties.name) {
+    return { field: "name", synthetic: false };
   }
   return { field: "name", synthetic: true };
 }

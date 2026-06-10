@@ -1,5 +1,5 @@
 import { assertSnapshot } from "@std/testing/snapshot";
-import { assert, assertStringIncludes } from "@std/assert";
+import { assert, assertFalse, assertStringIncludes } from "@std/assert";
 import { generateHetznerExtensionModel } from "./extensionModelGenerator.ts";
 import type { HetznerProperty, HetznerResource } from "./pipeline.ts";
 
@@ -332,6 +332,238 @@ Deno.test("generateHetznerExtensionModel - with upgrades block", async (t) => {
       upgradesBlock:
         `  upgrades: [\n    {\n      toVersion: "2026.01.02.1",\n      description: "Removed: labels",\n      upgradeAttributes: (old: Record<string, unknown>) => {\n        const { labels: _labels, ...rest } = old;\n        return rest;\n      },\n    },\n  ],`,
     }),
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Snapshot: enum and constraint properties
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Snapshot: GET-only resource (no create, no update, no delete, no sync)
+// ---------------------------------------------------------------------------
+
+Deno.test("generateHetznerExtensionModel - GET-only resource (list + get)", async (t) => {
+  const resource = makeResource({
+    noun: "server_types",
+    modelSlug: "server-types",
+    fileName: "server_types.ts",
+    handlers: {
+      create: false,
+      read: true,
+      update: false,
+      delete: false,
+      list: true,
+    },
+    createProperties: {},
+    updateProperties: {},
+    resourceProperties: {
+      id: intProp,
+      name: stringProp,
+      description: stringProp,
+      cores: intProp,
+      memory: { type: "number" },
+      disk: intProp,
+      architecture: stringProp,
+      prices: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            location: stringProp,
+            price_hourly: {
+              type: "object",
+              properties: { gross: stringProp, net: stringProp },
+            },
+          },
+        },
+      },
+    },
+    requiredProperties: [],
+    identifyingField: "name",
+  });
+
+  await assertSnapshot(
+    t,
+    generateHetznerExtensionModel({
+      resource,
+      extensionName: "@swamp/hetzner-cloud",
+      version: "2026.01.01.1",
+    }),
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Snapshot: list-only resource (no create, no get, no update, no delete)
+// ---------------------------------------------------------------------------
+
+Deno.test("generateHetznerExtensionModel - list-only resource (no single GET)", async (t) => {
+  const resource = makeResource({
+    noun: "pricing",
+    modelSlug: "pricing",
+    fileName: "pricing.ts",
+    handlers: {
+      create: false,
+      read: false,
+      update: false,
+      delete: false,
+      list: true,
+    },
+    createProperties: {},
+    updateProperties: {},
+    resourceProperties: {
+      id: intProp,
+    },
+    requiredProperties: [],
+    identifyingField: "id",
+  });
+
+  await assertSnapshot(
+    t,
+    generateHetznerExtensionModel({
+      resource,
+      extensionName: "@swamp/hetzner-cloud",
+      version: "2026.01.01.1",
+    }),
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Behavior: GET-only resources emit correct imports and methods
+// ---------------------------------------------------------------------------
+
+Deno.test("GET-only resource imports only read, tryRead, listAll — no create, update, remove", () => {
+  const resource = makeResource({
+    noun: "server_types",
+    modelSlug: "server-types",
+    fileName: "server_types.ts",
+    handlers: {
+      create: false,
+      read: true,
+      update: false,
+      delete: false,
+      list: true,
+    },
+    createProperties: {},
+    updateProperties: {},
+    resourceProperties: { id: intProp, name: stringProp },
+    requiredProperties: [],
+    identifyingField: "name",
+  });
+  const out = generateHetznerExtensionModel({
+    resource,
+    extensionName: "@swamp/hetzner-cloud",
+    version: "2026.01.01.1",
+  });
+  assertStringIncludes(out, "import { read, listAll } from");
+  assertFalse(
+    out.includes("import") && out.includes(", create"),
+    "create should not be imported",
+  );
+  assertFalse(out.includes("remove"), "remove should not be imported");
+  assertFalse(out.includes(", update"), "update should not be imported");
+  assertFalse(
+    out.includes("tryRead"),
+    "tryRead should not be imported (no sync method)",
+  );
+});
+
+Deno.test("GET-only resource has no create, update, delete, or sync methods", () => {
+  const resource = makeResource({
+    noun: "server_types",
+    modelSlug: "server-types",
+    fileName: "server_types.ts",
+    handlers: {
+      create: false,
+      read: true,
+      update: false,
+      delete: false,
+      list: true,
+    },
+    createProperties: {},
+    updateProperties: {},
+    resourceProperties: { id: intProp, name: stringProp },
+    requiredProperties: [],
+    identifyingField: "name",
+  });
+  const out = generateHetznerExtensionModel({
+    resource,
+    extensionName: "@swamp/hetzner-cloud",
+    version: "2026.01.01.1",
+  });
+  assertStringIncludes(out, "get: {");
+  assertStringIncludes(out, "list: {");
+  assertFalse(out.includes("create: {"), "create method should not be emitted");
+  assertFalse(out.includes("update: {"), "update method should not be emitted");
+  assertFalse(out.includes("delete: {"), "delete method should not be emitted");
+  assertFalse(out.includes("sync: {"), "sync method should not be emitted");
+});
+
+Deno.test("GET-only resource GlobalArgsSchema has only token", () => {
+  const resource = makeResource({
+    noun: "server_types",
+    modelSlug: "server-types",
+    fileName: "server_types.ts",
+    handlers: {
+      create: false,
+      read: true,
+      update: false,
+      delete: false,
+      list: true,
+    },
+    createProperties: {},
+    updateProperties: {},
+    resourceProperties: { id: intProp, name: stringProp },
+    requiredProperties: [],
+    identifyingField: "name",
+  });
+  const out = generateHetznerExtensionModel({
+    resource,
+    extensionName: "@swamp/hetzner-cloud",
+    version: "2026.01.01.1",
+  });
+  const gas = out.slice(
+    out.indexOf("const GlobalArgsSchema"),
+    out.indexOf("const ResourceSchema"),
+  );
+  assertStringIncludes(gas, "token: z.string().meta({ sensitive: true })");
+  assertFalse(
+    gas.includes("name:"),
+    "name should not appear in GlobalArgsSchema for natural-name GET-only resource",
+  );
+});
+
+Deno.test("list-only resource imports only listAll — no read, tryRead, create", () => {
+  const resource = makeResource({
+    noun: "pricing",
+    modelSlug: "pricing",
+    fileName: "pricing.ts",
+    handlers: {
+      create: false,
+      read: false,
+      update: false,
+      delete: false,
+      list: true,
+    },
+    createProperties: {},
+    updateProperties: {},
+    resourceProperties: { id: intProp },
+    requiredProperties: [],
+    identifyingField: "id",
+  });
+  const out = generateHetznerExtensionModel({
+    resource,
+    extensionName: "@swamp/hetzner-cloud",
+    version: "2026.01.01.1",
+  });
+  assertStringIncludes(out, "import { listAll } from");
+  assertFalse(
+    out.includes("read,") || out.includes(", read"),
+    "read should not be imported",
+  );
+  assertFalse(
+    out.includes("create"),
+    "create should not be imported or called",
   );
 });
 

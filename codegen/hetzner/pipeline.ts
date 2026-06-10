@@ -168,8 +168,10 @@ export async function generateHetznerModels(options: {
       );
 
       // Compute new GlobalArgs field names for upgrade diffing
-      const isSyntheticName = !resource.createProperties.name &&
-        !resource.createProperties.label;
+      const hasNaturalName = !!(resource.createProperties.name ||
+        resource.createProperties.label ||
+        resource.resourceProperties.name);
+      const isSyntheticName = !hasNaturalName;
       const mergedProps = {
         ...resource.updateProperties,
         ...resource.createProperties,
@@ -421,18 +423,8 @@ function parseResources(spec: OApiSpec): HetznerResource[] {
 
   const resources: HetznerResource[] = [];
 
-  for (const [noun, group] of groups) {
-    // We need at least a POST (create) endpoint for this noun to be a resource
-    let hasPost = false;
-    for (const methods of Object.values(group.paths)) {
-      if (methods.post) {
-        hasPost = true;
-        break;
-      }
-    }
-    if (!hasPost) continue;
-
-    const resource = mergeResourceOperations(noun, group.paths, spec);
+  for (const [_noun, group] of groups) {
+    const resource = mergeResourceOperations(group.noun, group.paths, spec);
     if (resource) {
       resources.push(resource);
     }
@@ -506,7 +498,7 @@ function mergeResourceOperations(
     }
   }
 
-  if (!hasCreate) return null;
+  if (!hasCreate && !hasList && !hasRead) return null;
 
   // Ensure `id` is in the resource properties
   if (!getResponse.id) {
@@ -516,8 +508,13 @@ function mergeResourceOperations(
     };
   }
 
-  // Determine identifying field — prefer "name" if it exists in create props
-  const identifyingField = postBody.name ? "name" : "id";
+  // Determine identifying field — prefer "name" from create props, then
+  // from response properties (for GET-only resources), then fall back to "id"
+  const identifyingField = postBody.name
+    ? "name"
+    : getResponse.name
+    ? "name"
+    : "id";
 
   const modelSlug = noun.replace(/_/g, "-");
 

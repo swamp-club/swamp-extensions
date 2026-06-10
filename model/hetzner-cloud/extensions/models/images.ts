@@ -17,36 +17,30 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/hetzner-cloud/ssh-keys
+// Auto-generated extension model for @swamp/hetzner-cloud/images
 // Do not edit manually. Re-generate with: deno task generate:hetzner
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for a Hetzner Cloud ssh key.
+ * Swamp extension model for a Hetzner Cloud image.
  *
- * Wraps the `/ssh_keys` API as a swamp model so create, get, update, delete, sync, list
+ * Wraps the `/images` API as a swamp model so get, update, delete, list
  * can be driven through `swamp model`.
  *
  * @module
  */
 
 import { z } from "npm:zod@4.3.6";
-import {
-  create,
-  listAll,
-  read,
-  remove,
-  tryRead,
-  update,
-} from "./_lib/hetzner.ts";
+import { listAll, read, remove, update } from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe("Name of the SSH key."),
+  description: z.string().describe("New description of Image.").optional(),
+  type: z.enum(["snapshot"]).describe("Destination Image type to convert to.")
+    .optional(),
   labels: z.record(z.string(), z.unknown()).describe(
-    'User-defined labels (`key/value` pairs) for the Resource.\nFor more information, see "[Labels](#description/labels)".\n',
+    'User-defined labels (`key/value` pairs) for the Resource.\n\nNote that the set of [Labels](#description/labels) provided in the request will overwrite the\nexisting one.\n\nFor more information, see "[Labels](#description/labels)".\n',
   ).optional(),
-  public_key: z.string().describe("Public key."),
   token: z.string().meta({ sensitive: true }).describe(
     "Hetzner API token; overrides the HETZNER_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -54,74 +48,46 @@ const GlobalArgsSchema = z.object({
 
 const ResourceSchema = z.object({
   id: z.number(),
+  type: z.string().optional(),
+  status: z.string().optional(),
   name: z.string().optional(),
-  fingerprint: z.string().optional(),
-  public_key: z.string().optional(),
-  labels: z.record(z.string(), z.unknown()).optional(),
+  description: z.string().optional(),
+  image_size: z.number().optional(),
+  disk_size: z.number().optional(),
   created: z.string().optional(),
+  created_from: z.object({
+    id: z.number().optional(),
+    name: z.string().optional(),
+  }).optional(),
+  bound_to: z.number().optional(),
+  os_flavor: z.string().optional(),
+  os_version: z.string().optional(),
+  rapid_deploy: z.boolean().optional(),
+  protection: z.object({
+    delete: z.boolean().optional(),
+  }).optional(),
+  deprecated: z.string().optional(),
+  deleted: z.string().optional(),
+  labels: z.record(z.string(), z.unknown()).optional(),
+  architecture: z.string().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().optional(),
+  description: z.string().optional(),
+  type: z.enum(["snapshot"]).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
-  public_key: z.string().optional(),
   token: z.string().meta({ sensitive: true }).optional(),
 });
 
-/** Swamp extension model for Hetzner Cloud ssh key. Registered at `@swamp/hetzner-cloud/ssh-keys`. */
+/** Swamp extension model for Hetzner Cloud image. Registered at `@swamp/hetzner-cloud/images`. */
 export const model = {
-  type: "@swamp/hetzner-cloud/ssh-keys",
-  version: "2026.06.10.1",
+  type: "@swamp/hetzner-cloud/images",
+  version: "2026.06.10.2",
   upgrades: [
     {
-      toVersion: "2026.04.03.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.22.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.2",
-      description: "No schema changes (version bump for manifest republish)",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.3",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.4",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.28.1",
-      description: "Added: token",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.10.1",
+      toVersion: "2026.06.10.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -130,43 +96,21 @@ export const model = {
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Ssh key resource state",
+      description: "Image resource state",
       schema: ResourceSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
   },
   methods: {
-    create: {
-      description: "Create a ssh key",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
-        const g = context.globalArgs;
-        const body: Record<string, unknown> = {};
-        if (g.name !== undefined) body.name = g.name;
-        if (g.public_key !== undefined) body.public_key = g.public_key;
-        if (g.labels !== undefined) body.labels = g.labels;
-        const result = await create("/ssh_keys", body, g.token) as ResourceData;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
-        const handle = await context.writeResource(
-          "state",
-          instanceName,
-          result,
-        );
-        return { dataHandles: [handle] };
-      },
-    },
     get: {
-      description: "Get a ssh key",
+      description: "Get a image",
       arguments: z.object({
-        id: z.number().int().describe("The ID of the ssh key"),
+        id: z.number().int().describe("The ID of the image"),
       }),
       execute: async (args: { id: number }, context: any) => {
         const result = await read(
-          "/ssh_keys",
+          "/images",
           args.id,
           context.globalArgs.token,
         ) as ResourceData;
@@ -181,7 +125,7 @@ export const model = {
       },
     },
     update: {
-      description: "Update ssh key attributes",
+      description: "Update image attributes",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -197,10 +141,11 @@ export const model = {
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
-        if (g.name !== undefined) body.name = g.name;
+        if (g.description !== undefined) body.description = g.description;
+        if (g.type !== undefined) body.type = g.type;
         if (g.labels !== undefined) body.labels = g.labels;
         const result = await update(
-          "/ssh_keys",
+          "/images",
           existing.id,
           body,
           g.token,
@@ -214,13 +159,13 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete the ssh key",
+      description: "Delete the image",
       arguments: z.object({
-        id: z.number().int().describe("The ID of the ssh key"),
+        id: z.number().int().describe("The ID of the image"),
       }),
       execute: async (args: { id: number }, context: any) => {
         const { existed } = await remove(
-          "/ssh_keys",
+          "/images",
           args.id,
           context.globalArgs.token,
         );
@@ -238,46 +183,9 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
-    sync: {
-      description: "Sync ssh key state from Hetzner",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
-        const g = context.globalArgs;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          instanceName,
-        );
-        if (!content) {
-          throw new Error("No data found - run create or get first");
-        }
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        const result = await tryRead("/ssh_keys", existing.id, g.token) as
-          | ResourceData
-          | null;
-        if (result) {
-          const handle = await context.writeResource(
-            "state",
-            instanceName,
-            result,
-          );
-          return { dataHandles: [handle] };
-        }
-        const handle = await context.writeResource("state", instanceName, {
-          id: existing.id,
-          status: "not_found",
-          syncedAt: new Date().toISOString(),
-        });
-        return { dataHandles: [handle] };
-      },
-    },
     list: {
       description:
-        "List ssh keys, optionally filtered by a Hetzner label selector",
+        "List images, optionally filtered by a Hetzner label selector",
       arguments: z.object({
         label_selector: z.string().describe(
           "Hetzner label selector to filter results, e.g. env=production,role!=db",
@@ -290,7 +198,7 @@ export const model = {
           queryParams.label_selector = args.label_selector;
         }
         const items = await listAll(
-          "/ssh_keys",
+          "/images",
           queryParams,
           g.token,
         ) as ResourceData[];
