@@ -208,7 +208,7 @@ function normalizeServiceAccount(raw: V1ServiceAccount) {
 /** Kubernetes RBAC model. */
 export const model = {
   type: "@swamp/kubernetes/rbac",
-  version: "2026.06.05.1",
+  version: "2026.06.10.1",
   globalArguments: K8sGlobalArgsSchema,
   upgrades: [
     {
@@ -233,6 +233,12 @@ export const model = {
       toVersion: "2026.06.05.1",
       description: "Enrich TLS errors with cluster context and kubeconfig " +
         "guidance when certificate verification fails.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.10.1",
+      description: "Version bump to republish with correct upgrade chain. " +
+        "No code, schema, or behavior change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
