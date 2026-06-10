@@ -221,6 +221,7 @@ const GlobalArgsSchema = z.object({
     "POSTGRES_17",
     "POSTGRES_18",
     "POSTGRES_19",
+    "POSTGRES_20",
     "SQLSERVER_2019_STANDARD",
     "SQLSERVER_2019_ENTERPRISE",
     "SQLSERVER_2019_EXPRESS",
@@ -774,6 +775,9 @@ const GlobalArgsSchema = z.object({
         networkAttachmentUri: z.string().describe(
           "Optional. The network attachment of the consumer network that the Private Service Connect enabled Cloud SQL instance is authorized to connect via PSC interface. format: projects/PROJECT/regions/REGION/networkAttachments/ID",
         ).optional(),
+        pscAutoConnectionPolicyEnabled: z.boolean().describe(
+          "Optional. Whether to set up the PSC service connection policy automatically.",
+        ).optional(),
         pscAutoConnections: z.array(z.object({
           consumerNetwork: z.unknown().describe(
             "Optional. The consumer network of this consumer endpoint. This must be a resource path that includes both the host project and the network name. For example, `projects/project1/global/networks/network1`. The consumer host project of this network might be different from the consumer service project.",
@@ -787,6 +791,12 @@ const GlobalArgsSchema = z.object({
           ipAddress: z.unknown().describe(
             "The IP address of the consumer endpoint.",
           ).optional(),
+          serviceConnectionPolicy: z.unknown().describe(
+            "Output only. The service connection policy created automatically for the consumer network when `psc_auto_connection_policy_enabled` is true. It is in the format of: `projects/{project}/regions/{region}/serviceConnectionPolicies/{policy_id}` The `policy_id` is in format of `$NETWORK-$RANDOM`.",
+          ).optional(),
+          serviceConnectionPolicyCreationResult: z.unknown().describe(
+            "Output only. The status of service connection policy creation.",
+          ).optional(),
           status: z.unknown().describe(
             "The connection status of the consumer endpoint.",
           ).optional(),
@@ -794,13 +804,13 @@ const GlobalArgsSchema = z.object({
           "Optional. The list of settings for requested Private Service Connect consumer endpoints that can be used to connect to this Cloud SQL instance.",
         ).optional(),
         pscAutoDnsEnabled: z.boolean().describe(
-          "Optional. Indicates whether PSC DNS automation is enabled for this instance. When enabled, Cloud SQL provisions a universal DNS record across all networks configured with Private Service Connect (PSC) auto-connections. This will default to true for new instances when Private Service Connect is enabled.",
+          "Optional. Indicates whether Private Service Connect DNS automation is enabled for this instance. When enabled, Cloud SQL provisions a universal DNS record across all networks configured with Private Service Connect auto-connections. This will default to true for new instances when Private Service Connect is enabled.",
         ).optional(),
         pscEnabled: z.boolean().describe(
           "Whether PSC connectivity is enabled for this instance.",
         ).optional(),
         pscWriteEndpointDnsEnabled: z.boolean().describe(
-          "Optional. Indicates whether PSC write endpoint DNS automation is enabled for this instance. When enabled, Cloud SQL provisions a universal global DNS record across all networks configured with Private Service Connect (PSC) auto-connections that always points to the cluster primary instance. This feature is only supported for Enterprise Plus edition. This will default to true for new Enterprise Plus instances when `psc_auto_dns_enabled` is enabled.",
+          "Optional. Indicates whether Private Service Connect write endpoint DNS automation is enabled for this instance. When enabled, Cloud SQL provisions a universal global DNS record across all networks configured with Private Service Connect auto-connections that points to the cluster primary instance. This feature is only supported for Enterprise Plus edition. This will default to true for new Enterprise Plus instances when `psc_auto_dns_enabled` is enabled.",
         ).optional(),
       }).describe("PSC settings for a Cloud SQL instance.").optional(),
       requireSsl: z.boolean().describe(
@@ -1097,6 +1107,8 @@ const StateSchema = z.object({
       consumerNetworkStatus: z.string(),
       consumerProject: z.string(),
       ipAddress: z.string(),
+      serviceConnectionPolicy: z.string(),
+      serviceConnectionPolicyCreationResult: z.string(),
       status: z.string(),
     })),
     pscServiceAttachmentLink: z.string(),
@@ -1274,11 +1286,14 @@ const StateSchema = z.object({
       pscConfig: z.object({
         allowedConsumerProjects: z.array(z.string()),
         networkAttachmentUri: z.string(),
+        pscAutoConnectionPolicyEnabled: z.boolean(),
         pscAutoConnections: z.array(z.object({
           consumerNetwork: z.unknown(),
           consumerNetworkStatus: z.unknown(),
           consumerProject: z.unknown(),
           ipAddress: z.unknown(),
+          serviceConnectionPolicy: z.unknown(),
+          serviceConnectionPolicyCreationResult: z.unknown(),
           status: z.unknown(),
         })),
         pscAutoDnsEnabled: z.boolean(),
@@ -1424,6 +1439,7 @@ const InputsSchema = z.object({
     "POSTGRES_17",
     "POSTGRES_18",
     "POSTGRES_19",
+    "POSTGRES_20",
     "SQLSERVER_2019_STANDARD",
     "SQLSERVER_2019_ENTERPRISE",
     "SQLSERVER_2019_EXPRESS",
@@ -1977,6 +1993,9 @@ const InputsSchema = z.object({
         networkAttachmentUri: z.string().describe(
           "Optional. The network attachment of the consumer network that the Private Service Connect enabled Cloud SQL instance is authorized to connect via PSC interface. format: projects/PROJECT/regions/REGION/networkAttachments/ID",
         ).optional(),
+        pscAutoConnectionPolicyEnabled: z.boolean().describe(
+          "Optional. Whether to set up the PSC service connection policy automatically.",
+        ).optional(),
         pscAutoConnections: z.array(z.object({
           consumerNetwork: z.unknown().describe(
             "Optional. The consumer network of this consumer endpoint. This must be a resource path that includes both the host project and the network name. For example, `projects/project1/global/networks/network1`. The consumer host project of this network might be different from the consumer service project.",
@@ -1990,6 +2009,12 @@ const InputsSchema = z.object({
           ipAddress: z.unknown().describe(
             "The IP address of the consumer endpoint.",
           ).optional(),
+          serviceConnectionPolicy: z.unknown().describe(
+            "Output only. The service connection policy created automatically for the consumer network when `psc_auto_connection_policy_enabled` is true. It is in the format of: `projects/{project}/regions/{region}/serviceConnectionPolicies/{policy_id}` The `policy_id` is in format of `$NETWORK-$RANDOM`.",
+          ).optional(),
+          serviceConnectionPolicyCreationResult: z.unknown().describe(
+            "Output only. The status of service connection policy creation.",
+          ).optional(),
           status: z.unknown().describe(
             "The connection status of the consumer endpoint.",
           ).optional(),
@@ -1997,13 +2022,13 @@ const InputsSchema = z.object({
           "Optional. The list of settings for requested Private Service Connect consumer endpoints that can be used to connect to this Cloud SQL instance.",
         ).optional(),
         pscAutoDnsEnabled: z.boolean().describe(
-          "Optional. Indicates whether PSC DNS automation is enabled for this instance. When enabled, Cloud SQL provisions a universal DNS record across all networks configured with Private Service Connect (PSC) auto-connections. This will default to true for new instances when Private Service Connect is enabled.",
+          "Optional. Indicates whether Private Service Connect DNS automation is enabled for this instance. When enabled, Cloud SQL provisions a universal DNS record across all networks configured with Private Service Connect auto-connections. This will default to true for new instances when Private Service Connect is enabled.",
         ).optional(),
         pscEnabled: z.boolean().describe(
           "Whether PSC connectivity is enabled for this instance.",
         ).optional(),
         pscWriteEndpointDnsEnabled: z.boolean().describe(
-          "Optional. Indicates whether PSC write endpoint DNS automation is enabled for this instance. When enabled, Cloud SQL provisions a universal global DNS record across all networks configured with Private Service Connect (PSC) auto-connections that always points to the cluster primary instance. This feature is only supported for Enterprise Plus edition. This will default to true for new Enterprise Plus instances when `psc_auto_dns_enabled` is enabled.",
+          "Optional. Indicates whether Private Service Connect write endpoint DNS automation is enabled for this instance. When enabled, Cloud SQL provisions a universal global DNS record across all networks configured with Private Service Connect auto-connections that points to the cluster primary instance. This feature is only supported for Enterprise Plus edition. This will default to true for new Enterprise Plus instances when `psc_auto_dns_enabled` is enabled.",
         ).optional(),
       }).describe("PSC settings for a Cloud SQL instance.").optional(),
       requireSsl: z.boolean().describe(
@@ -2244,7 +2269,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud SQL Admin Instances. Registered at `@swamp/gcp/sqladmin/instances`. */
 export const model = {
   type: "@swamp/gcp/sqladmin/instances",
-  version: "2026.06.08.1",
+  version: "2026.06.10.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2378,6 +2403,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

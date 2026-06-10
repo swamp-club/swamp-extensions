@@ -62,6 +62,8 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[a-zA-Z0-9-]*$"),
   ),
   Statement: z.string().min(1).max(10000),
+  Name: z.string().min(0).max(150).regex(new RegExp("^[a-zA-Z0-9-/_]*$"))
+    .optional(),
 });
 
 const StateSchema = z.object({
@@ -69,6 +71,7 @@ const StateSchema = z.object({
   PolicyStoreId: z.string(),
   PolicyTemplateId: z.string(),
   Statement: z.string().optional(),
+  Name: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -83,6 +86,8 @@ const InputsSchema = z.object({
   PolicyStoreId: z.string().min(1).max(200).regex(new RegExp("^[a-zA-Z0-9-]*$"))
     .optional(),
   Statement: z.string().min(1).max(10000).optional(),
+  Name: z.string().min(0).max(150).regex(new RegExp("^[a-zA-Z0-9-/_]*$"))
+    .optional(),
 });
 
 const _credentialKeys = new Set([
@@ -104,7 +109,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for VerifiedPermissions PolicyTemplate. Registered at `@swamp/aws/verifiedpermissions/policy-template`. */
 export const model = {
   type: "@swamp/aws/verifiedpermissions/policy-template",
-  version: "2026.06.08.1",
+  version: "2026.06.10.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -139,6 +144,11 @@ export const model = {
     {
       toVersion: "2026.06.08.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.10.1",
+      description: "Added: Name",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

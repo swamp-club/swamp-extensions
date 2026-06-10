@@ -156,7 +156,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud SQL Admin Connect. Registered at `@swamp/gcp/sqladmin/connect`. */
 export const model = {
   type: "@swamp/gcp/sqladmin/connect",
-  version: "2026.06.08.1",
+  version: "2026.06.10.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -225,6 +225,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -375,6 +380,53 @@ export const model = {
           },
           params,
           body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    resolve: {
+      description: "resolve",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["dnsName"] = existing["dnsName"]?.toString() ??
+          g["dnsName"]?.toString() ?? "";
+        params["location"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "sql.connect.resolve",
+            "path":
+              "v1/dns/{dnsName}/locations/{location}:resolveConnectSettings",
+            "httpMethod": "GET",
+            "parameterOrder": ["dnsName", "location"],
+            "parameters": {
+              "dnsName": { "location": "path", "required": true },
+              "location": { "location": "path", "required": true },
+            },
+          },
+          params,
+          {},
           undefined,
           undefined,
           undefined,

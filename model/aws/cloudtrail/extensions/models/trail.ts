@@ -41,37 +41,6 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
-const DataResourceSchema = z.object({
-  Type: z.string().describe(
-    "The resource type in which you want to log data events. You can specify AWS::S3::Object or AWS::Lambda::Function resources.",
-  ),
-  Values: z.array(z.string()).describe(
-    "An array of Amazon Resource Name (ARN) strings or partial ARN strings for the specified objects.",
-  ).optional(),
-});
-
-const EventSelectorSchema = z.object({
-  IncludeManagementEvents: z.boolean().describe(
-    "Specify if you want your event selector to include management events for your trail.",
-  ).optional(),
-  ReadWriteType: z.enum(["All", "ReadOnly", "WriteOnly"]).describe(
-    "Specify if you want your trail to log read-only events, write-only events, or all. For example, the EC2 GetConsoleOutput is a read-only API operation and RunInstances is a write-only API operation.",
-  ).optional(),
-  ExcludeManagementEventSources: z.array(z.string()).describe(
-    'An optional list of service event sources from which you do not want management events to be logged on your trail. In this release, the list can be empty (disables the filter), or it can filter out AWS Key Management Service events by containing "kms.amazonaws.com". By default, ExcludeManagementEventSources is empty, and AWS KMS events are included in events that are logged to your trail.',
-  ).optional(),
-  DataResources: z.array(DataResourceSchema).optional(),
-});
-
-const AggregationConfigurationSchema = z.object({
-  EventCategory: z.enum(["Data"]).describe(
-    "The category of events to be aggregated.",
-  ),
-  Templates: z.array(
-    z.enum(["API_ACTIVITY", "RESOURCE_ACCESS", "USER_ACTIONS"]),
-  ).describe("Contains all templates in an aggregation configuration."),
-});
-
 const AdvancedFieldSelectorSchema = z.object({
   Field: z.string().min(1).max(1000).regex(new RegExp("([\\w|\\d|\\.|_]+)"))
     .describe(
@@ -80,14 +49,6 @@ const AdvancedFieldSelectorSchema = z.object({
   Equals: z.array(z.string().min(1).max(2048).regex(new RegExp("(.+)")))
     .describe(
       "An operator that includes events that match the exact value of the event record field specified as the value of Field. This is the only valid operator that you can use with the readOnly, eventCategory, and resources.type fields.",
-    ).optional(),
-  NotStartsWith: z.array(z.string().min(1).max(2048).regex(new RegExp("(.+)")))
-    .describe(
-      "An operator that excludes events that match the first few characters of the event record field specified as the value of Field.",
-    ).optional(),
-  NotEndsWith: z.array(z.string().min(1).max(2048).regex(new RegExp("(.+)")))
-    .describe(
-      "An operator that excludes events that match the last few characters of the event record field specified as the value of Field.",
     ).optional(),
   StartsWith: z.array(z.string().min(1).max(2048).regex(new RegExp("(.+)")))
     .describe(
@@ -101,15 +62,54 @@ const AdvancedFieldSelectorSchema = z.object({
     .describe(
       "An operator that excludes events that match the exact value of the event record field specified as the value of Field.",
     ).optional(),
+  NotStartsWith: z.array(z.string().min(1).max(2048).regex(new RegExp("(.+)")))
+    .describe(
+      "An operator that excludes events that match the first few characters of the event record field specified as the value of Field.",
+    ).optional(),
+  NotEndsWith: z.array(z.string().min(1).max(2048).regex(new RegExp("(.+)")))
+    .describe(
+      "An operator that excludes events that match the last few characters of the event record field specified as the value of Field.",
+    ).optional(),
 });
 
 const AdvancedEventSelectorSchema = z.object({
-  FieldSelectors: z.array(AdvancedFieldSelectorSchema).describe(
-    "Contains all selector statements in an advanced event selector.",
-  ),
   Name: z.string().min(1).max(1000).describe(
     'An optional, descriptive name for an advanced event selector, such as "Log data events for only two S3 buckets".',
   ).optional(),
+  FieldSelectors: z.array(AdvancedFieldSelectorSchema).describe(
+    "Contains all selector statements in an advanced event selector.",
+  ),
+});
+
+const DataResourceSchema = z.object({
+  Type: z.string().describe(
+    "The resource type in which you want to log data events. You can specify AWS::S3::Object or AWS::Lambda::Function resources.",
+  ),
+  Values: z.array(z.string()).describe(
+    "An array of Amazon Resource Name (ARN) strings or partial ARN strings for the specified objects.",
+  ).optional(),
+});
+
+const EventSelectorSchema = z.object({
+  DataResources: z.array(DataResourceSchema).optional(),
+  IncludeManagementEvents: z.boolean().describe(
+    "Specify if you want your event selector to include management events for your trail.",
+  ).optional(),
+  ReadWriteType: z.enum(["All", "ReadOnly", "WriteOnly"]).describe(
+    "Specify if you want your trail to log read-only events, write-only events, or all. For example, the EC2 GetConsoleOutput is a read-only API operation and RunInstances is a write-only API operation.",
+  ).optional(),
+  ExcludeManagementEventSources: z.array(z.string()).describe(
+    'An optional list of service event sources from which you do not want management events to be logged on your trail. In this release, the list can be empty (disables the filter), or it can filter out AWS Key Management Service events by containing "kms.amazonaws.com". By default, ExcludeManagementEventSources is empty, and AWS KMS events are included in events that are logged to your trail.',
+  ).optional(),
+});
+
+const TagSchema = z.object({
+  Key: z.string().describe(
+    "The key name of the tag. You can specify a value that is 1 to 127 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
+  ),
+  Value: z.string().describe(
+    "The value for the tag. You can specify a value that is 1 to 255 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
+  ),
 });
 
 const InsightSelectorSchema = z.object({
@@ -120,13 +120,13 @@ const InsightSelectorSchema = z.object({
   ).optional(),
 });
 
-const TagSchema = z.object({
-  Value: z.string().describe(
-    "The value for the tag. You can specify a value that is 1 to 255 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
+const AggregationConfigurationSchema = z.object({
+  EventCategory: z.enum(["Data"]).describe(
+    "The category of events to be aggregated.",
   ),
-  Key: z.string().describe(
-    "The key name of the tag. You can specify a value that is 1 to 127 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
-  ),
+  Templates: z.array(
+    z.enum(["API_ACTIVITY", "RESOURCE_ACCESS", "USER_ACTIONS"]),
+  ).describe("Contains all templates in an aggregation configuration."),
 });
 
 const GlobalArgsSchema = z.object({
@@ -142,77 +142,77 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.",
   ).optional(),
-  IncludeGlobalServiceEvents: z.boolean().describe(
-    "Specifies whether the trail is publishing events from global services such as IAM to the log files.",
-  ).optional(),
-  EventSelectors: z.array(EventSelectorSchema).describe(
-    "Use event selectors to further specify the management and data event settings for your trail. By default, trails created without specific event selectors will be configured to log all read and write management events, and no data events. When an event occurs in your account, CloudTrail evaluates the event selector for all trails. For each trail, if the event matches any event selector, the trail processes and logs the event. If the event doesn't match any event selector, the trail doesn't log the event. You can configure up to five event selectors for a trail.",
-  ).optional(),
-  KMSKeyId: z.string().describe(
-    "Specifies the KMS key ID to use to encrypt the logs delivered by CloudTrail. The value can be an alias name prefixed by 'alias/', a fully specified ARN to an alias, a fully specified ARN to a key, or a globally unique identifier.",
-  ).optional(),
-  AggregationConfigurations: z.array(AggregationConfigurationSchema).describe(
-    "Specifies the aggregation configuration to aggregate CloudTrail Events. A maximum of 1 aggregation configuration is allowed.",
+  CloudWatchLogsLogGroupArn: z.string().describe(
+    "Specifies a log group name using an Amazon Resource Name (ARN), a unique identifier that represents the log group to which CloudTrail logs will be delivered. Not required unless you specify CloudWatchLogsRoleArn.",
   ).optional(),
   CloudWatchLogsRoleArn: z.string().describe(
     "Specifies the role for the CloudWatch Logs endpoint to assume to write to a user's log group.",
   ).optional(),
-  S3KeyPrefix: z.string().max(200).describe(
-    "Specifies the Amazon S3 key prefix that comes after the name of the bucket you have designated for log file delivery. For more information, see Finding Your CloudTrail Log Files. The maximum length is 200 characters.",
+  EnableLogFileValidation: z.boolean().describe(
+    "Specifies whether log file validation is enabled. The default is false.",
   ).optional(),
   AdvancedEventSelectors: z.array(AdvancedEventSelectorSchema).describe(
     "The advanced event selectors that were used to select events for the data store.",
   ).optional(),
-  TrailName: z.string().min(3).max(128).regex(
-    new RegExp("(^[a-zA-Z0-9]$)|(^[a-zA-Z0-9]([a-zA-Z0-9\\._-])*[a-zA-Z0-9]$)"),
+  EventSelectors: z.array(EventSelectorSchema).describe(
+    "Use event selectors to further specify the management and data event settings for your trail. By default, trails created without specific event selectors will be configured to log all read and write management events, and no data events. When an event occurs in your account, CloudTrail evaluates the event selector for all trails. For each trail, if the event matches any event selector, the trail processes and logs the event. If the event doesn't match any event selector, the trail doesn't log the event. You can configure up to five event selectors for a trail.",
+  ).optional(),
+  IncludeGlobalServiceEvents: z.boolean().describe(
+    "Specifies whether the trail is publishing events from global services such as IAM to the log files.",
+  ).optional(),
+  IsLogging: z.boolean().describe(
+    "Whether the CloudTrail is currently logging AWS API calls.",
+  ),
+  IsMultiRegionTrail: z.boolean().describe(
+    "Specifies whether the trail applies only to the current region or to all regions. The default is false. If the trail exists only in the current region and this value is set to true, shadow trails (replications of the trail) will be created in the other regions. If the trail exists in all regions and this value is set to false, the trail will remain in the region where it was created, and its shadow trails in other regions will be deleted. As a best practice, consider using trails that log events in all regions.",
   ).optional(),
   IsOrganizationTrail: z.boolean().describe(
     "Specifies whether the trail is created for all accounts in an organization in AWS Organizations, or only for the current AWS account. The default is false, and cannot be true unless the call is made on behalf of an AWS account that is the master account for an organization in AWS Organizations.",
   ).optional(),
-  InsightSelectors: z.array(InsightSelectorSchema).describe(
-    "Lets you enable Insights event logging by specifying the Insights selectors that you want to enable on an existing trail.",
-  ).optional(),
-  CloudWatchLogsLogGroupArn: z.string().describe(
-    "Specifies a log group name using an Amazon Resource Name (ARN), a unique identifier that represents the log group to which CloudTrail logs will be delivered. Not required unless you specify CloudWatchLogsRoleArn.",
-  ).optional(),
-  SnsTopicName: z.string().max(256).describe(
-    "Specifies the name of the Amazon SNS topic defined for notification of log file delivery. The maximum length is 256 characters.",
-  ).optional(),
-  IsMultiRegionTrail: z.boolean().describe(
-    "Specifies whether the trail applies only to the current region or to all regions. The default is false. If the trail exists only in the current region and this value is set to true, shadow trails (replications of the trail) will be created in the other regions. If the trail exists in all regions and this value is set to false, the trail will remain in the region where it was created, and its shadow trails in other regions will be deleted. As a best practice, consider using trails that log events in all regions.",
+  KMSKeyId: z.string().describe(
+    "Specifies the KMS key ID to use to encrypt the logs delivered by CloudTrail. The value can be an alias name prefixed by 'alias/', a fully specified ARN to an alias, a fully specified ARN to a key, or a globally unique identifier.",
   ).optional(),
   S3BucketName: z.string().describe(
     "Specifies the name of the Amazon S3 bucket designated for publishing log files. See Amazon S3 Bucket Naming Requirements.",
   ),
-  EnableLogFileValidation: z.boolean().describe(
-    "Specifies whether log file validation is enabled. The default is false.",
+  S3KeyPrefix: z.string().max(200).describe(
+    "Specifies the Amazon S3 key prefix that comes after the name of the bucket you have designated for log file delivery. For more information, see Finding Your CloudTrail Log Files. The maximum length is 200 characters.",
+  ).optional(),
+  SnsTopicName: z.string().max(256).describe(
+    "Specifies the name of the Amazon SNS topic defined for notification of log file delivery. The maximum length is 256 characters.",
   ).optional(),
   Tags: z.array(TagSchema).optional(),
-  IsLogging: z.boolean().describe(
-    "Whether the CloudTrail is currently logging AWS API calls.",
-  ),
+  TrailName: z.string().min(3).max(128).regex(
+    new RegExp("(^[a-zA-Z0-9]$)|(^[a-zA-Z0-9]([a-zA-Z0-9\\._-])*[a-zA-Z0-9]$)"),
+  ).optional(),
+  InsightSelectors: z.array(InsightSelectorSchema).describe(
+    "Lets you enable Insights event logging by specifying the Insights selectors that you want to enable on an existing trail.",
+  ).optional(),
+  AggregationConfigurations: z.array(AggregationConfigurationSchema).describe(
+    "Specifies the aggregation configuration to aggregate CloudTrail Events. A maximum of 1 aggregation configuration is allowed.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
-  IncludeGlobalServiceEvents: z.boolean().optional(),
-  EventSelectors: z.array(EventSelectorSchema).optional(),
-  KMSKeyId: z.string().optional(),
-  AggregationConfigurations: z.array(AggregationConfigurationSchema).optional(),
-  CloudWatchLogsRoleArn: z.string().optional(),
-  S3KeyPrefix: z.string().optional(),
-  AdvancedEventSelectors: z.array(AdvancedEventSelectorSchema).optional(),
-  TrailName: z.string(),
-  IsOrganizationTrail: z.boolean().optional(),
-  InsightSelectors: z.array(InsightSelectorSchema).optional(),
   CloudWatchLogsLogGroupArn: z.string().optional(),
-  SnsTopicName: z.string().optional(),
-  IsMultiRegionTrail: z.boolean().optional(),
-  S3BucketName: z.string().optional(),
-  SnsTopicArn: z.string().optional(),
+  CloudWatchLogsRoleArn: z.string().optional(),
   EnableLogFileValidation: z.boolean().optional(),
-  Arn: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  AdvancedEventSelectors: z.array(AdvancedEventSelectorSchema).optional(),
+  EventSelectors: z.array(EventSelectorSchema).optional(),
+  IncludeGlobalServiceEvents: z.boolean().optional(),
   IsLogging: z.boolean().optional(),
+  IsMultiRegionTrail: z.boolean().optional(),
+  IsOrganizationTrail: z.boolean().optional(),
+  KMSKeyId: z.string().optional(),
+  S3BucketName: z.string().optional(),
+  S3KeyPrefix: z.string().optional(),
+  SnsTopicName: z.string().optional(),
+  Tags: z.array(TagSchema).optional(),
+  TrailName: z.string(),
+  Arn: z.string().optional(),
+  SnsTopicArn: z.string().optional(),
+  InsightSelectors: z.array(InsightSelectorSchema).optional(),
+  AggregationConfigurations: z.array(AggregationConfigurationSchema).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -222,54 +222,54 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  IncludeGlobalServiceEvents: z.boolean().describe(
-    "Specifies whether the trail is publishing events from global services such as IAM to the log files.",
-  ).optional(),
-  EventSelectors: z.array(EventSelectorSchema).describe(
-    "Use event selectors to further specify the management and data event settings for your trail. By default, trails created without specific event selectors will be configured to log all read and write management events, and no data events. When an event occurs in your account, CloudTrail evaluates the event selector for all trails. For each trail, if the event matches any event selector, the trail processes and logs the event. If the event doesn't match any event selector, the trail doesn't log the event. You can configure up to five event selectors for a trail.",
-  ).optional(),
-  KMSKeyId: z.string().describe(
-    "Specifies the KMS key ID to use to encrypt the logs delivered by CloudTrail. The value can be an alias name prefixed by 'alias/', a fully specified ARN to an alias, a fully specified ARN to a key, or a globally unique identifier.",
-  ).optional(),
-  AggregationConfigurations: z.array(AggregationConfigurationSchema).describe(
-    "Specifies the aggregation configuration to aggregate CloudTrail Events. A maximum of 1 aggregation configuration is allowed.",
+  CloudWatchLogsLogGroupArn: z.string().describe(
+    "Specifies a log group name using an Amazon Resource Name (ARN), a unique identifier that represents the log group to which CloudTrail logs will be delivered. Not required unless you specify CloudWatchLogsRoleArn.",
   ).optional(),
   CloudWatchLogsRoleArn: z.string().describe(
     "Specifies the role for the CloudWatch Logs endpoint to assume to write to a user's log group.",
   ).optional(),
-  S3KeyPrefix: z.string().max(200).describe(
-    "Specifies the Amazon S3 key prefix that comes after the name of the bucket you have designated for log file delivery. For more information, see Finding Your CloudTrail Log Files. The maximum length is 200 characters.",
+  EnableLogFileValidation: z.boolean().describe(
+    "Specifies whether log file validation is enabled. The default is false.",
   ).optional(),
   AdvancedEventSelectors: z.array(AdvancedEventSelectorSchema).describe(
     "The advanced event selectors that were used to select events for the data store.",
   ).optional(),
-  TrailName: z.string().min(3).max(128).regex(
-    new RegExp("(^[a-zA-Z0-9]$)|(^[a-zA-Z0-9]([a-zA-Z0-9\\._-])*[a-zA-Z0-9]$)"),
+  EventSelectors: z.array(EventSelectorSchema).describe(
+    "Use event selectors to further specify the management and data event settings for your trail. By default, trails created without specific event selectors will be configured to log all read and write management events, and no data events. When an event occurs in your account, CloudTrail evaluates the event selector for all trails. For each trail, if the event matches any event selector, the trail processes and logs the event. If the event doesn't match any event selector, the trail doesn't log the event. You can configure up to five event selectors for a trail.",
   ).optional(),
-  IsOrganizationTrail: z.boolean().describe(
-    "Specifies whether the trail is created for all accounts in an organization in AWS Organizations, or only for the current AWS account. The default is false, and cannot be true unless the call is made on behalf of an AWS account that is the master account for an organization in AWS Organizations.",
+  IncludeGlobalServiceEvents: z.boolean().describe(
+    "Specifies whether the trail is publishing events from global services such as IAM to the log files.",
   ).optional(),
-  InsightSelectors: z.array(InsightSelectorSchema).describe(
-    "Lets you enable Insights event logging by specifying the Insights selectors that you want to enable on an existing trail.",
-  ).optional(),
-  CloudWatchLogsLogGroupArn: z.string().describe(
-    "Specifies a log group name using an Amazon Resource Name (ARN), a unique identifier that represents the log group to which CloudTrail logs will be delivered. Not required unless you specify CloudWatchLogsRoleArn.",
-  ).optional(),
-  SnsTopicName: z.string().max(256).describe(
-    "Specifies the name of the Amazon SNS topic defined for notification of log file delivery. The maximum length is 256 characters.",
+  IsLogging: z.boolean().describe(
+    "Whether the CloudTrail is currently logging AWS API calls.",
   ).optional(),
   IsMultiRegionTrail: z.boolean().describe(
     "Specifies whether the trail applies only to the current region or to all regions. The default is false. If the trail exists only in the current region and this value is set to true, shadow trails (replications of the trail) will be created in the other regions. If the trail exists in all regions and this value is set to false, the trail will remain in the region where it was created, and its shadow trails in other regions will be deleted. As a best practice, consider using trails that log events in all regions.",
   ).optional(),
+  IsOrganizationTrail: z.boolean().describe(
+    "Specifies whether the trail is created for all accounts in an organization in AWS Organizations, or only for the current AWS account. The default is false, and cannot be true unless the call is made on behalf of an AWS account that is the master account for an organization in AWS Organizations.",
+  ).optional(),
+  KMSKeyId: z.string().describe(
+    "Specifies the KMS key ID to use to encrypt the logs delivered by CloudTrail. The value can be an alias name prefixed by 'alias/', a fully specified ARN to an alias, a fully specified ARN to a key, or a globally unique identifier.",
+  ).optional(),
   S3BucketName: z.string().describe(
     "Specifies the name of the Amazon S3 bucket designated for publishing log files. See Amazon S3 Bucket Naming Requirements.",
   ).optional(),
-  EnableLogFileValidation: z.boolean().describe(
-    "Specifies whether log file validation is enabled. The default is false.",
+  S3KeyPrefix: z.string().max(200).describe(
+    "Specifies the Amazon S3 key prefix that comes after the name of the bucket you have designated for log file delivery. For more information, see Finding Your CloudTrail Log Files. The maximum length is 200 characters.",
+  ).optional(),
+  SnsTopicName: z.string().max(256).describe(
+    "Specifies the name of the Amazon SNS topic defined for notification of log file delivery. The maximum length is 256 characters.",
   ).optional(),
   Tags: z.array(TagSchema).optional(),
-  IsLogging: z.boolean().describe(
-    "Whether the CloudTrail is currently logging AWS API calls.",
+  TrailName: z.string().min(3).max(128).regex(
+    new RegExp("(^[a-zA-Z0-9]$)|(^[a-zA-Z0-9]([a-zA-Z0-9\\._-])*[a-zA-Z0-9]$)"),
+  ).optional(),
+  InsightSelectors: z.array(InsightSelectorSchema).describe(
+    "Lets you enable Insights event logging by specifying the Insights selectors that you want to enable on an existing trail.",
+  ).optional(),
+  AggregationConfigurations: z.array(AggregationConfigurationSchema).describe(
+    "Specifies the aggregation configuration to aggregate CloudTrail Events. A maximum of 1 aggregation configuration is allowed.",
   ).optional(),
 });
 
@@ -292,7 +292,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudTrail Trail. Registered at `@swamp/aws/cloudtrail/trail`. */
 export const model = {
   type: "@swamp/aws/cloudtrail/trail",
-  version: "2026.06.08.1",
+  version: "2026.06.10.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -326,6 +326,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

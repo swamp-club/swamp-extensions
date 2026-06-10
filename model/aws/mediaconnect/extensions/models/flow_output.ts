@@ -208,6 +208,8 @@ const GlobalArgsSchema = z.object({
   NdiSpeedHqQuality: z.number().int().describe(
     "A quality setting for the NDI Speed HQ encoder.",
   ).optional(),
+  NdiOutputTimecodeSource: z.enum(["EMBEDDED_TIMECODE", "UTC_SYSTEM_TIME"])
+    .describe("The timecode source for the NDI output.").optional(),
   RouterIntegrationState: z.enum(["ENABLED", "DISABLED"]).optional(),
   RouterIntegrationTransitEncryption: z.object({
     EncryptionKeyType: z.enum(["SECRETS_MANAGER", "AUTOMATIC"]).optional(),
@@ -255,6 +257,7 @@ const StateSchema = z.object({
   OutputStatus: z.string().optional(),
   NdiProgramName: z.string().optional(),
   NdiSpeedHqQuality: z.number().optional(),
+  NdiOutputTimecodeSource: z.string().optional(),
   RouterIntegrationState: z.string().optional(),
   RouterIntegrationTransitEncryption: z.object({
     EncryptionKeyType: z.string(),
@@ -363,6 +366,8 @@ const InputsSchema = z.object({
   NdiSpeedHqQuality: z.number().int().describe(
     "A quality setting for the NDI Speed HQ encoder.",
   ).optional(),
+  NdiOutputTimecodeSource: z.enum(["EMBEDDED_TIMECODE", "UTC_SYSTEM_TIME"])
+    .describe("The timecode source for the NDI output.").optional(),
   RouterIntegrationState: z.enum(["ENABLED", "DISABLED"]).optional(),
   RouterIntegrationTransitEncryption: z.object({
     EncryptionKeyType: z.enum(["SECRETS_MANAGER", "AUTOMATIC"]).optional(),
@@ -402,7 +407,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaConnect FlowOutput. Registered at `@swamp/aws/mediaconnect/flow-output`. */
 export const model = {
   type: "@swamp/aws/mediaconnect/flow-output",
-  version: "2026.06.08.1",
+  version: "2026.06.10.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -442,6 +447,11 @@ export const model = {
     {
       toVersion: "2026.06.08.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.10.1",
+      description: "Added: NdiOutputTimecodeSource",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

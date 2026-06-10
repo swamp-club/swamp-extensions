@@ -152,6 +152,14 @@ const VpcConfigurationSchema = z.object({
   ResourceConfigurationArns: z.array(z.string().min(1).max(2048)).optional(),
 });
 
+const PersistentVolumeConfigurationSchema = z.object({
+  SizeGiB: z.number().int().min(1).max(65536).optional(),
+  Iops: z.number().int().min(100).max(80000).optional(),
+  ThroughputMiB: z.number().int().min(125).max(2000).optional(),
+  MountPath: z.string().min(1).max(255),
+  LastUsedTtlHours: z.number().int().min(1).max(8760).optional(),
+});
+
 const ServiceManagedEc2AutoScalingConfigurationSchema = z.object({
   StandbyWorkerCount: z.number().int().min(0).max(2147483647).optional(),
   WorkerIdleDurationSeconds: z.number().int().min(0).max(86400).optional(),
@@ -164,6 +172,7 @@ const ServiceManagedEc2FleetConfigurationSchema = z.object({
   VpcConfiguration: VpcConfigurationSchema.optional(),
   StorageProfileId: z.string().regex(new RegExp("^sp-[0-9a-f]{32}$"))
     .optional(),
+  PersistentVolumeConfiguration: PersistentVolumeConfigurationSchema.optional(),
   AutoScalingConfiguration: ServiceManagedEc2AutoScalingConfigurationSchema
     .optional(),
 });
@@ -301,7 +310,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Deadline Fleet. Registered at `@swamp/aws/deadline/fleet`. */
 export const model = {
   type: "@swamp/aws/deadline/fleet",
-  version: "2026.06.08.1",
+  version: "2026.06.10.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -345,6 +354,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.10.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
