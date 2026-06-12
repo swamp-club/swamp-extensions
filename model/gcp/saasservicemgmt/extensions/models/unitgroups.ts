@@ -160,12 +160,6 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     'Identifier. The resource name (full URI of the resource) following the standard naming scheme: "projects/{project}/locations/{location}/unitGroups/{unitGroup}"',
   ).optional(),
-  saas: z.string().describe(
-    "Required. Immutable. The SaaS that this UnitGroup is created for.",
-  ).optional(),
-  saasRelease: z.string().describe(
-    "Required. Immutable. Current SaasRelease that the UnitGroup is provisioned with.",
-  ).optional(),
   requestId: z.string().describe("An optional request ID to identify requests.")
     .optional(),
   unitGroupId: z.string().describe(
@@ -182,9 +176,6 @@ const StateSchema = z.object({
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  saas: z.string().optional(),
-  saasRelease: z.string().optional(),
-  state: z.string().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -203,12 +194,6 @@ const InputsSchema = z.object({
   ).optional(),
   name: z.string().describe(
     'Identifier. The resource name (full URI of the resource) following the standard naming scheme: "projects/{project}/locations/{location}/unitGroups/{unitGroup}"',
-  ).optional(),
-  saas: z.string().describe(
-    "Required. Immutable. The SaaS that this UnitGroup is created for.",
-  ).optional(),
-  saasRelease: z.string().describe(
-    "Required. Immutable. Current SaasRelease that the UnitGroup is provisioned with.",
   ).optional(),
   requestId: z.string().describe("An optional request ID to identify requests.")
     .optional(),
@@ -235,7 +220,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Lifecycle Manager UnitGroups. Registered at `@swamp/gcp/saasservicemgmt/unitgroups`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/unitgroups",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.06.07.1",
@@ -246,6 +231,14 @@ export const model = {
       toVersion: "2026.06.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
+      description: "Removed: saas, saasRelease",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { saas: _saas, saasRelease: _saasRelease, ...rest } = old;
+        return rest;
+      },
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -277,10 +270,6 @@ export const model = {
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["name"] !== undefined) body["name"] = g["name"];
-        if (g["saas"] !== undefined) body["saas"] = g["saas"];
-        if (g["saasRelease"] !== undefined) {
-          body["saasRelease"] = g["saasRelease"];
-        }
         if (g["requestId"] !== undefined) body["requestId"] = g["requestId"];
         if (g["unitGroupId"] !== undefined) {
           body["unitGroupId"] = g["unitGroupId"];

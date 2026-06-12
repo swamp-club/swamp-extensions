@@ -203,7 +203,7 @@ const GlobalArgsSchema = z.object({
     "EXEMPT",
     "NON_EXEMPT_AND_INFO_VERIFIED",
   ]).describe(
-    "Optional. Indicate if a customer is attesting about the correctness of provided information. Only required if creating a GCP Entitlement.",
+    "Optional. Indicate if a customer is attesting about the correctness of provided information. Only required if creating a GCP Entitlement. NOTE: This field will be mandatory for all new GCP customers starting Aug 31st, 2026 and this field will also be required for all existing customers purchasing new GCP Entitlements.",
   ).optional(),
   domain: z.string().describe(
     "Required. The customer's primary domain. Must match the primary contact email's domain.",
@@ -382,7 +382,7 @@ const InputsSchema = z.object({
     "EXEMPT",
     "NON_EXEMPT_AND_INFO_VERIFIED",
   ]).describe(
-    "Optional. Indicate if a customer is attesting about the correctness of provided information. Only required if creating a GCP Entitlement.",
+    "Optional. Indicate if a customer is attesting about the correctness of provided information. Only required if creating a GCP Entitlement. NOTE: This field will be mandatory for all new GCP customers starting Aug 31st, 2026 and this field will also be required for all existing customers purchasing new GCP Entitlements.",
   ).optional(),
   domain: z.string().describe(
     "Required. The customer's primary domain. Must match the primary contact email's domain.",
@@ -469,7 +469,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Channel Accounts.ChannelPartnerLinks.Customers. Registered at `@swamp/gcp/cloudchannel/accounts-channelpartnerlinks-customers`. */
 export const model = {
   type: "@swamp/gcp/cloudchannel/accounts-channelpartnerlinks-customers",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -538,6 +538,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

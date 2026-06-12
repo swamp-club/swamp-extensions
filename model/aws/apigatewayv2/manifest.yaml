@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/apigatewayv2"
-version: "2026.06.09.1"
+version: "2026.06.12.1"
 description: "AWS APIGATEWAYV2 infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: api, api_mapping, domain_name, routing_rule
+  - Added: stage
 models:
   - api.ts
   - api_mapping.ts
@@ -23,6 +23,7 @@ models:
   - route.ts
   - route_response.ts
   - routing_rule.ts
+  - stage.ts
   - vpc_link.ts
 additionalFiles:
   - LICENSE.txt

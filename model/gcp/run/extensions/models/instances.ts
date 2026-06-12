@@ -340,6 +340,9 @@ const GlobalArgsSchema = z.object({
     }).describe(
       "ResourceRequirements describes the compute resource requirements.",
     ).optional(),
+    sandboxLauncher: z.boolean().describe(
+      "Optional. Indicates that this container can act as a sandbox supervisor and launch sandboxes.",
+    ).optional(),
     sourceCode: z.object({
       cloudStorageSource: z.object({
         bucket: z.string().describe("Required. The Cloud Storage bucket name.")
@@ -732,6 +735,7 @@ const StateSchema = z.object({
       limits: z.record(z.string(), z.unknown()),
       startupCpuBoost: z.boolean(),
     }),
+    sandboxLauncher: z.boolean(),
     sourceCode: z.object({
       cloudStorageSource: z.object({
         bucket: z.string(),
@@ -1026,6 +1030,9 @@ const InputsSchema = z.object({
       ).optional(),
     }).describe(
       "ResourceRequirements describes the compute resource requirements.",
+    ).optional(),
+    sandboxLauncher: z.boolean().describe(
+      "Optional. Indicates that this container can act as a sandbox supervisor and launch sandboxes.",
     ).optional(),
     sourceCode: z.object({
       cloudStorageSource: z.object({
@@ -1348,7 +1355,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Instances. Registered at `@swamp/gcp/run/instances`. */
 export const model = {
   type: "@swamp/gcp/run/instances",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1474,6 +1481,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

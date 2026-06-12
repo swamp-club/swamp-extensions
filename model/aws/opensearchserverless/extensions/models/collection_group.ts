@@ -70,6 +70,9 @@ const GlobalArgsSchema = z.object({
   StandbyReplicas: z.enum(["ENABLED", "DISABLED"]).describe(
     "Indicates whether standby replicas are used for the collection group.",
   ),
+  Generation: z.enum(["CLASSIC", "NEXTGEN"]).describe(
+    "The generation of Amazon OpenSearch Serverless for the collection group. Valid values are CLASSIC and NEXTGEN.",
+  ).optional(),
   CapacityLimits: z.object({
     MaxSearchCapacityInOcu: z.number().describe(
       "The maximum search capacity for collections in the group.",
@@ -95,6 +98,7 @@ const StateSchema = z.object({
   Arn: z.string().optional(),
   Description: z.string().optional(),
   StandbyReplicas: z.string().optional(),
+  Generation: z.string().optional(),
   CapacityLimits: z.object({
     MaxSearchCapacityInOcu: z.number(),
     MaxIndexingCapacityInOcu: z.number(),
@@ -119,6 +123,9 @@ const InputsSchema = z.object({
   ).optional(),
   StandbyReplicas: z.enum(["ENABLED", "DISABLED"]).describe(
     "Indicates whether standby replicas are used for the collection group.",
+  ).optional(),
+  Generation: z.enum(["CLASSIC", "NEXTGEN"]).describe(
+    "The generation of Amazon OpenSearch Serverless for the collection group. Valid values are CLASSIC and NEXTGEN.",
   ).optional(),
   CapacityLimits: z.object({
     MaxSearchCapacityInOcu: z.number().describe(
@@ -158,7 +165,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for OpenSearchServerless CollectionGroup. Registered at `@swamp/aws/opensearchserverless/collection-group`. */
 export const model = {
   type: "@swamp/aws/opensearchserverless/collection-group",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -193,6 +200,11 @@ export const model = {
     {
       toVersion: "2026.06.08.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
+      description: "Added: Generation",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -302,7 +314,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["Name", "StandbyReplicas"],
+          ["Name", "StandbyReplicas", "Generation"],
           credentials,
         );
         const handle = await context.writeResource(

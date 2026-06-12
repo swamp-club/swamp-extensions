@@ -59,9 +59,18 @@ const ElasticLoadBalancingSchema = z.object({
   Enabled: z.boolean().describe("Todo: add description").optional(),
 });
 
+const EtcdPlacementSchema = z.object({
+  SpreadLevel: z.string().describe(
+    "Optional parameter to specify the placement group spread level for etcd instances. If not provided, EKS will deploy etcd instances without a placement group.",
+  ).optional(),
+});
+
 const ControlPlanePlacementSchema = z.object({
   GroupName: z.string().describe(
-    "Specify the placement group name of the control place machines for your cluster.",
+    "The name of the placement group for the Kubernetes control plane instances. This setting can't be changed after cluster creation.",
+  ).optional(),
+  SpreadLevel: z.string().describe(
+    "Optional parameter to specify the placement group spread level for control plane instances. If not provided, EKS will deploy control plane instances without a placement group.",
   ).optional(),
 });
 
@@ -163,14 +172,20 @@ const GlobalArgsSchema = z.object({
   }).describe("Configuration for provisioned control plane scaling.")
     .optional(),
   OutpostConfig: z.object({
+    EtcdPlacement: EtcdPlacementSchema.describe(
+      "An object representing the placement configuration for the etcd instances of your local Amazon EKS cluster on an AWS Outpost.",
+    ).optional(),
     OutpostArns: z.array(z.string()).describe(
-      "Specify one or more Arn(s) of Outpost(s) on which you would like to create your cluster.",
+      "The ARN of the Outpost that you want to use for your local Amazon EKS cluster on Outposts. Only a single Outpost ARN is supported.",
     ),
     ControlPlanePlacement: ControlPlanePlacementSchema.describe(
-      "Specify the placement group of the control plane machines for your cluster.",
+      "An object representing the placement configuration for all the control plane instances of your local Amazon EKS cluster on an AWS Outpost.",
+    ).optional(),
+    EtcdInstanceType: z.string().describe(
+      "The EC2 instance type for etcd instances of your local Amazon EKS cluster on AWS Outposts. This instance type applies to all etcd instances and cannot be changed after cluster creation.",
     ).optional(),
     ControlPlaneInstanceType: z.string().describe(
-      "Specify the Instance type of the machines that should be used to create your cluster.",
+      "The EC2 instance type for the Kubernetes control plane instances of your local Amazon EKS cluster on AWS Outposts. This instance type applies to all control plane instances and cannot be changed after cluster creation.",
     ),
   }).describe(
     "An object representing the Outpost configuration to use for AWS EKS outpost cluster.",
@@ -269,8 +284,10 @@ const StateSchema = z.object({
   }).optional(),
   ClusterSecurityGroupId: z.string().optional(),
   OutpostConfig: z.object({
+    EtcdPlacement: EtcdPlacementSchema,
     OutpostArns: z.array(z.string()),
     ControlPlanePlacement: ControlPlanePlacementSchema,
+    EtcdInstanceType: z.string(),
     ControlPlaneInstanceType: z.string(),
   }).optional(),
   Tags: z.array(TagSchema).optional(),
@@ -362,14 +379,20 @@ const InputsSchema = z.object({
   }).describe("Configuration for provisioned control plane scaling.")
     .optional(),
   OutpostConfig: z.object({
+    EtcdPlacement: EtcdPlacementSchema.describe(
+      "An object representing the placement configuration for the etcd instances of your local Amazon EKS cluster on an AWS Outpost.",
+    ).optional(),
     OutpostArns: z.array(z.string()).describe(
-      "Specify one or more Arn(s) of Outpost(s) on which you would like to create your cluster.",
+      "The ARN of the Outpost that you want to use for your local Amazon EKS cluster on Outposts. Only a single Outpost ARN is supported.",
     ).optional(),
     ControlPlanePlacement: ControlPlanePlacementSchema.describe(
-      "Specify the placement group of the control plane machines for your cluster.",
+      "An object representing the placement configuration for all the control plane instances of your local Amazon EKS cluster on an AWS Outpost.",
+    ).optional(),
+    EtcdInstanceType: z.string().describe(
+      "The EC2 instance type for etcd instances of your local Amazon EKS cluster on AWS Outposts. This instance type applies to all etcd instances and cannot be changed after cluster creation.",
     ).optional(),
     ControlPlaneInstanceType: z.string().describe(
-      "Specify the Instance type of the machines that should be used to create your cluster.",
+      "The EC2 instance type for the Kubernetes control plane instances of your local Amazon EKS cluster on AWS Outposts. This instance type applies to all control plane instances and cannot be changed after cluster creation.",
     ).optional(),
   }).describe(
     "An object representing the Outpost configuration to use for AWS EKS outpost cluster.",
@@ -465,7 +488,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EKS Cluster. Registered at `@swamp/aws/eks/cluster`. */
 export const model = {
   type: "@swamp/aws/eks/cluster",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -499,6 +522,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

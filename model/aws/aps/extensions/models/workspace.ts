@@ -119,6 +119,12 @@ const GlobalArgsSchema = z.object({
     LimitsPerLabelSets: z.array(LimitsPerLabelSetSchema).describe(
       "An array of label set and associated limits",
     ).optional(),
+    OutOfOrderTimeWindowInSeconds: z.number().int().min(0).describe(
+      "The time window in seconds for accepting out-of-order samples",
+    ).optional(),
+    RuleQueryOffsetInSeconds: z.number().int().min(0).describe(
+      "Duration in seconds to offset rule evaluation queries into the past",
+    ).optional(),
   }).describe("Workspace configuration").optional(),
   QueryLoggingConfiguration: z.object({
     Destinations: z.array(LoggingDestinationSchema).describe(
@@ -146,6 +152,8 @@ const StateSchema = z.object({
   WorkspaceConfiguration: z.object({
     RetentionPeriodInDays: z.number(),
     LimitsPerLabelSets: z.array(LimitsPerLabelSetSchema),
+    OutOfOrderTimeWindowInSeconds: z.number(),
+    RuleQueryOffsetInSeconds: z.number(),
   }).optional(),
   QueryLoggingConfiguration: z.object({
     Destinations: z.array(LoggingDestinationSchema),
@@ -176,6 +184,12 @@ const InputsSchema = z.object({
     ).optional(),
     LimitsPerLabelSets: z.array(LimitsPerLabelSetSchema).describe(
       "An array of label set and associated limits",
+    ).optional(),
+    OutOfOrderTimeWindowInSeconds: z.number().int().min(0).describe(
+      "The time window in seconds for accepting out-of-order samples",
+    ).optional(),
+    RuleQueryOffsetInSeconds: z.number().int().min(0).describe(
+      "Duration in seconds to offset rule evaluation queries into the past",
     ).optional(),
   }).describe("Workspace configuration").optional(),
   QueryLoggingConfiguration: z.object({
@@ -211,7 +225,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for APS Workspace. Registered at `@swamp/aws/aps/workspace`. */
 export const model = {
   type: "@swamp/aws/aps/workspace",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -245,6 +259,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

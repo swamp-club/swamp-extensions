@@ -337,6 +337,22 @@ const GlobalArgsSchema = z.object({
     }).describe(
       "Configuration for making inference requests against Vertex AI models.",
     ).optional(),
+    compression: z.object({
+      compressionAlgorithm: z.enum([
+        "COMPRESSION_ALGORITHM_UNSPECIFIED",
+        "ZLIB",
+      ]).describe("Required. Specifies the compression algorithm to use.")
+        .optional(),
+      compressionMode: z.enum([
+        "COMPRESSION_MODE_UNSPECIFIED",
+        "COMPRESS",
+        "DECOMPRESS",
+      ]).describe(
+        "Required. Specifies whether to compress or decompress the message.",
+      ).optional(),
+    }).describe(
+      "Configuration for compressing/decompressing message data using a user-specified compression algorithm.",
+    ).optional(),
     disabled: z.boolean().describe(
       "Optional. If true, the transform is disabled and will not be applied to messages. Defaults to `false`.",
     ).optional(),
@@ -580,6 +596,22 @@ const GlobalArgsSchema = z.object({
       }).describe(
         "Configuration for making inference requests against Vertex AI models.",
       ).optional(),
+      compression: z.object({
+        compressionAlgorithm: z.enum([
+          "COMPRESSION_ALGORITHM_UNSPECIFIED",
+          "ZLIB",
+        ]).describe("Required. Specifies the compression algorithm to use.")
+          .optional(),
+        compressionMode: z.enum([
+          "COMPRESSION_MODE_UNSPECIFIED",
+          "COMPRESS",
+          "DECOMPRESS",
+        ]).describe(
+          "Required. Specifies whether to compress or decompress the message.",
+        ).optional(),
+      }).describe(
+        "Configuration for compressing/decompressing message data using a user-specified compression algorithm.",
+      ).optional(),
       disabled: z.boolean().describe(
         "Optional. If true, the transform is disabled and will not be applied to messages. Defaults to `false`.",
       ).optional(),
@@ -696,6 +728,10 @@ const StateSchema = z.object({
       unstructuredInference: z.object({
         parameters: z.record(z.string(), z.unknown()),
       }),
+    }),
+    compression: z.object({
+      compressionAlgorithm: z.string(),
+      compressionMode: z.string(),
     }),
     disabled: z.boolean(),
     enabled: z.boolean(),
@@ -921,6 +957,22 @@ const InputsSchema = z.object({
     }).describe(
       "Configuration for making inference requests against Vertex AI models.",
     ).optional(),
+    compression: z.object({
+      compressionAlgorithm: z.enum([
+        "COMPRESSION_ALGORITHM_UNSPECIFIED",
+        "ZLIB",
+      ]).describe("Required. Specifies the compression algorithm to use.")
+        .optional(),
+      compressionMode: z.enum([
+        "COMPRESSION_MODE_UNSPECIFIED",
+        "COMPRESS",
+        "DECOMPRESS",
+      ]).describe(
+        "Required. Specifies whether to compress or decompress the message.",
+      ).optional(),
+    }).describe(
+      "Configuration for compressing/decompressing message data using a user-specified compression algorithm.",
+    ).optional(),
     disabled: z.boolean().describe(
       "Optional. If true, the transform is disabled and will not be applied to messages. Defaults to `false`.",
     ).optional(),
@@ -1164,6 +1216,22 @@ const InputsSchema = z.object({
       }).describe(
         "Configuration for making inference requests against Vertex AI models.",
       ).optional(),
+      compression: z.object({
+        compressionAlgorithm: z.enum([
+          "COMPRESSION_ALGORITHM_UNSPECIFIED",
+          "ZLIB",
+        ]).describe("Required. Specifies the compression algorithm to use.")
+          .optional(),
+        compressionMode: z.enum([
+          "COMPRESSION_MODE_UNSPECIFIED",
+          "COMPRESS",
+          "DECOMPRESS",
+        ]).describe(
+          "Required. Specifies whether to compress or decompress the message.",
+        ).optional(),
+      }).describe(
+        "Configuration for compressing/decompressing message data using a user-specified compression algorithm.",
+      ).optional(),
       disabled: z.boolean().describe(
         "Optional. If true, the transform is disabled and will not be applied to messages. Defaults to `false`.",
       ).optional(),
@@ -1232,7 +1300,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Pub/Sub Topics. Registered at `@swamp/gcp/pubsub/topics`. */
 export const model = {
   type: "@swamp/gcp/pubsub/topics",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1346,6 +1414,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

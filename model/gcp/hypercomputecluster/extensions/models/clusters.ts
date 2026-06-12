@@ -223,7 +223,7 @@ const GlobalArgsSchema = z.object({
     "Optional. Compute resources available to the cluster. Keys specify the ID of the compute resource by which it can be referenced elsewhere, and must conform to [RFC-1034](https://datatracker.ietf.org/doc/html/rfc1034) (lower-case, alphanumeric, and at most 63 characters).",
   ).optional(),
   description: z.string().describe(
-    "Optional. User-provided description of the cluster. Maximum of 2048 characters.",
+    "Optional. A description for your cluster. You can use up to 2,048 characters.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. [Labels](https://cloud.google.com/compute/docs/labeling-resources) applied to the cluster. Labels can be used to organize clusters and to filter them in queries.",
@@ -283,7 +283,7 @@ const GlobalArgsSchema = z.object({
       loginNodes: z.object({
         bootDisk: z.object({
           sizeGb: z.string().describe(
-            "Required. Immutable. Size of the disk in gigabytes. Must be at least 40GB.",
+            "Required. Immutable. The size of the disk in gigabytes (GB), which must be at least 40 GB.",
           ).optional(),
           type: z.string().describe(
             "Required. Immutable. [Persistent disk type](https://cloud.google.com/compute/docs/disks#disk-types), in the format `projects/{project}/zones/{zone}/diskTypes/{disk_type}`.",
@@ -334,7 +334,7 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       nodeSets: z.array(z.object({
         computeId: z.string().describe(
-          "Required. ID of the compute resource on which this nodeset will run. Must match a key in the cluster's compute_resources.",
+          "Required. The ID of the compute resource on which this nodeset runs. Must match a key in the cluster's compute_resources.",
         ).optional(),
         computeInstance: z.object({
           bootDisk: z.unknown().describe(
@@ -455,7 +455,7 @@ const GlobalArgsSchema = z.object({
             "Required. Immutable. File system shares on the instance. Exactly one file share must be specified.",
           ).optional(),
           filestore: z.string().describe(
-            "Required. Immutable. Name of the Filestore instance to create, in the format `projects/{project}/locations/{location}/instances/{instance}`",
+            "Required. Immutable. Name of the Filestore instance to create, in the format `projects/{project}/locations/{location}/instances/{instance}`.",
           ).optional(),
           protocol: z.enum(["PROTOCOL_UNSPECIFIED", "NFSV3", "NFSV41"])
             .describe(
@@ -638,7 +638,7 @@ const InputsSchema = z.object({
     "Optional. Compute resources available to the cluster. Keys specify the ID of the compute resource by which it can be referenced elsewhere, and must conform to [RFC-1034](https://datatracker.ietf.org/doc/html/rfc1034) (lower-case, alphanumeric, and at most 63 characters).",
   ).optional(),
   description: z.string().describe(
-    "Optional. User-provided description of the cluster. Maximum of 2048 characters.",
+    "Optional. A description for your cluster. You can use up to 2,048 characters.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. [Labels](https://cloud.google.com/compute/docs/labeling-resources) applied to the cluster. Labels can be used to organize clusters and to filter them in queries.",
@@ -698,7 +698,7 @@ const InputsSchema = z.object({
       loginNodes: z.object({
         bootDisk: z.object({
           sizeGb: z.string().describe(
-            "Required. Immutable. Size of the disk in gigabytes. Must be at least 40GB.",
+            "Required. Immutable. The size of the disk in gigabytes (GB), which must be at least 40 GB.",
           ).optional(),
           type: z.string().describe(
             "Required. Immutable. [Persistent disk type](https://cloud.google.com/compute/docs/disks#disk-types), in the format `projects/{project}/zones/{zone}/diskTypes/{disk_type}`.",
@@ -749,7 +749,7 @@ const InputsSchema = z.object({
       ).optional(),
       nodeSets: z.array(z.object({
         computeId: z.string().describe(
-          "Required. ID of the compute resource on which this nodeset will run. Must match a key in the cluster's compute_resources.",
+          "Required. The ID of the compute resource on which this nodeset runs. Must match a key in the cluster's compute_resources.",
         ).optional(),
         computeInstance: z.object({
           bootDisk: z.unknown().describe(
@@ -870,7 +870,7 @@ const InputsSchema = z.object({
             "Required. Immutable. File system shares on the instance. Exactly one file share must be specified.",
           ).optional(),
           filestore: z.string().describe(
-            "Required. Immutable. Name of the Filestore instance to create, in the format `projects/{project}/locations/{location}/instances/{instance}`",
+            "Required. Immutable. Name of the Filestore instance to create, in the format `projects/{project}/locations/{location}/instances/{instance}`.",
           ).optional(),
           protocol: z.enum(["PROTOCOL_UNSPECIFIED", "NFSV3", "NFSV41"])
             .describe(
@@ -948,7 +948,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Cluster Director Clusters. Registered at `@swamp/gcp/hypercomputecluster/clusters`. */
 export const model = {
   type: "@swamp/gcp/hypercomputecluster/clusters",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1057,6 +1057,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

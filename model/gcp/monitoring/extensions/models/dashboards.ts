@@ -186,6 +186,8 @@ const GlobalArgsSchema = z.object({
         "SAP_BACKINT",
         "SAP_AVAILABILITY",
         "SAP_OPERATIONS",
+        "INTERCONNECT_MAINTENANCE_STARTED",
+        "INTERCONNECT_MAINTENANCE_COMPLETED",
       ]).describe("The type of event to display.").optional(),
       filter: z.string().describe(
         "string filtering the events - event dependant. Example values: \"resource.labels.pod_name = 'pod-1'\" \"protoPayload.authenticationInfo.principalEmail='user@example.com'\"",
@@ -434,6 +436,9 @@ const GlobalArgsSchema = z.object({
       timeSeriesQueryLanguage: z.string().describe(
         "A query used to fetch time series with MQL.",
       ).optional(),
+      traceQuery: z.object({}).describe(
+        "LINT.IfChange Preview: Query for traces. This is a preview feature and may be subject to change before final release.",
+      ).optional(),
       unitOverride: z.string().describe(
         "The unit of data contained in fetched time series. If non-empty, this unit will override any unit that accompanies fetched data. The format is the same as the unit (https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.metricDescriptors) field in MetricDescriptor.",
       ).optional(),
@@ -574,6 +579,9 @@ const GlobalArgsSchema = z.object({
           ).optional(),
           timeSeriesQueryLanguage: z.unknown().describe(
             "A query used to fetch time series with MQL.",
+          ).optional(),
+          traceQuery: z.unknown().describe(
+            "LINT.IfChange Preview: Query for traces. This is a preview feature and may be subject to change before final release.",
           ).optional(),
           unitOverride: z.unknown().describe(
             "The unit of data contained in fetched time series. If non-empty, this unit will override any unit that accompanies fetched data. The format is the same as the unit (https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.metricDescriptors) field in MetricDescriptor.",
@@ -1086,6 +1094,7 @@ const StateSchema = z.object({
         }),
       }),
       timeSeriesQueryLanguage: z.string(),
+      traceQuery: z.object({}),
       unitOverride: z.string(),
     }),
     valueType: z.string(),
@@ -1145,6 +1154,7 @@ const StateSchema = z.object({
           timeSeriesFilter: z.unknown(),
           timeSeriesFilterRatio: z.unknown(),
           timeSeriesQueryLanguage: z.unknown(),
+          traceQuery: z.unknown(),
           unitOverride: z.unknown(),
         }),
       }),
@@ -1364,6 +1374,8 @@ const InputsSchema = z.object({
         "SAP_BACKINT",
         "SAP_AVAILABILITY",
         "SAP_OPERATIONS",
+        "INTERCONNECT_MAINTENANCE_STARTED",
+        "INTERCONNECT_MAINTENANCE_COMPLETED",
       ]).describe("The type of event to display.").optional(),
       filter: z.string().describe(
         "string filtering the events - event dependant. Example values: \"resource.labels.pod_name = 'pod-1'\" \"protoPayload.authenticationInfo.principalEmail='user@example.com'\"",
@@ -1612,6 +1624,9 @@ const InputsSchema = z.object({
       timeSeriesQueryLanguage: z.string().describe(
         "A query used to fetch time series with MQL.",
       ).optional(),
+      traceQuery: z.object({}).describe(
+        "LINT.IfChange Preview: Query for traces. This is a preview feature and may be subject to change before final release.",
+      ).optional(),
       unitOverride: z.string().describe(
         "The unit of data contained in fetched time series. If non-empty, this unit will override any unit that accompanies fetched data. The format is the same as the unit (https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.metricDescriptors) field in MetricDescriptor.",
       ).optional(),
@@ -1752,6 +1767,9 @@ const InputsSchema = z.object({
           ).optional(),
           timeSeriesQueryLanguage: z.unknown().describe(
             "A query used to fetch time series with MQL.",
+          ).optional(),
+          traceQuery: z.unknown().describe(
+            "LINT.IfChange Preview: Query for traces. This is a preview feature and may be subject to change before final release.",
           ).optional(),
           unitOverride: z.unknown().describe(
             "The unit of data contained in fetched time series. If non-empty, this unit will override any unit that accompanies fetched data. The format is the same as the unit (https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.metricDescriptors) field in MetricDescriptor.",
@@ -2174,7 +2192,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Monitoring Dashboards. Registered at `@swamp/gcp/monitoring/dashboards`. */
 export const model = {
   type: "@swamp/gcp/monitoring/dashboards",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.06.07.1",
@@ -2183,6 +2201,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

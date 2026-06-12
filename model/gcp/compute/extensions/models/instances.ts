@@ -599,6 +599,16 @@ const GlobalArgsSchema = z.object({
     })).describe(
       "An array of alias IP ranges for this network interface. You can only specify this field for network interfaces in VPC networks.",
     ).optional(),
+    aliasIpv6Ranges: z.array(z.object({
+      ipCidrRange: z.string().describe(
+        "The IP alias ranges to allocate for this interface. This IP CIDR range must belong to the specified subnetwork and cannot contain IP addresses reserved by system or used by other network interfaces. This range may be a single IP address (such as 10.2.3.4), a netmask (such as/24) or a CIDR-formatted string (such as10.1.2.0/24).",
+      ).optional(),
+      subnetworkRangeName: z.string().describe(
+        "The name of a subnetwork secondary IP range from which to allocate an IP alias range. If not specified, the primary range of the subnetwork is used.",
+      ).optional(),
+    })).describe(
+      "An array of alias IPv6 ranges for this network interface. You can only specify this field for network interfaces in VPC networks.",
+    ).optional(),
     enableVpcScopedDns: z.boolean().describe(
       "Optional. If true, DNS resolution will be enabled over this interface. Only valid with network_attachment.",
     ).optional(),
@@ -1039,6 +1049,10 @@ const StateSchema = z.object({
       type: z.string(),
     })),
     aliasIpRanges: z.array(z.object({
+      ipCidrRange: z.string(),
+      subnetworkRangeName: z.string(),
+    })),
+    aliasIpv6Ranges: z.array(z.object({
       ipCidrRange: z.string(),
       subnetworkRangeName: z.string(),
     })),
@@ -1589,6 +1603,16 @@ const InputsSchema = z.object({
     })).describe(
       "An array of alias IP ranges for this network interface. You can only specify this field for network interfaces in VPC networks.",
     ).optional(),
+    aliasIpv6Ranges: z.array(z.object({
+      ipCidrRange: z.string().describe(
+        "The IP alias ranges to allocate for this interface. This IP CIDR range must belong to the specified subnetwork and cannot contain IP addresses reserved by system or used by other network interfaces. This range may be a single IP address (such as 10.2.3.4), a netmask (such as/24) or a CIDR-formatted string (such as10.1.2.0/24).",
+      ).optional(),
+      subnetworkRangeName: z.string().describe(
+        "The name of a subnetwork secondary IP range from which to allocate an IP alias range. If not specified, the primary range of the subnetwork is used.",
+      ).optional(),
+    })).describe(
+      "An array of alias IPv6 ranges for this network interface. You can only specify this field for network interfaces in VPC networks.",
+    ).optional(),
     enableVpcScopedDns: z.boolean().describe(
       "Optional. If true, DNS resolution will be enabled over this interface. Only valid with network_attachment.",
     ).optional(),
@@ -1900,7 +1924,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Instances. Registered at `@swamp/gcp/compute/instances`. */
 export const model = {
   type: "@swamp/gcp/compute/instances",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -2042,6 +2066,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2609,6 +2638,7 @@ export const model = {
       arguments: z.object({
         accessConfigs: z.any().optional(),
         aliasIpRanges: z.any().optional(),
+        aliasIpv6Ranges: z.any().optional(),
         enableVpcScopedDns: z.any().optional(),
         fingerprint: z.any().optional(),
         igmpQuery: z.any().optional(),
@@ -2655,6 +2685,9 @@ export const model = {
         }
         if (args["aliasIpRanges"] !== undefined) {
           body["aliasIpRanges"] = args["aliasIpRanges"];
+        }
+        if (args["aliasIpv6Ranges"] !== undefined) {
+          body["aliasIpv6Ranges"] = args["aliasIpv6Ranges"];
         }
         if (args["enableVpcScopedDns"] !== undefined) {
           body["enableVpcScopedDns"] = args["enableVpcScopedDns"];
@@ -4877,6 +4910,7 @@ export const model = {
       arguments: z.object({
         accessConfigs: z.any().optional(),
         aliasIpRanges: z.any().optional(),
+        aliasIpv6Ranges: z.any().optional(),
         enableVpcScopedDns: z.any().optional(),
         fingerprint: z.any().optional(),
         igmpQuery: z.any().optional(),
@@ -4925,6 +4959,9 @@ export const model = {
         }
         if (args["aliasIpRanges"] !== undefined) {
           body["aliasIpRanges"] = args["aliasIpRanges"];
+        }
+        if (args["aliasIpv6Ranges"] !== undefined) {
+          body["aliasIpv6Ranges"] = args["aliasIpv6Ranges"];
         }
         if (args["enableVpcScopedDns"] !== undefined) {
           body["enableVpcScopedDns"] = args["enableVpcScopedDns"];

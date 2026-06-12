@@ -77,6 +77,10 @@ const GlobalArgsSchema = z.object({
   Tags: z.array(TagSchema).describe(
     "The tags that have been assigned to this delivery source.",
   ).optional(),
+  DeliverySourceConfiguration: z.record(z.string(), z.string().min(1).max(255))
+    .describe(
+      "A map of key-value pairs to configure the delivery source. Both keys and values must be between 1 and 255 characters in length.",
+    ).optional(),
 });
 
 const StateSchema = z.object({
@@ -87,6 +91,9 @@ const StateSchema = z.object({
   Service: z.string().optional(),
   LogType: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
+  DeliverySourceConfiguration: z.record(z.string(), z.unknown()).optional(),
+  Status: z.string().optional(),
+  StatusReason: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -110,6 +117,10 @@ const InputsSchema = z.object({
   Tags: z.array(TagSchema).describe(
     "The tags that have been assigned to this delivery source.",
   ).optional(),
+  DeliverySourceConfiguration: z.record(z.string(), z.string().min(1).max(255))
+    .describe(
+      "A map of key-value pairs to configure the delivery source. Both keys and values must be between 1 and 255 characters in length.",
+    ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -131,7 +142,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Logs DeliverySource. Registered at `@swamp/aws/logs/delivery-source`. */
 export const model = {
   type: "@swamp/aws/logs/delivery-source",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -166,6 +177,11 @@ export const model = {
     {
       toVersion: "2026.06.08.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
+      description: "Added: DeliverySourceConfiguration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

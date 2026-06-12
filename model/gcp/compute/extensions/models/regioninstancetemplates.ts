@@ -490,6 +490,16 @@ const GlobalArgsSchema = z.object({
       })).describe(
         "An array of alias IP ranges for this network interface. You can only specify this field for network interfaces in VPC networks.",
       ).optional(),
+      aliasIpv6Ranges: z.array(z.object({
+        ipCidrRange: z.unknown().describe(
+          "The IP alias ranges to allocate for this interface. This IP CIDR range must belong to the specified subnetwork and cannot contain IP addresses reserved by system or used by other network interfaces. This range may be a single IP address (such as 10.2.3.4), a netmask (such as/24) or a CIDR-formatted string (such as10.1.2.0/24).",
+        ).optional(),
+        subnetworkRangeName: z.unknown().describe(
+          "The name of a subnetwork secondary IP range from which to allocate an IP alias range. If not specified, the primary range of the subnetwork is used.",
+        ).optional(),
+      })).describe(
+        "An array of alias IPv6 ranges for this network interface. You can only specify this field for network interfaces in VPC networks.",
+      ).optional(),
       enableVpcScopedDns: z.boolean().describe(
         "Optional. If true, DNS resolution will be enabled over this interface. Only valid with network_attachment.",
       ).optional(),
@@ -895,6 +905,10 @@ const StateSchema = z.object({
         type: z.unknown(),
       })),
       aliasIpRanges: z.array(z.object({
+        ipCidrRange: z.unknown(),
+        subnetworkRangeName: z.unknown(),
+      })),
+      aliasIpv6Ranges: z.array(z.object({
         ipCidrRange: z.unknown(),
         subnetworkRangeName: z.unknown(),
       })),
@@ -1327,6 +1341,16 @@ const InputsSchema = z.object({
       })).describe(
         "An array of alias IP ranges for this network interface. You can only specify this field for network interfaces in VPC networks.",
       ).optional(),
+      aliasIpv6Ranges: z.array(z.object({
+        ipCidrRange: z.unknown().describe(
+          "The IP alias ranges to allocate for this interface. This IP CIDR range must belong to the specified subnetwork and cannot contain IP addresses reserved by system or used by other network interfaces. This range may be a single IP address (such as 10.2.3.4), a netmask (such as/24) or a CIDR-formatted string (such as10.1.2.0/24).",
+        ).optional(),
+        subnetworkRangeName: z.unknown().describe(
+          "The name of a subnetwork secondary IP range from which to allocate an IP alias range. If not specified, the primary range of the subnetwork is used.",
+        ).optional(),
+      })).describe(
+        "An array of alias IPv6 ranges for this network interface. You can only specify this field for network interfaces in VPC networks.",
+      ).optional(),
       enableVpcScopedDns: z.boolean().describe(
         "Optional. If true, DNS resolution will be enabled over this interface. Only valid with network_attachment.",
       ).optional(),
@@ -1628,7 +1652,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine RegionInstanceTemplates. Registered at `@swamp/gcp/compute/regioninstancetemplates`. */
 export const model = {
   type: "@swamp/gcp/compute/regioninstancetemplates",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1762,6 +1786,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

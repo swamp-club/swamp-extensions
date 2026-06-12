@@ -138,6 +138,7 @@ const StateSchema = z.object({
     adsRedirect: z.string(),
     adult: z.boolean(),
     ageGroup: z.string(),
+    amenityFeature: z.array(z.string()),
     autoPricingMinPrice: z.object({
       amountMicros: z.string(),
       currencyCode: z.string(),
@@ -203,6 +204,13 @@ const StateSchema = z.object({
     dateFirstRegistered: z.string(),
     description: z.string(),
     disclosureDate: z.string(),
+    displayAddress: z.object({
+      city: z.string(),
+      postalCode: z.string(),
+      region: z.string(),
+      streetName: z.string(),
+      streetNumber: z.string(),
+    }),
     displayAdsId: z.string(),
     displayAdsLink: z.string(),
     displayAdsSimilarIds: z.array(z.string()),
@@ -270,9 +278,11 @@ const StateSchema = z.object({
     isBundle: z.boolean(),
     itemGroupId: z.string(),
     itemGroupTitle: z.string(),
+    latitude: z.number(),
     lifestyleImageLinks: z.array(z.string()),
     link: z.string(),
     linkTemplate: z.string(),
+    longitude: z.number(),
     loyaltyPoints: z.object({
       name: z.string(),
       pointsValue: z.string(),
@@ -323,8 +333,16 @@ const StateSchema = z.object({
     model: z.string(),
     mpn: z.string(),
     multipack: z.string(),
+    neighborhood: z.string(),
+    numberOfBathrooms: z.number(),
+    numberOfBedrooms: z.number(),
+    numberOfUnits: z.string(),
     pattern: z.string(),
     pause: z.string(),
+    petPolicy: z.object({
+      petTypes: z.array(z.string()),
+      petsAllowed: z.boolean(),
+    }),
     pickupCost: z.object({
       flatRate: z.object({
         amountMicros: z.string(),
@@ -347,6 +365,13 @@ const StateSchema = z.object({
       attributeValue: z.string(),
       sectionName: z.string(),
     })),
+    productFee: z.array(z.object({
+      amount: z.object({
+        amountMicros: z.string(),
+        currencyCode: z.string(),
+      }),
+      type: z.string(),
+    })),
     productHeight: z.object({
       unit: z.string(),
       value: z.number(),
@@ -366,6 +391,8 @@ const StateSchema = z.object({
       value: z.number(),
     }),
     promotionIds: z.array(z.string()),
+    propertyName: z.string(),
+    propertyType: z.string(),
     questionsAndAnswers: z.array(z.object({
       answer: z.string(),
       question: z.string(),
@@ -431,9 +458,11 @@ const StateSchema = z.object({
       value: z.number(),
     }),
     shoppingAdsExcludedCountries: z.array(z.string()),
+    shortTitle: z.string(),
     size: z.string(),
     sizeSystem: z.string(),
     sizeTypes: z.array(z.string()),
+    specialtyHousingType: z.string(),
     structuredDescription: z.object({
       content: z.string(),
       digitalSourceType: z.string(),
@@ -461,6 +490,10 @@ const StateSchema = z.object({
     title: z.string(),
     transitTimeLabel: z.string(),
     trim: z.string(),
+    unitArea: z.object({
+      unit: z.string(),
+      value: z.number(),
+    }),
     unitPricingBaseMeasure: z.object({
       unit: z.string(),
       value: z.string(),
@@ -469,6 +502,7 @@ const StateSchema = z.object({
       unit: z.string(),
       value: z.number(),
     }),
+    utilitiesIncluded: z.array(z.string()),
     variantOptions: z.array(z.object({
       name: z.string(),
       value: z.string(),
@@ -551,7 +585,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.Products. Registered at `@swamp/gcp/merchantapi/accounts-products`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-products",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.06.07.1",
@@ -560,6 +594,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

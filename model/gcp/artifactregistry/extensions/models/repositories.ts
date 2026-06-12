@@ -843,7 +843,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Artifact Registry Repositories. Registered at `@swamp/gcp/artifactregistry/repositories`. */
 export const model = {
   type: "@swamp/gcp/artifactregistry/repositories",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -922,6 +922,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1444,6 +1449,7 @@ export const model = {
       description: "prewarm artifact",
       arguments: z.object({
         force: z.any().optional(),
+        platform: z.any().optional(),
         retentionDays: z.any().optional(),
         streamLocation: z.any().optional(),
         tag: z.any().optional(),
@@ -1470,6 +1476,7 @@ export const model = {
           g["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
         if (args["force"] !== undefined) body["force"] = args["force"];
+        if (args["platform"] !== undefined) body["platform"] = args["platform"];
         if (args["retentionDays"] !== undefined) {
           body["retentionDays"] = args["retentionDays"];
         }

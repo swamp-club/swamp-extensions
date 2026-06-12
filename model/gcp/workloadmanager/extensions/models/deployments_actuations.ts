@@ -137,16 +137,17 @@ const GlobalArgsSchema = z.object({
     "GCP project ID; overrides GCP_PROJECT / GOOGLE_CLOUD_PROJECT environment variables.",
   ).optional(),
   actuationOutput: z.object({
-    actuateLogs: z.string().describe("A link to gcs file that store build logs")
-      .optional(),
+    actuateLogs: z.string().describe(
+      "A link to the Cloud Storage file that stores build logs.",
+    ).optional(),
     ansibleError: z.string().describe(
-      "Output only. error message return from ansible.",
+      "Output only. Error message returned from Ansible.",
     ).optional(),
     ansibleFailedTask: z.array(z.string()).describe(
-      "Output only. failed task name return from ansible.",
+      "Output only. Failed task name returned from Ansible.",
     ).optional(),
     blueprintId: z.string().describe(
-      "reference to Blueprint Controller deployment and revision resource",
+      "Reference to the Blueprint Controller deployment and revision resource.",
     ).optional(),
     cloudbuildId: z.string().describe(
       "Cloud Build instance UUID associated with this revision, without any suffix or prefix",
@@ -168,20 +169,20 @@ const GlobalArgsSchema = z.object({
     ]).describe(
       "Output only. Code describing any errors that may have occurred. If not specified, there is no error in actuation.",
     ).optional(),
-    errorLogs: z.string().describe("A link to actuation cloud build log.")
+    errorLogs: z.string().describe("A link to the actuation Cloud Build log.")
       .optional(),
     hasUserFacingErrorMsg: z.boolean().describe(
-      "Output only. whether the error message is user facing. If true, the error message will be shown in the UI.",
+      "Output only. Whether the error message is user facing. If true, the error message will be shown in the UI.",
     ).optional(),
     terraformError: z.string().describe(
-      "Output only. error message return from terraform.",
+      "Output only. Error message returned from Terraform.",
     ).optional(),
     terraformTemplate: z.string().describe(
-      "reference to terraform template used",
+      "Reference to the Terraform template used.",
     ).optional(),
-  }).describe("Message for output of Actuation").optional(),
+  }).describe("Message for output of actuation.").optional(),
   name: z.string().describe(
-    "The name of actuation resource. The format is projects/{project}/locations/{location}/deployments/{deployment}/actuations/{actuation}",
+    "The name of the actuation resource. The format is projects/{project}/locations/{location}/deployments/{deployment}/actuations/{actuation}.",
   ).optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -221,16 +222,17 @@ const InputsSchema = z.object({
   credentialsJson: z.string().meta({ sensitive: true }).optional(),
   project: z.string().optional(),
   actuationOutput: z.object({
-    actuateLogs: z.string().describe("A link to gcs file that store build logs")
-      .optional(),
+    actuateLogs: z.string().describe(
+      "A link to the Cloud Storage file that stores build logs.",
+    ).optional(),
     ansibleError: z.string().describe(
-      "Output only. error message return from ansible.",
+      "Output only. Error message returned from Ansible.",
     ).optional(),
     ansibleFailedTask: z.array(z.string()).describe(
-      "Output only. failed task name return from ansible.",
+      "Output only. Failed task name returned from Ansible.",
     ).optional(),
     blueprintId: z.string().describe(
-      "reference to Blueprint Controller deployment and revision resource",
+      "Reference to the Blueprint Controller deployment and revision resource.",
     ).optional(),
     cloudbuildId: z.string().describe(
       "Cloud Build instance UUID associated with this revision, without any suffix or prefix",
@@ -252,20 +254,20 @@ const InputsSchema = z.object({
     ]).describe(
       "Output only. Code describing any errors that may have occurred. If not specified, there is no error in actuation.",
     ).optional(),
-    errorLogs: z.string().describe("A link to actuation cloud build log.")
+    errorLogs: z.string().describe("A link to the actuation Cloud Build log.")
       .optional(),
     hasUserFacingErrorMsg: z.boolean().describe(
-      "Output only. whether the error message is user facing. If true, the error message will be shown in the UI.",
+      "Output only. Whether the error message is user facing. If true, the error message will be shown in the UI.",
     ).optional(),
     terraformError: z.string().describe(
-      "Output only. error message return from terraform.",
+      "Output only. Error message returned from Terraform.",
     ).optional(),
     terraformTemplate: z.string().describe(
-      "reference to terraform template used",
+      "Reference to the Terraform template used.",
     ).optional(),
-  }).describe("Message for output of Actuation").optional(),
+  }).describe("Message for output of actuation.").optional(),
   name: z.string().describe(
-    "The name of actuation resource. The format is projects/{project}/locations/{location}/deployments/{deployment}/actuations/{actuation}",
+    "The name of the actuation resource. The format is projects/{project}/locations/{location}/deployments/{deployment}/actuations/{actuation}.",
   ).optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -290,7 +292,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Workload Manager Deployments.Actuations. Registered at `@swamp/gcp/workloadmanager/deployments-actuations`. */
 export const model = {
   type: "@swamp/gcp/workloadmanager/deployments-actuations",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -364,6 +366,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -563,7 +570,7 @@ export const model = {
     list: {
       description: "List actuations resources",
       arguments: z.object({
-        filter: z.string().describe("Optional. Filtering results").optional(),
+        filter: z.string().describe("Optional. Filtering results.").optional(),
         orderBy: z.string().describe(
           "Optional. Field to sort by. See https://google.aip.dev/132#ordering for more details.",
         ).optional(),

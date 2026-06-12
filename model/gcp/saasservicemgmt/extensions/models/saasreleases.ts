@@ -160,22 +160,6 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     'Identifier. The resource name (full URI of the resource) following the standard naming scheme: "projects/{project}/locations/{location}/saasReleases/{saasRelease}"',
   ).optional(),
-  releases: z.array(z.string()).describe(
-    "Required. The Releases that are assigned to this SaasRelease.",
-  ).optional(),
-  tierMappings: z.array(z.object({
-    tier: z.string().describe("Required. The tier.").optional(),
-    unitKinds: z.array(z.object({
-      inputVariables: z.array(z.unknown()).describe(
-        "Optional. Output only. Input variables for the UnitKind.",
-      ).optional(),
-      unitKind: z.string().describe(
-        "Required. Immutable. The unique identifier of the UnitKind.",
-      ).optional(),
-    })).optional(),
-  })).describe(
-    "Required. A mapping between Tiers and UnitKinds that are part of this SaasRelease. While Tiers are defined as top-level resources, the mapping between Tiers and Unit Kinds is defined per SaasRelease.",
-  ).optional(),
   requestId: z.string().describe("An optional request ID to identify requests.")
     .optional(),
   saasReleaseId: z.string().describe(
@@ -192,14 +176,6 @@ const StateSchema = z.object({
   etag: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  releases: z.array(z.string()).optional(),
-  tierMappings: z.array(z.object({
-    tier: z.string(),
-    unitKinds: z.array(z.object({
-      inputVariables: z.array(z.unknown()),
-      unitKind: z.string(),
-    })),
-  })).optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -218,22 +194,6 @@ const InputsSchema = z.object({
   ).optional(),
   name: z.string().describe(
     'Identifier. The resource name (full URI of the resource) following the standard naming scheme: "projects/{project}/locations/{location}/saasReleases/{saasRelease}"',
-  ).optional(),
-  releases: z.array(z.string()).describe(
-    "Required. The Releases that are assigned to this SaasRelease.",
-  ).optional(),
-  tierMappings: z.array(z.object({
-    tier: z.string().describe("Required. The tier.").optional(),
-    unitKinds: z.array(z.object({
-      inputVariables: z.array(z.unknown()).describe(
-        "Optional. Output only. Input variables for the UnitKind.",
-      ).optional(),
-      unitKind: z.string().describe(
-        "Required. Immutable. The unique identifier of the UnitKind.",
-      ).optional(),
-    })).optional(),
-  })).describe(
-    "Required. A mapping between Tiers and UnitKinds that are part of this SaasRelease. While Tiers are defined as top-level resources, the mapping between Tiers and Unit Kinds is defined per SaasRelease.",
   ).optional(),
   requestId: z.string().describe("An optional request ID to identify requests.")
     .optional(),
@@ -260,7 +220,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Lifecycle Manager SaasReleases. Registered at `@swamp/gcp/saasservicemgmt/saasreleases`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/saasreleases",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.06.07.1",
@@ -271,6 +231,15 @@ export const model = {
       toVersion: "2026.06.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
+      description: "Removed: releases, tierMappings",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { releases: _releases, tierMappings: _tierMappings, ...rest } =
+          old;
+        return rest;
+      },
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -302,10 +271,6 @@ export const model = {
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["name"] !== undefined) body["name"] = g["name"];
-        if (g["releases"] !== undefined) body["releases"] = g["releases"];
-        if (g["tierMappings"] !== undefined) {
-          body["tierMappings"] = g["tierMappings"];
-        }
         if (g["requestId"] !== undefined) body["requestId"] = g["requestId"];
         if (g["saasReleaseId"] !== undefined) {
           body["saasReleaseId"] = g["saasReleaseId"];

@@ -72,6 +72,18 @@ const AccessEndpointSchema = z.object({
   ),
 });
 
+const UrlRedirectionConfigSchema = z.object({
+  Enabled: z.boolean().describe(
+    "Specifies whether URL redirection is enabled or disabled.",
+  ),
+  AllowedUrls: z.array(z.string()).describe(
+    "The URLs that are allowed for redirection.",
+  ).optional(),
+  DeniedUrls: z.array(z.string()).describe(
+    "The URLs that are denied for redirection.",
+  ).optional(),
+});
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -130,6 +142,13 @@ const GlobalArgsSchema = z.object({
   AccessEndpoints: z.array(AccessEndpointSchema).describe(
     "The list of virtual private cloud (VPC) interface endpoint objects. Users of the stack can connect to AppStream 2.0 only through the specified endpoints.",
   ).optional(),
+  ContentRedirection: z.object({
+    HostToClient: UrlRedirectionConfigSchema.describe(
+      "The URL redirection configuration from the streaming session host to the client.",
+    ).optional(),
+  }).describe(
+    "The content redirection settings for the stack. These settings control URL redirection between the streaming session and the local device.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -152,6 +171,9 @@ const StateSchema = z.object({
   DisplayName: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
   AccessEndpoints: z.array(AccessEndpointSchema).optional(),
+  ContentRedirection: z.object({
+    HostToClient: UrlRedirectionConfigSchema,
+  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -206,6 +228,13 @@ const InputsSchema = z.object({
   AccessEndpoints: z.array(AccessEndpointSchema).describe(
     "The list of virtual private cloud (VPC) interface endpoint objects. Users of the stack can connect to AppStream 2.0 only through the specified endpoints.",
   ).optional(),
+  ContentRedirection: z.object({
+    HostToClient: UrlRedirectionConfigSchema.describe(
+      "The URL redirection configuration from the streaming session host to the client.",
+    ).optional(),
+  }).describe(
+    "The content redirection settings for the stack. These settings control URL redirection between the streaming session and the local device.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -227,7 +256,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppStream Stack. Registered at `@swamp/aws/appstream/stack`. */
 export const model = {
   type: "@swamp/aws/appstream/stack",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -262,6 +291,11 @@ export const model = {
     {
       toVersion: "2026.06.08.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
+      description: "Added: ContentRedirection",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

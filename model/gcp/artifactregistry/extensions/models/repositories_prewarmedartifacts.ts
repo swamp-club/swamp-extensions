@@ -25,7 +25,7 @@
 /**
  * Swamp extension model for Google Cloud Artifact Registry Repositories.PrewarmedArtifacts.
  *
- * PrewarmedArtifact represents a streamed artifact.
+ * PrewarmedArtifact represents a streamed artifact. This is not a request message, so field_behavior annotations are not required.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -120,7 +120,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Artifact Registry Repositories.PrewarmedArtifacts. Registered at `@swamp/gcp/artifactregistry/repositories-prewarmedartifacts`. */
 export const model = {
   type: "@swamp/gcp/artifactregistry/repositories-prewarmedartifacts",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.06.07.1",
@@ -132,12 +132,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.12.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "PrewarmedArtifact represents a streamed artifact.",
+      description:
+        "PrewarmedArtifact represents a streamed artifact. This is not a request messa...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,

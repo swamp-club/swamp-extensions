@@ -323,6 +323,9 @@ const GlobalArgsSchema = z.object({
           resources: z.unknown().describe(
             "ResourceRequirements describes the compute resource requirements.",
           ).optional(),
+          sandboxLauncher: z.unknown().describe(
+            "Optional. Indicates that this container can act as a sandbox supervisor and launch sandboxes.",
+          ).optional(),
           securityContext: z.unknown().describe(
             "Not supported by Cloud Run. SecurityContext holds security configuration that will be applied to a container. Some fields are present in both SecurityContext and PodSecurityContext. When both are set, the values in SecurityContext take precedence.",
           ).optional(),
@@ -354,6 +357,63 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         runtimeClassName: z.string().describe(
           "Optional. Runtime. Leave unset for default.",
+        ).optional(),
+        sandboxes: z.array(z.object({
+          args: z.unknown().describe(
+            "Arguments to the entrypoint. The docker image's CMD is used if this is not provided. Variable references are not supported in Cloud Run.",
+          ).optional(),
+          command: z.unknown().describe(
+            "Entrypoint array. Not executed within a shell. The docker image's ENTRYPOINT is used if this is not provided. Variable references are not supported in Cloud Run.",
+          ).optional(),
+          env: z.unknown().describe(
+            "List of environment variables to set in the container. EnvVar with duplicate names are generally allowed; if referencing a secret, the name must be unique for the container. For non-secret EnvVar names, the Container will only get the last-declared one.",
+          ).optional(),
+          envFrom: z.unknown().describe("Not supported by Cloud Run.")
+            .optional(),
+          image: z.unknown().describe(
+            "Required. Name of the container image in Dockerhub, Google Artifact Registry, or Google Container Registry. If the host is not provided, Dockerhub is assumed.",
+          ).optional(),
+          imagePullPolicy: z.unknown().describe(
+            "Image pull policy. One of Always, Never, IfNotPresent. Defaults to Always if:latest tag is specified, or IfNotPresent otherwise.",
+          ).optional(),
+          livenessProbe: z.unknown().describe(
+            "Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.",
+          ).optional(),
+          name: z.unknown().describe(
+            "Name of the container specified as a DNS_LABEL (RFC 1123).",
+          ).optional(),
+          ports: z.unknown().describe(
+            "List of ports to expose from the container. Only a single port can be specified. The specified ports must be listening on all interfaces (0.0.0.0) within the container to be accessible. If omitted, a port number will be chosen and passed to the container through the PORT environment variable for the container to listen on.",
+          ).optional(),
+          readinessProbe: z.unknown().describe(
+            "Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.",
+          ).optional(),
+          resources: z.unknown().describe(
+            "ResourceRequirements describes the compute resource requirements.",
+          ).optional(),
+          sandboxLauncher: z.unknown().describe(
+            "Optional. Indicates that this container can act as a sandbox supervisor and launch sandboxes.",
+          ).optional(),
+          securityContext: z.unknown().describe(
+            "Not supported by Cloud Run. SecurityContext holds security configuration that will be applied to a container. Some fields are present in both SecurityContext and PodSecurityContext. When both are set, the values in SecurityContext take precedence.",
+          ).optional(),
+          startupProbe: z.unknown().describe(
+            "Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.",
+          ).optional(),
+          terminationMessagePath: z.unknown().describe(
+            "Path at which the file to which the container's termination message will be written is mounted into the container's filesystem. Message written is intended to be brief final status, such as an assertion failure message. Will be truncated by the node if greater than 4096 bytes. The total message length across all containers will be limited to 12kb. Defaults to /dev/termination-log.",
+          ).optional(),
+          terminationMessagePolicy: z.unknown().describe(
+            "Indicate how the termination message should be populated. File will use the contents of terminationMessagePath to populate the container status message on both success and failure. FallbackToLogsOnError will use the last chunk of container log output if the termination message file is empty and the container exited with an error. The log output is limited to 2048 bytes or 80 lines, whichever is smaller. Defaults to File. Cannot be updated.",
+          ).optional(),
+          volumeMounts: z.unknown().describe(
+            "Volume to mount into the container's filesystem. Only supports SecretVolumeSources. Pod volumes to mount into the container's filesystem.",
+          ).optional(),
+          workingDir: z.unknown().describe(
+            "Container's working directory. If not specified, the container runtime's default will be used, which might be configured in the container image.",
+          ).optional(),
+        })).describe(
+          "Optional. Container templates that can be launched through the `sandbox` CLI.",
         ).optional(),
         serviceAccountName: z.string().describe(
           "Email address of the IAM service account associated with the revision of the service. The service account represents the identity of the running revision, and determines what permissions the revision has. If not provided, the revision will use the project's default service account.",
@@ -487,6 +547,7 @@ const StateSchema = z.object({
           ports: z.unknown(),
           readinessProbe: z.unknown(),
           resources: z.unknown(),
+          sandboxLauncher: z.unknown(),
           securityContext: z.unknown(),
           startupProbe: z.unknown(),
           terminationMessagePath: z.unknown(),
@@ -500,6 +561,26 @@ const StateSchema = z.object({
         })),
         nodeSelector: z.record(z.string(), z.unknown()),
         runtimeClassName: z.string(),
+        sandboxes: z.array(z.object({
+          args: z.unknown(),
+          command: z.unknown(),
+          env: z.unknown(),
+          envFrom: z.unknown(),
+          image: z.unknown(),
+          imagePullPolicy: z.unknown(),
+          livenessProbe: z.unknown(),
+          name: z.unknown(),
+          ports: z.unknown(),
+          readinessProbe: z.unknown(),
+          resources: z.unknown(),
+          sandboxLauncher: z.unknown(),
+          securityContext: z.unknown(),
+          startupProbe: z.unknown(),
+          terminationMessagePath: z.unknown(),
+          terminationMessagePolicy: z.unknown(),
+          volumeMounts: z.unknown(),
+          workingDir: z.unknown(),
+        })),
         serviceAccountName: z.string(),
         timeoutSeconds: z.number(),
         volumes: z.array(z.object({
@@ -718,6 +799,9 @@ const InputsSchema = z.object({
           resources: z.unknown().describe(
             "ResourceRequirements describes the compute resource requirements.",
           ).optional(),
+          sandboxLauncher: z.unknown().describe(
+            "Optional. Indicates that this container can act as a sandbox supervisor and launch sandboxes.",
+          ).optional(),
           securityContext: z.unknown().describe(
             "Not supported by Cloud Run. SecurityContext holds security configuration that will be applied to a container. Some fields are present in both SecurityContext and PodSecurityContext. When both are set, the values in SecurityContext take precedence.",
           ).optional(),
@@ -749,6 +833,63 @@ const InputsSchema = z.object({
         ).optional(),
         runtimeClassName: z.string().describe(
           "Optional. Runtime. Leave unset for default.",
+        ).optional(),
+        sandboxes: z.array(z.object({
+          args: z.unknown().describe(
+            "Arguments to the entrypoint. The docker image's CMD is used if this is not provided. Variable references are not supported in Cloud Run.",
+          ).optional(),
+          command: z.unknown().describe(
+            "Entrypoint array. Not executed within a shell. The docker image's ENTRYPOINT is used if this is not provided. Variable references are not supported in Cloud Run.",
+          ).optional(),
+          env: z.unknown().describe(
+            "List of environment variables to set in the container. EnvVar with duplicate names are generally allowed; if referencing a secret, the name must be unique for the container. For non-secret EnvVar names, the Container will only get the last-declared one.",
+          ).optional(),
+          envFrom: z.unknown().describe("Not supported by Cloud Run.")
+            .optional(),
+          image: z.unknown().describe(
+            "Required. Name of the container image in Dockerhub, Google Artifact Registry, or Google Container Registry. If the host is not provided, Dockerhub is assumed.",
+          ).optional(),
+          imagePullPolicy: z.unknown().describe(
+            "Image pull policy. One of Always, Never, IfNotPresent. Defaults to Always if:latest tag is specified, or IfNotPresent otherwise.",
+          ).optional(),
+          livenessProbe: z.unknown().describe(
+            "Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.",
+          ).optional(),
+          name: z.unknown().describe(
+            "Name of the container specified as a DNS_LABEL (RFC 1123).",
+          ).optional(),
+          ports: z.unknown().describe(
+            "List of ports to expose from the container. Only a single port can be specified. The specified ports must be listening on all interfaces (0.0.0.0) within the container to be accessible. If omitted, a port number will be chosen and passed to the container through the PORT environment variable for the container to listen on.",
+          ).optional(),
+          readinessProbe: z.unknown().describe(
+            "Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.",
+          ).optional(),
+          resources: z.unknown().describe(
+            "ResourceRequirements describes the compute resource requirements.",
+          ).optional(),
+          sandboxLauncher: z.unknown().describe(
+            "Optional. Indicates that this container can act as a sandbox supervisor and launch sandboxes.",
+          ).optional(),
+          securityContext: z.unknown().describe(
+            "Not supported by Cloud Run. SecurityContext holds security configuration that will be applied to a container. Some fields are present in both SecurityContext and PodSecurityContext. When both are set, the values in SecurityContext take precedence.",
+          ).optional(),
+          startupProbe: z.unknown().describe(
+            "Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.",
+          ).optional(),
+          terminationMessagePath: z.unknown().describe(
+            "Path at which the file to which the container's termination message will be written is mounted into the container's filesystem. Message written is intended to be brief final status, such as an assertion failure message. Will be truncated by the node if greater than 4096 bytes. The total message length across all containers will be limited to 12kb. Defaults to /dev/termination-log.",
+          ).optional(),
+          terminationMessagePolicy: z.unknown().describe(
+            "Indicate how the termination message should be populated. File will use the contents of terminationMessagePath to populate the container status message on both success and failure. FallbackToLogsOnError will use the last chunk of container log output if the termination message file is empty and the container exited with an error. The log output is limited to 2048 bytes or 80 lines, whichever is smaller. Defaults to File. Cannot be updated.",
+          ).optional(),
+          volumeMounts: z.unknown().describe(
+            "Volume to mount into the container's filesystem. Only supports SecretVolumeSources. Pod volumes to mount into the container's filesystem.",
+          ).optional(),
+          workingDir: z.unknown().describe(
+            "Container's working directory. If not specified, the container runtime's default will be used, which might be configured in the container image.",
+          ).optional(),
+        })).describe(
+          "Optional. Container templates that can be launched through the `sandbox` CLI.",
         ).optional(),
         serviceAccountName: z.string().describe(
           "Email address of the IAM service account associated with the revision of the service. The service account represents the identity of the running revision, and determines what permissions the revision has. If not provided, the revision will use the project's default service account.",
@@ -830,7 +971,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Namespaces.Services. Registered at `@swamp/gcp/run/namespaces-services`. */
 export const model = {
   type: "@swamp/gcp/run/namespaces-services",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.06.07.1",
@@ -839,6 +980,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

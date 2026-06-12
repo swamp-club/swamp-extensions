@@ -206,9 +206,6 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "NetworkConfig contains network configurations for the AgentGateway.",
   ).optional(),
-  protocols: z.array(z.enum(["PROTOCOL_UNSPECIFIED", "MCP"])).describe(
-    "Required. List of protocols supported by an Agent Gateway",
-  ).optional(),
   registries: z.array(z.string()).describe(
     "Optional. A list of Agent registries containing the agents, MCP servers and tools governed by the Agent Gateway. Note: Currently limited to project-scoped registries Must be of format `//agentregistry.googleapis.com/projects/{project}/locations/{location}/",
   ).optional(),
@@ -316,9 +313,6 @@ const InputsSchema = z.object({
   }).describe(
     "NetworkConfig contains network configurations for the AgentGateway.",
   ).optional(),
-  protocols: z.array(z.enum(["PROTOCOL_UNSPECIFIED", "MCP"])).describe(
-    "Required. List of protocols supported by an Agent Gateway",
-  ).optional(),
   registries: z.array(z.string()).describe(
     "Optional. A list of Agent registries containing the agents, MCP servers and tools governed by the Agent Gateway. Note: Currently limited to project-scoped registries Must be of format `//agentregistry.googleapis.com/projects/{project}/locations/{location}/",
   ).optional(),
@@ -352,7 +346,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Services AgentGateways. Registered at `@swamp/gcp/networkservices/agentgateways`. */
 export const model = {
   type: "@swamp/gcp/networkservices/agentgateways",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.06.07.1",
@@ -363,6 +357,14 @@ export const model = {
       toVersion: "2026.06.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
+      description: "Removed: protocols",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { protocols: _protocols, ...rest } = old;
+        return rest;
+      },
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -402,7 +404,6 @@ export const model = {
         if (g["networkConfig"] !== undefined) {
           body["networkConfig"] = g["networkConfig"];
         }
-        if (g["protocols"] !== undefined) body["protocols"] = g["protocols"];
         if (g["registries"] !== undefined) body["registries"] = g["registries"];
         if (g["selfManaged"] !== undefined) {
           body["selfManaged"] = g["selfManaged"];
@@ -517,7 +518,6 @@ export const model = {
         if (g["networkConfig"] !== undefined) {
           body["networkConfig"] = g["networkConfig"];
         }
-        if (g["protocols"] !== undefined) body["protocols"] = g["protocols"];
         if (g["registries"] !== undefined) body["registries"] = g["registries"];
         if (g["selfManaged"] !== undefined) {
           body["selfManaged"] = g["selfManaged"];

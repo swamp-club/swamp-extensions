@@ -1,0 +1,22 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/gcp/cloudproductregistry"
+version: "2026.06.12.1"
+description: "Google Cloud cloudproductregistry infrastructure models"
+repository: "https://github.com/swamp-club/swamp-extensions"
+labels:
+  - gcp
+  - google-cloud
+  - cloudproductregistry
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: logicalproducts, logicalproducts_variants, productsuites
+models:
+  - logicalproducts.ts
+  - logicalproducts_variants.ts
+  - productsuites.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

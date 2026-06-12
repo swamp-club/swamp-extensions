@@ -109,6 +109,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   EngineVersion: z.string().describe("Indicates the database engine version.")
     .optional(),
+  GlobalClusterIdentifier: z.string().min(1).max(255).regex(
+    new RegExp("^[A-Za-z][0-9A-Za-z-:._]*$"),
+  ).describe(
+    "The ID of the Neptune global database to which this new DB cluster should be added.",
+  ).optional(),
   IamAuthEnabled: z.boolean().describe(
     "True if mapping of Amazon Identity and Access Management (IAM) accounts to database accounts is enabled, and otherwise false.",
   ).optional(),
@@ -154,6 +159,9 @@ const GlobalArgsSchema = z.object({
   VpcSecurityGroupIds: z.array(z.string()).describe(
     "Provides a list of VPC security groups that the DB cluster belongs to.",
   ).optional(),
+  NetworkType: z.enum(["IPV4", "DUAL"]).describe(
+    "The network type of the DB cluster.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -172,6 +180,7 @@ const StateSchema = z.object({
   DeletionProtection: z.boolean().optional(),
   EnableCloudwatchLogsExports: z.array(z.string()).optional(),
   EngineVersion: z.string().optional(),
+  GlobalClusterIdentifier: z.string().optional(),
   IamAuthEnabled: z.boolean().optional(),
   KmsKeyId: z.string().optional(),
   Port: z.string().optional(),
@@ -189,6 +198,7 @@ const StateSchema = z.object({
   Tags: z.array(TagSchema).optional(),
   UseLatestRestorableTime: z.boolean().optional(),
   VpcSecurityGroupIds: z.array(z.string()).optional(),
+  NetworkType: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -235,6 +245,11 @@ const InputsSchema = z.object({
   ).optional(),
   EngineVersion: z.string().describe("Indicates the database engine version.")
     .optional(),
+  GlobalClusterIdentifier: z.string().min(1).max(255).regex(
+    new RegExp("^[A-Za-z][0-9A-Za-z-:._]*$"),
+  ).describe(
+    "The ID of the Neptune global database to which this new DB cluster should be added.",
+  ).optional(),
   IamAuthEnabled: z.boolean().describe(
     "True if mapping of Amazon Identity and Access Management (IAM) accounts to database accounts is enabled, and otherwise false.",
   ).optional(),
@@ -280,6 +295,9 @@ const InputsSchema = z.object({
   VpcSecurityGroupIds: z.array(z.string()).describe(
     "Provides a list of VPC security groups that the DB cluster belongs to.",
   ).optional(),
+  NetworkType: z.enum(["IPV4", "DUAL"]).describe(
+    "The network type of the DB cluster.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -301,7 +319,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Neptune DBCluster. Registered at `@swamp/aws/neptune/dbcluster`. */
 export const model = {
   type: "@swamp/aws/neptune/dbcluster",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -336,6 +354,11 @@ export const model = {
     {
       toVersion: "2026.06.08.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
+      description: "Added: GlobalClusterIdentifier, NetworkType",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -446,6 +469,7 @@ export const model = {
             "AvailabilityZones",
             "DBClusterIdentifier",
             "DBSubnetGroupName",
+            "GlobalClusterIdentifier",
             "KmsKeyId",
             "RestoreToTime",
             "RestoreType",

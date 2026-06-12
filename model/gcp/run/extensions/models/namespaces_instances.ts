@@ -395,6 +395,9 @@ const GlobalArgsSchema = z.object({
       }).describe(
         "ResourceRequirements describes the compute resource requirements.",
       ).optional(),
+      sandboxLauncher: z.boolean().describe(
+        "Optional. Indicates that this container can act as a sandbox supervisor and launch sandboxes.",
+      ).optional(),
       securityContext: z.object({
         runAsUser: z.number().int().describe(
           "The UID to run the entrypoint of the container process. Defaults to user specified in image metadata if unspecified. May also be set in PodSecurityContext. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.",
@@ -710,6 +713,7 @@ const StateSchema = z.object({
         limits: z.record(z.string(), z.unknown()),
         requests: z.record(z.string(), z.unknown()),
       }),
+      sandboxLauncher: z.boolean(),
       securityContext: z.object({
         runAsUser: z.number(),
       }),
@@ -1044,6 +1048,9 @@ const InputsSchema = z.object({
       }).describe(
         "ResourceRequirements describes the compute resource requirements.",
       ).optional(),
+      sandboxLauncher: z.boolean().describe(
+        "Optional. Indicates that this container can act as a sandbox supervisor and launch sandboxes.",
+      ).optional(),
       securityContext: z.object({
         runAsUser: z.number().int().describe(
           "The UID to run the entrypoint of the container process. Defaults to user specified in image metadata if unspecified. May also be set in PodSecurityContext. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.",
@@ -1271,7 +1278,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Namespaces.Instances. Registered at `@swamp/gcp/run/namespaces-instances`. */
 export const model = {
   type: "@swamp/gcp/run/namespaces-instances",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.06.07.1",
@@ -1280,6 +1287,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

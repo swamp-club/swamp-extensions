@@ -54,8 +54,7 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.",
   ).optional(),
-  Scope: z.enum(["ACCOUNT"]).describe("Scope of the Telemetry Enrichment")
-    .optional(),
+  Scope: z.enum(["ACCOUNT"]).describe("Scope of the Telemetry Enrichment"),
 });
 
 const StateSchema = z.object({
@@ -93,7 +92,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ObservabilityAdmin TelemetryEnrichment. Registered at `@swamp/aws/observabilityadmin/telemetry-enrichment`. */
 export const model = {
   type: "@swamp/aws/observabilityadmin/telemetry-enrichment",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -127,6 +126,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

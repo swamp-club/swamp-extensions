@@ -309,6 +309,11 @@ const GlobalArgsSchema = z.object({
       .describe(
         "The action that a MIG performs on an unhealthy VM. A VM is marked as unhealthy when the application running on that VM fails a health check. Valid values are: - DEFAULT_ACTION (default): MIG uses the same action configured for instanceLifecyclePolicy.defaultActionOnFailure field. - REPAIR: MIG automatically repairs an unhealthy VM by recreating it. - DO_NOTHING: MIG doesn't repair an unhealthy VM. For more information, see About repairing VMs in a MIG.",
       ).optional(),
+    onRepair: z.object({
+      allowChangingZone: z.enum(["NO", "YES"]).describe(
+        "Specifies whether the MIG can change a VM's zone during a repair. Valid values are: - NO (default): MIG cannot change a VM's zone during a repair. - YES: MIG can select a different zone for the VM during a repair.",
+      ).optional(),
+    }).describe("Configuration for VM repairs in the MIG.").optional(),
   }).optional(),
   instanceTemplate: z.string().describe(
     "The URL of the instance template that is specified for this managed instance group. The group uses this template to create all new instances in the managed instance group. The templates for existing instances in the group do not change unless you run recreateInstances, runapplyUpdatesToInstances, or set the group'supdatePolicy.type to PROACTIVE.",
@@ -630,6 +635,9 @@ const StateSchema = z.object({
     defaultActionOnFailure: z.string(),
     forceUpdateOnRepair: z.string(),
     onFailedHealthCheck: z.string(),
+    onRepair: z.object({
+      allowChangingZone: z.string(),
+    }),
   }).optional(),
   instanceTemplate: z.string().optional(),
   kind: z.string().optional(),
@@ -860,6 +868,11 @@ const InputsSchema = z.object({
       .describe(
         "The action that a MIG performs on an unhealthy VM. A VM is marked as unhealthy when the application running on that VM fails a health check. Valid values are: - DEFAULT_ACTION (default): MIG uses the same action configured for instanceLifecyclePolicy.defaultActionOnFailure field. - REPAIR: MIG automatically repairs an unhealthy VM by recreating it. - DO_NOTHING: MIG doesn't repair an unhealthy VM. For more information, see About repairing VMs in a MIG.",
       ).optional(),
+    onRepair: z.object({
+      allowChangingZone: z.enum(["NO", "YES"]).describe(
+        "Specifies whether the MIG can change a VM's zone during a repair. Valid values are: - NO (default): MIG cannot change a VM's zone during a repair. - YES: MIG can select a different zone for the VM during a repair.",
+      ).optional(),
+    }).describe("Configuration for VM repairs in the MIG.").optional(),
   }).optional(),
   instanceTemplate: z.string().describe(
     "The URL of the instance template that is specified for this managed instance group. The group uses this template to create all new instances in the managed instance group. The templates for existing instances in the group do not change unless you run recreateInstances, runapplyUpdatesToInstances, or set the group'supdatePolicy.type to PROACTIVE.",
@@ -1151,7 +1164,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine InstanceGroupManagers. Registered at `@swamp/gcp/compute/instancegroupmanagers`. */
 export const model = {
   type: "@swamp/gcp/compute/instancegroupmanagers",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1280,6 +1293,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

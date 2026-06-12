@@ -608,7 +608,7 @@ const GlobalArgsSchema = z.object({
     name: z.string().describe(
       "Required. Resource name of the message that is quoted. Format: `spaces/{space}/messages/{message}`",
     ).optional(),
-    quoteType: z.enum(["QUOTE_TYPE_UNSPECIFIED", "REPLY"]).describe(
+    quoteType: z.enum(["QUOTE_TYPE_UNSPECIFIED", "REPLY", "FORWARD"]).describe(
       "Optional. Specifies the quote type. If not set, defaults to REPLY in the message read/write path for backward compatibility.",
     ).optional(),
     quotedMessageSnapshot: z.object({
@@ -718,7 +718,7 @@ const GlobalArgsSchema = z.object({
       "Provides a snapshot of the content of the quoted message at the time of quoting or forwarding",
     ).optional(),
   }).describe(
-    "Information about a message that another message quotes. When you create a message, you can quote messages within the same thread, or quote a root message to create a new root message. However, you can't quote a message reply from a different thread. When you update a message, you can't add or replace the `quotedMessageMetadata` field, but you can remove it. For example usage, see [Quote another message](https://developers.google.com/workspace/chat/create-messages#quote-a-message).",
+    "Information about a message that another message quotes. When you update a message, you can't add or replace the `quotedMessageMetadata` field, but you can remove it. For example usage, see [Quote another message](https://developers.google.com/workspace/chat/create-messages#quote-a-message).",
   ).optional(),
   sender: z.object({
     displayName: z.string().describe("Output only. The user's display name.")
@@ -1817,7 +1817,7 @@ const InputsSchema = z.object({
     name: z.string().describe(
       "Required. Resource name of the message that is quoted. Format: `spaces/{space}/messages/{message}`",
     ).optional(),
-    quoteType: z.enum(["QUOTE_TYPE_UNSPECIFIED", "REPLY"]).describe(
+    quoteType: z.enum(["QUOTE_TYPE_UNSPECIFIED", "REPLY", "FORWARD"]).describe(
       "Optional. Specifies the quote type. If not set, defaults to REPLY in the message read/write path for backward compatibility.",
     ).optional(),
     quotedMessageSnapshot: z.object({
@@ -1927,7 +1927,7 @@ const InputsSchema = z.object({
       "Provides a snapshot of the content of the quoted message at the time of quoting or forwarding",
     ).optional(),
   }).describe(
-    "Information about a message that another message quotes. When you create a message, you can quote messages within the same thread, or quote a root message to create a new root message. However, you can't quote a message reply from a different thread. When you update a message, you can't add or replace the `quotedMessageMetadata` field, but you can remove it. For example usage, see [Quote another message](https://developers.google.com/workspace/chat/create-messages#quote-a-message).",
+    "Information about a message that another message quotes. When you update a message, you can't add or replace the `quotedMessageMetadata` field, but you can remove it. For example usage, see [Quote another message](https://developers.google.com/workspace/chat/create-messages#quote-a-message).",
   ).optional(),
   sender: z.object({
     displayName: z.string().describe("Output only. The user's display name.")
@@ -2192,7 +2192,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Chat Spaces.Messages. Registered at `@swamp/gcp/chat/spaces-messages`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces-messages",
-  version: "2026.06.08.1",
+  version: "2026.06.12.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2322,6 +2322,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.12.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
