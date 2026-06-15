@@ -1,7 +1,26 @@
 export const snapshot = {};
 
 snapshot[`generateAwsExtensionModel - all handlers, natural name 1`] = `
-'// Auto-generated extension model for @swamp/aws/s3/bucket
+'// Swamp, an Automation Framework
+// Copyright (C) 2026 Elder Swamp Club, Inc.
+//
+// This file is part of Swamp.
+//
+// Swamp is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License version 3
+// as published by the Free Software Foundation, with the Swamp
+// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
+// file).
+//
+// Swamp is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+
+// Auto-generated extension model for @swamp/aws/s3/bucket
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
@@ -23,7 +42,7 @@ const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe("AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
   secretAccessKey: z.string().meta({ sensitive: true }).describe("AWS secret access key; overrides AWS_SECRET_ACCESS_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
   sessionToken: z.string().meta({ sensitive: true }).describe("AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
-  region: z.string().describe("AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.").optional(),
+  region: z.string().describe("AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.").optional(),
   BucketName: z.string().describe("The name of the S3 bucket"),
 });
 
@@ -174,7 +193,26 @@ export const model = {
 `;
 
 snapshot[`generateAwsExtensionModel - synthetic name 1`] = `
-'// Auto-generated extension model for @swamp/aws/iam/role
+'// Swamp, an Automation Framework
+// Copyright (C) 2026 Elder Swamp Club, Inc.
+//
+// This file is part of Swamp.
+//
+// Swamp is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License version 3
+// as published by the Free Software Foundation, with the Swamp
+// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
+// file).
+//
+// Swamp is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+
+// Auto-generated extension model for @swamp/aws/iam/role
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
@@ -197,7 +235,7 @@ const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe("AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
   secretAccessKey: z.string().meta({ sensitive: true }).describe("AWS secret access key; overrides AWS_SECRET_ACCESS_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
   sessionToken: z.string().meta({ sensitive: true }).describe("AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
-  region: z.string().describe("AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.").optional(),
+  region: z.string().describe("AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.").optional(),
   RoleName: z.string().describe("The name of the IAM role"),
   AssumeRolePolicyDocument: z.record(z.string(), z.unknown()).describe("The trust policy"),
 });
@@ -354,7 +392,26 @@ export const model = {
 `;
 
 snapshot[`generateAwsExtensionModel - composite primary identifier 1`] = `
-'// Auto-generated extension model for @swamp/aws/ec2/subnet_route_table_association
+'// Swamp, an Automation Framework
+// Copyright (C) 2026 Elder Swamp Club, Inc.
+//
+// This file is part of Swamp.
+//
+// Swamp is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License version 3
+// as published by the Free Software Foundation, with the Swamp
+// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
+// file).
+//
+// Swamp is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+
+// Auto-generated extension model for @swamp/aws/ec2/subnet_route_table_association
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
@@ -377,7 +434,7 @@ const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe("AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
   secretAccessKey: z.string().meta({ sensitive: true }).describe("AWS secret access key; overrides AWS_SECRET_ACCESS_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
   sessionToken: z.string().meta({ sensitive: true }).describe("AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
-  region: z.string().describe("AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.").optional(),
+  region: z.string().describe("AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.").optional(),
   SubnetId: z.string().describe("The subnet ID"),
   RouteTableId: z.string().describe("The route table ID"),
 });
@@ -536,7 +593,26 @@ export const model = {
 `;
 
 snapshot[`generateAwsExtensionModel - createOnly properties filtered in update 1`] = `
-'// Auto-generated extension model for @swamp/aws/ec2/instance
+'// Swamp, an Automation Framework
+// Copyright (C) 2026 Elder Swamp Club, Inc.
+//
+// This file is part of Swamp.
+//
+// Swamp is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License version 3
+// as published by the Free Software Foundation, with the Swamp
+// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
+// file).
+//
+// Swamp is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+
+// Auto-generated extension model for @swamp/aws/ec2/instance
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
@@ -559,7 +635,7 @@ const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe("AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
   secretAccessKey: z.string().meta({ sensitive: true }).describe("AWS secret access key; overrides AWS_SECRET_ACCESS_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
   sessionToken: z.string().meta({ sensitive: true }).describe("AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
-  region: z.string().describe("AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.").optional(),
+  region: z.string().describe("AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.").optional(),
   InstanceType: z.string().describe("The instance type"),
   ImageId: z.string().describe("The AMI ID"),
 });
@@ -716,7 +792,26 @@ export const model = {
 `;
 
 snapshot[`generateAwsExtensionModel - read-only resource (no update, no delete) 1`] = `
-'// Auto-generated extension model for @swamp/aws/cloudformation/stack_set
+'// Swamp, an Automation Framework
+// Copyright (C) 2026 Elder Swamp Club, Inc.
+//
+// This file is part of Swamp.
+//
+// Swamp is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License version 3
+// as published by the Free Software Foundation, with the Swamp
+// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
+// file).
+//
+// Swamp is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+
+// Auto-generated extension model for @swamp/aws/cloudformation/stack_set
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
@@ -739,7 +834,7 @@ const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe("AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
   secretAccessKey: z.string().meta({ sensitive: true }).describe("AWS secret access key; overrides AWS_SECRET_ACCESS_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
   sessionToken: z.string().meta({ sensitive: true }).describe("AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
-  region: z.string().describe("AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.").optional(),
+  region: z.string().describe("AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.").optional(),
   StackSetName: z.string().describe("The name of the stack set"),
 });
 
@@ -851,7 +946,26 @@ export const model = {
 `;
 
 snapshot[`generateAwsExtensionModel - extracted schemas and StateSchema collision 1`] = `
-'// Auto-generated extension model for @swamp/aws/ecs/task_definition
+'// Swamp, an Automation Framework
+// Copyright (C) 2026 Elder Swamp Club, Inc.
+//
+// This file is part of Swamp.
+//
+// Swamp is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License version 3
+// as published by the Free Software Foundation, with the Swamp
+// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
+// file).
+//
+// Swamp is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+
+// Auto-generated extension model for @swamp/aws/ecs/task_definition
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
@@ -878,7 +992,7 @@ const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe("AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
   secretAccessKey: z.string().meta({ sensitive: true }).describe("AWS secret access key; overrides AWS_SECRET_ACCESS_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
   sessionToken: z.string().meta({ sensitive: true }).describe("AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
-  region: z.string().describe("AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.").optional(),
+  region: z.string().describe("AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.").optional(),
   Family: z.string().describe("The task family name"),
 });
 
@@ -1006,7 +1120,26 @@ export const model = {
 `;
 
 snapshot[`generateAwsExtensionModel - with upgrades block 1`] = `
-'// Auto-generated extension model for @swamp/aws/sqs/queue
+'// Swamp, an Automation Framework
+// Copyright (C) 2026 Elder Swamp Club, Inc.
+//
+// This file is part of Swamp.
+//
+// Swamp is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License version 3
+// as published by the Free Software Foundation, with the Swamp
+// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
+// file).
+//
+// Swamp is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+
+// Auto-generated extension model for @swamp/aws/sqs/queue
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
@@ -1029,7 +1162,7 @@ const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe("AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
   secretAccessKey: z.string().meta({ sensitive: true }).describe("AWS secret access key; overrides AWS_SECRET_ACCESS_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
   sessionToken: z.string().meta({ sensitive: true }).describe("AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
-  region: z.string().describe("AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.").optional(),
+  region: z.string().describe("AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.").optional(),
   QueueName: z.string().describe("The name of the queue"),
 });
 
@@ -1190,7 +1323,26 @@ export const model = {
 `;
 
 snapshot[`generateAwsExtensionModel - with enrichment 1`] = `
-'// Auto-generated extension model for @swamp/aws/rds/dbcluster
+'// Swamp, an Automation Framework
+// Copyright (C) 2026 Elder Swamp Club, Inc.
+//
+// This file is part of Swamp.
+//
+// Swamp is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License version 3
+// as published by the Free Software Foundation, with the Swamp
+// Extension and Definition Exception (found in the "COPYING-EXCEPTION"
+// file).
+//
+// Swamp is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
+
+// Auto-generated extension model for @swamp/aws/rds/dbcluster
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
@@ -1213,7 +1365,7 @@ const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe("AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
   secretAccessKey: z.string().meta({ sensitive: true }).describe("AWS secret access key; overrides AWS_SECRET_ACCESS_KEY environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
   sessionToken: z.string().meta({ sensitive: true }).describe("AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
-  region: z.string().describe("AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.").optional(),
+  region: z.string().describe("AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.").optional(),
   DBClusterIdentifier: z.string().describe("The DB cluster identifier"),
 });
 

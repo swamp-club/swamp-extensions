@@ -79,7 +79,7 @@ const GlobalArgsSchema = z.object({
     "AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
   region: z.string().describe(
-    "AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.",
+    "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   TargetDomainName: z.string().describe("Domain name of the target domain"),
   VerificationMethod: z.enum(["DNS_TXT", "HTTP_ROUTE", "PRIVATE_VPC"]).describe(
@@ -163,7 +163,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityAgent TargetDomain. Registered at `@swamp/aws/securityagent/target-domain`. */
 export const model = {
   type: "@swamp/aws/securityagent/target-domain",
-  version: "2026.06.08.1",
+  version: "2026.06.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.3",
@@ -202,6 +202,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

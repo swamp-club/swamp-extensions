@@ -93,7 +93,7 @@ const GlobalArgsSchema = z.object({
     "AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
   region: z.string().describe(
-    "AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.",
+    "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   AdConditioningConfiguration: z.object({
     StreamingMediaFileConditioning: z.enum(["TRANSCODE", "NONE"]),
@@ -199,6 +199,9 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "The configuration for the request to the specified Ad Decision Server URL.",
   ).optional(),
+  FunctionMapping: z.record(z.string(), z.string()).describe(
+    "A map of event names to function identifiers for custom processing during session lifecycle events.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -253,6 +256,7 @@ const StateSchema = z.object({
   AdDecisionServerConfiguration: z.object({
     HttpRequest: HttpRequestSchema,
   }).optional(),
+  FunctionMapping: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -366,6 +370,9 @@ const InputsSchema = z.object({
   }).describe(
     "The configuration for the request to the specified Ad Decision Server URL.",
   ).optional(),
+  FunctionMapping: z.record(z.string(), z.string()).describe(
+    "A map of event names to function identifiers for custom processing during session lifecycle events.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -387,7 +394,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaTailor PlaybackConfiguration. Registered at `@swamp/aws/mediatailor/playback-configuration`. */
 export const model = {
   type: "@swamp/aws/mediatailor/playback-configuration",
-  version: "2026.06.08.1",
+  version: "2026.06.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -422,6 +429,11 @@ export const model = {
     {
       toVersion: "2026.06.08.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.15.1",
+      description: "Added: FunctionMapping",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

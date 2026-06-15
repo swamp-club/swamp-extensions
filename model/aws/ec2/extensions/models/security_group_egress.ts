@@ -55,7 +55,7 @@ const GlobalArgsSchema = z.object({
     "AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
   region: z.string().describe(
-    "AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.",
+    "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   CidrIp: z.string().describe(
     "The IPv4 address range, in CIDR format. You must specify exactly one of the following: CidrIp, CidrIpv6, DestinationPrefixListId, or DestinationSecurityGroupId. For examples of rules that you can add to security groups for specific access scenarios, see [Security group rules for different use cases](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/security-group-rules-reference.html) in the *User Guide*.",
@@ -155,7 +155,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 SecurityGroupEgress. Registered at `@swamp/aws/ec2/security-group-egress`. */
 export const model = {
   type: "@swamp/aws/ec2/security-group-egress",
-  version: "2026.06.08.1",
+  version: "2026.06.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -189,6 +189,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

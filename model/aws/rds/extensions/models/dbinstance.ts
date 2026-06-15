@@ -98,7 +98,7 @@ const GlobalArgsSchema = z.object({
     "AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
   region: z.string().describe(
-    "AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.",
+    "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   AllocatedStorage: z.string().regex(new RegExp("^[0-9]*$")).describe(
     "The amount of storage in gibibytes (GiB) to be initially allocated for the database instance. If any value is set in the Iops parameter, AllocatedStorage must be at least 100 GiB, which corresponds to the minimum Iops value of 1,000. If you increase the Iops value (in 1,000 IOPS increments), then you must also increase the AllocatedStorage value (in 100-GiB increments). *Amazon Aurora* Not applicable. Aurora cluster volumes automatically grow as the amount of data in your database increases, though you are only charged for the space that you use in an Aurora cluster volume. *Db2* Constraints to the amount of storage for each storage type are the following: General Purpose (SSD) storage (gp3): Must be an integer from 20 to 64000. Provisioned IOPS storage (io1): Must be an integer from 100 to 64000. *MySQL* Constraints to the amount of storage for each storage type are the following: General Purpose (SSD) storage (gp2): Must be an integer from 20 to 65536. Provisioned IOPS storage (io1): Must be an integer from 100 to 65536. Magnetic storage (standard): Must be an integer from 5 to 3072. *MariaDB* Constraints to the amount of storage for each storage type are the following: General Purpose (SSD) storage (gp2): Must be an integer from 20 to 65536. Provisioned IOPS storage (io1): Must be an integer from 100 to 65536. Magnetic storage (standard): Must be an integer from 5 to 3072. *PostgreSQL* Constraints to the amount of storage for each storage type are the following: General Purpose (SSD) storage (gp2): Must be an integer from 20 to 65536. Provisioned IOPS storage (io1): Must be an integer from 100 to 65536. Magnetic storage (standard): Must be an integer from 5 to 3072. *Oracle* Constraints to the amount of storage for each storage type are the following: General Purpose (SSD) storage (gp2): Must be an integer from 20 to 65536. Provisioned IOPS storage (io1): Must be an integer from 100 to 65536. Magnetic storage (standard): Must be an integer from 10 to 3072. *SQL Server* Constraints to the amount of storage for each storage type are the following: General Purpose (SSD) storage (gp2): Enterprise and Standard editions: Must be an integer from 20 to 16384. Web and Express editions: Must be an integer from 20 to 16384. Provisioned IOPS storage (io1): Enterprise and Standard editions: Must be an integer from 20 to 16384. Web and Express editions: Must be an integer from 20 to 16384. Magnetic storage (standard): Enterprise and Standard editions: Must be an integer from 20 to 1024. Web and Express editions: Must be an integer from 20 to 1024.",
@@ -749,7 +749,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RDS DBInstance. Registered at `@swamp/aws/rds/dbinstance`. */
 export const model = {
   type: "@swamp/aws/rds/dbinstance",
-  version: "2026.06.08.1",
+  version: "2026.06.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -783,6 +783,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

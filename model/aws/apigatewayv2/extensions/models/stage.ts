@@ -55,7 +55,7 @@ const GlobalArgsSchema = z.object({
     "AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
   region: z.string().describe(
-    "AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.",
+    "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   ClientCertificateId: z.string().describe(
     "The identifier of a client certificate for a Stage. Supported only for WebSocket APIs.",
@@ -181,7 +181,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGatewayV2 Stage. Registered at `@swamp/aws/apigatewayv2/stage`. */
 export const model = {
   type: "@swamp/aws/apigatewayv2/stage",
-  version: "2026.06.12.1",
+  version: "2026.06.15.1",
+  upgrades: [
+    {
+      toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

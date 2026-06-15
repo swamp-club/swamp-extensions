@@ -60,7 +60,7 @@ const GlobalArgsSchema = z.object({
     "AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
   region: z.string().describe(
-    "AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.",
+    "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   InstanceTenancy: z.string().describe(
     "The allowed tenancy of instances launched into the VPC. default: An instance launched into the VPC runs on shared hardware by default, unless you explicitly specify a different tenancy during instance launch. dedicated: An instance launched into the VPC runs on dedicated hardware by default, unless you explicitly specify a tenancy of host during instance launch. You cannot specify a tenancy of default during instance launch. Updating InstanceTenancy requires no replacement only if you are updating its value from dedicated to default. Updating InstanceTenancy from default to dedicated requires replacement.",
@@ -146,7 +146,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 VPC. Registered at `@swamp/aws/ec2/vpc`. */
 export const model = {
   type: "@swamp/aws/ec2/vpc",
-  version: "2026.06.08.1",
+  version: "2026.06.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -180,6 +180,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

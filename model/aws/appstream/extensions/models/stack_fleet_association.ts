@@ -54,7 +54,7 @@ const GlobalArgsSchema = z.object({
     "AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
   region: z.string().describe(
-    "AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.",
+    "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   FleetName: z.string().describe(
     "The name of the fleet. To associate a fleet with a stack, you must specify a dependency on the fleet resource.",
@@ -104,7 +104,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppStream StackFleetAssociation. Registered at `@swamp/aws/appstream/stack-fleet-association`. */
 export const model = {
   type: "@swamp/aws/appstream/stack-fleet-association",
-  version: "2026.06.12.1",
+  version: "2026.06.15.1",
+  upgrades: [
+    {
+      toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

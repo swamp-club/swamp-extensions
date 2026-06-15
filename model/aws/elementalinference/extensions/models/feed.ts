@@ -47,6 +47,29 @@ const ClippingConfigSchema = z.object({
   ).optional(),
 });
 
+const AspectRatioSchema = z.object({
+  Width: z.number().int(),
+  Height: z.number().int(),
+});
+
+const SubtitlingConfigSchema = z.object({
+  Language: z.enum([
+    "eng",
+    "eng-au",
+    "eng-gb",
+    "eng-us",
+    "fra",
+    "ita",
+    "deu",
+    "spa",
+    "por",
+  ]),
+  AspectRatio: AspectRatioSchema.optional(),
+  Dictionary: z.string().min(1).max(19).regex(new RegExp("^[a-zA-Z0-9]+$"))
+    .optional(),
+  ProfanityFilter: z.enum(["DISABLED", "CENSOR", "DROP"]).optional(),
+});
+
 const GetOutputSchema = z.object({
   Name: z.string().regex(
     new RegExp("^[a-zA-Z0-9]([a-zA-Z0-9-_]{0,126}[a-zA-Z0-9])?$"),
@@ -54,6 +77,7 @@ const GetOutputSchema = z.object({
   OutputConfig: z.object({
     Cropping: z.record(z.string(), z.unknown()).optional(),
     Clipping: ClippingConfigSchema.optional(),
+    Subtitling: SubtitlingConfigSchema.optional(),
   }),
   Status: z.enum(["ENABLED", "DISABLED"]),
   Description: z.string().max(1024).regex(new RegExp("^[\\w \\-\\.',@:;]*$"))
@@ -74,7 +98,7 @@ const GlobalArgsSchema = z.object({
     "AWS session token for temporary credentials; overrides AWS_SESSION_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
   region: z.string().describe(
-    "AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.",
+    "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   Name: z.string().regex(
     new RegExp("^[a-zA-Z0-9]([a-zA-Z0-9-_]{0,126}[a-zA-Z0-9])?$"),
@@ -126,7 +150,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElementalInference Feed. Registered at `@swamp/aws/elementalinference/feed`. */
 export const model = {
   type: "@swamp/aws/elementalinference/feed",
-  version: "2026.06.08.1",
+  version: "2026.06.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -165,6 +189,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

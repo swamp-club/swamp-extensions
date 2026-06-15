@@ -212,7 +212,7 @@ export function generateAwsExtensionModel(
       name: "region",
       sensitive: false,
       desc:
-        "AWS region; overrides AWS_REGION environment variable. Defaults to us-east-1.",
+        "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
     },
   ];
   const injectedCredFields = credentialFields.filter(

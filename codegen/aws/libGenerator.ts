@@ -29,8 +29,47 @@ export interface AwsCredentials {
   region?: string;
 }
 
+function resolveRegion(credentials?: AwsCredentials): string {
+  if (credentials?.region) return credentials.region;
+
+  const envRegion = Deno.env.get("AWS_REGION") ?? Deno.env.get("AWS_DEFAULT_REGION");
+  if (envRegion) return envRegion;
+
+  try {
+    const profile = Deno.env.get("AWS_PROFILE") ?? "default";
+    const home = Deno.env.get("HOME");
+    if (!home && !Deno.env.get("AWS_CONFIG_FILE")) return "us-east-1";
+    const configPath = Deno.env.get("AWS_CONFIG_FILE") ??
+      \`\${home}/.aws/config\`;
+    const configText = Deno.readTextFileSync(configPath);
+
+    const escaped = profile.replace(/[.*+?^\${}()|[\\]\\\\]/g, "\\\\$&");
+    const sectionHeader = profile === "default"
+      ? /^\\[default\\]/
+      : new RegExp(\`^\\\\[profile \\\\s*\${escaped}\\\\s*\\\\]\`);
+
+    let inSection = false;
+    for (const line of configText.split("\\n")) {
+      const trimmed = line.trim();
+      if (sectionHeader.test(trimmed)) {
+        inSection = true;
+        continue;
+      }
+      if (inSection && trimmed.startsWith("[")) break;
+      if (inSection) {
+        const match = trimmed.match(/^region\\s*=\\s*(.+)/);
+        if (match) return match[1].trim();
+      }
+    }
+  } catch {
+    // Config file not found or unreadable — fall through to default
+  }
+
+  return "us-east-1";
+}
+
 function createClient(credentials?: AwsCredentials): CloudControlClient {
-  const region = credentials?.region ?? Deno.env.get("AWS_REGION") ?? "us-east-1";
+  const region = resolveRegion(credentials);
   const config: Record<string, unknown> = { region };
 
   if (credentials?.accessKeyId && credentials?.secretAccessKey) {

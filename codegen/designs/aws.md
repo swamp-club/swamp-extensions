@@ -394,8 +394,11 @@ exponential backoff until the operation reaches a terminal state (`SUCCESS`,
 
 ### Client configuration
 
-The CloudControl client reads the AWS region from `AWS_REGION` environment
-variable, defaulting to `us-east-1`. AWS credentials are resolved by the SDK's
+The CloudControl client resolves the AWS region in priority order: explicit
+`region` global argument, `AWS_REGION` environment variable,
+`AWS_DEFAULT_REGION` environment variable, the active AWS profile's `region`
+from `~/.aws/config` (respecting `AWS_PROFILE` and `AWS_CONFIG_FILE`), then
+`us-east-1` as a final fallback. AWS credentials are resolved by the SDK's
 default credential chain (environment variables, shared credentials file,
 instance profiles, etc.).
 
@@ -809,8 +812,9 @@ Exports: `createResource`, `readResource`, `updateResource`, `deleteResource`
 Key behaviors:
 
 - CloudControl client accepts optional explicit credentials; falls back to the
-  AWS SDK default credential chain and `AWS_REGION` env var (default:
-  `us-east-1`)
+  AWS SDK default credential chain. Region resolved via: explicit global arg >
+  `AWS_REGION` > `AWS_DEFAULT_REGION` > `~/.aws/config` profile region >
+  `us-east-1`
 - All commands use exponential backoff + jitter retry on throttling
 - Async operations (create, update, delete) poll until terminal state
 - Update computes JSON patch internally, filtering create-only properties
@@ -825,16 +829,17 @@ is identical across services — it's a static helper, not service-specific.
 Every generated model includes four optional credential global arguments
 injected by `extensionModelGenerator.ts`:
 
-| Field             | Sensitive | Overrides env var       | Description                             |
-| ----------------- | --------- | ----------------------- | --------------------------------------- |
-| `accessKeyId`     | yes       | `AWS_ACCESS_KEY_ID`     | AWS access key ID                       |
-| `secretAccessKey` | yes       | `AWS_SECRET_ACCESS_KEY` | AWS secret access key                   |
-| `sessionToken`    | yes       | `AWS_SESSION_TOKEN`     | Session token for temporary credentials |
-| `region`          | no        | `AWS_REGION`            | AWS region (defaults to `us-east-1`)    |
+| Field             | Sensitive | Overrides env var                                     | Description                             |
+| ----------------- | --------- | ----------------------------------------------------- | --------------------------------------- |
+| `accessKeyId`     | yes       | `AWS_ACCESS_KEY_ID`                                   | AWS access key ID                       |
+| `secretAccessKey` | yes       | `AWS_SECRET_ACCESS_KEY`                               | AWS secret access key                   |
+| `sessionToken`    | yes       | `AWS_SESSION_TOKEN`                                   | Session token for temporary credentials |
+| `region`          | no        | `AWS_REGION` / `AWS_DEFAULT_REGION` / `~/.aws/config` | AWS region (defaults to `us-east-1`)    |
 
-**Precedence**: explicit global argument > environment variable > SDK default
-chain. Users can wire these with `vault.get(...)` expressions in their model
-YAML:
+**Precedence**: explicit global argument > `AWS_REGION` > `AWS_DEFAULT_REGION` >
+`~/.aws/config` profile region > `us-east-1` fallback. Credentials follow the
+SDK default chain. Users can wire these with `vault.get(...)` expressions in
+their model YAML:
 
 ```yaml
 globalArgs:
