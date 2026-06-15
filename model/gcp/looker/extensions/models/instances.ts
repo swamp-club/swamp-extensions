@@ -139,6 +139,9 @@ const LIST_CONFIG = {
       "location": "path",
       "required": true,
     },
+    "showDeleted": {
+      "location": "query",
+    },
   },
 } as const;
 
@@ -154,6 +157,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   project: z.string().describe(
     "GCP project ID; overrides GCP_PROJECT / GOOGLE_CLOUD_PROJECT environment variables.",
+  ).optional(),
+  acceleratedSecurityPatchEnabled: z.boolean().describe(
+    "Optional. Accelerated security patch enabled for the instance.",
   ).optional(),
   adminSettings: z.object({
     allowedEmailDomains: z.array(z.string()).describe(
@@ -447,6 +453,13 @@ const GlobalArgsSchema = z.object({
   publicIpEnabled: z.boolean().describe(
     "Whether public IP is enabled on the Looker instance.",
   ).optional(),
+  releaseChannel: z.enum([
+    "RELEASE_CHANNEL_UNSPECIFIED",
+    "RAPID",
+    "REGULAR",
+    "STABLE",
+  ]).describe("Optional. The selected release channel for the instance.")
+    .optional(),
   reservedRange: z.string().describe(
     "Name of a reserved IP address range within the Instance.consumer_network, to be used for private services access connection. May or may not be specified in a create request.",
   ).optional(),
@@ -470,6 +483,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  acceleratedSecurityPatchEnabled: z.boolean().optional(),
   adminSettings: z.object({
     allowedEmailDomains: z.array(z.string()),
   }).optional(),
@@ -588,10 +602,13 @@ const StateSchema = z.object({
   }).optional(),
   pscEnabled: z.boolean().optional(),
   publicIpEnabled: z.boolean().optional(),
+  releaseChannel: z.string().optional(),
   reservedRange: z.string().optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
+  softDeleteReason: z.string().optional(),
   state: z.string().optional(),
+  suspendedTime: z.string().optional(),
   updateTime: z.string().optional(),
   userMetadata: z.object({
     additionalDeveloperUserCount: z.number(),
@@ -607,6 +624,9 @@ const InputsSchema = z.object({
   accessToken: z.string().meta({ sensitive: true }).optional(),
   credentialsJson: z.string().meta({ sensitive: true }).optional(),
   project: z.string().optional(),
+  acceleratedSecurityPatchEnabled: z.boolean().describe(
+    "Optional. Accelerated security patch enabled for the instance.",
+  ).optional(),
   adminSettings: z.object({
     allowedEmailDomains: z.array(z.string()).describe(
       "Email domain allowlist for the instance.",
@@ -899,6 +919,13 @@ const InputsSchema = z.object({
   publicIpEnabled: z.boolean().describe(
     "Whether public IP is enabled on the Looker instance.",
   ).optional(),
+  releaseChannel: z.enum([
+    "RELEASE_CHANNEL_UNSPECIFIED",
+    "RAPID",
+    "REGULAR",
+    "STABLE",
+  ]).describe("Optional. The selected release channel for the instance.")
+    .optional(),
   reservedRange: z.string().describe(
     "Name of a reserved IP address range within the Instance.consumer_network, to be used for private services access connection. May or may not be specified in a create request.",
   ).optional(),
@@ -936,7 +963,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Looker (Google Cloud core) Instances. Registered at `@swamp/gcp/looker/instances`. */
 export const model = {
   type: "@swamp/gcp/looker/instances",
-  version: "2026.06.08.1",
+  version: "2026.06.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1052,6 +1079,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.15.1",
+      description: "Added: acceleratedSecurityPatchEnabled, releaseChannel",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1080,6 +1112,10 @@ export const model = {
           String(g["location"] ?? "")
         }`;
         const body: Record<string, unknown> = {};
+        if (g["acceleratedSecurityPatchEnabled"] !== undefined) {
+          body["acceleratedSecurityPatchEnabled"] =
+            g["acceleratedSecurityPatchEnabled"];
+        }
         if (g["adminSettings"] !== undefined) {
           body["adminSettings"] = g["adminSettings"];
         }
@@ -1142,6 +1178,9 @@ export const model = {
         if (g["pscEnabled"] !== undefined) body["pscEnabled"] = g["pscEnabled"];
         if (g["publicIpEnabled"] !== undefined) {
           body["publicIpEnabled"] = g["publicIpEnabled"];
+        }
+        if (g["releaseChannel"] !== undefined) {
+          body["releaseChannel"] = g["releaseChannel"];
         }
         if (g["reservedRange"] !== undefined) {
           body["reservedRange"] = g["reservedRange"];
@@ -1255,6 +1294,10 @@ export const model = {
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
+        if (g["acceleratedSecurityPatchEnabled"] !== undefined) {
+          body["acceleratedSecurityPatchEnabled"] =
+            g["acceleratedSecurityPatchEnabled"];
+        }
         if (g["adminSettings"] !== undefined) {
           body["adminSettings"] = g["adminSettings"];
         }
@@ -1317,6 +1360,9 @@ export const model = {
         if (g["pscEnabled"] !== undefined) body["pscEnabled"] = g["pscEnabled"];
         if (g["publicIpEnabled"] !== undefined) {
           body["publicIpEnabled"] = g["publicIpEnabled"];
+        }
+        if (g["releaseChannel"] !== undefined) {
+          body["releaseChannel"] = g["releaseChannel"];
         }
         if (g["reservedRange"] !== undefined) {
           body["reservedRange"] = g["reservedRange"];
@@ -1446,6 +1492,9 @@ export const model = {
         pageSize: z.number().describe(
           "The maximum number of instances to return. If unspecified at most 256 will be returned. The maximum possible value is 2048.",
         ).optional(),
+        showDeleted: z.boolean().describe(
+          "Optional. Whether to include deleted instances in the response.",
+        ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
         ).optional(),
@@ -1460,6 +1509,9 @@ export const model = {
         }`;
         if (args["pageSize"] !== undefined) {
           params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["showDeleted"] !== undefined) {
+          params["showDeleted"] = String(args["showDeleted"]);
         }
         const { items, nextPageToken } = await listResources(
           BASE_URL,
@@ -1626,6 +1678,39 @@ export const model = {
           },
           params,
           body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    undelete: {
+      description: "undelete",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "looker.projects.locations.instances.undelete",
+            "path": "v1/{+name}:undelete",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          {},
           undefined,
           undefined,
           undefined,

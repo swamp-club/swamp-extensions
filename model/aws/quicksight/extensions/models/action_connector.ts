@@ -150,7 +150,7 @@ const GlobalArgsSchema = z.object({
       NoneConnectionMetadata: NoneConnectionMetadataSchema.optional(),
       IamConnectionMetadata: IAMConnectionMetadataSchema.optional(),
     }),
-  }).optional(),
+  }),
   AwsAccountId: z.string().min(12).max(12).regex(new RegExp("^[0-9]{12}$")),
   Description: z.string().min(1).max(2048).regex(
     new RegExp("^[A-Za-z0-9 _.,!?-]*$"),
@@ -310,7 +310,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight ActionConnector. Registered at `@swamp/aws/quicksight/action-connector`. */
 export const model = {
   type: "@swamp/aws/quicksight/action-connector",
-  version: "2026.06.08.1",
+  version: "2026.06.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -344,6 +344,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

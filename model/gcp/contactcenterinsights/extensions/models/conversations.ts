@@ -476,7 +476,7 @@ const GlobalArgsSchema = z.object({
     "Immutable. The conversation medium.",
   ).optional(),
   metadataJson: z.string().describe(
-    "Input only. JSON metadata encoded as a string. This field is primarily used by Insights integrations with various telephony systems and must be in one of Insight's supported formats.",
+    "Optional. JSON metadata encoded as a string. This field is primarily used by Insights integrations with various telephony systems and must be in one of Insight's supported formats.",
   ).optional(),
   name: z.string().describe(
     "Immutable. The resource name of the conversation. Format: projects/{project}/locations/{location}/conversations/{conversation}",
@@ -1263,7 +1263,7 @@ const InputsSchema = z.object({
     "Immutable. The conversation medium.",
   ).optional(),
   metadataJson: z.string().describe(
-    "Input only. JSON metadata encoded as a string. This field is primarily used by Insights integrations with various telephony systems and must be in one of Insight's supported formats.",
+    "Optional. JSON metadata encoded as a string. This field is primarily used by Insights integrations with various telephony systems and must be in one of Insight's supported formats.",
   ).optional(),
   name: z.string().describe(
     "Immutable. The resource name of the conversation. Format: projects/{project}/locations/{location}/conversations/{conversation}",
@@ -1473,7 +1473,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Contact Center AI Insights Conversations. Registered at `@swamp/gcp/contactcenterinsights/conversations`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/conversations",
-  version: "2026.06.08.1",
+  version: "2026.06.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1577,6 +1577,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

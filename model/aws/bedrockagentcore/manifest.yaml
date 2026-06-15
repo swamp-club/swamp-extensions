@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/bedrockagentcore"
-version: "2026.06.09.1"
+version: "2026.06.15.1"
 description: "AWS BEDROCKAGENTCORE infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -10,13 +10,15 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: gateway
+  - Added: configuration_bundle
+  - Updated: online_evaluation_config
 models:
   - api_key_credential_provider.ts
   - browser.ts
   - browser_custom.ts
   - browser_profile.ts
   - code_interpreter_custom.ts
+  - configuration_bundle.ts
   - dataset.ts
   - evaluator.ts
   - gateway.ts

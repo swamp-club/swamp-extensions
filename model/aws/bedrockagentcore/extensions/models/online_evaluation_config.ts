@@ -116,6 +116,12 @@ const TagSchema = z.object({
   Value: z.string().min(0).max(256),
 });
 
+const InsightSchema = z.object({
+  InsightId: z.string().min(1).max(256).regex(
+    new RegExp("^[a-zA-Z][a-zA-Z0-9._]+$"),
+  ).describe("The unique identifier of the insight."),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -154,7 +160,7 @@ const GlobalArgsSchema = z.object({
   ),
   Evaluators: z.array(EvaluatorReferenceSchema).describe(
     "The list of evaluators to apply during online evaluation.",
-  ),
+  ).optional(),
   Rule: z.object({
     SamplingConfig: SamplingConfigSchema.describe(
       "The configuration that controls what percentage of agent traces are sampled for evaluation.",
@@ -181,6 +187,16 @@ const GlobalArgsSchema = z.object({
   Tags: z.array(TagSchema).describe(
     "A list of tags to assign to the online evaluation configuration.",
   ).optional(),
+  Insights: z.array(InsightSchema).describe(
+    "The list of insights to enable for failure analysis.",
+  ).optional(),
+  ClusteringConfig: z.object({
+    Frequencies: z.array(z.enum(["DAILY", "WEEKLY", "MONTHLY"])).describe(
+      "The list of frequencies at which clustering reports are generated.",
+    ),
+  }).describe(
+    "The configuration for clustering analysis of evaluation results.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -206,6 +222,10 @@ const StateSchema = z.object({
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
+  Insights: z.array(InsightSchema).optional(),
+  ClusteringConfig: z.object({
+    Frequencies: z.array(z.string()),
+  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -265,6 +285,16 @@ const InputsSchema = z.object({
   Tags: z.array(TagSchema).describe(
     "A list of tags to assign to the online evaluation configuration.",
   ).optional(),
+  Insights: z.array(InsightSchema).describe(
+    "The list of insights to enable for failure analysis.",
+  ).optional(),
+  ClusteringConfig: z.object({
+    Frequencies: z.array(z.enum(["DAILY", "WEEKLY", "MONTHLY"])).describe(
+      "The list of frequencies at which clustering reports are generated.",
+    ).optional(),
+  }).describe(
+    "The configuration for clustering analysis of evaluation results.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -286,7 +316,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore OnlineEvaluationConfig. Registered at `@swamp/aws/bedrockagentcore/online-evaluation-config`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/online-evaluation-config",
-  version: "2026.06.08.1",
+  version: "2026.06.15.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -331,6 +361,11 @@ export const model = {
     {
       toVersion: "2026.06.08.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.15.1",
+      description: "Added: Insights, ClusteringConfig",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

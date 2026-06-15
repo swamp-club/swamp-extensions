@@ -226,6 +226,7 @@ const StateSchema = z.object({
   ContextualGroundingPolicyConfig: z.object({
     FiltersConfig: z.array(GuardrailContextualGroundingFilterConfigSchema),
   }).optional(),
+  ModifiedTimeSeconds: z.number().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
@@ -306,7 +307,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Wisdom AIGuardrail. Registered at `@swamp/aws/wisdom/aiguardrail`. */
 export const model = {
   type: "@swamp/aws/wisdom/aiguardrail",
-  version: "2026.06.08.1",
+  version: "2026.06.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -340,6 +341,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

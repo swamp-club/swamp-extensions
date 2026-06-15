@@ -133,6 +133,42 @@ const StateSchema = z.object({
       discoveryDocumentIds: z.array(z.string()),
       severity: z.string(),
     }),
+    targetTechnology: z.object({
+      vulnerabilityMatch: z.object({
+        associations: z.array(z.object({
+          id: z.unknown(),
+          type: z.unknown(),
+        })),
+        collectionId: z.string(),
+        cveId: z.string(),
+        cvss3Score: z.number(),
+        description: z.string(),
+        disclosureTime: z.string(),
+        epssScore: z.number(),
+        exploitationConsequences: z.array(z.string()),
+        exploitationState: z.string(),
+        exploitationVectors: z.array(z.string()),
+        matchedTechnologies: z.array(z.string()),
+        priority: z.string(),
+        productFixes: z.array(z.object({
+          displayName: z.unknown(),
+          publishTime: z.unknown(),
+          sourceId: z.unknown(),
+          uri: z.unknown(),
+        })),
+        publicExploits: z.array(z.object({
+          exploitGrade: z.unknown(),
+          exploitName: z.unknown(),
+          exploitReliability: z.unknown(),
+          releaseTime: z.unknown(),
+          sizeBytes: z.unknown(),
+          uri: z.unknown(),
+        })),
+        publiclyAvailableExploit: z.boolean(),
+        riskRating: z.string(),
+        technologies: z.array(z.string()),
+      }),
+    }),
   }).optional(),
   displayName: z.string().optional(),
   duplicateOf: z.string().optional(),
@@ -192,7 +228,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Threat Intelligence Alerts. Registered at `@swamp/gcp/threatintelligence/alerts`. */
 export const model = {
   type: "@swamp/gcp/threatintelligence/alerts",
-  version: "2026.06.08.1",
+  version: "2026.06.15.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -271,6 +307,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.15.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

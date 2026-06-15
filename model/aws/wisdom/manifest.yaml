@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/wisdom"
-version: "2026.06.08.2"
+version: "2026.06.15.1"
 description: "AWS WISDOM infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: aiagent, aiagent_version, aiguardrail, aiguardrail_version, aiprompt, aiprompt_version, assistant, assistant_association, knowledge_base, message_template, message_template_version, quick_response
+  - Updated: aiguardrail
 models:
   - aiagent.ts
   - aiagent_version.ts
