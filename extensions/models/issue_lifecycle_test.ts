@@ -1,4 +1,4 @@
-// Swamp, an Automation Framework Copyright (C) 2026 System Initiative, Inc.
+// Swamp, an Automation Framework Copyright (C) 2026 Elder Swamp Club, Inc.
 //
 // This file is part of Swamp.
 //
@@ -106,7 +106,7 @@ Deno.test("link_pr: writes pullRequest-main resource with url, attempt, and link
   const { context, writes, restore } = await buildTestContext(42);
   try {
     await model.methods.link_pr.execute(
-      { url: "https://github.com/systeminit/swamp/pull/1141" },
+      { url: "https://github.com/swamp-club/swamp/pull/1141" },
       context,
     );
 
@@ -119,7 +119,7 @@ Deno.test("link_pr: writes pullRequest-main resource with url, attempt, and link
     );
     assertEquals(
       prWrite!.data.url,
-      "https://github.com/systeminit/swamp/pull/1141",
+      "https://github.com/swamp-club/swamp/pull/1141",
     );
     assertEquals(prWrite!.data.attempt, 1);
     assertEquals(typeof prWrite!.data.linkedAt, "string");
@@ -132,7 +132,7 @@ Deno.test("link_pr: transitions state to pr_open", async () => {
   const { context, writes, restore } = await buildTestContext(42);
   try {
     await model.methods.link_pr.execute(
-      { url: "https://github.com/systeminit/swamp/pull/1141" },
+      { url: "https://github.com/swamp-club/swamp/pull/1141" },
       context,
     );
 
@@ -150,11 +150,11 @@ Deno.test("link_pr: is idempotent — second call increments attempt", async () 
   const { context, writes, restore } = await buildTestContext(42);
   try {
     await model.methods.link_pr.execute(
-      { url: "https://github.com/systeminit/swamp/pull/1141" },
+      { url: "https://github.com/swamp-club/swamp/pull/1141" },
       context,
     );
     await model.methods.link_pr.execute(
-      { url: "https://github.com/systeminit/swamp/pull/1142" },
+      { url: "https://github.com/swamp-club/swamp/pull/1142" },
       context,
     );
 
@@ -167,7 +167,7 @@ Deno.test("link_pr: is idempotent — second call increments attempt", async () 
     );
     assertEquals(
       prWrites[1].data.url,
-      "https://github.com/systeminit/swamp/pull/1142",
+      "https://github.com/swamp-club/swamp/pull/1142",
     );
     assertEquals(prWrites[0].data.attempt, 1);
     assertEquals(prWrites[1].data.attempt, 2);
@@ -186,7 +186,7 @@ Deno.test("link_pr: from pr_failed clears failure fields and increments attempt"
   const { context, writes, restore } = await buildTestContext(42, {
     resources: {
       "pullRequest-main": {
-        url: "https://github.com/systeminit/swamp/pull/1141",
+        url: "https://github.com/swamp-club/swamp/pull/1141",
         attempt: 1,
         linkedAt: "2026-04-09T10:00:00.000Z",
         failedAt: "2026-04-09T10:05:00.000Z",
@@ -196,7 +196,7 @@ Deno.test("link_pr: from pr_failed clears failure fields and increments attempt"
   });
   try {
     await model.methods.link_pr.execute(
-      { url: "https://github.com/systeminit/swamp/pull/1142" },
+      { url: "https://github.com/swamp-club/swamp/pull/1142" },
       context,
     );
 
@@ -204,7 +204,7 @@ Deno.test("link_pr: from pr_failed clears failure fields and increments attempt"
     assertEquals(prWrite !== undefined, true);
     assertEquals(
       prWrite!.data.url,
-      "https://github.com/systeminit/swamp/pull/1142",
+      "https://github.com/swamp-club/swamp/pull/1142",
     );
     assertEquals(prWrite!.data.attempt, 2);
     // link_pr overwrites the entire resource — failure fields are absent
@@ -233,7 +233,7 @@ Deno.test("pr-cooldown: rejects when PR was linked too recently", async () => {
           return Promise.resolve(
             new TextEncoder().encode(
               JSON.stringify({
-                url: "https://github.com/systeminit/swamp/pull/1",
+                url: "https://github.com/swamp-club/swamp/pull/1",
                 linkedAt: recentLinkedAt,
               }),
             ),
@@ -267,7 +267,7 @@ Deno.test("pr-cooldown: passes when enough time has elapsed", async () => {
           return Promise.resolve(
             new TextEncoder().encode(
               JSON.stringify({
-                url: "https://github.com/systeminit/swamp/pull/1",
+                url: "https://github.com/swamp-club/swamp/pull/1",
                 linkedAt: oldLinkedAt,
               }),
             ),
@@ -319,8 +319,8 @@ Deno.test("model: exposes the new link_pr method definition", () => {
   );
 });
 
-Deno.test("model: version bumped to 2026.04.12.1", () => {
-  assertEquals(model.version, "2026.04.12.1");
+Deno.test("model: version bumped to 2026.06.15.1", () => {
+  assertEquals(model.version, "2026.06.15.1");
 });
 
 // ---------------------------------------------------------------------------
@@ -331,7 +331,7 @@ Deno.test("pr_merged: transitions state to releasing and writes mergedAt with at
   const { context, writes, restore } = await buildTestContext(42, {
     resources: {
       "pullRequest-main": {
-        url: "https://github.com/systeminit/swamp/pull/1141",
+        url: "https://github.com/swamp-club/swamp/pull/1141",
         attempt: 2,
         linkedAt: "2026-04-09T10:00:00.000Z",
       },
@@ -349,7 +349,7 @@ Deno.test("pr_merged: transitions state to releasing and writes mergedAt with at
     assertEquals(prWrite !== undefined, true);
     assertEquals(
       prWrite!.data.url,
-      "https://github.com/systeminit/swamp/pull/1141",
+      "https://github.com/swamp-club/swamp/pull/1141",
     );
     assertEquals(prWrite!.data.attempt, 2);
     assertEquals(typeof prWrite!.data.mergedAt, "string");
@@ -362,7 +362,7 @@ Deno.test("pr_merged: uses provided mergedAt when given", async () => {
   const { context, writes, restore } = await buildTestContext(42, {
     resources: {
       "pullRequest-main": {
-        url: "https://github.com/systeminit/swamp/pull/1141",
+        url: "https://github.com/swamp-club/swamp/pull/1141",
         attempt: 1,
         linkedAt: "2026-04-09T10:00:00.000Z",
       },
@@ -402,7 +402,7 @@ Deno.test("pr_failed: transitions state to pr_failed and writes failure info wit
   const { context, writes, restore } = await buildTestContext(42, {
     resources: {
       "pullRequest-main": {
-        url: "https://github.com/systeminit/swamp/pull/1141",
+        url: "https://github.com/swamp-club/swamp/pull/1141",
         attempt: 1,
         linkedAt: "2026-04-09T10:00:00.000Z",
       },
@@ -456,14 +456,14 @@ Deno.test("pr_failed: rejects empty reason via zod schema", async () => {
 // ship
 // ---------------------------------------------------------------------------
 
-Deno.test("ship: transitions state to done", async () => {
+Deno.test("ship: transitions state to notify", async () => {
   const { context, writes, restore } = await buildTestContext(42);
   try {
     await model.methods.ship.execute({}, context);
 
     const stateWrite = writes.find((w) => w.specName === "state");
     assertEquals(stateWrite !== undefined, true);
-    assertEquals(stateWrite!.data.phase, "done");
+    assertEquals(stateWrite!.data.phase, "notify");
     assertEquals(stateWrite!.data.issueNumber, 42);
   } finally {
     await restore();
@@ -476,7 +476,7 @@ Deno.test("ship: accepts optional releaseUrl and releaseNotes", async () => {
     // Should not throw
     await model.methods.ship.execute(
       {
-        releaseUrl: "https://github.com/systeminit/swamp/releases/tag/v1.0.0",
+        releaseUrl: "https://github.com/swamp-club/swamp/releases/tag/v1.0.0",
         releaseNotes: "Bug fix release",
       },
       context,
@@ -851,6 +851,64 @@ Deno.test("start: warns and skips assignment when assignees endpoint returns 403
   }
 });
 
+Deno.test("start: persists author in context-main", async () => {
+  const { context, writes, restore } = await buildStartTestContext(99, {
+    authUsername: "alice",
+    routes: [
+      {
+        urlIncludes: "/api/health",
+        response: { status: 200, body: { ok: true } },
+      },
+      {
+        urlIncludes: "/api/v1/lab/issues/99",
+        method: "GET",
+        response: {
+          status: 200,
+          body: {
+            issue: {
+              number: 99,
+              type: "bug",
+              status: "open",
+              title: "Test",
+              body: "Body",
+              authorUsername: "external-user",
+              comments: [],
+              assignees: [],
+            },
+          },
+        },
+      },
+      {
+        urlIncludes: "/api/v1/lab/issues/99",
+        method: "PATCH",
+        response: { status: 200, body: { issue: {} } },
+      },
+      {
+        urlIncludes: "/api/v1/lab/assignees",
+        method: "GET",
+        response: {
+          status: 200,
+          body: { assignees: [{ userId: "u1", username: "alice" }] },
+        },
+      },
+      {
+        urlIncludes: "/api/v1/lab/issues/99/lifecycle",
+        method: "POST",
+        response: { status: 200, body: {} },
+      },
+    ],
+  });
+  try {
+    await model.methods.start.execute({}, context);
+
+    const contextWrite = writes.find((w) => w.specName === "context");
+    assertEquals(contextWrite !== undefined, true);
+    assertEquals(contextWrite!.data.author, "external-user");
+  } finally {
+    await restore();
+  }
+});
+
 Deno.test("start: succeeds even when PATCH fails", async () => {
   const routes = happyRoutes({
     issueNumber: 99,
@@ -882,4 +940,116 @@ Deno.test("start: succeeds even when PATCH fails", async () => {
   } finally {
     await restore();
   }
+});
+
+// ---------------------------------------------------------------------------
+// notify
+// ---------------------------------------------------------------------------
+
+Deno.test("notify: transitions state to done and reads author from context", async () => {
+  const { context, writes, restore } = await buildTestContext(42, {
+    resources: {
+      "context-main": {
+        title: "Test",
+        body: "Body",
+        type: "bug",
+        status: "open",
+        author: "external-user",
+        comments: [],
+        fetchedAt: "2026-05-21T00:00:00.000Z",
+      },
+    },
+  });
+  try {
+    await model.methods.notify.execute({}, context);
+
+    const stateWrite = writes.find((w) => w.specName === "state");
+    assertEquals(stateWrite !== undefined, true);
+    assertEquals(stateWrite!.data.phase, "done");
+    assertEquals(stateWrite!.data.issueNumber, 42);
+  } finally {
+    await restore();
+  }
+});
+
+Deno.test("notify: transitions to done even when author is missing from context", async () => {
+  const { context, writes, restore } = await buildTestContext(42, {
+    resources: {
+      "context-main": {
+        title: "Test",
+        body: "Body",
+        type: "bug",
+        status: "open",
+        comments: [],
+        fetchedAt: "2026-05-21T00:00:00.000Z",
+      },
+    },
+  });
+  try {
+    await model.methods.notify.execute({}, context);
+
+    const stateWrite = writes.find((w) => w.specName === "state");
+    assertEquals(stateWrite !== undefined, true);
+    assertEquals(stateWrite!.data.phase, "done");
+  } finally {
+    await restore();
+  }
+});
+
+Deno.test("notify: accepts custom message", async () => {
+  const { context, writes, restore } = await buildTestContext(42, {
+    resources: {
+      "context-main": {
+        title: "Test",
+        body: "Body",
+        type: "bug",
+        status: "open",
+        author: "contributor",
+        comments: [],
+        fetchedAt: "2026-05-21T00:00:00.000Z",
+      },
+    },
+  });
+  try {
+    await model.methods.notify.execute(
+      { message: "Custom thanks @contributor!" },
+      context,
+    );
+
+    const stateWrite = writes.find((w) => w.specName === "state");
+    assertEquals(stateWrite !== undefined, true);
+    assertEquals(stateWrite!.data.phase, "done");
+  } finally {
+    await restore();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// skip_notify
+// ---------------------------------------------------------------------------
+
+Deno.test("skip_notify: transitions state to done", async () => {
+  const { context, writes, restore } = await buildTestContext(42);
+  try {
+    await model.methods.skip_notify.execute({}, context);
+
+    const stateWrite = writes.find((w) => w.specName === "state");
+    assertEquals(stateWrite !== undefined, true);
+    assertEquals(stateWrite!.data.phase, "done");
+    assertEquals(stateWrite!.data.issueNumber, 42);
+  } finally {
+    await restore();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Model registration smoke tests (notify methods)
+// ---------------------------------------------------------------------------
+
+Deno.test("model: exposes notify method definition", () => {
+  assertEquals("notify" in model.methods, true);
+});
+
+Deno.test("model: exposes skip_notify method definition", () => {
+  assertEquals("skip_notify" in model.methods, true);
 });

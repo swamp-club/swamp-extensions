@@ -19,7 +19,20 @@ structured lifecycle entry against the issue in swamp-club and transitions its
 status as the work progresses. There is no GitHub integration — the issue must
 already exist in swamp-club before you start.
 
-## Core Principle
+## Core Principles
+
+**Always use the installed `swamp` binary.** Every `swamp` command in this skill
+must invoke the installed binary from `$PATH` — never `deno run dev` or any
+other Deno-based invocation. Before running any swamp command, verify the binary
+exists:
+
+```
+which swamp
+```
+
+If `which swamp` fails (binary not found), **stop immediately** and tell the
+human: "The `swamp` binary is not installed or not on your PATH. Install it
+before continuing." Do not fall back to `deno run dev`.
 
 **Never auto-approve.** Always stop and show the plan to the human. Always ask
 for feedback. Only call `approve` when the human explicitly says to proceed.
@@ -45,14 +58,31 @@ reference file.
 Each phase has detailed instructions in a reference file. Read only the
 reference you need for the current phase.
 
-### Phase 1: Triage (steps 1–5)
+### Phase 1: Triage (steps 1–4)
 
 Read [references/triage.md](references/triage.md) when starting a new triage or
-resuming an issue in the `triaging` phase. Covers: creating the model instance,
-fetching issue context from swamp-club, reading the codebase, classifying the
-issue, and reproducing bugs.
+resuming an issue in the `triaging` phase. Covers: starting the lifecycle (using
+direct type execution to auto-create the model and fetch issue context in one
+command), reading the codebase, classifying the issue, and reproducing bugs.
 
-### Phase 2: Planning (steps 6–9)
+The first command to run is always the existence check:
+
+```
+swamp data get issue-<N> state-main --json
+```
+
+- If this **returns data**, the model already exists — check the `phase` field
+  and go to the "Resuming a Session" table below. **Do NOT call `start`.**
+- If this **fails** (model not found), the issue is new — run:
+
+```
+swamp model @swamp/issue-lifecycle method run start issue-<N> --input issueNumber=<N>
+```
+
+This fetches the issue from swamp-club and writes context automatically — do NOT
+use `gh issue view` or any other mechanism to fetch issue data.
+
+### Phase 2: Planning (steps 5–7)
 
 Read [references/planning.md](references/planning.md) after triage is complete.
 Covers: generating the implementation plan, applying repo-specific planning
@@ -73,13 +103,33 @@ Read [references/implementation.md](references/implementation.md) after plan
 approval. Covers: signalling implementation start, doing the work, verifying
 fixes against the reproduction, creating the PR, and completing the issue.
 
+### Phase 5: Contributor Notification
+
+After `ship` or `complete`, the lifecycle enters the `notify` phase. This is
+where you decide whether to thank the issue author:
+
+- If the issue author is an **external contributor** (not a repo collaborator),
+  call `notify` to post a thank-you ripple mentioning them by handle.
+- If the issue author is a **collaborator**, call `skip_notify` to proceed
+  directly to done.
+
+Check collaborator status with:
+
+```
+gh api /repos/swamp-club/swamp/collaborators --jq '.[].login' | grep -qx '<author>'
+```
+
+If the author is NOT in the collaborator list, they are external — call
+`notify`. Otherwise call `skip_notify`.
+
 ## Classification Types
 
-The `triage` method classifies issues into one of three types (matching
+The `triage` method classifies issues into one of four types (matching
 swamp-club):
 
 - `bug` — something is broken or behaving incorrectly
 - `feature` — a request for new functionality or enhancement
+- `platform` — admin-only platform infrastructure work
 - `security` — security vulnerability or hardening work
 
 Two additional classification details are captured in the classification record
@@ -97,7 +147,7 @@ but do NOT map to separate swamp-club types:
 To review a specific plan version:
 
 ```
-swamp model method run issue-<N> review --input version=<V>
+swamp model @swamp/issue-lifecycle method run review issue-<N> --input version=<V>
 ```
 
 To see all model data:
@@ -119,17 +169,18 @@ Read the `phase` field from the response. **Do NOT call `start` to resume** —
 
 Use this table to determine what to do next:
 
-| Phase            | Action                                                                    |
-| ---------------- | ------------------------------------------------------------------------- |
-| `triaging`       | Read [references/triage.md](references/triage.md)                         |
-| `classified`     | Read [references/planning.md](references/planning.md)                     |
-| `plan_generated` | Read [references/adversarial-review.md](references/adversarial-review.md) |
-| `approved`       | Read [references/implementation.md](references/implementation.md)         |
-| `implementing`   | Link a PR with `link_pr` or call `complete`                               |
-| `pr_open`        | Wait 3 min, then check PR: `pr_merged` if merged, `pr_failed` if failed   |
-| `pr_failed`      | Fix the issue, then `link_pr` (new PR) or `implement` (major rework)      |
-| `releasing`      | Check release build: `ship` when done, or `complete` as fallback          |
-| `done`           | Nothing to do — lifecycle is complete                                     |
+| Phase            | Action                                                                     |
+| ---------------- | -------------------------------------------------------------------------- |
+| `triaging`       | Read [references/triage.md](references/triage.md)                          |
+| `classified`     | Read [references/planning.md](references/planning.md)                      |
+| `plan_generated` | Read [references/adversarial-review.md](references/adversarial-review.md)  |
+| `approved`       | Read [references/implementation.md](references/implementation.md)          |
+| `implementing`   | Link a PR with `link_pr` or call `complete`                                |
+| `pr_open`        | Wait 3 min, then check PR: `pr_merged` if merged, `pr_failed` if failed    |
+| `pr_failed`      | Fix the issue, then `link_pr` (new PR) or `implement` (major rework)       |
+| `releasing`      | Check release build: `ship` when done, or `complete` as fallback           |
+| `notify`         | Check if author is external: `notify` to thank them, `skip_notify` to skip |
+| `done`           | Nothing to do — lifecycle is complete                                      |
 
 The canonical phase list lives in the `TRANSITIONS` constant in
 `extensions/models/_lib/schemas.ts`.
@@ -144,38 +195,48 @@ When a PR has already merged and the lifecycle just needs to be marked done:
    ```
 2. If the phase is `implementing`, link the PR first:
    ```
-   swamp model method run issue-<N> link_pr --input url=<PR URL>
+   swamp model @swamp/issue-lifecycle method run link_pr issue-<N> --input url=<PR URL>
    ```
 3. If the phase is `pr_open`, record the merge:
    ```
-   swamp model method run issue-<N> pr_merged
+   swamp model @swamp/issue-lifecycle method run pr_merged issue-<N>
    ```
 4. If the phase is `releasing`, ship it:
    ```
-   swamp model method run issue-<N> ship
+   swamp model @swamp/issue-lifecycle method run ship issue-<N>
    ```
-5. For quick close-out, `complete` still works from `implementing`, `pr_open`,
-   or `releasing`:
+5. If the phase is `notify`, check if the author is external and either thank
+   them or skip:
    ```
-   swamp model method run issue-<N> complete
+   swamp model @swamp/issue-lifecycle method run notify issue-<N>
+   swamp model @swamp/issue-lifecycle method run skip_notify issue-<N>
    ```
+6. For quick close-out, `complete` still works from `implementing`, `pr_open`,
+   or `releasing` (transitions to `notify`, then use `notify` or `skip_notify`).
 
 ## Key Rules
 
-1. **Never skip the feedback loop.** Always show the plan. Always ask.
-2. **Never call approve without explicit human approval.**
-3. **Persist everything through the model.** Don't just have a conversation —
+1. **Never use `gh` to fetch issue data.** All issue context comes from
+   swamp-club via the `start` method — not from GitHub. The only place `gh` is
+   used in this skill is checking collaborator status during contributor
+   notification.
+2. **Never skip the feedback loop.** Always show the plan. Always ask.
+3. **Never call approve without explicit human approval.**
+4. **Persist everything through the model.** Don't just have a conversation —
    call the model methods so state survives context compression and sessions.
-4. **swamp-club is the source of truth.** Every state transition posts a
+5. **swamp-club is the source of truth.** Every state transition posts a
    lifecycle entry and transitions the issue status in swamp-club automatically.
    You don't need to manually update the issue.
-5. **Read the codebase thoroughly** before generating the plan. The plan should
+6. **Read the codebase thoroughly** before generating the plan. The plan should
    reference specific files, functions, and test paths.
-6. **Follow the planning conventions for this repository.** Read
+7. **Follow the planning conventions for this repository.** Read
    `agent-constraints/planning-conventions.md` if it exists.
-7. **Never open a PR without asking first.** Present the changes summary and
+8. **Never open a PR without asking first.** Present the changes summary and
    wait for the human to confirm before creating the pull request.
-8. **File unrelated issues immediately.** If you discover a bug, code smell, or
+9. **File unrelated issues immediately.** If you discover a bug, code smell, or
    problem during investigation that is NOT related to the current issue, file
    it as a new swamp-club issue. Do not try to fix it in the current work span —
    keep the scope focused.
+10. **Never use `deno run dev` for swamp commands.** All `swamp` invocations
+    must use the installed binary. Run `which swamp` first — if it's missing,
+    stop and tell the human.

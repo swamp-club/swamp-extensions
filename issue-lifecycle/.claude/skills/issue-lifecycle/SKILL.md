@@ -19,7 +19,20 @@ structured lifecycle entry against the issue in swamp-club and transitions its
 status as the work progresses. There is no GitHub integration — the issue must
 already exist in swamp-club before you start.
 
-## Core Principle
+## Core Principles
+
+**Always use the installed `swamp` binary.** Every `swamp` command in this skill
+must invoke the installed binary from `$PATH` — never `deno run dev` or any
+other Deno-based invocation. Before running any swamp command, verify the binary
+exists:
+
+```
+which swamp
+```
+
+If `which swamp` fails (binary not found), **stop immediately** and tell the
+human: "The `swamp` binary is not installed or not on your PATH. Install it
+before continuing." Do not fall back to `deno run dev`.
 
 **Never auto-approve.** Always stop and show the plan to the human. Always ask
 for feedback. Only call `approve` when the human explicitly says to proceed.
@@ -51,6 +64,23 @@ Read [references/triage.md](references/triage.md) when starting a new triage or
 resuming an issue in the `triaging` phase. Covers: starting the lifecycle (using
 direct type execution to auto-create the model and fetch issue context in one
 command), reading the codebase, classifying the issue, and reproducing bugs.
+
+The first command to run is always the existence check:
+
+```
+swamp data get issue-<N> state-main --json
+```
+
+- If this **returns data**, the model already exists — check the `phase` field
+  and go to the "Resuming a Session" table below. **Do NOT call `start`.**
+- If this **fails** (model not found), the issue is new — run:
+
+```
+swamp model @swamp/issue-lifecycle method run start issue-<N> --input issueNumber=<N>
+```
+
+This fetches the issue from swamp-club and writes context automatically — do NOT
+use `gh issue view` or any other mechanism to fetch issue data.
 
 ### Phase 2: Planning (steps 5–7)
 
@@ -86,7 +116,7 @@ where you decide whether to thank the issue author:
 Check collaborator status with:
 
 ```
-gh api /repos/systeminit/swamp/collaborators --jq '.[].login' | grep -qx '<author>'
+gh api /repos/swamp-club/swamp/collaborators --jq '.[].login' | grep -qx '<author>'
 ```
 
 If the author is NOT in the collaborator list, they are external — call
@@ -94,11 +124,12 @@ If the author is NOT in the collaborator list, they are external — call
 
 ## Classification Types
 
-The `triage` method classifies issues into one of three types (matching
+The `triage` method classifies issues into one of four types (matching
 swamp-club):
 
 - `bug` — something is broken or behaving incorrectly
 - `feature` — a request for new functionality or enhancement
+- `platform` — admin-only platform infrastructure work
 - `security` — security vulnerability or hardening work
 
 Two additional classification details are captured in the classification record
@@ -185,20 +216,27 @@ When a PR has already merged and the lifecycle just needs to be marked done:
 
 ## Key Rules
 
-1. **Never skip the feedback loop.** Always show the plan. Always ask.
-2. **Never call approve without explicit human approval.**
-3. **Persist everything through the model.** Don't just have a conversation —
+1. **Never use `gh` to fetch issue data.** All issue context comes from
+   swamp-club via the `start` method — not from GitHub. The only place `gh` is
+   used in this skill is checking collaborator status during contributor
+   notification.
+2. **Never skip the feedback loop.** Always show the plan. Always ask.
+3. **Never call approve without explicit human approval.**
+4. **Persist everything through the model.** Don't just have a conversation —
    call the model methods so state survives context compression and sessions.
-4. **swamp-club is the source of truth.** Every state transition posts a
+5. **swamp-club is the source of truth.** Every state transition posts a
    lifecycle entry and transitions the issue status in swamp-club automatically.
    You don't need to manually update the issue.
-5. **Read the codebase thoroughly** before generating the plan. The plan should
+6. **Read the codebase thoroughly** before generating the plan. The plan should
    reference specific files, functions, and test paths.
-6. **Follow the planning conventions for this repository.** Read
+7. **Follow the planning conventions for this repository.** Read
    `agent-constraints/planning-conventions.md` if it exists.
-7. **Never open a PR without asking first.** Present the changes summary and
+8. **Never open a PR without asking first.** Present the changes summary and
    wait for the human to confirm before creating the pull request.
-8. **File unrelated issues immediately.** If you discover a bug, code smell, or
+9. **File unrelated issues immediately.** If you discover a bug, code smell, or
    problem during investigation that is NOT related to the current issue, file
    it as a new swamp-club issue. Do not try to fix it in the current work span —
    keep the scope focused.
+10. **Never use `deno run dev` for swamp commands.** All `swamp` invocations
+    must use the installed binary. Run `which swamp` first — if it's missing,
+    stop and tell the human.

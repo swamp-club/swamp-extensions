@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/issue-lifecycle"
-version: "2026.04.22.2"
+version: "2026.06.15.1"
 description: |
   Interactive triage and implementation planning for swamp-club lab issues.
   Drives the triage/plan/iterate/approve/implement loop as a local
@@ -22,22 +22,30 @@ description: |
   approved ──[implement]──> implementing
   implementing ──[link_pr]──> pr_open
   pr_open ──[link_pr]──> pr_open  (idempotent re-link)
-  pr_open ──[complete]──> done
-  implementing ──[complete]──> done  (legacy, no PR linked)
+  pr_open ──[pr_failed]──> pr_failed
+  pr_failed ──[link_pr]──> pr_open  (retry with new PR)
+  pr_failed ──[implement]──> implementing  (restart implementation)
+  pr_open ──[pr_merged]──> releasing
+  releasing ──[ship]──> notify
+  implementing ──[complete]──> notify  (no PR linked)
+  pr_open ──[complete]──> notify
+  releasing ──[complete]──> notify
+  notify ──[notify]──> done  (thank external contributor)
+  notify ──[skip_notify]──> done  (skip notification)
   ```
 
   Pre-flight checks enforce valid transitions: you cannot approve without a
   plan, cannot implement without approval, and cannot approve while critical
-  or high adversarial findings remain unresolved. `complete` accepts both
-  `implementing` and `pr_open` as source phases so legacy records (created
-  before `link_pr` existed) can still reach `done`.
+  or high adversarial findings remain unresolved. `start` can resume from
+  any phase except `done`. `complete` accepts `implementing`, `pr_open`,
+  and `releasing` as source phases.
 
   ## Methods
 
   - `start` — fetch issue context from swamp-club (fails if the issue does
-    not exist)
-  - `triage` — classify as bug/feature/security and PATCH the swamp-club
-    issue type
+    not exist); auto-assigns the current user
+  - `triage` — classify as bug/feature/platform/security and PATCH the
+    swamp-club issue type
   - `plan` — generate an implementation plan
   - `review` — display the current plan (read-only)
   - `iterate` — revise the plan with feedback (versioned)
@@ -48,7 +56,16 @@ description: |
   - `link_pr` — link an opaque pull request URL to the lifecycle record
     (idempotent; transitions to `pr_open`). Git-host agnostic — the model
     persists whatever URL the agent supplies without fetching anything.
-  - `complete` — mark the lifecycle done
+  - `pr_merged` — record that the linked PR was merged (transitions to
+    `releasing`)
+  - `pr_failed` — record that the linked PR failed (transitions to
+    `pr_failed`; can retry via `link_pr` or `implement`)
+  - `ship` — mark as shipped/released (transitions to `notify`)
+  - `complete` — mark the lifecycle complete (transitions to `notify`)
+  - `notify` — post a thank-you ripple to the issue author and transition
+    to `done`
+  - `skip_notify` — skip contributor notification and transition directly
+    to `done`
 
   ## Data
 
@@ -61,7 +78,7 @@ description: |
   - `SWAMP_API_KEY` env var (or `swamp auth login`) for swamp-club access
   - The target lab issue must already exist in swamp-club
 
-repository: "https://github.com/systeminit/swamp-extensions"
+repository: "https://github.com/swamp-club/swamp-extensions"
 
 skills:
   - issue-lifecycle

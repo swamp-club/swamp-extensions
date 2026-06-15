@@ -1,4 +1,4 @@
-// Swamp, an Automation Framework Copyright (C) 2026 System Initiative, Inc.
+// Swamp, an Automation Framework Copyright (C) 2026 Elder Swamp Club, Inc.
 //
 // This file is part of Swamp.
 //
@@ -240,6 +240,41 @@ export class SwampClubClient {
     return match?.userId ?? null;
   }
 
+  /**
+   * Post a comment (ripple) on the issue. Returns the comment ID on success,
+   * or null if the request fails. Best-effort — callers should not gate on this.
+   */
+  async submitComment(body: string): Promise<string | null> {
+    try {
+      const url =
+        `${this.baseUrl}/api/v1/lab/issues/${this.issueNumber}/comments`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${this.#apiKey}`,
+        },
+        body: JSON.stringify({ body }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        this.log("swamp-club submit comment failed: {status} {text}", {
+          status: res.status,
+          text,
+        });
+        return null;
+      }
+      const data = await res.json() as { comment?: { id?: string } };
+      return data?.comment?.id ?? null;
+    } catch (err) {
+      this.log("swamp-club submit comment error: {error}", {
+        error: String(err),
+      });
+      return null;
+    }
+  }
+
   /** Update the issue's assignees. Best-effort (same as other PATCH helpers). */
   async updateAssignees(userIds: string[]): Promise<void> {
     await this.patchIssue({ assignees: userIds });
@@ -301,8 +336,15 @@ export async function loadAuthFile(): Promise<
       username?: string;
     };
     if (creds.apiKey) {
+      // Read-only domain migration: rewrite the legacy swamp.club URL to
+      // the new domain so callers transparently hit the right host. The
+      // CLI's AuthRepository persists the rewrite; here we don't own the
+      // file, so we just translate at the read site.
+      const serverUrl = creds.serverUrl === "https://swamp.club"
+        ? "https://swamp-club.com"
+        : creds.serverUrl ?? "https://swamp-club.com";
       return {
-        serverUrl: creds.serverUrl ?? "https://swamp.club",
+        serverUrl,
         apiKey: creds.apiKey,
         username: creds.username || undefined,
       };
@@ -339,7 +381,7 @@ export async function createSwampClubClient(
     }
   }
 
-  url = url ?? "https://swamp.club";
+  url = url ?? "https://swamp-club.com";
 
   if (!apiKey) {
     logger?.warning(

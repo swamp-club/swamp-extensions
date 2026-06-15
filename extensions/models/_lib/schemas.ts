@@ -1,4 +1,4 @@
-// Swamp, an Automation Framework Copyright (C) 2026 System Initiative, Inc.
+// Swamp, an Automation Framework Copyright (C) 2026 Elder Swamp Club, Inc.
 //
 // This file is part of Swamp.
 //
@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { z } from "npm:zod@4.3.6";
+import { z } from "zod";
 
 // ---------------------------------------------------------------------------
 // Global Arguments
@@ -25,7 +25,7 @@ export const GlobalArgsSchema = z.object({
     "Swamp Club lab issue number (the issue must already exist in swamp-club)",
   ),
   swampClubUrl: z.string().optional().describe(
-    "Swamp Club API base URL (defaults to https://swamp.club)",
+    "Swamp Club API base URL (defaults to https://swamp-club.com)",
   ),
   swampClubApiKey: z.string().optional().describe(
     "Swamp Club API key (defaults to SWAMP_API_KEY env var)",
@@ -46,6 +46,7 @@ export const Phase = z.enum([
   "pr_open",
   "pr_failed",
   "releasing",
+  "notify",
   "done",
 ]);
 
@@ -66,6 +67,7 @@ export const TRANSITIONS: Record<string, Phase[]> = {
     "pr_open",
     "pr_failed",
     "releasing",
+    "notify",
   ],
   triage: ["triaging"],
   plan: ["classified"],
@@ -79,6 +81,8 @@ export const TRANSITIONS: Record<string, Phase[]> = {
   pr_failed: ["pr_open"],
   ship: ["releasing"],
   complete: ["implementing", "pr_open", "releasing"],
+  notify: ["notify"],
+  skip_notify: ["notify"],
 };
 
 // ---------------------------------------------------------------------------
@@ -86,7 +90,7 @@ export const TRANSITIONS: Record<string, Phase[]> = {
 // ---------------------------------------------------------------------------
 
 /** Issue types supported by swamp-club. */
-export const IssueType = z.enum(["bug", "feature", "security"]);
+export const IssueType = z.enum(["bug", "feature", "platform", "security"]);
 export type IssueType = z.infer<typeof IssueType>;
 
 // ---------------------------------------------------------------------------
@@ -106,6 +110,9 @@ export const ContextSchema = z.object({
   body: z.string(),
   type: IssueType,
   status: z.string(),
+  author: z.string().optional().describe(
+    "Username of the issue author (opener). Optional for backwards compatibility with older context data.",
+  ),
   comments: z.array(
     z.object({
       author: z.string(),

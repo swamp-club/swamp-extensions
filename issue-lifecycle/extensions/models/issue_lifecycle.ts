@@ -1,4 +1,4 @@
-// Swamp, an Automation Framework Copyright (C) 2026 System Initiative, Inc.
+// Swamp, an Automation Framework Copyright (C) 2026 Elder Swamp Club, Inc.
 //
 // This file is part of Swamp.
 //
@@ -70,7 +70,7 @@ async function readState(
 
 export const model = {
   type: "@swamp/issue-lifecycle",
-  version: "2026.05.21.1",
+  version: "2026.06.15.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -133,6 +133,13 @@ export const model = {
         "ship() and complete() now transition to notify instead of done. " +
         "New notify method posts a thank-you ripple and transitions to done. " +
         "Issue data now includes author field.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.15.1",
+      description: "Republish with corrected copyright headers " +
+        "(Elder Swamp Club, Inc.) and updated GitHub URLs (swamp-club/swamp). " +
+        "No schema or attribute changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
