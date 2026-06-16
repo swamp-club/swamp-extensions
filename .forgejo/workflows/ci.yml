@@ -27,6 +27,7 @@ jobs:
       kubernetes: ${{ steps.filter.outputs.kubernetes }}
       workflows: ${{ steps.filter.outputs.workflows }}
       cve: ${{ steps.filter.outputs.cve }}
+      software-factory: ${{ steps.filter.outputs.software-factory }}
       ci: ${{ steps.filter.outputs.ci }}
     steps:
       - name: Checkout code
@@ -64,6 +65,7 @@ jobs:
           check_path kubernetes "kubernetes/"
           check_path workflows "workflows/"
           check_path cve "cve/"
+          check_path software-factory "software-factory/"
           check_path ci ".forgejo/workflows/" ".forgejo/prompts/" "scripts/"
 
   vault-check:
@@ -401,6 +403,51 @@ jobs:
       - name: Verify lockfile is up to date
         run: deno install --frozen
 
+  software-factory-check:
+    name: software-factory - ${{ matrix.task }}
+    needs: [changes]
+    if: needs.changes.outputs.software-factory == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [check, lint, fmt, test]
+    defaults:
+      run:
+        working-directory: software-factory
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: deno ${{ matrix.task }}
+        run: |
+          if [ "${{ matrix.task }}" = "fmt" ]; then
+            deno fmt --check extensions/models/ extensions/reports/
+          elif [ "${{ matrix.task }}" = "lint" ]; then
+            deno lint extensions/models/ extensions/reports/
+          elif [ "${{ matrix.task }}" = "test" ]; then
+            deno test --allow-read --allow-write --allow-env --allow-net --allow-sys extensions/models/ extensions/reports/
+          else
+            deno check extensions/models/*.ts extensions/models/_lib/*.ts extensions/reports/*.ts
+          fi
+
+  software-factory-lockfile:
+    name: software-factory - lockfile up to date
+    needs: [changes]
+    if: needs.changes.outputs.software-factory == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: software-factory
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.7.x
+      - name: Verify lockfile is up to date
+        run: deno install --frozen
+
   model-check:
     name: model/${{ matrix.model }} - check
     needs: [changes]
@@ -623,7 +670,7 @@ jobs:
       - name: Check for outdated dependencies
         run: |
           has_outdated=false
-          for lockdir in $(find vault datastore model codegen issue-lifecycle kubernetes workflows cve ssh -name "deno.lock" -exec dirname {} \;); do
+          for lockdir in $(find vault datastore model codegen issue-lifecycle kubernetes workflows cve ssh software-factory -name "deno.lock" -exec dirname {} \;); do
             output=$(cd "$lockdir" && deno outdated 2>&1) || true
             if [ -n "$output" ]; then
               echo "::warning::Outdated dependencies in $lockdir"
@@ -663,6 +710,8 @@ jobs:
         workflows-lockfile,
         cve-check,
         cve-lockfile,
+        software-factory-check,
+        software-factory-lockfile,
         model-check,
         model-lockfile,
         aws-check,
@@ -798,6 +847,8 @@ jobs:
         workflows-lockfile,
         cve-check,
         cve-lockfile,
+        software-factory-check,
+        software-factory-lockfile,
         aws-check,
         aws-lockfile,
         cloudflare-check,
@@ -816,7 +867,7 @@ jobs:
       !failure() && !cancelled() &&
       github.event_name == 'pull_request' &&
       github.event.pull_request.draft == false &&
-      (needs.changes.outputs.vaults == 'true' || needs.changes.outputs.datastores == 'true' || needs.changes.outputs.issue-lifecycle == 'true' || needs.changes.outputs.kubernetes == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.cve == 'true' || needs.changes.outputs.codegen == 'true')
+      (needs.changes.outputs.vaults == 'true' || needs.changes.outputs.datastores == 'true' || needs.changes.outputs.issue-lifecycle == 'true' || needs.changes.outputs.kubernetes == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.cve == 'true' || needs.changes.outputs.software-factory == 'true' || needs.changes.outputs.codegen == 'true')
     concurrency:
       group: claude-adversarial-review-${{ github.event.pull_request.number }}
       cancel-in-progress: true
@@ -1042,6 +1093,8 @@ jobs:
         workflows-lockfile,
         cve-check,
         cve-lockfile,
+        software-factory-check,
+        software-factory-lockfile,
         model-check,
         model-lockfile,
         aws-check,
