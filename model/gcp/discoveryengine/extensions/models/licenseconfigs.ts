@@ -208,6 +208,7 @@ const GlobalArgsSchema = z.object({
     "SUBSCRIPTION_TIER_EDU_EMERGING",
     "SUBSCRIPTION_TIER_EDU_PRO_EMERGING",
     "SUBSCRIPTION_TIER_FRONTLINE_STARTER",
+    "SUBSCRIPTION_TIER_CONSUMPTION_ONLY",
   ]).describe("Required. Subscription tier information for the license config.")
     .optional(),
   licenseConfigId: z.string().describe(
@@ -323,6 +324,7 @@ const InputsSchema = z.object({
     "SUBSCRIPTION_TIER_EDU_EMERGING",
     "SUBSCRIPTION_TIER_EDU_PRO_EMERGING",
     "SUBSCRIPTION_TIER_FRONTLINE_STARTER",
+    "SUBSCRIPTION_TIER_CONSUMPTION_ONLY",
   ]).describe("Required. Subscription tier information for the license config.")
     .optional(),
   licenseConfigId: z.string().describe(
@@ -348,7 +350,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine LicenseConfigs. Registered at `@swamp/gcp/discoveryengine/licenseconfigs`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/licenseconfigs",
-  version: "2026.06.08.1",
+  version: "2026.06.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -440,6 +442,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -47,10 +47,15 @@ const SourceLogsConfigurationSchema = z.object({
   EncryptedLogGroupStrategy: z.enum(["ALLOW", "SKIP"]),
 });
 
+const SourceMetricsConfigurationSchema = z.object({
+  MetricsSelectionCriteria: z.string().min(1).max(2000).optional(),
+});
+
 const CentralizationRuleSourceSchema = z.object({
   Regions: z.array(z.string().min(1)),
   Scope: z.string().min(1).max(2000).optional(),
   SourceLogsConfiguration: SourceLogsConfigurationSchema.optional(),
+  SourceMetricsConfiguration: SourceMetricsConfigurationSchema.optional(),
 });
 
 const LogsEncryptionConfigurationSchema = z.object({
@@ -86,11 +91,21 @@ const DestinationLogsConfigurationSchema = z.object({
   LogGroupNameConfiguration: LogGroupNameConfigurationSchema.optional(),
 });
 
+const MetricsBackupConfigurationSchema = z.object({
+  Region: z.string().min(1),
+});
+
+const DestinationMetricsConfigurationSchema = z.object({
+  BackupConfiguration: MetricsBackupConfigurationSchema.optional(),
+});
+
 const CentralizationRuleDestinationSchema = z.object({
   Region: z.string().min(1),
   Account: z.string().min(12).max(12).regex(new RegExp("^[0-9]{12}$"))
     .optional(),
   DestinationLogsConfiguration: DestinationLogsConfigurationSchema.optional(),
+  DestinationMetricsConfiguration: DestinationMetricsConfigurationSchema
+    .optional(),
 });
 
 const TagSchema = z.object({
@@ -176,7 +191,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ObservabilityAdmin OrganizationCentralizationRule. Registered at `@swamp/aws/observabilityadmin/organization-centralization-rule`. */
 export const model = {
   type: "@swamp/aws/observabilityadmin/organization-centralization-rule",
-  version: "2026.06.15.1",
+  version: "2026.06.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -215,6 +230,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

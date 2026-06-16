@@ -264,7 +264,7 @@ const GlobalArgsSchema = z.object({
       "FEATURE_STATE_OFF",
     ]),
   ).describe(
-    "Optional. Feature config for the engine to opt in or opt out of features. Supported keys: * `*`: all features, if it's present, all other feature state settings are ignored. * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `disable-mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `disable-canvas-workspace` * `disable-skills` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence`",
+    "Optional. Feature config for the engine to opt in or opt out of features. Supported keys: * `*`: all features, if it's present, all other feature state settings are ignored. * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `disable-skills` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence`",
   ).optional(),
   industryVertical: z.enum([
     "INDUSTRY_VERTICAL_UNSPECIFIED",
@@ -385,6 +385,7 @@ const GlobalArgsSchema = z.object({
       "SUBSCRIPTION_TIER_EDU_EMERGING",
       "SUBSCRIPTION_TIER_EDU_PRO_EMERGING",
       "SUBSCRIPTION_TIER_FRONTLINE_STARTER",
+      "SUBSCRIPTION_TIER_CONSUMPTION_ONLY",
     ]).describe(
       "Optional. The required subscription tier of this engine. They cannot be modified after engine creation. If the required subscription tier is search, user with higher license tier like assist can still access the standalone app associated with this engine.",
     ).optional(),
@@ -622,7 +623,7 @@ const InputsSchema = z.object({
       "FEATURE_STATE_OFF",
     ]),
   ).describe(
-    "Optional. Feature config for the engine to opt in or opt out of features. Supported keys: * `*`: all features, if it's present, all other feature state settings are ignored. * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `disable-mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `disable-canvas-workspace` * `disable-skills` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence`",
+    "Optional. Feature config for the engine to opt in or opt out of features. Supported keys: * `*`: all features, if it's present, all other feature state settings are ignored. * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `disable-skills` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence`",
   ).optional(),
   industryVertical: z.enum([
     "INDUSTRY_VERTICAL_UNSPECIFIED",
@@ -743,6 +744,7 @@ const InputsSchema = z.object({
       "SUBSCRIPTION_TIER_EDU_EMERGING",
       "SUBSCRIPTION_TIER_EDU_PRO_EMERGING",
       "SUBSCRIPTION_TIER_FRONTLINE_STARTER",
+      "SUBSCRIPTION_TIER_CONSUMPTION_ONLY",
     ]).describe(
       "Optional. The required subscription tier of this engine. They cannot be modified after engine creation. If the required subscription tier is search, user with higher license tier like assist can still access the standalone app associated with this engine.",
     ).optional(),
@@ -788,7 +790,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine Collections.Engines. Registered at `@swamp/gcp/discoveryengine/collections-engines`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-engines",
-  version: "2026.06.09.1",
+  version: "2026.06.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -907,6 +909,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.09.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -110,9 +110,6 @@ const GlobalArgsSchema = z.object({
     QueryString: z.string().describe(
       "The query string to execute against the specified log groups.",
     ),
-    QueryLanguage: z.string().describe(
-      "The query language to use for the scheduled query (CWLI or SQL).",
-    ),
     AggregationExpression: z.string().describe(
       "The aggregation expression for the scheduled query, e.g. count(*) or avg(latency) by host.",
     ),
@@ -151,7 +148,6 @@ const StateSchema = z.object({
   TreatMissingData: z.string().optional(),
   ScheduledQueryConfiguration: z.object({
     QueryString: z.string(),
-    QueryLanguage: z.string(),
     AggregationExpression: z.string(),
     LogGroupIdentifiers: z.array(z.string()),
     ScheduledQueryRoleARN: z.string(),
@@ -205,9 +201,6 @@ const InputsSchema = z.object({
     QueryString: z.string().describe(
       "The query string to execute against the specified log groups.",
     ).optional(),
-    QueryLanguage: z.string().describe(
-      "The query language to use for the scheduled query (CWLI or SQL).",
-    ).optional(),
     AggregationExpression: z.string().describe(
       "The aggregation expression for the scheduled query, e.g. count(*) or avg(latency) by host.",
     ).optional(),
@@ -252,7 +245,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch LogAlarm. Registered at `@swamp/aws/cloudwatch/log-alarm`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/log-alarm",
-  version: "2026.06.15.1",
+  version: "2026.06.16.1",
+  upgrades: [
+    {
+      toVersion: "2026.06.16.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

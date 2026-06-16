@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/elementalinference/feed` to see the
-full list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/elementalinference/dictionary` to see
+the full list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -47,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new feed model
-swamp model create @swamp/aws/elementalinference/feed my-feed
+# Create a new dictionary model
+swamp model create @swamp/aws/elementalinference/dictionary my-dictionary
 
 # Edit the model to configure its properties
-swamp model edit my-feed
+swamp model edit my-dictionary
 
 # Create the resource in AWS
-swamp model method run my-feed create
+swamp model method run my-dictionary create
 
 # Sync current state from AWS
-swamp model method run my-feed sync
+swamp model method run my-dictionary sync
 ```
 
 ## License

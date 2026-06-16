@@ -17,13 +17,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/aws/resiliencehubv2/user-journey
+// Auto-generated extension model for @swamp/aws/neptune/global-cluster
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for ResilienceHubV2 UserJourney (AWS::ResilienceHubV2::UserJourney).
+ * Swamp extension model for Neptune GlobalCluster (AWS::Neptune::GlobalCluster).
  *
  * Wraps the CloudFormation resource type as a swamp model so create,
  * get, update, delete, and sync can be driven through `swamp model`.
@@ -41,10 +41,16 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
-const GlobalArgsSchema = z.object({
-  name: z.string().describe(
-    "Instance name for this resource (used as the unique identifier in the factory pattern)",
+const TagSchema = z.object({
+  Key: z.string().min(1).max(128).describe(
+    "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
   ),
+  Value: z.string().min(0).max(256).describe(
+    "The value for the tag. You can specify a value that is 0 to 256 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
+  ).optional(),
+});
+
+const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -57,55 +63,66 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  SystemIdentifier: z.string().min(1).max(2048).describe(
-    "The system ARN or system ID that owns this user journey.",
-  ),
-  Name: z.string().regex(new RegExp("^[A-Za-z0-9][A-Za-z0-9 _\\-]{1,59}$"))
-    .describe("The name of the user journey."),
-  Description: z.string().max(500).describe(
-    "The description of the user journey.",
+  GlobalClusterIdentifier: z.string().min(1).max(255).regex(
+    new RegExp("^[A-Za-z][0-9A-Za-z-:._]*$"),
+  ).describe("The cluster identifier of the global database cluster.")
+    .optional(),
+  SourceDBClusterIdentifier: z.string().describe(
+    "The Amazon Resource Name (ARN) of an existing Neptune DB cluster to use as the primary cluster of the new global database.",
   ).optional(),
-  PolicyArn: z.string().regex(
-    new RegExp(
-      "^arn:(aws|aws-cn|aws-iso|aws-iso-[a-z]{1}|aws-us-gov):[A-Za-z0-9][A-Za-z0-9_/.-]{0,62}:([a-z]{2}-((iso[a-z]{0,1}-)|(gov-)){0,1}[a-z]+-[0-9]):[0-9]{12}:[A-Za-z0-9/][A-Za-z0-9:_/+.-]{0,1023}$",
-    ),
-  ).describe(
-    "The ARN of the resilience policy to associate with this user journey.",
+  Engine: z.enum(["neptune"]).describe("The name of the database engine.")
+    .optional(),
+  EngineVersion: z.string().describe(
+    "The version number of the database engine.",
+  ).optional(),
+  DeletionProtection: z.boolean().describe(
+    "Whether deletion protection is enabled.",
+  ).optional(),
+  StorageEncrypted: z.boolean().describe(
+    "Whether the global database cluster is storage encrypted.",
+  ).optional(),
+  Tags: z.array(TagSchema).describe(
+    "An array of key-value pairs to apply to this resource.",
   ).optional(),
 });
 
 const StateSchema = z.object({
-  SystemIdentifier: z.string(),
-  UserJourneyId: z.string(),
-  Name: z.string().optional(),
-  Description: z.string().optional(),
-  PolicyArn: z.string().optional(),
-  CreatedAt: z.string().optional(),
-  UpdatedAt: z.string().optional(),
+  GlobalClusterIdentifier: z.string(),
+  SourceDBClusterIdentifier: z.string().optional(),
+  Engine: z.string().optional(),
+  EngineVersion: z.string().optional(),
+  DeletionProtection: z.boolean().optional(),
+  StorageEncrypted: z.boolean().optional(),
+  Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().optional(),
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  SystemIdentifier: z.string().min(1).max(2048).describe(
-    "The system ARN or system ID that owns this user journey.",
+  GlobalClusterIdentifier: z.string().min(1).max(255).regex(
+    new RegExp("^[A-Za-z][0-9A-Za-z-:._]*$"),
+  ).describe("The cluster identifier of the global database cluster.")
+    .optional(),
+  SourceDBClusterIdentifier: z.string().describe(
+    "The Amazon Resource Name (ARN) of an existing Neptune DB cluster to use as the primary cluster of the new global database.",
   ).optional(),
-  Name: z.string().regex(new RegExp("^[A-Za-z0-9][A-Za-z0-9 _\\-]{1,59}$"))
-    .describe("The name of the user journey.").optional(),
-  Description: z.string().max(500).describe(
-    "The description of the user journey.",
+  Engine: z.enum(["neptune"]).describe("The name of the database engine.")
+    .optional(),
+  EngineVersion: z.string().describe(
+    "The version number of the database engine.",
   ).optional(),
-  PolicyArn: z.string().regex(
-    new RegExp(
-      "^arn:(aws|aws-cn|aws-iso|aws-iso-[a-z]{1}|aws-us-gov):[A-Za-z0-9][A-Za-z0-9_/.-]{0,62}:([a-z]{2}-((iso[a-z]{0,1}-)|(gov-)){0,1}[a-z]+-[0-9]):[0-9]{12}:[A-Za-z0-9/][A-Za-z0-9:_/+.-]{0,1023}$",
-    ),
-  ).describe(
-    "The ARN of the resilience policy to associate with this user journey.",
+  DeletionProtection: z.boolean().describe(
+    "Whether deletion protection is enabled.",
+  ).optional(),
+  StorageEncrypted: z.boolean().describe(
+    "Whether the global database cluster is storage encrypted.",
+  ).optional(),
+  Tags: z.array(TagSchema).describe(
+    "An array of key-value pairs to apply to this resource.",
   ).optional(),
 });
 
@@ -125,37 +142,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
   };
 }
 
-/** Swamp extension model for ResilienceHubV2 UserJourney. Registered at `@swamp/aws/resiliencehubv2/user-journey`. */
+/** Swamp extension model for Neptune GlobalCluster. Registered at `@swamp/aws/neptune/global-cluster`. */
 export const model = {
-  type: "@swamp/aws/resiliencehubv2/user-journey",
+  type: "@swamp/aws/neptune/global-cluster",
   version: "2026.06.16.1",
-  upgrades: [
-    {
-      toVersion: "2026.06.06.2",
-      description: "Added: accessKeyId, secretAccessKey, sessionToken, region",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.15.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.16.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "ResilienceHubV2 UserJourney resource state",
+      description: "Neptune GlobalCluster resource state",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -163,26 +158,27 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a ResilienceHubV2 UserJourney",
+      description: "Create a Neptune GlobalCluster",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {
-          if (key === "name") continue;
           if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await createResource(
-          "AWS::ResilienceHubV2::UserJourney",
+          "AWS::Neptune::GlobalCluster",
           desiredState,
           credentials,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName =
+          ((result.GlobalClusterIdentifier ?? g.GlobalClusterIdentifier)
+            ?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+              /\.\./g,
+              "_",
+            ).replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -192,24 +188,23 @@ export const model = {
       },
     },
     get: {
-      description: "Get a ResilienceHubV2 UserJourney",
+      description: "Get a Neptune GlobalCluster",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the ResilienceHubV2 UserJourney",
+          "The primary identifier of the Neptune GlobalCluster",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const result = await readResource(
-          "AWS::ResilienceHubV2::UserJourney",
+          "AWS::Neptune::GlobalCluster",
           args.identifier,
           credentials,
         ) as StateData;
-        const instanceName =
-          (context.globalArgs.name?.toString() ?? args.identifier).replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = ((result.GlobalClusterIdentifier ??
+          context.globalArgs.GlobalClusterIdentifier)?.toString() ??
+          args.identifier).replace(/[\/\\]/g, "_").replace(/\.\./g, "_")
+          .replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -219,15 +214,16 @@ export const model = {
       },
     },
     update: {
-      description: "Update a ResilienceHubV2 UserJourney",
+      description: "Update a Neptune GlobalCluster",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildCredentials(g);
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName =
+          (g.GlobalClusterIdentifier?.toString() ?? "current").replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType,
           context.modelId,
@@ -237,33 +233,31 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const idParts = [
-          existing.SystemIdentifier?.toString(),
-          existing.UserJourneyId?.toString(),
-        ];
-        if (idParts.some((p) => !p)) {
-          throw new Error(
-            "Missing primary identifier fields in existing state",
-          );
+        const identifier = existing.GlobalClusterIdentifier?.toString();
+        if (!identifier) {
+          throw new Error("No identifier found in existing state");
         }
-        const identifier = idParts.join("|");
         const currentState = await readResource(
-          "AWS::ResilienceHubV2::UserJourney",
+          "AWS::Neptune::GlobalCluster",
           identifier,
           credentials,
         ) as StateData;
         const desiredState: Record<string, unknown> = { ...currentState };
         for (const [key, value] of Object.entries(g)) {
-          if (key === "name") continue;
           if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await updateResource(
-          "AWS::ResilienceHubV2::UserJourney",
+          "AWS::Neptune::GlobalCluster",
           identifier,
           currentState,
           desiredState,
-          ["SystemIdentifier", "Name"],
+          [
+            "GlobalClusterIdentifier",
+            "SourceDBClusterIdentifier",
+            "Engine",
+            "StorageEncrypted",
+          ],
           credentials,
         );
         const handle = await context.writeResource(
@@ -275,24 +269,23 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete a ResilienceHubV2 UserJourney",
+      description: "Delete a Neptune GlobalCluster",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the ResilienceHubV2 UserJourney",
+          "The primary identifier of the Neptune GlobalCluster",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const { existed } = await deleteResource(
-          "AWS::ResilienceHubV2::UserJourney",
+          "AWS::Neptune::GlobalCluster",
           args.identifier,
           credentials,
         );
         const instanceName =
-          (context.globalArgs.name?.toString() ?? args.identifier).replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          (context.globalArgs.GlobalClusterIdentifier?.toString() ??
+            args.identifier).replace(/[\/\\]/g, "_").replace(/\.\./g, "_")
+            .replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           identifier: args.identifier,
           existed,
@@ -303,15 +296,16 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync ResilienceHubV2 UserJourney state from AWS",
+      description: "Sync Neptune GlobalCluster state from AWS",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildCredentials(g);
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName =
+          (g.GlobalClusterIdentifier?.toString() ?? "current").replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType,
           context.modelId,
@@ -321,19 +315,13 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const idParts = [
-          existing.SystemIdentifier?.toString(),
-          existing.UserJourneyId?.toString(),
-        ];
-        if (idParts.some((p) => !p)) {
-          throw new Error(
-            "Missing primary identifier fields in existing state",
-          );
+        const identifier = existing.GlobalClusterIdentifier?.toString();
+        if (!identifier) {
+          throw new Error("No identifier found in existing state");
         }
-        const identifier = idParts.join("|");
         try {
           const result = await readResource(
-            "AWS::ResilienceHubV2::UserJourney",
+            "AWS::Neptune::GlobalCluster",
             identifier,
             credentials,
           ) as StateData;

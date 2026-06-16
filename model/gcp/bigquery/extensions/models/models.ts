@@ -25,7 +25,7 @@
 /**
  * Swamp extension model for Google Cloud BigQuery Models.
  *
- * Gets the specified model resource by model ID.
+ * Gets the specified model resource by model ID. # IAM Permissions Requires the `bigquery.models.getMetadata` permission on the model.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -4956,7 +4956,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Models. Registered at `@swamp/gcp/bigquery/models`. */
 export const model = {
   type: "@swamp/gcp/bigquery/models",
-  version: "2026.06.08.1",
+  version: "2026.06.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -5038,12 +5038,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.16.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Gets the specified model resource by model ID.",
+      description:
+        "Gets the specified model resource by model ID. # IAM Permissions Requires the...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,

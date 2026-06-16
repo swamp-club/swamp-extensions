@@ -244,6 +244,28 @@ const GlobalArgsSchema = z.object({
       "Data Asset - a resource within instance of the system, reachable under specified endpoint. For example a database name in a SQL DB.",
     ).optional(),
     authentication: z.object({
+      parameters: z.record(
+        z.string(),
+        z.object({
+          boolValue: z.boolean().describe("A boolean parameter value.")
+            .optional(),
+          doubleValue: z.number().describe("A double parameter value.")
+            .optional(),
+          int32Value: z.number().int().describe("An int32 parameter value.")
+            .optional(),
+          secretValue: z.object({
+            plaintext: z.unknown().describe("Input only. Secret as plaintext.")
+              .optional(),
+            secretType: z.unknown().describe(
+              "Output only. Indicates type of secret. Can be used to check type of stored secret value even if it's `INPUT_ONLY`.",
+            ).optional(),
+          }).describe("Secret value parameter.").optional(),
+          stringValue: z.string().describe("A string parameter value.")
+            .optional(),
+        }),
+      ).describe(
+        "Optional. A map of name-value pairs for authentication-specific parameters. Extra configuration parameters, that are not standardized in authentication. To update a single parameter value call ConnectionService.UpdateConnection with `update_mask` set to `configuration.authentication.parameters.parameter_id`. If parameter id does not fit `[a-zA-Z0-9_]+` pattern, it should be escaped with backticks - for example ``configuration.authentication.parameters.`parameter id` ``.",
+      ).optional(),
       serviceAccount: z.string().describe(
         "Output only. Google-managed service account associated with this connection, e.g., `service-{project_number}@gcp-sa-bigqueryconnection.iam.gserviceaccount.com`. BigQuery jobs using this connection will act as `service_account` identity while connecting to the datasource.",
       ).optional(),
@@ -273,6 +295,28 @@ const GlobalArgsSchema = z.object({
         ).optional(),
       }).describe("Private Service Connect configuration.").optional(),
     }).describe("Network related configuration.").optional(),
+    parameters: z.record(
+      z.string(),
+      z.object({
+        boolValue: z.boolean().describe("A boolean parameter value.")
+          .optional(),
+        doubleValue: z.number().describe("A double parameter value.")
+          .optional(),
+        int32Value: z.number().int().describe("An int32 parameter value.")
+          .optional(),
+        secretValue: z.object({
+          plaintext: z.string().describe("Input only. Secret as plaintext.")
+            .optional(),
+          secretType: z.enum(["SECRET_TYPE_UNSPECIFIED", "PLAINTEXT"]).describe(
+            "Output only. Indicates type of secret. Can be used to check type of stored secret value even if it's `INPUT_ONLY`.",
+          ).optional(),
+        }).describe("Secret value parameter.").optional(),
+        stringValue: z.string().describe("A string parameter value.")
+          .optional(),
+      }),
+    ).describe(
+      "Optional. A map of name-value pairs for connector-specific parameters. Extra configuration parameters, that are not standardized in configuration sections. To update a single parameter value call ConnectionService.UpdateConnection with `update_mask` set to `configuration.parameters.parameter_id`. If parameter id does not fit `[a-zA-Z0-9_]+` pattern, it should be escaped with backticks - for example ``configuration.parameters.`parameter id` ``.",
+    ).optional(),
   }).describe(
     "Represents concrete parameter values for Connector Configuration.",
   ).optional(),
@@ -363,6 +407,7 @@ const StateSchema = z.object({
       googleCloudResource: z.string(),
     }),
     authentication: z.object({
+      parameters: z.record(z.string(), z.unknown()),
       serviceAccount: z.string(),
       usernamePassword: z.object({
         password: z.object({
@@ -381,6 +426,7 @@ const StateSchema = z.object({
         networkAttachment: z.string(),
       }),
     }),
+    parameters: z.record(z.string(), z.unknown()),
   }).optional(),
   creationTime: z.string().optional(),
   description: z.string().optional(),
@@ -504,6 +550,28 @@ const InputsSchema = z.object({
       "Data Asset - a resource within instance of the system, reachable under specified endpoint. For example a database name in a SQL DB.",
     ).optional(),
     authentication: z.object({
+      parameters: z.record(
+        z.string(),
+        z.object({
+          boolValue: z.boolean().describe("A boolean parameter value.")
+            .optional(),
+          doubleValue: z.number().describe("A double parameter value.")
+            .optional(),
+          int32Value: z.number().int().describe("An int32 parameter value.")
+            .optional(),
+          secretValue: z.object({
+            plaintext: z.unknown().describe("Input only. Secret as plaintext.")
+              .optional(),
+            secretType: z.unknown().describe(
+              "Output only. Indicates type of secret. Can be used to check type of stored secret value even if it's `INPUT_ONLY`.",
+            ).optional(),
+          }).describe("Secret value parameter.").optional(),
+          stringValue: z.string().describe("A string parameter value.")
+            .optional(),
+        }),
+      ).describe(
+        "Optional. A map of name-value pairs for authentication-specific parameters. Extra configuration parameters, that are not standardized in authentication. To update a single parameter value call ConnectionService.UpdateConnection with `update_mask` set to `configuration.authentication.parameters.parameter_id`. If parameter id does not fit `[a-zA-Z0-9_]+` pattern, it should be escaped with backticks - for example ``configuration.authentication.parameters.`parameter id` ``.",
+      ).optional(),
       serviceAccount: z.string().describe(
         "Output only. Google-managed service account associated with this connection, e.g., `service-{project_number}@gcp-sa-bigqueryconnection.iam.gserviceaccount.com`. BigQuery jobs using this connection will act as `service_account` identity while connecting to the datasource.",
       ).optional(),
@@ -533,6 +601,28 @@ const InputsSchema = z.object({
         ).optional(),
       }).describe("Private Service Connect configuration.").optional(),
     }).describe("Network related configuration.").optional(),
+    parameters: z.record(
+      z.string(),
+      z.object({
+        boolValue: z.boolean().describe("A boolean parameter value.")
+          .optional(),
+        doubleValue: z.number().describe("A double parameter value.")
+          .optional(),
+        int32Value: z.number().int().describe("An int32 parameter value.")
+          .optional(),
+        secretValue: z.object({
+          plaintext: z.string().describe("Input only. Secret as plaintext.")
+            .optional(),
+          secretType: z.enum(["SECRET_TYPE_UNSPECIFIED", "PLAINTEXT"]).describe(
+            "Output only. Indicates type of secret. Can be used to check type of stored secret value even if it's `INPUT_ONLY`.",
+          ).optional(),
+        }).describe("Secret value parameter.").optional(),
+        stringValue: z.string().describe("A string parameter value.")
+          .optional(),
+      }),
+    ).describe(
+      "Optional. A map of name-value pairs for connector-specific parameters. Extra configuration parameters, that are not standardized in configuration sections. To update a single parameter value call ConnectionService.UpdateConnection with `update_mask` set to `configuration.parameters.parameter_id`. If parameter id does not fit `[a-zA-Z0-9_]+` pattern, it should be escaped with backticks - for example ``configuration.parameters.`parameter id` ``.",
+    ).optional(),
   }).describe(
     "Represents concrete parameter values for Connector Configuration.",
   ).optional(),
@@ -595,7 +685,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Connection Connections. Registered at `@swamp/gcp/bigqueryconnection/connections`. */
 export const model = {
   type: "@swamp/gcp/bigqueryconnection/connections",
-  version: "2026.06.08.1",
+  version: "2026.06.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -669,6 +759,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

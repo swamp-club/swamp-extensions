@@ -132,11 +132,8 @@ const GlobalArgsSchema = z.object({
     ),
   }).describe("The VPC configuration for the capacity provider."),
   PropagateTags: z.object({
-    Mode: z.enum(["None", "Explicit"]).describe("The mode for tag propagation.")
-      .optional(),
-    ExplicitTags: z.array(TagSchema).describe(
-      "A list of tags to explicitly propagate to managed resources.",
-    ).optional(),
+    Mode: z.enum(["None", "Explicit"]).optional(),
+    ExplicitTags: z.array(TagSchema).optional(),
   }).optional(),
 });
 
@@ -241,11 +238,8 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe("The VPC configuration for the capacity provider.").optional(),
   PropagateTags: z.object({
-    Mode: z.enum(["None", "Explicit"]).describe("The mode for tag propagation.")
-      .optional(),
-    ExplicitTags: z.array(TagSchema).describe(
-      "A list of tags to explicitly propagate to managed resources.",
-    ).optional(),
+    Mode: z.enum(["None", "Explicit"]).optional(),
+    ExplicitTags: z.array(TagSchema).optional(),
   }).optional(),
 });
 
@@ -268,7 +262,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda CapacityProvider. Registered at `@swamp/aws/lambda/capacity-provider`. */
 export const model = {
   type: "@swamp/aws/lambda/capacity-provider",
-  version: "2026.06.15.1",
+  version: "2026.06.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -317,6 +311,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

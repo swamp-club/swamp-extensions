@@ -17,13 +17,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/aws/ssm/association
+// Auto-generated extension model for @swamp/aws/elementalinference/dictionary
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for SSM Association (AWS::SSM::Association).
+ * Swamp extension model for ElementalInference Dictionary (AWS::ElementalInference::Dictionary).
  *
  * Wraps the CloudFormation resource type as a swamp model so create,
  * get, update, delete, and sync can be driven through `swamp model`.
@@ -41,31 +41,6 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
-const TargetSchema = z.object({
-  Values: z.array(z.string()),
-  Key: z.string().regex(
-    new RegExp(
-      "^[\\p{L}\\p{Z}\\p{N}_.:/=+\\-@]{1,128}$|resource-groups:Name",
-      "u",
-    ),
-  ),
-});
-
-const S3OutputLocationSchema = z.object({
-  OutputS3KeyPrefix: z.string().max(1024).optional(),
-  OutputS3Region: z.string().min(3).max(20).optional(),
-  OutputS3BucketName: z.string().min(3).max(63).optional(),
-});
-
-const TagSchema = z.object({
-  Value: z.string().min(0).max(256).regex(
-    new RegExp("^([\\p{L}\\p{Z}\\p{N}_.:/=+\\-@]*)$", "u"),
-  ).describe("The value of the tag."),
-  Key: z.string().min(1).max(128).regex(
-    new RegExp("^([\\p{L}\\p{Z}\\p{N}_.:/=+\\-@]*)$", "u"),
-  ).describe("The name of the tag."),
-});
-
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -82,82 +57,21 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  AssociationName: z.string().regex(new RegExp("^[a-zA-Z0-9_\\-.]{3,128}$"))
-    .describe("The name of the association.").optional(),
-  CalendarNames: z.array(z.string()).optional(),
-  ScheduleExpression: z.string().min(1).max(256).describe(
-    "A Cron or Rate expression that specifies when the association is applied to the target.",
-  ).optional(),
-  MaxErrors: z.string().regex(
-    new RegExp("^([1-9][0-9]{0,6}|[0]|[1-9][0-9]%|[0-9]%|100%)$"),
-  ).optional(),
-  Parameters: z.record(z.string(), z.array(z.string())).describe(
-    "Parameter values that the SSM document uses at runtime.",
-  ).optional(),
-  InstanceId: z.string().regex(
-    new RegExp("(^i-(\\w{8}|\\w{17})$)|(^mi-\\w{17}$)"),
-  ).describe("The ID of the instance that the SSM document is associated with.")
-    .optional(),
-  AssociationDispatchAssumeRole: z.string().min(1).max(512).regex(
-    new RegExp("arn:aws(-[^:]+)?:iam::[0-9]{12}:role/.+"),
-  ).describe("A role used by association to take actions on your behalf.")
-    .optional(),
-  WaitForSuccessTimeoutSeconds: z.number().int().min(15).max(172800).optional(),
-  MaxConcurrency: z.string().regex(
-    new RegExp("^([1-9][0-9]{0,6}|[1-9][0-9]%|[1-9]%|100%)$"),
-  ).optional(),
-  ComplianceSeverity: z.enum([
-    "CRITICAL",
-    "HIGH",
-    "MEDIUM",
-    "LOW",
-    "UNSPECIFIED",
-  ]).optional(),
-  Targets: z.array(TargetSchema).describe(
-    "The targets that the SSM document sends commands to.",
-  ).optional(),
-  SyncCompliance: z.enum(["AUTO", "MANUAL"]).optional(),
-  OutputLocation: z.object({
-    S3Location: S3OutputLocationSchema.optional(),
-  }).optional(),
-  ScheduleOffset: z.number().int().min(1).max(6).optional(),
-  Name: z.string().regex(new RegExp("^[a-zA-Z0-9_\\-.:/]{3,200}$")).describe(
-    "The name of the SSM document.",
+  Entries: z.string().max(40960).optional(),
+  Language: z.enum(["eng", "fra", "ita", "deu", "spa", "por"]),
+  Name: z.string().regex(
+    new RegExp("^[a-zA-Z0-9]([a-zA-Z0-9-_]{0,126}[a-zA-Z0-9])?$"),
   ),
-  ApplyOnlyAtCronInterval: z.boolean().optional(),
-  DocumentVersion: z.string().regex(
-    new RegExp("([$]LATEST|[$]DEFAULT|^[1-9][0-9]*$)"),
-  ).describe("The version of the SSM document to associate with the target.")
-    .optional(),
-  AutomationTargetParameterName: z.string().min(1).max(50).optional(),
-  Tags: z.array(TagSchema).describe(
-    "A key-value pair to associate with a resource.",
-  ).optional(),
+  Tags: z.record(z.string(), z.string().max(256)).optional(),
 });
 
 const StateSchema = z.object({
-  AssociationName: z.string().optional(),
-  CalendarNames: z.array(z.string()).optional(),
-  ScheduleExpression: z.string().optional(),
-  MaxErrors: z.string().optional(),
-  Parameters: z.record(z.string(), z.unknown()).optional(),
-  InstanceId: z.string().optional(),
-  AssociationDispatchAssumeRole: z.string().optional(),
-  WaitForSuccessTimeoutSeconds: z.number().optional(),
-  MaxConcurrency: z.string().optional(),
-  ComplianceSeverity: z.string().optional(),
-  Targets: z.array(TargetSchema).optional(),
-  SyncCompliance: z.string().optional(),
-  OutputLocation: z.object({
-    S3Location: S3OutputLocationSchema,
-  }).optional(),
-  ScheduleOffset: z.number().optional(),
+  Arn: z.string().optional(),
+  Entries: z.string().optional(),
+  Id: z.string(),
+  Language: z.string().optional(),
   Name: z.string().optional(),
-  ApplyOnlyAtCronInterval: z.boolean().optional(),
-  DocumentVersion: z.string().optional(),
-  AssociationId: z.string(),
-  AutomationTargetParameterName: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -168,57 +82,12 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  AssociationName: z.string().regex(new RegExp("^[a-zA-Z0-9_\\-.]{3,128}$"))
-    .describe("The name of the association.").optional(),
-  CalendarNames: z.array(z.string()).optional(),
-  ScheduleExpression: z.string().min(1).max(256).describe(
-    "A Cron or Rate expression that specifies when the association is applied to the target.",
+  Entries: z.string().max(40960).optional(),
+  Language: z.enum(["eng", "fra", "ita", "deu", "spa", "por"]).optional(),
+  Name: z.string().regex(
+    new RegExp("^[a-zA-Z0-9]([a-zA-Z0-9-_]{0,126}[a-zA-Z0-9])?$"),
   ).optional(),
-  MaxErrors: z.string().regex(
-    new RegExp("^([1-9][0-9]{0,6}|[0]|[1-9][0-9]%|[0-9]%|100%)$"),
-  ).optional(),
-  Parameters: z.record(z.string(), z.array(z.string())).describe(
-    "Parameter values that the SSM document uses at runtime.",
-  ).optional(),
-  InstanceId: z.string().regex(
-    new RegExp("(^i-(\\w{8}|\\w{17})$)|(^mi-\\w{17}$)"),
-  ).describe("The ID of the instance that the SSM document is associated with.")
-    .optional(),
-  AssociationDispatchAssumeRole: z.string().min(1).max(512).regex(
-    new RegExp("arn:aws(-[^:]+)?:iam::[0-9]{12}:role/.+"),
-  ).describe("A role used by association to take actions on your behalf.")
-    .optional(),
-  WaitForSuccessTimeoutSeconds: z.number().int().min(15).max(172800).optional(),
-  MaxConcurrency: z.string().regex(
-    new RegExp("^([1-9][0-9]{0,6}|[1-9][0-9]%|[1-9]%|100%)$"),
-  ).optional(),
-  ComplianceSeverity: z.enum([
-    "CRITICAL",
-    "HIGH",
-    "MEDIUM",
-    "LOW",
-    "UNSPECIFIED",
-  ]).optional(),
-  Targets: z.array(TargetSchema).describe(
-    "The targets that the SSM document sends commands to.",
-  ).optional(),
-  SyncCompliance: z.enum(["AUTO", "MANUAL"]).optional(),
-  OutputLocation: z.object({
-    S3Location: S3OutputLocationSchema.optional(),
-  }).optional(),
-  ScheduleOffset: z.number().int().min(1).max(6).optional(),
-  Name: z.string().regex(new RegExp("^[a-zA-Z0-9_\\-.:/]{3,200}$")).describe(
-    "The name of the SSM document.",
-  ).optional(),
-  ApplyOnlyAtCronInterval: z.boolean().optional(),
-  DocumentVersion: z.string().regex(
-    new RegExp("([$]LATEST|[$]DEFAULT|^[1-9][0-9]*$)"),
-  ).describe("The version of the SSM document to associate with the target.")
-    .optional(),
-  AutomationTargetParameterName: z.string().min(1).max(50).optional(),
-  Tags: z.array(TagSchema).describe(
-    "A key-value pair to associate with a resource.",
-  ).optional(),
+  Tags: z.record(z.string(), z.string().max(256)).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -237,62 +106,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
   };
 }
 
-/** Swamp extension model for SSM Association. Registered at `@swamp/aws/ssm/association`. */
+/** Swamp extension model for ElementalInference Dictionary. Registered at `@swamp/aws/elementalinference/dictionary`. */
 export const model = {
-  type: "@swamp/aws/ssm/association",
+  type: "@swamp/aws/elementalinference/dictionary",
   version: "2026.06.16.1",
-  upgrades: [
-    {
-      toVersion: "2026.04.01.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.06.1",
-      description: "Added: accessKeyId, secretAccessKey, sessionToken, region",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.15.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.16.1",
-      description: "Added: AssociationDispatchAssumeRole, Tags",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "SSM Association resource state",
+      description: "ElementalInference Dictionary resource state",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -300,7 +122,7 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a SSM Association",
+      description: "Create a ElementalInference Dictionary",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -312,7 +134,7 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await createResource(
-          "AWS::SSM::Association",
+          "AWS::ElementalInference::Dictionary",
           desiredState,
           credentials,
         ) as StateData;
@@ -329,16 +151,16 @@ export const model = {
       },
     },
     get: {
-      description: "Get a SSM Association",
+      description: "Get a ElementalInference Dictionary",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the SSM Association",
+          "The primary identifier of the ElementalInference Dictionary",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const result = await readResource(
-          "AWS::SSM::Association",
+          "AWS::ElementalInference::Dictionary",
           args.identifier,
           credentials,
         ) as StateData;
@@ -356,7 +178,7 @@ export const model = {
       },
     },
     update: {
-      description: "Update a SSM Association",
+      description: "Update a ElementalInference Dictionary",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -374,12 +196,12 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.AssociationId?.toString();
+        const identifier = existing.Id?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         const currentState = await readResource(
-          "AWS::SSM::Association",
+          "AWS::ElementalInference::Dictionary",
           identifier,
           credentials,
         ) as StateData;
@@ -390,7 +212,7 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await updateResource(
-          "AWS::SSM::Association",
+          "AWS::ElementalInference::Dictionary",
           identifier,
           currentState,
           desiredState,
@@ -406,16 +228,16 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete a SSM Association",
+      description: "Delete a ElementalInference Dictionary",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the SSM Association",
+          "The primary identifier of the ElementalInference Dictionary",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const { existed } = await deleteResource(
-          "AWS::SSM::Association",
+          "AWS::ElementalInference::Dictionary",
           args.identifier,
           credentials,
         );
@@ -434,7 +256,7 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync SSM Association state from AWS",
+      description: "Sync ElementalInference Dictionary state from AWS",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -452,13 +274,13 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.AssociationId?.toString();
+        const identifier = existing.Id?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         try {
           const result = await readResource(
-            "AWS::SSM::Association",
+            "AWS::ElementalInference::Dictionary",
             identifier,
             credentials,
           ) as StateData;

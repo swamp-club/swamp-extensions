@@ -59,6 +59,9 @@ const GET_CONFIG = {
     "getWidgetConfigRequestOption.turnOffCollectionComponents": {
       "location": "query",
     },
+    "languageCode": {
+      "location": "query",
+    },
     "name": {
       "location": "path",
       "required": true,
@@ -129,6 +132,23 @@ const GlobalArgsSchema = z.object({
     ]).describe("Optional. The type of web grounding to use.").optional(),
   }).describe("Describes the assistant settings of the widget.").optional(),
   collectionComponents: z.array(z.object({
+    connectorAuthState: z.object({
+      authState: z.enum([
+        "AUTH_STATE_UNSPECIFIED",
+        "AUTHORIZED",
+        "EXPIRED",
+        "ACTIONS_DISABLED",
+        "NO_AUTH",
+      ]).describe("Output only. The authorization state of the data connector.")
+        .optional(),
+      authorizationUri: z.string().describe(
+        "Output only. The authorization uri for the data connector.",
+      ).optional(),
+      updateTime: z.string().describe(
+        "Output only. The authorization state update timestamp.",
+      ).optional(),
+    }).describe("Read-only connector in CollectionComponent auth state.")
+      .optional(),
     connectorIconLink: z.string().describe(
       "Output only. The icon link of the connector source.",
     ).optional(),
@@ -426,7 +446,7 @@ const GlobalArgsSchema = z.object({
         "FEATURE_STATE_OFF",
       ]),
     ).describe(
-      "Output only. Feature config for the engine to opt in or opt out of features. Supported keys: * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `disable-mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `disable-canvas-workspace` * `disable-skills` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence`",
+      "Output only. Feature config for the engine to opt in or opt out of features. Supported keys: * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `disable-skills` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence`",
     ).optional(),
     generativeAnswerConfig: z.object({
       disableRelatedQuestions: z.boolean().describe(
@@ -534,6 +554,11 @@ const StateSchema = z.object({
     webGroundingType: z.string(),
   }).optional(),
   collectionComponents: z.array(z.object({
+    connectorAuthState: z.object({
+      authState: z.string(),
+      authorizationUri: z.string(),
+      updateTime: z.string(),
+    }),
     connectorIconLink: z.string(),
     dataSource: z.string(),
     dataSourceDisplayName: z.string(),
@@ -733,6 +758,23 @@ const InputsSchema = z.object({
     ]).describe("Optional. The type of web grounding to use.").optional(),
   }).describe("Describes the assistant settings of the widget.").optional(),
   collectionComponents: z.array(z.object({
+    connectorAuthState: z.object({
+      authState: z.enum([
+        "AUTH_STATE_UNSPECIFIED",
+        "AUTHORIZED",
+        "EXPIRED",
+        "ACTIONS_DISABLED",
+        "NO_AUTH",
+      ]).describe("Output only. The authorization state of the data connector.")
+        .optional(),
+      authorizationUri: z.string().describe(
+        "Output only. The authorization uri for the data connector.",
+      ).optional(),
+      updateTime: z.string().describe(
+        "Output only. The authorization state update timestamp.",
+      ).optional(),
+    }).describe("Read-only connector in CollectionComponent auth state.")
+      .optional(),
     connectorIconLink: z.string().describe(
       "Output only. The icon link of the connector source.",
     ).optional(),
@@ -1030,7 +1072,7 @@ const InputsSchema = z.object({
         "FEATURE_STATE_OFF",
       ]),
     ).describe(
-      "Output only. Feature config for the engine to opt in or opt out of features. Supported keys: * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `disable-mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `disable-canvas-workspace` * `disable-skills` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence`",
+      "Output only. Feature config for the engine to opt in or opt out of features. Supported keys: * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `disable-skills` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence`",
     ).optional(),
     generativeAnswerConfig: z.object({
       disableRelatedQuestions: z.boolean().describe(
@@ -1136,7 +1178,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine Collections.DataStores.WidgetConfigs. Registered at `@swamp/gcp/discoveryengine/collections-datastores-widgetconfigs`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-datastores-widgetconfigs",
-  version: "2026.06.09.1",
+  version: "2026.06.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1260,6 +1302,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.09.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

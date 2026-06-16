@@ -157,6 +157,9 @@ const GlobalArgsSchema = z.object({
   exadataInfrastructure: z.string().describe(
     "Required. The name of the Exadata Infrastructure resource on which VM cluster resource is created, in the following format: projects/{project}/locations/{region}/cloudExadataInfrastuctures/{cloud_extradata_infrastructure}",
   ).optional(),
+  exascaleDbStorageVault: z.string().describe(
+    "Optional. The name of ExascaleDbStorageVault associated with the VM Cluster. Format: projects/{project}/locations/{location}/exascaleDbStorageVaults/{exascale_db_storage_vault}",
+  ).optional(),
   identityConnector: z.object({
     connectionState: z.enum([
       "CONNECTION_STATE_UNSPECIFIED",
@@ -288,6 +291,12 @@ const GlobalArgsSchema = z.object({
       "FAILED",
       "MAINTENANCE_IN_PROGRESS",
     ]).describe("Output only. State of the cluster.").optional(),
+    storageManagementType: z.enum([
+      "STORAGE_MANAGEMENT_TYPE_UNSPECIFIED",
+      "ASM",
+      "EXASCALE",
+    ]).describe("Output only. The storage management type of the VM Cluster.")
+      .optional(),
     storageSizeGb: z.number().int().describe(
       "Output only. The storage allocation for the disk group, in gigabytes (GB).",
     ).optional(),
@@ -325,6 +334,7 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   displayName: z.string().optional(),
   exadataInfrastructure: z.string().optional(),
+  exascaleDbStorageVault: z.string().optional(),
   gcpOracleZone: z.string().optional(),
   identityConnector: z.object({
     connectionState: z.string(),
@@ -370,6 +380,7 @@ const StateSchema = z.object({
     sparseDiskgroupEnabled: z.boolean(),
     sshPublicKeys: z.array(z.string()),
     state: z.string(),
+    storageManagementType: z.string(),
     storageSizeGb: z.number(),
     systemVersion: z.string(),
     timeZone: z.object({
@@ -399,6 +410,9 @@ const InputsSchema = z.object({
   ).optional(),
   exadataInfrastructure: z.string().describe(
     "Required. The name of the Exadata Infrastructure resource on which VM cluster resource is created, in the following format: projects/{project}/locations/{region}/cloudExadataInfrastuctures/{cloud_extradata_infrastructure}",
+  ).optional(),
+  exascaleDbStorageVault: z.string().describe(
+    "Optional. The name of ExascaleDbStorageVault associated with the VM Cluster. Format: projects/{project}/locations/{location}/exascaleDbStorageVaults/{exascale_db_storage_vault}",
   ).optional(),
   identityConnector: z.object({
     connectionState: z.enum([
@@ -531,6 +545,12 @@ const InputsSchema = z.object({
       "FAILED",
       "MAINTENANCE_IN_PROGRESS",
     ]).describe("Output only. State of the cluster.").optional(),
+    storageManagementType: z.enum([
+      "STORAGE_MANAGEMENT_TYPE_UNSPECIFIED",
+      "ASM",
+      "EXASCALE",
+    ]).describe("Output only. The storage management type of the VM Cluster.")
+      .optional(),
     storageSizeGb: z.number().int().describe(
       "Output only. The storage allocation for the disk group, in gigabytes (GB).",
     ).optional(),
@@ -576,7 +596,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud CloudVmClusters. Registered at `@swamp/gcp/oracledatabase/cloudvmclusters`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/cloudvmclusters",
-  version: "2026.06.08.1",
+  version: "2026.06.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -658,6 +678,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.16.1",
+      description: "Added: exascaleDbStorageVault",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -695,6 +720,9 @@ export const model = {
         }
         if (g["exadataInfrastructure"] !== undefined) {
           body["exadataInfrastructure"] = g["exadataInfrastructure"];
+        }
+        if (g["exascaleDbStorageVault"] !== undefined) {
+          body["exascaleDbStorageVault"] = g["exascaleDbStorageVault"];
         }
         if (g["identityConnector"] !== undefined) {
           body["identityConnector"] = g["identityConnector"];

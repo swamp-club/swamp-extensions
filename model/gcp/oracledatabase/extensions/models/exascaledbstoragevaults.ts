@@ -145,6 +145,9 @@ const GlobalArgsSchema = z.object({
   displayName: z.string().describe(
     "Required. The display name for the ExascaleDbStorageVault. The name does not have to be unique within your project. The name must be 1-255 characters long and can only contain alphanumeric characters.",
   ).optional(),
+  exadataInfrastructure: z.string().describe(
+    "Optional. The Exadata Infrastructure resource on which ExascaleDbStorageVault resource is created, in the following format: projects/{project}/locations/{region}/cloudExadataInfrastuctures/{cloud_extradata_infrastructure}",
+  ).optional(),
   gcpOracleZone: z.string().describe(
     "Optional. The GCP Oracle zone where Oracle ExascaleDbStorageVault is hosted. Example: us-east4-b-r2. If not specified, the system will pick a zone based on availability.",
   ).optional(),
@@ -229,6 +232,7 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   displayName: z.string().optional(),
   entitlementId: z.string().optional(),
+  exadataInfrastructure: z.string().optional(),
   gcpOracleZone: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
@@ -261,6 +265,9 @@ const InputsSchema = z.object({
   project: z.string().optional(),
   displayName: z.string().describe(
     "Required. The display name for the ExascaleDbStorageVault. The name does not have to be unique within your project. The name must be 1-255 characters long and can only contain alphanumeric characters.",
+  ).optional(),
+  exadataInfrastructure: z.string().describe(
+    "Optional. The Exadata Infrastructure resource on which ExascaleDbStorageVault resource is created, in the following format: projects/{project}/locations/{region}/cloudExadataInfrastuctures/{cloud_extradata_infrastructure}",
   ).optional(),
   gcpOracleZone: z.string().describe(
     "Optional. The GCP Oracle zone where Oracle ExascaleDbStorageVault is hosted. Example: us-east4-b-r2. If not specified, the system will pick a zone based on availability.",
@@ -357,7 +364,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud ExascaleDbStorageVaults. Registered at `@swamp/gcp/oracledatabase/exascaledbstoragevaults`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/exascaledbstoragevaults",
-  version: "2026.06.08.1",
+  version: "2026.06.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -434,6 +441,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.16.1",
+      description: "Added: exadataInfrastructure",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -461,6 +473,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
+        }
+        if (g["exadataInfrastructure"] !== undefined) {
+          body["exadataInfrastructure"] = g["exadataInfrastructure"];
         }
         if (g["gcpOracleZone"] !== undefined) {
           body["gcpOracleZone"] = g["gcpOracleZone"];

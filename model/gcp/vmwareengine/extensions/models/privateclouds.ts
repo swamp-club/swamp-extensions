@@ -182,6 +182,14 @@ const GlobalArgsSchema = z.object({
   description: z.string().describe(
     "User-provided description for this private cloud.",
   ).optional(),
+  encryptionConfig: z.object({
+    cryptoKeyName: z.string().describe(
+      "Optional. The resource name of the Cloud KMS key to be used for CMEK encryption. The format of this field is `projects/{project}/locations/{location}/keyRings/{key_ring}/cryptoKeys/{crypto_key}`. The key must be in the same region as the private cloud. This key is used for wrapping the key-encrypting key of vSAN clusters. This field must be provided when `type` is `CMEK` or `LEGACY_CMEK`, and must not be set when `type` is `OTHER`.",
+    ).optional(),
+    type: z.enum(["TYPE_UNSPECIFIED", "CMEK", "LEGACY_CMEK", "OTHER"]).describe(
+      "Required. The encryption type of the private cloud.",
+    ).optional(),
+  }).describe("Encryption configuration for a private cloud.").optional(),
   hcx: z.object({
     fqdn: z.string().describe("Fully qualified domain name of the appliance.")
       .optional(),
@@ -275,6 +283,10 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   deleteTime: z.string().optional(),
   description: z.string().optional(),
+  encryptionConfig: z.object({
+    cryptoKeyName: z.string(),
+    type: z.string(),
+  }).optional(),
   expireTime: z.string().optional(),
   hcx: z.object({
     fqdn: z.string(),
@@ -326,6 +338,14 @@ const InputsSchema = z.object({
   description: z.string().describe(
     "User-provided description for this private cloud.",
   ).optional(),
+  encryptionConfig: z.object({
+    cryptoKeyName: z.string().describe(
+      "Optional. The resource name of the Cloud KMS key to be used for CMEK encryption. The format of this field is `projects/{project}/locations/{location}/keyRings/{key_ring}/cryptoKeys/{crypto_key}`. The key must be in the same region as the private cloud. This key is used for wrapping the key-encrypting key of vSAN clusters. This field must be provided when `type` is `CMEK` or `LEGACY_CMEK`, and must not be set when `type` is `OTHER`.",
+    ).optional(),
+    type: z.enum(["TYPE_UNSPECIFIED", "CMEK", "LEGACY_CMEK", "OTHER"]).describe(
+      "Required. The encryption type of the private cloud.",
+    ).optional(),
+  }).describe("Encryption configuration for a private cloud.").optional(),
   hcx: z.object({
     fqdn: z.string().describe("Fully qualified domain name of the appliance.")
       .optional(),
@@ -430,7 +450,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud VMware Engine PrivateClouds. Registered at `@swamp/gcp/vmwareengine/privateclouds`. */
 export const model = {
   type: "@swamp/gcp/vmwareengine/privateclouds",
-  version: "2026.06.08.1",
+  version: "2026.06.16.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -522,6 +542,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.16.1",
+      description: "Added: encryptionConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -553,6 +578,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
+        }
+        if (g["encryptionConfig"] !== undefined) {
+          body["encryptionConfig"] = g["encryptionConfig"];
         }
         if (g["hcx"] !== undefined) body["hcx"] = g["hcx"];
         if (g["managementCluster"] !== undefined) {
@@ -675,6 +703,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
+        }
+        if (g["encryptionConfig"] !== undefined) {
+          body["encryptionConfig"] = g["encryptionConfig"];
         }
         if (g["hcx"] !== undefined) body["hcx"] = g["hcx"];
         if (g["managementCluster"] !== undefined) {

@@ -148,7 +148,7 @@ const GlobalArgsSchema = z.object({
     "Submission state of add-on attachment's parent post (i.e. assignment).",
   ).optional(),
   userId: z.string().describe(
-    "Identifier for the student that owns this submission. Requires the user to be a teacher in the course and have permission to read student submissions. Read-only.",
+    "Identifier for the student that owns this submission. Requires the user to be a teacher in the course and have permission to read student submissions. See [`courseWork.studentSubmissions.get`](/workspace/classroom/reference/rest/v1/courses.courseWork.studentSubmissions/get#authorization-scopes) for the list of acceptable OAuth scopes for this field. Read-only.",
   ).optional(),
 });
 
@@ -187,7 +187,7 @@ const InputsSchema = z.object({
     "Submission state of add-on attachment's parent post (i.e. assignment).",
   ).optional(),
   userId: z.string().describe(
-    "Identifier for the student that owns this submission. Requires the user to be a teacher in the course and have permission to read student submissions. Read-only.",
+    "Identifier for the student that owns this submission. Requires the user to be a teacher in the course and have permission to read student submissions. See [`courseWork.studentSubmissions.get`](/workspace/classroom/reference/rest/v1/courses.courseWork.studentSubmissions/get#authorization-scopes) for the list of acceptable OAuth scopes for this field. Read-only.",
   ).optional(),
 });
 
@@ -207,7 +207,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/classroom/courses-posts-addonattachments-studentsubmissions",
-  version: "2026.06.08.1",
+  version: "2026.06.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -322,6 +322,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

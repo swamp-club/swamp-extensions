@@ -386,7 +386,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firestore Databases.Documents. Registered at `@swamp/gcp/firestore/databases-documents`. */
 export const model = {
   type: "@swamp/gcp/firestore/databases-documents",
-  version: "2026.06.08.1",
+  version: "2026.06.16.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -470,6 +470,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1002,6 +1007,7 @@ export const model = {
     execute_pipeline: {
       description: "execute pipeline",
       arguments: z.object({
+        autoCommitTransaction: z.any().optional(),
         newTransaction: z.any().optional(),
         readTime: z.any().optional(),
         structuredPipeline: z.any().optional(),
@@ -1027,6 +1033,9 @@ export const model = {
         params["database"] = existing["name"]?.toString() ??
           g["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
+        if (args["autoCommitTransaction"] !== undefined) {
+          body["autoCommitTransaction"] = args["autoCommitTransaction"];
+        }
         if (args["newTransaction"] !== undefined) {
           body["newTransaction"] = args["newTransaction"];
         }

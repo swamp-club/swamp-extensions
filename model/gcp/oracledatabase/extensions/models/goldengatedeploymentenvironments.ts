@@ -39,31 +39,10 @@ import {
   getProjectId,
   isResourceNotFoundError,
   listResources,
-  readResource,
+  readViaList,
 } from "./_lib/gcp.ts";
 
-/** Construct the fully-qualified resource name from parent and short name. */
-function buildResourceName(parent: string, shortName: string): string {
-  return `${parent}/goldengateDeploymentEnvironments/${shortName}`;
-}
-
 const BASE_URL = "https://oracledatabase.googleapis.com/";
-
-const GET_CONFIG = {
-  "id":
-    "oracledatabase.projects.locations.goldengateDeploymentEnvironments.get",
-  "path": "v1/{+name}",
-  "httpMethod": "GET",
-  "parameterOrder": [
-    "name",
-  ],
-  "parameters": {
-    "name": {
-      "location": "path",
-      "required": true,
-    },
-  },
-} as const;
 
 const LIST_CONFIG = {
   "id":
@@ -146,7 +125,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud GoldengateDeploymentEnvironments. Registered at `@swamp/gcp/oracledatabase/goldengatedeploymentenvironments`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/goldengatedeploymentenvironments",
-  version: "2026.06.08.1",
+  version: "2026.06.16.1",
   upgrades: [
     {
       toVersion: "2026.06.07.1",
@@ -155,6 +134,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.16.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -182,14 +166,13 @@ export const model = {
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
-        params["name"] = buildResourceName(
-          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
-          args.identifier,
-        );
-        const result = await readResource(
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        const result = await readViaList(
           BASE_URL,
-          GET_CONFIG,
+          LIST_CONFIG,
           params,
+          "name",
+          args.identifier,
           credentials,
         ) as StateData;
         const instanceName = (g.name?.toString() ?? args.identifier).replace(
@@ -226,16 +209,22 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         try {
           const params: Record<string, string> = { project: projectId };
-          const shortName = existing.name?.toString() ?? g["name"]?.toString();
-          if (!shortName) throw new Error("No identifier found");
-          params["name"] = buildResourceName(
-            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
-            shortName,
-          );
-          const result = await readResource(
+          if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+          else if (existing["parent"]) {
+            params["parent"] = String(existing["parent"]);
+          }
+          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          if (!identifier) {
+            throw new Error(
+              "No identifier found in existing state or globalArgs",
+            );
+          }
+          const result = await readViaList(
             BASE_URL,
-            GET_CONFIG,
+            LIST_CONFIG,
             params,
+            "name",
+            identifier,
             credentials,
           ) as StateData;
           const handle = await context.writeResource(
