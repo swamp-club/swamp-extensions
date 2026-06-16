@@ -24,6 +24,7 @@ import {
   parseEnrichmentSource,
 } from "./enrichments/index.ts";
 import { parseListMethodSource } from "./enrichments/parser.ts";
+import { parseSourceFile } from "../shared/sourceParser.ts";
 import { generateManifest } from "../shared/manifestGenerator.ts";
 import { generateLicense } from "../shared/licenseGenerator.ts";
 import { generateAwsDenoConfig } from "../shared/denoConfigGenerator.ts";
@@ -316,11 +317,11 @@ export async function generateAwsModels(options: {
 
         // Generate with placeholder version for change detection
         const rawEnrichment = getEnrichment(typeName);
-        const enrichment = rawEnrichment
+        const enrichment = rawEnrichment?.sourceFile
           ? {
             source: await parseEnrichmentSource(rawEnrichment.sourceFile),
-            stateFields: rawEnrichment.stateFields,
-            functionExport: rawEnrichment.functionExport,
+            stateFields: rawEnrichment.stateFields!,
+            functionExport: rawEnrichment.functionExport!,
           }
           : undefined;
         const listMethod = rawEnrichment?.listMethod
@@ -331,6 +332,21 @@ export async function generateAwsModels(options: {
             functionExport: rawEnrichment.listMethod.functionExport,
             argumentFields: rawEnrichment.listMethod.argumentFields,
             description: rawEnrichment.listMethod.description,
+          }
+          : undefined;
+        const modelMethods = rawEnrichment?.customMethods
+          ? {
+            source: await parseSourceFile(
+              rawEnrichment.customMethods.sourceFile,
+              { stripAwsLib: true },
+            ),
+            methods: rawEnrichment.customMethods.methods.map((m) => ({
+              methodName: m.methodName,
+              description: m.description,
+              argumentFields: m.argumentFields,
+              functionExport: m.functionExport,
+              returnsArray: m.returnsArray,
+            })),
           }
           : undefined;
         const domainPropertyNames = Object.keys(domainProperties);
@@ -344,6 +360,7 @@ export async function generateAwsModels(options: {
           modelType,
           enrichment,
           listMethod,
+          modelMethods,
           domainPropertyNames,
         });
 
@@ -385,6 +402,7 @@ export async function generateAwsModels(options: {
           upgradesBlock,
           enrichment,
           listMethod,
+          modelMethods,
           domainPropertyNames,
         });
 

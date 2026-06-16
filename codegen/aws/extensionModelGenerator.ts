@@ -6,6 +6,7 @@ import type { CfSchema, OnlyProperties } from "../shared/schema/types.ts";
 import { generateCopyrightHeader } from "../shared/licenseGenerator.ts";
 import { wrapWithSanitize } from "../shared/instanceName.ts";
 import type { ParsedEnrichmentSource } from "./enrichments/types.ts";
+import type { ParsedSource } from "../shared/sourceParser.ts";
 
 /**
  * Handler availability for a resource, derived from cfSchema.handlers.
@@ -26,6 +27,26 @@ export interface AwsExtensionModelListMethod {
   argumentFields: string[];
   /** Description for the list method */
   description: string;
+}
+
+export interface ParsedModelMethod {
+  /** Method name as it appears on the model */
+  methodName: string;
+  /** Human-readable description */
+  description: string;
+  /** Zod argument field lines */
+  argumentFields: string[];
+  /** Name of the function in the inlined body */
+  functionExport: string;
+  /** Whether the function returns an array or a single result */
+  returnsArray: boolean;
+}
+
+export interface ParsedModelMethods {
+  /** Parsed source (imports + body) from the methods source file */
+  source: ParsedSource;
+  /** Individual method definitions */
+  methods: ParsedModelMethod[];
 }
 
 export interface AwsExtensionModelInput {
@@ -56,6 +77,8 @@ export interface AwsExtensionModelInput {
   };
   /** Parsed list method enrichment to emit as a list method */
   listMethod?: AwsExtensionModelListMethod;
+  /** Parsed model methods to emit as standalone methods */
+  modelMethods?: ParsedModelMethods;
   /** Domain property names from splitAwsProperties — used for credential field collision checks */
   domainPropertyNames: string[];
 }
@@ -169,6 +192,25 @@ export function generateAwsExtensionModel(
       lines.push(imp);
     }
   }
+  // Limitation: dedup skips entire import lines by package name, not by symbol.
+  // If enrichment and customMethods import different symbols from the same
+  // package, the customMethods import is dropped. Currently safe because no
+  // enrichment combines both for the same package.
+  if (input.modelMethods) {
+    const existingImportPackages = new Set(
+      [
+        ...(input.enrichment?.source.imports ?? []),
+        ...(input.listMethod?.source.imports ?? []),
+      ]
+        .map((imp) => imp.match(/"([^"]+)"/)?.[1])
+        .filter(Boolean),
+    );
+    for (const imp of input.modelMethods.source.imports) {
+      const pkg = imp.match(/"([^"]+)"/)?.[1];
+      if (pkg && existingImportPackages.has(pkg)) continue;
+      lines.push(imp);
+    }
+  }
   lines.push("");
 
   // Determine the naming field for factory-pattern instance names
@@ -247,6 +289,12 @@ export function generateAwsExtensionModel(
   // List method body (schemas + function inlined from list .enrich.ts source)
   if (input.listMethod) {
     lines.push(input.listMethod.source.body);
+    lines.push("");
+  }
+
+  // Model methods body (schemas + functions inlined from methods source file)
+  if (input.modelMethods) {
+    lines.push(input.modelMethods.source.body);
     lines.push("");
   }
 
@@ -713,6 +761,72 @@ export function generateAwsExtensionModel(
     );
     lines.push(`      },`);
     lines.push(`    },`);
+  }
+
+  // model methods (from methods config — standalone native-SDK-backed methods)
+  if (input.modelMethods) {
+    for (const method of input.modelMethods.methods) {
+      lines.push(`    ${method.methodName}: {`);
+      lines.push(
+        `      description: ${JSON.stringify(method.description)},`,
+      );
+      lines.push(`      arguments: z.object({`);
+      for (const field of method.argumentFields) {
+        lines.push(field);
+      }
+      lines.push(`      }),`);
+      lines.push(
+        `      execute: async (args: Record<string, unknown>, context: any) => {`,
+      );
+      lines.push(
+        `        const credentials = _buildCredentials(context.globalArgs);`,
+      );
+      lines.push(
+        `        const mergedArgs = { ...context.globalArgs, ...args };`,
+      );
+      if (method.returnsArray) {
+        lines.push(
+          `        const items = await ${method.functionExport}(mergedArgs, credentials);`,
+        );
+        lines.push(`        const dataHandles = [];`);
+        lines.push(`        for (let i = 0; i < items.length; i++) {`);
+        lines.push(`          const item = items[i];`);
+        lines.push(
+          `          const instanceName = ${wrapWithSanitize(`String(i)`)};`,
+        );
+        lines.push(
+          `          const handle = await context.writeResource("state", instanceName, item);`,
+        );
+        lines.push(`          dataHandles.push(handle);`);
+        lines.push(`        }`);
+        lines.push(
+          `        return { dataHandles, result: { count: items.length } };`,
+        );
+      } else {
+        lines.push(
+          `        const result = await ${method.functionExport}(mergedArgs, credentials);`,
+        );
+        lines.push(
+          `        const argKeys = Object.keys(args).filter((k) => args[k] !== undefined);`,
+        );
+        lines.push(
+          `        const suffix = argKeys.length > 0 ? "-" + argKeys.map((k) => String(args[k])).join("-") : "";`,
+        );
+        lines.push(
+          `        const instanceName = ${
+            wrapWithSanitize(
+              `"${method.methodName}" + suffix`,
+            )
+          };`,
+        );
+        lines.push(
+          `        const handle = await context.writeResource("state", instanceName, result);`,
+        );
+        lines.push(`        return { dataHandles: [handle] };`);
+      }
+      lines.push(`      },`);
+      lines.push(`    },`);
+    }
   }
 
   lines.push(`  },`);

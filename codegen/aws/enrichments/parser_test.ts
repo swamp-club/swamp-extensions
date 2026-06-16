@@ -2,10 +2,12 @@ import { assertEquals } from "@std/assert";
 import { assertStringIncludes } from "@std/assert";
 import { parseEnrichmentSource, parseListMethodSource } from "./parser.ts";
 
-const enrichFilePath = new URL("./rds-dbcluster.enrich.ts", import.meta.url)
-  .pathname;
+const enrichFilePath = new URL(
+  "./rds-dbcluster/enrich.ts",
+  import.meta.url,
+).pathname;
 const listEnrichFilePath = new URL(
-  "./rds-dbcluster-list.enrich.ts",
+  "./rds-dbcluster/list.enrich.ts",
   import.meta.url,
 ).pathname;
 

@@ -40,6 +40,15 @@ import {
   updateResource,
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
+import {
+  type CallAs,
+  CloudFormationClient,
+  DescribeStackSetOperationCommand,
+  DetectStackSetDriftCommand,
+  ListStackInstancesCommand,
+  ListStackSetOperationsCommand,
+  type StackInstanceFilter,
+} from "npm:@aws-sdk/client-cloudformation@3.1021.0";
 
 const DeploymentTargetsSchema = z.object({
   Accounts: z.array(z.string().regex(new RegExp("^[0-9]{12}$"))).describe(
@@ -195,6 +204,282 @@ const GlobalArgsSchema = z.object({
   ).optional(),
 });
 
+function createCfnClient(credentials: AwsCredentials): CloudFormationClient {
+  const region = credentials.region ??
+    Deno.env.get("AWS_REGION") ??
+    Deno.env.get("AWS_DEFAULT_REGION") ??
+    "us-east-1";
+
+  const config: Record<string, unknown> = { region };
+
+  if (credentials.accessKeyId && credentials.secretAccessKey) {
+    config.credentials = {
+      accessKeyId: credentials.accessKeyId,
+      secretAccessKey: credentials.secretAccessKey,
+      ...(credentials.sessionToken
+        ? { sessionToken: credentials.sessionToken }
+        : {}),
+    };
+  }
+
+  return new CloudFormationClient(config);
+}
+
+async function listInstances(
+  args: Record<string, unknown>,
+  credentials: AwsCredentials,
+): Promise<Record<string, unknown>[]> {
+  const client = createCfnClient(credentials);
+  const stackSetName = args.StackSetName as string;
+  const callAs = args.callAs as CallAs | undefined;
+  const filters = args.filters as StackInstanceFilter[] | undefined;
+  const maxPages = (args.maxPages as number | undefined) ?? 10;
+
+  const instances: Record<string, unknown>[] = [];
+  let nextToken: string | undefined;
+  let pages = 0;
+
+  do {
+    const command = new ListStackInstancesCommand({
+      StackSetName: stackSetName,
+      CallAs: callAs,
+      Filters: filters,
+      NextToken: nextToken,
+      MaxResults: 100,
+    });
+    const response = await client.send(command);
+
+    for (const instance of response.Summaries ?? []) {
+      instances.push({
+        Account: instance.Account,
+        Region: instance.Region,
+        Status: instance.Status,
+        StatusReason: instance.StatusReason,
+        StackInstanceStatus: instance.StackInstanceStatus
+          ? {
+            DetailedStatus: instance.StackInstanceStatus.DetailedStatus,
+          }
+          : undefined,
+        DriftStatus: instance.DriftStatus,
+        StackId: instance.StackId,
+        OrganizationalUnitId: instance.OrganizationalUnitId,
+        LastDriftCheckTimestamp: instance.LastDriftCheckTimestamp
+          ?.toISOString(),
+        LastOperationId: instance.LastOperationId,
+      });
+    }
+
+    nextToken = response.NextToken;
+    pages++;
+  } while (nextToken && pages < maxPages);
+
+  return instances;
+}
+
+async function listOperations(
+  args: Record<string, unknown>,
+  credentials: AwsCredentials,
+): Promise<Record<string, unknown>[]> {
+  const client = createCfnClient(credentials);
+  const stackSetName = args.StackSetName as string;
+  const callAs = args.callAs as CallAs | undefined;
+  const maxPages = (args.maxPages as number | undefined) ?? 10;
+
+  const operations: Record<string, unknown>[] = [];
+  let nextToken: string | undefined;
+  let pages = 0;
+
+  do {
+    const command = new ListStackSetOperationsCommand({
+      StackSetName: stackSetName,
+      CallAs: callAs,
+      NextToken: nextToken,
+      MaxResults: 100,
+    });
+    const response = await client.send(command);
+
+    for (const op of response.Summaries ?? []) {
+      operations.push({
+        OperationId: op.OperationId,
+        Action: op.Action,
+        Status: op.Status,
+        CreationTimestamp: op.CreationTimestamp?.toISOString(),
+        EndTimestamp: op.EndTimestamp?.toISOString(),
+        StatusReason: op.StatusReason,
+        StatusDetails: op.StatusDetails
+          ? {
+            FailedStackInstancesCount:
+              op.StatusDetails.FailedStackInstancesCount,
+          }
+          : undefined,
+        OperationPreferences: op.OperationPreferences
+          ? {
+            RegionConcurrencyType:
+              op.OperationPreferences.RegionConcurrencyType,
+            MaxConcurrentCount: op.OperationPreferences.MaxConcurrentCount,
+            MaxConcurrentPercentage:
+              op.OperationPreferences.MaxConcurrentPercentage,
+            FailureToleranceCount:
+              op.OperationPreferences.FailureToleranceCount,
+            FailureTolerancePercentage:
+              op.OperationPreferences.FailureTolerancePercentage,
+          }
+          : undefined,
+      });
+    }
+
+    nextToken = response.NextToken;
+    pages++;
+  } while (nextToken && pages < maxPages);
+
+  return operations;
+}
+
+async function describeOperation(
+  args: Record<string, unknown>,
+  credentials: AwsCredentials,
+): Promise<Record<string, unknown>> {
+  const client = createCfnClient(credentials);
+  const stackSetName = args.StackSetName as string;
+  const operationId = args.operationId as string;
+  const callAs = args.callAs as CallAs | undefined;
+
+  const command = new DescribeStackSetOperationCommand({
+    StackSetName: stackSetName,
+    OperationId: operationId,
+    CallAs: callAs,
+  });
+  const response = await client.send(command);
+  const op = response.StackSetOperation;
+
+  if (!op) {
+    throw new Error(
+      `Operation ${operationId} not found on StackSet ${stackSetName}`,
+    );
+  }
+
+  return {
+    OperationId: op.OperationId,
+    StackSetId: op.StackSetId,
+    Action: op.Action,
+    Status: op.Status,
+    StatusReason: op.StatusReason,
+    CreationTimestamp: op.CreationTimestamp?.toISOString(),
+    EndTimestamp: op.EndTimestamp?.toISOString(),
+    DeploymentTargets: op.DeploymentTargets
+      ? {
+        Accounts: op.DeploymentTargets.Accounts,
+        OrganizationalUnitIds: op.DeploymentTargets.OrganizationalUnitIds,
+        AccountFilterType: op.DeploymentTargets.AccountFilterType,
+      }
+      : undefined,
+    StackSetDriftDetectionDetails: op.StackSetDriftDetectionDetails
+      ? {
+        DriftStatus: op.StackSetDriftDetectionDetails.DriftStatus,
+        DriftedStackInstancesCount:
+          op.StackSetDriftDetectionDetails.DriftedStackInstancesCount,
+        InSyncStackInstancesCount:
+          op.StackSetDriftDetectionDetails.InSyncStackInstancesCount,
+        InProgressStackInstancesCount:
+          op.StackSetDriftDetectionDetails.InProgressStackInstancesCount,
+        FailedStackInstancesCount:
+          op.StackSetDriftDetectionDetails.FailedStackInstancesCount,
+        TotalStackInstancesCount:
+          op.StackSetDriftDetectionDetails.TotalStackInstancesCount,
+      }
+      : undefined,
+    OperationPreferences: op.OperationPreferences
+      ? {
+        RegionConcurrencyType: op.OperationPreferences.RegionConcurrencyType,
+        RegionOrder: op.OperationPreferences.RegionOrder,
+        MaxConcurrentCount: op.OperationPreferences.MaxConcurrentCount,
+        MaxConcurrentPercentage:
+          op.OperationPreferences.MaxConcurrentPercentage,
+        FailureToleranceCount: op.OperationPreferences.FailureToleranceCount,
+        FailureTolerancePercentage:
+          op.OperationPreferences.FailureTolerancePercentage,
+        ConcurrencyMode: op.OperationPreferences.ConcurrencyMode,
+      }
+      : undefined,
+    AdministrationRoleARN: op.AdministrationRoleARN,
+    ExecutionRoleName: op.ExecutionRoleName,
+  };
+}
+
+const MIN_POLL_INTERVAL_MS = 1000;
+const MIN_TIMEOUT_MS = 10000;
+const MAX_TIMEOUT_MS = 600000;
+
+async function detectDrift(
+  args: Record<string, unknown>,
+  credentials: AwsCredentials,
+): Promise<Record<string, unknown>> {
+  const client = createCfnClient(credentials);
+  const stackSetName = args.StackSetName as string;
+  const callAs = args.callAs as CallAs | undefined;
+  const pollIntervalMs = Math.max(
+    (args.pollIntervalMs as number | undefined) ?? 5000,
+    MIN_POLL_INTERVAL_MS,
+  );
+  const timeoutMs = Math.max(
+    Math.min(
+      (args.timeoutMs as number | undefined) ?? 300000,
+      MAX_TIMEOUT_MS,
+    ),
+    MIN_TIMEOUT_MS,
+  );
+
+  const detectCommand = new DetectStackSetDriftCommand({
+    StackSetName: stackSetName,
+    CallAs: callAs,
+  });
+  const detectResponse = await client.send(detectCommand);
+  const operationId = detectResponse.OperationId;
+
+  if (!operationId) {
+    throw new Error("DetectStackSetDrift did not return an OperationId");
+  }
+
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeoutMs) {
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+
+    const statusCommand = new DescribeStackSetOperationCommand({
+      StackSetName: stackSetName,
+      OperationId: operationId,
+      CallAs: callAs,
+    });
+    const response = await client.send(statusCommand);
+    const op = response.StackSetOperation;
+
+    const operationStatus = op?.Status;
+
+    if (
+      operationStatus === "SUCCEEDED" || operationStatus === "FAILED" ||
+      operationStatus === "STOPPED"
+    ) {
+      const drift = op?.StackSetDriftDetectionDetails;
+      return {
+        OperationId: operationId,
+        OperationStatus: operationStatus,
+        DriftStatus: drift?.DriftStatus,
+        DriftDetectionStatus: drift?.DriftDetectionStatus,
+        DriftedStackInstancesCount: drift?.DriftedStackInstancesCount,
+        InSyncStackInstancesCount: drift?.InSyncStackInstancesCount,
+        InProgressStackInstancesCount: drift?.InProgressStackInstancesCount,
+        FailedStackInstancesCount: drift?.FailedStackInstancesCount,
+        TotalStackInstancesCount: drift?.TotalStackInstancesCount,
+        LastDriftCheckTimestamp: drift?.LastDriftCheckTimestamp?.toISOString(),
+      };
+    }
+  }
+
+  throw new Error(
+    `Drift detection timed out after ${timeoutMs}ms for StackSet ${stackSetName} (operation: ${operationId})`,
+  );
+}
+
 const StateSchema = z.object({
   StackSetName: z.string().optional(),
   StackSetId: z.string(),
@@ -340,7 +625,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFormation StackSet. Registered at `@swamp/aws/cloudformation/stack-set`. */
 export const model = {
   type: "@swamp/aws/cloudformation/stack-set",
-  version: "2026.06.15.1",
+  version: "2026.06.16.5",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -379,6 +664,31 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.16.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.16.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.16.3",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.16.4",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.16.5",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -574,6 +884,135 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    listInstances: {
+      description:
+        "List stack instances for this StackSet across accounts and regions",
+      arguments: z.object({
+        callAs: z.enum(["SELF", "DELEGATED_ADMIN"]).describe(
+          "Specifies whether you are acting as an account administrator in the organization's management account or as a delegated administrator in a member account",
+        ).optional(),
+        filters: z.array(z.object({ Name: z.string(), Values: z.string() }))
+          .describe(
+            "Filter instances by status (e.g. Name=DETAILED_STATUS, Values=RUNNING)",
+          ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const credentials = _buildCredentials(context.globalArgs);
+        const mergedArgs = { ...context.globalArgs, ...args };
+        const items = await listInstances(mergedArgs, credentials);
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          const instanceName = (String(i)).replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length } };
+      },
+    },
+    listOperations: {
+      description: "List operations performed on this StackSet",
+      arguments: z.object({
+        callAs: z.enum(["SELF", "DELEGATED_ADMIN"]).describe(
+          "Specifies whether you are acting as an account administrator or as a delegated administrator",
+        ).optional(),
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const credentials = _buildCredentials(context.globalArgs);
+        const mergedArgs = { ...context.globalArgs, ...args };
+        const items = await listOperations(mergedArgs, credentials);
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          const instanceName = (String(i)).replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, "");
+          const handle = await context.writeResource(
+            "state",
+            instanceName,
+            item,
+          );
+          dataHandles.push(handle);
+        }
+        return { dataHandles, result: { count: items.length } };
+      },
+    },
+    describeOperation: {
+      description: "Describe a specific StackSet operation by its operation ID",
+      arguments: z.object({
+        operationId: z.string().describe(
+          "The unique ID of the StackSet operation to describe",
+        ),
+        callAs: z.enum(["SELF", "DELEGATED_ADMIN"]).describe(
+          "Specifies whether you are acting as an account administrator or as a delegated administrator",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const credentials = _buildCredentials(context.globalArgs);
+        const mergedArgs = { ...context.globalArgs, ...args };
+        const result = await describeOperation(mergedArgs, credentials);
+        const argKeys = Object.keys(args).filter((k) => args[k] !== undefined);
+        const suffix = argKeys.length > 0
+          ? "-" + argKeys.map((k) => String(args[k])).join("-")
+          : "";
+        const instanceName = ("describeOperation" + suffix).replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    detectDrift: {
+      description:
+        "Detect drift on this StackSet and poll until detection completes",
+      arguments: z.object({
+        callAs: z.enum(["SELF", "DELEGATED_ADMIN"]).describe(
+          "Specifies whether you are acting as an account administrator or as a delegated administrator",
+        ).optional(),
+        pollIntervalMs: z.number().describe(
+          "Polling interval in milliseconds (default: 5000)",
+        ).optional(),
+        timeoutMs: z.number().describe(
+          "Maximum time to wait for drift detection in milliseconds (default: 300000)",
+        ).optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const credentials = _buildCredentials(context.globalArgs);
+        const mergedArgs = { ...context.globalArgs, ...args };
+        const result = await detectDrift(mergedArgs, credentials);
+        const argKeys = Object.keys(args).filter((k) => args[k] !== undefined);
+        const suffix = argKeys.length > 0
+          ? "-" + argKeys.map((k) => String(args[k])).join("-")
+          : "";
+        const instanceName = ("detectDrift" + suffix).replace(/[\/\\]/g, "_")
+          .replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
       },
     },
   },

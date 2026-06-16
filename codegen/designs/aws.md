@@ -465,21 +465,27 @@ calls into specific models to supplement the CloudControl state.
 
 ### How it works
 
-Each enrichment has two files: a metadata file and a source file:
+Each enrichment is a folder containing a config file and source files:
 
 ```
 codegen/aws/enrichments/
-├── types.ts                    # AwsEnrichment interface + source parser
-├── index.ts                    # Registry: getEnrichment() + helpers
-├── rds-dbcluster.ts            # Metadata: cfTypeName, npmImports, stateFields
-└── rds-dbcluster.enrich.ts     # Real TypeScript: schemas + enrichState function
+├── types.ts                        # AwsEnrichment interface
+├── index.ts                        # Registry: getEnrichment() + helpers
+├── parser.ts                       # Thin wrapper over shared sourceParser
+├── rds-dbcluster/
+│   ├── config.ts                   # Metadata: cfTypeName, npmImports, stateFields
+│   ├── enrich.ts                   # enrichState function + schemas
+│   └── list.enrich.ts              # list method function
+└── cfn-stackset/
+    ├── config.ts                   # Metadata: cfTypeName, npmImports, customMethods
+    ├── methods.ts                  # Custom method functions
+    └── methods_test.ts             # Tests
 ```
 
-The `.enrich.ts` file is real, type-checkable TypeScript — `deno check`
-validates it independently. It exports Zod schemas and an `enrichState()`
-function.
+Source files are real, type-checkable TypeScript — `deno check` validates them
+independently. They export Zod schemas and functions.
 
-The metadata file (`rds-dbcluster.ts`) exports an `AwsEnrichment` object with:
+The config file (`config.ts`) exports an `AwsEnrichment` object with:
 
 - `cfTypeName` — the CloudFormation type to enrich
 - `npmImports` — additional deno.json entries for the service
@@ -513,15 +519,16 @@ The interface is strategy-agnostic. Three patterns are supported:
 
 ### Adding a new enrichment
 
-1. Create `codegen/aws/enrichments/<service>-<resource>.enrich.ts` — real
-   TypeScript with `npm:` specifiers, exporting schemas and an `enrichState()`
-   function
-2. Create `codegen/aws/enrichments/<service>-<resource>.ts` — metadata file
-   exporting an `AwsEnrichment` object pointing to the source file
-3. Add the import to `codegen/aws/enrichments/index.ts`
-4. Run `deno check` on the `.enrich.ts` file to verify it type-checks
-5. Run `deno task generate:aws <service>` and verify the output
-6. Run a second time to confirm idempotency
+1. Create `codegen/aws/enrichments/<resource>/` directory
+2. Create `config.ts` — export an `AwsEnrichment` object with `cfTypeName`,
+   `npmImports`, and whichever capabilities apply
+   (`sourceFile`/`functionExport`/ `stateFields` for enrichState, `listMethod`,
+   `customMethods`)
+3. Create source files (`enrich.ts`, `list.enrich.ts`, `methods.ts`) as needed
+4. Add the import to `codegen/aws/enrichments/index.ts`
+5. Run `deno check` on the source files to verify they type-check
+6. Run `deno task generate:aws <service>` and verify the output
+7. Run a second time to confirm idempotency
 
 ### Current enrichments
 
@@ -573,9 +580,9 @@ The generator:
 
 #### Adding a new list enrichment
 
-1. Create `codegen/aws/enrichments/<service>-<resource>-list.enrich.ts`
-2. Add `listMethod` to the existing enrichment metadata (or create a new
-   `AwsEnrichment` entry if no state enrichment exists)
+1. Create `codegen/aws/enrichments/<resource>/list.enrich.ts`
+2. Add `listMethod` to the resource's `config.ts` (or create a new
+   `AwsEnrichment` entry if no enrichment exists for this resource)
 3. Run `deno check` on the source file
 4. Run `deno task generate:aws <service>` and verify output
 5. Run a second time to confirm idempotency
@@ -585,6 +592,73 @@ The generator:
 | Resource              | SDK command          | Pagination | Data returned                             |
 | --------------------- | -------------------- | ---------- | ----------------------------------------- |
 | `AWS::RDS::DBCluster` | `DescribeDBClusters` | Marker     | Cluster ID, engine, status, members, tags |
+
+---
+
+## 8b. Custom Methods (Standalone Native-SDK Methods)
+
+While `enrichState` (section 8a) augments the state returned by `get`/`sync`,
+**custom methods** add entirely new standalone methods to a generated model.
+They are backed by native AWS SDKs (not CloudControl) and operate independently
+of the CRUD lifecycle.
+
+Custom methods are part of the enrichment system — configured via the optional
+`customMethods` field on `AwsEnrichment`. An enrichment config can provide
+`enrichState`, `listMethod`, `customMethods`, or any combination.
+
+### Architecture
+
+```
+codegen/shared/sourceParser.ts              — shared source parser
+codegen/aws/enrichments/
+  types.ts                                  — AwsEnrichment (includes customMethods)
+  index.ts                                  — registry (getEnrichment)
+  parser.ts                                 — thin wrapper over sourceParser
+  rds-dbcluster/                            — enrichState + listMethod
+    config.ts, enrich.ts, list.enrich.ts
+  cfn-stackset/                             — customMethods only
+    config.ts, methods.ts, methods_test.ts
+```
+
+### How custom methods differ from enrichState
+
+| Aspect             | enrichState                          | customMethods                            |
+| ------------------ | ------------------------------------ | ---------------------------------------- |
+| Purpose            | Augment state on `get`/`sync`        | Add standalone methods                   |
+| Credential access  | Env vars / default chain             | Explicit `(args, credentials)` signature |
+| Source files       | One per function                     | Single file, multiple exports            |
+| Generator location | Wraps `readResource` in `get`/`sync` | New method blocks after `list`           |
+
+### Function signature convention
+
+Every custom method function receives two arguments:
+
+```typescript
+async function listInstances(
+  args: Record<string, unknown>,  // method args merged with globalArgs
+  credentials: AwsCredentials,     // from _buildCredentials(context.globalArgs)
+): Promise<Record<string, unknown>[]> { ... }
+```
+
+The generator emits `const mergedArgs = { ...context.globalArgs, ...args }` so
+method functions can read both resource-level context (e.g. `StackSetName` from
+globalArgs) and method-specific arguments (e.g. `operationId`).
+
+### Adding custom methods to an enrichment
+
+1. Create `codegen/aws/enrichments/<resource>/config.ts` with the
+   `AwsEnrichment` config — set `customMethods.sourceFile` and
+   `customMethods.methods`
+2. Create `codegen/aws/enrichments/<resource>/methods.ts` with all function
+   exports
+3. Register in `codegen/aws/enrichments/index.ts`
+4. Run `deno task generate:aws <service>` to regenerate
+
+### Current custom methods
+
+| Resource                        | Methods                                                               | SDK                              |
+| ------------------------------- | --------------------------------------------------------------------- | -------------------------------- |
+| `AWS::CloudFormation::StackSet` | `listInstances`, `listOperations`, `describeOperation`, `detectDrift` | `@aws-sdk/client-cloudformation` |
 
 ---
 

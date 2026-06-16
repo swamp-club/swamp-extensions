@@ -415,3 +415,83 @@ Deno.test("generateAwsExtensionModel - with enrichment", async (t) => {
 
   await assertSnapshot(t, generateAwsExtensionModel(input));
 });
+
+// ---------------------------------------------------------------------------
+// Snapshot: model with model methods (standalone native-SDK methods)
+// ---------------------------------------------------------------------------
+
+Deno.test("generateAwsExtensionModel - with modelMethods", async (t) => {
+  const mockModelMethods = {
+    source: {
+      imports: [
+        'import { CloudFormationClient, ListStackInstancesCommand } from "npm:@aws-sdk/client-cloudformation@3.1021.0";',
+      ],
+      body: [
+        "function createCfnClient(credentials: AwsCredentials): CloudFormationClient {",
+        '  return new CloudFormationClient({ region: credentials.region ?? "us-east-1" });',
+        "}",
+        "",
+        "async function listInstances(args: Record<string, unknown>, credentials: AwsCredentials): Promise<Record<string, unknown>[]> {",
+        "  return [{ Account: '111', Region: 'us-east-1' }];",
+        "}",
+        "",
+        "async function describeOp(args: Record<string, unknown>, credentials: AwsCredentials): Promise<Record<string, unknown>> {",
+        "  return { OperationId: 'op-1' };",
+        "}",
+      ].join("\n"),
+    },
+    methods: [
+      {
+        methodName: "listInstances",
+        description: "List stack instances for this StackSet",
+        argumentFields: [
+          `    maxPages: z.number().describe("Max pages").optional(),`,
+        ],
+        functionExport: "listInstances",
+        returnsArray: true,
+      },
+      {
+        methodName: "describeOperation",
+        description: "Describe a StackSet operation",
+        argumentFields: [
+          `    operationId: z.string().describe("The operation ID"),`,
+        ],
+        functionExport: "describeOp",
+        returnsArray: false,
+      },
+    ],
+  };
+
+  const input: AwsExtensionModelInput = {
+    typeName: "AWS::CloudFormation::StackSet",
+    zodResult: {
+      extractedSchemas: [],
+      inputSchemaBody:
+        `  StackSetName: z.string().describe("The stack set name"),`,
+      resourceSchemaBody:
+        `  StackSetName: z.string(),\n  StackSetId: z.string().optional(),`,
+    },
+    onlyProperties: {
+      primaryIdentifier: ["StackSetName"],
+      readOnly: ["StackSetId"],
+      writeOnly: [],
+      createOnly: ["StackSetName"],
+    },
+    cfSchema: {
+      typeName: "AWS::CloudFormation::StackSet",
+      description: "A CloudFormation StackSet",
+      primaryIdentifier: ["/properties/StackSetName"],
+      properties: {
+        StackSetName: { type: "string" },
+        StackSetId: { type: "string" },
+      },
+    },
+    handlers: { create: true, read: true, update: true, delete: true },
+    version: "2026.01.01.1",
+    modelType: "@swamp/aws/cloudformation/stack-set",
+    domainPropertyNames: ["StackSetName"],
+    modelMethods: mockModelMethods,
+  };
+
+  await assertSnapshot(t, generateAwsExtensionModel(input));
+});
