@@ -197,6 +197,7 @@ const DashManifestConfigurationSchema = z.object({
     "For endpoints that use the DVB-DASH profile only. The font download and error reporting information that you want MediaPackage to pass through to the manifest.",
   ).optional(),
   Compactness: z.enum(["STANDARD", "NONE"]).optional(),
+  AudioTimelinePattern: z.enum(["NONE", "PATTERNED"]).optional(),
   SubtitleConfiguration: DashSubtitleConfigurationSchema.describe(
     "The configuration for DASH subtitles.",
   ).optional(),
@@ -318,6 +319,8 @@ const ScteSchema = z.object({
       "DISTRIBUTOR_PROMO",
       "PROVIDER_AD_BLOCK",
       "DISTRIBUTOR_AD_BLOCK",
+      "CONTENT_IDENTIFICATION",
+      "CALL_AD_SERVER",
     ]),
   ).describe(
     "The SCTE-35 message types that you want to be treated as ad markers in the output.",
@@ -630,7 +633,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaPackageV2 OriginEndpoint. Registered at `@swamp/aws/mediapackagev2/origin-endpoint`. */
 export const model = {
   type: "@swamp/aws/mediapackagev2/origin-endpoint",
-  version: "2026.06.15.1",
+  version: "2026.06.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -674,6 +677,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

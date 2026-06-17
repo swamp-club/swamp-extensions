@@ -64,8 +64,36 @@ const SessionStorageConfigurationSchema = z.object({
   ),
 });
 
+const S3FilesAccessPointConfigurationSchema = z.object({
+  AccessPointArn: z.string().max(256).regex(
+    new RegExp(
+      "^arn:aws[-a-z]*:s3files:[0-9a-z-:]+:file-system/fs-[0-9a-f]{17,40}/access-point/fsap-[0-9a-f]{17,40}$",
+    ),
+  ),
+  MountPath: z.string().min(6).max(200).regex(
+    new RegExp("^/mnt/[a-zA-Z0-9._-]+/?$"),
+  ),
+});
+
+const EfsAccessPointConfigurationSchema = z.object({
+  AccessPointArn: z.string().max(128).regex(
+    new RegExp(
+      "^arn:aws[-a-z]*:elasticfilesystem:[0-9a-z-:]+:access-point/fsap-[0-9a-f]{8,40}$",
+    ),
+  ),
+  MountPath: z.string().min(6).max(200).regex(
+    new RegExp("^/mnt/[a-zA-Z0-9._-]+/?$"),
+  ),
+});
+
 const FilesystemConfigurationSchema = z.object({
-  SessionStorage: SessionStorageConfigurationSchema,
+  SessionStorage: SessionStorageConfigurationSchema.optional(),
+  S3FilesAccessPoint: S3FilesAccessPointConfigurationSchema.describe(
+    "Configuration for an Amazon S3 Files access point to mount into the AgentCore Runtime.",
+  ).optional(),
+  EfsAccessPoint: EfsAccessPointConfigurationSchema.describe(
+    "Configuration for an Amazon EFS access point to mount into the AgentCore Runtime.",
+  ).optional(),
 });
 
 const HarnessAgentCoreRuntimeEnvironmentSchema = z.object({
@@ -104,6 +132,48 @@ const CustomClaimValidationTypeSchema = z.object({
   AuthorizingClaimMatchValue: AuthorizingClaimMatchValueTypeSchema,
 });
 
+const SelfManagedLatticeResourceSchema = z.object({
+  ResourceConfigurationIdentifier: z.string().min(20).max(2048).regex(
+    new RegExp(
+      "^((rcfg-[0-9a-z]{17})|(arn:[a-z0-9\\-]+:vpc-lattice:[a-zA-Z0-9\\-]+:\\d{12}:resourceconfiguration/rcfg-[0-9a-z]{17}))$",
+    ),
+  ),
+});
+
+const ManagedVpcResourceSchema = z.object({
+  VpcIdentifier: z.string().regex(
+    new RegExp("^vpc-(([0-9a-z]{8})|([0-9a-z]{17}))$"),
+  ),
+  SubnetIds: z.array(
+    z.string().regex(new RegExp("^subnet-[0-9a-zA-Z]{8,17}$")),
+  ),
+  EndpointIpAddressType: z.enum(["IPV4", "IPV6"]),
+  SecurityGroupIds: z.array(
+    z.string().regex(new RegExp("^sg-(([0-9a-z]{8})|([0-9a-z]{17}))$")),
+  ).optional(),
+  Tags: z.record(
+    z.string(),
+    z.string().max(256).regex(new RegExp("^[a-zA-Z0-9\\s_.:/=+\\-@]*$")),
+  ).optional(),
+  RoutingDomain: z.string().min(3).max(255).optional(),
+});
+
+const PrivateEndpointSchema = z.object({
+  SelfManagedLatticeResource: SelfManagedLatticeResourceSchema.describe(
+    "Configuration for connecting to a private resource using a self-managed VPC Lattice resource configuration.",
+  ).optional(),
+  ManagedVpcResource: ManagedVpcResourceSchema.describe(
+    "Configuration for a service-managed VPC endpoint.",
+  ).optional(),
+});
+
+const PrivateEndpointOverrideSchema = z.object({
+  Domain: z.string().min(1).max(253),
+  PrivateEndpoint: PrivateEndpointSchema.describe(
+    "Private endpoint configuration for connecting to the OpenID Connect discovery endpoint over a private network.",
+  ),
+});
+
 const CustomJWTAuthorizerConfigurationSchema = z.object({
   DiscoveryUrl: z.string().regex(
     new RegExp("^.+/\\.well-known/openid-configuration$"),
@@ -116,6 +186,10 @@ const CustomJWTAuthorizerConfigurationSchema = z.object({
     ),
   ).optional(),
   CustomClaims: z.array(CustomClaimValidationTypeSchema).optional(),
+  PrivateEndpoint: PrivateEndpointSchema.describe(
+    "Private endpoint configuration for connecting to the OpenID Connect discovery endpoint over a private network.",
+  ).optional(),
+  PrivateEndpointOverrides: z.array(PrivateEndpointOverrideSchema).optional(),
 });
 
 const HarnessBedrockModelConfigSchema = z.object({
@@ -123,6 +197,11 @@ const HarnessBedrockModelConfigSchema = z.object({
   MaxTokens: z.number().int().min(1).optional(),
   Temperature: z.number().min(0).max(2).optional(),
   TopP: z.number().min(0).max(1).optional(),
+  ApiFormat: z.enum(["converse_stream", "responses", "chat_completions"])
+    .optional(),
+  AdditionalParams: z.record(z.string(), z.unknown()).describe(
+    "Provider-specific parameters passed through to the model provider unchanged.",
+  ).optional(),
 });
 
 const HarnessOpenAiModelConfigSchema = z.object({
@@ -135,6 +214,10 @@ const HarnessOpenAiModelConfigSchema = z.object({
   MaxTokens: z.number().int().min(1).optional(),
   Temperature: z.number().min(0).max(2).optional(),
   TopP: z.number().min(0).max(1).optional(),
+  ApiFormat: z.enum(["chat_completions", "responses"]).optional(),
+  AdditionalParams: z.record(z.string(), z.unknown()).describe(
+    "Provider-specific parameters passed through to the model provider unchanged.",
+  ).optional(),
 });
 
 const HarnessGeminiModelConfigSchema = z.object({
@@ -148,6 +231,22 @@ const HarnessGeminiModelConfigSchema = z.object({
   Temperature: z.number().min(0).max(2).optional(),
   TopP: z.number().min(0).max(1).optional(),
   TopK: z.number().int().min(0).max(500).optional(),
+});
+
+const HarnessLiteLlmModelConfigSchema = z.object({
+  ModelId: z.string(),
+  ApiKeyArn: z.string().regex(
+    new RegExp(
+      "^arn:aws:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:token-vault/[a-zA-Z0-9-.]+/apikeycredentialprovider/[a-zA-Z0-9-.]+$",
+    ),
+  ).optional(),
+  ApiBase: z.string().min(1).max(16383).optional(),
+  MaxTokens: z.number().int().min(1).optional(),
+  Temperature: z.number().min(0).max(2).optional(),
+  TopP: z.number().min(0).max(1).optional(),
+  AdditionalParams: z.record(z.string(), z.unknown()).describe(
+    "Provider-specific parameters passed through to LiteLLM unchanged.",
+  ).optional(),
 });
 
 const HarnessSystemContentBlockSchema = z.object({
@@ -234,15 +333,55 @@ const HarnessToolSchema = z.object({
   Config: HarnessToolConfigurationSchema.optional(),
 });
 
-const HarnessSkillSchema = z.object({
-  Path: z.string().min(1).describe(
-    "The filesystem path to the skill definition.",
+const HarnessSkillS3SourceSchema = z.object({
+  Uri: z.string().min(5).regex(new RegExp("^s3://")).describe(
+    "The S3 URI pointing to the skill directory (e.g., s3://bucket/skills/my-skill/).",
   ),
 });
 
+const HarnessSkillGitAuthSchema = z.object({
+  CredentialArn: z.string().regex(
+    new RegExp(
+      "^arn:aws:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:token-vault/[a-zA-Z0-9-.]+/apikeycredentialprovider/[a-zA-Z0-9-.]+$",
+    ),
+  ).describe(
+    "The ARN of the credential in AgentCore Identity containing the password or personal access token.",
+  ),
+  Username: z.string().describe(
+    "Username for authentication. Defaults to 'oauth2' if not specified.",
+  ).optional(),
+});
+
+const HarnessSkillGitSourceSchema = z.object({
+  Url: z.string().min(8).regex(new RegExp("^https://")).describe(
+    "The HTTPS URL of the git repository.",
+  ),
+  Path: z.string().describe(
+    "Subdirectory within the repository containing the skill.",
+  ).optional(),
+  Auth: HarnessSkillGitAuthSchema.describe(
+    "Authentication configuration for accessing a private git repository.",
+  ).optional(),
+});
+
+const HarnessSkillSchema = z.object({
+  Path: z.string().min(1).describe(
+    "The filesystem path to the skill definition.",
+  ).optional(),
+  S3: HarnessSkillS3SourceSchema.describe("An S3 source containing the skill.")
+    .optional(),
+  Git: HarnessSkillGitSourceSchema.describe(
+    "A git repository containing the skill, cloned over HTTPS.",
+  ).optional(),
+});
+
 const HarnessAgentCoreMemoryRetrievalConfigSchema = z.object({
-  TopK: z.number().int().optional(),
-  RelevanceScore: z.number().optional(),
+  TopK: z.number().int().describe(
+    "Maximum number of memory records to retrieve. Typed as both integer and string because CloudFormation marshals scalars nested in dynamic-key (patternProperties) maps as strings, while direct API/CDK callers send a JSON integer; both forms must validate.",
+  ).optional(),
+  RelevanceScore: z.number().describe(
+    "Minimum relevance score for retrieved memories. Typed as both number and string because CloudFormation marshals scalars nested in dynamic-key (patternProperties) maps as strings, while direct API/CDK callers send a JSON number; both forms must validate.",
+  ).optional(),
   StrategyId: z.string().optional(),
 });
 
@@ -324,6 +463,7 @@ const GlobalArgsSchema = z.object({
     BedrockModelConfig: HarnessBedrockModelConfigSchema.optional(),
     OpenAiModelConfig: HarnessOpenAiModelConfigSchema.optional(),
     GeminiModelConfig: HarnessGeminiModelConfigSchema.optional(),
+    LiteLlmModelConfig: HarnessLiteLlmModelConfigSchema.optional(),
   }).describe("The model configuration for the harness."),
   SystemPrompt: z.array(HarnessSystemContentBlockSchema).describe(
     "The system prompt that defines the agent's behavior.",
@@ -381,6 +521,7 @@ const StateSchema = z.object({
     BedrockModelConfig: HarnessBedrockModelConfigSchema,
     OpenAiModelConfig: HarnessOpenAiModelConfigSchema,
     GeminiModelConfig: HarnessGeminiModelConfigSchema,
+    LiteLlmModelConfig: HarnessLiteLlmModelConfigSchema,
   }).optional(),
   SystemPrompt: z.array(HarnessSystemContentBlockSchema).optional(),
   Tools: z.array(HarnessToolSchema).optional(),
@@ -439,6 +580,7 @@ const InputsSchema = z.object({
     BedrockModelConfig: HarnessBedrockModelConfigSchema.optional(),
     OpenAiModelConfig: HarnessOpenAiModelConfigSchema.optional(),
     GeminiModelConfig: HarnessGeminiModelConfigSchema.optional(),
+    LiteLlmModelConfig: HarnessLiteLlmModelConfigSchema.optional(),
   }).describe("The model configuration for the harness.").optional(),
   SystemPrompt: z.array(HarnessSystemContentBlockSchema).describe(
     "The system prompt that defines the agent's behavior.",
@@ -495,7 +637,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Harness. Registered at `@swamp/aws/bedrockagentcore/harness`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/harness",
-  version: "2026.06.15.1",
+  version: "2026.06.17.1",
   upgrades: [
     {
       toVersion: "2026.05.27.1",
@@ -514,6 +656,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -624,7 +771,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["HarnessName", "NetworkConfiguration"],
+          ["HarnessName"],
           credentials,
         );
         const handle = await context.writeResource(

@@ -90,10 +90,18 @@ const EFSVolumeConfigurationSchema = z.object({
 });
 
 const S3FilesVolumeConfigurationSchema = z.object({
-  FileSystemArn: z.string(),
-  AccessPointArn: z.string().optional(),
-  RootDirectory: z.string().optional(),
-  TransitEncryptionPort: z.number().int().optional(),
+  FileSystemArn: z.string().describe(
+    "The full ARN of the S3 Files file system to mount.",
+  ),
+  AccessPointArn: z.string().describe(
+    "The full ARN of the S3 Files access point to use. If an access point is specified, the root directory value specified in the S3FilesVolumeConfiguration must either be omitted or set to / which will enforce the path set on the S3 Files access point. For more information, see [Creating S3 Files access points](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-files-access-points-creating.html).",
+  ).optional(),
+  RootDirectory: z.string().describe(
+    "The directory within the Amazon S3 Files file system to mount as the root directory. If this parameter is omitted, the root of the Amazon S3 Files file system will be used. Specifying / will have the same effect as omitting this parameter. If a S3 Files access point is specified in the accessPointArn, the root directory parameter must either be omitted or set to / which will enforce the path set on the S3 Files access point.",
+  ).optional(),
+  TransitEncryptionPort: z.number().int().describe(
+    "The port to use for sending encrypted data between the ECS host and the S3 Files file system. If you do not specify a transit encryption port, it will use the port selection strategy that the Amazon S3 Files mount helper uses. For more information, see [S3 Files mount helper](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-files-mounting.html).",
+  ).optional(),
 });
 
 const HostVolumePropertiesSchema = z.object({
@@ -145,7 +153,9 @@ const VolumeSchema = z.object({
   EFSVolumeConfiguration: EFSVolumeConfigurationSchema.describe(
     "This parameter is specified when you use an Amazon Elastic File System file system for task storage.",
   ).optional(),
-  S3FilesVolumeConfiguration: S3FilesVolumeConfigurationSchema.optional(),
+  S3FilesVolumeConfiguration: S3FilesVolumeConfigurationSchema.describe(
+    "This parameter is specified when you use an Amazon S3 Files file system for task storage.",
+  ).optional(),
   Host: HostVolumePropertiesSchema.describe(
     "This parameter is specified when you use bind mount host volumes. The contents of the host parameter determine whether your bind mount host volume persists on the host container instance and where it's stored. If the host parameter is empty, then the Docker daemon assigns a host path for your data volume. However, the data isn't guaranteed to persist after the containers that are associated with it stop running. Windows containers can mount whole directories on the same drive as $env:ProgramData. Windows containers can't mount directories on a different drive, and mount point can't be across drives. For example, you can mount C:\\my\\path:C:\\my\\path and D:\\:D:\\, but not D:\\my\\path:C:\\my\\path or D:\\:C:\\my\\path.",
   ).optional(),
@@ -160,7 +170,7 @@ const VolumeSchema = z.object({
       "This parameter is specified when you use Amazon FSx for Windows File Server file system for task storage.",
     ).optional(),
   Name: z.string().describe(
-    "The name of the volume. Up to 255 letters (uppercase and lowercase), numbers, underscores, and hyphens are allowed. When using a volume configured at launch, the name is required and must also be specified as the volume name in the ServiceVolumeConfiguration or TaskVolumeConfiguration parameter when creating your service or standalone task. For all other types of volumes, this name is referenced in the sourceVolume parameter of the mountPoints object in the container definition. When a volume is using the efsVolumeConfiguration, the name is required.",
+    "The name of the volume. Up to 255 letters (uppercase and lowercase), numbers, underscores, and hyphens are allowed. When using a volume configured at launch, the name is required and must also be specified as the volume name in the ServiceVolumeConfiguration or TaskVolumeConfiguration parameter when creating your service or standalone task. For all other types of volumes, this name is referenced in the sourceVolume parameter of the mountPoints object in the container definition. When a volume is using the efsVolumeConfiguration, the name is required. When a volume is using the s3filesVolumeConfiguration, the name is required.",
   ).optional(),
 });
 
@@ -213,7 +223,7 @@ const LogConfigurationSchema = z.object({
 const ResourceRequirementSchema = z.object({
   Type: z.string().describe("The type of resource to assign to a container."),
   Value: z.string().describe(
-    "The value for the specified resource type. When the type is GPU, the value is the number of physical GPUs the Amazon ECS container agent reserves for the container. The number of GPUs that's reserved for all containers in a task can't exceed the number of available GPUs on the container instance that the task is launched on. When the type is InferenceAccelerator, the value matches the deviceName for an [InferenceAccelerator](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_InferenceAccelerator.html) specified in a task definition.",
+    "The value for the specified resource type. When the type is GPU, the value is the number of physical GPUs the Amazon ECS container agent reserves for the container. The number of GPUs that's reserved for all containers in a task can't exceed the number of available GPUs on the container instance that the task is launched on. You can also specify ALL to allocate all available GPUs on the instance to the container. When the type is NeuronDevice, the value must be ALL. This allocates all available Neuron devices on the instance to the container. Only one container in a task can specify NeuronDevice resources. This resource type is only supported on Managed Instances. When the type is InferenceAccelerator, the value matches the deviceName for an [InferenceAccelerator](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_InferenceAccelerator.html) specified in a task definition.",
   ),
 });
 
@@ -309,7 +319,7 @@ const LinuxParametersSchema = z.object({
     "This allows you to tune a container's memory swappiness behavior. A swappiness value of 0 will cause swapping to not happen unless absolutely necessary. A swappiness value of 100 will cause pages to be swapped very aggressively. Accepted values are whole numbers between 0 and 100. If the swappiness parameter is not specified, a default value of 60 is used. If a value is not specified for maxSwap then this parameter is ignored. This parameter maps to the --memory-swappiness option to docker run. If you're using tasks that use the Fargate launch type, the swappiness parameter isn't supported. If you're using tasks on Amazon Linux 2023 the swappiness parameter isn't supported.",
   ).optional(),
   Tmpfs: z.array(TmpfsSchema).describe(
-    "The container path, mount options, and size (in MiB) of the tmpfs mount. This parameter maps to the --tmpfs option to docker run. If you're using tasks that use the Fargate launch type, the tmpfs parameter isn't supported.",
+    "The container path, mount options, and size (in MiB) of the tmpfs mount. This parameter maps to the --tmpfs option to docker run.",
   ).optional(),
   SharedMemorySize: z.number().int().describe(
     "The value for the size (in MiB) of the /dev/shm volume. This parameter maps to the --shm-size option to docker run. If you are using tasks that use the Fargate launch type, the sharedMemorySize parameter is not supported.",
@@ -421,7 +431,7 @@ const ContainerDefinitionSchema = z.object({
     "The log configuration specification for the container. This parameter maps to LogConfig in the docker Create a container command and the --log-driver option to docker run. By default, containers use the same logging driver that the Docker daemon uses. However, the container may use a different logging driver than the Docker daemon by specifying a log driver with this parameter in the container definition. To use a different logging driver for a container, the log system must be configured properly on the container instance (or on a different log server for remote logging options). For more information on the options for different supported log drivers, see [Configure logging drivers](https://docs.aws.amazon.com/https://docs.docker.com/engine/admin/logging/overview/) in the Docker documentation. Amazon ECS currently supports a subset of the logging drivers available to the Docker daemon (shown in the [LogConfiguration](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_LogConfiguration.html) data type). Additional log drivers may be available in future releases of the Amazon ECS container agent. This parameter requires version 1.18 of the Docker Remote API or greater on your container instance. To check the Docker Remote API version on your container instance, log in to your container instance and run the following command: sudo docker version --format '{{.Server.APIVersion}}' The Amazon ECS container agent running on a container instance must register the logging drivers available on that instance with the ECS_AVAILABLE_LOGGING_DRIVERS environment variable before containers placed on that instance can use these log configuration options. For more information, see [Container Agent Configuration](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-agent-config.html) in the *Developer Guide*.",
   ).optional(),
   ResourceRequirements: z.array(ResourceRequirementSchema).describe(
-    "The type and amount of a resource to assign to a container. The only supported resource is a GPU.",
+    "The type and amount of a resource to assign to a container. The supported resources are GPUs and Neuron devices.",
   ).optional(),
   EnvironmentFiles: z.array(EnvironmentFileSchema).describe(
     "A list of files containing the environment variables to pass to a container. This parameter maps to the --env-file option to docker run. You can specify up to ten environment files. The file must have a.env file extension. Each line in an environment file contains an environment variable in VARIABLE=VALUE format. Lines beginning with # are treated as comments and are ignored. If there are environment variables specified using the environment parameter in a container definition, they take precedence over the variables contained within an environment file. If multiple environment files are specified that contain the same variable, they're processed from the top down. We recommend that you use unique variable names. For more information, see [Specifying Environment Variables](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/taskdef-envfiles.html) in the *Amazon Elastic Container Service Developer Guide*.",
@@ -738,7 +748,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS TaskDefinition. Registered at `@swamp/aws/ecs/task-definition`. */
 export const model = {
   type: "@swamp/aws/ecs/task-definition",
-  version: "2026.06.15.1",
+  version: "2026.06.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -782,6 +792,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -722,9 +722,6 @@ const GlobalArgsSchema = z.object({
         image: z.string().describe(
           "The name of the image to use for this node.",
         ).optional(),
-        imageFamily: z.string().describe(
-          "The name of the image family to use for this node.",
-        ).optional(),
         imageProject: z.string().describe(
           "The project containing the image to use for this node.",
         ).optional(),
@@ -1962,7 +1959,6 @@ const StateSchema = z.object({
     nodeGroup: z.string(),
     nodeImageConfig: z.object({
       image: z.string(),
-      imageFamily: z.string(),
       imageProject: z.string(),
     }),
     oauthScopes: z.array(z.string()),
@@ -2671,9 +2667,6 @@ const InputsSchema = z.object({
       nodeImageConfig: z.object({
         image: z.string().describe(
           "The name of the image to use for this node.",
-        ).optional(),
-        imageFamily: z.string().describe(
-          "The name of the image family to use for this node.",
         ).optional(),
         imageProject: z.string().describe(
           "The project containing the image to use for this node.",
@@ -3725,7 +3718,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Kubernetes Engine Clusters.NodePools. Registered at `@swamp/gcp/container/clusters-nodepools`. */
 export const model = {
   type: "@swamp/gcp/container/clusters-nodepools",
-  version: "2026.06.08.1",
+  version: "2026.06.17.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -3876,6 +3869,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

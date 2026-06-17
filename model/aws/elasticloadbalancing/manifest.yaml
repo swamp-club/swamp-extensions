@@ -1,23 +1,18 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
-name: "@swamp/gcp/vault"
+name: "@swamp/aws/elasticloadbalancing"
 version: "2026.06.17.1"
-description: "Google Cloud vault infrastructure models"
+description: "AWS ELASTICLOADBALANCING infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
-  - gcp
-  - google-cloud
-  - vault
+  - aws
+  - elasticloadbalancing
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: matters_holds
+  - Added: load_balancer
 models:
-  - matters.ts
-  - matters_exports.ts
-  - matters_holds.ts
-  - matters_holds_accounts.ts
-  - matters_savedqueries.ts
+  - load_balancer.ts
 additionalFiles:
   - LICENSE.txt
   - README.md

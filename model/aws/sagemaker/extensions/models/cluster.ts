@@ -265,7 +265,7 @@ const ClusterRestrictedInstanceGroupSchema = z.object({
   ).optional(),
   EnvironmentConfig: EnvironmentConfigSchema.describe(
     "The configuration for the restricted instance groups (RIG) environment.",
-  ),
+  ).optional(),
   InstanceGroupName: z.string().min(1).max(63).regex(
     new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9])*$"),
   ).describe("The name of the instance group of a SageMaker HyperPod cluster."),
@@ -291,6 +291,15 @@ const ClusterRestrictedInstanceGroupSchema = z.object({
   ExecutionRole: z.string().min(20).max(2048).regex(
     new RegExp("^arn:aws[a-z\\-]*:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$"),
   ).describe("The execution role for the instance group to assume."),
+});
+
+const SharedEnvironmentConfigSchema = z.object({
+  FSxLustreDeletionPolicy: z.enum(["Keep", "DeleteIfNotUsed"]).describe(
+    "The deletion policy for the shared FSx Lustre file system. Keep retains the FSx when RIGs are deleted. DeleteIfNotUsed deletes the FSx when no RIGs reference it.",
+  ),
+  FSxLustreConfig: FSxLustreConfigSchema.describe(
+    "Configuration settings for an Amazon FSx for Lustre file system to be used with the cluster.",
+  ).optional(),
 });
 
 const TagSchema = z.object({
@@ -351,6 +360,13 @@ const GlobalArgsSchema = z.object({
   ClusterRole: z.string().min(20).max(2048).regex(
     new RegExp("^arn:aws[a-z\\-]*:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$"),
   ).describe("The cluster role for the autoscaler to assume.").optional(),
+  RestrictedInstanceGroupsConfig: z.object({
+    SharedEnvironmentConfig: SharedEnvironmentConfigSchema.describe(
+      "The shared environment configuration for restricted instance groups that use cluster-level shared FSx Lustre storage.",
+    ),
+  }).describe(
+    "The cluster-level configuration for restricted instance groups, including shared environment settings for inter-RIG communication and FSx Lustre sharing.",
+  ).optional(),
   NodeProvisioningMode: z.enum(["Continuous"]).describe(
     "Determines the scaling strategy for the SageMaker HyperPod cluster. When set to 'Continuous', enables continuous scaling which dynamically manages node provisioning. If the parameter is omitted, uses the standard scaling approach in previous release.",
   ).optional(),
@@ -387,6 +403,9 @@ const StateSchema = z.object({
     .optional(),
   Orchestrator: z.record(z.string(), z.unknown()).optional(),
   ClusterRole: z.string().optional(),
+  RestrictedInstanceGroupsConfig: z.object({
+    SharedEnvironmentConfig: SharedEnvironmentConfigSchema,
+  }).optional(),
   NodeProvisioningMode: z.string().optional(),
   CreationTime: z.string().optional(),
   ClusterName: z.string().optional(),
@@ -440,6 +459,13 @@ const InputsSchema = z.object({
   ClusterRole: z.string().min(20).max(2048).regex(
     new RegExp("^arn:aws[a-z\\-]*:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$"),
   ).describe("The cluster role for the autoscaler to assume.").optional(),
+  RestrictedInstanceGroupsConfig: z.object({
+    SharedEnvironmentConfig: SharedEnvironmentConfigSchema.describe(
+      "The shared environment configuration for restricted instance groups that use cluster-level shared FSx Lustre storage.",
+    ).optional(),
+  }).describe(
+    "The cluster-level configuration for restricted instance groups, including shared environment settings for inter-RIG communication and FSx Lustre sharing.",
+  ).optional(),
   NodeProvisioningMode: z.enum(["Continuous"]).describe(
     "Determines the scaling strategy for the SageMaker HyperPod cluster. When set to 'Continuous', enables continuous scaling which dynamically manages node provisioning. If the parameter is omitted, uses the standard scaling approach in previous release.",
   ).optional(),
@@ -487,7 +513,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker Cluster. Registered at `@swamp/aws/sagemaker/cluster`. */
 export const model = {
   type: "@swamp/aws/sagemaker/cluster",
-  version: "2026.06.15.1",
+  version: "2026.06.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -562,6 +588,11 @@ export const model = {
     {
       toVersion: "2026.06.15.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.17.1",
+      description: "Added: RestrictedInstanceGroupsConfig",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

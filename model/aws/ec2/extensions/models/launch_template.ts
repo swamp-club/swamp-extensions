@@ -187,7 +187,7 @@ const ConnectionTrackingSpecificationSchema = z.object({
     "Timeout (in seconds) for idle UDP flows that have seen traffic only in a single direction or a single request-response transaction. Min: 30 seconds. Max: 60 seconds. Default: 30 seconds.",
   ).optional(),
   TcpEstablishedTimeout: z.number().int().describe(
-    "Timeout (in seconds) for idle TCP connections in an established state. Min: 60 seconds. Max: 432000 seconds (5 days). Default: 432000 seconds. Recommended: Less than 432000 seconds.",
+    "Timeout (in seconds) for idle TCP connections in an established state. Min: 60 seconds. Max: 432000 seconds (5 days). Default: 350 seconds for Nitro v6 instance types (excluding P6e-GB200); 432000 seconds for all other instance types (including P6e-GB200). Recommended: Less than 432000 seconds.",
   ).optional(),
   UdpStreamTimeout: z.number().int().describe(
     "Timeout (in seconds) for idle UDP flows classified as streams which have seen more than one request-response transaction. Min: 60 seconds. Max: 180 seconds (3 minutes). Default: 180 seconds.",
@@ -849,7 +849,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 LaunchTemplate. Registered at `@swamp/aws/ec2/launch-template`. */
 export const model = {
   type: "@swamp/aws/ec2/launch-template",
-  version: "2026.06.15.1",
+  version: "2026.06.17.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -898,6 +898,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

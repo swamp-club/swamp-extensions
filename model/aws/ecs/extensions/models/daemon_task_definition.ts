@@ -337,7 +337,9 @@ const GlobalArgsSchema = z.object({
   TaskRoleArn: z.string().describe(
     "The short name or full Amazon Resource Name (ARN) of the IAM role that grants containers in the daemon task permission to call Amazon Web Services APIs on your behalf.",
   ).optional(),
-  IpcMode: z.string().optional(),
+  IpcMode: z.string().describe(
+    'The IPC namespace mode for the daemon. The valid values are none and shared. The default is none. If none is specified or no value is provided, the daemon runs with its own IPC namespace, isolated from other tasks. If shared is specified, the daemon joins the host IPC namespace, making it accessible to non-daemon tasks that use ipcMode: "host" or other daemons that use ipcMode: "shared".',
+  ).optional(),
   Volumes: z.array(VolumeSchema).describe(
     "The list of data volume definitions for the daemon task.",
   ).optional(),
@@ -352,7 +354,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Cpu: z.string().describe("The number of CPU units used by the daemon task.")
     .optional(),
-  PidMode: z.string().optional(),
+  PidMode: z.string().describe(
+    'The PID namespace mode for the daemon. The valid values are none and shared. The default is none. If none is specified or no value is provided, the daemon runs with its own PID namespace, isolated from other tasks. If shared is specified, the daemon joins the host PID namespace, making it accessible to non-daemon tasks that use pidMode: "host" or other daemons that use pidMode: "shared".',
+  ).optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -384,7 +388,9 @@ const InputsSchema = z.object({
   TaskRoleArn: z.string().describe(
     "The short name or full Amazon Resource Name (ARN) of the IAM role that grants containers in the daemon task permission to call Amazon Web Services APIs on your behalf.",
   ).optional(),
-  IpcMode: z.string().optional(),
+  IpcMode: z.string().describe(
+    'The IPC namespace mode for the daemon. The valid values are none and shared. The default is none. If none is specified or no value is provided, the daemon runs with its own IPC namespace, isolated from other tasks. If shared is specified, the daemon joins the host IPC namespace, making it accessible to non-daemon tasks that use ipcMode: "host" or other daemons that use ipcMode: "shared".',
+  ).optional(),
   Volumes: z.array(VolumeSchema).describe(
     "The list of data volume definitions for the daemon task.",
   ).optional(),
@@ -399,7 +405,9 @@ const InputsSchema = z.object({
   ).optional(),
   Cpu: z.string().describe("The number of CPU units used by the daemon task.")
     .optional(),
-  PidMode: z.string().optional(),
+  PidMode: z.string().describe(
+    'The PID namespace mode for the daemon. The valid values are none and shared. The default is none. If none is specified or no value is provided, the daemon runs with its own PID namespace, isolated from other tasks. If shared is specified, the daemon joins the host PID namespace, making it accessible to non-daemon tasks that use pidMode: "host" or other daemons that use pidMode: "shared".',
+  ).optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -422,7 +430,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS DaemonTaskDefinition. Registered at `@swamp/aws/ecs/daemon-task-definition`. */
 export const model = {
   type: "@swamp/aws/ecs/daemon-task-definition",
-  version: "2026.06.15.1",
+  version: "2026.06.17.1",
   upgrades: [
     {
       toVersion: "2026.04.03.2",
@@ -471,6 +479,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.17.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
