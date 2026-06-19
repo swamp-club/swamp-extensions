@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/displayvideo"
-version: "2026.06.09.1"
+version: "2026.06.18.1"
 description: "Google Cloud displayvideo infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: advertisers, advertisers_adgroups_targetingtypes_assignedtargetingoptions, advertisers_creatives, advertisers_lineitems_targetingtypes_assignedtargetingoptions, advertisers_targetingtypes_assignedtargetingoptions, guaranteedorders, inventorysources, partners_targetingtypes_assignedtargetingoptions, advertisers_youtubeadgroups_targetingtypes_assignedtargetingoptions
+  - Updated: advertisers_adgroups, advertisers_lineitems
 models:
   - advertisers.ts
   - advertisers_adassets.ts

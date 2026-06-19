@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/workstations"
-version: "2026.06.08.2"
+version: "2026.06.18.1"
 description: "Google Cloud workstations infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: locations, workstationclusters, workstationclusters_workstationconfigs, workstationclusters_workstationconfigs_workstations
+  - Updated: workstationclusters_workstationconfigs, workstationclusters_workstationconfigs_workstations
 models:
   - locations.ts
   - workstationclusters.ts

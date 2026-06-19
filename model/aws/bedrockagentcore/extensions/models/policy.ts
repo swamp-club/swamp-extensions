@@ -42,9 +42,13 @@ import {
 import type { AwsCredentials } from "./_lib/aws.ts";
 
 const CedarPolicySchema = z.object({
-  Statement: z.string().min(35).max(153600).describe(
+  Statement: z.string().min(35).max(10000).describe(
     "The Cedar policy statement that defines the authorization logic.",
   ),
+});
+
+const PolicyStatementSchema = z.object({
+  Statement: z.string().min(35).max(10000).describe("The policy statement."),
 });
 
 const GlobalArgsSchema = z.object({
@@ -73,7 +77,10 @@ const GlobalArgsSchema = z.object({
   Definition: z.object({
     Cedar: CedarPolicySchema.describe(
       "A Cedar policy statement within the AgentCore Policy system.",
-    ),
+    ).optional(),
+    Policy: PolicyStatementSchema.describe(
+      "A policy statement within the AgentCore Policy system.",
+    ).optional(),
   }).describe(
     "The definition structure for policies. Encapsulates different policy formats.",
   ),
@@ -84,6 +91,9 @@ const GlobalArgsSchema = z.object({
     .describe(
       "The validation mode for the policy. Determines how Cedar analyzer validation results are handled.",
     ).optional(),
+  EnforcementMode: z.enum(["ACTIVE", "LOG_ONLY"]).describe(
+    "Whether the policy contributes to the enforce decision returned to Gateway. LOG_ONLY policies are still evaluated but their decisions are observed only, allowing customers to validate a policy against real traffic before promoting it.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -91,9 +101,11 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   Definition: z.object({
     Cedar: CedarPolicySchema,
+    Policy: PolicyStatementSchema,
   }).optional(),
   Description: z.string().optional(),
   ValidationMode: z.string().optional(),
+  EnforcementMode: z.string().optional(),
   PolicyId: z.string().optional(),
   PolicyArn: z.string(),
   CreatedAt: z.string().optional(),
@@ -122,6 +134,9 @@ const InputsSchema = z.object({
     Cedar: CedarPolicySchema.describe(
       "A Cedar policy statement within the AgentCore Policy system.",
     ).optional(),
+    Policy: PolicyStatementSchema.describe(
+      "A policy statement within the AgentCore Policy system.",
+    ).optional(),
   }).describe(
     "The definition structure for policies. Encapsulates different policy formats.",
   ).optional(),
@@ -132,6 +147,9 @@ const InputsSchema = z.object({
     .describe(
       "The validation mode for the policy. Determines how Cedar analyzer validation results are handled.",
     ).optional(),
+  EnforcementMode: z.enum(["ACTIVE", "LOG_ONLY"]).describe(
+    "Whether the policy contributes to the enforce decision returned to Gateway. LOG_ONLY policies are still evaluated but their decisions are observed only, allowing customers to validate a policy against real traffic before promoting it.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -153,7 +171,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Policy. Registered at `@swamp/aws/bedrockagentcore/policy`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/policy",
-  version: "2026.06.15.1",
+  version: "2026.06.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -193,6 +211,11 @@ export const model = {
     {
       toVersion: "2026.06.15.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.18.1",
+      description: "Added: EnforcementMode",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

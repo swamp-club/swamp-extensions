@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/codepipeline"
-version: "2026.06.15.1"
+version: "2026.06.18.1"
 description: "AWS CODEPIPELINE infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: custom_action_type, pipeline, webhook
+  - Updated: webhook
 models:
   - custom_action_type.ts
   - pipeline.ts

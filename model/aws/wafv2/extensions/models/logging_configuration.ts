@@ -66,6 +66,7 @@ const ConditionSchema = z.object({
       "COUNT",
       "CAPTCHA",
       "CHALLENGE",
+      "MONETIZE",
       "EXCLUDED_AS_COUNT",
     ]).describe(
       "Logic to apply to the filtering conditions. You can specify that, in order to satisfy the filter, a log must match all conditions or must match at least one condition.",
@@ -182,7 +183,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for WAFv2 LoggingConfiguration. Registered at `@swamp/aws/wafv2/logging-configuration`. */
 export const model = {
   type: "@swamp/aws/wafv2/logging-configuration",
-  version: "2026.06.15.1",
+  version: "2026.06.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -226,6 +227,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

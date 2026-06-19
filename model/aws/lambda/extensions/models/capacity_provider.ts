@@ -55,6 +55,15 @@ const TagSchema = z.object({
     .optional(),
 });
 
+const CapacityProviderLoggingConfigSchema = z.object({
+  LogGroup: z.string().min(1).max(512).regex(
+    new RegExp("[\\.\\-_/#A-Za-z0-9]+"),
+  ).describe("The log group name.").optional(),
+  SystemLogLevel: z.enum(["DEBUG", "INFO", "WARN"]).describe(
+    "System log granularity level",
+  ).optional(),
+});
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -135,6 +144,11 @@ const GlobalArgsSchema = z.object({
     Mode: z.enum(["None", "Explicit"]).optional(),
     ExplicitTags: z.array(TagSchema).optional(),
   }).optional(),
+  TelemetryConfig: z.object({
+    LoggingConfig: CapacityProviderLoggingConfigSchema.describe(
+      "The logging configuration for the capacity provider.",
+    ).optional(),
+  }).optional(),
 });
 
 const StateSchema = z.object({
@@ -163,6 +177,9 @@ const StateSchema = z.object({
   PropagateTags: z.object({
     Mode: z.string(),
     ExplicitTags: z.array(TagSchema),
+  }).optional(),
+  TelemetryConfig: z.object({
+    LoggingConfig: CapacityProviderLoggingConfigSchema,
   }).optional(),
 }).passthrough();
 
@@ -241,6 +258,11 @@ const InputsSchema = z.object({
     Mode: z.enum(["None", "Explicit"]).optional(),
     ExplicitTags: z.array(TagSchema).optional(),
   }).optional(),
+  TelemetryConfig: z.object({
+    LoggingConfig: CapacityProviderLoggingConfigSchema.describe(
+      "The logging configuration for the capacity provider.",
+    ).optional(),
+  }).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -262,7 +284,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda CapacityProvider. Registered at `@swamp/aws/lambda/capacity-provider`. */
 export const model = {
   type: "@swamp/aws/lambda/capacity-provider",
-  version: "2026.06.16.1",
+  version: "2026.06.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -317,6 +339,11 @@ export const model = {
     {
       toVersion: "2026.06.16.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.18.1",
+      description: "Added: TelemetryConfig",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

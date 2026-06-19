@@ -50,6 +50,15 @@ const WebhookFilterRuleSchema = z.object({
   ).optional(),
 });
 
+const TagSchema = z.object({
+  Key: z.string().min(1).max(128).describe(
+    "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
+  ),
+  Value: z.string().min(0).max(256).describe(
+    "The value for the tag. You can specify a value that is 0 to 256 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
+  ),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -98,6 +107,9 @@ const GlobalArgsSchema = z.object({
   RegisterWithThirdParty: z.boolean().describe(
     "Configures a connection between the webhook that was created and the external tool with events to be detected.",
   ).optional(),
+  Tags: z.array(TagSchema).describe(
+    "An array of key-value pairs to apply to this resource.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -114,6 +126,7 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   TargetPipelineVersion: z.number().optional(),
   RegisterWithThirdParty: z.boolean().optional(),
+  Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -157,6 +170,9 @@ const InputsSchema = z.object({
   RegisterWithThirdParty: z.boolean().describe(
     "Configures a connection between the webhook that was created and the external tool with events to be detected.",
   ).optional(),
+  Tags: z.array(TagSchema).describe(
+    "An array of key-value pairs to apply to this resource.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -178,7 +194,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CodePipeline Webhook. Registered at `@swamp/aws/codepipeline/webhook`. */
 export const model = {
   type: "@swamp/aws/codepipeline/webhook",
-  version: "2026.06.15.1",
+  version: "2026.06.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -218,6 +234,11 @@ export const model = {
     {
       toVersion: "2026.06.15.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.18.1",
+      description: "Added: Tags",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

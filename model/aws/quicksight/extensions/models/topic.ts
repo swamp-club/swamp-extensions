@@ -465,7 +465,7 @@ const GlobalArgsSchema = z.object({
     QBusinessInsightsEnabled: z.boolean().optional(),
   }).describe("Model for configuration of a Topic").optional(),
   CustomInstructions: z.object({
-    CustomInstructionsString: z.string().min(0).max(5000),
+    CustomInstructionsString: z.string().min(0).max(10000),
   }).optional(),
   DataSets: z.array(DatasetMetadataSchema).optional(),
   Description: z.string().min(0).max(256).optional(),
@@ -510,7 +510,7 @@ const InputsSchema = z.object({
     QBusinessInsightsEnabled: z.boolean().optional(),
   }).describe("Model for configuration of a Topic").optional(),
   CustomInstructions: z.object({
-    CustomInstructionsString: z.string().min(0).max(5000).optional(),
+    CustomInstructionsString: z.string().min(0).max(10000).optional(),
   }).optional(),
   DataSets: z.array(DatasetMetadataSchema).optional(),
   Description: z.string().min(0).max(256).optional(),
@@ -542,7 +542,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight Topic. Registered at `@swamp/aws/quicksight/topic`. */
 export const model = {
   type: "@swamp/aws/quicksight/topic",
-  version: "2026.06.15.1",
+  version: "2026.06.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -581,6 +581,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

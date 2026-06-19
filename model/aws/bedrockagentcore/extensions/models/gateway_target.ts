@@ -130,7 +130,7 @@ const GlobalArgsSchema = z.object({
     AllowedQueryParameters: z.array(z.string()).optional(),
     AllowedResponseHeaders: z.array(z.string()).optional(),
   }).optional(),
-  Name: z.string().regex(new RegExp("^([0-9a-zA-Z][-]?){1,100}$")),
+  Name: z.string().regex(new RegExp("^([0-9a-zA-Z][-]?){1,100}$")).optional(),
   PrivateEndpoint: z.object({
     SelfManagedLatticeResource: z.object({
       ResourceConfigurationIdentifier: z.string().min(20).max(2048).regex(
@@ -234,7 +234,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore GatewayTarget. Registered at `@swamp/aws/bedrockagentcore/gateway-target`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/gateway-target",
-  version: "2026.06.15.1",
+  version: "2026.06.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -288,6 +288,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

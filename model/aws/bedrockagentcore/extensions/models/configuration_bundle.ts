@@ -126,6 +126,12 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "The version lineage metadata that tracks parent versions and creation source.",
   ).optional(),
+  KmsKeyArn: z.string().min(1).max(2048).regex(
+    new RegExp(
+      "^arn:aws(|-cn|-us-gov):kms:[a-zA-Z0-9-]*:[0-9]{12}:key/[a-zA-Z0-9-]{36}$",
+    ),
+  ).describe("The ARN of the KMS key used to encrypt component configurations.")
+    .optional(),
   Tags: z.array(TagSchema).describe(
     "Tags to assign to the configuration bundle.",
   ).optional(),
@@ -147,6 +153,7 @@ const StateSchema = z.object({
     CreatedBy: VersionCreatedBySourceSchema,
     CommitMessage: z.string(),
   }).optional(),
+  KmsKeyArn: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
@@ -205,6 +212,12 @@ const InputsSchema = z.object({
   }).describe(
     "The version lineage metadata that tracks parent versions and creation source.",
   ).optional(),
+  KmsKeyArn: z.string().min(1).max(2048).regex(
+    new RegExp(
+      "^arn:aws(|-cn|-us-gov):kms:[a-zA-Z0-9-]*:[0-9]{12}:key/[a-zA-Z0-9-]{36}$",
+    ),
+  ).describe("The ARN of the KMS key used to encrypt component configurations.")
+    .optional(),
   Tags: z.array(TagSchema).describe(
     "Tags to assign to the configuration bundle.",
   ).optional(),
@@ -229,11 +242,16 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore ConfigurationBundle. Registered at `@swamp/aws/bedrockagentcore/configuration-bundle`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/configuration-bundle",
-  version: "2026.06.15.2",
+  version: "2026.06.18.1",
   upgrades: [
     {
       toVersion: "2026.06.15.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.18.1",
+      description: "Added: KmsKeyArn",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

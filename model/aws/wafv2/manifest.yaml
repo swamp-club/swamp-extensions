@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/wafv2"
-version: "2026.06.15.1"
+version: "2026.06.18.1"
 description: "AWS WAFV2 infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: ipset, logging_configuration, regex_pattern_set, rule_group, web_acl, web_aclassociation
+  - Updated: logging_configuration, rule_group, web_acl
 models:
   - ipset.ts
   - logging_configuration.ts

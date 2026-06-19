@@ -134,7 +134,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Locations. Registered at `@swamp/gcp/aiplatform/locations`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/locations",
-  version: "2026.06.08.1",
+  version: "2026.06.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -228,6 +228,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -931,6 +936,61 @@ export const model = {
         return { result };
       },
     },
+    generate_loss_clusters: {
+      description: "generate loss clusters",
+      arguments: z.object({
+        configs: z.any().optional(),
+        evaluationSet: z.any().optional(),
+        inlineResults: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["location"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["configs"] !== undefined) body["configs"] = args["configs"];
+        if (args["evaluationSet"] !== undefined) {
+          body["evaluationSet"] = args["evaluationSet"];
+        }
+        if (args["inlineResults"] !== undefined) {
+          body["inlineResults"] = args["inlineResults"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "aiplatform.projects.locations.generateLossClusters",
+            "path": "v1/{+location}:generateLossClusters",
+            "httpMethod": "POST",
+            "parameterOrder": ["location"],
+            "parameters": {
+              "location": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
     generate_synthetic_data: {
       description: "generate synthetic data",
       arguments: z.object({
@@ -972,6 +1032,66 @@ export const model = {
           {
             "id": "aiplatform.projects.locations.generateSyntheticData",
             "path": "v1/{+location}:generateSyntheticData",
+            "httpMethod": "POST",
+            "parameterOrder": ["location"],
+            "parameters": {
+              "location": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    generate_user_scenarios: {
+      description: "generate user scenarios",
+      arguments: z.object({
+        agents: z.any().optional(),
+        allowCrossRegionModel: z.any().optional(),
+        rootAgentId: z.any().optional(),
+        userScenarioGenerationConfig: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["location"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["agents"] !== undefined) body["agents"] = args["agents"];
+        if (args["allowCrossRegionModel"] !== undefined) {
+          body["allowCrossRegionModel"] = args["allowCrossRegionModel"];
+        }
+        if (args["rootAgentId"] !== undefined) {
+          body["rootAgentId"] = args["rootAgentId"];
+        }
+        if (args["userScenarioGenerationConfig"] !== undefined) {
+          body["userScenarioGenerationConfig"] =
+            args["userScenarioGenerationConfig"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "aiplatform.projects.locations.generateUserScenarios",
+            "path": "v1/{+location}:generateUserScenarios",
             "httpMethod": "POST",
             "parameterOrder": ["location"],
             "parameters": {

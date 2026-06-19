@@ -247,14 +247,30 @@ const GlobalArgsSchema = z.object({
         presencePenalty: z.number().describe(
           "Optional. Penalizes tokens that have already appeared in the generated text. A positive value encourages the model to generate more diverse and less repetitive text. Valid values can range from [-2.0, 2.0].",
         ).optional(),
+        responseFormat: z.array(z.object({
+          audio: z.unknown().describe(
+            "Configuration for audio-specific output formatting.",
+          ).optional(),
+          image: z.unknown().describe(
+            "Configuration for image-specific output formatting.",
+          ).optional(),
+          text: z.unknown().describe(
+            "Configuration for text-specific output formatting.",
+          ).optional(),
+          video: z.unknown().describe(
+            "Configuration for video-specific output formatting.",
+          ).optional(),
+        })).describe(
+          "Optional. New response format field for the model to configure output formatting and delivery.",
+        ).optional(),
         responseJsonSchema: z.string().describe(
-          "Optional. When this field is set, response_schema must be omitted and response_mime_type must be set to `application/json`.",
+          "Optional. When this field is set, response_schema must be omitted and response_mime_type must be set to `application/json`. Deprecated: Use `response_format` instead.",
         ).optional(),
         responseLogprobs: z.boolean().describe(
           "Optional. If set to true, the log probabilities of the output tokens are returned. Log probabilities are the logarithm of the probability of a token appearing in the output. A higher log probability means the token is more likely to be generated. This can be useful for analyzing the model's confidence in its own output and for debugging.",
         ).optional(),
         responseMimeType: z.string().describe(
-          "Optional. The IANA standard MIME type of the response. The model will generate output that conforms to this MIME type. Supported values include 'text/plain' (default) and 'application/json'. The model needs to be prompted to output the appropriate response type, otherwise the behavior is undefined.",
+          "Optional. The IANA standard MIME type of the response. The model will generate output that conforms to this MIME type. Supported values include 'text/plain' (default) and 'application/json'. The model needs to be prompted to output the appropriate response type, otherwise the behavior is undefined. Deprecated: Use `response_format` instead.",
         ).optional(),
         responseModalities: z.array(
           z.enum(["MODALITY_UNSPECIFIED", "TEXT", "IMAGE", "AUDIO", "VIDEO"]),
@@ -814,14 +830,17 @@ const GlobalArgsSchema = z.object({
             presencePenalty: z.unknown().describe(
               "Optional. Penalizes tokens that have already appeared in the generated text. A positive value encourages the model to generate more diverse and less repetitive text. Valid values can range from [-2.0, 2.0].",
             ).optional(),
+            responseFormat: z.unknown().describe(
+              "Optional. New response format field for the model to configure output formatting and delivery.",
+            ).optional(),
             responseJsonSchema: z.unknown().describe(
-              "Optional. When this field is set, response_schema must be omitted and response_mime_type must be set to `application/json`.",
+              "Optional. When this field is set, response_schema must be omitted and response_mime_type must be set to `application/json`. Deprecated: Use `response_format` instead.",
             ).optional(),
             responseLogprobs: z.unknown().describe(
               "Optional. If set to true, the log probabilities of the output tokens are returned. Log probabilities are the logarithm of the probability of a token appearing in the output. A higher log probability means the token is more likely to be generated. This can be useful for analyzing the model's confidence in its own output and for debugging.",
             ).optional(),
             responseMimeType: z.unknown().describe(
-              "Optional. The IANA standard MIME type of the response. The model will generate output that conforms to this MIME type. Supported values include 'text/plain' (default) and 'application/json'. The model needs to be prompted to output the appropriate response type, otherwise the behavior is undefined.",
+              "Optional. The IANA standard MIME type of the response. The model will generate output that conforms to this MIME type. Supported values include 'text/plain' (default) and 'application/json'. The model needs to be prompted to output the appropriate response type, otherwise the behavior is undefined. Deprecated: Use `response_format` instead.",
             ).optional(),
             responseModalities: z.unknown().describe(
               "Optional. The modalities of the response. The model will generate a response that includes all the specified modalities. For example, if this is set to `[TEXT, IMAGE]`, the response will include both text and an image.",
@@ -927,14 +946,30 @@ const GlobalArgsSchema = z.object({
         presencePenalty: z.number().describe(
           "Optional. Penalizes tokens that have already appeared in the generated text. A positive value encourages the model to generate more diverse and less repetitive text. Valid values can range from [-2.0, 2.0].",
         ).optional(),
+        responseFormat: z.array(z.object({
+          audio: z.unknown().describe(
+            "Configuration for audio-specific output formatting.",
+          ).optional(),
+          image: z.unknown().describe(
+            "Configuration for image-specific output formatting.",
+          ).optional(),
+          text: z.unknown().describe(
+            "Configuration for text-specific output formatting.",
+          ).optional(),
+          video: z.unknown().describe(
+            "Configuration for video-specific output formatting.",
+          ).optional(),
+        })).describe(
+          "Optional. New response format field for the model to configure output formatting and delivery.",
+        ).optional(),
         responseJsonSchema: z.string().describe(
-          "Optional. When this field is set, response_schema must be omitted and response_mime_type must be set to `application/json`.",
+          "Optional. When this field is set, response_schema must be omitted and response_mime_type must be set to `application/json`. Deprecated: Use `response_format` instead.",
         ).optional(),
         responseLogprobs: z.boolean().describe(
           "Optional. If set to true, the log probabilities of the output tokens are returned. Log probabilities are the logarithm of the probability of a token appearing in the output. A higher log probability means the token is more likely to be generated. This can be useful for analyzing the model's confidence in its own output and for debugging.",
         ).optional(),
         responseMimeType: z.string().describe(
-          "Optional. The IANA standard MIME type of the response. The model will generate output that conforms to this MIME type. Supported values include 'text/plain' (default) and 'application/json'. The model needs to be prompted to output the appropriate response type, otherwise the behavior is undefined.",
+          "Optional. The IANA standard MIME type of the response. The model will generate output that conforms to this MIME type. Supported values include 'text/plain' (default) and 'application/json'. The model needs to be prompted to output the appropriate response type, otherwise the behavior is undefined. Deprecated: Use `response_format` instead.",
         ).optional(),
         responseModalities: z.array(
           z.enum(["MODALITY_UNSPECIFIED", "TEXT", "IMAGE", "AUDIO", "VIDEO"]),
@@ -1170,6 +1205,12 @@ const StateSchema = z.object({
         maxOutputTokens: z.number(),
         mediaResolution: z.string(),
         presencePenalty: z.number(),
+        responseFormat: z.array(z.object({
+          audio: z.unknown(),
+          image: z.unknown(),
+          text: z.unknown(),
+          video: z.unknown(),
+        })),
         responseJsonSchema: z.string(),
         responseLogprobs: z.boolean(),
         responseMimeType: z.string(),
@@ -1506,14 +1547,30 @@ const InputsSchema = z.object({
         presencePenalty: z.number().describe(
           "Optional. Penalizes tokens that have already appeared in the generated text. A positive value encourages the model to generate more diverse and less repetitive text. Valid values can range from [-2.0, 2.0].",
         ).optional(),
+        responseFormat: z.array(z.object({
+          audio: z.unknown().describe(
+            "Configuration for audio-specific output formatting.",
+          ).optional(),
+          image: z.unknown().describe(
+            "Configuration for image-specific output formatting.",
+          ).optional(),
+          text: z.unknown().describe(
+            "Configuration for text-specific output formatting.",
+          ).optional(),
+          video: z.unknown().describe(
+            "Configuration for video-specific output formatting.",
+          ).optional(),
+        })).describe(
+          "Optional. New response format field for the model to configure output formatting and delivery.",
+        ).optional(),
         responseJsonSchema: z.string().describe(
-          "Optional. When this field is set, response_schema must be omitted and response_mime_type must be set to `application/json`.",
+          "Optional. When this field is set, response_schema must be omitted and response_mime_type must be set to `application/json`. Deprecated: Use `response_format` instead.",
         ).optional(),
         responseLogprobs: z.boolean().describe(
           "Optional. If set to true, the log probabilities of the output tokens are returned. Log probabilities are the logarithm of the probability of a token appearing in the output. A higher log probability means the token is more likely to be generated. This can be useful for analyzing the model's confidence in its own output and for debugging.",
         ).optional(),
         responseMimeType: z.string().describe(
-          "Optional. The IANA standard MIME type of the response. The model will generate output that conforms to this MIME type. Supported values include 'text/plain' (default) and 'application/json'. The model needs to be prompted to output the appropriate response type, otherwise the behavior is undefined.",
+          "Optional. The IANA standard MIME type of the response. The model will generate output that conforms to this MIME type. Supported values include 'text/plain' (default) and 'application/json'. The model needs to be prompted to output the appropriate response type, otherwise the behavior is undefined. Deprecated: Use `response_format` instead.",
         ).optional(),
         responseModalities: z.array(
           z.enum(["MODALITY_UNSPECIFIED", "TEXT", "IMAGE", "AUDIO", "VIDEO"]),
@@ -2073,14 +2130,17 @@ const InputsSchema = z.object({
             presencePenalty: z.unknown().describe(
               "Optional. Penalizes tokens that have already appeared in the generated text. A positive value encourages the model to generate more diverse and less repetitive text. Valid values can range from [-2.0, 2.0].",
             ).optional(),
+            responseFormat: z.unknown().describe(
+              "Optional. New response format field for the model to configure output formatting and delivery.",
+            ).optional(),
             responseJsonSchema: z.unknown().describe(
-              "Optional. When this field is set, response_schema must be omitted and response_mime_type must be set to `application/json`.",
+              "Optional. When this field is set, response_schema must be omitted and response_mime_type must be set to `application/json`. Deprecated: Use `response_format` instead.",
             ).optional(),
             responseLogprobs: z.unknown().describe(
               "Optional. If set to true, the log probabilities of the output tokens are returned. Log probabilities are the logarithm of the probability of a token appearing in the output. A higher log probability means the token is more likely to be generated. This can be useful for analyzing the model's confidence in its own output and for debugging.",
             ).optional(),
             responseMimeType: z.unknown().describe(
-              "Optional. The IANA standard MIME type of the response. The model will generate output that conforms to this MIME type. Supported values include 'text/plain' (default) and 'application/json'. The model needs to be prompted to output the appropriate response type, otherwise the behavior is undefined.",
+              "Optional. The IANA standard MIME type of the response. The model will generate output that conforms to this MIME type. Supported values include 'text/plain' (default) and 'application/json'. The model needs to be prompted to output the appropriate response type, otherwise the behavior is undefined. Deprecated: Use `response_format` instead.",
             ).optional(),
             responseModalities: z.unknown().describe(
               "Optional. The modalities of the response. The model will generate a response that includes all the specified modalities. For example, if this is set to `[TEXT, IMAGE]`, the response will include both text and an image.",
@@ -2186,14 +2246,30 @@ const InputsSchema = z.object({
         presencePenalty: z.number().describe(
           "Optional. Penalizes tokens that have already appeared in the generated text. A positive value encourages the model to generate more diverse and less repetitive text. Valid values can range from [-2.0, 2.0].",
         ).optional(),
+        responseFormat: z.array(z.object({
+          audio: z.unknown().describe(
+            "Configuration for audio-specific output formatting.",
+          ).optional(),
+          image: z.unknown().describe(
+            "Configuration for image-specific output formatting.",
+          ).optional(),
+          text: z.unknown().describe(
+            "Configuration for text-specific output formatting.",
+          ).optional(),
+          video: z.unknown().describe(
+            "Configuration for video-specific output formatting.",
+          ).optional(),
+        })).describe(
+          "Optional. New response format field for the model to configure output formatting and delivery.",
+        ).optional(),
         responseJsonSchema: z.string().describe(
-          "Optional. When this field is set, response_schema must be omitted and response_mime_type must be set to `application/json`.",
+          "Optional. When this field is set, response_schema must be omitted and response_mime_type must be set to `application/json`. Deprecated: Use `response_format` instead.",
         ).optional(),
         responseLogprobs: z.boolean().describe(
           "Optional. If set to true, the log probabilities of the output tokens are returned. Log probabilities are the logarithm of the probability of a token appearing in the output. A higher log probability means the token is more likely to be generated. This can be useful for analyzing the model's confidence in its own output and for debugging.",
         ).optional(),
         responseMimeType: z.string().describe(
-          "Optional. The IANA standard MIME type of the response. The model will generate output that conforms to this MIME type. Supported values include 'text/plain' (default) and 'application/json'. The model needs to be prompted to output the appropriate response type, otherwise the behavior is undefined.",
+          "Optional. The IANA standard MIME type of the response. The model will generate output that conforms to this MIME type. Supported values include 'text/plain' (default) and 'application/json'. The model needs to be prompted to output the appropriate response type, otherwise the behavior is undefined. Deprecated: Use `response_format` instead.",
         ).optional(),
         responseModalities: z.array(
           z.enum(["MODALITY_UNSPECIFIED", "TEXT", "IMAGE", "AUDIO", "VIDEO"]),
@@ -2399,7 +2475,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform EvaluationRuns. Registered at `@swamp/gcp/aiplatform/evaluationruns`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/evaluationruns",
-  version: "2026.06.08.1",
+  version: "2026.06.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2518,6 +2594,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

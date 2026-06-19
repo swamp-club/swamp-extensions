@@ -283,10 +283,10 @@ const GlobalArgsSchema = z.object({
       loginNodes: z.object({
         bootDisk: z.object({
           sizeGb: z.string().describe(
-            "Required. Immutable. The size of the disk in gigabytes (GB), which must be at least 40 GB.",
+            "Optional. The size of the disk in gigabytes (GB), which must be at least 40 GB.",
           ).optional(),
           type: z.string().describe(
-            "Required. Immutable. [Persistent disk type](https://cloud.google.com/compute/docs/disks#disk-types), in the format `projects/{project}/zones/{zone}/diskTypes/{disk_type}`.",
+            "Optional. [Persistent disk type](https://cloud.google.com/compute/docs/disks#disk-types), in the format `projects/{project}/zones/{zone}/diskTypes/{disk_type}`.",
           ).optional(),
         }).describe(
           "A [Persistent disk](https://cloud.google.com/compute/docs/disks) used as the boot disk for a Compute Engine VM instance.",
@@ -698,10 +698,10 @@ const InputsSchema = z.object({
       loginNodes: z.object({
         bootDisk: z.object({
           sizeGb: z.string().describe(
-            "Required. Immutable. The size of the disk in gigabytes (GB), which must be at least 40 GB.",
+            "Optional. The size of the disk in gigabytes (GB), which must be at least 40 GB.",
           ).optional(),
           type: z.string().describe(
-            "Required. Immutable. [Persistent disk type](https://cloud.google.com/compute/docs/disks#disk-types), in the format `projects/{project}/zones/{zone}/diskTypes/{disk_type}`.",
+            "Optional. [Persistent disk type](https://cloud.google.com/compute/docs/disks#disk-types), in the format `projects/{project}/zones/{zone}/diskTypes/{disk_type}`.",
           ).optional(),
         }).describe(
           "A [Persistent disk](https://cloud.google.com/compute/docs/disks) used as the boot disk for a Compute Engine VM instance.",
@@ -948,7 +948,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Cluster Director Clusters. Registered at `@swamp/gcp/hypercomputecluster/clusters`. */
 export const model = {
   type: "@swamp/gcp/hypercomputecluster/clusters",
-  version: "2026.06.12.1",
+  version: "2026.06.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1062,6 +1062,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.12.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/s3"
-version: "2026.06.15.1"
+version: "2026.06.18.1"
 description: "AWS S3 infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: access_grant, access_grants_instance, access_grants_location, access_point, bucket, bucket_policy, multi_region_access_point, multi_region_access_point_policy, storage_lens, storage_lens_group
+  - Updated: bucket
 models:
   - access_grant.ts
   - access_grants_instance.ts

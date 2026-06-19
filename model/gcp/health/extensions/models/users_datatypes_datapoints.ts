@@ -3298,7 +3298,7 @@ const GlobalArgsSchema = z.object({
         "Output only. Naps are sleeps without stages and relatively short durations.",
       ).optional(),
       processed: z.boolean().describe(
-        "Output only. Sleep and sleep stages algorithms finished processing.",
+        "Output only. Sleep and sleep stages algorithms finished processing. A `true` value indicates whether all data processing for the session is complete. A `false` value means sleep period is detected but sleep stages is still processing.",
       ).optional(),
       stagesStatus: z.enum([
         "STAGES_STATE_UNSPECIFIED",
@@ -8223,7 +8223,7 @@ const InputsSchema = z.object({
         "Output only. Naps are sleeps without stages and relatively short durations.",
       ).optional(),
       processed: z.boolean().describe(
-        "Output only. Sleep and sleep stages algorithms finished processing.",
+        "Output only. Sleep and sleep stages algorithms finished processing. A `true` value indicates whether all data processing for the session is complete. A `false` value means sleep period is detected but sleep stages is still processing.",
       ).optional(),
       stagesStatus: z.enum([
         "STAGES_STATE_UNSPECIFIED",
@@ -8722,7 +8722,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Health Users.DataTypes.DataPoints. Registered at `@swamp/gcp/health/users-datatypes-datapoints`. */
 export const model = {
   type: "@swamp/gcp/health/users-datatypes-datapoints",
-  version: "2026.06.08.2",
+  version: "2026.06.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -8866,6 +8866,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

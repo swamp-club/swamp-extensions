@@ -59,6 +59,30 @@ const LabelSummarySchema = z.object({
   ).optional(),
 });
 
+const PriceSchema = z.object({
+  Amount: z.string().min(1).max(13).regex(
+    new RegExp(
+      "^([1-9][0-9]*(\\.[0-9]{1,3})?|0\\.([1-9][0-9]{0,2}|0[1-9][0-9]?|00[1-9]))$",
+    ),
+  ).describe("The price amount."),
+  Currency: z.enum(["USDC"]).describe("The cryptocurrency to use for payment."),
+});
+
+const PaymentNetworkSchema = z.object({
+  Chain: z.enum(["BASE", "SOLANA", "BASE_SEPOLIA", "SOLANA_DEVNET"]).describe(
+    "The blockchain chain to use.",
+  ),
+  WalletAddress: z.string().min(26).max(44).regex(new RegExp(".*\\S.*"))
+    .describe("The wallet address for receiving payments."),
+  Prices: z.array(PriceSchema).describe("List of price configurations."),
+});
+
+const CryptoConfigSchema = z.object({
+  PaymentNetworks: z.array(PaymentNetworkSchema).describe(
+    "List of payment network configurations.",
+  ),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -100,6 +124,15 @@ const GlobalArgsSchema = z.object({
   ConsumedLabels: z.array(LabelSummarySchema).describe(
     "Collection of Consumed Labels.",
   ).optional(),
+  MonetizationConfig: z.object({
+    CryptoConfig: CryptoConfigSchema.describe(
+      "Configures cryptocurrency payment settings.",
+    ).optional(),
+    CurrencyMode: z.enum(["REAL", "TEST"]).describe(
+      "The currency mode for monetization. Use REAL for production payments and TEST for testing with testnet currencies.",
+    ).optional(),
+  }).describe("Configures monetization for the web ACL or rule group.")
+    .optional(),
 });
 
 const StateSchema = z.object({
@@ -120,6 +153,10 @@ const StateSchema = z.object({
   CustomResponseBodies: z.record(z.string(), z.unknown()).optional(),
   AvailableLabels: z.array(LabelSummarySchema).optional(),
   ConsumedLabels: z.array(LabelSummarySchema).optional(),
+  MonetizationConfig: z.object({
+    CryptoConfig: CryptoConfigSchema,
+    CurrencyMode: z.string(),
+  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -155,6 +192,15 @@ const InputsSchema = z.object({
   ConsumedLabels: z.array(LabelSummarySchema).describe(
     "Collection of Consumed Labels.",
   ).optional(),
+  MonetizationConfig: z.object({
+    CryptoConfig: CryptoConfigSchema.describe(
+      "Configures cryptocurrency payment settings.",
+    ).optional(),
+    CurrencyMode: z.enum(["REAL", "TEST"]).describe(
+      "The currency mode for monetization. Use REAL for production payments and TEST for testing with testnet currencies.",
+    ).optional(),
+  }).describe("Configures monetization for the web ACL or rule group.")
+    .optional(),
 });
 
 const _credentialKeys = new Set([
@@ -176,7 +222,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for WAFv2 RuleGroup. Registered at `@swamp/aws/wafv2/rule-group`. */
 export const model = {
   type: "@swamp/aws/wafv2/rule-group",
-  version: "2026.06.15.1",
+  version: "2026.06.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -216,6 +262,11 @@ export const model = {
     {
       toVersion: "2026.06.15.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.18.1",
+      description: "Added: MonetizationConfig",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -363,6 +363,9 @@ const GlobalArgsSchema = z.object({
       archiveTimeout: z.string().describe(
         'Optional. Number of seconds to wait after initially creating or subsequently shutting down the workstation before converting its disk into a snapshot. This generally saves costs at the expense of greater startup time on next workstation start, as the service will need to create a disk from the archival snapshot. A value of `"0s"` indicates that the disk will never be archived.',
       ).optional(),
+      maxSizeGb: z.number().int().describe(
+        "Optional. Maximum size in GB to which this persistent directory can be resized. Defaults to unlimited if not set.",
+      ).optional(),
       reclaimPolicy: z.enum(["RECLAIM_POLICY_UNSPECIFIED", "DELETE", "RETAIN"])
         .describe(
           "Optional. Whether the persistent disk should be deleted when the workstation is deleted. Valid values are `DELETE` and `RETAIN`. Defaults to `DELETE`.",
@@ -385,6 +388,9 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       fsType: z.string().describe(
         'Optional. Type of file system that the disk should be formatted with. The workstation image must support this file system type. Must be empty if source_snapshot is set. Defaults to `"ext4"`.',
+      ).optional(),
+      maxSizeGb: z.number().int().describe(
+        "Optional. Maximum size in GB to which this persistent directory can be resized. Defaults to unlimited if not set.",
       ).optional(),
       reclaimPolicy: z.enum(["RECLAIM_POLICY_UNSPECIFIED", "DELETE", "RETAIN"])
         .describe(
@@ -512,6 +518,7 @@ const StateSchema = z.object({
   persistentDirectories: z.array(z.object({
     gceHd: z.object({
       archiveTimeout: z.string(),
+      maxSizeGb: z.number(),
       reclaimPolicy: z.string(),
       sizeGb: z.number(),
       sourceSnapshot: z.string(),
@@ -520,6 +527,7 @@ const StateSchema = z.object({
       archiveTimeout: z.string(),
       diskType: z.string(),
       fsType: z.string(),
+      maxSizeGb: z.number(),
       reclaimPolicy: z.string(),
       sizeGb: z.number(),
       sourceSnapshot: z.string(),
@@ -731,6 +739,9 @@ const InputsSchema = z.object({
       archiveTimeout: z.string().describe(
         'Optional. Number of seconds to wait after initially creating or subsequently shutting down the workstation before converting its disk into a snapshot. This generally saves costs at the expense of greater startup time on next workstation start, as the service will need to create a disk from the archival snapshot. A value of `"0s"` indicates that the disk will never be archived.',
       ).optional(),
+      maxSizeGb: z.number().int().describe(
+        "Optional. Maximum size in GB to which this persistent directory can be resized. Defaults to unlimited if not set.",
+      ).optional(),
       reclaimPolicy: z.enum(["RECLAIM_POLICY_UNSPECIFIED", "DELETE", "RETAIN"])
         .describe(
           "Optional. Whether the persistent disk should be deleted when the workstation is deleted. Valid values are `DELETE` and `RETAIN`. Defaults to `DELETE`.",
@@ -753,6 +764,9 @@ const InputsSchema = z.object({
       ).optional(),
       fsType: z.string().describe(
         'Optional. Type of file system that the disk should be formatted with. The workstation image must support this file system type. Must be empty if source_snapshot is set. Defaults to `"ext4"`.',
+      ).optional(),
+      maxSizeGb: z.number().int().describe(
+        "Optional. Maximum size in GB to which this persistent directory can be resized. Defaults to unlimited if not set.",
       ).optional(),
       reclaimPolicy: z.enum(["RECLAIM_POLICY_UNSPECIFIED", "DELETE", "RETAIN"])
         .describe(
@@ -811,7 +825,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Workstations WorkstationClusters.WorkstationConfigs. Registered at `@swamp/gcp/workstations/workstationclusters-workstationconfigs`. */
 export const model = {
   type: "@swamp/gcp/workstations/workstationclusters-workstationconfigs",
-  version: "2026.06.08.1",
+  version: "2026.06.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -920,6 +934,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

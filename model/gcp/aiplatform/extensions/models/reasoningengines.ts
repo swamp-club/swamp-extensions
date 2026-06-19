@@ -271,6 +271,23 @@ const GlobalArgsSchema = z.object({
     }).describe("Specification for deploying from a container image.")
       .optional(),
     deploymentSpec: z.object({
+      agentGatewayConfig: z.object({
+        agentToAnywhereConfig: z.object({
+          agentGateway: z.string().describe(
+            "Required. The resource name of the Agent Gateway for outbound traffic. It must be set to a Google-managed gateway whose `governed_access_path` is `AGENT_TO_ANYWHERE`. Format: `projects/{project}/locations/{location}/agentGateways/{agent_gateway}`",
+          ).optional(),
+        }).describe(
+          "Configuration for traffic originating from a Reasoning Engine.",
+        ).optional(),
+        clientToAgentConfig: z.object({
+          agentGateway: z.string().describe(
+            "Required. The resource name of the Agent Gateway to use for inbound traffic. It must be set to a Google-managed gateway whose `governed_access_path` is `CLIENT_TO_AGENT`. Format: `projects/{project}/locations/{location}/agentGateways/{agent_gateway}`",
+          ).optional(),
+        }).describe("Configuration for traffic targeting a Reasoning Engine.")
+          .optional(),
+      }).describe(
+        "Agent Gateway configuration for a Reasoning Engine deployment.",
+      ).optional(),
       containerConcurrency: z.number().int().describe(
         "Optional. Concurrency for each container and agent server. Recommended value: 2 * cpu + 1. Defaults to 9.",
       ).optional(),
@@ -497,6 +514,14 @@ const StateSchema = z.object({
       imageUri: z.string(),
     }),
     deploymentSpec: z.object({
+      agentGatewayConfig: z.object({
+        agentToAnywhereConfig: z.object({
+          agentGateway: z.string(),
+        }),
+        clientToAgentConfig: z.object({
+          agentGateway: z.string(),
+        }),
+      }),
       containerConcurrency: z.number(),
       env: z.array(z.object({
         name: z.string(),
@@ -695,6 +720,23 @@ const InputsSchema = z.object({
     }).describe("Specification for deploying from a container image.")
       .optional(),
     deploymentSpec: z.object({
+      agentGatewayConfig: z.object({
+        agentToAnywhereConfig: z.object({
+          agentGateway: z.string().describe(
+            "Required. The resource name of the Agent Gateway for outbound traffic. It must be set to a Google-managed gateway whose `governed_access_path` is `AGENT_TO_ANYWHERE`. Format: `projects/{project}/locations/{location}/agentGateways/{agent_gateway}`",
+          ).optional(),
+        }).describe(
+          "Configuration for traffic originating from a Reasoning Engine.",
+        ).optional(),
+        clientToAgentConfig: z.object({
+          agentGateway: z.string().describe(
+            "Required. The resource name of the Agent Gateway to use for inbound traffic. It must be set to a Google-managed gateway whose `governed_access_path` is `CLIENT_TO_AGENT`. Format: `projects/{project}/locations/{location}/agentGateways/{agent_gateway}`",
+          ).optional(),
+        }).describe("Configuration for traffic targeting a Reasoning Engine.")
+          .optional(),
+      }).describe(
+        "Agent Gateway configuration for a Reasoning Engine deployment.",
+      ).optional(),
       containerConcurrency: z.number().int().describe(
         "Optional. Concurrency for each container and agent server. Recommended value: 2 * cpu + 1. Defaults to 9.",
       ).optional(),
@@ -882,7 +924,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform ReasoningEngines. Registered at `@swamp/gcp/aiplatform/reasoningengines`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines",
-  version: "2026.06.08.1",
+  version: "2026.06.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1001,6 +1043,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

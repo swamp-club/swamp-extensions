@@ -387,6 +387,18 @@ const InventoryTableConfigurationSchema = z.object({
   ).optional(),
 });
 
+const AnnotationTableConfigurationSchema = z.object({
+  ConfigurationState: z.enum(["ENABLED", "DISABLED"]).describe(
+    "Specifies whether annotation table configuration is enabled or disabled.",
+  ),
+  EncryptionConfiguration: MetadataTableEncryptionConfigurationSchema.describe(
+    "The encryption configuration for the annotation table.",
+  ).optional(),
+  Role: z.string().describe(
+    "The ARN of the IAM role that grants Amazon S3 Metadata permission to read annotations from your bucket.",
+  ).optional(),
+});
+
 const EventBridgeConfigurationSchema = z.object({
   EventBridgeEnabled: z.boolean().describe(
     "Enables delivery of events to Amazon EventBridge.",
@@ -773,6 +785,7 @@ const GlobalArgsSchema = z.object({
     InventoryTableConfiguration: InventoryTableConfigurationSchema.describe(
       "The inventory table configuration for a metadata configuration.",
     ).optional(),
+    AnnotationTableConfiguration: AnnotationTableConfigurationSchema.optional(),
   }).describe("The S3 Metadata configuration for a general purpose bucket.")
     .optional(),
   NotificationConfiguration: z.object({
@@ -903,6 +916,7 @@ const StateSchema = z.object({
     Destination: MetadataDestinationSchema,
     JournalTableConfiguration: JournalTableConfigurationSchema,
     InventoryTableConfiguration: InventoryTableConfigurationSchema,
+    AnnotationTableConfiguration: AnnotationTableConfigurationSchema,
   }).optional(),
   NotificationConfiguration: z.object({
     EventBridgeConfiguration: EventBridgeConfigurationSchema,
@@ -1045,6 +1059,7 @@ const InputsSchema = z.object({
     InventoryTableConfiguration: InventoryTableConfigurationSchema.describe(
       "The inventory table configuration for a metadata configuration.",
     ).optional(),
+    AnnotationTableConfiguration: AnnotationTableConfigurationSchema.optional(),
   }).describe("The S3 Metadata configuration for a general purpose bucket.")
     .optional(),
   NotificationConfiguration: z.object({
@@ -1158,7 +1173,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for S3 Bucket. Registered at `@swamp/aws/s3/bucket`. */
 export const model = {
   type: "@swamp/aws/s3/bucket",
-  version: "2026.06.15.1",
+  version: "2026.06.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1202,6 +1217,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

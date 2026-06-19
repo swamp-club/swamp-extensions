@@ -90,6 +90,52 @@ const ContainerMountPointSchema = z.object({
   ).optional(),
 });
 
+const LinuxCapabilitiesSchema = z.object({
+  Include: z.array(
+    z.enum([
+      "AUDIT_CONTROL",
+      "AUDIT_WRITE",
+      "BLOCK_SUSPEND",
+      "CHOWN",
+      "DAC_OVERRIDE",
+      "DAC_READ_SEARCH",
+      "FOWNER",
+      "FSETID",
+      "IPC_LOCK",
+      "IPC_OWNER",
+      "KILL",
+      "LEASE",
+      "LINUX_IMMUTABLE",
+      "MAC_ADMIN",
+      "MAC_OVERRIDE",
+      "MKNOD",
+      "NET_ADMIN",
+      "NET_BIND_SERVICE",
+      "NET_BROADCAST",
+      "NET_RAW",
+      "SETFCAP",
+      "SETGID",
+      "SETPCAP",
+      "SETUID",
+      "SYS_ADMIN",
+      "SYS_BOOT",
+      "SYS_CHROOT",
+      "SYS_MODULE",
+      "SYS_NICE",
+      "SYS_PACCT",
+      "SYS_PTRACE",
+      "SYS_RAWIO",
+      "SYS_RESOURCE",
+      "SYS_TIME",
+      "SYS_TTY_CONFIG",
+      "SYSLOG",
+      "WAKE_ALARM",
+    ]),
+  ).describe(
+    "The list of Linux capabilities to add to the container's default configuration.",
+  ).optional(),
+});
+
 const ContainerHealthCheckSchema = z.object({
   Command: z.array(z.string().min(1).max(255).regex(new RegExp("^.*$")))
     .describe(
@@ -140,6 +186,9 @@ const SupportContainerDefinitionSchema = z.object({
   ).optional(),
   MountPoints: z.array(ContainerMountPointSchema).describe(
     "A list of mount point configurations to be used in a container.",
+  ).optional(),
+  LinuxCapabilities: LinuxCapabilitiesSchema.describe(
+    "Linux-specific modifications applied to the default Docker container configuration, such as Linux capabilities.",
   ).optional(),
 });
 
@@ -206,6 +255,9 @@ const GlobalArgsSchema = z.object({
     MountPoints: z.array(ContainerMountPointSchema).describe(
       "A list of mount point configurations to be used in a container.",
     ).optional(),
+    LinuxCapabilities: LinuxCapabilitiesSchema.describe(
+      "Linux-specific modifications applied to the default Docker container configuration, such as Linux capabilities.",
+    ).optional(),
   }).describe(
     "Specifies the information required to run game servers with this container group",
   ).optional(),
@@ -241,6 +293,7 @@ const StateSchema = z.object({
     EnvironmentOverride: z.array(ContainerEnvironmentSchema),
     PortConfiguration: PortConfigurationSchema,
     MountPoints: z.array(ContainerMountPointSchema),
+    LinuxCapabilities: LinuxCapabilitiesSchema,
   }).optional(),
   SupportContainerDefinitions: z.array(SupportContainerDefinitionSchema)
     .optional(),
@@ -302,6 +355,9 @@ const InputsSchema = z.object({
     MountPoints: z.array(ContainerMountPointSchema).describe(
       "A list of mount point configurations to be used in a container.",
     ).optional(),
+    LinuxCapabilities: LinuxCapabilitiesSchema.describe(
+      "Linux-specific modifications applied to the default Docker container configuration, such as Linux capabilities.",
+    ).optional(),
   }).describe(
     "Specifies the information required to run game servers with this container group",
   ).optional(),
@@ -339,7 +395,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GameLift ContainerGroupDefinition. Registered at `@swamp/aws/gamelift/container-group-definition`. */
 export const model = {
   type: "@swamp/aws/gamelift/container-group-definition",
-  version: "2026.06.15.1",
+  version: "2026.06.18.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -378,6 +434,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.18.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
