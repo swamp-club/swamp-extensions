@@ -17,13 +17,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/aws/cognito/user-pool-domain
+// Auto-generated extension model for @swamp/aws/lambda/microvm-image
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Cognito UserPoolDomain (AWS::Cognito::UserPoolDomain).
+ * Swamp extension model for Lambda MicrovmImage (AWS::Lambda::MicrovmImage).
  *
  * Wraps the CloudFormation resource type as a swamp model so create,
  * get, update, delete, and sync can be driven through `swamp model`.
@@ -41,9 +41,49 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
-const FailoverTypeSchema = z.object({
-  SecondaryRegion: z.string(),
-  PrimaryRoute53HealthCheckId: z.string(),
+const CloudWatchLoggingSchema = z.object({
+  LogGroup: z.string().min(1).max(512).regex(
+    new RegExp("^[a-zA-Z0-9_\\-/.#]+$"),
+  ).optional(),
+  LogStream: z.string().min(1).max(512).regex(new RegExp("^[^:*]*$"))
+    .optional(),
+});
+
+const CpuConfigurationSchema = z.object({
+  Architecture: z.enum(["ARM_64"]),
+});
+
+const ResourcesSchema = z.object({
+  MinimumMemoryInMiB: z.number().int(),
+});
+
+const MicrovmHooksSchema = z.object({
+  Run: z.enum(["DISABLED", "ENABLED"]).optional(),
+  RunTimeoutInSeconds: z.number().int().min(1).max(60).optional(),
+  Resume: z.enum(["DISABLED", "ENABLED"]).optional(),
+  ResumeTimeoutInSeconds: z.number().int().min(1).max(60).optional(),
+  Suspend: z.enum(["DISABLED", "ENABLED"]).optional(),
+  SuspendTimeoutInSeconds: z.number().int().min(1).max(60).optional(),
+  Terminate: z.enum(["DISABLED", "ENABLED"]).optional(),
+  TerminateTimeoutInSeconds: z.number().int().min(1).max(60).optional(),
+});
+
+const MicrovmImageHooksSchema = z.object({
+  Ready: z.enum(["DISABLED", "ENABLED"]).optional(),
+  ReadyTimeoutInSeconds: z.number().int().min(1).max(3600).optional(),
+  Validate: z.enum(["DISABLED", "ENABLED"]).optional(),
+  ValidateTimeoutInSeconds: z.number().int().min(1).max(3600).optional(),
+});
+
+const EnvironmentVariableSchema = z.object({
+  Key: z.string().min(1).max(256).regex(new RegExp("^[^\\s]+$")),
+  Value: z.string().min(0).max(4096),
+});
+
+const TagSchema = z.object({
+  Key: z.string().min(1).max(128).describe("The key name of the tag."),
+  Value: z.string().min(0).max(256).describe("The value for the tag.")
+    .optional(),
 });
 
 const GlobalArgsSchema = z.object({
@@ -62,28 +102,74 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  UserPoolId: z.string(),
-  Domain: z.string(),
-  CustomDomainConfig: z.object({
-    CertificateArn: z.string().optional(),
-  }).optional(),
-  ManagedLoginVersion: z.number().int().optional(),
-  Routing: z.object({
-    Failover: FailoverTypeSchema.optional(),
-  }).optional(),
+  Name: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9-_]+$"))
+    .describe("Unique name for the MicroVM image within the account."),
+  BaseImageArn: z.string().min(1).max(2048).regex(new RegExp("^[^\\s]+$"))
+    .describe("ARN of the base MicroVM image."),
+  BaseImageVersion: z.string().min(1).max(2048).regex(new RegExp("^[^\\s]+$"))
+    .describe("Specific version of the base MicroVM image to use."),
+  BuildRoleArn: z.string().regex(
+    new RegExp(
+      "^arn:aws[a-zA-Z-]*:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$",
+    ),
+  ).describe("ARN of the IAM build role."),
+  Description: z.string().describe(
+    "Human-readable description of the MicroVM image and its purpose.",
+  ),
+  CodeArtifact: z.object({
+    Uri: z.string().min(1).max(2048).regex(new RegExp("^[^\\s]+$")),
+  }).describe("Code artifact for the active MicroVM image."),
+  Logging: z.object({
+    Disabled: z.boolean().optional(),
+    CloudWatch: CloudWatchLoggingSchema.optional(),
+  }).describe("Configuration for MicroVM image logging."),
+  EgressNetworkConnectors: z.array(z.string()),
+  CpuConfigurations: z.array(CpuConfigurationSchema),
+  Resources: z.array(ResourcesSchema),
+  AdditionalOsCapabilities: z.array(z.enum(["ALL"])),
+  Hooks: z.object({
+    Port: z.number().int().min(1).max(65535).optional(),
+    MicrovmHooks: MicrovmHooksSchema.optional(),
+    MicrovmImageHooks: MicrovmImageHooksSchema.optional(),
+  }),
+  EnvironmentVariables: z.array(EnvironmentVariableSchema).describe(
+    "Environment variables to set in the container during the snapshot build.",
+  ),
+  Tags: z.array(TagSchema).describe(
+    "Key-value pairs to associate with the MicroVM image for organization and management.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
-  UserPoolId: z.string(),
-  Domain: z.string(),
-  CustomDomainConfig: z.object({
-    CertificateArn: z.string(),
+  ImageArn: z.string(),
+  Name: z.string().optional(),
+  State: z.string().optional(),
+  BaseImageArn: z.string().optional(),
+  BaseImageVersion: z.string().optional(),
+  BuildRoleArn: z.string().optional(),
+  Description: z.string().optional(),
+  CodeArtifact: z.object({
+    Uri: z.string(),
   }).optional(),
-  CloudFrontDistribution: z.string().optional(),
-  ManagedLoginVersion: z.number().optional(),
-  Routing: z.object({
-    Failover: FailoverTypeSchema,
+  Logging: z.object({
+    Disabled: z.boolean(),
+    CloudWatch: CloudWatchLoggingSchema,
   }).optional(),
+  EgressNetworkConnectors: z.array(z.string()).optional(),
+  CpuConfigurations: z.array(CpuConfigurationSchema).optional(),
+  Resources: z.array(ResourcesSchema).optional(),
+  AdditionalOsCapabilities: z.array(z.string()).optional(),
+  Hooks: z.object({
+    Port: z.number(),
+    MicrovmHooks: MicrovmHooksSchema,
+    MicrovmImageHooks: MicrovmImageHooksSchema,
+  }).optional(),
+  EnvironmentVariables: z.array(EnvironmentVariableSchema).optional(),
+  Tags: z.array(TagSchema).optional(),
+  LatestActiveImageVersion: z.string().optional(),
+  LatestFailedImageVersion: z.string().optional(),
+  CreatedAt: z.string().optional(),
+  UpdatedAt: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -94,15 +180,43 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  UserPoolId: z.string().optional(),
-  Domain: z.string().optional(),
-  CustomDomainConfig: z.object({
-    CertificateArn: z.string().optional(),
+  Name: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9-_]+$"))
+    .describe("Unique name for the MicroVM image within the account.")
+    .optional(),
+  BaseImageArn: z.string().min(1).max(2048).regex(new RegExp("^[^\\s]+$"))
+    .describe("ARN of the base MicroVM image.").optional(),
+  BaseImageVersion: z.string().min(1).max(2048).regex(new RegExp("^[^\\s]+$"))
+    .describe("Specific version of the base MicroVM image to use.").optional(),
+  BuildRoleArn: z.string().regex(
+    new RegExp(
+      "^arn:aws[a-zA-Z-]*:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$",
+    ),
+  ).describe("ARN of the IAM build role.").optional(),
+  Description: z.string().describe(
+    "Human-readable description of the MicroVM image and its purpose.",
+  ).optional(),
+  CodeArtifact: z.object({
+    Uri: z.string().min(1).max(2048).regex(new RegExp("^[^\\s]+$")).optional(),
+  }).describe("Code artifact for the active MicroVM image.").optional(),
+  Logging: z.object({
+    Disabled: z.boolean().optional(),
+    CloudWatch: CloudWatchLoggingSchema.optional(),
+  }).describe("Configuration for MicroVM image logging.").optional(),
+  EgressNetworkConnectors: z.array(z.string()).optional(),
+  CpuConfigurations: z.array(CpuConfigurationSchema).optional(),
+  Resources: z.array(ResourcesSchema).optional(),
+  AdditionalOsCapabilities: z.array(z.enum(["ALL"])).optional(),
+  Hooks: z.object({
+    Port: z.number().int().min(1).max(65535).optional(),
+    MicrovmHooks: MicrovmHooksSchema.optional(),
+    MicrovmImageHooks: MicrovmImageHooksSchema.optional(),
   }).optional(),
-  ManagedLoginVersion: z.number().int().optional(),
-  Routing: z.object({
-    Failover: FailoverTypeSchema.optional(),
-  }).optional(),
+  EnvironmentVariables: z.array(EnvironmentVariableSchema).describe(
+    "Environment variables to set in the container during the snapshot build.",
+  ).optional(),
+  Tags: z.array(TagSchema).describe(
+    "Key-value pairs to associate with the MicroVM image for organization and management.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -121,62 +235,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
   };
 }
 
-/** Swamp extension model for Cognito UserPoolDomain. Registered at `@swamp/aws/cognito/user-pool-domain`. */
+/** Swamp extension model for Lambda MicrovmImage. Registered at `@swamp/aws/lambda/microvm-image`. */
 export const model = {
-  type: "@swamp/aws/cognito/user-pool-domain",
+  type: "@swamp/aws/lambda/microvm-image",
   version: "2026.06.23.1",
-  upgrades: [
-    {
-      toVersion: "2026.04.01.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.06.1",
-      description: "Added: accessKeyId, secretAccessKey, sessionToken, region",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.15.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.23.1",
-      description: "Added: Routing",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Cognito UserPoolDomain resource state",
+      description: "Lambda MicrovmImage resource state",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -184,7 +251,7 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a Cognito UserPoolDomain",
+      description: "Create a Lambda MicrovmImage",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -196,7 +263,7 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await createResource(
-          "AWS::Cognito::UserPoolDomain",
+          "AWS::Lambda::MicrovmImage",
           desiredState,
           credentials,
         ) as StateData;
@@ -213,16 +280,16 @@ export const model = {
       },
     },
     get: {
-      description: "Get a Cognito UserPoolDomain",
+      description: "Get a Lambda MicrovmImage",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the Cognito UserPoolDomain",
+          "The primary identifier of the Lambda MicrovmImage",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const result = await readResource(
-          "AWS::Cognito::UserPoolDomain",
+          "AWS::Lambda::MicrovmImage",
           args.identifier,
           credentials,
         ) as StateData;
@@ -240,7 +307,7 @@ export const model = {
       },
     },
     update: {
-      description: "Update a Cognito UserPoolDomain",
+      description: "Update a Lambda MicrovmImage",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -258,18 +325,12 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const idParts = [
-          existing.UserPoolId?.toString(),
-          existing.Domain?.toString(),
-        ];
-        if (idParts.some((p) => !p)) {
-          throw new Error(
-            "Missing primary identifier fields in existing state",
-          );
+        const identifier = existing.ImageArn?.toString();
+        if (!identifier) {
+          throw new Error("No identifier found in existing state");
         }
-        const identifier = idParts.join("|");
         const currentState = await readResource(
-          "AWS::Cognito::UserPoolDomain",
+          "AWS::Lambda::MicrovmImage",
           identifier,
           credentials,
         ) as StateData;
@@ -280,11 +341,11 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await updateResource(
-          "AWS::Cognito::UserPoolDomain",
+          "AWS::Lambda::MicrovmImage",
           identifier,
           currentState,
           desiredState,
-          ["UserPoolId", "Domain"],
+          ["Name"],
           credentials,
         );
         const handle = await context.writeResource(
@@ -296,16 +357,16 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete a Cognito UserPoolDomain",
+      description: "Delete a Lambda MicrovmImage",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the Cognito UserPoolDomain",
+          "The primary identifier of the Lambda MicrovmImage",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const { existed } = await deleteResource(
-          "AWS::Cognito::UserPoolDomain",
+          "AWS::Lambda::MicrovmImage",
           args.identifier,
           credentials,
         );
@@ -324,7 +385,7 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync Cognito UserPoolDomain state from AWS",
+      description: "Sync Lambda MicrovmImage state from AWS",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -342,19 +403,13 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const idParts = [
-          existing.UserPoolId?.toString(),
-          existing.Domain?.toString(),
-        ];
-        if (idParts.some((p) => !p)) {
-          throw new Error(
-            "Missing primary identifier fields in existing state",
-          );
+        const identifier = existing.ImageArn?.toString();
+        if (!identifier) {
+          throw new Error("No identifier found in existing state");
         }
-        const identifier = idParts.join("|");
         try {
           const result = await readResource(
-            "AWS::Cognito::UserPoolDomain",
+            "AWS::Lambda::MicrovmImage",
             identifier,
             credentials,
           ) as StateData;

@@ -97,11 +97,9 @@ const FieldSchema = z.object({
     "EXPIRY_DURATION",
     "SELF_ASSIGN",
   ]).describe("The type of the task template's field"),
-  SingleSelectOptions: z.array(
-    z.string().min(1).max(100).regex(
-      new RegExp("^[A-Za-z0-9](?:[A-Za-z0-9_.,\\s-]*[A-Za-z0-9_.,-])?$"),
-    ),
-  ).describe("list of field options to be used with single select").optional(),
+  SingleSelectOptions: z.array(z.string().min(1).max(100)).describe(
+    "list of field options to be used with single select",
+  ).optional(),
 });
 
 const TagSchema = z.object({
@@ -143,12 +141,12 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ContactFlowArn: z.string().regex(
     new RegExp(
-      "^$|arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*/contact-flow/[-a-zA-Z0-9]*$",
+      "^$|arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*/contact-flow/[-a-zA-Z0-9]*(:[a-zA-Z0-9-]+)?$",
     ),
   ).describe("The identifier of the contact flow.").optional(),
   SelfAssignContactFlowArn: z.string().regex(
     new RegExp(
-      "^$|arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*/contact-flow/[-a-zA-Z0-9]*$",
+      "^$|arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*/contact-flow/[-a-zA-Z0-9]*(:[a-zA-Z0-9-]+)?$",
     ),
   ).describe("The identifier of the contact flow.").optional(),
   Constraints: z.object({
@@ -215,12 +213,12 @@ const InputsSchema = z.object({
   ).optional(),
   ContactFlowArn: z.string().regex(
     new RegExp(
-      "^$|arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*/contact-flow/[-a-zA-Z0-9]*$",
+      "^$|arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*/contact-flow/[-a-zA-Z0-9]*(:[a-zA-Z0-9-]+)?$",
     ),
   ).describe("The identifier of the contact flow.").optional(),
   SelfAssignContactFlowArn: z.string().regex(
     new RegExp(
-      "^$|arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*/contact-flow/[-a-zA-Z0-9]*$",
+      "^$|arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*/contact-flow/[-a-zA-Z0-9]*(:[a-zA-Z0-9-]+)?$",
     ),
   ).describe("The identifier of the contact flow.").optional(),
   Constraints: z.object({
@@ -267,7 +265,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect TaskTemplate. Registered at `@swamp/aws/connect/task-template`. */
 export const model = {
   type: "@swamp/aws/connect/task-template",
-  version: "2026.06.15.1",
+  version: "2026.06.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -306,6 +304,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

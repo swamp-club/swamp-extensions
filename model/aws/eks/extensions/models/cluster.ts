@@ -245,6 +245,9 @@ const GlobalArgsSchema = z.object({
     EndpointPublicAccess: z.boolean().describe(
       "Set this value to false to disable public access to your cluster's Kubernetes API server endpoint. If you disable public access, your cluster's Kubernetes API server can only receive requests from within the cluster VPC. The default value for this parameter is true, which enables public access for your Kubernetes API server.",
     ).optional(),
+    ControlPlaneEgressMode: z.string().describe(
+      "Specify the egress mode for the cluster control plane. If you set this to CUSTOMER_ROUTED, the control plane routes traffic through your VPC subnets instead of using AWS managed networking.",
+    ).optional(),
     PublicAccessCidrs: z.array(z.string()).describe(
       "The CIDR blocks that are allowed access to your cluster's public Kubernetes API server endpoint. Communication to the endpoint from addresses outside of the CIDR blocks that you specify is denied. The default value is 0.0.0.0/0. If you've disabled private endpoint access and you have nodes or AWS Fargate pods in the cluster, then ensure that you specify the necessary CIDR blocks.",
     ).optional(),
@@ -321,6 +324,7 @@ const StateSchema = z.object({
   Arn: z.string().optional(),
   ResourcesVpcConfig: z.object({
     EndpointPublicAccess: z.boolean(),
+    ControlPlaneEgressMode: z.string(),
     PublicAccessCidrs: z.array(z.string()),
     EndpointPrivateAccess: z.boolean(),
     SecurityGroupIds: z.array(z.string()),
@@ -452,6 +456,9 @@ const InputsSchema = z.object({
     EndpointPublicAccess: z.boolean().describe(
       "Set this value to false to disable public access to your cluster's Kubernetes API server endpoint. If you disable public access, your cluster's Kubernetes API server can only receive requests from within the cluster VPC. The default value for this parameter is true, which enables public access for your Kubernetes API server.",
     ).optional(),
+    ControlPlaneEgressMode: z.string().describe(
+      "Specify the egress mode for the cluster control plane. If you set this to CUSTOMER_ROUTED, the control plane routes traffic through your VPC subnets instead of using AWS managed networking.",
+    ).optional(),
     PublicAccessCidrs: z.array(z.string()).describe(
       "The CIDR blocks that are allowed access to your cluster's public Kubernetes API server endpoint. Communication to the endpoint from addresses outside of the CIDR blocks that you specify is denied. The default value is 0.0.0.0/0. If you've disabled private endpoint access and you have nodes or AWS Fargate pods in the cluster, then ensure that you specify the necessary CIDR blocks.",
     ).optional(),
@@ -488,7 +495,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EKS Cluster. Registered at `@swamp/aws/eks/cluster`. */
 export const model = {
   type: "@swamp/aws/eks/cluster",
-  version: "2026.06.15.1",
+  version: "2026.06.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -532,6 +539,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

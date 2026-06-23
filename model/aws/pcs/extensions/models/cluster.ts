@@ -285,7 +285,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for PCS Cluster. Registered at `@swamp/aws/pcs/cluster`. */
 export const model = {
   type: "@swamp/aws/pcs/cluster",
-  version: "2026.06.15.1",
+  version: "2026.06.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -324,6 +324,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -434,7 +439,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["Name", "Networking", "Scheduler", "Size"],
+          ["Name", "Networking", "Size"],
           credentials,
         );
         const handle = await context.writeResource(

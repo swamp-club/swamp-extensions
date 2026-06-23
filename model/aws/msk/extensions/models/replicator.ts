@@ -74,10 +74,19 @@ const KafkaClusterSaslScramAuthenticationSchema = z.object({
   ),
 });
 
+const KafkaClusterMtlsAuthenticationSchema = z.object({
+  SecretArn: z.string().describe(
+    "The Amazon Resource Name (ARN) of the Secrets Manager secret.",
+  ),
+});
+
 const KafkaClusterClientAuthenticationSchema = z.object({
   SaslScram: KafkaClusterSaslScramAuthenticationSchema.describe(
     "Details for SASL/SCRAM client authentication.",
-  ),
+  ).optional(),
+  MTLS: KafkaClusterMtlsAuthenticationSchema.describe(
+    "Details for mTLS client authentication.",
+  ).optional(),
 });
 
 const KafkaClusterEncryptionInTransitSchema = z.object({
@@ -338,7 +347,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MSK Replicator. Registered at `@swamp/aws/msk/replicator`. */
 export const model = {
   type: "@swamp/aws/msk/replicator",
-  version: "2026.06.15.1",
+  version: "2026.06.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -382,6 +391,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

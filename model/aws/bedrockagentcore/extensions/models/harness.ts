@@ -364,6 +364,14 @@ const HarnessSkillGitSourceSchema = z.object({
   ).optional(),
 });
 
+const HarnessSkillAwsSkillsSourceSchema = z.object({
+  Paths: z.array(
+    z.string().min(1).max(4096).regex(new RegExp("^([^*?\\[\\]]|\\*)+$")),
+  ).describe(
+    "Optionally filter allowed skills with glob syntax, e.g., ['core-skills/*'].",
+  ).optional(),
+});
+
 const HarnessSkillSchema = z.object({
   Path: z.string().min(1).describe(
     "The filesystem path to the skill definition.",
@@ -372,6 +380,9 @@ const HarnessSkillSchema = z.object({
     .optional(),
   Git: HarnessSkillGitSourceSchema.describe(
     "A git repository containing the skill, cloned over HTTPS.",
+  ).optional(),
+  AwsSkills: HarnessSkillAwsSkillsSourceSchema.describe(
+    "AWS Skills baked into the Harness's underlying Runtime.",
   ).optional(),
 });
 
@@ -391,6 +402,19 @@ const HarnessAgentCoreMemoryConfigurationSchema = z.object({
   RetrievalConfig: z.record(
     z.string(),
     HarnessAgentCoreMemoryRetrievalConfigSchema,
+  ).optional(),
+});
+
+const HarnessManagedMemoryConfigurationSchema = z.object({
+  Strategies: z.array(
+    z.enum(["SEMANTIC", "SUMMARIZATION", "USER_PREFERENCE", "EPISODIC"]),
+  ).describe("Strategy types to enable. Defaults to [SEMANTIC, SUMMARIZATION].")
+    .optional(),
+  EventExpiryDuration: z.number().int().min(3).max(365).describe(
+    "Event retention in days. Defaults to 30.",
+  ).optional(),
+  EncryptionKeyArn: z.string().describe(
+    "Customer-managed KMS key ARN. Defaults to AWS-owned key. Not updatable after creation.",
   ).optional(),
 });
 
@@ -480,6 +504,13 @@ const GlobalArgsSchema = z.object({
   Memory: z.object({
     AgentCoreMemoryConfiguration: HarnessAgentCoreMemoryConfigurationSchema
       .optional(),
+    ManagedMemoryConfiguration: HarnessManagedMemoryConfigurationSchema
+      .describe(
+        "Configuration for managed memory. The harness creates and manages a memory resource in the customer's account.",
+      ).optional(),
+    Disabled: z.record(z.string(), z.unknown()).describe(
+      "Explicitly opt out of memory.",
+    ).optional(),
   }).describe(
     "The AgentCore Memory configuration for persisting conversation context.",
   ).optional(),
@@ -506,6 +537,7 @@ const StateSchema = z.object({
   HarnessId: z.string().optional(),
   HarnessName: z.string().optional(),
   Status: z.string().optional(),
+  Version: z.string().optional(),
   ExecutionRoleArn: z.string().optional(),
   Environment: z.object({
     AgentCoreRuntimeEnvironment: HarnessAgentCoreRuntimeEnvironmentSchema,
@@ -529,6 +561,8 @@ const StateSchema = z.object({
   AllowedTools: z.array(z.string()).optional(),
   Memory: z.object({
     AgentCoreMemoryConfiguration: HarnessAgentCoreMemoryConfigurationSchema,
+    ManagedMemoryConfiguration: HarnessManagedMemoryConfigurationSchema,
+    Disabled: z.record(z.string(), z.unknown()),
   }).optional(),
   Truncation: z.object({
     Strategy: z.string(),
@@ -597,6 +631,13 @@ const InputsSchema = z.object({
   Memory: z.object({
     AgentCoreMemoryConfiguration: HarnessAgentCoreMemoryConfigurationSchema
       .optional(),
+    ManagedMemoryConfiguration: HarnessManagedMemoryConfigurationSchema
+      .describe(
+        "Configuration for managed memory. The harness creates and manages a memory resource in the customer's account.",
+      ).optional(),
+    Disabled: z.record(z.string(), z.unknown()).describe(
+      "Explicitly opt out of memory.",
+    ).optional(),
   }).describe(
     "The AgentCore Memory configuration for persisting conversation context.",
   ).optional(),
@@ -637,7 +678,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Harness. Registered at `@swamp/aws/bedrockagentcore/harness`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/harness",
-  version: "2026.06.17.1",
+  version: "2026.06.23.1",
   upgrades: [
     {
       toVersion: "2026.05.27.1",
@@ -661,6 +702,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -771,7 +817,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["HarnessName"],
+          ["HarnessName", "EncryptionKeyArn"],
           credentials,
         );
         const handle = await context.writeResource(

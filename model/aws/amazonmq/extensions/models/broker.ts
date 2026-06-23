@@ -133,6 +133,9 @@ const GlobalArgsSchema = z.object({
   SecurityGroups: z.array(z.string()).optional(),
   SubnetIds: z.array(z.string()).optional(),
   Tags: z.array(TagsEntrySchema).optional(),
+  ResourceShareArns: z.array(z.string().regex(new RegExp("^arn:.*"))).describe(
+    "The ARNs of the resource shares to be associated with the broker.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -193,6 +196,7 @@ const StateSchema = z.object({
   SubnetIds: z.array(z.string()).optional(),
   IpAddresses: z.array(z.string()).optional(),
   Tags: z.array(TagsEntrySchema).optional(),
+  ResourceShareArns: z.array(z.string()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -265,6 +269,9 @@ const InputsSchema = z.object({
   SecurityGroups: z.array(z.string()).optional(),
   SubnetIds: z.array(z.string()).optional(),
   Tags: z.array(TagsEntrySchema).optional(),
+  ResourceShareArns: z.array(z.string().regex(new RegExp("^arn:.*"))).describe(
+    "The ARNs of the resource shares to be associated with the broker.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -286,7 +293,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AmazonMQ Broker. Registered at `@swamp/aws/amazonmq/broker`. */
 export const model = {
   type: "@swamp/aws/amazonmq/broker",
-  version: "2026.06.15.1",
+  version: "2026.06.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -326,6 +333,11 @@ export const model = {
     {
       toVersion: "2026.06.15.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.23.1",
+      description: "Added: ResourceShareArns",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

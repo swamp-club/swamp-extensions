@@ -153,6 +153,11 @@ const AwsVpcConfigurationSchema = z.object({
   ).optional(),
 });
 
+const MetricConfigurationSchema = z.object({
+  ResolutionSeconds: z.union([z.literal(20), z.literal(60)]),
+  MetricNames: z.array(z.enum(["CPUUtilization", "MemoryUtilization"])),
+});
+
 const PlacementConstraintSchema = z.object({
   Type: z.enum(["distinctInstance", "memberOf"]).describe(
     "The type of constraint. Use distinctInstance to ensure that each task in a particular group is running on a different container instance. Use memberOf to restrict the selection to a group of valid candidates.",
@@ -437,6 +442,9 @@ const GlobalArgsSchema = z.object({
   Tags: z.array(TagSchema).describe(
     "The metadata that you apply to the service to help you categorize and organize them. Each tag consists of a key and an optional value, both of which you define. When a service is deleted, the tags are deleted as well. The following basic restrictions apply to tags: Maximum number of tags per resource - 50 For each resource, each tag key must be unique, and each tag key can have only one value. Maximum key length - 128 Unicode characters in UTF-8 Maximum value length - 256 Unicode characters in UTF-8 If your tagging schema is used across multiple services and resources, remember that other services may have restrictions on allowed characters. Generally allowed characters are: letters, numbers, and spaces representable in UTF-8, and the following characters: + - =. _: / @. Tag keys and values are case-sensitive. Do not use aws:, AWS:, or any upper or lowercase combination of such as a prefix for either keys or values as it is reserved for AWS use. You cannot edit or delete tag keys or values with this prefix. Tags with this prefix do not count against your tags per resource limit.",
   ).optional(),
+  Monitoring: z.object({
+    MetricConfigurations: z.array(MetricConfigurationSchema),
+  }).optional(),
   ForceNewDeployment: z.object({
     EnableForceNewDeployment: z.boolean().describe(
       "Determines whether to force a new deployment of the service. By default, deployments aren't forced. You can use this option to start a new deployment with no service definition changes. For example, you can update a service's tasks to use a newer Docker image with the same image/tag combination ( my_image:latest) or to roll Fargate tasks onto a newer platform version.",
@@ -554,6 +562,9 @@ const StateSchema = z.object({
     AwsvpcConfiguration: AwsVpcConfigurationSchema,
   }).optional(),
   Tags: z.array(TagSchema).optional(),
+  Monitoring: z.object({
+    MetricConfigurations: z.array(MetricConfigurationSchema),
+  }).optional(),
   ForceNewDeployment: z.object({
     EnableForceNewDeployment: z.boolean(),
     ForceNewDeploymentNonce: z.string(),
@@ -638,6 +649,9 @@ const InputsSchema = z.object({
   Tags: z.array(TagSchema).describe(
     "The metadata that you apply to the service to help you categorize and organize them. Each tag consists of a key and an optional value, both of which you define. When a service is deleted, the tags are deleted as well. The following basic restrictions apply to tags: Maximum number of tags per resource - 50 For each resource, each tag key must be unique, and each tag key can have only one value. Maximum key length - 128 Unicode characters in UTF-8 Maximum value length - 256 Unicode characters in UTF-8 If your tagging schema is used across multiple services and resources, remember that other services may have restrictions on allowed characters. Generally allowed characters are: letters, numbers, and spaces representable in UTF-8, and the following characters: + - =. _: / @. Tag keys and values are case-sensitive. Do not use aws:, AWS:, or any upper or lowercase combination of such as a prefix for either keys or values as it is reserved for AWS use. You cannot edit or delete tag keys or values with this prefix. Tags with this prefix do not count against your tags per resource limit.",
   ).optional(),
+  Monitoring: z.object({
+    MetricConfigurations: z.array(MetricConfigurationSchema).optional(),
+  }).optional(),
   ForceNewDeployment: z.object({
     EnableForceNewDeployment: z.boolean().describe(
       "Determines whether to force a new deployment of the service. By default, deployments aren't forced. You can use this option to start a new deployment with no service definition changes. For example, you can update a service's tasks to use a newer Docker image with the same image/tag combination ( my_image:latest) or to roll Fargate tasks onto a newer platform version.",
@@ -757,7 +771,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS Service. Registered at `@swamp/aws/ecs/service`. */
 export const model = {
   type: "@swamp/aws/ecs/service",
-  version: "2026.06.15.1",
+  version: "2026.06.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -822,6 +836,11 @@ export const model = {
     {
       toVersion: "2026.06.15.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.23.1",
+      description: "Added: Monitoring",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

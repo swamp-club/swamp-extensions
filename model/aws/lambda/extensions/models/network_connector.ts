@@ -17,13 +17,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/aws/lambda/layer-version
+// Auto-generated extension model for @swamp/aws/lambda/network-connector
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Lambda LayerVersion (AWS::Lambda::LayerVersion).
+ * Swamp extension model for Lambda NetworkConnector (AWS::Lambda::NetworkConnector).
  *
  * Wraps the CloudFormation resource type as a swamp model so create,
  * get, update, delete, and sync can be driven through `swamp model`.
@@ -37,8 +37,34 @@ import {
   deleteResource,
   isResourceNotFoundError,
   readResource,
+  updateResource,
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
+
+const VpcEgressConfigurationSchema = z.object({
+  SubnetIds: z.array(
+    z.string().min(0).max(1024).regex(new RegExp("^subnet-[0-9a-z]*$")),
+  ).describe(
+    "The IDs of the VPC subnets where Lambda provisions elastic network interfaces (ENIs). Specify 1 to 16 subnets. All subnets must be in the same VPC.",
+  ),
+  SecurityGroupIds: z.array(
+    z.string().min(0).max(1024).regex(new RegExp("^sg-[0-9a-zA-Z]*$")),
+  ).describe(
+    "The IDs of the VPC security groups to attach to the ENIs. Specify 0 to 5 security groups. All security groups must be in the same VPC as the subnets.",
+  ).optional(),
+  NetworkProtocol: z.enum(["IPv4", "DualStack"]).describe(
+    "The network protocol for the connector. Specify IPv4 for IPv4-only networking, or DualStack for both IPv4 and IPv6.",
+  ).optional(),
+  AssociatedComputeResourceTypes: z.array(z.enum(["MicroVm"])).describe(
+    "The types of Lambda compute resources that can use this connector. Currently, only MicroVm is supported.",
+  ),
+});
+
+const TagSchema = z.object({
+  Key: z.string().min(1).max(128).describe("The key name of the tag."),
+  Value: z.string().min(0).max(256).describe("The value for the tag.")
+    .optional(),
+});
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
@@ -56,43 +82,41 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  CompatibleRuntimes: z.array(z.string()).describe(
-    "A list of compatible function runtimes. Used for filtering with ListLayers and ListLayerVersions.",
+  Name: z.string().min(1).max(140).regex(
+    new RegExp(
+      "^(arn:aws[a-zA-Z-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:network-connector:[a-zA-Z0-9-_]+(:[1-9]|[1-9][0-9]+)?)|[a-zA-Z0-9_-]{1,64}$",
+    ),
+  ).describe(
+    "A unique name for the network connector within your account and Region. Must be 1 to 64 alphanumeric characters, hyphens, or underscores.",
   ).optional(),
-  LicenseInfo: z.string().describe("The layer's software license.").optional(),
-  Description: z.string().describe("The description of the version.")
-    .optional(),
-  LayerName: z.string().describe(
-    "The name or Amazon Resource Name (ARN) of the layer.",
+  Configuration: z.object({
+    VpcEgressConfiguration: VpcEgressConfigurationSchema.describe(
+      "The VPC egress configuration for the network connector. Specifies the subnets, security groups, and network protocol for routing outbound traffic through your VPC.",
+    ),
+  }).describe(
+    "The network configuration for the connector. Specify a VpcEgressConfiguration to enable outbound traffic routing through your VPC.",
+  ),
+  OperatorRole: z.string().min(0).max(10000).regex(
+    new RegExp(
+      "^arn:(aws[a-zA-Z-]*)?:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$",
+    ),
+  ).describe(
+    "The ARN of the IAM role that Lambda assumes to manage elastic network interfaces in your VPC. This role must have permissions for ec2:CreateNetworkInterface and related describe operations.",
   ).optional(),
-  Content: z.object({
-    S3ObjectVersion: z.string().describe(
-      "For versioned objects, the version of the layer archive object to use.",
-    ).optional(),
-    S3Bucket: z.string().describe("The Amazon S3 bucket of the layer archive."),
-    S3Key: z.string().describe("The Amazon S3 key of the layer archive."),
-    S3ObjectStorageMode: z.enum(["COPY", "REFERENCE"]).describe(
-      "Specifies whether Lambda should copy the deployment package to its internal storage (COPY) or reference it directly from your S3 bucket (REFERENCE).",
-    ).optional(),
-  }).describe("The function layer archive."),
-  CompatibleArchitectures: z.array(z.string()).describe(
-    "A list of compatible instruction set architectures.",
+  Tags: z.array(TagSchema).describe(
+    "A list of tags to apply to the network connector. Use tags to categorize network connectors for cost allocation, access control, or operational management.",
   ).optional(),
 });
 
 const StateSchema = z.object({
-  CompatibleRuntimes: z.array(z.string()).optional(),
-  LicenseInfo: z.string().optional(),
-  Description: z.string().optional(),
-  LayerName: z.string().optional(),
-  Content: z.object({
-    S3ObjectVersion: z.string(),
-    S3Bucket: z.string(),
-    S3Key: z.string(),
-    S3ObjectStorageMode: z.string(),
+  Arn: z.string(),
+  Name: z.string().optional(),
+  Configuration: z.object({
+    VpcEgressConfiguration: VpcEgressConfigurationSchema,
   }).optional(),
-  LayerVersionArn: z.string(),
-  CompatibleArchitectures: z.array(z.string()).optional(),
+  OperatorRole: z.string().optional(),
+  State: z.string().optional(),
+  Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -103,29 +127,29 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  CompatibleRuntimes: z.array(z.string()).describe(
-    "A list of compatible function runtimes. Used for filtering with ListLayers and ListLayerVersions.",
+  Name: z.string().min(1).max(140).regex(
+    new RegExp(
+      "^(arn:aws[a-zA-Z-]*:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:network-connector:[a-zA-Z0-9-_]+(:[1-9]|[1-9][0-9]+)?)|[a-zA-Z0-9_-]{1,64}$",
+    ),
+  ).describe(
+    "A unique name for the network connector within your account and Region. Must be 1 to 64 alphanumeric characters, hyphens, or underscores.",
   ).optional(),
-  LicenseInfo: z.string().describe("The layer's software license.").optional(),
-  Description: z.string().describe("The description of the version.")
-    .optional(),
-  LayerName: z.string().describe(
-    "The name or Amazon Resource Name (ARN) of the layer.",
+  Configuration: z.object({
+    VpcEgressConfiguration: VpcEgressConfigurationSchema.describe(
+      "The VPC egress configuration for the network connector. Specifies the subnets, security groups, and network protocol for routing outbound traffic through your VPC.",
+    ).optional(),
+  }).describe(
+    "The network configuration for the connector. Specify a VpcEgressConfiguration to enable outbound traffic routing through your VPC.",
   ).optional(),
-  Content: z.object({
-    S3ObjectVersion: z.string().describe(
-      "For versioned objects, the version of the layer archive object to use.",
-    ).optional(),
-    S3Bucket: z.string().describe("The Amazon S3 bucket of the layer archive.")
-      .optional(),
-    S3Key: z.string().describe("The Amazon S3 key of the layer archive.")
-      .optional(),
-    S3ObjectStorageMode: z.enum(["COPY", "REFERENCE"]).describe(
-      "Specifies whether Lambda should copy the deployment package to its internal storage (COPY) or reference it directly from your S3 bucket (REFERENCE).",
-    ).optional(),
-  }).describe("The function layer archive.").optional(),
-  CompatibleArchitectures: z.array(z.string()).describe(
-    "A list of compatible instruction set architectures.",
+  OperatorRole: z.string().min(0).max(10000).regex(
+    new RegExp(
+      "^arn:(aws[a-zA-Z-]*)?:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$",
+    ),
+  ).describe(
+    "The ARN of the IAM role that Lambda assumes to manage elastic network interfaces in your VPC. This role must have permissions for ec2:CreateNetworkInterface and related describe operations.",
+  ).optional(),
+  Tags: z.array(TagSchema).describe(
+    "A list of tags to apply to the network connector. Use tags to categorize network connectors for cost allocation, access control, or operational management.",
   ).optional(),
 });
 
@@ -145,67 +169,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
   };
 }
 
-/** Swamp extension model for Lambda LayerVersion. Registered at `@swamp/aws/lambda/layer-version`. */
+/** Swamp extension model for Lambda NetworkConnector. Registered at `@swamp/aws/lambda/network-connector`. */
 export const model = {
-  type: "@swamp/aws/lambda/layer-version",
+  type: "@swamp/aws/lambda/network-connector",
   version: "2026.06.23.1",
-  upgrades: [
-    {
-      toVersion: "2026.04.01.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.27.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.06.1",
-      description: "Added: accessKeyId, secretAccessKey, sessionToken, region",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.15.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Lambda LayerVersion resource state",
+      description: "Lambda NetworkConnector resource state",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -213,7 +185,7 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a Lambda LayerVersion",
+      description: "Create a Lambda NetworkConnector",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -225,7 +197,7 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await createResource(
-          "AWS::Lambda::LayerVersion",
+          "AWS::Lambda::NetworkConnector",
           desiredState,
           credentials,
         ) as StateData;
@@ -242,16 +214,16 @@ export const model = {
       },
     },
     get: {
-      description: "Get a Lambda LayerVersion",
+      description: "Get a Lambda NetworkConnector",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the Lambda LayerVersion",
+          "The primary identifier of the Lambda NetworkConnector",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const result = await readResource(
-          "AWS::Lambda::LayerVersion",
+          "AWS::Lambda::NetworkConnector",
           args.identifier,
           credentials,
         ) as StateData;
@@ -268,17 +240,67 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
+    update: {
+      description: "Update a Lambda NetworkConnector",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const credentials = _buildCredentials(g);
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const identifier = existing.Arn?.toString();
+        if (!identifier) {
+          throw new Error("No identifier found in existing state");
+        }
+        const currentState = await readResource(
+          "AWS::Lambda::NetworkConnector",
+          identifier,
+          credentials,
+        ) as StateData;
+        const desiredState: Record<string, unknown> = { ...currentState };
+        for (const [key, value] of Object.entries(g)) {
+          if (key === "name") continue;
+          if (_credentialKeys.has(key)) continue;
+          if (value !== undefined) desiredState[key] = value;
+        }
+        const result = await updateResource(
+          "AWS::Lambda::NetworkConnector",
+          identifier,
+          currentState,
+          desiredState,
+          ["Name"],
+          credentials,
+        );
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
     delete: {
-      description: "Delete a Lambda LayerVersion",
+      description: "Delete a Lambda NetworkConnector",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the Lambda LayerVersion",
+          "The primary identifier of the Lambda NetworkConnector",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const { existed } = await deleteResource(
-          "AWS::Lambda::LayerVersion",
+          "AWS::Lambda::NetworkConnector",
           args.identifier,
           credentials,
         );
@@ -297,7 +319,7 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync Lambda LayerVersion state from AWS",
+      description: "Sync Lambda NetworkConnector state from AWS",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -315,13 +337,13 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.LayerVersionArn?.toString();
+        const identifier = existing.Arn?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         try {
           const result = await readResource(
-            "AWS::Lambda::LayerVersion",
+            "AWS::Lambda::NetworkConnector",
             identifier,
             credentials,
           ) as StateData;

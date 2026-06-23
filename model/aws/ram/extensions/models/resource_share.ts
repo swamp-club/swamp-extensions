@@ -66,6 +66,14 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
+  ResourceShareConfiguration: z.object({
+    ExclusiveAccountAccess: z.boolean().describe(
+      "The resource share restricts access to an account",
+    ).optional(),
+    RetainSharingOnAccountLeaveOrganization: z.boolean().describe(
+      "Specifies whether the consumer account retains access to the resource share after leaving the organization.",
+    ).optional(),
+  }).describe("Specifies the configuration for the resource share").optional(),
   PermissionArns: z.array(z.string()).describe(
     "Specifies the [Amazon Resource Names (ARNs)](https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html) of the AWS RAM permission to associate with the resource share. If you do not specify an ARN for the permission, AWS RAM automatically attaches the default version of the permission for each resource type. You can associate only one permission with each resource type included in the resource share.",
   ).optional(),
@@ -89,6 +97,10 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Status: z.string().optional(),
+  ResourceShareConfiguration: z.object({
+    ExclusiveAccountAccess: z.boolean(),
+    RetainSharingOnAccountLeaveOrganization: z.boolean(),
+  }).optional(),
   PermissionArns: z.array(z.string()).optional(),
   Principals: z.array(z.string()).optional(),
   LastUpdatedTime: z.string().optional(),
@@ -111,6 +123,14 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
+  ResourceShareConfiguration: z.object({
+    ExclusiveAccountAccess: z.boolean().describe(
+      "The resource share restricts access to an account",
+    ).optional(),
+    RetainSharingOnAccountLeaveOrganization: z.boolean().describe(
+      "Specifies whether the consumer account retains access to the resource share after leaving the organization.",
+    ).optional(),
+  }).describe("Specifies the configuration for the resource share").optional(),
   PermissionArns: z.array(z.string()).describe(
     "Specifies the [Amazon Resource Names (ARNs)](https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html) of the AWS RAM permission to associate with the resource share. If you do not specify an ARN for the permission, AWS RAM automatically attaches the default version of the permission for each resource type. You can associate only one permission with each resource type included in the resource share.",
   ).optional(),
@@ -152,7 +172,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RAM ResourceShare. Registered at `@swamp/aws/ram/resource-share`. */
 export const model = {
   type: "@swamp/aws/ram/resource-share",
-  version: "2026.06.15.1",
+  version: "2026.06.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -192,6 +212,11 @@ export const model = {
     {
       toVersion: "2026.06.15.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.23.1",
+      description: "Added: ResourceShareConfiguration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -301,7 +326,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          undefined,
+          ["RetainSharingOnAccountLeaveOrganization"],
           credentials,
         );
         const handle = await context.writeResource(
