@@ -83,6 +83,7 @@ const ResourceSchema = z.object({
   status: z.string().optional(),
   created_at: z.string().optional(),
   vpc_ids: z.array(z.string()).optional(),
+  performance_tier: z.string().optional(),
   mount_path: z.string().optional(),
   host: z.string().optional(),
 }).passthrough();
@@ -117,7 +118,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean nfs. Registered at `@swamp/digitalocean/nfs`. */
 export const model = {
   type: "@swamp/digitalocean/nfs",
-  version: "2026.06.08.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -176,6 +177,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

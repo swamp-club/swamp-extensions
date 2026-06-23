@@ -705,6 +705,7 @@ function generateActionMethod(
   ];
 
   for (const [name, prop] of extraProps) {
+    if (name === idArg.argName) continue;
     const zodExpr = propertyToZodExpr(prop);
     const isRequired = requiredSet.has(name);
     let field = `${name}: ${zodExpr}`;
@@ -853,6 +854,7 @@ function generateSubResourceMethod(
   ];
 
   for (const [name, prop] of extraProps) {
+    if (name === idArg.argName) continue;
     const zodExpr = propertyToZodExpr(prop);
     const isRequired = requiredSet.has(name);
     let field = `${name}: ${zodExpr}`;
