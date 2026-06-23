@@ -137,13 +137,13 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   resource: z.object({
-    count: z.number(),
-    creationTimestamp: z.string(),
-    healthInfo: z.object({
+    blockHealthInfo: z.object({
       degradedSubBlockCount: z.number(),
       healthStatus: z.string(),
       healthySubBlockCount: z.number(),
     }),
+    count: z.number(),
+    creationTimestamp: z.string(),
     id: z.string(),
     inUseCount: z.number(),
     inUseHostCount: z.number(),
@@ -213,7 +213,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine ReservationBlocks. Registered at `@swamp/gcp/compute/reservationblocks`. */
 export const model = {
   type: "@swamp/gcp/compute/reservationblocks",
-  version: "2026.06.08.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -287,6 +287,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

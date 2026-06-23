@@ -535,6 +535,9 @@ const GlobalArgsSchema = z.object({
     zone: z.string().describe(
       "Optional. When SINGLE ZONE distribution is selected, zone field would be used to allocate all resources in that zone. This is not applicable to MULTI_ZONE, and would be ignored for MULTI_ZONE clusters.",
     ).optional(),
+    zones: z.array(z.string()).describe(
+      "Optional. Specify the zones of a multi-zone cluster where Redis Cluster allocates resources. This flag isn't applicable for single-zone clusters.",
+    ).optional(),
   }).describe("Zone distribution config for allocation of cluster resources.")
     .optional(),
   clusterId: z.string().describe(
@@ -711,6 +714,7 @@ const StateSchema = z.object({
   zoneDistributionConfig: z.object({
     mode: z.string(),
     zone: z.string(),
+    zones: z.array(z.string()),
   }).optional(),
 }).passthrough();
 
@@ -1097,6 +1101,9 @@ const InputsSchema = z.object({
     zone: z.string().describe(
       "Optional. When SINGLE ZONE distribution is selected, zone field would be used to allocate all resources in that zone. This is not applicable to MULTI_ZONE, and would be ignored for MULTI_ZONE clusters.",
     ).optional(),
+    zones: z.array(z.string()).describe(
+      "Optional. Specify the zones of a multi-zone cluster where Redis Cluster allocates resources. This flag isn't applicable for single-zone clusters.",
+    ).optional(),
   }).describe("Zone distribution config for allocation of cluster resources.")
     .optional(),
   clusterId: z.string().describe(
@@ -1124,7 +1131,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Cloud Memorystore for Redis Clusters. Registered at `@swamp/gcp/redis/clusters`. */
 export const model = {
   type: "@swamp/gcp/redis/clusters",
-  version: "2026.06.08.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1223,6 +1230,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

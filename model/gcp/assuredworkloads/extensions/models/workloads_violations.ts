@@ -82,6 +82,9 @@ const LIST_CONFIG = {
     "interval.startTime": {
       "location": "query",
     },
+    "orderBy": {
+      "location": "query",
+    },
     "pageSize": {
       "location": "query",
     },
@@ -182,7 +185,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Assured Workloads Workloads.Violations. Registered at `@swamp/gcp/assuredworkloads/workloads-violations`. */
 export const model = {
   type: "@swamp/gcp/assuredworkloads/workloads-violations",
-  version: "2026.06.08.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -256,6 +259,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -365,6 +373,8 @@ export const model = {
           .optional(),
         interval_startTime: z.string().describe("The start of the time window.")
           .optional(),
+        orderBy: z.string().describe("Optional. Actionable sorting delegation.")
+          .optional(),
         pageSize: z.number().describe("Optional. Page size.").optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
@@ -384,6 +394,9 @@ export const model = {
         }
         if (args["interval_startTime"] !== undefined) {
           params["interval.startTime"] = String(args["interval_startTime"]);
+        }
+        if (args["orderBy"] !== undefined) {
+          params["orderBy"] = String(args["orderBy"]);
         }
         if (args["pageSize"] !== undefined) {
           params["pageSize"] = String(args["pageSize"]);

@@ -144,6 +144,8 @@ const GlobalArgsSchema = z.object({
     "GCP project ID; overrides GCP_PROJECT / GOOGLE_CLOUD_PROJECT environment variables.",
   ).optional(),
   action: z.object({
+    conversationFilter: z.string().describe("The conversation filter string.")
+      .optional(),
     redirectAction: z.object({
       queryParams: z.record(z.string(), z.string()).describe(
         "The query params to be added to the redirect path.",
@@ -249,6 +251,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   action: z.object({
+    conversationFilter: z.string(),
     redirectAction: z.object({
       queryParams: z.record(z.string(), z.unknown()),
       relativePath: z.string(),
@@ -304,6 +307,8 @@ const InputsSchema = z.object({
   credentialsJson: z.string().meta({ sensitive: true }).optional(),
   project: z.string().optional(),
   action: z.object({
+    conversationFilter: z.string().describe("The conversation filter string.")
+      .optional(),
     redirectAction: z.object({
       queryParams: z.record(z.string(), z.string()).describe(
         "The query params to be added to the redirect path.",
@@ -422,7 +427,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Contact Center AI Insights Dashboards.Charts. Registered at `@swamp/gcp/contactcenterinsights/dashboards-charts`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/dashboards-charts",
-  version: "2026.06.08.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -540,6 +545,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

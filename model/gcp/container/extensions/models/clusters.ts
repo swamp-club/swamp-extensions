@@ -1778,6 +1778,7 @@ const GlobalArgsSchema = z.object({
           "NO_RESERVATION",
           "ANY_RESERVATION",
           "SPECIFIC_RESERVATION",
+          "ANY_RESERVATION_THEN_FAIL",
         ]).describe("Corresponds to the type of reservation consumption.")
           .optional(),
         key: z.string().describe(
@@ -7640,6 +7641,7 @@ const InputsSchema = z.object({
           "NO_RESERVATION",
           "ANY_RESERVATION",
           "SPECIFIC_RESERVATION",
+          "ANY_RESERVATION_THEN_FAIL",
         ]).describe("Corresponds to the type of reservation consumption.")
           .optional(),
         key: z.string().describe(
@@ -10631,7 +10633,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Kubernetes Engine Clusters. Registered at `@swamp/gcp/container/clusters`. */
 export const model = {
   type: "@swamp/gcp/container/clusters",
-  version: "2026.06.17.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -10780,6 +10782,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

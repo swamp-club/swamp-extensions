@@ -3174,7 +3174,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data Videos. Registered at `@swamp/gcp/youtube/videos`. */
 export const model = {
   type: "@swamp/gcp/youtube/videos",
-  version: "2026.06.08.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3248,6 +3248,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -3651,37 +3656,6 @@ export const model = {
           dataHandles.push(handle);
         }
         return { dataHandles, result: { count: items.length, nextPageToken } };
-      },
-    },
-    batch_get_stats: {
-      description: "batch get stats",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, unknown>, context: any) => {
-        const g = context.globalArgs;
-        const credentials = _buildGcpCredentials(g);
-        const projectId = await getProjectId(credentials);
-        const params: Record<string, string> = { project: projectId };
-        const result = await createResource(
-          BASE_URL,
-          {
-            "id": "youtube.videos.batchGetStats",
-            "path": "youtube/v3/videos:batchGetStats",
-            "httpMethod": "GET",
-            "parameterOrder": [],
-            "parameters": {
-              "id": { "location": "query" },
-              "onBehalfOfContentOwner": { "location": "query" },
-              "part": { "location": "query" },
-            },
-          },
-          params,
-          {},
-          undefined,
-          undefined,
-          undefined,
-          credentials,
-        );
-        return { result };
       },
     },
     get_rating: {

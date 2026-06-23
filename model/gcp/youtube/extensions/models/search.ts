@@ -234,7 +234,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data Search. Registered at `@swamp/gcp/youtube/search`. */
 export const model = {
   type: "@swamp/gcp/youtube/search",
-  version: "2026.06.08.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -308,6 +308,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -415,7 +420,7 @@ export const model = {
       description: "List search resources",
       arguments: z.object({
         channelId: z.string().describe(
-          "Filter on resources belonging to this channelId. (Force TAP rebuild)",
+          "Filter on resources belonging to this channelId.",
         ).optional(),
         channelType: z.string().describe("Add a filter on the channel search.")
           .optional(),

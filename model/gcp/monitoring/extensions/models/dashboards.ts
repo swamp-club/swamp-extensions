@@ -436,7 +436,56 @@ const GlobalArgsSchema = z.object({
       timeSeriesQueryLanguage: z.string().describe(
         "A query used to fetch time series with MQL.",
       ).optional(),
-      traceQuery: z.object({}).describe(
+      traceQuery: z.object({
+        resourceContainer: z.string().describe(
+          "Optional. The resource name of the project or Trace scope to fetch data from. If empty, the widget will default to the project's default Trace scope. If scope cannot be determined, then we fallback to the current project. Optional.",
+        ).optional(),
+        spanDataValue: z.enum([
+          "SPAN_DATA_VALUE_UNSPECIFIED",
+          "SPAN_COUNT",
+          "SPAN_DURATION",
+          "SPAN_DURATION_PERCENTILES",
+        ]).describe(
+          "The type of span data value to be displayed on the chart. Required.",
+        ).optional(),
+        spanFilters: z.object({
+          apphubServices: z.unknown().describe(
+            'Optional. Filtering for spans containing one of the Apphub service IDs in the list. Multiple values will be OR\'d together. Example: "service-id1", "service-id2"',
+          ).optional(),
+          apphubWorkloads: z.unknown().describe(
+            'Optional. Filtering for spans containing one of the Apphub workload IDs in the list. Multiple values will be OR\'d together. Example: "workload-id1", "workload-id2"',
+          ).optional(),
+          applicationIds: z.unknown().describe(
+            "Optional. Filtering for spans containing one of the Apphub Application IDs in the list. Multiple values will be OR'd together.",
+          ).optional(),
+          attributes: z.unknown().describe(
+            "Optional. List of span attribute filters. Each SpanAttributeFilter key must be unique. Multiple attribute filters will be AND'd together.",
+          ).optional(),
+          displayNames: z.unknown().describe(
+            "Optional. Filtering for spans containing one of the span display names in the list. Multiple values will be OR'd together.",
+          ).optional(),
+          isRootSpan: z.unknown().describe(
+            "Optional. Filters for root spans only if set to true. A root span is a span without a defined parent span ID.",
+          ).optional(),
+          kinds: z.unknown().describe(
+            "Optional. Filtering for spans containing one of the kinds in the list. Multiple values will be OR'd together.",
+          ).optional(),
+          maxDuration: z.unknown().describe(
+            "Optional. Filtering for spans with a maximum duration.",
+          ).optional(),
+          minDuration: z.unknown().describe(
+            "Optional. Filtering for spans with a minimum duration.",
+          ).optional(),
+          services: z.unknown().describe(
+            "Optional. Filtering for spans containing one of the services in the list. Multiple values will be OR'd together.",
+          ).optional(),
+          status: z.unknown().describe(
+            "Optional. Filtering for spans containing one of the statuses in the list. Multiple values will be OR'd together.",
+          ).optional(),
+        }).describe(
+          "First version of span filtering that is supported by the Trace component.",
+        ).optional(),
+      }).describe(
         "LINT.IfChange Preview: Query for traces. This is a preview feature and may be subject to change before final release.",
       ).optional(),
       unitOverride: z.string().describe(
@@ -1094,7 +1143,23 @@ const StateSchema = z.object({
         }),
       }),
       timeSeriesQueryLanguage: z.string(),
-      traceQuery: z.object({}),
+      traceQuery: z.object({
+        resourceContainer: z.string(),
+        spanDataValue: z.string(),
+        spanFilters: z.object({
+          apphubServices: z.unknown(),
+          apphubWorkloads: z.unknown(),
+          applicationIds: z.unknown(),
+          attributes: z.unknown(),
+          displayNames: z.unknown(),
+          isRootSpan: z.unknown(),
+          kinds: z.unknown(),
+          maxDuration: z.unknown(),
+          minDuration: z.unknown(),
+          services: z.unknown(),
+          status: z.unknown(),
+        }),
+      }),
       unitOverride: z.string(),
     }),
     valueType: z.string(),
@@ -1624,7 +1689,56 @@ const InputsSchema = z.object({
       timeSeriesQueryLanguage: z.string().describe(
         "A query used to fetch time series with MQL.",
       ).optional(),
-      traceQuery: z.object({}).describe(
+      traceQuery: z.object({
+        resourceContainer: z.string().describe(
+          "Optional. The resource name of the project or Trace scope to fetch data from. If empty, the widget will default to the project's default Trace scope. If scope cannot be determined, then we fallback to the current project. Optional.",
+        ).optional(),
+        spanDataValue: z.enum([
+          "SPAN_DATA_VALUE_UNSPECIFIED",
+          "SPAN_COUNT",
+          "SPAN_DURATION",
+          "SPAN_DURATION_PERCENTILES",
+        ]).describe(
+          "The type of span data value to be displayed on the chart. Required.",
+        ).optional(),
+        spanFilters: z.object({
+          apphubServices: z.unknown().describe(
+            'Optional. Filtering for spans containing one of the Apphub service IDs in the list. Multiple values will be OR\'d together. Example: "service-id1", "service-id2"',
+          ).optional(),
+          apphubWorkloads: z.unknown().describe(
+            'Optional. Filtering for spans containing one of the Apphub workload IDs in the list. Multiple values will be OR\'d together. Example: "workload-id1", "workload-id2"',
+          ).optional(),
+          applicationIds: z.unknown().describe(
+            "Optional. Filtering for spans containing one of the Apphub Application IDs in the list. Multiple values will be OR'd together.",
+          ).optional(),
+          attributes: z.unknown().describe(
+            "Optional. List of span attribute filters. Each SpanAttributeFilter key must be unique. Multiple attribute filters will be AND'd together.",
+          ).optional(),
+          displayNames: z.unknown().describe(
+            "Optional. Filtering for spans containing one of the span display names in the list. Multiple values will be OR'd together.",
+          ).optional(),
+          isRootSpan: z.unknown().describe(
+            "Optional. Filters for root spans only if set to true. A root span is a span without a defined parent span ID.",
+          ).optional(),
+          kinds: z.unknown().describe(
+            "Optional. Filtering for spans containing one of the kinds in the list. Multiple values will be OR'd together.",
+          ).optional(),
+          maxDuration: z.unknown().describe(
+            "Optional. Filtering for spans with a maximum duration.",
+          ).optional(),
+          minDuration: z.unknown().describe(
+            "Optional. Filtering for spans with a minimum duration.",
+          ).optional(),
+          services: z.unknown().describe(
+            "Optional. Filtering for spans containing one of the services in the list. Multiple values will be OR'd together.",
+          ).optional(),
+          status: z.unknown().describe(
+            "Optional. Filtering for spans containing one of the statuses in the list. Multiple values will be OR'd together.",
+          ).optional(),
+        }).describe(
+          "First version of span filtering that is supported by the Trace component.",
+        ).optional(),
+      }).describe(
         "LINT.IfChange Preview: Query for traces. This is a preview feature and may be subject to change before final release.",
       ).optional(),
       unitOverride: z.string().describe(
@@ -2192,7 +2306,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Monitoring Dashboards. Registered at `@swamp/gcp/monitoring/dashboards`. */
 export const model = {
   type: "@swamp/gcp/monitoring/dashboards",
-  version: "2026.06.12.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.06.07.1",
@@ -2206,6 +2320,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.12.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

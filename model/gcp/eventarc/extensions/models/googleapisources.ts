@@ -25,7 +25,7 @@
 /**
  * Swamp extension model for Google Cloud Eventarc GoogleApiSources.
  *
- * A GoogleApiSource represents a subscription of 1P events from a MessageBus.
+ * Represents a subscription to first-party events for a MessageBus resource. A GoogleApiSource resource lets you configure the delivery of events from Google API sources to a designated bus.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -328,7 +328,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Eventarc GoogleApiSources. Registered at `@swamp/gcp/eventarc/googleapisources`. */
 export const model = {
   type: "@swamp/gcp/eventarc/googleapisources",
-  version: "2026.06.08.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -627,13 +627,36 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.06.24.1",
+      description:
+        "Removed: createTime, etag, uid, updateTime, g, type, version, upgrades, globalArguments, inputsSchema, resources, methods",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const {
+          createTime: _createTime,
+          etag: _etag,
+          uid: _uid,
+          updateTime: _updateTime,
+          g: _g,
+          type: _type,
+          version: _version,
+          upgrades: _upgrades,
+          globalArguments: _globalArguments,
+          inputsSchema: _inputsSchema,
+          resources: _resources,
+          methods: _methods,
+          ...rest
+        } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
       description:
-        "A GoogleApiSource represents a subscription of 1P events from a MessageBus.",
+        "Represents a subscription to first-party events for a MessageBus resource. A ...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,

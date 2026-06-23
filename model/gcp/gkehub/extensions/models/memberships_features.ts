@@ -1296,6 +1296,9 @@ const GlobalArgsSchema = z.object({
           "NON_STANDARD_BINARY_USAGE",
           "UNSUPPORTED_GATEWAY_CLASS",
           "MANAGED_CNI_NOT_ENABLED",
+          "MISSING_CONTROL_PLANE_CONFIG",
+          "SHARED_VPC_MISSING_PERMISSIONS",
+          "REQUIRED_ORG_POLICY_DISABLED",
           "MODERNIZATION_SCHEDULED",
           "MODERNIZATION_IN_PROGRESS",
           "MODERNIZATION_COMPLETED",
@@ -2971,6 +2974,9 @@ const InputsSchema = z.object({
           "NON_STANDARD_BINARY_USAGE",
           "UNSUPPORTED_GATEWAY_CLASS",
           "MANAGED_CNI_NOT_ENABLED",
+          "MISSING_CONTROL_PLANE_CONFIG",
+          "SHARED_VPC_MISSING_PERMISSIONS",
+          "REQUIRED_ORG_POLICY_DISABLED",
           "MODERNIZATION_SCHEDULED",
           "MODERNIZATION_IN_PROGRESS",
           "MODERNIZATION_COMPLETED",
@@ -3118,7 +3124,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud GKE Hub Memberships.Features. Registered at `@swamp/gcp/gkehub/memberships-features`. */
 export const model = {
   type: "@swamp/gcp/gkehub/memberships-features",
-  version: "2026.06.15.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3212,6 +3218,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

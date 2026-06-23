@@ -164,6 +164,9 @@ const GlobalArgsSchema = z.object({
   appType: z.enum(["APP_TYPE_UNSPECIFIED", "APP_TYPE_INTRANET"]).describe(
     "Optional. Immutable. This the application type which this engine resource represents. NOTE: this is a new concept independ of existing industry vertical or solution type.",
   ).optional(),
+  associatedAgentRegistry: z.string().describe(
+    "Optional. The Agent registry containing the agents, MCP servers and tools associated with this engine. Field is required if the engine has an Agent Gateway setting.",
+  ).optional(),
   chatEngineConfig: z.object({
     agentCreationConfig: z.object({
       business: z.string().describe(
@@ -264,7 +267,7 @@ const GlobalArgsSchema = z.object({
       "FEATURE_STATE_OFF",
     ]),
   ).describe(
-    "Optional. Feature config for the engine to opt in or opt out of features. Supported keys: * `*`: all features, if it's present, all other feature state settings are ignored. * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `disable-skills` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence`",
+    "Optional. Feature config for the engine to opt in or opt out of features. Supported keys: * `*`: all features, if it's present, all other feature state settings are ignored. * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `disable-skills` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence` * `deep-research`",
   ).optional(),
   industryVertical: z.enum([
     "INDUSTRY_VERTICAL_UNSPECIFIED",
@@ -423,6 +426,7 @@ const StateSchema = z.object({
     }),
   }).optional(),
   appType: z.string().optional(),
+  associatedAgentRegistry: z.string().optional(),
   chatEngineConfig: z.object({
     agentCreationConfig: z.object({
       business: z.string(),
@@ -522,6 +526,9 @@ const InputsSchema = z.object({
   ).optional(),
   appType: z.enum(["APP_TYPE_UNSPECIFIED", "APP_TYPE_INTRANET"]).describe(
     "Optional. Immutable. This the application type which this engine resource represents. NOTE: this is a new concept independ of existing industry vertical or solution type.",
+  ).optional(),
+  associatedAgentRegistry: z.string().describe(
+    "Optional. The Agent registry containing the agents, MCP servers and tools associated with this engine. Field is required if the engine has an Agent Gateway setting.",
   ).optional(),
   chatEngineConfig: z.object({
     agentCreationConfig: z.object({
@@ -623,7 +630,7 @@ const InputsSchema = z.object({
       "FEATURE_STATE_OFF",
     ]),
   ).describe(
-    "Optional. Feature config for the engine to opt in or opt out of features. Supported keys: * `*`: all features, if it's present, all other feature state settings are ignored. * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `disable-skills` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence`",
+    "Optional. Feature config for the engine to opt in or opt out of features. Supported keys: * `*`: all features, if it's present, all other feature state settings are ignored. * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `disable-skills` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence` * `deep-research`",
   ).optional(),
   industryVertical: z.enum([
     "INDUSTRY_VERTICAL_UNSPECIFIED",
@@ -790,7 +797,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine Collections.Engines. Registered at `@swamp/gcp/discoveryengine/collections-engines`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-engines",
-  version: "2026.06.16.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -917,6 +924,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.24.1",
+      description: "Added: associatedAgentRegistry",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -946,6 +958,9 @@ export const model = {
           body["agentGatewaySetting"] = g["agentGatewaySetting"];
         }
         if (g["appType"] !== undefined) body["appType"] = g["appType"];
+        if (g["associatedAgentRegistry"] !== undefined) {
+          body["associatedAgentRegistry"] = g["associatedAgentRegistry"];
+        }
         if (g["chatEngineConfig"] !== undefined) {
           body["chatEngineConfig"] = g["chatEngineConfig"];
         }
@@ -1096,6 +1111,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["agentGatewaySetting"] !== undefined) {
           body["agentGatewaySetting"] = g["agentGatewaySetting"];
+        }
+        if (g["associatedAgentRegistry"] !== undefined) {
+          body["associatedAgentRegistry"] = g["associatedAgentRegistry"];
         }
         if (g["chatEngineConfig"] !== undefined) {
           body["chatEngineConfig"] = g["chatEngineConfig"];

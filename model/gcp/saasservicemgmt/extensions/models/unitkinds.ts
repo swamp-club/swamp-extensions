@@ -221,7 +221,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     variable: z.string().describe("Required. name of the variable").optional(),
   })).describe(
-    "Optional. List of inputVariables for this release that will either be retrieved from a dependency’s outputVariables, or will be passed on to a dependency’s inputVariables. Maximum 100.",
+    "Optional. List of inputVariables for this release that will either be retrieved from a dependency's outputVariables, or will be passed on to a dependency's inputVariables. Maximum 100.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. The labels on the resource, which can be used for categorization. similar to Kubernetes resource labels.",
@@ -364,7 +364,7 @@ const InputsSchema = z.object({
     ).optional(),
     variable: z.string().describe("Required. name of the variable").optional(),
   })).describe(
-    "Optional. List of inputVariables for this release that will either be retrieved from a dependency’s outputVariables, or will be passed on to a dependency’s inputVariables. Maximum 100.",
+    "Optional. List of inputVariables for this release that will either be retrieved from a dependency's outputVariables, or will be passed on to a dependency's inputVariables. Maximum 100.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. The labels on the resource, which can be used for categorization. similar to Kubernetes resource labels.",
@@ -429,7 +429,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Lifecycle Manager UnitKinds. Registered at `@swamp/gcp/saasservicemgmt/unitkinds`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/unitkinds",
-  version: "2026.06.08.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -537,6 +537,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

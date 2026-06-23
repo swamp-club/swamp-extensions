@@ -25,7 +25,7 @@
 /**
  * Swamp extension model for Google Cloud App Lifecycle Manager RolloutKinds.
  *
- * An object that describes various settings of Rollout execution. Includes built-in policies across GCP and GDC, and customizable policies.
+ * An object that describes various settings of Rollout execution. Includes built-in and customizable policies.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -341,7 +341,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Lifecycle Manager RolloutKinds. Registered at `@swamp/gcp/saasservicemgmt/rolloutkinds`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/rolloutkinds",
-  version: "2026.06.12.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -436,6 +436,11 @@ export const model = {
     {
       toVersion: "2026.06.12.1",
       description: "Added: unitUpdatePacing",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

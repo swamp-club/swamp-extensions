@@ -396,6 +396,7 @@ const GlobalArgsSchema = z.object({
     loadBalancerFirewallPolicy: z.string().optional(),
     networkEndpointGroup: z.string().optional(),
     networkIngressFirewallPolicy: z.string().optional(),
+    networkPathInsightsGenerationTime: z.string().optional(),
     privateIpAddress: z.string().optional(),
     privatePort: z.string().optional(),
     pscNetworkAttachment: z.string().optional(),
@@ -1448,6 +1449,7 @@ const StateSchema = z.object({
       loadBalancerFirewallPolicy: z.string(),
       networkEndpointGroup: z.string(),
       networkIngressFirewallPolicy: z.string(),
+      networkPathInsightsGenerationTime: z.string(),
       privateIpAddress: z.string(),
       privatePort: z.string(),
       pscNetworkAttachment: z.string(),
@@ -2185,6 +2187,7 @@ const InputsSchema = z.object({
     loadBalancerFirewallPolicy: z.string().optional(),
     networkEndpointGroup: z.string().optional(),
     networkIngressFirewallPolicy: z.string().optional(),
+    networkPathInsightsGenerationTime: z.string().optional(),
     privateIpAddress: z.string().optional(),
     privatePort: z.string().optional(),
     pscNetworkAttachment: z.string().optional(),
@@ -3025,7 +3028,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Security Command Center Sources.Findings. Registered at `@swamp/gcp/securitycenter/sources-findings`. */
 export const model = {
   type: "@swamp/gcp/securitycenter/sources-findings",
-  version: "2026.06.08.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -3147,6 +3150,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

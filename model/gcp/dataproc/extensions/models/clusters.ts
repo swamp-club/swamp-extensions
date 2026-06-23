@@ -342,11 +342,19 @@ const GlobalArgsSchema = z.object({
         "Optional. An optional list of Compute Engine zones where the cluster will not be located when Auto Zone is enabled. Only one of zone_uri or auto_zone_exclude_zone_uris can be set. If both are omitted, the service will pick a zone in the cluster Compute Engine region. If auto_zone_exclude_zone_uris is set and there is more than one non-excluded zone, the service will pick one of the non-excluded zones. Otherwise, cluster creation will fail with INVALID_ARGUMENT error.A full URL, partial URI, or short name are valid. Examples: https://www.googleapis.com/compute/v1/projects/[project_id]/zones/[zone] projects/[project_id]/zones/[zone] [zone]",
       ).optional(),
       confidentialInstanceConfig: z.object({
+        confidentialInstanceType: z.enum([
+          "CONFIDENTIAL_INSTANCE_TYPE_UNSPECIFIED",
+          "SEV",
+          "SEV_SNP",
+          "TDX",
+        ]).describe(
+          "Optional. Defines the type of Confidential Compute technology to use.",
+        ).optional(),
         enableConfidentialCompute: z.boolean().describe(
           "Optional. Deprecated: Use 'confidential_instance_type' instead. Defines whether the instance should have confidential compute enabled.",
         ).optional(),
       }).describe(
-        "Confidential Instance Config for clusters using Confidential VMs (https://cloud.google.com/compute/confidential-vm/docs)",
+        "Confidential Instance Config for clusters using Confidential VMs (https://cloud.google.com/confidential-computing/confidential-vm/docs)",
       ).optional(),
       internalIpOnly: z.boolean().describe(
         "Optional. This setting applies to subnetwork-enabled networks. It is set to true by default in clusters created with image versions 2.2.x.When set to true: All cluster VMs have internal IP addresses. Google Private Access (https://cloud.google.com/vpc/docs/private-google-access) must be enabled to access the Dataproc API and other Google Cloud APIs. Off-cluster dependencies must be configured to be accessible without external IP addresses.When set to false: Cluster VMs are not restricted to internal IP addresses. Ephemeral external IP addresses are assigned to each cluster VM.",
@@ -1214,6 +1222,7 @@ const StateSchema = z.object({
     gceClusterConfig: z.object({
       autoZoneExcludeZoneUris: z.array(z.string()),
       confidentialInstanceConfig: z.object({
+        confidentialInstanceType: z.string(),
         enableConfidentialCompute: z.boolean(),
       }),
       internalIpOnly: z.boolean(),
@@ -1663,11 +1672,19 @@ const InputsSchema = z.object({
         "Optional. An optional list of Compute Engine zones where the cluster will not be located when Auto Zone is enabled. Only one of zone_uri or auto_zone_exclude_zone_uris can be set. If both are omitted, the service will pick a zone in the cluster Compute Engine region. If auto_zone_exclude_zone_uris is set and there is more than one non-excluded zone, the service will pick one of the non-excluded zones. Otherwise, cluster creation will fail with INVALID_ARGUMENT error.A full URL, partial URI, or short name are valid. Examples: https://www.googleapis.com/compute/v1/projects/[project_id]/zones/[zone] projects/[project_id]/zones/[zone] [zone]",
       ).optional(),
       confidentialInstanceConfig: z.object({
+        confidentialInstanceType: z.enum([
+          "CONFIDENTIAL_INSTANCE_TYPE_UNSPECIFIED",
+          "SEV",
+          "SEV_SNP",
+          "TDX",
+        ]).describe(
+          "Optional. Defines the type of Confidential Compute technology to use.",
+        ).optional(),
         enableConfidentialCompute: z.boolean().describe(
           "Optional. Deprecated: Use 'confidential_instance_type' instead. Defines whether the instance should have confidential compute enabled.",
         ).optional(),
       }).describe(
-        "Confidential Instance Config for clusters using Confidential VMs (https://cloud.google.com/compute/confidential-vm/docs)",
+        "Confidential Instance Config for clusters using Confidential VMs (https://cloud.google.com/confidential-computing/confidential-vm/docs)",
       ).optional(),
       internalIpOnly: z.boolean().describe(
         "Optional. This setting applies to subnetwork-enabled networks. It is set to true by default in clusters created with image versions 2.2.x.When set to true: All cluster VMs have internal IP addresses. Google Private Access (https://cloud.google.com/vpc/docs/private-google-access) must be enabled to access the Dataproc API and other Google Cloud APIs. Off-cluster dependencies must be configured to be accessible without external IP addresses.When set to false: Cluster VMs are not restricted to internal IP addresses. Ephemeral external IP addresses are assigned to each cluster VM.",
@@ -2497,7 +2514,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc Clusters. Registered at `@swamp/gcp/dataproc/clusters`. */
 export const model = {
   type: "@swamp/gcp/dataproc/clusters",
-  version: "2026.06.08.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2611,6 +2628,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

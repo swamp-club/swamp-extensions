@@ -180,6 +180,19 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Identifier. A unique identifier for a repository. The name should be of the format: `projects/{project}/locations/{location_id}/repositories/{repository_id}`",
   ).optional(),
+  scanConfig: z.object({
+    secretScanConfig: z.object({
+      enabled: z.boolean().describe(
+        "Optional. Enables secret scanning for the repository.",
+      ).optional(),
+      inspectTemplate: z.string().describe(
+        "Optional. The DLP inspect template to use for secret scanning.",
+      ).optional(),
+    }).describe("Configuration for secret scanning.").optional(),
+  }).describe("Configuration for scanning.").optional(),
+  serviceAccount: z.string().describe(
+    "Optional. Repository level service account (BYOSA).",
+  ).optional(),
   uris: z.object({
     api: z.string().describe("Output only. API is the URI for API access.")
       .optional(),
@@ -210,6 +223,13 @@ const StateSchema = z.object({
   }).optional(),
   instance: z.string().optional(),
   name: z.string(),
+  scanConfig: z.object({
+    secretScanConfig: z.object({
+      enabled: z.boolean(),
+      inspectTemplate: z.string(),
+    }),
+  }).optional(),
+  serviceAccount: z.string().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
   uris: z.object({
@@ -244,6 +264,19 @@ const InputsSchema = z.object({
   name: z.string().describe(
     "Identifier. A unique identifier for a repository. The name should be of the format: `projects/{project}/locations/{location_id}/repositories/{repository_id}`",
   ).optional(),
+  scanConfig: z.object({
+    secretScanConfig: z.object({
+      enabled: z.boolean().describe(
+        "Optional. Enables secret scanning for the repository.",
+      ).optional(),
+      inspectTemplate: z.string().describe(
+        "Optional. The DLP inspect template to use for secret scanning.",
+      ).optional(),
+    }).describe("Configuration for secret scanning.").optional(),
+  }).describe("Configuration for scanning.").optional(),
+  serviceAccount: z.string().describe(
+    "Optional. Repository level service account (BYOSA).",
+  ).optional(),
   uris: z.object({
     api: z.string().describe("Output only. API is the URI for API access.")
       .optional(),
@@ -277,7 +310,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Secure Source Manager Repositories. Registered at `@swamp/gcp/securesourcemanager/repositories`. */
 export const model = {
   type: "@swamp/gcp/securesourcemanager/repositories",
-  version: "2026.06.08.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -354,6 +387,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.24.1",
+      description: "Added: scanConfig, serviceAccount",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -385,6 +423,10 @@ export const model = {
           body["initialConfig"] = g["initialConfig"];
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
+        if (g["scanConfig"] !== undefined) body["scanConfig"] = g["scanConfig"];
+        if (g["serviceAccount"] !== undefined) {
+          body["serviceAccount"] = g["serviceAccount"];
+        }
         if (g["uris"] !== undefined) body["uris"] = g["uris"];
         if (g["repositoryId"] !== undefined) {
           body["repositoryId"] = g["repositoryId"];
@@ -488,6 +530,10 @@ export const model = {
         }
         if (g["initialConfig"] !== undefined) {
           body["initialConfig"] = g["initialConfig"];
+        }
+        if (g["scanConfig"] !== undefined) body["scanConfig"] = g["scanConfig"];
+        if (g["serviceAccount"] !== undefined) {
+          body["serviceAccount"] = g["serviceAccount"];
         }
         if (g["uris"] !== undefined) body["uris"] = g["uris"];
         for (const key of Object.keys(existing)) {

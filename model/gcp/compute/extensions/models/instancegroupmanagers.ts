@@ -300,7 +300,7 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   instanceLifecyclePolicy: z.object({
     defaultActionOnFailure: z.enum(["DO_NOTHING", "REPAIR"]).describe(
-      "The action that a MIG performs on a failed or an unhealthy VM. A VM is marked as unhealthy when the application running on that VM fails a health check. Valid values are - REPAIR (default): MIG automatically repairs a failed or an unhealthy VM by recreating it. For more information, see About repairing VMs in a MIG. - DO_NOTHING: MIG does not repair a failed or an unhealthy VM.",
+      "The action that a MIG performs on a failed VM. If the value of the onFailedHealthCheck field is `DEFAULT_ACTION`, then the same action also applies to the VMs on which your application fails a health check. Valid values are - REPAIR (default): MIG automatically repairs a failed VM by recreating it. For more information, see About repairing VMs in a MIG. - DO_NOTHING: MIG does not repair a failed VM.",
     ).optional(),
     forceUpdateOnRepair: z.enum(["NO", "YES"]).describe(
       "A bit indicating whether to forcefully apply the group's latest configuration when repairing a VM. Valid options are: - NO (default): If configuration updates are available, they are not forcefully applied during repair. Instead, configuration updates are applied according to the group's update policy. - YES: If configuration updates are available, they are applied during repair.",
@@ -859,7 +859,7 @@ const InputsSchema = z.object({
   }).optional(),
   instanceLifecyclePolicy: z.object({
     defaultActionOnFailure: z.enum(["DO_NOTHING", "REPAIR"]).describe(
-      "The action that a MIG performs on a failed or an unhealthy VM. A VM is marked as unhealthy when the application running on that VM fails a health check. Valid values are - REPAIR (default): MIG automatically repairs a failed or an unhealthy VM by recreating it. For more information, see About repairing VMs in a MIG. - DO_NOTHING: MIG does not repair a failed or an unhealthy VM.",
+      "The action that a MIG performs on a failed VM. If the value of the onFailedHealthCheck field is `DEFAULT_ACTION`, then the same action also applies to the VMs on which your application fails a health check. Valid values are - REPAIR (default): MIG automatically repairs a failed VM by recreating it. For more information, see About repairing VMs in a MIG. - DO_NOTHING: MIG does not repair a failed VM.",
     ).optional(),
     forceUpdateOnRepair: z.enum(["NO", "YES"]).describe(
       "A bit indicating whether to forcefully apply the group's latest configuration when repairing a VM. Valid options are: - NO (default): If configuration updates are available, they are not forcefully applied during repair. Instead, configuration updates are applied according to the group's update policy. - YES: If configuration updates are available, they are applied during repair.",
@@ -1164,7 +1164,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine InstanceGroupManagers. Registered at `@swamp/gcp/compute/instancegroupmanagers`. */
 export const model = {
   type: "@swamp/gcp/compute/instancegroupmanagers",
-  version: "2026.06.12.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1298,6 +1298,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.12.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

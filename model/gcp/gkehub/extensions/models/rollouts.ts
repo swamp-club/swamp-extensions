@@ -17,15 +17,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/gcp/saasservicemgmt/saasreleases
+// Auto-generated extension model for @swamp/gcp/gkehub/rollouts
 // Do not edit manually. Re-generate with: deno task generate:gcp
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud App Lifecycle Manager SaasReleases.
+ * Swamp extension model for Google Cloud GKE Hub Rollouts.
  *
- * SaasRelease is a collection of Releases that are assigned to a UnitGroup. It allows provisioning and updates of UnitGroup, which contains multiple Units of different UnitKinds.
+ * Rollout contains the Rollout metadata and configuration. Next ID: 28
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -46,13 +46,13 @@ import {
 
 /** Construct the fully-qualified resource name from parent and short name. */
 function buildResourceName(parent: string, shortName: string): string {
-  return `${parent}/saasReleases/${shortName}`;
+  return `${parent}/rollouts/${shortName}`;
 }
 
-const BASE_URL = "https://saasservicemgmt.googleapis.com/";
+const BASE_URL = "https://gkehub.googleapis.com/";
 
 const GET_CONFIG = {
-  "id": "saasservicemgmt.projects.locations.saasReleases.get",
+  "id": "gkehub.projects.locations.rollouts.get",
   "path": "v1/{+name}",
   "httpMethod": "GET",
   "parameterOrder": [
@@ -66,41 +66,14 @@ const GET_CONFIG = {
   },
 } as const;
 
-const INSERT_CONFIG = {
-  "id": "saasservicemgmt.projects.locations.saasReleases.create",
-  "path": "v1/{+parent}/saasReleases",
-  "httpMethod": "POST",
-  "parameterOrder": [
-    "parent",
-  ],
-  "parameters": {
-    "parent": {
-      "location": "path",
-      "required": true,
-    },
-    "requestId": {
-      "location": "query",
-    },
-    "saasReleaseId": {
-      "location": "query",
-    },
-    "validateOnly": {
-      "location": "query",
-    },
-  },
-} as const;
-
 const DELETE_CONFIG = {
-  "id": "saasservicemgmt.projects.locations.saasReleases.delete",
+  "id": "gkehub.projects.locations.rollouts.delete",
   "path": "v1/{+name}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "name",
   ],
   "parameters": {
-    "etag": {
-      "location": "query",
-    },
     "name": {
       "location": "path",
       "required": true,
@@ -108,24 +81,18 @@ const DELETE_CONFIG = {
     "requestId": {
       "location": "query",
     },
-    "validateOnly": {
-      "location": "query",
-    },
   },
 } as const;
 
 const LIST_CONFIG = {
-  "id": "saasservicemgmt.projects.locations.saasReleases.list",
-  "path": "v1/{+parent}/saasReleases",
+  "id": "gkehub.projects.locations.rollouts.list",
+  "path": "v1/{+parent}/rollouts",
   "httpMethod": "GET",
   "parameterOrder": [
     "parent",
   ],
   "parameters": {
     "filter": {
-      "location": "query",
-    },
-    "orderBy": {
       "location": "query",
     },
     "pageSize": {
@@ -142,6 +109,9 @@ const LIST_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
+  name: z.string().describe(
+    "Instance name for this resource (used as the unique identifier in the factory pattern)",
+  ),
   accessToken: z.string().meta({ sensitive: true }).describe(
     "GCP OAuth2 access token; overrides GCP_ACCESS_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -151,55 +121,52 @@ const GlobalArgsSchema = z.object({
   project: z.string().describe(
     "GCP project ID; overrides GCP_PROJECT / GOOGLE_CLOUD_PROJECT environment variables.",
   ).optional(),
-  annotations: z.record(z.string(), z.string()).describe(
-    "Optional. Annotations is an unstructured key-value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/user-guide/annotations",
-  ).optional(),
-  labels: z.record(z.string(), z.string()).describe(
-    "Optional. The labels on the resource, which can be used for categorization. similar to Kubernetes resource labels.",
-  ).optional(),
-  name: z.string().describe(
-    'Identifier. The resource name (full URI of the resource) following the standard naming scheme: "projects/{project}/locations/{location}/saasReleases/{saasRelease}"',
-  ).optional(),
-  requestId: z.string().describe("An optional request ID to identify requests.")
-    .optional(),
-  saasReleaseId: z.string().describe(
-    "Required. The ID value for the new saas release.",
-  ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
 });
 
 const StateSchema = z.object({
-  annotations: z.record(z.string(), z.unknown()).optional(),
+  completeTime: z.string().optional(),
   createTime: z.string().optional(),
+  deleteTime: z.string().optional(),
+  displayName: z.string().optional(),
   etag: z.string().optional(),
+  intent: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
+  membershipStates: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
+  rolloutSequence: z.string().optional(),
+  stages: z.array(z.object({
+    clusterSelector: z.object({
+      labelSelector: z.string(),
+    }),
+    endTime: z.string(),
+    fleetProjects: z.array(z.string()),
+    soakDuration: z.string(),
+    stageNumber: z.number(),
+    startTime: z.string(),
+    state: z.string(),
+  })).optional(),
+  state: z.string().optional(),
+  stateReason: z.string().optional(),
+  stateReasonType: z.string().optional(),
+  trigger: z.string().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
+  versionUpgrade: z.object({
+    desiredVersion: z.string(),
+    type: z.string(),
+  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
+  name: z.string().optional(),
   accessToken: z.string().meta({ sensitive: true }).optional(),
   credentialsJson: z.string().meta({ sensitive: true }).optional(),
   project: z.string().optional(),
-  annotations: z.record(z.string(), z.string()).describe(
-    "Optional. Annotations is an unstructured key-value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/user-guide/annotations",
-  ).optional(),
-  labels: z.record(z.string(), z.string()).describe(
-    "Optional. The labels on the resource, which can be used for categorization. similar to Kubernetes resource labels.",
-  ).optional(),
-  name: z.string().describe(
-    'Identifier. The resource name (full URI of the resource) following the standard naming scheme: "projects/{project}/locations/{location}/saasReleases/{saasRelease}"',
-  ).optional(),
-  requestId: z.string().describe("An optional request ID to identify requests.")
-    .optional(),
-  saasReleaseId: z.string().describe(
-    "Required. The ID value for the new saas release.",
-  ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
@@ -217,103 +184,26 @@ function _buildGcpCredentials(
   };
 }
 
-/** Swamp extension model for Google Cloud App Lifecycle Manager SaasReleases. Registered at `@swamp/gcp/saasservicemgmt/saasreleases`. */
+/** Swamp extension model for Google Cloud GKE Hub Rollouts. Registered at `@swamp/gcp/gkehub/rollouts`. */
 export const model = {
-  type: "@swamp/gcp/saasservicemgmt/saasreleases",
-  version: "2026.06.12.1",
-  upgrades: [
-    {
-      toVersion: "2026.06.07.1",
-      description: "Added: accessToken, credentialsJson, project",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.12.1",
-      description: "Removed: releases, tierMappings",
-      upgradeAttributes: (old: Record<string, unknown>) => {
-        const { releases: _releases, tierMappings: _tierMappings, ...rest } =
-          old;
-        return rest;
-      },
-    },
-  ],
+  type: "@swamp/gcp/gkehub/rollouts",
+  version: "2026.06.24.1",
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
       description:
-        "SaasRelease is a collection of Releases that are assigned to a UnitGroup. It ...",
+        "Rollout contains the Rollout metadata and configuration. Next ID: 28",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
   },
   methods: {
-    create: {
-      description: "Create a saasReleases",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
-        const g = context.globalArgs;
-        const credentials = _buildGcpCredentials(g);
-        const projectId = await getProjectId(credentials);
-        const params: Record<string, string> = { project: projectId };
-        params["parent"] = `projects/${projectId}/locations/${
-          String(g["location"] ?? "")
-        }`;
-        const body: Record<string, unknown> = {};
-        if (g["annotations"] !== undefined) {
-          body["annotations"] = g["annotations"];
-        }
-        if (g["labels"] !== undefined) body["labels"] = g["labels"];
-        if (g["name"] !== undefined) body["name"] = g["name"];
-        if (g["requestId"] !== undefined) body["requestId"] = g["requestId"];
-        if (g["saasReleaseId"] !== undefined) {
-          body["saasReleaseId"] = g["saasReleaseId"];
-        }
-        if (g["name"] !== undefined) {
-          params["name"] = buildResourceName(
-            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
-            String(g["name"]),
-          );
-        }
-        const result = await createResource(
-          BASE_URL,
-          INSERT_CONFIG,
-          params,
-          body,
-          GET_CONFIG,
-          undefined,
-          {
-            listConfig: LIST_CONFIG,
-            listParams: {
-              "parent": `projects/${projectId}/locations/${
-                String(g["location"] ?? "")
-              }`,
-            },
-            matchField: "name",
-            matchValue: String(g["name"] ?? ""),
-          },
-          credentials,
-        ) as StateData;
-        const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
-          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
-        const handle = await context.writeResource(
-          "state",
-          instanceName,
-          result,
-        );
-        return { dataHandles: [handle] };
-      },
-    },
     get: {
-      description: "Get a saasReleases",
+      description: "Get a rollouts",
       arguments: z.object({
-        identifier: z.string().describe("The name of the saasReleases"),
+        identifier: z.string().describe("The name of the rollouts"),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const g = context.globalArgs;
@@ -330,11 +220,10 @@ export const model = {
           params,
           credentials,
         ) as StateData;
-        const instanceName =
-          ((result.name ?? g.name)?.toString() ?? args.identifier).replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = (g.name?.toString() ?? args.identifier).replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -344,9 +233,9 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete the saasReleases",
+      description: "Delete the rollouts",
       arguments: z.object({
-        identifier: z.string().describe("The name of the saasReleases"),
+        identifier: z.string().describe("The name of the rollouts"),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const g = context.globalArgs;
@@ -377,7 +266,7 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync saasReleases state from GCP",
+      description: "Sync rollouts state from GCP",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -429,16 +318,13 @@ export const model = {
       },
     },
     list: {
-      description: "List saasReleases resources",
+      description: "List rollouts resources",
       arguments: z.object({
         filter: z.string().describe(
-          "Filter the list as specified in https://google.aip.dev/160.",
-        ).optional(),
-        orderBy: z.string().describe(
-          "Order results as specified in https://google.aip.dev/132.",
+          "Optional. Lists Rollouts that match the filter expression, following the syntax outlined in https://google.aip.dev/160.",
         ).optional(),
         pageSize: z.number().describe(
-          "The maximum number of saas releases to send per page.",
+          "The maximum number of rollout to return. The service may return fewer than this value. If unspecified, at most 50 rollouts will be returned. The maximum value is 1000; values above 1000 will be coerced to 1000.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
@@ -455,9 +341,6 @@ export const model = {
         if (args["filter"] !== undefined) {
           params["filter"] = String(args["filter"]);
         }
-        if (args["orderBy"] !== undefined) {
-          params["orderBy"] = String(args["orderBy"]);
-        }
         if (args["pageSize"] !== undefined) {
           params["pageSize"] = String(args["pageSize"]);
         }
@@ -465,7 +348,7 @@ export const model = {
           BASE_URL,
           LIST_CONFIG,
           params,
-          "saasReleases",
+          "rollouts",
           (args.maxPages as number | undefined) ?? 10,
           credentials,
         );
@@ -484,6 +367,154 @@ export const model = {
           dataHandles.push(handle);
         }
         return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
+    cancel: {
+      description: "cancel",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "gkehub.projects.locations.rollouts.cancel",
+            "path": "v1/{+name}:cancel",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          {},
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    force_complete_stage: {
+      description: "force complete stage",
+      arguments: z.object({
+        stageNumber: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (args["stageNumber"] !== undefined) {
+          body["stageNumber"] = args["stageNumber"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "gkehub.projects.locations.rollouts.forceCompleteStage",
+            "path": "v1/{+name}:forceCompleteStage",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    pause: {
+      description: "pause",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "gkehub.projects.locations.rollouts.pause",
+            "path": "v1/{+name}:pause",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          {},
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    resume: {
+      description: "resume",
+      arguments: z.object({
+        scheduleOffset: z.any().optional(),
+        validateOnly: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (args["scheduleOffset"] !== undefined) {
+          body["scheduleOffset"] = args["scheduleOffset"];
+        }
+        if (args["validateOnly"] !== undefined) {
+          body["validateOnly"] = args["validateOnly"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id": "gkehub.projects.locations.rollouts.resume",
+            "path": "v1/{+name}:resume",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
       },
     },
   },

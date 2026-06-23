@@ -738,6 +738,7 @@ const GlobalArgsSchema = z.object({
           "NO_RESERVATION",
           "ANY_RESERVATION",
           "SPECIFIC_RESERVATION",
+          "ANY_RESERVATION_THEN_FAIL",
         ]).describe("Corresponds to the type of reservation consumption.")
           .optional(),
         key: z.string().describe(
@@ -1547,6 +1548,20 @@ const GlobalArgsSchema = z.object({
   machineType: z.string().describe(
     "Optional. The desired [Google Compute Engine machine type](https://cloud.google.com/compute/docs/machine-types) for nodes in the node pool. Initiates an upgrade operation that migrates the nodes in the node pool to the specified machine type.",
   ).optional(),
+  maintenancePolicy: z.object({
+    exclusionUntilEndOfSupport: z.object({
+      enabled: z.boolean().describe(
+        "Optional. Indicates whether the exclusion is enabled.",
+      ).optional(),
+      endTime: z.string().describe(
+        "Output only. The end time of the maintenance exclusion. It is output only. It is the cluster control plane version's end of support time, or end of extended support time when the cluster is on extended support channel.",
+      ).optional(),
+      startTime: z.string().describe(
+        "Output only. The start time of the maintenance exclusion. It is output only. It is the exclusion creation time.",
+      ).optional(),
+    }).describe("Defines the maintenance exclusion for the node pool.")
+      .optional(),
+  }).describe("Defines the maintenance policy for the node pool.").optional(),
   maxRunDuration: z.string().describe(
     "The maximum duration for the nodes to exist. If unspecified, the nodes can exist indefinitely.",
   ).optional(),
@@ -2684,6 +2699,7 @@ const InputsSchema = z.object({
           "NO_RESERVATION",
           "ANY_RESERVATION",
           "SPECIFIC_RESERVATION",
+          "ANY_RESERVATION_THEN_FAIL",
         ]).describe("Corresponds to the type of reservation consumption.")
           .optional(),
         key: z.string().describe(
@@ -3493,6 +3509,20 @@ const InputsSchema = z.object({
   machineType: z.string().describe(
     "Optional. The desired [Google Compute Engine machine type](https://cloud.google.com/compute/docs/machine-types) for nodes in the node pool. Initiates an upgrade operation that migrates the nodes in the node pool to the specified machine type.",
   ).optional(),
+  maintenancePolicy: z.object({
+    exclusionUntilEndOfSupport: z.object({
+      enabled: z.boolean().describe(
+        "Optional. Indicates whether the exclusion is enabled.",
+      ).optional(),
+      endTime: z.string().describe(
+        "Output only. The end time of the maintenance exclusion. It is output only. It is the cluster control plane version's end of support time, or end of extended support time when the cluster is on extended support channel.",
+      ).optional(),
+      startTime: z.string().describe(
+        "Output only. The start time of the maintenance exclusion. It is output only. It is the exclusion creation time.",
+      ).optional(),
+    }).describe("Defines the maintenance exclusion for the node pool.")
+      .optional(),
+  }).describe("Defines the maintenance policy for the node pool.").optional(),
   maxRunDuration: z.string().describe(
     "The maximum duration for the nodes to exist. If unspecified, the nodes can exist indefinitely.",
   ).optional(),
@@ -3718,7 +3748,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Kubernetes Engine Clusters.NodePools. Registered at `@swamp/gcp/container/clusters-nodepools`. */
 export const model = {
   type: "@swamp/gcp/container/clusters-nodepools",
-  version: "2026.06.17.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -3875,6 +3905,11 @@ export const model = {
     {
       toVersion: "2026.06.17.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
+      description: "Added: maintenancePolicy",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -4045,6 +4080,9 @@ export const model = {
         }
         if (g["machineType"] !== undefined) {
           body["machineType"] = g["machineType"];
+        }
+        if (g["maintenancePolicy"] !== undefined) {
+          body["maintenancePolicy"] = g["maintenancePolicy"];
         }
         if (g["maxRunDuration"] !== undefined) {
           body["maxRunDuration"] = g["maxRunDuration"];

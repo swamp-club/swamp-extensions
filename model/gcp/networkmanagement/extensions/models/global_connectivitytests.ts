@@ -187,6 +187,9 @@ const GlobalArgsSchema = z.object({
     cloudSqlInstance: z.string().describe(
       "A [Cloud SQL](https://cloud.google.com/sql) instance URI.",
     ).optional(),
+    dmsPrivateConnection: z.string().describe(
+      "A [DMS Private Connection](https://docs.cloud.google.com/database-migration/docs/reference/rest/v1/projects.locations.privateConnections) name format: projects/{project}/locations/{location}/privateConnections/{privateConnection}.",
+    ).optional(),
     forwardingRule: z.string().describe(
       "A forwarding rule and its corresponding IP address represent the frontend configuration of a Google Cloud load balancer. Forwarding rules are also used for protocol forwarding, Private Service Connect and other network services to provide forwarding information in the control plane. Applicable only to destination endpoint. Format: `projects/{project}/global/forwardingRules/{id}` or `projects/{project}/regions/{region}/forwardingRules/{id}`",
     ).optional(),
@@ -305,7 +308,7 @@ const GlobalArgsSchema = z.object({
     endpointInfo: z.object({
       destinationIp: z.string().describe("Destination IP address.").optional(),
       destinationNetworkUri: z.string().describe(
-        "URI of the network where this packet is sent to.",
+        "URI of the network where this packet is sent to. Format: `projects/{project_id}/global/networks/{network_id}`",
       ).optional(),
       destinationPort: z.number().int().describe(
         "Destination port. Only valid when protocol is TCP or UDP.",
@@ -318,7 +321,7 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       sourceIp: z.string().describe("Source IP address.").optional(),
       sourceNetworkUri: z.string().describe(
-        "URI of the network where this packet originates from.",
+        "URI of the network where this packet originates from. Format: `projects/{project_id}/global/networks/{network_id}`",
       ).optional(),
       sourcePort: z.number().int().describe(
         "Source port. Only valid when protocol is TCP or UDP.",
@@ -399,7 +402,7 @@ const GlobalArgsSchema = z.object({
         destinationIp: z.string().describe("Destination IP address.")
           .optional(),
         destinationNetworkUri: z.string().describe(
-          "URI of the network where this packet is sent to.",
+          "URI of the network where this packet is sent to. Format: `projects/{project_id}/global/networks/{network_id}`",
         ).optional(),
         destinationPort: z.number().int().describe(
           "Destination port. Only valid when protocol is TCP or UDP.",
@@ -412,7 +415,7 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         sourceIp: z.string().describe("Source IP address.").optional(),
         sourceNetworkUri: z.string().describe(
-          "URI of the network where this packet originates from.",
+          "URI of the network where this packet originates from. Format: `projects/{project_id}/global/networks/{network_id}`",
         ).optional(),
         sourcePort: z.number().int().describe(
           "Source port. Only valid when protocol is TCP or UDP.",
@@ -594,7 +597,7 @@ const GlobalArgsSchema = z.object({
         destinationIp: z.string().describe("Destination IP address.")
           .optional(),
         destinationNetworkUri: z.string().describe(
-          "URI of the network where this packet is sent to.",
+          "URI of the network where this packet is sent to. Format: `projects/{project_id}/global/networks/{network_id}`",
         ).optional(),
         destinationPort: z.number().int().describe(
           "Destination port. Only valid when protocol is TCP or UDP.",
@@ -607,7 +610,7 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         sourceIp: z.string().describe("Source IP address.").optional(),
         sourceNetworkUri: z.string().describe(
-          "URI of the network where this packet originates from.",
+          "URI of the network where this packet originates from. Format: `projects/{project_id}/global/networks/{network_id}`",
         ).optional(),
         sourcePort: z.number().int().describe(
           "Source port. Only valid when protocol is TCP or UDP.",
@@ -788,6 +791,9 @@ const GlobalArgsSchema = z.object({
     cloudSqlInstance: z.string().describe(
       "A [Cloud SQL](https://cloud.google.com/sql) instance URI.",
     ).optional(),
+    dmsPrivateConnection: z.string().describe(
+      "A [DMS Private Connection](https://docs.cloud.google.com/database-migration/docs/reference/rest/v1/projects.locations.privateConnections) name format: projects/{project}/locations/{location}/privateConnections/{privateConnection}.",
+    ).optional(),
     forwardingRule: z.string().describe(
       "A forwarding rule and its corresponding IP address represent the frontend configuration of a Google Cloud load balancer. Forwarding rules are also used for protocol forwarding, Private Service Connect and other network services to provide forwarding information in the control plane. Applicable only to destination endpoint. Format: `projects/{project}/global/forwardingRules/{id}` or `projects/{project}/regions/{region}/forwardingRules/{id}`",
     ).optional(),
@@ -880,6 +886,7 @@ const StateSchema = z.object({
       uri: z.string(),
     }),
     cloudSqlInstance: z.string(),
+    dmsPrivateConnection: z.string(),
     forwardingRule: z.string(),
     forwardingRuleTarget: z.string(),
     fqdn: z.string(),
@@ -1093,6 +1100,7 @@ const StateSchema = z.object({
       uri: z.string(),
     }),
     cloudSqlInstance: z.string(),
+    dmsPrivateConnection: z.string(),
     forwardingRule: z.string(),
     forwardingRuleTarget: z.string(),
     fqdn: z.string(),
@@ -1149,6 +1157,9 @@ const InputsSchema = z.object({
     }).describe("Wrapper for Cloud Run revision attributes.").optional(),
     cloudSqlInstance: z.string().describe(
       "A [Cloud SQL](https://cloud.google.com/sql) instance URI.",
+    ).optional(),
+    dmsPrivateConnection: z.string().describe(
+      "A [DMS Private Connection](https://docs.cloud.google.com/database-migration/docs/reference/rest/v1/projects.locations.privateConnections) name format: projects/{project}/locations/{location}/privateConnections/{privateConnection}.",
     ).optional(),
     forwardingRule: z.string().describe(
       "A forwarding rule and its corresponding IP address represent the frontend configuration of a Google Cloud load balancer. Forwarding rules are also used for protocol forwarding, Private Service Connect and other network services to provide forwarding information in the control plane. Applicable only to destination endpoint. Format: `projects/{project}/global/forwardingRules/{id}` or `projects/{project}/regions/{region}/forwardingRules/{id}`",
@@ -1268,7 +1279,7 @@ const InputsSchema = z.object({
     endpointInfo: z.object({
       destinationIp: z.string().describe("Destination IP address.").optional(),
       destinationNetworkUri: z.string().describe(
-        "URI of the network where this packet is sent to.",
+        "URI of the network where this packet is sent to. Format: `projects/{project_id}/global/networks/{network_id}`",
       ).optional(),
       destinationPort: z.number().int().describe(
         "Destination port. Only valid when protocol is TCP or UDP.",
@@ -1281,7 +1292,7 @@ const InputsSchema = z.object({
       ).optional(),
       sourceIp: z.string().describe("Source IP address.").optional(),
       sourceNetworkUri: z.string().describe(
-        "URI of the network where this packet originates from.",
+        "URI of the network where this packet originates from. Format: `projects/{project_id}/global/networks/{network_id}`",
       ).optional(),
       sourcePort: z.number().int().describe(
         "Source port. Only valid when protocol is TCP or UDP.",
@@ -1362,7 +1373,7 @@ const InputsSchema = z.object({
         destinationIp: z.string().describe("Destination IP address.")
           .optional(),
         destinationNetworkUri: z.string().describe(
-          "URI of the network where this packet is sent to.",
+          "URI of the network where this packet is sent to. Format: `projects/{project_id}/global/networks/{network_id}`",
         ).optional(),
         destinationPort: z.number().int().describe(
           "Destination port. Only valid when protocol is TCP or UDP.",
@@ -1375,7 +1386,7 @@ const InputsSchema = z.object({
         ).optional(),
         sourceIp: z.string().describe("Source IP address.").optional(),
         sourceNetworkUri: z.string().describe(
-          "URI of the network where this packet originates from.",
+          "URI of the network where this packet originates from. Format: `projects/{project_id}/global/networks/{network_id}`",
         ).optional(),
         sourcePort: z.number().int().describe(
           "Source port. Only valid when protocol is TCP or UDP.",
@@ -1557,7 +1568,7 @@ const InputsSchema = z.object({
         destinationIp: z.string().describe("Destination IP address.")
           .optional(),
         destinationNetworkUri: z.string().describe(
-          "URI of the network where this packet is sent to.",
+          "URI of the network where this packet is sent to. Format: `projects/{project_id}/global/networks/{network_id}`",
         ).optional(),
         destinationPort: z.number().int().describe(
           "Destination port. Only valid when protocol is TCP or UDP.",
@@ -1570,7 +1581,7 @@ const InputsSchema = z.object({
         ).optional(),
         sourceIp: z.string().describe("Source IP address.").optional(),
         sourceNetworkUri: z.string().describe(
-          "URI of the network where this packet originates from.",
+          "URI of the network where this packet originates from. Format: `projects/{project_id}/global/networks/{network_id}`",
         ).optional(),
         sourcePort: z.number().int().describe(
           "Source port. Only valid when protocol is TCP or UDP.",
@@ -1751,6 +1762,9 @@ const InputsSchema = z.object({
     cloudSqlInstance: z.string().describe(
       "A [Cloud SQL](https://cloud.google.com/sql) instance URI.",
     ).optional(),
+    dmsPrivateConnection: z.string().describe(
+      "A [DMS Private Connection](https://docs.cloud.google.com/database-migration/docs/reference/rest/v1/projects.locations.privateConnections) name format: projects/{project}/locations/{location}/privateConnections/{privateConnection}.",
+    ).optional(),
     forwardingRule: z.string().describe(
       "A forwarding rule and its corresponding IP address represent the frontend configuration of a Google Cloud load balancer. Forwarding rules are also used for protocol forwarding, Private Service Connect and other network services to provide forwarding information in the control plane. Applicable only to destination endpoint. Format: `projects/{project}/global/forwardingRules/{id}` or `projects/{project}/regions/{region}/forwardingRules/{id}`",
     ).optional(),
@@ -1841,7 +1855,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Management Global.ConnectivityTests. Registered at `@swamp/gcp/networkmanagement/global-connectivitytests`. */
 export const model = {
   type: "@swamp/gcp/networkmanagement/global-connectivitytests",
-  version: "2026.06.08.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1950,6 +1964,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

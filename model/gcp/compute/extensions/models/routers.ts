@@ -389,6 +389,9 @@ const GlobalArgsSchema = z.object({
     drainNatIps: z.array(z.string()).describe(
       "A list of URLs of the IP resources to be drained. These IPs must be valid static external IPs that have been assigned to the NAT. These IPs should be used for updating/patching a NAT only.",
     ).optional(),
+    effectiveTcpTimeWaitTimeoutSec: z.number().int().describe(
+      "Output only. Effective timeout (in seconds) for TCP connections that are in TIME_WAIT state. This value is equal to tcp_time_wait_timeout_sec. If tcp_time_wait_timeout_sec isn't set, the effective timeout is 30s or 120s. The field is output only.",
+    ).optional(),
     enableDynamicPortAllocation: z.boolean().describe(
       "Enable Dynamic Port Allocation. If not specified, it is disabled by default. If set to true, - Dynamic Port Allocation will be enabled on this NAT config. - enableEndpointIndependentMapping cannot be set to true. - If minPorts is set, minPortsPerVm must be set to a power of two greater than or equal to 32. If minPortsPerVm is not set, a minimum of 32 ports will be allocated to a VM from this NAT config.",
     ).optional(),
@@ -593,6 +596,7 @@ const StateSchema = z.object({
   nats: z.array(z.object({
     autoNetworkTier: z.string(),
     drainNatIps: z.array(z.string()),
+    effectiveTcpTimeWaitTimeoutSec: z.number(),
     enableDynamicPortAllocation: z.boolean(),
     enableEndpointIndependentMapping: z.boolean(),
     endpointTypes: z.array(z.string()),
@@ -841,6 +845,9 @@ const InputsSchema = z.object({
     drainNatIps: z.array(z.string()).describe(
       "A list of URLs of the IP resources to be drained. These IPs must be valid static external IPs that have been assigned to the NAT. These IPs should be used for updating/patching a NAT only.",
     ).optional(),
+    effectiveTcpTimeWaitTimeoutSec: z.number().int().describe(
+      "Output only. Effective timeout (in seconds) for TCP connections that are in TIME_WAIT state. This value is equal to tcp_time_wait_timeout_sec. If tcp_time_wait_timeout_sec isn't set, the effective timeout is 30s or 120s. The field is output only.",
+    ).optional(),
     enableDynamicPortAllocation: z.boolean().describe(
       "Enable Dynamic Port Allocation. If not specified, it is disabled by default. If set to true, - Dynamic Port Allocation will be enabled on this NAT config. - enableEndpointIndependentMapping cannot be set to true. - If minPorts is set, minPortsPerVm must be set to a power of two greater than or equal to 32. If minPortsPerVm is not set, a minimum of 32 ports will be allocated to a VM from this NAT config.",
     ).optional(),
@@ -988,7 +995,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Routers. Registered at `@swamp/gcp/compute/routers`. */
 export const model = {
   type: "@swamp/gcp/compute/routers",
-  version: "2026.06.08.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1067,6 +1074,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

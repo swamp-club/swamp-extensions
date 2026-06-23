@@ -1889,7 +1889,7 @@ const GlobalArgsSchema = z.object({
         "Output only. Slot-milliseconds for the job.",
       ).optional(),
       transferredBytes: z.string().describe(
-        "Output only. Total bytes transferred for cross-cloud queries such as Cross Cloud Transfer and CREATE TABLE AS SELECT (CTAS).",
+        "Output only. Total bytes transferred for BigQuery Omni queries from the remote cloud back to Google Cloud. This tracks data movement over Google-managed connections (like query results). It doesn't include input data read from the external data lake (for example, S3) because that data stays within the remote cloud.",
       ).optional(),
       undeclaredQueryParameters: z.array(z.object({
         name: z.string().describe(
@@ -4491,7 +4491,7 @@ const InputsSchema = z.object({
         "Output only. Slot-milliseconds for the job.",
       ).optional(),
       transferredBytes: z.string().describe(
-        "Output only. Total bytes transferred for cross-cloud queries such as Cross Cloud Transfer and CREATE TABLE AS SELECT (CTAS).",
+        "Output only. Total bytes transferred for BigQuery Omni queries from the remote cloud back to Google Cloud. This tracks data movement over Google-managed connections (like query results). It doesn't include input data read from the external data lake (for example, S3) because that data stays within the remote cloud.",
       ).optional(),
       undeclaredQueryParameters: z.array(z.object({
         name: z.string().describe(
@@ -4689,7 +4689,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Jobs. Registered at `@swamp/gcp/bigquery/jobs`. */
 export const model = {
   type: "@swamp/gcp/bigquery/jobs",
-  version: "2026.06.16.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -4783,6 +4783,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.16.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

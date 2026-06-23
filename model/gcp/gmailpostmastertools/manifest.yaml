@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/gmailpostmastertools"
-version: "2026.06.08.2"
+version: "2026.06.24.1"
 description: "Google Cloud gmailpostmastertools infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,10 +11,12 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: domains, domains_trafficstats
+  - Added: domains_users
+  - Updated: domains
 models:
   - domains.ts
   - domains_trafficstats.ts
+  - domains_users.ts
 additionalFiles:
   - LICENSE.txt
   - README.md

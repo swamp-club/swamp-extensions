@@ -176,6 +176,7 @@ const GlobalArgsSchema = z.object({
     "EU_DATA_BOUNDARY_AND_SUPPORT",
     "ISRAEL_DATA_BOUNDARY_AND_SUPPORT",
     "JAPAN_DATA_BOUNDARY",
+    "SWITZERLAND_DATA_BOUNDARY_WITH_ACCESS_JUSTIFICATIONS",
     "KSA_DATA_BOUNDARY_WITH_ACCESS_JUSTIFICATIONS",
     "REGIONAL_DATA_BOUNDARY",
     "US_DATA_BOUNDARY_AND_SUPPORT",
@@ -428,6 +429,7 @@ const InputsSchema = z.object({
     "EU_DATA_BOUNDARY_AND_SUPPORT",
     "ISRAEL_DATA_BOUNDARY_AND_SUPPORT",
     "JAPAN_DATA_BOUNDARY",
+    "SWITZERLAND_DATA_BOUNDARY_WITH_ACCESS_JUSTIFICATIONS",
     "KSA_DATA_BOUNDARY_WITH_ACCESS_JUSTIFICATIONS",
     "REGIONAL_DATA_BOUNDARY",
     "US_DATA_BOUNDARY_AND_SUPPORT",
@@ -613,7 +615,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Assured Workloads Workloads. Registered at `@swamp/gcp/assuredworkloads/workloads`. */
 export const model = {
   type: "@swamp/gcp/assuredworkloads/workloads",
-  version: "2026.06.08.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -682,6 +684,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -17,15 +17,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/gcp/eventarc/channels
+// Auto-generated extension model for @swamp/gcp/gkehub/rolloutsequences
 // Do not edit manually. Re-generate with: deno task generate:gcp
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Eventarc Channels.
+ * Swamp extension model for Google Cloud GKE Hub RolloutSequences.
  *
- * Represents a subscriber's intent to receive events from an event provider. Published events are delivered using the transport associated with the Channel resource. A channel is associated with exactly one event provider.
+ * RolloutSequence defines the desired order of upgrades. Next ID: 20
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -47,13 +47,13 @@ import {
 
 /** Construct the fully-qualified resource name from parent and short name. */
 function buildResourceName(parent: string, shortName: string): string {
-  return `${parent}/channels/${shortName}`;
+  return `${parent}/rolloutSequences/${shortName}`;
 }
 
-const BASE_URL = "https://eventarc.googleapis.com/";
+const BASE_URL = "https://gkehub.googleapis.com/";
 
 const GET_CONFIG = {
-  "id": "eventarc.projects.locations.channels.get",
+  "id": "gkehub.projects.locations.rolloutSequences.get",
   "path": "v1/{+name}",
   "httpMethod": "GET",
   "parameterOrder": [
@@ -68,28 +68,25 @@ const GET_CONFIG = {
 } as const;
 
 const INSERT_CONFIG = {
-  "id": "eventarc.projects.locations.channels.create",
-  "path": "v1/{+parent}/channels",
+  "id": "gkehub.projects.locations.rolloutSequences.create",
+  "path": "v1/{+parent}/rolloutSequences",
   "httpMethod": "POST",
   "parameterOrder": [
     "parent",
   ],
   "parameters": {
-    "channelId": {
-      "location": "query",
-    },
     "parent": {
       "location": "path",
       "required": true,
     },
-    "validateOnly": {
+    "rolloutSequenceId": {
       "location": "query",
     },
   },
 } as const;
 
 const PATCH_CONFIG = {
-  "id": "eventarc.projects.locations.channels.patch",
+  "id": "gkehub.projects.locations.rolloutSequences.patch",
   "path": "v1/{+name}",
   "httpMethod": "PATCH",
   "parameterOrder": [
@@ -103,14 +100,11 @@ const PATCH_CONFIG = {
     "updateMask": {
       "location": "query",
     },
-    "validateOnly": {
-      "location": "query",
-    },
   },
 } as const;
 
 const DELETE_CONFIG = {
-  "id": "eventarc.projects.locations.channels.delete",
+  "id": "gkehub.projects.locations.rolloutSequences.delete",
   "path": "v1/{+name}",
   "httpMethod": "DELETE",
   "parameterOrder": [
@@ -121,21 +115,18 @@ const DELETE_CONFIG = {
       "location": "path",
       "required": true,
     },
-    "validateOnly": {
-      "location": "query",
-    },
   },
 } as const;
 
 const LIST_CONFIG = {
-  "id": "eventarc.projects.locations.channels.list",
-  "path": "v1/{+parent}/channels",
+  "id": "gkehub.projects.locations.rolloutSequences.list",
+  "path": "v1/{+parent}/rolloutSequences",
   "httpMethod": "GET",
   "parameterOrder": [
     "parent",
   ],
   "parameters": {
-    "orderBy": {
+    "filter": {
       "location": "query",
     },
     "pageSize": {
@@ -161,20 +152,93 @@ const GlobalArgsSchema = z.object({
   project: z.string().describe(
     "GCP project ID; overrides GCP_PROJECT / GOOGLE_CLOUD_PROJECT environment variables.",
   ).optional(),
-  cryptoKeyName: z.string().describe(
-    "Optional. Resource name of a KMS crypto key (managed by the user) used to encrypt/decrypt their event data. It must match the pattern `projects/*/locations/*/keyRings/*/cryptoKeys/*`.",
+  autoUpgradeConfig: z.object({
+    enforcedRollouts: z.record(z.string(), z.string()).describe(
+      'Output only. Mandatory Safety Policies (Always active) which cannot be disabled. The key is the policy ID (e.g., "ENFORCED_CONTROL_PLANE_PATCH") and the value is a human-readable description.',
+    ).optional(),
+    rolloutCreationScope: z.object({
+      upgradeTypes: z.array(
+        z.enum([
+          "UPGRADE_TYPE_UNSPECIFIED",
+          "CONTROL_PLANE_MINOR",
+          "CONTROL_PLANE_PATCH",
+          "NODE_MINOR",
+          "NODE_PATCH",
+        ]),
+      ).describe("Optional. The list of enabled upgrade types.").optional(),
+    }).describe("The scope for automatic rollout creation.").optional(),
+  }).describe("Configuration for automatic upgrades.").optional(),
+  displayName: z.string().describe(
+    "Optional. Human readable display name of the Rollout Sequence.",
   ).optional(),
+  effectiveAutoUpgradeConfig: z.object({
+    enforcedRollouts: z.record(z.string(), z.string()).describe(
+      'Output only. Mandatory Safety Policies (Always active) which cannot be disabled. The key is the policy ID (e.g., "ENFORCED_CONTROL_PLANE_PATCH") and the value is a human-readable description.',
+    ).optional(),
+    rolloutCreationScope: z.object({
+      upgradeTypes: z.array(
+        z.enum([
+          "UPGRADE_TYPE_UNSPECIFIED",
+          "CONTROL_PLANE_MINOR",
+          "CONTROL_PLANE_PATCH",
+          "NODE_MINOR",
+          "NODE_PATCH",
+        ]),
+      ).describe("Optional. The list of enabled upgrade types.").optional(),
+    }).describe("The scope for automatic rollout creation.").optional(),
+  }).describe("Configuration for automatic upgrades.").optional(),
+  ignoredClustersSelector: z.object({
+    labelSelector: z.string().describe(
+      "Required. A valid CEL (Common Expression Language) expression which evaluates `resource.labels`.",
+    ).optional(),
+  }).describe("Selector for clusters.").optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. Resource labels.",
+    "Optional. Labels for this Rollout Sequence.",
   ).optional(),
   name: z.string().describe(
-    "Required. The resource name of the channel. Must be unique within the location on the project and must be in `projects/{project}/locations/{location}/channels/{channel_id}` format.",
+    "Identifier. Name of the rollout sequence in the format of: projects/{PROJECT_ID}/locations/global/rolloutSequences/{NAME}",
   ).optional(),
-  provider: z.string().describe(
-    "The name of the event provider (e.g. Eventarc SaaS partner) associated with the channel. This provider will be granted permissions to publish events to the channel. Format: `projects/{project}/locations/{location}/providers/{provider_id}`.",
+  operationalState: z.object({
+    reasons: z.array(
+      z.enum([
+        "REASON_UNSPECIFIED",
+        "FLEET_FEATURE_DELETED_ERROR",
+        "FLEET_DELETED_ERROR",
+        "EMPTY_STAGE_WARNING",
+        "MIXED_RELEASE_CHANNELS_WARNING",
+        "INTERNAL_ERROR",
+        "NO_CLUSTERS_IN_SEQUENCE",
+      ]),
+    ).describe("Output only. Reasons for the Rollout Sequence state.")
+      .optional(),
+    state: z.enum([
+      "STATE_CODE_UNSPECIFIED",
+      "ACTIVE",
+      "WARNING",
+      "ERROR",
+      "INITIALIZING",
+    ]).describe("Output only. State of the Rollout Sequence.").optional(),
+    stateChangeTime: z.string().describe(
+      "Output only. The timestamp at which the operational state was last changed. Used to track how long it has been in the current state.",
+    ).optional(),
+  }).describe("Operational state of the Rollout Sequence.").optional(),
+  stages: z.array(z.object({
+    clusterSelector: z.object({
+      labelSelector: z.string().describe(
+        "Required. A valid CEL (Common Expression Language) expression which evaluates `resource.labels`.",
+      ).optional(),
+    }).describe("Selector for clusters.").optional(),
+    fleetProjects: z.array(z.string()).describe(
+      "Required. List of Fleet projects to select the clusters from. Expected format: projects/{project}",
+    ).optional(),
+    soakDuration: z.string().describe(
+      "Optional. Soak time after upgrading all the clusters in the stage.",
+    ).optional(),
+  })).describe(
+    "Required. Ordered list of stages that constitutes this Rollout.",
   ).optional(),
-  channelId: z.string().describe(
-    "Required. The user-provided ID to be assigned to the channel.",
+  rolloutSequenceId: z.string().describe(
+    "Required. User provided identifier that is used as part of the resource name; must conform to RFC-1034 and additionally restrict to lower-cased letters. This comes out roughly to: /^a-z+[a-z0-9]$/",
   ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
@@ -182,15 +246,44 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  activationToken: z.string().optional(),
+  autoUpgradeConfig: z.object({
+    enforcedRollouts: z.record(z.string(), z.unknown()),
+    rolloutCreationScope: z.object({
+      upgradeTypes: z.array(z.string()),
+    }),
+  }).optional(),
+  computedReleaseChannel: z.string().optional(),
   createTime: z.string().optional(),
-  cryptoKeyName: z.string().optional(),
+  deleteTime: z.string().optional(),
+  displayName: z.string().optional(),
+  effectiveAutoUpgradeConfig: z.object({
+    enforcedRollouts: z.record(z.string(), z.unknown()),
+    rolloutCreationScope: z.object({
+      upgradeTypes: z.array(z.string()),
+    }),
+  }).optional(),
+  etag: z.string().optional(),
+  ignoredClustersSelector: z.object({
+    labelSelector: z.string(),
+  }).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
+  lastQualifiedControlPlaneVersion: z.string().optional(),
+  lastQualifiedNodeVersion: z.string().optional(),
   name: z.string(),
-  provider: z.string().optional(),
-  pubsubTopic: z.string().optional(),
-  satisfiesPzs: z.boolean().optional(),
-  state: z.string().optional(),
+  operationalState: z.object({
+    reasons: z.array(z.string()),
+    state: z.string(),
+    stateChangeTime: z.string(),
+  }).optional(),
+  stages: z.array(z.object({
+    clusterSelector: z.object({
+      labelSelector: z.string(),
+    }),
+    fleetProjects: z.array(z.string()),
+    soakDuration: z.string(),
+  })).optional(),
+  targetControlPlaneVersion: z.string().optional(),
+  targetNodeVersion: z.string().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -201,20 +294,93 @@ const InputsSchema = z.object({
   accessToken: z.string().meta({ sensitive: true }).optional(),
   credentialsJson: z.string().meta({ sensitive: true }).optional(),
   project: z.string().optional(),
-  cryptoKeyName: z.string().describe(
-    "Optional. Resource name of a KMS crypto key (managed by the user) used to encrypt/decrypt their event data. It must match the pattern `projects/*/locations/*/keyRings/*/cryptoKeys/*`.",
+  autoUpgradeConfig: z.object({
+    enforcedRollouts: z.record(z.string(), z.string()).describe(
+      'Output only. Mandatory Safety Policies (Always active) which cannot be disabled. The key is the policy ID (e.g., "ENFORCED_CONTROL_PLANE_PATCH") and the value is a human-readable description.',
+    ).optional(),
+    rolloutCreationScope: z.object({
+      upgradeTypes: z.array(
+        z.enum([
+          "UPGRADE_TYPE_UNSPECIFIED",
+          "CONTROL_PLANE_MINOR",
+          "CONTROL_PLANE_PATCH",
+          "NODE_MINOR",
+          "NODE_PATCH",
+        ]),
+      ).describe("Optional. The list of enabled upgrade types.").optional(),
+    }).describe("The scope for automatic rollout creation.").optional(),
+  }).describe("Configuration for automatic upgrades.").optional(),
+  displayName: z.string().describe(
+    "Optional. Human readable display name of the Rollout Sequence.",
   ).optional(),
+  effectiveAutoUpgradeConfig: z.object({
+    enforcedRollouts: z.record(z.string(), z.string()).describe(
+      'Output only. Mandatory Safety Policies (Always active) which cannot be disabled. The key is the policy ID (e.g., "ENFORCED_CONTROL_PLANE_PATCH") and the value is a human-readable description.',
+    ).optional(),
+    rolloutCreationScope: z.object({
+      upgradeTypes: z.array(
+        z.enum([
+          "UPGRADE_TYPE_UNSPECIFIED",
+          "CONTROL_PLANE_MINOR",
+          "CONTROL_PLANE_PATCH",
+          "NODE_MINOR",
+          "NODE_PATCH",
+        ]),
+      ).describe("Optional. The list of enabled upgrade types.").optional(),
+    }).describe("The scope for automatic rollout creation.").optional(),
+  }).describe("Configuration for automatic upgrades.").optional(),
+  ignoredClustersSelector: z.object({
+    labelSelector: z.string().describe(
+      "Required. A valid CEL (Common Expression Language) expression which evaluates `resource.labels`.",
+    ).optional(),
+  }).describe("Selector for clusters.").optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. Resource labels.",
+    "Optional. Labels for this Rollout Sequence.",
   ).optional(),
   name: z.string().describe(
-    "Required. The resource name of the channel. Must be unique within the location on the project and must be in `projects/{project}/locations/{location}/channels/{channel_id}` format.",
+    "Identifier. Name of the rollout sequence in the format of: projects/{PROJECT_ID}/locations/global/rolloutSequences/{NAME}",
   ).optional(),
-  provider: z.string().describe(
-    "The name of the event provider (e.g. Eventarc SaaS partner) associated with the channel. This provider will be granted permissions to publish events to the channel. Format: `projects/{project}/locations/{location}/providers/{provider_id}`.",
+  operationalState: z.object({
+    reasons: z.array(
+      z.enum([
+        "REASON_UNSPECIFIED",
+        "FLEET_FEATURE_DELETED_ERROR",
+        "FLEET_DELETED_ERROR",
+        "EMPTY_STAGE_WARNING",
+        "MIXED_RELEASE_CHANNELS_WARNING",
+        "INTERNAL_ERROR",
+        "NO_CLUSTERS_IN_SEQUENCE",
+      ]),
+    ).describe("Output only. Reasons for the Rollout Sequence state.")
+      .optional(),
+    state: z.enum([
+      "STATE_CODE_UNSPECIFIED",
+      "ACTIVE",
+      "WARNING",
+      "ERROR",
+      "INITIALIZING",
+    ]).describe("Output only. State of the Rollout Sequence.").optional(),
+    stateChangeTime: z.string().describe(
+      "Output only. The timestamp at which the operational state was last changed. Used to track how long it has been in the current state.",
+    ).optional(),
+  }).describe("Operational state of the Rollout Sequence.").optional(),
+  stages: z.array(z.object({
+    clusterSelector: z.object({
+      labelSelector: z.string().describe(
+        "Required. A valid CEL (Common Expression Language) expression which evaluates `resource.labels`.",
+      ).optional(),
+    }).describe("Selector for clusters.").optional(),
+    fleetProjects: z.array(z.string()).describe(
+      "Required. List of Fleet projects to select the clusters from. Expected format: projects/{project}",
+    ).optional(),
+    soakDuration: z.string().describe(
+      "Optional. Soak time after upgrading all the clusters in the stage.",
+    ).optional(),
+  })).describe(
+    "Required. Ordered list of stages that constitutes this Rollout.",
   ).optional(),
-  channelId: z.string().describe(
-    "Required. The user-provided ID to be assigned to the channel.",
+  rolloutSequenceId: z.string().describe(
+    "Required. User provided identifier that is used as part of the resource name; must conform to RFC-1034 and additionally restrict to lower-cased letters. This comes out roughly to: /^a-z+[a-z0-9]$/",
   ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
@@ -233,98 +399,16 @@ function _buildGcpCredentials(
   };
 }
 
-/** Swamp extension model for Google Cloud Eventarc Channels. Registered at `@swamp/gcp/eventarc/channels`. */
+/** Swamp extension model for Google Cloud GKE Hub RolloutSequences. Registered at `@swamp/gcp/gkehub/rolloutsequences`. */
 export const model = {
-  type: "@swamp/gcp/eventarc/channels",
+  type: "@swamp/gcp/gkehub/rolloutsequences",
   version: "2026.06.24.1",
-  upgrades: [
-    {
-      toVersion: "2026.04.01.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.02.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.3",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.18.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.19.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.19.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.21.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.21.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.24.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.25.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.07.1",
-      description: "Added: accessToken, credentialsJson, project",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.24.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
       description:
-        "Represents a subscriber's intent to receive events from an event provider. Pu...",
+        "RolloutSequence defines the desired order of upgrades. Next ID: 20",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -332,13 +416,9 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a channels",
-      arguments: z.object({
-        waitForReady: z.boolean().describe(
-          "Wait for the resource to reach a ready state after creation (default: true)",
-        ).optional(),
-      }),
-      execute: async (args: { waitForReady?: boolean }, context: any) => {
+      description: "Create a rolloutSequences",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
@@ -347,13 +427,27 @@ export const model = {
           String(g["location"] ?? "")
         }`;
         const body: Record<string, unknown> = {};
-        if (g["cryptoKeyName"] !== undefined) {
-          body["cryptoKeyName"] = g["cryptoKeyName"];
+        if (g["autoUpgradeConfig"] !== undefined) {
+          body["autoUpgradeConfig"] = g["autoUpgradeConfig"];
+        }
+        if (g["displayName"] !== undefined) {
+          body["displayName"] = g["displayName"];
+        }
+        if (g["effectiveAutoUpgradeConfig"] !== undefined) {
+          body["effectiveAutoUpgradeConfig"] = g["effectiveAutoUpgradeConfig"];
+        }
+        if (g["ignoredClustersSelector"] !== undefined) {
+          body["ignoredClustersSelector"] = g["ignoredClustersSelector"];
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["name"] !== undefined) body["name"] = g["name"];
-        if (g["provider"] !== undefined) body["provider"] = g["provider"];
-        if (g["channelId"] !== undefined) body["channelId"] = g["channelId"];
+        if (g["operationalState"] !== undefined) {
+          body["operationalState"] = g["operationalState"];
+        }
+        if (g["stages"] !== undefined) body["stages"] = g["stages"];
+        if (g["rolloutSequenceId"] !== undefined) {
+          body["rolloutSequenceId"] = g["rolloutSequenceId"];
+        }
         if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
             `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
@@ -366,13 +460,7 @@ export const model = {
           params,
           body,
           GET_CONFIG,
-          (args.waitForReady ?? true)
-            ? {
-              "statusField": "state",
-              "readyValues": ["ACTIVE"],
-              "failedValues": [],
-            }
-            : undefined,
+          undefined,
           {
             listConfig: LIST_CONFIG,
             listParams: {
@@ -380,8 +468,8 @@ export const model = {
                 String(g["location"] ?? "")
               }`,
             },
-            matchField: "name",
-            matchValue: String(g["name"] ?? ""),
+            matchField: "displayName",
+            matchValue: String(g["displayName"] ?? ""),
           },
           credentials,
         ) as StateData;
@@ -396,9 +484,9 @@ export const model = {
       },
     },
     get: {
-      description: "Get a channels",
+      description: "Get a rolloutSequences",
       arguments: z.object({
-        identifier: z.string().describe("The name of the channels"),
+        identifier: z.string().describe("The name of the rolloutSequences"),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const g = context.globalArgs;
@@ -429,13 +517,9 @@ export const model = {
       },
     },
     update: {
-      description: "Update channels attributes",
-      arguments: z.object({
-        waitForReady: z.boolean().describe(
-          "Wait for the resource to reach a ready state after update (default: true)",
-        ).optional(),
-      }),
-      execute: async (args: { waitForReady?: boolean }, context: any) => {
+      description: "Update rolloutSequences attributes",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
@@ -458,11 +542,23 @@ export const model = {
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
-        if (g["cryptoKeyName"] !== undefined) {
-          body["cryptoKeyName"] = g["cryptoKeyName"];
+        if (g["autoUpgradeConfig"] !== undefined) {
+          body["autoUpgradeConfig"] = g["autoUpgradeConfig"];
+        }
+        if (g["displayName"] !== undefined) {
+          body["displayName"] = g["displayName"];
+        }
+        if (g["effectiveAutoUpgradeConfig"] !== undefined) {
+          body["effectiveAutoUpgradeConfig"] = g["effectiveAutoUpgradeConfig"];
+        }
+        if (g["ignoredClustersSelector"] !== undefined) {
+          body["ignoredClustersSelector"] = g["ignoredClustersSelector"];
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
-        if (g["provider"] !== undefined) body["provider"] = g["provider"];
+        if (g["operationalState"] !== undefined) {
+          body["operationalState"] = g["operationalState"];
+        }
+        if (g["stages"] !== undefined) body["stages"] = g["stages"];
         for (const key of Object.keys(existing)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
@@ -477,13 +573,7 @@ export const model = {
           params,
           body,
           GET_CONFIG,
-          (args.waitForReady ?? true)
-            ? {
-              "statusField": "state",
-              "readyValues": ["ACTIVE"],
-              "failedValues": [],
-            }
-            : undefined,
+          undefined,
           credentials,
         ) as StateData;
         const handle = await context.writeResource(
@@ -495,9 +585,9 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete the channels",
+      description: "Delete the rolloutSequences",
       arguments: z.object({
-        identifier: z.string().describe("The name of the channels"),
+        identifier: z.string().describe("The name of the rolloutSequences"),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const g = context.globalArgs;
@@ -528,7 +618,7 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync channels state from GCP",
+      description: "Sync rolloutSequences state from GCP",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -580,13 +670,13 @@ export const model = {
       },
     },
     list: {
-      description: "List channels resources",
+      description: "List rolloutSequences resources",
       arguments: z.object({
-        orderBy: z.string().describe(
-          "The sorting order of the resources returned. Value should be a comma-separated list of fields. The default sorting order is ascending. To specify descending order for a field, append a `desc` suffix; for example: `name desc, channel_id`.",
+        filter: z.string().describe(
+          "Optional. Lists Rollout Sequences that match the filter expression, following the syntax outlined in https://google.aip.dev/160.",
         ).optional(),
         pageSize: z.number().describe(
-          "The maximum number of channels to return on each page. Note: The service may send fewer.",
+          "Optional. The maximum number of rollout sequences to return. The service may return fewer than this value. If unspecified, at most 50 rollout sequences will be returned. The maximum value is 1000; values above 1000 will be coerced to 1000.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
@@ -600,8 +690,8 @@ export const model = {
         params["parent"] = `projects/${projectId}/locations/${
           String(g["location"] ?? "")
         }`;
-        if (args["orderBy"] !== undefined) {
-          params["orderBy"] = String(args["orderBy"]);
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
         }
         if (args["pageSize"] !== undefined) {
           params["pageSize"] = String(args["pageSize"]);
@@ -610,7 +700,7 @@ export const model = {
           BASE_URL,
           LIST_CONFIG,
           params,
-          "channels",
+          "rolloutSequences",
           (args.maxPages as number | undefined) ?? 10,
           credentials,
         );
@@ -631,139 +721,38 @@ export const model = {
         return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
-    get_iam_policy: {
-      description: "get iam policy",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, unknown>, context: any) => {
-        const g = context.globalArgs;
-        const credentials = _buildGcpCredentials(g);
-        const projectId = await getProjectId(credentials);
-        const params: Record<string, string> = { project: projectId };
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
-            /\.\./g,
-            "_",
-          ).replace(/\0/g, ""),
-        );
-        if (!content) {
-          throw new Error("No existing state found - run create or get first");
-        }
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        params["resource"] = existing["name"]?.toString() ??
-          g["name"]?.toString() ?? "";
-        const result = await createResource(
-          BASE_URL,
-          {
-            "id": "eventarc.projects.locations.channels.getIamPolicy",
-            "path": "v1/{+resource}:getIamPolicy",
-            "httpMethod": "GET",
-            "parameterOrder": ["resource"],
-            "parameters": {
-              "options.requestedPolicyVersion": { "location": "query" },
-              "resource": { "location": "path", "required": true },
-            },
-          },
-          params,
-          {},
-          undefined,
-          undefined,
-          undefined,
-          credentials,
-        );
-        return { result };
-      },
-    },
-    set_iam_policy: {
-      description: "set iam policy",
+    upgrade: {
+      description: "upgrade",
       arguments: z.object({
-        policy: z.any().optional(),
-        updateMask: z.any().optional(),
+        force: z.any().optional(),
+        upgradeType: z.any().optional(),
+        version: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
-            /\.\./g,
-            "_",
-          ).replace(/\0/g, ""),
-        );
-        if (!content) {
-          throw new Error("No existing state found - run create or get first");
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
         }
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        params["resource"] = existing["name"]?.toString() ??
-          g["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
-        if (args["policy"] !== undefined) body["policy"] = args["policy"];
-        if (args["updateMask"] !== undefined) {
-          body["updateMask"] = args["updateMask"];
+        if (args["force"] !== undefined) body["force"] = args["force"];
+        if (args["upgradeType"] !== undefined) {
+          body["upgradeType"] = args["upgradeType"];
         }
+        if (args["version"] !== undefined) body["version"] = args["version"];
         const result = await createResource(
           BASE_URL,
           {
-            "id": "eventarc.projects.locations.channels.setIamPolicy",
-            "path": "v1/{+resource}:setIamPolicy",
+            "id": "gkehub.projects.locations.rolloutSequences.upgrade",
+            "path": "v1/{+name}:upgrade",
             "httpMethod": "POST",
-            "parameterOrder": ["resource"],
-            "parameters": {
-              "resource": { "location": "path", "required": true },
-            },
-          },
-          params,
-          body,
-          undefined,
-          undefined,
-          undefined,
-          credentials,
-        );
-        return { result };
-      },
-    },
-    test_iam_permissions: {
-      description: "test iam permissions",
-      arguments: z.object({
-        permissions: z.any().optional(),
-      }),
-      execute: async (args: Record<string, unknown>, context: any) => {
-        const g = context.globalArgs;
-        const credentials = _buildGcpCredentials(g);
-        const projectId = await getProjectId(credentials);
-        const params: Record<string, string> = { project: projectId };
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
-            /\.\./g,
-            "_",
-          ).replace(/\0/g, ""),
-        );
-        if (!content) {
-          throw new Error("No existing state found - run create or get first");
-        }
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        params["resource"] = existing["name"]?.toString() ??
-          g["name"]?.toString() ?? "";
-        const body: Record<string, unknown> = {};
-        if (args["permissions"] !== undefined) {
-          body["permissions"] = args["permissions"];
-        }
-        const result = await createResource(
-          BASE_URL,
-          {
-            "id": "eventarc.projects.locations.channels.testIamPermissions",
-            "path": "v1/{+resource}:testIamPermissions",
-            "httpMethod": "POST",
-            "parameterOrder": ["resource"],
-            "parameters": {
-              "resource": { "location": "path", "required": true },
-            },
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
           },
           params,
           body,

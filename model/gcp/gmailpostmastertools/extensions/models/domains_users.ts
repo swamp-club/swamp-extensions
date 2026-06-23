@@ -17,15 +17,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/gcp/saasservicemgmt/unitgroups
+// Auto-generated extension model for @swamp/gcp/gmailpostmastertools/domains-users
 // Do not edit manually. Re-generate with: deno task generate:gcp
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud App Lifecycle Manager UnitGroups.
+ * Swamp extension model for Google Cloud Gmail Postmaster Tools Domains.Users.
  *
- * UnitGroup represents a set of Units to be used by a Tenant. In pooling scenarios, the UnitGroup may be created and provisioned before the Tenant is created.
+ * [Developer Preview](https://developers.google.com/workspace/preview): Information about a user's access to a domain.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -42,18 +42,19 @@ import {
   isResourceNotFoundError,
   listResources,
   readResource,
+  updateResource,
 } from "./_lib/gcp.ts";
 
 /** Construct the fully-qualified resource name from parent and short name. */
 function buildResourceName(parent: string, shortName: string): string {
-  return `${parent}/unitGroups/${shortName}`;
+  return `${parent}/users/${shortName}`;
 }
 
-const BASE_URL = "https://saasservicemgmt.googleapis.com/";
+const BASE_URL = "https://gmailpostmastertools.googleapis.com/";
 
 const GET_CONFIG = {
-  "id": "saasservicemgmt.projects.locations.unitGroups.get",
-  "path": "v1/{+name}",
+  "id": "gmailpostmastertools.domains.users.get",
+  "path": "v2/{+name}",
   "httpMethod": "GET",
   "parameterOrder": [
     "name",
@@ -67,8 +68,8 @@ const GET_CONFIG = {
 } as const;
 
 const INSERT_CONFIG = {
-  "id": "saasservicemgmt.projects.locations.unitGroups.create",
-  "path": "v1/{+parent}/unitGroups",
+  "id": "gmailpostmastertools.domains.users.create",
+  "path": "v2/{+parent}/users",
   "httpMethod": "POST",
   "parameterOrder": [
     "parent",
@@ -78,56 +79,50 @@ const INSERT_CONFIG = {
       "location": "path",
       "required": true,
     },
-    "requestId": {
-      "location": "query",
+  },
+} as const;
+
+const PATCH_CONFIG = {
+  "id": "gmailpostmastertools.domains.users.patch",
+  "path": "v2/{+name}",
+  "httpMethod": "PATCH",
+  "parameterOrder": [
+    "name",
+  ],
+  "parameters": {
+    "name": {
+      "location": "path",
+      "required": true,
     },
-    "unitGroupId": {
-      "location": "query",
-    },
-    "validateOnly": {
+    "updateMask": {
       "location": "query",
     },
   },
 } as const;
 
 const DELETE_CONFIG = {
-  "id": "saasservicemgmt.projects.locations.unitGroups.delete",
-  "path": "v1/{+name}",
+  "id": "gmailpostmastertools.domains.users.delete",
+  "path": "v2/{+name}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "name",
   ],
   "parameters": {
-    "etag": {
-      "location": "query",
-    },
     "name": {
       "location": "path",
       "required": true,
-    },
-    "requestId": {
-      "location": "query",
-    },
-    "validateOnly": {
-      "location": "query",
     },
   },
 } as const;
 
 const LIST_CONFIG = {
-  "id": "saasservicemgmt.projects.locations.unitGroups.list",
-  "path": "v1/{+parent}/unitGroups",
+  "id": "gmailpostmastertools.domains.users.list",
+  "path": "v2/{+parent}/users",
   "httpMethod": "GET",
   "parameterOrder": [
     "parent",
   ],
   "parameters": {
-    "filter": {
-      "location": "query",
-    },
-    "orderBy": {
-      "location": "query",
-    },
     "pageSize": {
       "location": "query",
     },
@@ -151,33 +146,37 @@ const GlobalArgsSchema = z.object({
   project: z.string().describe(
     "GCP project ID; overrides GCP_PROJECT / GOOGLE_CLOUD_PROJECT environment variables.",
   ).optional(),
-  annotations: z.record(z.string(), z.string()).describe(
-    "Optional. Annotations is an unstructured key-value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/user-guide/annotations",
+  permission: z.enum([
+    "PERMISSION_UNSPECIFIED",
+    "READER",
+    "ADMIN",
+    "OWNER",
+    "NONE",
+  ]).describe(
+    "The permission level that the user has for the specified domain.",
   ).optional(),
-  labels: z.record(z.string(), z.string()).describe(
-    "Optional. The labels on the resource, which can be used for categorization. similar to Kubernetes resource labels.",
+  userId: z.string().describe("Required. The user to create.").optional(),
+  accessGranter: z.string().describe(
+    "Output only. The user that added the current user.",
+  ).optional(),
+  createTime: z.string().describe(
+    "Output only. The time the user was granted access.",
   ).optional(),
   name: z.string().describe(
-    'Identifier. The resource name (full URI of the resource) following the standard naming scheme: "projects/{project}/locations/{location}/unitGroups/{unitGroup}"',
+    "Identifier. The resource name of the user. Format: users/{user} Note: {user} is the user's email address.",
   ).optional(),
-  requestId: z.string().describe("An optional request ID to identify requests.")
-    .optional(),
-  unitGroupId: z.string().describe(
-    "Required. The ID value for the new unit group.",
-  ).optional(),
-  location: z.string().describe(
-    "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
+  user: z.string().describe("The user's email address.").optional(),
+  parent: z.string().describe(
+    "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
   ).optional(),
 });
 
 const StateSchema = z.object({
-  annotations: z.record(z.string(), z.unknown()).optional(),
+  accessGranter: z.string().optional(),
   createTime: z.string().optional(),
-  etag: z.string().optional(),
-  labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
-  uid: z.string().optional(),
-  updateTime: z.string().optional(),
+  permission: z.string().optional(),
+  user: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -186,22 +185,28 @@ const InputsSchema = z.object({
   accessToken: z.string().meta({ sensitive: true }).optional(),
   credentialsJson: z.string().meta({ sensitive: true }).optional(),
   project: z.string().optional(),
-  annotations: z.record(z.string(), z.string()).describe(
-    "Optional. Annotations is an unstructured key-value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/user-guide/annotations",
+  permission: z.enum([
+    "PERMISSION_UNSPECIFIED",
+    "READER",
+    "ADMIN",
+    "OWNER",
+    "NONE",
+  ]).describe(
+    "The permission level that the user has for the specified domain.",
   ).optional(),
-  labels: z.record(z.string(), z.string()).describe(
-    "Optional. The labels on the resource, which can be used for categorization. similar to Kubernetes resource labels.",
+  userId: z.string().describe("Required. The user to create.").optional(),
+  accessGranter: z.string().describe(
+    "Output only. The user that added the current user.",
+  ).optional(),
+  createTime: z.string().describe(
+    "Output only. The time the user was granted access.",
   ).optional(),
   name: z.string().describe(
-    'Identifier. The resource name (full URI of the resource) following the standard naming scheme: "projects/{project}/locations/{location}/unitGroups/{unitGroup}"',
+    "Identifier. The resource name of the user. Format: users/{user} Note: {user} is the user's email address.",
   ).optional(),
-  requestId: z.string().describe("An optional request ID to identify requests.")
-    .optional(),
-  unitGroupId: z.string().describe(
-    "Required. The ID value for the new unit group.",
-  ).optional(),
-  location: z.string().describe(
-    "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
+  user: z.string().describe("The user's email address.").optional(),
+  parent: z.string().describe(
+    "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
   ).optional(),
 });
 
@@ -217,36 +222,16 @@ function _buildGcpCredentials(
   };
 }
 
-/** Swamp extension model for Google Cloud App Lifecycle Manager UnitGroups. Registered at `@swamp/gcp/saasservicemgmt/unitgroups`. */
+/** Swamp extension model for Google Cloud Gmail Postmaster Tools Domains.Users. Registered at `@swamp/gcp/gmailpostmastertools/domains-users`. */
 export const model = {
-  type: "@swamp/gcp/saasservicemgmt/unitgroups",
-  version: "2026.06.12.1",
-  upgrades: [
-    {
-      toVersion: "2026.06.07.1",
-      description: "Added: accessToken, credentialsJson, project",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.12.1",
-      description: "Removed: saas, saasRelease",
-      upgradeAttributes: (old: Record<string, unknown>) => {
-        const { saas: _saas, saasRelease: _saasRelease, ...rest } = old;
-        return rest;
-      },
-    },
-  ],
+  type: "@swamp/gcp/gmailpostmastertools/domains-users",
+  version: "2026.06.24.1",
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
       description:
-        "UnitGroup represents a set of Units to be used by a Tenant. In pooling scenar...",
+        "[Developer Preview](https://developers.google.com/workspace/preview): Informa...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -254,29 +239,20 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a unitGroups",
+      description: "Create a users",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
-        params["parent"] = `projects/${projectId}/locations/${
-          String(g["location"] ?? "")
-        }`;
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         const body: Record<string, unknown> = {};
-        if (g["annotations"] !== undefined) {
-          body["annotations"] = g["annotations"];
-        }
-        if (g["labels"] !== undefined) body["labels"] = g["labels"];
-        if (g["name"] !== undefined) body["name"] = g["name"];
-        if (g["requestId"] !== undefined) body["requestId"] = g["requestId"];
-        if (g["unitGroupId"] !== undefined) {
-          body["unitGroupId"] = g["unitGroupId"];
-        }
-        if (g["name"] !== undefined) {
+        if (g["permission"] !== undefined) body["permission"] = g["permission"];
+        if (g["userId"] !== undefined) body["userId"] = g["userId"];
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["parent"]),
             String(g["name"]),
           );
         }
@@ -290,9 +266,7 @@ export const model = {
           {
             listConfig: LIST_CONFIG,
             listParams: {
-              "parent": `projects/${projectId}/locations/${
-                String(g["location"] ?? "")
-              }`,
+              "parent": String(body["parent"] ?? g["parent"] ?? ""),
             },
             matchField: "name",
             matchValue: String(g["name"] ?? ""),
@@ -310,9 +284,9 @@ export const model = {
       },
     },
     get: {
-      description: "Get a unitGroups",
+      description: "Get a users",
       arguments: z.object({
-        identifier: z.string().describe("The name of the unitGroups"),
+        identifier: z.string().describe("The name of the users"),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const g = context.globalArgs;
@@ -320,7 +294,7 @@ export const model = {
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+          String(g["parent"] ?? ""),
           args.identifier,
         );
         const result = await readResource(
@@ -342,10 +316,67 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
+    update: {
+      description: "Update users attributes",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const params: Record<string, string> = { project: projectId };
+        params["name"] = buildResourceName(
+          String(g["parent"] ?? ""),
+          existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
+        );
+        const body: Record<string, unknown> = {};
+        if (g["permission"] !== undefined) body["permission"] = g["permission"];
+        if (g["accessGranter"] !== undefined) {
+          body["accessGranter"] = g["accessGranter"];
+        }
+        if (g["createTime"] !== undefined) body["createTime"] = g["createTime"];
+        if (g["user"] !== undefined) body["user"] = g["user"];
+        for (const key of Object.keys(existing)) {
+          if (
+            key === "fingerprint" || key === "labelFingerprint" ||
+            key === "etag" || key.endsWith("Fingerprint")
+          ) {
+            body[key] = existing[key];
+          }
+        }
+        const result = await updateResource(
+          BASE_URL,
+          PATCH_CONFIG,
+          params,
+          body,
+          GET_CONFIG,
+          undefined,
+          credentials,
+        ) as StateData;
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
     delete: {
-      description: "Delete the unitGroups",
+      description: "Delete the users",
       arguments: z.object({
-        identifier: z.string().describe("The name of the unitGroups"),
+        identifier: z.string().describe("The name of the users"),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const g = context.globalArgs;
@@ -353,7 +384,7 @@ export const model = {
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+          String(g["parent"] ?? ""),
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -376,7 +407,7 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync unitGroups state from GCP",
+      description: "Sync users state from GCP",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -400,7 +431,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["parent"] ?? ""),
             shortName,
           );
           const result = await readResource(
@@ -428,16 +459,10 @@ export const model = {
       },
     },
     list: {
-      description: "List unitGroups resources",
+      description: "List users resources",
       arguments: z.object({
-        filter: z.string().describe(
-          "Filter the list as specified in https://google.aip.dev/160.",
-        ).optional(),
-        orderBy: z.string().describe(
-          "Order results as specified in https://google.aip.dev/132.",
-        ).optional(),
         pageSize: z.number().describe(
-          "The maximum number of unit groups to send per page.",
+          "Optional. Requested page size. Server may return fewer users than requested. If unspecified, the default value for this field is 10. The maximum value for this field is 200.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
@@ -448,15 +473,7 @@ export const model = {
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
-        params["parent"] = `projects/${projectId}/locations/${
-          String(g["location"] ?? "")
-        }`;
-        if (args["filter"] !== undefined) {
-          params["filter"] = String(args["filter"]);
-        }
-        if (args["orderBy"] !== undefined) {
-          params["orderBy"] = String(args["orderBy"]);
-        }
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         if (args["pageSize"] !== undefined) {
           params["pageSize"] = String(args["pageSize"]);
         }
@@ -464,7 +481,7 @@ export const model = {
           BASE_URL,
           LIST_CONFIG,
           params,
-          "unitGroups",
+          "users",
           (args.maxPages as number | undefined) ?? 10,
           credentials,
         );

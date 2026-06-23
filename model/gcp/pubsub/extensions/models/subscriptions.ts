@@ -208,7 +208,7 @@ const GlobalArgsSchema = z.object({
       "Optional. When true, write the subscription name, message_id, publish_time, attributes, and ordering_key to additional columns in the table under the pubsub_metadata column family. The subscription name, message_id, and publish_time fields are put in their own columns while all other message properties (other than data) are written to a JSON object in the attributes column.",
     ).optional(),
   }).describe(
-    'Configuration for a Bigtable subscription. The Pub/Sub message will be written to a Bigtable row as follows: - row key: subscription name and message ID delimited by #. - columns: message bytes written to a single column family "data" with an empty-string column qualifier. - cell timestamp: the message publish timestamp.',
+    "Configuration for a Bigtable subscription. The Pub/Sub message will be written to a Bigtable row as follows: - row key: subscription name, message ID hash, and message ID delimited by `#`. - columns: message bytes written to a single column family `data` with an empty-string column qualifier. - cell timestamp: the message publish timestamp.",
   ).optional(),
   cloudStorageConfig: z.object({
     avroConfig: z.object({
@@ -468,7 +468,7 @@ const GlobalArgsSchema = z.object({
         "Optional. When true, write the subscription name, message_id, publish_time, attributes, and ordering_key to additional columns in the table under the pubsub_metadata column family. The subscription name, message_id, and publish_time fields are put in their own columns while all other message properties (other than data) are written to a JSON object in the attributes column.",
       ).optional(),
     }).describe(
-      'Configuration for a Bigtable subscription. The Pub/Sub message will be written to a Bigtable row as follows: - row key: subscription name and message ID delimited by #. - columns: message bytes written to a single column family "data" with an empty-string column qualifier. - cell timestamp: the message publish timestamp.',
+      "Configuration for a Bigtable subscription. The Pub/Sub message will be written to a Bigtable row as follows: - row key: subscription name, message ID hash, and message ID delimited by `#`. - columns: message bytes written to a single column family `data` with an empty-string column qualifier. - cell timestamp: the message publish timestamp.",
     ).optional(),
     cloudStorageConfig: z.object({
       avroConfig: z.object({
@@ -841,7 +841,7 @@ const InputsSchema = z.object({
       "Optional. When true, write the subscription name, message_id, publish_time, attributes, and ordering_key to additional columns in the table under the pubsub_metadata column family. The subscription name, message_id, and publish_time fields are put in their own columns while all other message properties (other than data) are written to a JSON object in the attributes column.",
     ).optional(),
   }).describe(
-    'Configuration for a Bigtable subscription. The Pub/Sub message will be written to a Bigtable row as follows: - row key: subscription name and message ID delimited by #. - columns: message bytes written to a single column family "data" with an empty-string column qualifier. - cell timestamp: the message publish timestamp.',
+    "Configuration for a Bigtable subscription. The Pub/Sub message will be written to a Bigtable row as follows: - row key: subscription name, message ID hash, and message ID delimited by `#`. - columns: message bytes written to a single column family `data` with an empty-string column qualifier. - cell timestamp: the message publish timestamp.",
   ).optional(),
   cloudStorageConfig: z.object({
     avroConfig: z.object({
@@ -1101,7 +1101,7 @@ const InputsSchema = z.object({
         "Optional. When true, write the subscription name, message_id, publish_time, attributes, and ordering_key to additional columns in the table under the pubsub_metadata column family. The subscription name, message_id, and publish_time fields are put in their own columns while all other message properties (other than data) are written to a JSON object in the attributes column.",
       ).optional(),
     }).describe(
-      'Configuration for a Bigtable subscription. The Pub/Sub message will be written to a Bigtable row as follows: - row key: subscription name and message ID delimited by #. - columns: message bytes written to a single column family "data" with an empty-string column qualifier. - cell timestamp: the message publish timestamp.',
+      "Configuration for a Bigtable subscription. The Pub/Sub message will be written to a Bigtable row as follows: - row key: subscription name, message ID hash, and message ID delimited by `#`. - columns: message bytes written to a single column family `data` with an empty-string column qualifier. - cell timestamp: the message publish timestamp.",
     ).optional(),
     cloudStorageConfig: z.object({
       avroConfig: z.object({
@@ -1319,7 +1319,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Pub/Sub Subscriptions. Registered at `@swamp/gcp/pubsub/subscriptions`. */
 export const model = {
   type: "@swamp/gcp/pubsub/subscriptions",
-  version: "2026.06.12.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1438,6 +1438,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.12.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

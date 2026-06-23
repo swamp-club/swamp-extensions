@@ -144,13 +144,6 @@ const StateSchema = z.object({
     }),
     count: z.number(),
     creationTimestamp: z.string(),
-    healthInfo: z.object({
-      degradedHostCount: z.number(),
-      degradedInfraCount: z.number(),
-      healthStatus: z.string(),
-      healthyHostCount: z.number(),
-      healthyInfraCount: z.number(),
-    }),
     id: z.string(),
     inUseCount: z.number(),
     inUseHostCount: z.number(),
@@ -183,6 +176,13 @@ const StateSchema = z.object({
     selfLink: z.string(),
     selfLinkWithId: z.string(),
     status: z.string(),
+    subBlockHealthInfo: z.object({
+      degradedHostCount: z.number(),
+      degradedInfraCount: z.number(),
+      healthStatus: z.string(),
+      healthyHostCount: z.number(),
+      healthyInfraCount: z.number(),
+    }),
     zone: z.string(),
   }).optional(),
 }).passthrough();
@@ -211,7 +211,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine ReservationSubBlocks. Registered at `@swamp/gcp/compute/reservationsubblocks`. */
 export const model = {
   type: "@swamp/gcp/compute/reservationsubblocks",
-  version: "2026.06.08.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -285,6 +285,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
