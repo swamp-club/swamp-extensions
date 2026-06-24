@@ -385,7 +385,7 @@ export async function retryWithBackoff<T>(
  * network blip from a bucket misconfig without having to re-run.
  */
 function formatBatchFailure(
-  op: "push" | "pull",
+  op: "push" | "pull" | "delete",
   failures: Array<{ file: string; error: unknown }>,
 ): string {
   const files = failures.map((f) => f.file);
@@ -396,9 +396,10 @@ function formatBatchFailure(
   const more = failures.length > 3
     ? `\n  ... and ${failures.length - 3} more`
     : "";
-  return `Failed to ${op} ${failures.length} file(s) ${
-    op === "push" ? "to" : "from"
-  } S3: ${files.join(", ")}\n${preview}${more}`;
+  const preposition = op === "push" ? "to" : "from";
+  return `Failed to ${op} ${failures.length} file(s) ${preposition} S3: ${
+    files.join(", ")
+  }\n${preview}${more}`;
 }
 
 /**
@@ -430,6 +431,7 @@ interface DatastoreSyncStateV2 {
   dirtyPaths: string[];
   bulkInvalidated: boolean;
   lazyPullActive: boolean;
+  dirtyPathsOverflowed?: boolean;
 }
 
 type DatastoreSyncState = DatastoreSyncStateV1 | DatastoreSyncStateV2;
@@ -449,6 +451,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
   private indexMutated = false;
   private dirtyPaths: Set<string> = new Set();
   private bulkInvalidated = false;
+  private dirtyPathsOverflowed = false;
   private lazyPullActive = false;
   private namespace: string | undefined = undefined;
   private namespaceBound = false;
@@ -527,6 +530,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
             this.dirtyPaths = new Set(v2.dirtyPaths);
           }
           this.bulkInvalidated = !!v2.bulkInvalidated;
+          this.dirtyPathsOverflowed = !!v2.dirtyPathsOverflowed;
           this.lazyPullActive = !!v2.lazyPullActive;
         } else if (parsed.version === 1) {
           this.syncState = parsed as DatastoreSyncStateV1;
@@ -567,6 +571,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
       dirtyPaths: [...this.dirtyPaths],
       bulkInvalidated: overrides?.bulkInvalidated ?? this.bulkInvalidated,
       lazyPullActive: overrides?.lazyPullActive ?? this.lazyPullActive,
+      dirtyPathsOverflowed: this.dirtyPathsOverflowed,
     };
   }
 
@@ -600,6 +605,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
       if (this.dirtyPaths.has(normalizedRel)) return;
       if (this.dirtyPaths.size >= DIRTY_PATHS_CAP) {
         this.bulkInvalidated = true;
+        this.dirtyPathsOverflowed = true;
         await this.writeSyncState(
           this.buildV2State({ localDirty: true, bulkInvalidated: true }),
         );
@@ -655,6 +661,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
     }
     this.dirtyPaths.clear();
     this.bulkInvalidated = false;
+    this.dirtyPathsOverflowed = false;
     await this.writeSyncState({
       version: 2,
       remoteIndexETag: normalized,
@@ -663,6 +670,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
       dirtyPaths: [],
       bulkInvalidated: false,
       lazyPullActive: this.lazyPullActive,
+      dirtyPathsOverflowed: false,
     });
   }
 
@@ -1263,11 +1271,13 @@ export class S3CacheSyncService implements DatastoreSyncService {
     const indexETag = await this.pullIndex({ forceRemote: true, signal });
     tracePhase("pushChanged.pullIndex", indexStart);
 
-    // Build list of files that need pushing. When per-path dirty
-    // tracking is available and not bulk-invalidated, walk only the
-    // dirty directories instead of the entire cache.
+    // Build list of files that need pushing and files that need
+    // deleting (markDirty contract rule #2: absence-on-disk = delete).
+    // When per-path dirty tracking is available and not bulk-invalidated,
+    // walk only the dirty directories instead of the entire cache.
     const walkStart = Date.now();
     const toPush: string[] = [];
+    const toDelete: string[] = [];
     const useScopedWalk = !this.bulkInvalidated && this.dirtyPaths.size > 0;
 
     if (useScopedWalk) {
@@ -1283,27 +1293,64 @@ export class S3CacheSyncService implements DatastoreSyncService {
               toPush.push(dirtyPath);
             }
           } else if (stat.isDirectory) {
+            const localFilesInDir = new Set<string>();
             for await (
               const entry of walk(absPath, { includeDirs: false })
             ) {
               const rel = relative(this.cachePath, entry.path);
               if (isInternalCacheFile(rel)) continue;
+              localFilesInDir.add(rel);
               if (await this.fileNeedsPush(entry.path, rel)) {
                 toPush.push(rel);
               }
             }
+            // Check for index entries under this directory that no
+            // longer have local files (file deleted but dir remains).
+            if (!this.lazyPullActive && this.index) {
+              const prefix = dirtyPath.endsWith("/")
+                ? dirtyPath
+                : dirtyPath + "/";
+              for (const rel of Object.keys(this.index.entries)) {
+                if (isInternalCacheFile(rel)) continue;
+                if (rel.startsWith(prefix) && !localFilesInDir.has(rel)) {
+                  toDelete.push(rel);
+                }
+              }
+            }
           }
-        } catch {
-          // Path may have been deleted between markDirty and push
+        } catch (err) {
+          if (!(err instanceof Deno.errors.NotFound)) {
+            // Non-absence error (permission, I/O, NFS timeout) — do not
+            // assume deletion intent. Skip this dirty path silently;
+            // the next pushChanged will retry.
+            continue;
+          }
+          // Path is genuinely absent — collect matching index entries
+          // for S3 deletion (markDirty contract rule #2). Skip when
+          // lazy pull is active: absent files are un-hydrated, not
+          // deleted.
+          if (!this.lazyPullActive && this.index) {
+            const prefix = dirtyPath.endsWith("/")
+              ? dirtyPath
+              : dirtyPath + "/";
+            for (const rel of Object.keys(this.index.entries)) {
+              if (isInternalCacheFile(rel)) continue;
+              if (rel === dirtyPath || rel.startsWith(prefix)) {
+                toDelete.push(rel);
+              }
+            }
+          }
         }
       }
     } else {
+      const localFiles = new Set<string>();
       try {
         for await (
           const entry of walk(this.cachePath, { includeDirs: false })
         ) {
           const rel = relative(this.cachePath, entry.path);
           if (isInternalCacheFile(rel)) continue;
+          localFiles.add(rel);
           if (await this.fileNeedsPush(entry.path, rel)) {
             toPush.push(rel);
           }
@@ -1311,8 +1358,25 @@ export class S3CacheSyncService implements DatastoreSyncService {
       } catch {
         // Cache directory may not exist yet
       }
+      // Compare index against local files to find deletions (rule #2).
+      // Only when per-path dirty tracking overflowed — a no-path
+      // markDirty() is a modification signal, not a deletion signal.
+      // Also skip when lazy pull is active to avoid deleting un-hydrated
+      // content.
+      if (this.dirtyPathsOverflowed && !this.lazyPullActive && this.index) {
+        for (const rel of Object.keys(this.index.entries)) {
+          if (isInternalCacheFile(rel)) continue;
+          if (!localFiles.has(rel)) {
+            toDelete.push(rel);
+          }
+        }
+      }
     }
-    tracePhase("pushChanged.walk", walkStart, `toPush=${toPush.length}`);
+    tracePhase(
+      "pushChanged.walk",
+      walkStart,
+      `toPush=${toPush.length} toDelete=${toDelete.length}`,
+    );
 
     // Upload concurrently in batches
     const uploadStart = Date.now();
@@ -1339,18 +1403,52 @@ export class S3CacheSyncService implements DatastoreSyncService {
       throw new Error(formatBatchFailure("push", failures));
     }
 
+    // Delete remote objects for locally-absent files (swamp-club#797).
+    const deleteStart = Date.now();
+    let deleted = 0;
+    const deleteFailures: Array<{ file: string; error: unknown }> = [];
+    for (let i = 0; i < toDelete.length; i += this.pushConcurrency) {
+      throwIfAborted(signal);
+      const batch = toDelete.slice(i, i + this.pushConcurrency);
+      const results = await Promise.allSettled(
+        batch.map((rel) =>
+          retryWithBackoff(
+            () => this.s3.deleteObject(rel, signal),
+            { signal },
+          )
+        ),
+      );
+      for (let j = 0; j < results.length; j++) {
+        const result = results[j];
+        if (result.status === "fulfilled") {
+          deleted++;
+          if (this.index) {
+            delete this.index.entries[batch[j]];
+            this.indexMutated = true;
+          }
+        } else {
+          deleteFailures.push({ file: batch[j], error: result.reason });
+        }
+      }
+    }
+    tracePhase("pushChanged.delete", deleteStart, `deleted=${deleted}`);
+
+    if (deleteFailures.length > 0) {
+      throw new Error(formatBatchFailure("delete", deleteFailures));
+    }
+
     // Push updated index if anything changed — either new files were
-    // pushed OR scrubIndex removed zombie entries that need to
-    // propagate to the remote (swamp-club#29 migration path).
+    // pushed, files were deleted, or scrubIndex removed zombie entries
+    // that need to propagate to the remote (swamp-club#29 migration path).
     //
     // Wrapped in retryWithBackoff: if the per-file pushes all succeed
     // but the index write fails on a transient 5xx/timeout, we'd leave
     // the remote inconsistent with what was just uploaded (files
     // present, index unaware). Retry keeps the write-back atomic from
     // the caller's perspective.
-    if ((pushed > 0 || this.indexMutated) && this.index) {
+    if ((pushed > 0 || deleted > 0 || this.indexMutated) && this.index) {
       const writebackStart = Date.now();
-      if (pushed > 0) {
+      if (pushed > 0 || deleted > 0) {
         this.index.lastPulled = new Date().toISOString();
       }
       const indexJson = JSON.stringify(this.index, null, 2);
@@ -1363,9 +1461,13 @@ export class S3CacheSyncService implements DatastoreSyncService {
       this.indexMutated = false;
 
       // Dual-write: partitioned index files (after monolithic for crash safety).
-      // Only write partitions whose data changed during this push.
+      // Only write partitions whose data changed during this push or delete.
       const dirtyPartitionKeys = new Set<string>();
       for (const rel of toPush) {
+        const key = S3CacheSyncService.partitionKeyFromPath(rel);
+        if (key) dirtyPartitionKeys.add(key);
+      }
+      for (const rel of toDelete) {
         const key = S3CacheSyncService.partitionKeyFromPath(rel);
         if (key) dirtyPartitionKeys.add(key);
       }
@@ -1426,7 +1528,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
       }
     }
 
-    return pushed;
+    return pushed + deleted;
   }
 
   /**

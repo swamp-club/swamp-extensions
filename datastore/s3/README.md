@@ -120,6 +120,14 @@ per-path tracking. When `relPath` is provided, only that directory is
 walked on the next push. Without `relPath`, the entire cache is walked
 (bulk invalidation).
 
+When `markDirty({ relPath })` is called before removing a file from the
+cache, the next `pushChanged` detects the absence and issues an S3
+`DeleteObject` for the corresponding remote key and removes it from the
+index. If per-path dirty tracking overflows (>200 paths), the bulk walk
+compares the full index against local files and deletes remote-only
+entries. Deletions are suppressed when lazy hydration is active to avoid
+removing un-hydrated content.
+
 ## License
 
 AGPLv3 — see [LICENSE.txt](./LICENSE.txt) for details.

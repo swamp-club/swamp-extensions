@@ -78,6 +78,7 @@ function createMockS3Client(): S3Client & {
   puts: PutCall[];
   gets: string[];
   heads: string[];
+  deletes: string[];
   lists: number;
 } {
   const storage = new Map<string, Uint8Array>();
@@ -85,6 +86,7 @@ function createMockS3Client(): S3Client & {
   const puts: PutCall[] = [];
   const gets: string[] = [];
   const heads: string[] = [];
+  const deletes: string[] = [];
   const counters = { lists: 0 };
 
   const etagFor = (key: string, body: Uint8Array): string =>
@@ -96,8 +98,15 @@ function createMockS3Client(): S3Client & {
     puts,
     gets,
     heads,
+    deletes,
     get lists() {
       return counters.lists;
+    },
+
+    deleteObject(key: string, _signal?: AbortSignal): Promise<void> {
+      deletes.push(key);
+      storage.delete(key);
+      return Promise.resolve();
     },
 
     putObject(key: string, body: Uint8Array): Promise<{ etag: string }> {
@@ -154,6 +163,7 @@ function createMockS3Client(): S3Client & {
     puts: PutCall[];
     gets: string[];
     heads: string[];
+    deletes: string[];
     lists: number;
   };
 }
@@ -4167,4 +4177,178 @@ Deno.test("capabilities advertises namespacedSync", () => {
   assertEquals(caps.namespacedSync, true);
   assertEquals(caps.scopedSync, true);
   assertEquals(caps.lazyHydration, true);
+});
+
+// --- pushChanged absence-on-disk deletion (swamp-club#797) ---
+
+Deno.test("pushChanged scoped walk deletes S3 objects for locally-absent files", async () => {
+  const s3 = createMockS3Client();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    // Seed a file locally and push it to establish the index entry.
+    await seedFile(cachePath, "data/model/id/v1/raw", "content");
+    const indexBody = encodeIndex({
+      "data/model/id/v1/raw": {
+        key: "data/model/id/v1/raw",
+        size: 7,
+        lastModified: new Date().toISOString(),
+      },
+    });
+    s3.storage.set(".datastore-index.json", indexBody);
+    s3.storage.set(
+      "data/model/id/v1/raw",
+      new TextEncoder().encode("content"),
+    );
+
+    const svc = new S3CacheSyncService(s3, cachePath);
+
+    // Mark the directory dirty, then delete the local file.
+    await svc.markDirty({ relPath: "data/model/id/v1" });
+    await Deno.remove(join(cachePath, "data/model/id/v1/raw"));
+    await Deno.remove(join(cachePath, "data/model/id/v1"));
+
+    const synced = await svc.pushChanged();
+
+    assertEquals(s3.deletes.includes("data/model/id/v1/raw"), true);
+    assert(!s3.storage.has("data/model/id/v1/raw"));
+    assert((synced as number) >= 1);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged scoped walk deletes when file removed but directory remains", async () => {
+  const s3 = createMockS3Client();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    await seedFile(cachePath, "data/model/id/v1/raw", "content");
+    const indexBody = encodeIndex({
+      "data/model/id/v1/raw": {
+        key: "data/model/id/v1/raw",
+        size: 7,
+        lastModified: new Date().toISOString(),
+      },
+    });
+    s3.storage.set(".datastore-index.json", indexBody);
+    s3.storage.set(
+      "data/model/id/v1/raw",
+      new TextEncoder().encode("content"),
+    );
+
+    const svc = new S3CacheSyncService(s3, cachePath);
+
+    // Mark directory dirty, then delete only the file (leave dir).
+    await svc.markDirty({ relPath: "data/model/id/v1" });
+    await Deno.remove(join(cachePath, "data/model/id/v1/raw"));
+
+    const synced = await svc.pushChanged();
+
+    assertEquals(s3.deletes.includes("data/model/id/v1/raw"), true);
+    assert(!s3.storage.has("data/model/id/v1/raw"));
+    assert((synced as number) >= 1);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged bulk walk deletes S3 objects when dirty paths overflowed", async () => {
+  const s3 = createMockS3Client();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    const indexBody = encodeIndex({
+      "data/model/id/v1/raw": {
+        key: "data/model/id/v1/raw",
+        size: 7,
+        lastModified: new Date().toISOString(),
+      },
+    });
+    s3.storage.set(".datastore-index.json", indexBody);
+    s3.storage.set(
+      "data/model/id/v1/raw",
+      new TextEncoder().encode("content"),
+    );
+
+    const svc = new S3CacheSyncService(s3, cachePath);
+
+    // Simulate per-path dirty tracking overflow: emit 201 markDirty
+    // calls with relPath to exceed the 200-path cap.
+    for (let i = 0; i < 201; i++) {
+      await svc.markDirty({ relPath: `data/gc-path-${i}` });
+    }
+
+    const synced = await svc.pushChanged();
+
+    assertEquals(s3.deletes.includes("data/model/id/v1/raw"), true);
+    assert(!s3.storage.has("data/model/id/v1/raw"));
+    assert((synced as number) >= 1);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged bulk walk does NOT delete when markDirty has no relPath", async () => {
+  const s3 = createMockS3Client();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    const indexBody = encodeIndex({
+      "data/model/id/v1/raw": {
+        key: "data/model/id/v1/raw",
+        size: 7,
+        lastModified: new Date().toISOString(),
+      },
+    });
+    s3.storage.set(".datastore-index.json", indexBody);
+    s3.storage.set(
+      "data/model/id/v1/raw",
+      new TextEncoder().encode("content"),
+    );
+
+    const svc = new S3CacheSyncService(s3, cachePath);
+
+    // No-relPath markDirty — a modification signal, NOT a deletion signal.
+    // Remote-only entries must be preserved (swamp-club#30 regression guard).
+    await svc.markDirty();
+
+    await svc.pushChanged();
+
+    assertEquals(s3.deletes.length, 0);
+    assert(s3.storage.has("data/model/id/v1/raw"));
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged does NOT delete absent files when lazyPullActive is true", async () => {
+  const s3 = createMockS3Client();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    const indexBody = encodeIndex({
+      "data/model/id/v1/raw": {
+        key: "data/model/id/v1/raw",
+        size: 7,
+        lastModified: new Date().toISOString(),
+      },
+    });
+    s3.storage.set(".datastore-index.json", indexBody);
+    s3.storage.set(
+      "data/model/id/v1/raw",
+      new TextEncoder().encode("content"),
+    );
+
+    const svc = new S3CacheSyncService(s3, cachePath);
+
+    // Activate lazy pull by doing a metadataOnly pull first.
+    await svc.pullChanged({ metadataOnly: true });
+
+    // Bulk invalidation — would normally trigger deletion of absent files.
+    await svc.markDirty();
+
+    const synced = await svc.pushChanged();
+
+    assertEquals(s3.deletes.length, 0);
+    assert(s3.storage.has("data/model/id/v1/raw"));
+    assertEquals(synced, 0);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
 });
