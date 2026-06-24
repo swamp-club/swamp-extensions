@@ -66,17 +66,21 @@ function createMockGcsClient(): GcsClient & {
   storage: Map<string, Uint8Array>;
   generationOverrides: Map<string, string>;
   putFailures: Map<string, Error>;
+  deleteFailures: Map<string, Error>;
   puts: PutCall[];
   gets: string[];
   heads: string[];
+  deletes: string[];
 } {
   const storage = new Map<string, Uint8Array>();
   const generations = new Map<string, number>();
   const generationOverrides = new Map<string, string>();
   const putFailures = new Map<string, Error>();
+  const deleteFailures = new Map<string, Error>();
   const puts: PutCall[] = [];
   const gets: string[] = [];
   const heads: string[] = [];
+  const deletes: string[] = [];
 
   const nextGen = (key: string): string => {
     const g = (generations.get(key) ?? 0) + 1;
@@ -97,9 +101,11 @@ function createMockGcsClient(): GcsClient & {
     storage,
     generationOverrides,
     putFailures,
+    deleteFailures,
     puts,
     gets,
     heads,
+    deletes,
 
     putObject(
       key: string,
@@ -143,6 +149,19 @@ function createMockGcsClient(): GcsClient & {
       });
     },
 
+    deleteObject(
+      key: string,
+      _options?: { ifGenerationMatch?: string },
+      signal?: AbortSignal,
+    ): Promise<void> {
+      throwIfAborted(signal);
+      const injected = deleteFailures.get(key);
+      if (injected) return Promise.reject(injected);
+      deletes.push(key);
+      storage.delete(key);
+      return Promise.resolve();
+    },
+
     listAllObjects(
       subPrefix?: string,
       signal?: AbortSignal,
@@ -168,9 +187,11 @@ function createMockGcsClient(): GcsClient & {
     storage: Map<string, Uint8Array>;
     generationOverrides: Map<string, string>;
     putFailures: Map<string, Error>;
+    deleteFailures: Map<string, Error>;
     puts: PutCall[];
     gets: string[];
     heads: string[];
+    deletes: string[];
   };
 }
 
@@ -794,6 +815,238 @@ Deno.test("pushChanged: preserves remote index entries for files absent from loc
       uploadedDataKeys,
       ["data/@reader/new.yaml"],
       "only the new local file should be uploaded",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// -- (e2) pushChanged absence-on-disk deletion (markDirty contract rule #2) --
+//
+// When core calls markDirty(relPath) before removing a file, the next
+// pushChanged should detect the absent dirty path, issue GCS DELETEs
+// for matching index entries, and remove them from the index.
+
+Deno.test("pushChanged: scoped walk deletes absent dirty path from GCS and index", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-test-del1-" });
+  try {
+    const mock = createMockGcsClient();
+
+    // Remote index has two files; both exist locally initially.
+    await seedFile(cachePath, "data/model/alpha/v1/raw", "alpha-content");
+    await seedFile(cachePath, "data/model/alpha/v1/metadata.yaml", "meta");
+    const remoteEntries = {
+      "data/model/alpha/v1/raw": {
+        key: "data/model/alpha/v1/raw",
+        size: 13,
+        lastModified: new Date().toISOString(),
+      },
+      "data/model/alpha/v1/metadata.yaml": {
+        key: "data/model/alpha/v1/metadata.yaml",
+        size: 4,
+        lastModified: new Date().toISOString(),
+      },
+    };
+    mock.storage.set(".datastore-index.json", encodeIndex(remoteEntries));
+    // Seed the remote objects too so deleteObject has something to remove
+    mock.storage.set(
+      "data/model/alpha/v1/raw",
+      new TextEncoder().encode("alpha-content"),
+    );
+    mock.storage.set(
+      "data/model/alpha/v1/metadata.yaml",
+      new TextEncoder().encode("meta"),
+    );
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    // Mark the directory dirty (scoped), then delete the local files.
+    await service.markDirty({ relPath: "data/model/alpha/v1" });
+    await Deno.remove(join(cachePath, "data/model/alpha/v1"), {
+      recursive: true,
+    });
+
+    const result = await service.pushChanged();
+
+    // Both files should have been deleted from GCS.
+    assertEquals(
+      mock.deletes.sort(),
+      [
+        "data/model/alpha/v1/metadata.yaml",
+        "data/model/alpha/v1/raw",
+      ],
+      "absent dirty entries must be deleted from GCS",
+    );
+
+    // Index writeback should not contain the deleted entries.
+    const indexPuts = mock.puts.filter(
+      (p) => p.key === ".datastore-index.json",
+    );
+    assert(indexPuts.length >= 1, "index must be written back");
+    const writtenIndex = decodeIndex(indexPuts[indexPuts.length - 1].body);
+    assertEquals(
+      Object.keys(writtenIndex.entries).length,
+      0,
+      "deleted entries must be removed from the index",
+    );
+
+    // Return value includes deleted count.
+    assertEquals(result, 2, "should report 2 deletions");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged: bulk walk deletes orphaned index entries after markDirty()", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-test-del2-" });
+  try {
+    const mock = createMockGcsClient();
+
+    // Remote index has two entries.
+    const remoteEntries = {
+      "data/model/beta/v1/raw": {
+        key: "data/model/beta/v1/raw",
+        size: 12,
+        lastModified: new Date().toISOString(),
+      },
+      "data/model/beta/v1/metadata.yaml": {
+        key: "data/model/beta/v1/metadata.yaml",
+        size: 4,
+        lastModified: new Date().toISOString(),
+      },
+    };
+    mock.storage.set(".datastore-index.json", encodeIndex(remoteEntries));
+    mock.storage.set(
+      "data/model/beta/v1/raw",
+      new TextEncoder().encode("beta-content"),
+    );
+    mock.storage.set(
+      "data/model/beta/v1/metadata.yaml",
+      new TextEncoder().encode("meta"),
+    );
+
+    // Only metadata.yaml exists locally; raw was deleted.
+    await seedFile(cachePath, "data/model/beta/v1/metadata.yaml", "meta");
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    // Bulk markDirty (no relPath) triggers bulkInvalidated path.
+    await service.markDirty();
+
+    const result = await service.pushChanged();
+
+    // The orphaned raw file should be deleted from GCS.
+    assertEquals(
+      mock.deletes,
+      ["data/model/beta/v1/raw"],
+      "orphaned index entry must be deleted from GCS",
+    );
+
+    // Index should only have the metadata file.
+    const indexPuts = mock.puts.filter(
+      (p) => p.key === ".datastore-index.json",
+    );
+    assert(indexPuts.length >= 1, "index must be written back");
+    const writtenIndex = decodeIndex(indexPuts[indexPuts.length - 1].body);
+    const keys = Object.keys(writtenIndex.entries);
+    assertEquals(keys, ["data/model/beta/v1/metadata.yaml"]);
+
+    assertEquals(result, 1, "should report 1 deletion");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged: lazy hydration guard prevents deletion of un-hydrated files", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-test-del3-" });
+  try {
+    const mock = createMockGcsClient();
+
+    // Remote index has a data/*/raw file that was never hydrated locally.
+    const remoteEntries = {
+      "data/model/gamma/v1/raw": {
+        key: "data/model/gamma/v1/raw",
+        size: 14,
+        lastModified: new Date().toISOString(),
+      },
+      "data/model/gamma/v1/metadata.yaml": {
+        key: "data/model/gamma/v1/metadata.yaml",
+        size: 4,
+        lastModified: new Date().toISOString(),
+      },
+    };
+    mock.storage.set(".datastore-index.json", encodeIndex(remoteEntries));
+    mock.storage.set(
+      "data/model/gamma/v1/raw",
+      new TextEncoder().encode("gamma-content"),
+    );
+    mock.storage.set(
+      "data/model/gamma/v1/metadata.yaml",
+      new TextEncoder().encode("meta"),
+    );
+
+    // Only metadata exists locally (lazy hydration: raw was never pulled).
+    await seedFile(cachePath, "data/model/gamma/v1/metadata.yaml", "meta");
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    // Do a metadata-only pull first to activate lazy hydration state.
+    await service.pullChanged({ metadataOnly: true });
+
+    // Bulk markDirty to trigger the orphan scan.
+    await service.markDirty();
+
+    mock.deletes.length = 0; // Reset deletes after pull
+    await service.pushChanged();
+
+    // The lazy-skippable raw file must NOT be deleted.
+    assertEquals(
+      mock.deletes.length,
+      0,
+      "un-hydrated raw files must not be deleted when lazy pull is active",
+    );
+
+    // The remote object must still exist.
+    assert(
+      mock.storage.has("data/model/gamma/v1/raw"),
+      "remote raw object must be preserved",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pushChanged: no markDirty means no deletion (reader-side safety)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-test-del4-" });
+  try {
+    const mock = createMockGcsClient();
+
+    // Remote has entries that don't exist locally — same scenario as the
+    // existing "preserves remote index entries" test. Without markDirty,
+    // no deletions should occur.
+    const remoteEntries = {
+      "data/@writer/file1.yaml": {
+        key: "data/@writer/file1.yaml",
+        size: 10,
+        lastModified: new Date().toISOString(),
+      },
+      "data/@writer/file2.yaml": {
+        key: "data/@writer/file2.yaml",
+        size: 20,
+        lastModified: new Date().toISOString(),
+      },
+    };
+    mock.storage.set(".datastore-index.json", encodeIndex(remoteEntries));
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    // No markDirty — simulates reader-side repo calling pushChanged.
+    await service.pushChanged();
+
+    assertEquals(
+      mock.deletes.length,
+      0,
+      "without markDirty, no files should be deleted",
     );
   } finally {
     await Deno.remove(cachePath, { recursive: true });

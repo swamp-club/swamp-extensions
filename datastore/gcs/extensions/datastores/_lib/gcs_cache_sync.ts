@@ -307,7 +307,7 @@ function tracePhase(phase: string, startMs: number, detail?: string): void {
  * network blip from a bucket misconfig without having to re-run.
  */
 function formatBatchFailure(
-  op: "push" | "pull",
+  op: "push" | "pull" | "delete",
   failures: Array<{ file: string; error: unknown }>,
 ): string {
   const files = failures.map((f) => f.file);
@@ -318,9 +318,10 @@ function formatBatchFailure(
   const more = failures.length > 3
     ? `\n  ... and ${failures.length - 3} more`
     : "";
-  return `Failed to ${op} ${failures.length} file(s) ${
-    op === "push" ? "to" : "from"
-  } GCS: ${files.join(", ")}\n${preview}${more}`;
+  const preposition = op === "pull" ? "from" : op === "delete" ? "from" : "to";
+  return `Failed to ${op} ${failures.length} file(s) ${preposition} GCS: ${
+    files.join(", ")
+  }\n${preview}${more}`;
 }
 
 /** Metadata index entry for a file in GCS. */
@@ -1158,6 +1159,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
 
     const walkStart = Date.now();
     const toPush: string[] = [];
+    const toDelete: string[] = [];
     const useScopedWalk = !this.bulkInvalidated && this.dirtyPaths.size > 0;
 
     if (useScopedWalk) {
@@ -1184,16 +1186,29 @@ export class GcsCacheSyncService implements DatastoreSyncService {
             }
           }
         } catch {
-          // Path may have been deleted between markDirty and push
+          // Dirty path absent on disk — collect matching index entries
+          // for remote deletion (markDirty contract rule #2). The dirty
+          // signal is explicit intent from core, so it wins over the
+          // lazy hydration guard for exact-match paths.
+          if (this.index) {
+            for (const key of Object.keys(this.index.entries)) {
+              if (isInternalCacheFile(key)) continue;
+              if (key === dirtyPath || key.startsWith(dirtyPath + "/")) {
+                toDelete.push(key);
+              }
+            }
+          }
         }
       }
     } else {
+      const localFiles = new Set<string>();
       try {
         for await (
           const entry of walk(this.cachePath, { includeDirs: false })
         ) {
           const rel = relative(this.cachePath, entry.path);
           if (isInternalCacheFile(rel)) continue;
+          localFiles.add(rel);
           if (await this.fileNeedsPush(entry.path, rel)) {
             toPush.push(rel);
           }
@@ -1201,8 +1216,27 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       } catch {
         // Cache directory may not exist yet
       }
+      // Scan index for orphaned entries absent from local disk.
+      // Only when bulkInvalidated — a clean full walk without
+      // markDirty should never delete (preserves reader-side repos
+      // that call pushChanged against a near-empty local cache).
+      if (this.bulkInvalidated && this.index) {
+        for (const key of Object.keys(this.index.entries)) {
+          if (isInternalCacheFile(key)) continue;
+          if (localFiles.has(key)) continue;
+          // Guard: lazy hydration leaves data/*/raw files un-hydrated
+          // locally. Without this check, a bulk push after a lazy pull
+          // would delete every un-hydrated raw file from the remote.
+          if (this.lazyPullActive && isLazySkippable(key)) continue;
+          toDelete.push(key);
+        }
+      }
     }
-    tracePhase("pushChanged.walk", walkStart, `toPush=${toPush.length}`);
+    tracePhase(
+      "pushChanged.walk",
+      walkStart,
+      `toPush=${toPush.length} toDelete=${toDelete.length}`,
+    );
 
     const uploadStart = Date.now();
     let pushed = 0;
@@ -1228,9 +1262,45 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       throw new Error(formatBatchFailure("push", failures));
     }
 
-    if ((pushed > 0 || this.indexMutated) && this.index) {
+    // Delete remote objects for locally-absent dirty paths.
+    const deleteStart = Date.now();
+    let deleted = 0;
+    const deleteFailures: Array<{ file: string; error: unknown }> = [];
+    for (let i = 0; i < toDelete.length; i += this.pushConcurrency) {
+      throwIfAborted(signal);
+      const batch = toDelete.slice(i, i + this.pushConcurrency);
+      const results = await Promise.allSettled(
+        batch.map((key) =>
+          retryWithBackoff(
+            () => this.gcs.deleteObject(key, undefined, signal),
+            { signal },
+          )
+        ),
+      );
+      for (let j = 0; j < results.length; j++) {
+        const result = results[j];
+        if (result.status === "fulfilled") {
+          deleted++;
+          if (this.index) {
+            delete this.index.entries[batch[j]];
+          }
+        } else {
+          deleteFailures.push({ file: batch[j], error: result.reason });
+        }
+      }
+    }
+    tracePhase("pushChanged.delete", deleteStart, `deleted=${deleted}`);
+
+    if (deleteFailures.length > 0) {
+      throw new Error(formatBatchFailure("delete", deleteFailures));
+    }
+    if (deleted > 0) {
+      this.indexMutated = true;
+    }
+
+    if ((pushed > 0 || deleted > 0 || this.indexMutated) && this.index) {
       const writebackStart = Date.now();
-      if (pushed > 0) {
+      if (pushed > 0 || deleted > 0) {
         this.index.lastPulled = new Date().toISOString();
       }
       const indexJson = JSON.stringify(this.index, null, 2);
@@ -1244,6 +1314,10 @@ export class GcsCacheSyncService implements DatastoreSyncService {
 
       const dirtyPartitionKeys = new Set<string>();
       for (const rel of toPush) {
+        const key = GcsCacheSyncService.partitionKeyFromPath(rel);
+        if (key) dirtyPartitionKeys.add(key);
+      }
+      for (const rel of toDelete) {
         const key = GcsCacheSyncService.partitionKeyFromPath(rel);
         if (key) dirtyPartitionKeys.add(key);
       }
@@ -1274,7 +1348,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       }
     }
 
-    return pushed;
+    return pushed + deleted;
   }
 
   /**
