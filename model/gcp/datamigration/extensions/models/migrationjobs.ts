@@ -231,6 +231,11 @@ const GlobalArgsSchema = z.object({
   labels: z.record(z.string(), z.string()).describe(
     'The resource labels for migration job to use to annotate any related underlying resources such as Compute Engine VMs. An object containing a list of "key": "value" pairs. Example: `{ "name": "wrench", "mass": "1.3kg", "count": "3" }`.',
   ).optional(),
+  mysqlHomogeneousConfig: z.object({
+    isPrimaryDestination: z.boolean().describe(
+      "Optional. Whether the destination for the migration job is a primary instance.",
+    ).optional(),
+  }).describe("Configuration for MySQL to MySQL migrations.").optional(),
   name: z.string().describe(
     "The name (URI) of this migration job resource, in the form of: projects/{project}/locations/{location}/migrationJobs/{migrationJob}.",
   ).optional(),
@@ -526,6 +531,9 @@ const StateSchema = z.object({
   }).optional(),
   filter: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
+  mysqlHomogeneousConfig: z.object({
+    isPrimaryDestination: z.boolean(),
+  }).optional(),
   name: z.string(),
   objectsConfig: z.object({
     sourceObjectsConfig: z.object({
@@ -700,6 +708,11 @@ const InputsSchema = z.object({
   labels: z.record(z.string(), z.string()).describe(
     'The resource labels for migration job to use to annotate any related underlying resources such as Compute Engine VMs. An object containing a list of "key": "value" pairs. Example: `{ "name": "wrench", "mass": "1.3kg", "count": "3" }`.',
   ).optional(),
+  mysqlHomogeneousConfig: z.object({
+    isPrimaryDestination: z.boolean().describe(
+      "Optional. Whether the destination for the migration job is a primary instance.",
+    ).optional(),
+  }).describe("Configuration for MySQL to MySQL migrations.").optional(),
   name: z.string().describe(
     "The name (URI) of this migration job resource, in the form of: projects/{project}/locations/{location}/migrationJobs/{migrationJob}.",
   ).optional(),
@@ -980,7 +993,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Database Migration MigrationJobs. Registered at `@swamp/gcp/datamigration/migrationjobs`. */
 export const model = {
   type: "@swamp/gcp/datamigration/migrationjobs",
-  version: "2026.06.08.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1100,6 +1113,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.06.24.1",
+      description: "Added: mysqlHomogeneousConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1150,6 +1168,9 @@ export const model = {
         if (g["error"] !== undefined) body["error"] = g["error"];
         if (g["filter"] !== undefined) body["filter"] = g["filter"];
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        if (g["mysqlHomogeneousConfig"] !== undefined) {
+          body["mysqlHomogeneousConfig"] = g["mysqlHomogeneousConfig"];
+        }
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["objectsConfig"] !== undefined) {
           body["objectsConfig"] = g["objectsConfig"];
@@ -1320,6 +1341,9 @@ export const model = {
         if (g["error"] !== undefined) body["error"] = g["error"];
         if (g["filter"] !== undefined) body["filter"] = g["filter"];
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        if (g["mysqlHomogeneousConfig"] !== undefined) {
+          body["mysqlHomogeneousConfig"] = g["mysqlHomogeneousConfig"];
+        }
         if (g["objectsConfig"] !== undefined) {
           body["objectsConfig"] = g["objectsConfig"];
         }
