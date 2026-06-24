@@ -31,6 +31,7 @@ import {
   createVaultAnnotation,
   vault,
   type VaultAnnotationProvider,
+  type VaultDeleteProvider,
 } from "./aws_sm.ts";
 import { AwsSmOperationError } from "./aws_sm_errors.ts";
 
@@ -73,6 +74,7 @@ interface MockOverrides {
   GetSecretValue?: MockResponse;
   PutSecretValue?: MockResponse;
   CreateSecret?: MockResponse;
+  DeleteSecret?: MockResponse;
   ListSecrets?: MockResponse;
   DescribeSecret?: MockResponse;
   UpdateSecret?: MockResponse;
@@ -154,6 +156,19 @@ function startMockAwsServer(overrides: MockOverrides = {}): {
       if (overrides.CreateSecret) return mockResponse(overrides.CreateSecret);
       secrets.set(body.Name, body.SecretString);
       return Response.json({ Name: body.Name });
+    }
+
+    if (target.includes("DeleteSecret")) {
+      if (overrides.DeleteSecret) return mockResponse(overrides.DeleteSecret);
+      if (!secrets.has(body.SecretId)) {
+        return Response.json({
+          __type: "ResourceNotFoundException",
+          Message: `Secret ${body.SecretId} not found`,
+        }, { status: 400 });
+      }
+      secrets.delete(body.SecretId);
+      metadata.delete(body.SecretId);
+      return Response.json({ Name: body.SecretId });
     }
 
     if (target.includes("DescribeSecret")) {
@@ -983,6 +998,111 @@ Deno.test({
         err.message.includes("AWS Secrets Manager DescribeSecret failed"),
         `expected a wrapped DescribeSecret error, got: ${err.message}`,
       );
+    });
+  },
+});
+
+// --- VaultDeleteProvider behavioral tests ---
+
+function asDeleteProvider(
+  provider: ReturnType<typeof vault.createProvider>,
+): VaultDeleteProvider {
+  return provider as unknown as VaultDeleteProvider;
+}
+
+Deno.test({
+  name: "aws-sm vault: createProvider returns a VaultDeleteProvider",
+  fn: () => {
+    const provider = vault.createProvider("test", { region: "us-east-1" });
+    assertEquals(
+      typeof (provider as unknown as VaultDeleteProvider).delete,
+      "function",
+    );
+  },
+});
+
+Deno.test({
+  name: "aws-sm vault: delete removes an existing secret",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async (secrets) => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      await provider.put("to-delete", "secret-value");
+      assertEquals(secrets.has("to-delete"), true);
+
+      const dp = asDeleteProvider(provider);
+      await dp.delete("to-delete");
+
+      assertEquals(secrets.has("to-delete"), false);
+    });
+  },
+});
+
+Deno.test({
+  name:
+    "aws-sm vault: delete non-existent secret throws ResourceNotFoundException",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      const dp = asDeleteProvider(provider);
+      const err = await assertRejects(() => dp.delete("nonexistent"));
+      assert(err instanceof AwsSmOperationError);
+      assertEquals(err.name, "ResourceNotFoundException");
+      assert(
+        err.message.includes("AWS Secrets Manager DeleteSecret failed"),
+        `expected DeleteSecret failure message, got: ${err.message}`,
+      );
+    });
+  },
+});
+
+Deno.test({
+  name:
+    "aws-sm vault: delete on ExpiredTokenException → 'Vault session expired:' prefix",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      const dp = asDeleteProvider(provider);
+      const err = await assertRejects(() => dp.delete("anything"));
+      assert(err instanceof AwsSmOperationError);
+      assertEquals(err.name, "ExpiredTokenException");
+      assert(
+        err.message.startsWith("Vault session expired:"),
+        `expected "Vault session expired:" prefix, got: ${err.message}`,
+      );
+    }, {
+      DeleteSecret: {
+        status: 400,
+        body: JSON.stringify({
+          __type: "ExpiredTokenException",
+          Message: "The security token included in the request is expired",
+        }),
+      },
+    });
+  },
+});
+
+Deno.test({
+  name: "aws-sm vault: malformed DeleteSecret response wraps cleanly",
+  sanitizeResources: false,
+  fn: async () => {
+    await withMockAws(async () => {
+      const provider = vault.createProvider("test", { region: "us-east-1" });
+      const dp = asDeleteProvider(provider);
+      const err = await assertRejects(() => dp.delete("anything"));
+      assert(err instanceof AwsSmOperationError);
+      assertEquals(err.httpStatusCode, 400);
+      assert(
+        err.message.includes("AWS Secrets Manager DeleteSecret failed"),
+      );
+      assert(
+        !err.message.includes("Unknown"),
+        `expected wrapped message to NOT contain "Unknown", got: ${err.message}`,
+      );
+    }, {
+      DeleteSecret: { status: 400, body: "{}" },
     });
   },
 });

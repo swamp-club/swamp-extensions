@@ -30,6 +30,7 @@
 import { z } from "npm:zod@4.3.6";
 import {
   CreateSecretCommand,
+  DeleteSecretCommand,
   DescribeSecretCommand,
   GetSecretValueCommand,
   ListSecretsCommand,
@@ -55,6 +56,13 @@ export interface VaultProvider {
   list(): Promise<string[]>;
   /** Returns the swamp-assigned name of this vault instance. */
   getName(): string;
+}
+
+/**
+ * Opt-in interface for vault providers that support secret deletion.
+ */
+export interface VaultDeleteProvider {
+  delete(secretKey: string): Promise<void>;
 }
 
 export interface VaultAnnotationData {
@@ -228,7 +236,8 @@ function readAnnotationFields(
   return { notes, url, labels };
 }
 
-class AwsSmVaultProvider implements VaultProvider, VaultAnnotationProvider {
+class AwsSmVaultProvider
+  implements VaultProvider, VaultDeleteProvider, VaultAnnotationProvider {
   private readonly client: SecretsManagerClient;
   private readonly name: string;
 
@@ -314,6 +323,16 @@ class AwsSmVaultProvider implements VaultProvider, VaultAnnotationProvider {
     } while (nextToken);
 
     return secretNames.sort();
+  }
+
+  async delete(secretKey: string): Promise<void> {
+    try {
+      await this.client.send(
+        new DeleteSecretCommand({ SecretId: secretKey }),
+      );
+    } catch (error) {
+      throw wrapAwsSmError("DeleteSecret", error);
+    }
   }
 
   getName(): string {
@@ -519,7 +538,7 @@ export const vault = {
   createProvider(
     name: string,
     config: Record<string, unknown>,
-  ): VaultProvider {
+  ): VaultProvider & VaultDeleteProvider {
     const parsed = vault.configSchema.parse(config);
     return new AwsSmVaultProvider(name, parsed);
   },

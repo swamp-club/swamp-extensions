@@ -1,9 +1,13 @@
 manifestVersion: 1
 name: "@swamp/aws-sm"
-version: "2026.06.04.1"
+version: "2026.06.24.1"
 description: |
-  Read and write secrets stored in AWS Secrets Manager, with support for
-  vault annotations (`swamp vault annotate` / `swamp vault inspect`).
+  Read, write, and delete secrets stored in AWS Secrets Manager, with support
+  for vault annotations (`swamp vault annotate` / `swamp vault inspect`).
+
+  Deletion uses the default 30-day recovery window — the secret is scheduled
+  for deletion and can be restored within that period. The secret name cannot
+  be reused until the recovery window expires.
 
   ## Authentication
 
@@ -22,6 +26,7 @@ description: |
   - `secretsmanager:DescribeSecret`
   - `secretsmanager:UpdateSecret`
   - `secretsmanager:TagResource`
+  - `secretsmanager:DeleteSecret`
   - `secretsmanager:UntagResource`
 
   ## Annotations
@@ -49,6 +54,7 @@ description: |
 
   swamp vault get my-aws-sm my/secret/name --json
   swamp vault put my-aws-sm my/secret/name "s3cr3t" --json
+  swamp vault delete my-aws-sm my/secret/name --json
   swamp vault list-keys my-aws-sm --json
   ```
 

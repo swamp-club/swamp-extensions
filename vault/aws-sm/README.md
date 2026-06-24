@@ -2,8 +2,8 @@
 
 Swamp vault provider backed by
 [AWS Secrets Manager](https://docs.aws.amazon.com/secretsmanager/). Stores,
-retrieves, and lists secrets through the AWS SDK v3, using the default AWS
-credential chain for authentication.
+retrieves, deletes, and lists secrets through the AWS SDK v3, using the default
+AWS credential chain for authentication.
 
 ## Installation
 
@@ -30,6 +30,7 @@ secrets:
 - `secretsmanager:DescribeSecret`
 - `secretsmanager:UpdateSecret`
 - `secretsmanager:TagResource`
+- `secretsmanager:DeleteSecret`
 - `secretsmanager:UntagResource`
 
 ## Usage
@@ -41,13 +42,20 @@ swamp vault create @swamp/aws-sm my-aws-sm \
   --config '{"region": "us-east-1"}' --json
 ```
 
-Read, write, and list secrets:
+Read, write, delete, and list secrets:
 
 ```bash
 swamp vault get my-aws-sm my/secret/name --json
 swamp vault put my-aws-sm my/secret/name "s3cr3t" --json
+swamp vault delete my-aws-sm my/secret/name --json
 swamp vault list-keys my-aws-sm --json
 ```
+
+## Deletion
+
+`swamp vault delete` schedules the secret for deletion using the default 30-day
+recovery window. The secret can be restored via the AWS console or CLI within
+that period. The secret name cannot be reused until the recovery window expires.
 
 ## Annotations
 
