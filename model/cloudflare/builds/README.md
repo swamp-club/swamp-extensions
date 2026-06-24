@@ -1,7 +1,7 @@
-# @swamp/cloudflare/email-security
+# @swamp/cloudflare/builds
 
 Auto-generated [swamp](https://github.com/swamp-club/swamp) extension models for
-Cloudflare email-security resources.
+Cloudflare builds resources.
 
 Each model represents a single Cloudflare resource. Models have **domain
 properties** that you configure (the desired state) and **resource properties**
@@ -13,8 +13,8 @@ that reflect the live state in Cloudflare. Available methods:
 - **delete** — remove the resource from Cloudflare
 - **sync** — refresh all resource properties from the API
 
-Use `swamp model type describe @swamp/cloudflare/email-security/bulk` to see the
-full list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/cloudflare/builds/workers` to see the full
+list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -57,17 +57,17 @@ environment variables for the legacy path, while `apiToken` remains available.
 ## Usage
 
 ```bash
-# Create a new bulk model
-swamp model create @swamp/cloudflare/email-security/bulk my-bulk
+# Create a new workers model
+swamp model create @swamp/cloudflare/builds/workers my-workers
 
 # Edit the model to configure its properties
-swamp model edit my-bulk
+swamp model edit my-workers
 
 # Create the resource in Cloudflare
-swamp model method run my-bulk create
+swamp model method run my-workers create
 
 # Sync current state from Cloudflare
-swamp model method run my-bulk sync
+swamp model method run my-workers sync
 ```
 
 ## License

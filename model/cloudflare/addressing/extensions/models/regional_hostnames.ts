@@ -17,13 +17,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/cloudflare/cloudforce-one/rules
+// Auto-generated extension model for @swamp/cloudflare/addressing/regional-hostnames
 // Do not edit manually. Re-generate with: deno task generate:cloudflare
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for a Cloudflare Rules.
+ * Swamp extension model for a Cloudflare Regional Hostnames.
  *
  * Wraps the Cloudflare API as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -35,36 +35,17 @@ import { z } from "npm:zod@4.3.6";
 import { create, read, remove, tryRead, update } from "./_lib/cloudflare.ts";
 
 const GlobalArgsSchema = z.object({
-  account_id: z.string().describe("Cloudflare account ID"),
-  content: z.string().min(1),
-  description: z.string().max(1000).describe(
-    "Human-readable description of the rule. Auto-extracted from YARA meta if present.",
+  zone_id: z.string().describe("Cloudflare zone ID"),
+  name: z.string().describe(
+    "Instance name for this resource (used as the unique identifier in the factory pattern)",
+  ),
+  region_key: z.string().describe("Identifying key for the region"),
+  hostname: z.string().describe(
+    "DNS hostname to be regionalized, must be a subdomain of the zone. Wildcards are supported for one level, e.g `*.example.com`",
+  ),
+  routing: z.string().describe(
+    "Configure which routing method to use for the regional hostname",
   ).optional(),
-  enabled: z.boolean().describe(
-    "Whether this rule is active for dice consumers.",
-  ).optional(),
-  is_public: z.boolean().describe(
-    "Whether this rule is visible to other internal accounts.",
-  ).optional(),
-  name: z.string().min(1).max(255),
-  namespaces: z.array(z.string().min(1).max(255)).describe(
-    "Optional WfP deployment tags (customer rules only). Internal rules leave empty.",
-  ).optional(),
-  path: z.string().min(1),
-  actions: z.array(z.object({
-    action_config: z.record(z.string(), z.unknown()),
-    action_type: z.enum([
-      "alert_gchat",
-      "webhook",
-      "logging",
-      "email",
-      "pipeline",
-      "remediation",
-      "throttle",
-      "delete",
-    ]),
-    enabled: z.boolean().optional(),
-  })).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -77,77 +58,35 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  content: z.string().optional(),
-  created_at: z.number().optional(),
-  created_by: z.string().optional(),
-  description: z.string().optional(),
-  enabled: z.boolean().optional(),
+  created_on: z.string().optional(),
+  hostname: z.string().optional(),
+  region_key: z.string().optional(),
+  routing: z.string().optional(),
   id: z.string(),
-  is_public: z.boolean().optional(),
-  name: z.string().optional(),
-  namespaces: z.array(z.string()).optional(),
-  path: z.string().optional(),
-  pending_approval_id: z.number().optional(),
-  updated_at: z.number().optional(),
-  updated_by: z.string().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
-  account_id: z.string().optional(),
-  content: z.string().min(1).optional(),
-  description: z.string().max(1000).optional(),
-  enabled: z.boolean().optional(),
-  is_public: z.boolean().optional(),
-  name: z.string().min(1).max(255).optional(),
-  namespaces: z.array(z.string().min(1).max(255)).optional(),
-  path: z.string().min(1).optional(),
-  actions: z.array(z.object({
-    action_config: z.record(z.string(), z.unknown()),
-    action_type: z.enum([
-      "alert_gchat",
-      "webhook",
-      "logging",
-      "email",
-      "pipeline",
-      "remediation",
-      "throttle",
-      "delete",
-    ]),
-    enabled: z.boolean().optional(),
-  })).optional(),
+  zone_id: z.string().optional(),
+  name: z.string().optional(),
+  region_key: z.string().optional(),
+  hostname: z.string().optional(),
+  routing: z.string().optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
 });
 
-/** Swamp extension model for Cloudflare Rules. Registered at `@swamp/cloudflare/cloudforce-one/rules`. */
+/** Swamp extension model for Cloudflare Regional Hostnames. Registered at `@swamp/cloudflare/addressing/regional-hostnames`. */
 export const model = {
-  type: "@swamp/cloudflare/cloudforce-one/rules",
+  type: "@swamp/cloudflare/addressing/regional-hostnames",
   version: "2026.06.24.1",
-  upgrades: [
-    {
-      toVersion: "2026.05.29.1",
-      description: "Added: apiToken, apiKey, email",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.24.1",
-      description: "Added: path",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Rules resource state",
+      description: "Regional Hostnames resource state",
       schema: ResourceSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -155,20 +94,16 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a Rules",
+      description: "Create a Regional Hostnames",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/cloudforce-one/rules";
+        const endpoint = "/zones/" + g.zone_id +
+          "/addressing/regional_hostnames";
         const body: Record<string, unknown> = {};
-        if (g.actions !== undefined) body.actions = g.actions;
-        if (g.content !== undefined) body.content = g.content;
-        if (g.description !== undefined) body.description = g.description;
-        if (g.enabled !== undefined) body.enabled = g.enabled;
-        if (g.is_public !== undefined) body.is_public = g.is_public;
-        if (g.name !== undefined) body.name = g.name;
-        if (g.namespaces !== undefined) body.namespaces = g.namespaces;
-        if (g.path !== undefined) body.path = g.path;
+        if (g.hostname !== undefined) body.hostname = g.hostname;
+        if (g.region_key !== undefined) body.region_key = g.region_key;
+        if (g.routing !== undefined) body.routing = g.routing;
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -187,11 +122,14 @@ export const model = {
       },
     },
     get: {
-      description: "Get a Rules",
-      arguments: z.object({ id: z.string().describe("The ID of the Rules") }),
+      description: "Get a Regional Hostnames",
+      arguments: z.object({
+        id: z.string().describe("The ID of the Regional Hostnames"),
+      }),
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/cloudforce-one/rules";
+        const endpoint = "/zones/" + g.zone_id +
+          "/addressing/regional_hostnames";
         const result = await read(endpoint, args.id, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -210,11 +148,12 @@ export const model = {
       },
     },
     update: {
-      description: "Update Rules attributes",
+      description: "Update Regional Hostnames attributes",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/cloudforce-one/rules";
+        const endpoint = "/zones/" + g.zone_id +
+          "/addressing/regional_hostnames";
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -227,14 +166,8 @@ export const model = {
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
-        if (g.content !== undefined) body.content = g.content;
-        if (g.description !== undefined) body.description = g.description;
-        if (g.enabled !== undefined) body.enabled = g.enabled;
-        if (g.is_public !== undefined) body.is_public = g.is_public;
-        if (g.name !== undefined) body.name = g.name;
-        if (g.namespaces !== undefined) body.namespaces = g.namespaces;
-        if (g.path !== undefined) body.path = g.path;
-        const result = await update(endpoint, existing.id, body, "PUT", {
+        if (g.region_key !== undefined) body.region_key = g.region_key;
+        const result = await update(endpoint, existing.id, body, "PATCH", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
           email: g.email,
@@ -248,11 +181,14 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete the Rules",
-      arguments: z.object({ id: z.string().describe("The ID of the Rules") }),
+      description: "Delete the Regional Hostnames",
+      arguments: z.object({
+        id: z.string().describe("The ID of the Regional Hostnames"),
+      }),
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/cloudforce-one/rules";
+        const endpoint = "/zones/" + g.zone_id +
+          "/addressing/regional_hostnames";
         const { existed } = await remove(endpoint, args.id, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -270,11 +206,12 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync Rules state from Cloudflare",
+      description: "Sync Regional Hostnames state from Cloudflare",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/cloudforce-one/rules";
+        const endpoint = "/zones/" + g.zone_id +
+          "/addressing/regional_hostnames";
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",

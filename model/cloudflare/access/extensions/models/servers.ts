@@ -39,9 +39,12 @@ const GlobalArgsSchema = z.object({
   auth_credentials: z.string().optional(),
   description: z.string().max(512).optional(),
   is_shared_oauth_callback_enabled: z.boolean().describe(
-    "When true, the gateway worker uses the shared Cloudflare-owned OAuth callback endpoint as the redirect_uri for upstream on-behalf OAuth, instead of the customer portal hostname. New public server creates default to true; existing servers default to false from migration until explicitly updated. Effective behavior is gated by the gateway worker's per-env rollout mode KV key.",
+    "When true, the gateway worker uses the shared Cloudflare-owned OAuth callback endpoint as the redirect_uri for upstream on-behalf OAuth, instead of the customer portal hostname. Defaults to false (off); opt in per server by setting true. Effective behavior is gated by the gateway worker's per-env rollout mode KV key.",
   ).optional(),
   name: z.string().max(350),
+  secure_web_gateway: z.boolean().describe(
+    "Route outbound traffic to this MCP server through Zero Trust Secure Web Gateway",
+  ).optional(),
   updated_prompts: z.array(z.object({
     alias: z.string().max(40).regex(
       new RegExp("^[a-zA-Z0-9]+([_-][a-zA-Z0-9]+)*$"),
@@ -96,6 +99,7 @@ const ResourceSchema = z.object({
   modified_by: z.string().optional(),
   name: z.string().optional(),
   prompts: z.array(z.record(z.string(), z.unknown())).optional(),
+  secure_web_gateway: z.boolean().optional(),
   status: z.string().optional(),
   tools: z.array(z.record(z.string(), z.unknown())).optional(),
   updated_prompts: z.array(z.object({
@@ -120,6 +124,7 @@ const InputsSchema = z.object({
   description: z.string().max(512).optional(),
   is_shared_oauth_callback_enabled: z.boolean().optional(),
   name: z.string().max(350).optional(),
+  secure_web_gateway: z.boolean().optional(),
   updated_prompts: z.array(z.object({
     alias: z.string().max(40).regex(
       new RegExp("^[a-zA-Z0-9]+([_-][a-zA-Z0-9]+)*$"),
@@ -149,7 +154,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Servers. Registered at `@swamp/cloudflare/access/servers`. */
 export const model = {
   type: "@swamp/cloudflare/access/servers",
-  version: "2026.06.08.2",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -164,6 +169,11 @@ export const model = {
     {
       toVersion: "2026.06.08.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
+      description: "Added: secure_web_gateway",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -198,6 +208,9 @@ export const model = {
             g.is_shared_oauth_callback_enabled;
         }
         if (g.name !== undefined) body.name = g.name;
+        if (g.secure_web_gateway !== undefined) {
+          body.secure_web_gateway = g.secure_web_gateway;
+        }
         if (g.updated_prompts !== undefined) {
           body.updated_prompts = g.updated_prompts;
         }
@@ -271,6 +284,9 @@ export const model = {
             g.is_shared_oauth_callback_enabled;
         }
         if (g.name !== undefined) body.name = g.name;
+        if (g.secure_web_gateway !== undefined) {
+          body.secure_web_gateway = g.secure_web_gateway;
+        }
         if (g.updated_prompts !== undefined) {
           body.updated_prompts = g.updated_prompts;
         }

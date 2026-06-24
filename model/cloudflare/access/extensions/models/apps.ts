@@ -99,6 +99,9 @@ const GlobalArgsSchema = z.object({
   domain: z.string().describe(
     "The primary hostname and path secured by Access. This domain will be displayed if the app is visible in the App Launcher.",
   ).optional(),
+  eager_redirect_cookie_setting: z.boolean().describe(
+    "Preemptively sets the Access session cookie on every hostname in a multi-hostname self-hosted application during the initial redirect chain, rather than setting it lazily on first visit. Defaults to true. Set to false to disable the eager redirect cookie behavior.",
+  ).optional(),
   enable_binding_cookie: z.boolean().describe(
     "Enables the binding cookie, which increases security against compromised authorization tokens and CSRF attacks.",
   ).optional(),
@@ -316,6 +319,7 @@ const ResourceSchema = z.object({
       uri: z.string().optional(),
     })).optional(),
     domain: z.string().optional(),
+    eager_redirect_cookie_setting: z.boolean().optional(),
     enable_binding_cookie: z.boolean().optional(),
     http_only_cookie_attribute: z.boolean().optional(),
     logo_url: z.string().optional(),
@@ -440,6 +444,7 @@ const InputsSchema = z.object({
     uri: z.string().optional(),
   })).optional(),
   domain: z.string().optional(),
+  eager_redirect_cookie_setting: z.boolean().optional(),
   enable_binding_cookie: z.boolean().optional(),
   http_only_cookie_attribute: z.boolean().optional(),
   logo_url: z.string().optional(),
@@ -561,7 +566,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Apps. Registered at `@swamp/cloudflare/access/apps`. */
 export const model = {
   type: "@swamp/cloudflare/access/apps",
-  version: "2026.06.08.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -571,6 +576,11 @@ export const model = {
     {
       toVersion: "2026.06.08.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
+      description: "Added: eager_redirect_cookie_setting",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -619,6 +629,9 @@ export const model = {
         if (g.custom_pages !== undefined) body.custom_pages = g.custom_pages;
         if (g.destinations !== undefined) body.destinations = g.destinations;
         if (g.domain !== undefined) body.domain = g.domain;
+        if (g.eager_redirect_cookie_setting !== undefined) {
+          body.eager_redirect_cookie_setting = g.eager_redirect_cookie_setting;
+        }
         if (g.enable_binding_cookie !== undefined) {
           body.enable_binding_cookie = g.enable_binding_cookie;
         }
@@ -770,6 +783,9 @@ export const model = {
         if (g.custom_pages !== undefined) body.custom_pages = g.custom_pages;
         if (g.destinations !== undefined) body.destinations = g.destinations;
         if (g.domain !== undefined) body.domain = g.domain;
+        if (g.eager_redirect_cookie_setting !== undefined) {
+          body.eager_redirect_cookie_setting = g.eager_redirect_cookie_setting;
+        }
         if (g.enable_binding_cookie !== undefined) {
           body.enable_binding_cookie = g.enable_binding_cookie;
         }

@@ -89,6 +89,7 @@ const GlobalArgsSchema = z.object({
   })).optional(),
   embedding_model: z.enum([
     "@cf/qwen/qwen3-embedding-0.6b",
+    "@cf/qwen/qwen3-vl-embedding-2b",
     "@cf/baai/bge-m3",
     "@cf/baai/bge-large-en-v1.5",
     "@cf/google/embeddinggemma-300m",
@@ -176,6 +177,7 @@ const GlobalArgsSchema = z.object({
   ]).optional(),
   rewrite_query: z.boolean().optional(),
   score_threshold: z.number().min(0).max(1).optional(),
+  source: z.string().optional(),
   source_params: z.object({
     exclude_items: z.array(
       z.string().max(512).regex(new RegExp("^[*/\\\\]?[\\w\\-/.\\\\?*:=&%]+$")),
@@ -186,13 +188,6 @@ const GlobalArgsSchema = z.object({
     prefix: z.string().optional(),
     r2_jurisdiction: z.string().optional(),
     web_crawler: z.object({
-      crawl_options: z.object({
-        depth: z.number().min(1).max(100000).optional(),
-        include_external_links: z.boolean().optional(),
-        include_subdomains: z.boolean().optional(),
-        max_age: z.number().min(0).max(604800).optional(),
-        source: z.enum(["all", "sitemaps", "links"]).optional(),
-      }).optional(),
       parse_options: z.object({
         content_selector: z.array(z.object({
           path: z.string().min(1).max(200),
@@ -203,12 +198,7 @@ const GlobalArgsSchema = z.object({
         specific_sitemaps: z.array(z.string()).optional(),
         use_browser_rendering: z.boolean().optional(),
       }).optional(),
-      parse_type: z.enum(["sitemap", "feed-rss", "crawl"]).optional(),
-      store_options: z.object({
-        r2_jurisdiction: z.string().optional(),
-        storage_id: z.string(),
-        storage_type: z.enum(["r2"]).optional(),
-      }).optional(),
+      parse_type: z.enum(["sitemap", "crawl"]).optional(),
     }).optional(),
   }).optional(),
   summarization: z.boolean().optional(),
@@ -257,7 +247,6 @@ const GlobalArgsSchema = z.object({
   ).describe(
     "AI Search instance ID. Lowercase alphanumeric, hyphens, and underscores.",
   ),
-  source: z.string().optional(),
   type: z.enum(["r2", "web-crawler"]).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -346,13 +335,6 @@ const ResourceSchema = z.object({
     prefix: z.string().optional(),
     r2_jurisdiction: z.string().optional(),
     web_crawler: z.object({
-      crawl_options: z.object({
-        depth: z.number().optional(),
-        include_external_links: z.boolean().optional(),
-        include_subdomains: z.boolean().optional(),
-        max_age: z.number().optional(),
-        source: z.string().optional(),
-      }).optional(),
       parse_options: z.object({
         content_selector: z.array(z.object({
           path: z.string().optional(),
@@ -364,11 +346,6 @@ const ResourceSchema = z.object({
         use_browser_rendering: z.boolean().optional(),
       }).optional(),
       parse_type: z.string().optional(),
-      store_options: z.object({
-        r2_jurisdiction: z.string().optional(),
-        storage_id: z.string().optional(),
-        storage_type: z.string().optional(),
-      }).optional(),
     }).optional(),
   }).optional(),
   status: z.string().optional(),
@@ -432,6 +409,7 @@ const InputsSchema = z.object({
   })).optional(),
   embedding_model: z.enum([
     "@cf/qwen/qwen3-embedding-0.6b",
+    "@cf/qwen/qwen3-vl-embedding-2b",
     "@cf/baai/bge-m3",
     "@cf/baai/bge-large-en-v1.5",
     "@cf/google/embeddinggemma-300m",
@@ -517,6 +495,7 @@ const InputsSchema = z.object({
   ]).optional(),
   rewrite_query: z.boolean().optional(),
   score_threshold: z.number().min(0).max(1).optional(),
+  source: z.string().optional(),
   source_params: z.object({
     exclude_items: z.array(
       z.string().max(512).regex(new RegExp("^[*/\\\\]?[\\w\\-/.\\\\?*:=&%]+$")),
@@ -527,13 +506,6 @@ const InputsSchema = z.object({
     prefix: z.string().optional(),
     r2_jurisdiction: z.string().optional(),
     web_crawler: z.object({
-      crawl_options: z.object({
-        depth: z.number().min(1).max(100000).optional(),
-        include_external_links: z.boolean().optional(),
-        include_subdomains: z.boolean().optional(),
-        max_age: z.number().min(0).max(604800).optional(),
-        source: z.enum(["all", "sitemaps", "links"]).optional(),
-      }).optional(),
       parse_options: z.object({
         content_selector: z.array(z.object({
           path: z.string().min(1).max(200),
@@ -544,12 +516,7 @@ const InputsSchema = z.object({
         specific_sitemaps: z.array(z.string()).optional(),
         use_browser_rendering: z.boolean().optional(),
       }).optional(),
-      parse_type: z.enum(["sitemap", "feed-rss", "crawl"]).optional(),
-      store_options: z.object({
-        r2_jurisdiction: z.string().optional(),
-        storage_id: z.string(),
-        storage_type: z.enum(["r2"]).optional(),
-      }).optional(),
+      parse_type: z.enum(["sitemap", "crawl"]).optional(),
     }).optional(),
   }).optional(),
   summarization: z.boolean().optional(),
@@ -594,7 +561,6 @@ const InputsSchema = z.object({
   id: z.string().min(1).max(64).regex(
     new RegExp("^[a-z0-9_]+(?:-[a-z0-9_]+)*$"),
   ).optional(),
-  source: z.string().optional(),
   type: z.enum(["r2", "web-crawler"]).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
@@ -604,7 +570,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Instances. Registered at `@swamp/cloudflare/ai-search/instances`. */
 export const model = {
   type: "@swamp/cloudflare/ai-search/instances",
-  version: "2026.06.08.2",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -618,6 +584,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -794,6 +765,7 @@ export const model = {
         if (g.score_threshold !== undefined) {
           body.score_threshold = g.score_threshold;
         }
+        if (g.source !== undefined) body.source = g.source;
         if (g.source_params !== undefined) body.source_params = g.source_params;
         if (g.summarization !== undefined) body.summarization = g.summarization;
         if (g.summarization_model !== undefined) {

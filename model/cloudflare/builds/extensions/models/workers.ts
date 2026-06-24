@@ -17,13 +17,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/cloudflare/cloudforce-one/rules
+// Auto-generated extension model for @swamp/cloudflare/builds/workers
 // Do not edit manually. Re-generate with: deno task generate:cloudflare
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for a Cloudflare Rules.
+ * Swamp extension model for a Cloudflare Workers.
  *
  * Wraps the Cloudflare API as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -36,35 +36,32 @@ import { create, read, remove, tryRead, update } from "./_lib/cloudflare.ts";
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  content: z.string().min(1),
-  description: z.string().max(1000).describe(
-    "Human-readable description of the rule. Auto-extracted from YARA meta if present.",
-  ).optional(),
-  enabled: z.boolean().describe(
-    "Whether this rule is active for dice consumers.",
-  ).optional(),
-  is_public: z.boolean().describe(
-    "Whether this rule is visible to other internal accounts.",
-  ).optional(),
-  name: z.string().min(1).max(255),
-  namespaces: z.array(z.string().min(1).max(255)).describe(
-    "Optional WfP deployment tags (customer rules only). Internal rules leave empty.",
-  ).optional(),
-  path: z.string().min(1),
-  actions: z.array(z.object({
-    action_config: z.record(z.string(), z.unknown()),
-    action_type: z.enum([
-      "alert_gchat",
-      "webhook",
-      "logging",
-      "email",
-      "pipeline",
-      "remediation",
-      "throttle",
-      "delete",
-    ]),
-    enabled: z.boolean().optional(),
-  })).optional(),
+  name: z.string().describe(
+    "Instance name for this resource (used as the unique identifier in the factory pattern)",
+  ),
+  git_repository: z.object({
+    branch: z.string().min(1).max(256),
+    provider_account_id: z.string(),
+    provider_account_name: z.string(),
+    provider_type: z.enum(["github", "gitlab"]),
+    repo_id: z.string(),
+    repo_name: z.string(),
+  }).describe(
+    "GitHub or GitLab repository input for creating a Worker build configuration",
+  ),
+  production_settings: z.object({
+    build_caching_enabled: z.boolean().optional(),
+    build_command: z.string(),
+    build_token_uuid: z.string(),
+    deploy_command: z.string(),
+    environment_variables: z.record(z.string(), z.unknown()).optional(),
+    path_excludes: z.array(z.string()).optional(),
+    path_includes: z.array(z.string()).optional(),
+    root_directory: z.string().optional(),
+  }).describe(
+    "Build and deploy settings when creating a Worker build configuration",
+  ),
+  script_tag: z.string().describe("System-generated worker script tag."),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -77,77 +74,67 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  content: z.string().optional(),
-  created_at: z.number().optional(),
-  created_by: z.string().optional(),
-  description: z.string().optional(),
-  enabled: z.boolean().optional(),
+  git_repository: z.object({
+    branch: z.string().optional(),
+    grant_id: z.string().optional(),
+    provider_account_id: z.string().optional(),
+    provider_account_name: z.string().optional(),
+    provider_type: z.string().optional(),
+    repo_id: z.string().optional(),
+    repo_name: z.string().optional(),
+  }).optional(),
+  production_settings: z.object({
+    build_caching_enabled: z.boolean().optional(),
+    build_command: z.string().optional(),
+    build_token_uuid: z.string().optional(),
+    deploy_command: z.string().optional(),
+    environment_variables: z.record(z.string(), z.unknown()).optional(),
+    path_excludes: z.array(z.string()).optional(),
+    path_includes: z.array(z.string()).optional(),
+    root_directory: z.string().optional(),
+  }).optional(),
+  script_tag: z.string().optional(),
   id: z.string(),
-  is_public: z.boolean().optional(),
-  name: z.string().optional(),
-  namespaces: z.array(z.string()).optional(),
-  path: z.string().optional(),
-  pending_approval_id: z.number().optional(),
-  updated_at: z.number().optional(),
-  updated_by: z.string().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
   account_id: z.string().optional(),
-  content: z.string().min(1).optional(),
-  description: z.string().max(1000).optional(),
-  enabled: z.boolean().optional(),
-  is_public: z.boolean().optional(),
-  name: z.string().min(1).max(255).optional(),
-  namespaces: z.array(z.string().min(1).max(255)).optional(),
-  path: z.string().min(1).optional(),
-  actions: z.array(z.object({
-    action_config: z.record(z.string(), z.unknown()),
-    action_type: z.enum([
-      "alert_gchat",
-      "webhook",
-      "logging",
-      "email",
-      "pipeline",
-      "remediation",
-      "throttle",
-      "delete",
-    ]),
-    enabled: z.boolean().optional(),
-  })).optional(),
+  name: z.string().optional(),
+  git_repository: z.object({
+    branch: z.string().min(1).max(256),
+    provider_account_id: z.string(),
+    provider_account_name: z.string(),
+    provider_type: z.enum(["github", "gitlab"]),
+    repo_id: z.string(),
+    repo_name: z.string(),
+  }).optional(),
+  production_settings: z.object({
+    build_caching_enabled: z.boolean().optional(),
+    build_command: z.string(),
+    build_token_uuid: z.string(),
+    deploy_command: z.string(),
+    environment_variables: z.record(z.string(), z.unknown()).optional(),
+    path_excludes: z.array(z.string()).optional(),
+    path_includes: z.array(z.string()).optional(),
+    root_directory: z.string().optional(),
+  }).optional(),
+  script_tag: z.string().optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
 });
 
-/** Swamp extension model for Cloudflare Rules. Registered at `@swamp/cloudflare/cloudforce-one/rules`. */
+/** Swamp extension model for Cloudflare Workers. Registered at `@swamp/cloudflare/builds/workers`. */
 export const model = {
-  type: "@swamp/cloudflare/cloudforce-one/rules",
+  type: "@swamp/cloudflare/builds/workers",
   version: "2026.06.24.1",
-  upgrades: [
-    {
-      toVersion: "2026.05.29.1",
-      description: "Added: apiToken, apiKey, email",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.24.1",
-      description: "Added: path",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Rules resource state",
+      description: "Workers resource state",
       schema: ResourceSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -155,20 +142,19 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a Rules",
+      description: "Create a Workers",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/cloudforce-one/rules";
+        const endpoint = "/accounts/" + g.account_id + "/builds/workers";
         const body: Record<string, unknown> = {};
-        if (g.actions !== undefined) body.actions = g.actions;
-        if (g.content !== undefined) body.content = g.content;
-        if (g.description !== undefined) body.description = g.description;
-        if (g.enabled !== undefined) body.enabled = g.enabled;
-        if (g.is_public !== undefined) body.is_public = g.is_public;
-        if (g.name !== undefined) body.name = g.name;
-        if (g.namespaces !== undefined) body.namespaces = g.namespaces;
-        if (g.path !== undefined) body.path = g.path;
+        if (g.git_repository !== undefined) {
+          body.git_repository = g.git_repository;
+        }
+        if (g.production_settings !== undefined) {
+          body.production_settings = g.production_settings;
+        }
+        if (g.script_tag !== undefined) body.script_tag = g.script_tag;
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -187,11 +173,11 @@ export const model = {
       },
     },
     get: {
-      description: "Get a Rules",
-      arguments: z.object({ id: z.string().describe("The ID of the Rules") }),
+      description: "Get a Workers",
+      arguments: z.object({ id: z.string().describe("The ID of the Workers") }),
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/cloudforce-one/rules";
+        const endpoint = "/accounts/" + g.account_id + "/builds/workers";
         const result = await read(endpoint, args.id, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -210,11 +196,11 @@ export const model = {
       },
     },
     update: {
-      description: "Update Rules attributes",
+      description: "Update Workers attributes",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/cloudforce-one/rules";
+        const endpoint = "/accounts/" + g.account_id + "/builds/workers";
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -227,14 +213,13 @@ export const model = {
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
-        if (g.content !== undefined) body.content = g.content;
-        if (g.description !== undefined) body.description = g.description;
-        if (g.enabled !== undefined) body.enabled = g.enabled;
-        if (g.is_public !== undefined) body.is_public = g.is_public;
-        if (g.name !== undefined) body.name = g.name;
-        if (g.namespaces !== undefined) body.namespaces = g.namespaces;
-        if (g.path !== undefined) body.path = g.path;
-        const result = await update(endpoint, existing.id, body, "PUT", {
+        if (g.git_repository !== undefined) {
+          body.git_repository = g.git_repository;
+        }
+        if (g.production_settings !== undefined) {
+          body.production_settings = g.production_settings;
+        }
+        const result = await update(endpoint, existing.id, body, "PATCH", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
           email: g.email,
@@ -248,11 +233,11 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete the Rules",
-      arguments: z.object({ id: z.string().describe("The ID of the Rules") }),
+      description: "Delete the Workers",
+      arguments: z.object({ id: z.string().describe("The ID of the Workers") }),
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/cloudforce-one/rules";
+        const endpoint = "/accounts/" + g.account_id + "/builds/workers";
         const { existed } = await remove(endpoint, args.id, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -270,11 +255,11 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync Rules state from Cloudflare",
+      description: "Sync Workers state from Cloudflare",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/cloudforce-one/rules";
+        const endpoint = "/accounts/" + g.account_id + "/builds/workers";
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",

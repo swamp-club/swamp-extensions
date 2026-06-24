@@ -32,13 +32,16 @@
  */
 
 import { z } from "npm:zod@4.3.6";
-import { create, read, remove, tryRead } from "./_lib/cloudflare.ts";
+import { create, read, remove, tryRead, update } from "./_lib/cloudflare.ts";
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
+  status: z.enum(["unverified", "verified"]).describe(
+    "Destination address status. Non-admin callers may only set verified addresses back to unverified; setting to verified requires admin privileges.",
+  ).optional(),
   email: z.string().max(90).describe("The contact email address of the user."),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -59,6 +62,7 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 const InputsSchema = z.object({
   account_id: z.string().optional(),
   name: z.string().optional(),
+  status: z.enum(["unverified", "verified"]).optional(),
   email: z.string().max(90).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
 });
@@ -66,7 +70,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Addresses. Registered at `@swamp/cloudflare/email/addresses`. */
 export const model = {
   type: "@swamp/cloudflare/email/addresses",
-  version: "2026.06.08.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -76,6 +80,11 @@ export const model = {
     {
       toVersion: "2026.06.08.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
+      description: "Added: status",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -130,6 +139,37 @@ export const model = {
           /[\/\\]/g,
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    update: {
+      description: "Update Addresses attributes",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id +
+          "/email/routing/addresses";
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) throw new Error("No data found - run create first");
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const body: Record<string, unknown> = {};
+        if (g.status !== undefined) body.status = g.status;
+        const result = await update(endpoint, existing.id, body, "PATCH", {
+          apiToken: g.apiToken,
+        }) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,

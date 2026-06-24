@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/cloudflare/devices"
-version: "2026.06.08.2"
+version: "2026.06.24.1"
 description: "Cloudflare devices infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -10,12 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: deployment-groups
-  - Updated: ip-profiles
-  - Updated: networks
   - Updated: policy
-  - Updated: posture
-  - Updated: integration
 models:
   - deployment-groups.ts
   - integration.ts

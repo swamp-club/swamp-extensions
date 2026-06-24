@@ -17,13 +17,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/cloudflare/dex/dex-tests
+// Auto-generated extension model for @swamp/cloudflare/email-security/bulk
 // Do not edit manually. Re-generate with: deno task generate:cloudflare
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for a Cloudflare Dex Tests.
+ * Swamp extension model for a Cloudflare Bulk.
  *
  * Wraps the Cloudflare API as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -32,30 +32,73 @@
  */
 
 import { z } from "npm:zod@4.3.6";
-import { create, read, remove, tryRead, update } from "./_lib/cloudflare.ts";
+import { create, read, remove, tryRead } from "./_lib/cloudflare.ts";
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  data: z.object({
-    host: z.string(),
-    kind: z.enum(["http", "traceroute"]),
-    method: z.enum(["GET"]).optional(),
-  }).describe(
-    "The configuration object which contains the details for the WARP client to conduct the test.",
+  name: z.string().describe(
+    "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  description: z.string().describe("Additional details about the test.")
-    .optional(),
-  enabled: z.boolean().describe(
-    "Determines whether or not the test is active.",
-  ),
-  interval: z.string().describe("How often the test will run."),
-  name: z.string().describe("The name of the DEX test. Must be unique."),
-  target_policies: z.array(z.unknown()).describe(
-    "DEX rules targeted by this test",
-  ).optional(),
-  targeted: z.boolean().optional(),
-  test_id: z.string().max(32).describe("The unique identifier for the test.")
-    .optional(),
+  action: z.enum(["MOVE", "RELEASE"]),
+  comment: z.string().optional(),
+  destination: z.enum([
+    "Inbox",
+    "JunkEmail",
+    "DeletedItems",
+    "RecoverableItemsDeletions",
+    "RecoverableItemsPurges",
+  ]).optional(),
+  expected_disposition: z.enum([
+    "MALICIOUS",
+    "MALICIOUS-BEC",
+    "SUSPICIOUS",
+    "SPOOF",
+    "SPAM",
+    "BULK",
+    "ENCRYPTED",
+    "EXTERNAL",
+    "UNKNOWN",
+    "NONE",
+  ]).optional(),
+  search_params: z.object({
+    action_log: z.boolean().optional(),
+    alert_id: z.string().optional(),
+    delivery_status: z.enum([
+      "delivered",
+      "moved",
+      "quarantined",
+      "rejected",
+      "deferred",
+      "bounced",
+      "queued",
+    ]).optional(),
+    detections_only: z.boolean().optional(),
+    domain: z.string().optional(),
+    end: z.string().optional(),
+    exact_subject: z.string().optional(),
+    final_disposition: z.enum([
+      "MALICIOUS",
+      "MALICIOUS-BEC",
+      "SUSPICIOUS",
+      "SPOOF",
+      "SPAM",
+      "BULK",
+      "ENCRYPTED",
+      "EXTERNAL",
+      "UNKNOWN",
+      "NONE",
+    ]).optional(),
+    message_action: z.enum(["PREVIEW", "QUARANTINE_RELEASED", "MOVED"])
+      .optional(),
+    message_id: z.string().optional(),
+    metric: z.string().optional(),
+    query: z.string().optional(),
+    recipient: z.string().optional(),
+    sender: z.string().optional(),
+    start: z.string().optional(),
+    subject: z.string().optional(),
+    submissions: z.boolean().optional(),
+  }),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -68,18 +111,42 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  data: z.object({
-    host: z.string().optional(),
-    kind: z.string().optional(),
-    method: z.string().optional(),
+  action_params: z.object({
+    destination: z.string().optional(),
+    expected_disposition: z.string().optional(),
+    type: z.string().optional(),
   }).optional(),
-  description: z.string().optional(),
-  enabled: z.boolean().optional(),
-  interval: z.string().optional(),
-  name: z.string().optional(),
-  target_policies: z.array(z.unknown()).optional(),
-  targeted: z.boolean().optional(),
-  test_id: z.string().optional(),
+  action_type: z.string().optional(),
+  comment: z.string().optional(),
+  completed_at: z.string().optional(),
+  created_at: z.string().optional(),
+  job_id: z.string().optional(),
+  messages_failed: z.number().optional(),
+  messages_pending: z.number().optional(),
+  messages_successful: z.number().optional(),
+  search_params: z.object({
+    action_log: z.boolean().optional(),
+    alert_id: z.string().optional(),
+    delivery_status: z.string().optional(),
+    detections_only: z.boolean().optional(),
+    domain: z.string().optional(),
+    end: z.string().optional(),
+    exact_subject: z.string().optional(),
+    final_disposition: z.string().optional(),
+    message_action: z.string().optional(),
+    message_id: z.string().optional(),
+    metric: z.string().optional(),
+    query: z.string().optional(),
+    recipient: z.string().optional(),
+    sender: z.string().optional(),
+    start: z.string().optional(),
+    subject: z.string().optional(),
+    submissions: z.boolean().optional(),
+  }).optional(),
+  started_at: z.string().optional(),
+  status: z.string().optional(),
+  status_message: z.string().optional(),
+  total_messages_discovered: z.number().optional(),
   id: z.string(),
 }).passthrough();
 
@@ -87,49 +154,81 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
   account_id: z.string().optional(),
-  data: z.object({
-    host: z.string(),
-    kind: z.enum(["http", "traceroute"]),
-    method: z.enum(["GET"]).optional(),
-  }).optional(),
-  description: z.string().optional(),
-  enabled: z.boolean().optional(),
-  interval: z.string().optional(),
   name: z.string().optional(),
-  target_policies: z.array(z.unknown()).optional(),
-  targeted: z.boolean().optional(),
-  test_id: z.string().max(32).optional(),
+  action: z.enum(["MOVE", "RELEASE"]).optional(),
+  comment: z.string().optional(),
+  destination: z.enum([
+    "Inbox",
+    "JunkEmail",
+    "DeletedItems",
+    "RecoverableItemsDeletions",
+    "RecoverableItemsPurges",
+  ]).optional(),
+  expected_disposition: z.enum([
+    "MALICIOUS",
+    "MALICIOUS-BEC",
+    "SUSPICIOUS",
+    "SPOOF",
+    "SPAM",
+    "BULK",
+    "ENCRYPTED",
+    "EXTERNAL",
+    "UNKNOWN",
+    "NONE",
+  ]).optional(),
+  search_params: z.object({
+    action_log: z.boolean().optional(),
+    alert_id: z.string().optional(),
+    delivery_status: z.enum([
+      "delivered",
+      "moved",
+      "quarantined",
+      "rejected",
+      "deferred",
+      "bounced",
+      "queued",
+    ]).optional(),
+    detections_only: z.boolean().optional(),
+    domain: z.string().optional(),
+    end: z.string().optional(),
+    exact_subject: z.string().optional(),
+    final_disposition: z.enum([
+      "MALICIOUS",
+      "MALICIOUS-BEC",
+      "SUSPICIOUS",
+      "SPOOF",
+      "SPAM",
+      "BULK",
+      "ENCRYPTED",
+      "EXTERNAL",
+      "UNKNOWN",
+      "NONE",
+    ]).optional(),
+    message_action: z.enum(["PREVIEW", "QUARANTINE_RELEASED", "MOVED"])
+      .optional(),
+    message_id: z.string().optional(),
+    metric: z.string().optional(),
+    query: z.string().optional(),
+    recipient: z.string().optional(),
+    sender: z.string().optional(),
+    start: z.string().optional(),
+    subject: z.string().optional(),
+    submissions: z.boolean().optional(),
+  }).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
 });
 
-/** Swamp extension model for Cloudflare Dex Tests. Registered at `@swamp/cloudflare/dex/dex-tests`. */
+/** Swamp extension model for Cloudflare Bulk. Registered at `@swamp/cloudflare/email-security/bulk`. */
 export const model = {
-  type: "@swamp/cloudflare/dex/dex-tests",
+  type: "@swamp/cloudflare/email-security/bulk",
   version: "2026.06.24.1",
-  upgrades: [
-    {
-      toVersion: "2026.05.29.1",
-      description: "Added: apiToken, apiKey, email",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.24.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Dex Tests resource state",
+      description: "Bulk resource state",
       schema: ResourceSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -137,22 +236,20 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a Dex Tests",
+      description: "Create a Bulk",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/dex/devices/dex_tests";
+        const endpoint = "/accounts/" + g.account_id +
+          "/email-security/investigate/bulk";
         const body: Record<string, unknown> = {};
-        if (g.data !== undefined) body.data = g.data;
-        if (g.description !== undefined) body.description = g.description;
-        if (g.enabled !== undefined) body.enabled = g.enabled;
-        if (g.interval !== undefined) body.interval = g.interval;
-        if (g.name !== undefined) body.name = g.name;
-        if (g.target_policies !== undefined) {
-          body.target_policies = g.target_policies;
+        if (g.action !== undefined) body.action = g.action;
+        if (g.comment !== undefined) body.comment = g.comment;
+        if (g.destination !== undefined) body.destination = g.destination;
+        if (g.expected_disposition !== undefined) {
+          body.expected_disposition = g.expected_disposition;
         }
-        if (g.targeted !== undefined) body.targeted = g.targeted;
-        if (g.test_id !== undefined) body.test_id = g.test_id;
+        if (g.search_params !== undefined) body.search_params = g.search_params;
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -171,13 +268,12 @@ export const model = {
       },
     },
     get: {
-      description: "Get a Dex Tests",
-      arguments: z.object({
-        id: z.string().describe("The ID of the Dex Tests"),
-      }),
+      description: "Get a Bulk",
+      arguments: z.object({ id: z.string().describe("The ID of the Bulk") }),
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/dex/devices/dex_tests";
+        const endpoint = "/accounts/" + g.account_id +
+          "/email-security/investigate/bulk";
         const result = await read(endpoint, args.id, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -195,55 +291,13 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
-    update: {
-      description: "Update Dex Tests attributes",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
-        const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/dex/devices/dex_tests";
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          instanceName,
-        );
-        if (!content) throw new Error("No data found - run create first");
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        const body: Record<string, unknown> = {};
-        if (g.data !== undefined) body.data = g.data;
-        if (g.description !== undefined) body.description = g.description;
-        if (g.enabled !== undefined) body.enabled = g.enabled;
-        if (g.interval !== undefined) body.interval = g.interval;
-        if (g.name !== undefined) body.name = g.name;
-        if (g.target_policies !== undefined) {
-          body.target_policies = g.target_policies;
-        }
-        if (g.targeted !== undefined) body.targeted = g.targeted;
-        if (g.test_id !== undefined) body.test_id = g.test_id;
-        const result = await update(endpoint, existing.id, body, "PUT", {
-          apiToken: g.apiToken,
-          apiKey: g.apiKey,
-          email: g.email,
-        }) as ResourceData;
-        const handle = await context.writeResource(
-          "state",
-          instanceName,
-          result,
-        );
-        return { dataHandles: [handle] };
-      },
-    },
     delete: {
-      description: "Delete the Dex Tests",
-      arguments: z.object({
-        id: z.string().describe("The ID of the Dex Tests"),
-      }),
+      description: "Delete the Bulk",
+      arguments: z.object({ id: z.string().describe("The ID of the Bulk") }),
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/dex/devices/dex_tests";
+        const endpoint = "/accounts/" + g.account_id +
+          "/email-security/investigate/bulk";
         const { existed } = await remove(endpoint, args.id, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -261,11 +315,12 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync Dex Tests state from Cloudflare",
+      description: "Sync Bulk state from Cloudflare",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/dex/devices/dex_tests";
+        const endpoint = "/accounts/" + g.account_id +
+          "/email-security/investigate/bulk";
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",

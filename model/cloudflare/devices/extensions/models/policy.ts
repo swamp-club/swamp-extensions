@@ -73,6 +73,14 @@ const GlobalArgsSchema = z.object({
   exclude_office_ips: z.boolean().describe(
     "Whether to add Microsoft IPs to Split Tunnel exclusions.",
   ).optional(),
+  global_acceleration: z.object({
+    api_endpoints: z.array(z.string()),
+    enabled: z.boolean(),
+    masque_endpoints: z.array(z.string()),
+    wireguard_endpoints: z.array(z.string()),
+  }).describe(
+    "Global Acceleration settings for China. When configured, WARP clients connect to the Global Accelerator addresses instead of the default ones. Please contact your account representative to enable this feature on your account. See https://developers.cloudflare.com/china-network/concepts/global-acceleration/.",
+  ).optional(),
   include: z.array(z.object({
     address: z.string(),
     description: z.string().max(100).optional(),
@@ -153,6 +161,12 @@ const ResourceSchema = z.object({
     suffix: z.string().optional(),
   })).optional(),
   gateway_unique_id: z.string().optional(),
+  global_acceleration: z.object({
+    api_endpoints: z.array(z.string()).optional(),
+    enabled: z.boolean().optional(),
+    masque_endpoints: z.array(z.string()).optional(),
+    wireguard_endpoints: z.array(z.string()).optional(),
+  }).optional(),
   include: z.array(z.object({
     address: z.string().optional(),
     description: z.string().optional(),
@@ -204,6 +218,12 @@ const InputsSchema = z.object({
     description: z.string().max(100).optional(),
   })).optional(),
   exclude_office_ips: z.boolean().optional(),
+  global_acceleration: z.object({
+    api_endpoints: z.array(z.string()),
+    enabled: z.boolean(),
+    masque_endpoints: z.array(z.string()),
+    wireguard_endpoints: z.array(z.string()),
+  }).optional(),
   include: z.array(z.object({
     address: z.string(),
     description: z.string().max(100).optional(),
@@ -234,7 +254,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Policy. Registered at `@swamp/cloudflare/devices/policy`. */
 export const model = {
   type: "@swamp/cloudflare/devices/policy",
-  version: "2026.06.08.1",
+  version: "2026.06.24.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -244,6 +264,11 @@ export const model = {
     {
       toVersion: "2026.06.08.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.24.1",
+      description: "Added: global_acceleration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -287,6 +312,9 @@ export const model = {
         if (g.exclude !== undefined) body.exclude = g.exclude;
         if (g.exclude_office_ips !== undefined) {
           body.exclude_office_ips = g.exclude_office_ips;
+        }
+        if (g.global_acceleration !== undefined) {
+          body.global_acceleration = g.global_acceleration;
         }
         if (g.include !== undefined) body.include = g.include;
         if (g.lan_allow_minutes !== undefined) {
@@ -396,6 +424,9 @@ export const model = {
         if (g.exclude !== undefined) body.exclude = g.exclude;
         if (g.exclude_office_ips !== undefined) {
           body.exclude_office_ips = g.exclude_office_ips;
+        }
+        if (g.global_acceleration !== undefined) {
+          body.global_acceleration = g.global_acceleration;
         }
         if (g.include !== undefined) body.include = g.include;
         if (g.lan_allow_minutes !== undefined) {

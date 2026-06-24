@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/cloudflare/dlp"
-version: "2026.06.08.2"
+version: "2026.06.24.1"
 description: "Cloudflare dlp infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -10,21 +10,20 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: custom_prompt_topics
-  - Updated: datasets
-  - Updated: document_fingerprints
-  - Updated: rules
-  - Updated: entries
-  - Updated: custom
-  - Updated: predefined
+  - Added: data_classes
+  - Added: data_tag_categories
+  - Added: sensitivity_groups
 models:
   - custom.ts
   - custom_prompt_topics.ts
+  - data_classes.ts
+  - data_tag_categories.ts
   - datasets.ts
   - document_fingerprints.ts
   - entries.ts
   - predefined.ts
   - rules.ts
+  - sensitivity_groups.ts
 additionalFiles:
   - LICENSE.txt
   - README.md

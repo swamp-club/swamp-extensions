@@ -17,13 +17,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/cloudflare/cloudforce-one/rules
+// Auto-generated extension model for @swamp/cloudflare/dlp/data-classes
 // Do not edit manually. Re-generate with: deno task generate:cloudflare
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for a Cloudflare Rules.
+ * Swamp extension model for a Cloudflare Data Classes.
  *
  * Wraps the Cloudflare API as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -36,35 +36,14 @@ import { create, read, remove, tryRead, update } from "./_lib/cloudflare.ts";
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  content: z.string().min(1),
-  description: z.string().max(1000).describe(
-    "Human-readable description of the rule. Auto-extracted from YARA meta if present.",
-  ).optional(),
-  enabled: z.boolean().describe(
-    "Whether this rule is active for dice consumers.",
-  ).optional(),
-  is_public: z.boolean().describe(
-    "Whether this rule is visible to other internal accounts.",
-  ).optional(),
-  name: z.string().min(1).max(255),
-  namespaces: z.array(z.string().min(1).max(255)).describe(
-    "Optional WfP deployment tags (customer rules only). Internal rules leave empty.",
-  ).optional(),
-  path: z.string().min(1),
-  actions: z.array(z.object({
-    action_config: z.record(z.string(), z.unknown()),
-    action_type: z.enum([
-      "alert_gchat",
-      "webhook",
-      "logging",
-      "email",
-      "pipeline",
-      "remediation",
-      "throttle",
-      "delete",
-    ]),
-    enabled: z.boolean().optional(),
-  })).optional(),
+  data_tags: z.array(z.string()),
+  description: z.string().optional(),
+  expression: z.string(),
+  name: z.string(),
+  sensitivity_levels: z.array(z.object({
+    group_id: z.string(),
+    level_id: z.string(),
+  })),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -77,77 +56,45 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  content: z.string().optional(),
-  created_at: z.number().optional(),
-  created_by: z.string().optional(),
+  created_at: z.string().optional(),
+  data_tags: z.array(z.string()).optional(),
   description: z.string().optional(),
-  enabled: z.boolean().optional(),
+  expression: z.string().optional(),
   id: z.string(),
-  is_public: z.boolean().optional(),
   name: z.string().optional(),
-  namespaces: z.array(z.string()).optional(),
-  path: z.string().optional(),
-  pending_approval_id: z.number().optional(),
-  updated_at: z.number().optional(),
-  updated_by: z.string().optional(),
+  sensitivity_levels: z.array(z.object({
+    group_id: z.string().optional(),
+    level_id: z.string().optional(),
+  })).optional(),
+  updated_at: z.string().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
   account_id: z.string().optional(),
-  content: z.string().min(1).optional(),
-  description: z.string().max(1000).optional(),
-  enabled: z.boolean().optional(),
-  is_public: z.boolean().optional(),
-  name: z.string().min(1).max(255).optional(),
-  namespaces: z.array(z.string().min(1).max(255)).optional(),
-  path: z.string().min(1).optional(),
-  actions: z.array(z.object({
-    action_config: z.record(z.string(), z.unknown()),
-    action_type: z.enum([
-      "alert_gchat",
-      "webhook",
-      "logging",
-      "email",
-      "pipeline",
-      "remediation",
-      "throttle",
-      "delete",
-    ]),
-    enabled: z.boolean().optional(),
+  data_tags: z.array(z.string()).optional(),
+  description: z.string().optional(),
+  expression: z.string().optional(),
+  name: z.string().optional(),
+  sensitivity_levels: z.array(z.object({
+    group_id: z.string(),
+    level_id: z.string(),
   })).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
 });
 
-/** Swamp extension model for Cloudflare Rules. Registered at `@swamp/cloudflare/cloudforce-one/rules`. */
+/** Swamp extension model for Cloudflare Data Classes. Registered at `@swamp/cloudflare/dlp/data-classes`. */
 export const model = {
-  type: "@swamp/cloudflare/cloudforce-one/rules",
+  type: "@swamp/cloudflare/dlp/data-classes",
   version: "2026.06.24.1",
-  upgrades: [
-    {
-      toVersion: "2026.05.29.1",
-      description: "Added: apiToken, apiKey, email",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.24.1",
-      description: "Added: path",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Rules resource state",
+      description: "Data Classes resource state",
       schema: ResourceSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -155,20 +102,19 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a Rules",
+      description: "Create a Data Classes",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/cloudforce-one/rules";
+        const endpoint = "/accounts/" + g.account_id + "/dlp/data_classes";
         const body: Record<string, unknown> = {};
-        if (g.actions !== undefined) body.actions = g.actions;
-        if (g.content !== undefined) body.content = g.content;
+        if (g.data_tags !== undefined) body.data_tags = g.data_tags;
         if (g.description !== undefined) body.description = g.description;
-        if (g.enabled !== undefined) body.enabled = g.enabled;
-        if (g.is_public !== undefined) body.is_public = g.is_public;
+        if (g.expression !== undefined) body.expression = g.expression;
         if (g.name !== undefined) body.name = g.name;
-        if (g.namespaces !== undefined) body.namespaces = g.namespaces;
-        if (g.path !== undefined) body.path = g.path;
+        if (g.sensitivity_levels !== undefined) {
+          body.sensitivity_levels = g.sensitivity_levels;
+        }
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -187,11 +133,13 @@ export const model = {
       },
     },
     get: {
-      description: "Get a Rules",
-      arguments: z.object({ id: z.string().describe("The ID of the Rules") }),
+      description: "Get a Data Classes",
+      arguments: z.object({
+        id: z.string().describe("The ID of the Data Classes"),
+      }),
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/cloudforce-one/rules";
+        const endpoint = "/accounts/" + g.account_id + "/dlp/data_classes";
         const result = await read(endpoint, args.id, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -210,11 +158,11 @@ export const model = {
       },
     },
     update: {
-      description: "Update Rules attributes",
+      description: "Update Data Classes attributes",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/cloudforce-one/rules";
+        const endpoint = "/accounts/" + g.account_id + "/dlp/data_classes";
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
@@ -227,13 +175,13 @@ export const model = {
         if (!content) throw new Error("No data found - run create first");
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
-        if (g.content !== undefined) body.content = g.content;
+        if (g.data_tags !== undefined) body.data_tags = g.data_tags;
         if (g.description !== undefined) body.description = g.description;
-        if (g.enabled !== undefined) body.enabled = g.enabled;
-        if (g.is_public !== undefined) body.is_public = g.is_public;
+        if (g.expression !== undefined) body.expression = g.expression;
         if (g.name !== undefined) body.name = g.name;
-        if (g.namespaces !== undefined) body.namespaces = g.namespaces;
-        if (g.path !== undefined) body.path = g.path;
+        if (g.sensitivity_levels !== undefined) {
+          body.sensitivity_levels = g.sensitivity_levels;
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -248,11 +196,13 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete the Rules",
-      arguments: z.object({ id: z.string().describe("The ID of the Rules") }),
+      description: "Delete the Data Classes",
+      arguments: z.object({
+        id: z.string().describe("The ID of the Data Classes"),
+      }),
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/cloudforce-one/rules";
+        const endpoint = "/accounts/" + g.account_id + "/dlp/data_classes";
         const { existed } = await remove(endpoint, args.id, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -270,11 +220,11 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync Rules state from Cloudflare",
+      description: "Sync Data Classes state from Cloudflare",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/cloudforce-one/rules";
+        const endpoint = "/accounts/" + g.account_id + "/dlp/data_classes";
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
