@@ -20,6 +20,7 @@
 import {
   assertEquals,
   assertExists,
+  assertRejects,
   assertThrows,
 } from "jsr:@std/assert@1.0.19";
 import { assertVaultExportConformance } from "@systeminit/swamp-testing";
@@ -29,6 +30,7 @@ import {
   vault,
   VaultAnnotation,
   type VaultAnnotationProvider,
+  type VaultDeleteProvider,
   type VaultProvider,
 } from "./azure_kv.ts";
 
@@ -56,13 +58,16 @@ Deno.test("createProvider throws on invalid config", () => {
 });
 
 Deno.test({
-  name: "createProvider returns a provider with annotation methods",
+  name: "createProvider returns a provider with delete and annotation methods",
   // Azure SDK connection pool leaks resources in Deno
   sanitizeResources: false,
   fn: () => {
     const provider = vault.createProvider("test", {
       vault_url: "https://myvault.vault.azure.net/",
     });
+    // No upstream conformance helper exists for VaultDeleteProvider yet
+    const deleteProvider = provider as VaultProvider & VaultDeleteProvider;
+    assertEquals(typeof deleteProvider.delete, "function");
     // No upstream conformance helper exists for VaultAnnotationProvider yet
     const annotationProvider = provider as
       & VaultProvider
@@ -349,7 +354,7 @@ const EMULATOR_CLIENT_OPTIONS = {
 
 function createEmulatorProvider(
   port: string,
-): VaultProvider & VaultAnnotationProvider {
+): VaultProvider & VaultDeleteProvider & VaultAnnotationProvider {
   const fakeCredential = {
     getToken: () =>
       Promise.resolve({
@@ -616,6 +621,80 @@ Deno.test({
       // Value must be the new one
       const value = await provider.get("rotate-test");
       assertEquals(value, "v2");
+    } finally {
+      await stopEmulator(emulator);
+    }
+  },
+});
+
+Deno.test({
+  name: "emulator: delete removes an existing secret",
+  ignore: !hasDocker,
+  // Azure SDK connection pool leaks resources in Deno
+  sanitizeResources: false,
+  fn: async () => {
+    const emulator = await startEmulator();
+    try {
+      const provider = createEmulatorProvider(emulator.port);
+
+      await provider.put("to-delete", "secret-value");
+      assertEquals(await provider.get("to-delete"), "secret-value");
+
+      await provider.delete("to-delete");
+
+      await assertRejects(
+        () => provider.get("to-delete"),
+        Error,
+      );
+    } finally {
+      await stopEmulator(emulator);
+    }
+  },
+});
+
+Deno.test({
+  name: "emulator: delete of non-existent secret throws",
+  ignore: !hasDocker,
+  // Azure SDK connection pool leaks resources in Deno
+  sanitizeResources: false,
+  fn: async () => {
+    const emulator = await startEmulator();
+    try {
+      const provider = createEmulatorProvider(emulator.port);
+
+      await assertRejects(
+        () => provider.delete("does-not-exist"),
+        Error,
+        "not found",
+      );
+    } finally {
+      await stopEmulator(emulator);
+    }
+  },
+});
+
+Deno.test({
+  name: "emulator: delete removes secret from list",
+  ignore: !hasDocker,
+  // Azure SDK connection pool leaks resources in Deno
+  sanitizeResources: false,
+  fn: async () => {
+    const emulator = await startEmulator();
+    try {
+      const provider = createEmulatorProvider(emulator.port);
+
+      await provider.put("keep-me", "value1");
+      await provider.put("delete-me", "value2");
+
+      const beforeList = await provider.list();
+      assertEquals(beforeList.includes("delete-me"), true);
+      assertEquals(beforeList.includes("keep-me"), true);
+
+      await provider.delete("delete-me");
+
+      const afterList = await provider.list();
+      assertEquals(afterList.includes("delete-me"), false);
+      assertEquals(afterList.includes("keep-me"), true);
     } finally {
       await stopEmulator(emulator);
     }

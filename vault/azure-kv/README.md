@@ -2,8 +2,9 @@
 
 Swamp vault provider backed by
 [Azure Key Vault](https://learn.microsoft.com/azure/key-vault/general/). Stores,
-retrieves, and lists secrets through the official `@azure/keyvault-secrets`
-client using `DefaultAzureCredential` for authentication.
+retrieves, deletes, and lists secrets through the official
+`@azure/keyvault-secrets` client using `DefaultAzureCredential` for
+authentication.
 
 ## Installation
 
@@ -21,8 +22,8 @@ them via one of:
 - Azure CLI: `az login`
 - Managed Identity attached to the VM, App Service, or container
 
-The caller must have Key Vault data-plane permissions for `Get`, `Set`, and
-`List` on the configured vault.
+The caller must have Key Vault data-plane permissions for `Get`, `Set`, `Delete`,
+and `List` on the configured vault.
 
 ## Usage
 
@@ -33,11 +34,12 @@ swamp vault create @swamp/azure-kv my-azure-kv \
   --config '{"vault_url": "https://my-vault.vault.azure.net"}' --json
 ```
 
-Read, write, and list secrets:
+Read, write, delete, and list secrets:
 
 ```bash
 swamp vault get my-azure-kv my-secret --json
 swamp vault put my-azure-kv my-secret "s3cr3t" --json
+swamp vault delete my-azure-kv my-secret --json
 swamp vault list-keys my-azure-kv --json
 ```
 
@@ -47,6 +49,13 @@ Azure Key Vault only allows alphanumeric characters and hyphens, so the
 provider rewrites `/` and `_` in the swamp key name to `-` before talking to
 Azure. Use the optional `secret_prefix` config value to namespace a Key Vault
 across multiple swamp instances.
+
+## Deleting secrets
+
+`swamp vault delete` performs a soft-delete via the Azure Key Vault API. The
+secret enters a "deleted" state and is recoverable during the vault's retention
+period. Purging (permanent deletion) is not performed — use the Azure portal or
+CLI if permanent deletion is required.
 
 ## Annotations
 

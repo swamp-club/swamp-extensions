@@ -1,9 +1,9 @@
 manifestVersion: 1
 name: "@swamp/azure-kv"
-version: "2026.06.04.1"
+version: "2026.06.24.1"
 description: |
-  Read and write secrets stored in Azure Key Vault. Supports secret annotations
-  via `swamp vault annotate` and `swamp vault inspect`.
+  Read, write, and delete secrets stored in Azure Key Vault. Supports secret
+  annotations via `swamp vault annotate` and `swamp vault inspect`.
 
   ## Authentication
 
@@ -21,6 +21,7 @@ description: |
 
   swamp vault get my-azure-kv my-secret --json
   swamp vault put my-azure-kv my-secret "s3cr3t" --json
+  swamp vault delete my-azure-kv my-secret --json
   swamp vault list-keys my-azure-kv --json
 
   swamp vault annotate my-azure-kv my-secret --url https://console.azure.com --note "Production key"
@@ -53,4 +54,5 @@ labels:
   - azure
   - key-vault
   - secrets
+  - delete
   - annotations

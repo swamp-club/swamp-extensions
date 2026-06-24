@@ -121,6 +121,10 @@ export class VaultAnnotation {
   }
 }
 
+export interface VaultDeleteProvider {
+  delete(secretKey: string): Promise<void>;
+}
+
 export interface VaultAnnotationProvider {
   getAnnotation(secretKey: string): Promise<VaultAnnotation | null>;
   putAnnotation(
@@ -224,7 +228,8 @@ function toAzureSecretName(name: string): string {
   return name.replace(/[/_]/g, "-");
 }
 
-class AzureKvVaultProvider implements VaultProvider, VaultAnnotationProvider {
+class AzureKvVaultProvider
+  implements VaultProvider, VaultDeleteProvider, VaultAnnotationProvider {
   private readonly client: SecretClient;
   private readonly name: string;
   private readonly secretPrefix: string;
@@ -298,6 +303,29 @@ class AzureKvVaultProvider implements VaultProvider, VaultAnnotationProvider {
     }
 
     return secretNames.sort();
+  }
+
+  async delete(secretKey: string): Promise<void> {
+    const azureSecretName = toAzureSecretName(
+      this.secretPrefix + secretKey,
+    );
+    try {
+      const poller = await this.client.beginDeleteSecret(azureSecretName);
+      await poller.pollUntilDone();
+    } catch (error) {
+      const statusCode = (error as { statusCode?: number }).statusCode;
+      if (statusCode === 404) {
+        throw new Error(
+          `Secret '${secretKey}' not found in vault '${this.name}'`,
+        );
+      }
+      throw new Error(
+        `Failed to delete secret '${secretKey}': ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        { cause: error },
+      );
+    }
   }
 
   getName(): string {
@@ -446,7 +474,7 @@ export const vault = {
   createProvider(
     name: string,
     config: Record<string, unknown>,
-  ): VaultProvider & VaultAnnotationProvider {
+  ): VaultProvider & VaultDeleteProvider & VaultAnnotationProvider {
     const parsed = vault.configSchema.parse(config);
     return new AzureKvVaultProvider(name, parsed);
   },
@@ -457,6 +485,6 @@ export function _createTestProvider(
   config: { vault_url: string; secret_prefix?: string },
   credential: TokenCredential,
   clientOptions?: SecretClientOptions,
-): VaultProvider & VaultAnnotationProvider {
+): VaultProvider & VaultDeleteProvider & VaultAnnotationProvider {
   return new AzureKvVaultProvider(name, config, credential, clientOptions);
 }
