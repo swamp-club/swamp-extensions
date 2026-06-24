@@ -49,6 +49,15 @@ export const JOURNAL_PREFIX = "journal-";
 export const ARTIFACT_PREFIX = "artifact-";
 export const EVIDENCE_PREFIX = "evidence-";
 export const APPROVAL_PREFIX = "approval-";
+export const VALIDATION_PREFIX = "validation-";
+export const STATUS_PREFIX = "status-";
+
+/**
+ * Reserved slug for the factory-wide status overview (the `status` method
+ * called without a workItem). Leading underscore can't appear in a sanitized
+ * work-item slug, so `status-_factory` can never collide with a real run.
+ */
+export const OVERVIEW_SLUG = "_factory";
 
 export function stateInstance(slug: string): string {
   return `${STATE_PREFIX}${slug}`;
@@ -68,4 +77,12 @@ export function evidenceInstance(slug: string, name: string): string {
 
 export function approvalInstance(slug: string, gateId: string): string {
   return `${APPROVAL_PREFIX}${slug}-${gateId}`;
+}
+
+export function validationInstance(slug: string, target: string): string {
+  return `${VALIDATION_PREFIX}${slug}-${target}`;
+}
+
+export function statusInstance(slug: string): string {
+  return `${STATUS_PREFIX}${slug}`;
 }

@@ -93,6 +93,12 @@ stages:
             headSha: { type: string, minLength: 7 }
     evidence:
       - name: change-request
+        schema:
+          type: object
+          required: [url, headSha]
+          properties:
+            url: { type: string, minLength: 1 }
+            headSha: { type: string, minLength: 7 }
     transitions:
       - name: submit
         to: testing

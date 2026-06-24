@@ -28,10 +28,12 @@ From there the protocol is fixed, whatever the factory shape:
 
 ```bash
 swamp model method run my-factory status --input workItem=ISSUE-42
-# → STATUS_JSON: current stage, work spec (bindings resolved),
-#   per-gate transition readiness, context manifest, cycle counts
+# → writes the queryable record status-ISSUE-42: current stage, work spec
+#   (bindings resolved), per-gate transition readiness, context manifest,
+#   cycle counts. Read fields with: swamp data query
+#   'name == "status-ISSUE-42"' --select 'attributes.transitions' --json
 swamp model method run my-factory status
-# → factory-wide overview of every run
+# → writes status-_factory, a factory-wide overview of every run
 
 swamp model method run my-factory record_artifact --input workItem=ISSUE-42 \
   --input name=plan --input payload='{"summary":"…","steps":[…],"testingStrategy":"…"}'
@@ -52,6 +54,7 @@ next. The shipped `software-factory` skill teaches Claude the drive loop;
 | [examples/minimal.yaml](examples/minimal.yaml) | Two stages, one gate — the hello-world. |
 | [examples/feature-factory.yaml](examples/feature-factory.yaml) | Plan → dual-skill adversarial plan review → implement → verified test workflow → dual-skill code review → done, with loop-backs, freshness-forced re-review, human approvals, and a global abort. |
 | [examples/sdlc-classic.yaml](examples/sdlc-classic.yaml) | The classic plan / adversarial-review / implement / test / release / UAT lifecycle, including `cooldown` and `cel` gates. |
+| [examples/retry-feedback.yaml](examples/retry-feedback.yaml) | An LLM-backed method whose malformed output is recorded as a `validation` record and fed back into its own next attempt, bounded by the dispatch guard. |
 
 ## Concepts
 
@@ -60,11 +63,15 @@ next. The shipped `software-factory` skill teaches Claude the drive loop;
   skill, in parallel), `workflow` (a named swamp workflow — zero-LLM), or
   `method` (a single model method call — also how tracker integrations work).
 - **Artifact** — a versioned, schema-validated data product. Schemas are a
-  declarative JSON-Schema-flavored subset compiled to zod at runtime.
-  `kind: findings` unlocks the findings machinery; `reviews: <artifact>`
-  pins subject versions for freshness checking.
-- **Evidence** — opaque external facts (PR URL, CI outcome, release link),
-  cycle-scoped. The engine never talks to external systems.
+  declarative JSON-Schema-flavored subset compiled to zod at runtime (strict
+  objects by default; `additionalProperties: true` to opt out). Every artifact
+  declares a schema or is `kind: findings`. `kind: findings` unlocks the
+  findings machinery; `reviews: <artifact>` pins subject versions for freshness
+  checking.
+- **Evidence** — external facts (PR URL, CI outcome, release link),
+  cycle-scoped and **schema-validated on record** (a stage's `resultEvidence`
+  validates against a built-in `{status, runId}` outcome contract). Opaque to
+  gates, but never unvalidated. The engine never talks to external systems.
 - **Gate** — hard enforcement on transitions: `artifact-exists`,
   `artifact-fresh`, `findings-clear`, `human-approval`, `evidence-recorded`,
   `cooldown`, `max-cycles`, `cel` (CEL predicates over run data), and
@@ -85,8 +92,9 @@ next. The shipped `software-factory` skill teaches Claude the drive loop;
 | --- | --- |
 | `start` | Validate the graph, start a work item at the initial stage. Refuses to restart — resume with `status`. |
 | `status` | The driver's entrypoint: what a work item requires right now; without `workItem`, an overview of all runs (read-only). |
+| `record_dispatch` | Record that the current stage's work is running (before it runs); proves the stage executed and drives the runaway-loop guard. |
 | `record_artifact` | Record a declared artifact; payload validated against its schema. |
-| `record_evidence` | Record a declared external fact. |
+| `record_evidence` | Record a declared external fact; payload validated against its schema (or the built-in outcome schema for `resultEvidence`). |
 | `resolve_findings` | Resolution notes on `kind: findings` artifacts (not a fresh recording). |
 | `approve` / `reject` | Human gate decisions, cycle-scoped. Also grants `cycle-override:<stage>`. |
 | `advance` | Move along a named transition. Gates run in pre-flight checks and re-validate in the method body. |
@@ -99,8 +107,9 @@ next. The shipped `software-factory` skill teaches Claude the drive loop;
 
 All resources are versioned, immutable, and namespaced per work item:
 `state-<workItem>`, `artifact-<workItem>-<name>`, `evidence-<workItem>-<name>`,
-`approval-<workItem>-<gateId>`, and the append-only `journal-<workItem>` audit
-trail. (Work item refs that aren't name-safe — URLs, say — get a
+`approval-<workItem>-<gateId>`, `validation-<workItem>-<target>` (recorded
+payload-validation failures, bindable as retry feedback), and the append-only
+`journal-<workItem>` audit trail. (Work item refs that aren't name-safe — URLs, say — get a
 deterministic hashed slug; envelopes always carry the original.) Inspect with:
 
 ```bash

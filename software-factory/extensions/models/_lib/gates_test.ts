@@ -117,6 +117,7 @@ function makeContext(opts?: {
     state: null,
     artifacts: new Map(opts?.artifacts ?? []),
     evidence: new Map(opts?.evidence ?? []),
+    validations: new Map(),
     approvals: new Map(opts?.approvals ?? []),
   };
   return {

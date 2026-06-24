@@ -19,7 +19,12 @@ import { parse } from "@std/yaml";
 import { FactoryArgumentsSchema } from "./_lib/definition_schema.ts";
 import { validateGraph } from "./_lib/graph.ts";
 
-const EXAMPLES = ["minimal.yaml", "feature-factory.yaml", "sdlc-classic.yaml"];
+const EXAMPLES = [
+  "minimal.yaml",
+  "feature-factory.yaml",
+  "sdlc-classic.yaml",
+  "retry-feedback.yaml",
+];
 
 function loadExample(name: string): unknown {
   const path = new URL(`../../examples/${name}`, import.meta.url);
@@ -115,6 +120,27 @@ Deno.test("example feature-factory.yaml: exercises every design mechanism", () =
   const ref = (testing?.work?.workflow?.inputs as { ref: string }).ref;
   assert(ref.startsWith("${{"));
   assert(ref.includes("data.latest(self.name,"));
+});
+
+Deno.test("example retry-feedback.yaml: wires validation feedback into a method input", () => {
+  const args = FactoryArgumentsSchema.parse(loadExample("retry-feedback.yaml"));
+  const planning = args.stages.find((s) => s.id === "planning");
+
+  // The method binds the validation record of the artifact it produces.
+  const inputs = planning?.work?.method?.inputs as { feedback?: string };
+  assert(inputs?.feedback !== undefined, "missing feedback input");
+  assert(
+    inputs.feedback.includes('data.latest(self.name, "validation-plan")'),
+    "feedback should bind the whole validation-plan record",
+  );
+  // Bound whole-record, not a sub-field (which would throw when absent).
+  assert(
+    !inputs.feedback.includes('validation-plan").'),
+    "bind the whole record, not a sub-field",
+  );
+  // The fed-back target is the schema'd artifact this stage records.
+  const plan = planning?.artifacts?.find((a) => a.name === "plan");
+  assert(plan?.schema !== undefined, "plan artifact must declare a schema");
 });
 
 Deno.test("example sdlc-classic.yaml: covers the original design brief", () => {

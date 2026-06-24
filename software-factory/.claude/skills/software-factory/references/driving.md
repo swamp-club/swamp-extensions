@@ -7,17 +7,33 @@ definition supplies all meaning.
 
 ```
 1. swamp model method run <factory> status --input workItem=<ref>
-                                              → parse the STATUS_JSON line
-2. execute the stage's work spec
-3. record products through the model (always passing workItem=<ref>)
-4. re-check status; advance or stop for the human; repeat
+                                              → refreshes the status-<workItem>
+                                                record; query the fields you need
+2. record_dispatch --input workItem=<ref>   (the stage's work is about to run)
+3. execute the stage's work spec
+4. record products through the model (always passing workItem=<ref>)
+5. re-check status; advance or stop for the human; repeat
 ```
+
+Step 2 is mandatory before executing a stage that has a `work` block: it
+records that the stage ran (a work-bearing stage **cannot advance** until it
+has — the work can't be silently skipped) and it arms the runaway-loop guard.
+Pass `mode=` and, for workflow/method stages, `runId=` so the journal carries
+the attempt history.
 
 One factory serves many work items: every call is scoped by `workItem`, and
 `status` without it returns a factory-wide overview
 (`{"factory": true, "runs": [...]}`) — useful for picking up parked runs.
 
-## Reading STATUS_JSON
+## Reading the status record
+
+`status` doesn't print a packet for you to parse — it **persists** one as the
+data record `status-<workItem>` (and `status-_factory` for the no-workItem
+overview) and returns it as a data handle. It is a read-time materialized view,
+refreshed on every `status` call. Pull exactly the fields you need with
+`swamp data query` (see "Querying run data" below) instead of holding the whole
+blob in context. The record's content — addressed as `attributes.<field>` —
+has this shape:
 
 ```json
 {
@@ -42,9 +58,47 @@ One factory serves many work items: every call is scoped by `workItem`, and
 }
 ```
 
+The questions you actually ask each loop are one projection each — never the
+whole record:
+
+```bash
+# the propulsion decision: which transitions are satisfied right now?
+swamp data query 'modelName == "<factory>" && name == "status-PAY-218"' \
+  --select 'attributes.transitions.filter(t, t.satisfied).map(t, t.name)' --json
+
+# why is the gated transition blocked? (gate reasons are the instructions)
+swamp data query 'modelName == "<factory>" && name == "status-PAY-218"' \
+  --select 'attributes.transitions.filter(t, !t.satisfied).map(t, {"transition": t.name, "blockedBy": t.gates.filter(g, !g.pass).map(g, g.reasons)})' --json
+
+# the resolved work spec for the current stage
+swamp data query 'modelName == "<factory>" && name == "status-PAY-218"' \
+  --select 'attributes.work' --json
+
+# what's parked for a human?
+swamp data query 'modelName == "<factory>" && name == "status-PAY-218"' \
+  --select 'attributes.pendingApprovals' --json
+```
+
+Field notes (whichever you project):
+
 - `work` arrives with run-data bindings already resolved; anything in
   `unresolvedBindings` references data that doesn't exist yet — usually
   meaning an earlier product wasn't recorded.
+- `invalidInputs` lists any resolved `method`/`workflow` input that fails the
+  stage's `inputsSchema` (each entry is `{path, message}`). A non-empty list
+  means an upstream value drifted shape — fix it at the producing stage before
+  dispatching, not by coercing it here.
+- `dispatch` is the loop guard's counter for the current entry:
+  `{cycle, attempts, limit, required, executed}`. `required: true` means the
+  stage has work and must be dispatched (`record_dispatch`) before it can
+  advance; `executed: false` means you haven't yet. `attempts` approaching
+  `limit` means you are re-running the same stage entry — see below.
+- `validations` lists open (uncleared) payload-validation failures —
+  `{target, errors, attempt, …}`. A non-empty entry means a recorded product
+  was rejected for the wrong shape; the rejected value and errors are persisted
+  as `validation-<target>` so a retry stage can bind them back into the model
+  (`feedback: '${{ data.latest(self.name, "validation-<target>") }}'`). They
+  clear automatically when the target records cleanly.
 - `contextManifest` is the discovery index, not injected context. Roles:
   `subject` (what this stage reviews — always fetch it), `own` (this stage's
   artifacts; prior versions hold last round's findings — fetch when
@@ -222,9 +276,13 @@ queries together.
 - **workflow** — trigger the named swamp workflow with the resolved inputs
   (`swamp workflow run <name> --input k=v`), wait for completion, then record
   the outcome: `record_evidence name=<resultEvidence>
-  payload='{"status":"succeeded|failed","runId":"…"}'`. The `pass` branch is
-  usually gated on `workflow-succeeded`, which verifies against swamp's own
-  run records — recording evidence does not bypass it.
+  payload='{"status":"succeeded|failed","runId":"…"}'`. The outcome must
+  satisfy the built-in contract (`status` + `runId` required) — an empty or
+  malformed record is rejected, so a workflow that "succeeded" without
+  recording surfaces as a loud `record_evidence` error rather than a silent
+  re-dispatch. The `pass` branch is usually gated on `workflow-succeeded`,
+  which verifies against swamp's own run records — recording evidence does not
+  bypass it.
 - **method** — same, for a single model method
   (`swamp model method run <model> <method> --input …`).
 
@@ -275,11 +333,46 @@ fresh evidence", "a human must run approve with gateId=…". Follow them
 literally; do not work around them. They exist because the factory author
 configured them.
 
+## The dispatch guard (don't loop on a stage)
+
+Call `record_dispatch` once per stage entry, *before* doing the work. It is the
+deterministic record that the stage ran, and it counts re-dispatches of the
+same `(stage, cycle)`:
+
+- **Attempt 1** — normal. Do the work, record products, advance.
+- **Attempt 2** — recorded, but `record_dispatch` returns a loud
+  `repeat-dispatch warning` naming the products still missing and the gates
+  still failing. **Stop and read it.** You are about to re-run a stage that
+  didn't get what it needed last time — usually because a workflow/method
+  "succeeded" but didn't record its `resultEvidence`, or recorded the wrong
+  shape. Fix the recording, don't re-run blindly.
+- **Attempt 3** — `record_dispatch` throws `runaway-loop-suspected` and refuses.
+  This is the circuit breaker. Present the diagnostics (missing products, gate
+  reasons, attempt history from the journal) to the human; do not try to work
+  around it. It almost always means a real defect in the stage's work or its
+  recording step, not a transient failure.
+
+The cap is per stage entry; advancing into a stage on rework is a fresh entry
+with a fresh counter (`maxCycles` is the separate guard on how many times you
+may re-enter). Tune the per-stage limit with `maxDispatchesPerCycle` in the
+definition.
+
 ## Recording rules
 
 - Artifacts only on the stage that declares them; payloads are validated
   against the declared schema — fix validation errors, don't reshape the
-  declaration.
+  declaration. Object payloads are strict: an "Unrecognized key" error means
+  you sent a field the schema doesn't declare, not that the schema is wrong.
+- Evidence payloads are validated too — against the evidence's declared
+  schema, or (for a stage's `resultEvidence`) the built-in outcome contract
+  `{status, runId, outputs?}`. A `record_evidence` "payload is invalid" error
+  means the recorded outcome has the wrong shape (or is empty); record the
+  real outcome rather than re-running the stage.
+- Every rejection (artifact or evidence) is also **recorded** as a
+  `validation-<target>` record — the rejected value plus the path-bearing
+  errors. You don't record this yourself; the engine does. If the stage is set
+  up for retry-with-feedback, the next attempt binds it automatically. Either
+  way, fix the *shape* the errors name — don't reshape the schema.
 - `kind: findings` artifact payloads must carry
   `findings: [{id, severity, description, category?, resolved?, resolutionNote?}]`
   with severity exactly one of `critical`/`high`/`medium`/`low` — there is

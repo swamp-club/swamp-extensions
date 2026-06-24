@@ -215,8 +215,8 @@ proxy-guarded, so the engine reads its raw stage config via
 | --- | --- |
 | **stage** | A named state. Exactly one `initial: true`; ≥1 `terminal: true`. Every stage carries `maxCycles` (default 5) — an engine-enforced re-entry limit that parks the run for human override when tripped. |
 | **work** | How the stage's work gets done — one of four modes (below): agent-in-conversation, dispatched subagents, a named swamp workflow, or a model method call. Opaque to the engine; consumed by the driver. |
-| **artifact** | A named, schema-validated, versioned data product of a stage. Optional `kind: findings` unlocks the findings gate/method family. Optional `reviews: <artifact>` links it to a subject for freshness checking. |
-| **evidence** | An opaque external fact recorded by the agent (PR URL, CI run id + status, release URL). The engine never fetches anything — this is the source-control/CI extension point. |
+| **artifact** | A named, schema-validated, versioned data product of a stage. **Every artifact declares a payload schema** (or `kind: findings`, which carries a built-in findings contract) — there is no unvalidated artifact. Optional `reviews: <artifact>` links it to a subject for freshness checking. |
+| **evidence** | An external fact recorded by the agent (PR URL, CI run id + status, release URL). **Carries a declared payload schema, validated on `record_evidence`** — opaque to gates, but not unchecked. The engine never fetches anything — this is the source-control/CI extension point. |
 | **transition** | A named edge with gates. "Send back" loops are just transitions to earlier stages. |
 | **gate** | A parameterized instance of a built-in evaluator (below). All gates on a transition must pass for `advance`. |
 | **globalTransitions** | Escape hatches (abort, escalate) available from any non-terminal stage. |
@@ -250,13 +250,28 @@ env, vault, `data.query`).
 
 **Outcome capture.** For `workflow`/`method` modes the driver executes, waits,
 and calls `record_evidence` with the outcome (`{status, runId, outputs}`)
-under the declared `resultEvidence` name. Pass/fail transitions gate on the
-outcome — for swamp workflows, prefer the `workflow-succeeded` gate, which
-verifies against the platform's own run records rather than the recorded
+under the declared `resultEvidence` name. That outcome is validated against a
+**built-in outcome schema** (`status` ∈ {succeeded, failed} and `runId`
+required; extra keys allowed) unless an explicit evidence entry of the same
+name overrides it — so a workflow that reports success but records an empty or
+malformed outcome fails loudly at the write instead of leaving the gate
+quietly unsatisfied (the silent re-dispatch trap). Pass/fail transitions gate
+on the outcome — for swamp workflows, prefer the `workflow-succeeded` gate,
+which verifies against the platform's own run records rather than the recorded
 evidence; `evidence-recorded` with `requireField` remains for external
 mechanisms swamp didn't execute (a remote CI system, a manual deploy). The
 standard propulsion rule auto-advances whichever branch is live. The engine
 stays a pure record-keeper: it never executes workflows or commands itself.
+
+**Input validation.** A `workflow`/`method` stage may declare an
+`inputsSchema`. After the engine resolves the stage's input bindings (at
+`status` time), it validates the resolved values against that schema and
+reports any mismatch as `invalidInputs` in the status packet. This catches an
+upstream value that drifted shape — a list recorded as a markdown string, a
+number returned as text — at the boundary the factory owns, before the driver
+forwards it into a strict downstream method. The check is advisory (the engine
+never dispatches), but it gives the driver a declared contract and a
+path-bearing error instead of an opaque failure inside the called model.
 
 **Context discovery (LLM modes).** Prior work is discoverable, not injected.
 `status` always returns a context **manifest** — every artifact and evidence
@@ -328,28 +343,64 @@ There is no workItem in globalArguments: every method takes
 `workItem: string` (opaque ref — issue #, ticket URL, anything) and scopes
 all reads and writes to that work item's namespace.
 
-Artifact payload schemas inside `stages` are declarative (JSON-Schema-flavored
-keywords: `type/properties/required/items/enum/pattern/min/max`) and are
-**compiled to zod at runtime** by the engine — no separate validation engine.
-The accepted keyword subset is itself enforced by the zod meta-schema, so a
-definition cannot silently use keywords nothing validates. Validation is
-two-layer and all zod: the generic `artifact` resource spec's schema validates
-the envelope on every `writeResource` (platform behavior); the compiled
-payload schema validates inside `record_artifact`, surfacing zod's
-path-bearing errors (`steps[0].description: Required`) to the agent.
+Artifact and evidence payload schemas inside `stages` are declarative
+(JSON-Schema-flavored keywords:
+`type/properties/required/additionalProperties/items/enum/pattern/min/max`)
+and are **compiled to zod at runtime** by the engine — no separate validation
+engine. The accepted keyword subset is itself enforced by the zod meta-schema,
+so a definition cannot silently use keywords nothing validates. Object
+payloads compile to **strict** zod objects by default — an undeclared key is
+rejected, catching LLM drift at the producing seam — with
+`additionalProperties: true` the per-object escape hatch.
+
+Validation is layered and all zod: the typed resource-envelope schemas
+(`RunStateSchema`, `ArtifactEnvelopeSchema`, `EvidenceEnvelopeSchema`, …)
+validate envelope structure on every `writeResource`; the compiled payload
+schema validates inside `record_artifact`/`record_evidence`, surfacing zod's
+path-bearing errors (`steps[0].description: Required`) to the agent. The
+invariant: **every datum that crosses a stage boundary has a declared schema
+and is validated at the moment it is written.** Graph validation makes it
+structural — a schemaless artifact or evidence is a hard error, with a message
+that points the agent at the skill's authoring reference to self-correct.
+
+**Rejections are recorded, not just thrown.** When `record_artifact` /
+`record_evidence` reject a malformed payload, they first write a `validation`
+record — the rejected value plus the path-bearing errors — and *then* throw.
+The platform keeps writes that precede a throw (the method-execution layer
+collects persisted handles on the error path; `code-review` relies on the same
+"write log, then throw on FAIL"), so the bad payload is still rejected while its
+diagnosis survives as run data. That record is bindable as **retry feedback** —
+`data.latest(self.name, "validation-<target>")` (bind the whole record; it's
+null-safe when absent, where a sub-field access would throw and leave the input
+unresolved) — so an LLM-driven stage can re-prompt its model with exactly what
+failed. It is **auto-cleared** when the target next records cleanly (so a fresh
+entry never binds a stale failure), surfaced in `status.validations`, and the
+retry loop is bounded by the dispatch guard rather than a separate retry cap.
+This is the engine's whole role in recovery: it *detects and records* the
+failure deterministically; the *re-prompting* stays with whoever owns the model
+call (driver, or the method itself via structured output), so the engine never
+makes an LLM call.
 
 **resources** (all instances namespaced by the work item's slug)
 
-- `state` — `{workItem, stageId, cycles: Record<stageId, number>, enteredAt, status: active|terminal, definitionVersion, startedAt}`;
-  instances `state-<workItem>`.
+- `state` — `{workItem, stageId, cycles: Record<stageId, number>, dispatches?: Record<stageId, {cycle, count}>, enteredAt, status: active|terminal, definitionVersion, startedAt}`;
+  instances `state-<workItem>`. `dispatches` is the per-entry dispatch counter
+  the runaway-loop guard reads (cycle-scoped, so it resets on re-entry).
 - `artifact` — envelope `{name, workItem, stageId, cycle, payload, subjectVersion?, recordedAt}`;
   instances `artifact-<workItem>-<name>`; payload validated in method code
   against the definition's declared schema for that artifact.
 - `evidence` — `{name, workItem, stageId, cycle, payload, recordedAt}`;
-  instances `evidence-<workItem>-<name>`; payload schema-free (opaque by
-  design).
+  instances `evidence-<workItem>-<name>`; payload validated against the
+  evidence's declared schema (or, for a stage's `resultEvidence`, the built-in
+  outcome schema). Opaque to gates, but not unvalidated.
 - `approval` — `{gateId, workItem, decision: approved|rejected, actor, note, stageId, cycle}`;
   instances `approval-<workItem>-<gateId>`.
+- `validation` — `{target, targetKind, workItem, stageId, cycle, attempt, cleared, rejected?, errors, recordedAt}`;
+  instances `validation-<workItem>-<target>`. A recorded payload-validation
+  failure (the rejected value + path-bearing errors), written by
+  `record_artifact`/`record_evidence` when they reject a malformed payload and
+  re-thrown; bindable as retry feedback and auto-cleared when the target
+  records cleanly. Short GC (10) — transient feedback, not durable audit.
 - `journal` — append-only `{event, workItem, stageId, summary, payload, at}`;
   one versioned instance per work item. The audit trail, and the hook point
   for mirroring to trackers (a stage/skill concern, not an engine concern).
@@ -365,9 +416,15 @@ a reset run really does start fresh, with no stale-artifact leakage.
   item already has a run (resume is `status`, never `start`); an explicit
   `reset` requires human confirmation. Every other mutating method also
   takes `workItem`.
+- `record_dispatch {stageId?, mode?, runId?, note?}` — record that the current
+  stage's work is being executed (called before the work runs). Increments the
+  per-entry dispatch counter, journals a `dispatched` event, and drives the
+  runaway-loop guard: the second dispatch of an entry returns a loud
+  repeat-dispatch warning, the third is rejected as `runaway-loop-suspected`.
 - `record_artifact {name, payload, note?}` — validate against the configured
   schema; auto-capture subject version if `reviews:` is set; bump version.
-- `record_evidence {name, payload}` — opaque write.
+- `record_evidence {name, payload}` — validated write (declared schema, or the
+  built-in outcome schema for a stage's `resultEvidence`).
 - `resolve_findings {artifact, resolutions: [{findingId, note}]}` — for
   `kind: findings` artifacts only.
 - `approve {gateId, actor, note?}` / `reject {gateId, actor, note}` — human
@@ -407,6 +464,10 @@ transition name is unaffected).
   exists from the current stage, or is a global transition.
 - `gates-satisfied` — evaluate the chosen transition's gates via the gate
   library; fail with the aggregated per-gate reasons.
+- `stage-executed` — advancing out of a work-bearing stage by one of its own
+  (non-global) transitions requires a `record_dispatch` for the current entry,
+  so the work can't be silently skipped. Global escape-hatch transitions are
+  exempt.
 - `cycle-limits` — see below.
 
 **Defense in depth**: non-required checks are skippable via CLI flags, and
@@ -421,8 +482,12 @@ set `checks: { require: [...] }` on factory definitions as standard practice.
 exactly one initial stage; ≥1 terminal; transition targets exist; every
 non-terminal stage has ≥1 outgoing transition (counting global ones); gate
 `artifact`/`evidence`/`stage` references resolve; `reviews:` links are
-acyclic; all artifact schemas compile to zod; every stage reachable from
-initial and a terminal reachable from every stage (warning).
+acyclic; all artifact schemas compile to zod; **every artifact declares a
+schema or is `kind: findings`; every declared evidence declares a schema;
+artifact/evidence/`inputsSchema` schemas are `type: object`** (a stage's
+`resultEvidence` is exempt — it inherits the built-in outcome schema); every
+stage reachable from initial and a terminal reachable from every stage
+(warning).
 
 **Cycle semantics**: re-entering a stage increments its cycle counter.
 Approvals and evidence are scoped to `(stageId, cycle)` — sending work back
@@ -437,6 +502,20 @@ A human grants one additional entry at a time via
 `approve {gateId: cycle-override:<stage>}` (scoped to that entry, like any
 approval), or takes an escalation/abort transition instead. The trip is
 journaled, and `status` always shows per-stage cycle counts against limits.
+
+**Dispatch limits are the within-entry counterpart.** `maxCycles` caps
+re-*entries* (advances back into a stage); it does nothing about a stage that
+is re-*dispatched* within a single entry without ever advancing — the loop that
+arises when a stage's work runs but fails to record its product, so `status`
+keeps demanding it and the driver keeps re-running. `record_dispatch` records
+each execution into the per-entry `dispatches` counter; `maxDispatchesPerCycle`
+(default **2**) caps it. Unlike `maxCycles`, tripping it is a **hard fail**
+(`runaway-loop-suspected`), not a human-override park: a within-entry
+re-dispatch loop is almost always a recording or work-spec defect, so the right
+response is to stop and surface diagnostics (missing products, failing gates,
+attempt history) rather than grant more attempts. The two limits compose: total
+work per stage is bounded by `maxCycles × maxDispatchesPerCycle`, both
+deterministic and both recorded.
 
 ## Runtime protocol — how a run is driven
 
@@ -604,6 +683,7 @@ software-factory/
     sdlc-classic.yaml          # plan→review→implement→test→release→uat definition
     feature-factory.yaml       # the walkthrough: dual-skill reviews, test workflow, loop-backs
     minimal.yaml               # two stages, one gate — the hello-world
+    retry-feedback.yaml        # LLM method with validation-feedback retry
 ```
 
 The "adversarial review, comprehensive testing, release, UAT" lifecycle from
@@ -637,6 +717,44 @@ expresses it, not a privileged path.
    && isLatest == true`). Caveat: summaries are GC'd (30d / 5 versions), so
    the gate verifies fresh outcomes within the current cycle window — the
    journal is the durable audit.
+6. ~~Unvalidated data at stage boundaries~~ — **resolved**: strong schemas
+   end-to-end. Every artifact and every declared evidence carries a schema
+   (graph-enforced as a hard error); payloads validate on
+   `record_artifact`/`record_evidence`; object payloads are strict by default
+   with `additionalProperties: true` the escape hatch; a stage's
+   `resultEvidence` is validated against a built-in outcome contract
+   (`{status, runId, outputs?}`) so a "succeeded but recorded nothing" workflow
+   fails loudly instead of trapping the driver in a silent re-dispatch loop;
+   `inputsSchema` validates a `method`/`workflow` stage's resolved inputs and
+   surfaces drift as `invalidInputs`; resource envelopes are typed zod.
+
+7. ~~Runaway re-dispatch loop (lab #757)~~ — **resolved**: a deterministic,
+   engine-tracked guard. `record_dispatch` records each stage execution into a
+   cycle-scoped `dispatches` counter in run state; the `stage-executed` check
+   makes a recorded dispatch a precondition for advancing out of a work-bearing
+   stage (so work can't be skipped, and execution is always provable); and
+   `maxDispatchesPerCycle` (default 2) hard-fails the third dispatch of an entry
+   with `runaway-loop-suspected` diagnostics. This is the within-entry
+   counterpart to `maxCycles`, and it closes the "workflow succeeded but
+   recorded nothing → re-dispatch forever" loop without relying on the agent to
+   count.
+
+8. ~~Retry-with-validation-feedback (lab #786)~~ — **resolved**, engine-owned,
+   no new subsystem. The engine already detects malformed LLM output at the
+   record seam (strong schemas above); it now also **records** each rejection as
+   a `validation-<target>` run-data record (write-then-throw) holding the
+   rejected value + path-bearing errors, auto-clears it on a clean record, and
+   surfaces it in `status`. A retry stage binds the whole record back into its
+   model call (`feedback: '${{ data.latest(self.name, "validation-<target>") }}'`),
+   and the loop is bounded by the dispatch guard (#757) — `maxDispatchesPerCycle`
+   *is* the retry budget. The engine never makes the LLM call: it records the
+   failure deterministically (so headless drivers work too) and leaves the
+   re-prompt to whoever owns the model call. The #786 proposal assumed an
+   engine-level `llmRetry` that re-invokes the model; that would break the
+   record-keeper non-goal, so we landed the detection/recording half in the
+   engine and left re-invocation at the call layer (driver or method-internal
+   structured output).
+
 5. ~~CEL evaluation timing~~ — **resolved**: no custom sigil. Bindings are
    platform CEL over the platform data namespace, evaluated by the engine at
    stage execution time via `context.createCelEnvironment()`, reading raw

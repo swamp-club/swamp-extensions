@@ -50,6 +50,14 @@ export class RunDataReceiver {
         ? { ...view.latest, version: view.version }
         : null;
     }
+    if (dataName.startsWith("validation-")) {
+      const view = this.view.validations.get(
+        dataName.slice("validation-".length),
+      );
+      return view !== undefined
+        ? { ...view.latest, version: view.version }
+        : null;
+    }
     return null;
   }
 }

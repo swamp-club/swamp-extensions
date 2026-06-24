@@ -29,10 +29,12 @@ know what any stage *means*.
 ## Core principles
 
 1. **`status` is the contract.** Always ask the model what is required;
-   never assume a lifecycle. The `STATUS_JSON` line in `status` output is a
-   self-describing packet: current stage, work spec (with run-data bindings
+   never assume a lifecycle. `status` persists a `status-<workItem>` record —
+   a self-describing packet: current stage, work spec (with run-data bindings
    resolved), per-transition gate results with reasons, context manifest, and
-   cycle counts.
+   cycle counts — and returns it as a data handle. Read exactly the fields you
+   need with `swamp data query` (e.g. the satisfied transitions, the failing
+   gates' reasons), never the whole blob.
 2. **Never satisfy a `human-approval` gate without explicit human
    instruction.** Calling `approve` on a human's behalf without their say-so
    is forbidden. Rejections need the human's reason verbatim. When
@@ -71,7 +73,7 @@ swamp model method run <factory-name> start --input workItem=<ref>
 
 Definitions can be seeded from the bundled
 [references/examples/](references/examples/) — `minimal.yaml`,
-`feature-factory.yaml`, `sdlc-classic.yaml` — read
+`feature-factory.yaml`, `sdlc-classic.yaml`, `retry-feedback.yaml` — read
 [references/authoring.md](references/authoring.md) before writing or editing
 one. Have the human confirm the definition (run `describe` and show them the
 Mermaid) before `start`.
@@ -81,10 +83,14 @@ Mermaid) before `start`.
 Read [references/driving.md](references/driving.md) for the full loop and
 method reference. In short:
 
-1. `swamp model method run <factory> status --input workItem=<ref>` →
-   parse `STATUS_JSON`. (Without `workItem` you get a factory-wide overview
-   of every run.)
-2. Execute the current stage's `work` spec:
+1. `swamp model method run <factory> status --input workItem=<ref>` refreshes
+   the `status-<workItem>` record; query the fields you need. (Without
+   `workItem` it refreshes `status-_factory`, a factory-wide overview of every
+   run.)
+2. If the stage has a `work` block, `record_dispatch workItem=<ref>` **before**
+   executing it — a work-bearing stage can't advance until its execution is
+   recorded, and this arms the runaway-loop guard (a repeat dispatch warns; the
+   third hard-fails). Then execute the current stage's `work` spec:
    - `interactive`: do the work yourself, loading the listed `skills` and
      the `constraints` file if present.
    - `dispatch`: spawn one subagent **per listed skill** in parallel, each
@@ -119,6 +125,7 @@ escalation/abort transition, or rethink the approach.
 | Overview of all runs | `swamp model method run <factory> status` |
 | See what's next | `swamp model method run <factory> status --input workItem=<ref>` |
 | Start a work item | `swamp model method run <factory> start --input workItem=<ref>` |
+| Mark a stage's work as running | `swamp model method run <factory> record_dispatch --input workItem=<ref>` (before executing the work) |
 | Record a work product | `swamp model method run <factory> record_artifact --input workItem=<ref> --input name=<n> --input payload='<json>'` |
 | Record an external fact | `swamp model method run <factory> record_evidence --input workItem=<ref> --input name=<n> --input payload='<json>'` |
 | Resolve review findings | `swamp model method run <factory> resolve_findings --input workItem=<ref> --input artifact=<n> --input resolutions='<json>'` |

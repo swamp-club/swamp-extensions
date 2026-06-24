@@ -32,6 +32,13 @@ export const NameSchema = z.string().regex(
 /** Default re-entry limit for every stage. Never unlimited-by-omission. */
 export const DEFAULT_MAX_CYCLES = 5;
 
+/**
+ * Default dispatches allowed per stage entry before the runaway-loop guard
+ * hard-fails. 2 = one normal execution plus one tolerated retry; the third
+ * dispatch of the same (stage, cycle) is rejected as a suspected loop.
+ */
+export const DEFAULT_MAX_DISPATCHES = 2;
+
 /** Reserved approval-id prefix for cycle-limit overrides. */
 export const CYCLE_OVERRIDE_PREFIX = "cycle-override:";
 
@@ -48,6 +55,12 @@ export type DeclaredSchema = {
   description?: string;
   properties?: Record<string, DeclaredSchema>;
   required?: string[];
+  /**
+   * Object payloads reject undeclared keys by default (strong-by-default).
+   * Set `additionalProperties: true` on an object to allow open-ended keys —
+   * the explicit escape hatch where a payload genuinely needs them.
+   */
+  additionalProperties?: boolean;
   items?: DeclaredSchema;
   enum?: (string | number)[];
   pattern?: string;
@@ -72,6 +85,7 @@ export const DeclaredSchemaSchema: z.ZodType<DeclaredSchema> = z.lazy(() =>
     description: z.string().optional(),
     properties: z.record(z.string(), DeclaredSchemaSchema).optional(),
     required: z.array(z.string()).optional(),
+    additionalProperties: z.boolean().optional(),
     items: DeclaredSchemaSchema.optional(),
     enum: z.array(z.union([z.string(), z.number()])).optional(),
     pattern: z.string().optional(),
@@ -208,6 +222,13 @@ export const WorkSchema = z.strictObject({
   context: WorkContextSchema.optional(),
   workflow: WorkflowCallSchema.optional(),
   method: MethodCallSchema.optional(),
+  /**
+   * Schema the resolved input bindings (workflow.inputs / method.inputs)
+   * must satisfy before dispatch. The engine validates resolved values
+   * against it and surfaces violations in `status` as `invalidInputs`, so a
+   * type-drifted upstream value is caught at the boundary the factory owns.
+   */
+  inputsSchema: DeclaredSchemaSchema.optional(),
   resultEvidence: NameSchema.optional(),
 }).superRefine((work, ctx) => {
   if (work.mode === "workflow" && work.workflow === undefined) {
@@ -222,6 +243,17 @@ export const WorkSchema = z.strictObject({
       code: "custom",
       message: "mode 'method' requires a method block",
       path: ["method"],
+    });
+  }
+  if (
+    work.inputsSchema !== undefined &&
+    work.mode !== "workflow" && work.mode !== "method"
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      message:
+        "inputsSchema only applies to mode 'workflow' or 'method' (the modes with input bindings)",
+      path: ["inputsSchema"],
     });
   }
 });
@@ -245,6 +277,15 @@ export type ArtifactSpec = z.infer<typeof ArtifactSpecSchema>;
 export const EvidenceSpecSchema = z.strictObject({
   name: NameSchema,
   description: z.string().optional(),
+  /**
+   * Payload contract for this evidence, validated on `record_evidence`.
+   * Evidence is opaque to gates, but its shape is not unchecked: every
+   * declared evidence carries a schema (graph validation enforces it). A
+   * stage's `resultEvidence` is exempt — it inherits the engine's built-in
+   * outcome schema (`{status, runId, outputs?}`) unless an explicit evidence
+   * entry of the same name overrides it.
+   */
+  schema: DeclaredSchemaSchema.optional(),
 });
 
 export type EvidenceSpec = z.infer<typeof EvidenceSpecSchema>;
@@ -265,6 +306,7 @@ export const StageSchema = z.strictObject({
   initial: z.boolean().optional(),
   terminal: z.boolean().optional(),
   maxCycles: z.number().int().positive().optional(),
+  maxDispatchesPerCycle: z.number().int().positive().optional(),
   work: WorkSchema.optional(),
   artifacts: z.array(ArtifactSpecSchema).optional(),
   evidence: z.array(EvidenceSpecSchema).optional(),
@@ -331,6 +373,18 @@ export function initialStage(args: FactoryArguments): StageSpec | undefined {
 
 export function maxCyclesFor(stage: StageSpec): number {
   return stage.maxCycles ?? DEFAULT_MAX_CYCLES;
+}
+
+export function maxDispatchesFor(stage: StageSpec): number {
+  return stage.maxDispatchesPerCycle ?? DEFAULT_MAX_DISPATCHES;
+}
+
+/** Whether a transition name refers to a global (escape-hatch) transition. */
+export function isGlobalTransition(
+  args: FactoryArguments,
+  name: string,
+): boolean {
+  return (args.globalTransitions ?? []).some((t) => t.name === name);
 }
 
 /** All artifact specs across all stages, with their declaring stage id. */

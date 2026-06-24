@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/software-factory"
-version: "2026.06.16.1"
+version: "2026.06.24.1"
 description: |
   A fully generic, model-driven state machine for guiding agents through a
   software development lifecycle. The entire machine — stages, transitions,
@@ -20,10 +20,12 @@ description: |
   swamp model method run my-factory start --input workItem=ISSUE-42
   ```
 
-  The driver loop is the same for every factory: `status` returns a
+  The driver loop is the same for every factory: `status` persists a
   self-describing packet (current stage, work spec with run-data bindings
-  resolved, per-gate transition readiness, context manifest); the driver does
-  the stage's work, records products, and advances. Gates are hard
+  resolved, per-gate transition readiness, context manifest) as a queryable
+  `status-<workItem>` record, and the driver reads exactly the fields it needs
+  with `swamp data query --select` rather than re-parsing a whole blob; it then
+  does the stage's work, records products, and advances. Gates are hard
   enforcement — evaluated in pre-flight checks and re-validated inside
   `advance`.
 
@@ -33,8 +35,12 @@ description: |
     (refuses to restart; resume with `status`)
   - `status` — the driver's entrypoint: what a work item requires right now,
     or a factory-wide overview of all runs
+  - `record_dispatch` — record that a stage's work ran (before it runs); proves
+    execution so a stage can't be skipped, and drives the runaway-loop guard
+    (third dispatch of an entry hard-fails as runaway-loop-suspected)
   - `record_artifact` / `record_evidence` — versioned, schema-validated work
-    products; opaque external facts
+    products and external facts (every artifact and evidence carries a declared
+    schema, validated on record; strict objects by default)
   - `resolve_findings` — resolution notes on kind: findings artifacts
   - `approve` / `reject` — human gate decisions, cycle-scoped
   - `advance` — move along a gated transition
@@ -59,8 +65,12 @@ description: |
 
   All resources are versioned, immutable, and namespaced per work item:
   `state-<workItem>`, `artifact-<workItem>-<name>`,
-  `evidence-<workItem>-<name>`, `approval-<workItem>-<gateId>`, and an
-  append-only `journal-<workItem>`.
+  `evidence-<workItem>-<name>`, `approval-<workItem>-<gateId>`,
+  `validation-<workItem>-<target>` (recorded payload-validation failures,
+  bindable as retry feedback), an append-only `journal-<workItem>`, and a
+  `status-<workItem>` materialized view (refreshed on every `status` call;
+  `status-_factory` holds the fleet overview) that the driver queries instead
+  of scraping a log line.
 
 repository: "https://github.com/swamp-club/swamp-extensions"
 

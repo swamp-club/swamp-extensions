@@ -99,7 +99,19 @@ function fixtureDefinition(): Record<string, unknown> {
       {
         id: "implementing",
         work: { mode: "interactive" },
-        evidence: [{ name: "change-request" }],
+        evidence: [
+          {
+            name: "change-request",
+            schema: {
+              type: "object",
+              required: ["url"],
+              properties: {
+                url: { type: "string" },
+                status: { type: "string" },
+              },
+            },
+          },
+        ],
         transitions: [
           {
             name: "submit",
@@ -131,6 +143,7 @@ function fixtureDefinition(): Record<string, unknown> {
 function buildHarness(definition?: Record<string, unknown>) {
   const def = definition ?? fixtureDefinition();
   const store = new Map<string, Record<string, unknown>[]>();
+  const writeOrder: string[] = [];
   const logs: LogLine[] = [];
   const modelId = "11111111-2222-3333-4444-555555555555";
 
@@ -197,13 +210,14 @@ function buildHarness(definition?: Record<string, unknown>) {
       const versions = store.get(instanceName) ?? [];
       versions.push(structuredClone(data));
       store.set(instanceName, versions);
+      writeOrder.push(instanceName);
       return Promise.resolve({ name: instanceName, version: versions.length });
     },
     createCelEnvironment: () =>
       new Environment({ unlistedVariablesAreDyn: true }),
   };
 
-  return { context, store, logs, def };
+  return { context, store, writeOrder, logs, def };
 }
 
 type Harness = ReturnType<typeof buildHarness>;
@@ -217,12 +231,47 @@ function latest(
   return versions[versions.length - 1];
 }
 
+// The status view is now a queryable record (`status-<slug>` /
+// `status-_factory`), not a log line: read the most-recently-written status
+// record, exactly as a `swamp data query` on the latest version would.
 function statusJson(harness: Harness): Record<string, unknown> {
-  const line = [...harness.logs].reverse().find(
-    (l) => l.msg.includes("STATUS_JSON"),
+  const instance = [...harness.writeOrder].reverse().find(
+    (name) => name.startsWith("status-"),
   );
-  assert(line !== undefined, "no STATUS_JSON log line");
-  return JSON.parse(line.props.status as string) as Record<string, unknown>;
+  assert(instance !== undefined, "no status record written");
+  const versions = harness.store.get(instance);
+  assert(versions !== undefined && versions.length > 0, `empty ${instance}`);
+  return versions[versions.length - 1] as Record<string, unknown>;
+}
+
+// Faithful stand-in for `swamp data query --select <expr>`: the platform's
+// DataQueryService builds this exact cel-js Environment, parses the select
+// expression, and evaluates it against each record with the parsed JSON
+// content bound as `attributes` (see swamp/src/domain/data/data_query_service.ts).
+// We JSON round-trip the record so the projection sees exactly what the query
+// reads back from disk (undefined fields dropped, etc.).
+const QUERY_ENV = new Environment({
+  unlistedVariablesAreDyn: true,
+  homogeneousAggregateLiterals: false,
+});
+
+function dataQuerySelect(
+  harness: Harness,
+  instance: string,
+  select: string,
+): unknown {
+  const versions = harness.store.get(instance);
+  assert(
+    versions !== undefined && versions.length > 0,
+    `no ${instance} record`,
+  );
+  const attributes = JSON.parse(
+    JSON.stringify(versions[versions.length - 1]),
+  ) as Record<string, unknown>;
+  const project = QUERY_ENV.parse(select) as unknown as (
+    ctx: Record<string, unknown>,
+  ) => unknown;
+  return project({ attributes, name: instance, version: versions.length });
 }
 
 async function runCheck(
@@ -254,7 +303,21 @@ async function recordPlan(
   );
 }
 
+/** Record that the current stage's work ran (mirrors the real driver loop). */
+async function dispatch(harness: Harness, workItem = WI) {
+  await model.methods.record_dispatch.execute({ workItem }, harness.context);
+}
+
 async function advance(harness: Harness, transition: string, workItem = WI) {
+  // The real driver dispatches a stage's work before advancing out of it; do
+  // the same here so the stage-executed precondition is satisfied. Cases where
+  // dispatch doesn't apply (no work / terminal) are harmless — `advance`
+  // re-enforces the requirement where it actually matters.
+  try {
+    await model.methods.record_dispatch.execute({ workItem }, harness.context);
+  } catch {
+    // not dispatchable from here; advance will enforce if it's required
+  }
   await model.methods.advance.execute(
     { workItem, transition },
     harness.context,
@@ -516,6 +579,414 @@ Deno.test("record_evidence: only evidence declared on the current stage", async 
     Error,
   );
   assertStringIncludes(error.message, "not declared on stage 'planning'");
+});
+
+Deno.test("record_evidence: validates payload against the declared schema", async () => {
+  const def = {
+    stages: [
+      {
+        id: "impl",
+        initial: true,
+        work: { mode: "interactive" },
+        evidence: [
+          {
+            name: "cr",
+            schema: {
+              type: "object",
+              required: ["url"],
+              properties: { url: { type: "string" } },
+            },
+          },
+        ],
+        transitions: [
+          {
+            name: "go",
+            to: "done",
+            gates: [{ type: "evidence-recorded", config: { name: "cr" } }],
+          },
+        ],
+      },
+      { id: "done", terminal: true },
+    ],
+  };
+  const harness = buildHarness(def);
+  await startRun(harness);
+
+  // Missing the required field is rejected with a path-bearing reason.
+  const missing = await assertRejects(
+    () =>
+      model.methods.record_evidence.execute(
+        { workItem: WI, name: "cr", payload: { note: "no url" } },
+        harness.context,
+      ),
+    Error,
+  );
+  assertStringIncludes(missing.message, "Evidence 'cr' payload is invalid");
+  assertStringIncludes(missing.message, "url");
+
+  // Undeclared keys are rejected too (strict by default).
+  await assertRejects(
+    () =>
+      model.methods.record_evidence.execute(
+        { workItem: WI, name: "cr", payload: { url: "x", extra: 1 } },
+        harness.context,
+      ),
+    Error,
+    "invalid",
+  );
+
+  // A conforming payload records cleanly.
+  await model.methods.record_evidence.execute(
+    { workItem: WI, name: "cr", payload: { url: "https://pr/1" } },
+    harness.context,
+  );
+  assertEquals(
+    (latest(harness, "evidence-TEST-1-cr").payload as { url: string }).url,
+    "https://pr/1",
+  );
+});
+
+Deno.test("record_evidence: resultEvidence is validated against the built-in outcome schema", async () => {
+  const def = {
+    stages: [
+      {
+        id: "test",
+        initial: true,
+        work: {
+          mode: "workflow",
+          workflow: { name: "@acme/tests" },
+          resultEvidence: "test-run",
+        },
+        transitions: [{ name: "pass", to: "done" }],
+      },
+      { id: "done", terminal: true },
+    ],
+  };
+  const harness = buildHarness(def);
+  await startRun(harness);
+
+  // "Succeeded but recorded nothing" — the #757 hole — now fails loudly.
+  const empty = await assertRejects(
+    () =>
+      model.methods.record_evidence.execute(
+        { workItem: WI, name: "test-run", payload: {} },
+        harness.context,
+      ),
+    Error,
+  );
+  assertStringIncludes(empty.message, "test-run' payload is invalid");
+
+  // An out-of-enum status is rejected.
+  await assertRejects(
+    () =>
+      model.methods.record_evidence.execute(
+        {
+          workItem: WI,
+          name: "test-run",
+          payload: { status: "ok", runId: "r" },
+        },
+        harness.context,
+      ),
+    Error,
+    "invalid",
+  );
+
+  // A well-formed outcome records.
+  await model.methods.record_evidence.execute(
+    {
+      workItem: WI,
+      name: "test-run",
+      payload: { status: "succeeded", runId: "run-42" },
+    },
+    harness.context,
+  );
+  assertEquals(
+    (latest(harness, "evidence-TEST-1-test-run").payload as { status: string })
+      .status,
+    "succeeded",
+  );
+});
+
+Deno.test("status: invalidInputs flags inputs that drift from inputsSchema", async () => {
+  const def = {
+    stages: [
+      {
+        id: "planning",
+        initial: true,
+        work: { mode: "interactive" },
+        artifacts: [
+          {
+            name: "plan",
+            schema: {
+              type: "object",
+              required: ["summary"],
+              properties: { summary: { type: "string" } },
+            },
+          },
+        ],
+        transitions: [
+          {
+            name: "submit",
+            to: "calling",
+            gates: [{ type: "artifact-exists", config: { artifact: "plan" } }],
+          },
+        ],
+      },
+      {
+        id: "calling",
+        work: {
+          mode: "method",
+          method: {
+            modelIdOrName: "@acme/planner",
+            methodName: "generate",
+            inputs: {
+              count:
+                '${{ data.latest(self.name, "artifact-plan").payload.summary }}',
+            },
+          },
+          inputsSchema: {
+            type: "object",
+            required: ["count"],
+            properties: { count: { type: "number" } },
+          },
+          resultEvidence: "out",
+        },
+        transitions: [{ name: "pass", to: "done" }],
+      },
+      { id: "done", terminal: true },
+    ],
+  };
+  const harness = buildHarness(def);
+  await startRun(harness);
+  await recordPlan(harness, "not-a-number");
+  await advance(harness, "submit");
+  await model.methods.status.execute({ workItem: WI }, harness.context);
+
+  const status = statusJson(harness);
+  const invalid = status.invalidInputs as { path: string; message: string }[];
+  assert(invalid.length > 0, "expected an invalidInputs entry");
+  assert(invalid.some((i) => i.path === "count"));
+});
+
+// ---------------------------------------------------------------------------
+// record_dispatch / stage-executed: deterministic loop guard
+// ---------------------------------------------------------------------------
+
+Deno.test("record_dispatch: counts per entry and resets on re-entry", async () => {
+  const harness = buildHarness();
+  await startRun(harness);
+  await dispatch(harness);
+  let state = latest(harness, "state-TEST-1");
+  assertEquals(state.dispatches, { planning: { cycle: 1, count: 1 } });
+
+  // Drive to review without the auto-dispatching helper, so the counter is
+  // exactly what record_dispatch wrote.
+  await recordPlan(harness);
+  await model.methods.advance.execute(
+    { workItem: WI, transition: "submit" },
+    harness.context,
+  );
+  state = latest(harness, "state-TEST-1");
+  // planning's counter persists for audit; review has not been dispatched yet.
+  assertEquals(
+    (state.dispatches as Record<string, unknown>).review,
+    undefined,
+  );
+
+  await dispatch(harness); // dispatch review (a fresh entry → counts from 1)
+  state = latest(harness, "state-TEST-1");
+  assertEquals(
+    (state.dispatches as Record<string, { cycle: number; count: number }>)
+      .review,
+    { cycle: 1, count: 1 },
+  );
+});
+
+Deno.test("record_dispatch: third dispatch trips the runaway-loop guard", async () => {
+  const harness = buildHarness();
+  await startRun(harness);
+  await dispatch(harness); // attempt 1
+  await dispatch(harness); // attempt 2 — records, warns
+
+  const warned = harness.logs.some((l) =>
+    l.msg.startsWith("WARN") &&
+    String(l.props.feedback ?? "").includes("repeat-dispatch")
+  );
+  assert(warned, "expected a repeat-dispatch warning on attempt 2");
+
+  const err = await assertRejects(
+    () =>
+      model.methods.record_dispatch.execute({ workItem: WI }, harness.context),
+    Error,
+  );
+  assertStringIncludes(err.message, "runaway-loop-suspected");
+  // Diagnostics name the product the stage kept failing to record.
+  assertStringIncludes(err.message, "artifact 'plan'");
+});
+
+Deno.test("stage-executed: advancing a work stage requires a dispatch", async () => {
+  const harness = buildHarness();
+  await startRun(harness);
+  await recordPlan(harness); // the gate (artifact-exists) is otherwise satisfied
+
+  const err = await assertRejects(
+    () =>
+      model.methods.advance.execute(
+        { workItem: WI, transition: "submit" },
+        harness.context,
+      ),
+    Error,
+  );
+  assertStringIncludes(err.message, "no recorded execution");
+  assertStringIncludes(err.message, "record_dispatch");
+
+  const check = await runCheck(harness, "stage-executed", "advance", {
+    workItem: WI,
+    transition: "submit",
+  });
+  assertEquals(check.pass, false);
+
+  await dispatch(harness);
+  await model.methods.advance.execute(
+    { workItem: WI, transition: "submit" },
+    harness.context,
+  );
+  assertEquals(latest(harness, "state-TEST-1").stageId, "review");
+});
+
+Deno.test("stage-executed: global escape-hatch transitions are exempt", async () => {
+  const harness = buildHarness();
+  await startRun(harness);
+  // `abort` is a global transition — available without dispatching the stage.
+  const check = await runCheck(harness, "stage-executed", "advance", {
+    workItem: WI,
+    transition: "abort",
+  });
+  assertEquals(check.pass, true);
+});
+
+Deno.test("status: surfaces the dispatch counter for the current stage", async () => {
+  const harness = buildHarness();
+  await startRun(harness);
+  await model.methods.status.execute({ workItem: WI }, harness.context);
+  assertEquals(statusJson(harness).dispatch, {
+    cycle: 1,
+    attempts: 0,
+    limit: 2,
+    required: true,
+    executed: false,
+  });
+
+  await dispatch(harness);
+  await model.methods.status.execute({ workItem: WI }, harness.context);
+  const d = statusJson(harness).dispatch as {
+    attempts: number;
+    executed: boolean;
+  };
+  assertEquals(d.attempts, 1);
+  assertEquals(d.executed, true);
+});
+
+// ---------------------------------------------------------------------------
+// record_validation feedback: failures are recorded, bindable, and cleared
+// ---------------------------------------------------------------------------
+
+Deno.test("record_artifact: a rejected payload is recorded as validation feedback, then cleared on success", async () => {
+  const harness = buildHarness();
+  await startRun(harness);
+
+  // Invalid payload (missing summary, stray key) is rejected loudly…
+  const err = await assertRejects(
+    () =>
+      model.methods.record_artifact.execute(
+        { workItem: WI, name: "plan", payload: { wrong: true } },
+        harness.context,
+      ),
+    Error,
+  );
+  assertStringIncludes(err.message, "payload is invalid");
+
+  // …and the failure is persisted for a retry to read back.
+  const failure = latest(harness, "validation-TEST-1-plan");
+  assertEquals(failure.target, "plan");
+  assertEquals(failure.targetKind, "artifact");
+  assertEquals(failure.cleared, false);
+  assertEquals(failure.rejected, { wrong: true });
+  assert((failure.errors as string[]).length > 0);
+
+  // A clean record clears it (so a later read never binds a stale failure).
+  await recordPlan(harness, "now valid");
+  assertEquals(latest(harness, "validation-TEST-1-plan").cleared, true);
+});
+
+Deno.test("validation feedback binds via data.latest — null when absent, the record when open", async () => {
+  const def = {
+    stages: [
+      {
+        id: "gen",
+        initial: true,
+        work: {
+          mode: "method",
+          method: {
+            modelIdOrName: "@my/planner",
+            methodName: "generate",
+            inputs: {
+              feedback: '${{ data.latest(self.name, "validation-out") }}',
+            },
+          },
+          resultEvidence: "out",
+        },
+        transitions: [
+          {
+            name: "pass",
+            to: "done",
+            gates: [
+              {
+                type: "evidence-recorded",
+                config: { name: "out", requireField: { status: "succeeded" } },
+              },
+            ],
+          },
+        ],
+      },
+      { id: "done", terminal: true },
+    ],
+  };
+  const harness = buildHarness(def);
+  await startRun(harness);
+
+  // First attempt: no failure recorded yet → the binding resolves to null
+  // (not an error), so it plugs in cleanly on the happy path.
+  await model.methods.status.execute({ workItem: WI }, harness.context);
+  const work1 = statusJson(harness).work as {
+    method: { inputs: { feedback: unknown } };
+  };
+  assertEquals(work1.method.inputs.feedback, null);
+
+  // The method "returns" a malformed outcome → rejected and recorded.
+  await assertRejects(
+    () =>
+      model.methods.record_evidence.execute(
+        { workItem: WI, name: "out", payload: { status: "weird" } },
+        harness.context,
+      ),
+    Error,
+  );
+
+  // Now the binding resolves to the validation record — the retry's prompt
+  // can read .errors and .rejected straight out of it.
+  await model.methods.status.execute({ workItem: WI }, harness.context);
+  const status2 = statusJson(harness);
+  const feedback = (status2.work as {
+    method: { inputs: { feedback: Record<string, unknown> | null } };
+  }).method.inputs.feedback;
+  assert(feedback !== null);
+  assertEquals(feedback.target, "out");
+  assert(Array.isArray(feedback.errors));
+
+  // It also shows up in the status `validations` block for any driver.
+  const open = status2.validations as { target: string }[];
+  assert(open.some((v) => v.target === "out"));
 });
 
 // ---------------------------------------------------------------------------
@@ -982,6 +1453,103 @@ Deno.test("status: reports not-started for an unknown work item", async () => {
   assertEquals(status.workItem, "TEST-1");
 });
 
+Deno.test("status: persists a queryable record, not just a log line", async () => {
+  const harness = buildHarness();
+  await startRun(harness);
+  await recordPlan(harness, "central focus manager");
+
+  // The status method writes status-<slug> and returns it as a data handle —
+  // the driver queries the record instead of scraping a STATUS_JSON log line.
+  const result = await model.methods.status.execute(
+    { workItem: WI },
+    harness.context,
+  );
+  assertEquals(result.dataHandles.map((h) => h.name), ["status-TEST-1"]);
+
+  // No STATUS_JSON log line is emitted anymore.
+  assert(
+    !harness.logs.some((l) => l.msg.includes("STATUS_JSON")),
+    "STATUS_JSON log line should be gone — the view is queryable data now",
+  );
+
+  // The persisted record is exactly what `swamp data query` reads back as the
+  // latest version's `attributes`; the driver projects fields off it.
+  const record = harness.store.get("status-TEST-1")!.at(-1)!;
+  assertEquals((record.stage as { id: string }).id, "planning");
+  const satisfied =
+    (record.transitions as { name: string; satisfied: boolean }[])
+      .filter((t) => t.satisfied).map((t) => t.name);
+  assertEquals(satisfied, ["submit"]);
+
+  // Re-running refreshes the same instance (a read-time view, not history).
+  await model.methods.status.execute({ workItem: WI }, harness.context);
+  assertEquals(harness.store.get("status-TEST-1")!.length, 2);
+});
+
+// Every `swamp data query --select` projection shown in the skill docs
+// (references/driving.md, README.md) is exercised here against a real status
+// record so the docs can't drift from what actually evaluates. The expressions
+// below are copied verbatim from those files (modulo the instance name).
+Deno.test("status: documented data-query projections evaluate", async () => {
+  const harness = buildHarness();
+  await startRun(harness);
+  await recordPlan(harness, "central focus manager");
+  await advance(harness, "submit"); // now at the gated `review` stage
+  await model.methods.status.execute({ workItem: WI }, harness.context);
+  const inst = "status-TEST-1";
+
+  // driving.md — the propulsion decision: which transitions are satisfied?
+  assertEquals(
+    dataQuerySelect(
+      harness,
+      inst,
+      "attributes.transitions.filter(t, t.satisfied).map(t, t.name)",
+    ),
+    ["rework"],
+  );
+
+  // driving.md — why is the gated transition blocked? (gate reasons)
+  // `approve` is gated; the global `abort` transition is also gated here.
+  const blocked = dataQuerySelect(
+    harness,
+    inst,
+    'attributes.transitions.filter(t, !t.satisfied).map(t, {"transition": t.name, "blockedBy": t.gates.filter(g, !g.pass).map(g, g.reasons)})',
+  ) as { transition: string; blockedBy: string[][] }[];
+  assertEquals(blocked.map((b) => b.transition).sort(), ["abort", "approve"]);
+  const approve = blocked.find((b) => b.transition === "approve")!;
+  assert(approve.blockedBy.length > 0, "approve should list failing gates");
+  assert(
+    approve.blockedBy.flat().some((r) => r.includes("plan-approval")),
+    "the human-approval gate's reason should surface",
+  );
+
+  // driving.md — the resolved work spec for the current stage
+  const work = dataQuerySelect(harness, inst, "attributes.work") as {
+    mode: string;
+    systemPrompt: string;
+  };
+  assertEquals(work.mode, "dispatch");
+  assertEquals(work.systemPrompt, "Review: central focus manager");
+
+  // driving.md — what's parked for a human? (approve's and abort's gates)
+  assertEquals(
+    (dataQuerySelect(harness, inst, "attributes.pendingApprovals") as string[])
+      .sort(),
+    ["abort", "approve"],
+  );
+
+  // README.md — the whole transitions array
+  const transitions = dataQuerySelect(
+    harness,
+    inst,
+    "attributes.transitions",
+  ) as { name: string }[];
+  assertEquals(
+    transitions.map((t) => t.name).sort(),
+    ["abort", "approve", "rework"],
+  );
+});
+
 Deno.test("status: without workItem gives a factory-wide overview", async () => {
   const harness = buildHarness();
   await startRun(harness, "ISSUE-1");
@@ -1003,6 +1571,18 @@ Deno.test("status: without workItem gives a factory-wide overview", async () => 
   assertEquals(runs[0].status, "active");
   assertEquals(runs[1].workItem, "ISSUE-2");
   assertEquals(runs[1].stageId, "planning");
+
+  // The overview lands in its own queryable record (SKILL.md / README.md
+  // reference `status-_factory`); a projection reads it back like any other.
+  assertEquals(harness.writeOrder.at(-1), "status-_factory");
+  assertEquals(
+    dataQuerySelect(
+      harness,
+      "status-_factory",
+      "attributes.runs.map(r, r.workItem)",
+    ),
+    ["ISSUE-1", "ISSUE-2"],
+  );
 });
 
 Deno.test("status: self-describing packet with gates, manifest, and bindings", async () => {
@@ -1086,7 +1666,6 @@ async function driveToDone(harness: Harness) {
       workItem: WI,
       name: "plan-review",
       payload: {
-        summary: "plan is sound",
         findings: [{
           id: "F-1",
           severity: "medium",

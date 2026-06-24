@@ -29,6 +29,20 @@ export const RunStateSchema = z.object({
   workItem: z.string(),
   stageId: z.string(),
   cycles: z.record(z.string(), z.number().int().positive()),
+  /**
+   * Per-stage dispatch counter, scoped to the current entry into that stage.
+   * `record_dispatch` increments `count` while `cycle` matches the stage's
+   * current cycle, and resets to the new cycle on re-entry. The deterministic
+   * input to the runaway-loop guard: re-dispatching the same (stage, cycle)
+   * is counted from recorded state, not agent memory.
+   */
+  dispatches: z.record(
+    z.string(),
+    z.object({
+      cycle: z.number().int().positive(),
+      count: z.number().int().positive(),
+    }),
+  ).optional(),
   enteredAt: z.string(),
   status: z.enum(["active", "terminal"]),
   definitionVersion: z.number().int().positive(),
@@ -62,6 +76,30 @@ export const EvidenceEnvelopeSchema = z.object({
 
 export type EvidenceEnvelope = z.infer<typeof EvidenceEnvelopeSchema>;
 
+/**
+ * A recorded payload-validation failure, written by `record_artifact` /
+ * `record_evidence` when they reject a malformed payload (then re-thrown).
+ * It persists the rejected value and the path-bearing errors so a retry can
+ * bind them back into the model's prompt (`feedback`). `cleared: true` is the
+ * marker written when a later attempt records the target successfully — it
+ * keeps `data.latest(...)` truthful so a fresh entry never binds a stale
+ * failure.
+ */
+export const ValidationEnvelopeSchema = z.object({
+  target: z.string(),
+  targetKind: z.enum(["artifact", "evidence"]),
+  workItem: z.string(),
+  stageId: z.string(),
+  cycle: z.number().int().positive(),
+  attempt: z.number().int().nonnegative(),
+  cleared: z.boolean(),
+  rejected: z.unknown().optional(),
+  errors: z.array(z.string()),
+  recordedAt: z.string(),
+});
+
+export type ValidationEnvelope = z.infer<typeof ValidationEnvelopeSchema>;
+
 export const ApprovalRecordSchema = z.object({
   gateId: z.string(),
   workItem: z.string(),
@@ -86,6 +124,19 @@ export const JournalEntrySchema = z.object({
 
 export type JournalEntry = z.infer<typeof JournalEntrySchema>;
 
+/**
+ * The materialized `status` view: the full self-describing packet `status`
+ * computes (current stage, resolved work spec, per-transition gate results,
+ * context manifest, cycle counts) persisted as a queryable record
+ * (`status-<slug>`) instead of dumped to a log line. Its shape is large and
+ * partly dynamic (the embedded `work` spec varies per stage), so the resource
+ * layer validates only that it is a JSON object — the driver reads exactly the
+ * fields it needs with `swamp data query --select`, never the whole blob.
+ */
+export const StatusEnvelopeSchema = z.record(z.string(), z.unknown());
+
+export type StatusEnvelope = z.infer<typeof StatusEnvelopeSchema>;
+
 // ---------------------------------------------------------------------------
 // Work-item slugs and instance naming live in run_names.ts (zod-free so
 // report extensions can bundle them); re-exported here for the engine.
@@ -100,8 +151,13 @@ export {
   evidenceInstance,
   JOURNAL_PREFIX,
   journalInstance,
+  OVERVIEW_SLUG,
   STATE_PREFIX,
   stateInstance,
+  STATUS_PREFIX,
+  statusInstance,
+  VALIDATION_PREFIX,
+  validationInstance,
   workItemSlug,
 } from "./run_names.ts";
 
@@ -111,6 +167,7 @@ import {
   EVIDENCE_PREFIX,
   STATE_PREFIX,
   stateInstance,
+  VALIDATION_PREFIX,
 } from "./run_names.ts";
 
 // ---------------------------------------------------------------------------
@@ -155,10 +212,17 @@ export interface EvidenceView {
   version: number;
 }
 
+export interface ValidationView {
+  latest: ValidationEnvelope;
+  version: number;
+}
+
 export interface RunView {
   state: RunState | null;
   artifacts: Map<string, ArtifactView>;
   evidence: Map<string, EvidenceView>;
+  /** target name → latest validation-failure record (cleared or not). */
+  validations: Map<string, ValidationView>;
   /** gateId → every approval record, oldest first. */
   approvals: Map<string, ApprovalRecord[]>;
 }
@@ -180,12 +244,14 @@ export async function loadRunView(
     state: null,
     artifacts: new Map(),
     evidence: new Map(),
+    validations: new Map(),
     approvals: new Map(),
   };
 
   const stateName = stateInstance(slug);
   const artifactPrefix = `${ARTIFACT_PREFIX}${slug}-`;
   const evidencePrefix = `${EVIDENCE_PREFIX}${slug}-`;
+  const validationPrefix = `${VALIDATION_PREFIX}${slug}-`;
   const approvalPrefix = `${APPROVAL_PREFIX}${slug}-`;
 
   const entries = await repo.findAllForModel(modelType, modelId);
@@ -249,6 +315,23 @@ export async function loadRunView(
       continue;
     }
 
+    if (name.startsWith(validationPrefix)) {
+      const content = await repo.getContent(
+        modelType,
+        modelId,
+        name,
+        latestVersion,
+      );
+      if (content !== null) {
+        const envelope = ValidationEnvelopeSchema.parse(decode(content));
+        view.validations.set(envelope.target, {
+          latest: envelope,
+          version: latestVersion,
+        });
+      }
+      continue;
+    }
+
     if (name.startsWith(approvalPrefix)) {
       const records: ApprovalRecord[] = [];
       for (const version of versions) {
@@ -279,6 +362,9 @@ export async function loadRunView(
     }
     for (const [name, evidence] of [...view.evidence]) {
       if (evidence.latest.recordedAt < since) view.evidence.delete(name);
+    }
+    for (const [name, validation] of [...view.validations]) {
+      if (validation.latest.recordedAt < since) view.validations.delete(name);
     }
     for (const [gateId, records] of [...view.approvals]) {
       const kept = records.filter((r) => r.decidedAt >= since);
@@ -320,6 +406,18 @@ export async function loadAllRunStates(
   return states;
 }
 
+/**
+ * The live (uncleared) validation-failure record for a target, if one is
+ * open. A cleared record (a later attempt succeeded) reads as no failure.
+ */
+export function liveValidation(
+  view: RunView,
+  target: string,
+): ValidationView | undefined {
+  const record = view.validations.get(target);
+  return record !== undefined && !record.latest.cleared ? record : undefined;
+}
+
 /** Current cycle (entry count) of the run's current stage. */
 export function currentCycle(state: RunState): number {
   return state.cycles[state.stageId] ?? 1;
@@ -328,4 +426,18 @@ export function currentCycle(state: RunState): number {
 /** Entry count for an arbitrary stage (0 when never entered). */
 export function entriesInto(state: RunState, stageId: string): number {
   return state.cycles[stageId] ?? 0;
+}
+
+/**
+ * Dispatch attempts recorded for a stage during the given cycle (its current
+ * entry). Returns 0 when the stage was never dispatched this cycle — a stale
+ * counter from an earlier entry does not carry over.
+ */
+export function dispatchAttempts(
+  state: RunState,
+  stageId: string,
+  cycle: number,
+): number {
+  const record = state.dispatches?.[stageId];
+  return record !== undefined && record.cycle === cycle ? record.count : 0;
 }

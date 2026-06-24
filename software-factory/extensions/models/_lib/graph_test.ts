@@ -27,9 +27,20 @@ function base(): FactoryArguments {
         initial: true,
         artifacts: [
           { name: "out", kind: "findings", reviews: "input" },
-          { name: "input" },
+          {
+            name: "input",
+            schema: {
+              type: "object",
+              properties: { text: { type: "string" } },
+            },
+          },
         ],
-        evidence: [{ name: "proof" }],
+        evidence: [
+          {
+            name: "proof",
+            schema: { type: "object", properties: { url: { type: "string" } } },
+          },
+        ],
         transitions: [
           { name: "finish", to: "done" },
         ],
@@ -208,6 +219,74 @@ Deno.test("validateGraph: unreachable stages are errors", () => {
   const args = base();
   args.stages.push({ id: "island", transitions: [{ name: "x", to: "done" }] });
   assert(errorsOf(args).some((e) => e.includes("unreachable")));
+});
+
+Deno.test("validateGraph: every artifact must declare a schema", () => {
+  const args = base();
+  args.stages[0].artifacts!.push({ name: "loose-out" });
+  const errors = errorsOf(args);
+  assert(
+    errors.some((e) =>
+      e.includes("artifact 'loose-out'") && e.includes("has no schema")
+    ),
+  );
+  // The message points the agent at the skill docs to self-correct.
+  assert(errors.some((e) => e.includes("references/authoring.md")));
+});
+
+Deno.test("validateGraph: kind: findings satisfies the schema requirement", () => {
+  const args = base();
+  args.stages[0].artifacts!.push({ name: "more-findings", kind: "findings" });
+  assertEquals(errorsOf(args), []);
+});
+
+Deno.test("validateGraph: every declared evidence must declare a schema", () => {
+  const args = base();
+  args.stages[0].evidence!.push({ name: "bare-proof" });
+  assert(
+    errorsOf(args).some((e) =>
+      e.includes("evidence 'bare-proof'") && e.includes("has no schema")
+    ),
+  );
+});
+
+Deno.test("validateGraph: resultEvidence is exempt from the schema requirement", () => {
+  // A workflow stage's resultEvidence inherits the built-in outcome schema,
+  // so it needs no explicit declaration. (Covered structurally by the
+  // implicit-resultEvidence test; asserted here as the mandatory-schema rule.)
+  const args = FactoryArgumentsSchema.parse({
+    stages: [
+      {
+        id: "test",
+        initial: true,
+        work: {
+          mode: "workflow",
+          workflow: { name: "@acme/tests" },
+          resultEvidence: "test-run",
+        },
+        transitions: [{ name: "pass", to: "done" }],
+      },
+      { id: "done", terminal: true },
+    ],
+  });
+  assertEquals(errorsOf(args), []);
+});
+
+Deno.test("validateGraph: non-object artifact/evidence schemas are errors", () => {
+  const args = base();
+  args.stages[0].artifacts![1].schema = { type: "string" };
+  args.stages[0].evidence![0].schema = { type: "array" };
+  const errors = errorsOf(args);
+  assert(
+    errors.some((e) =>
+      e.includes("artifact 'input'") && e.includes("type: object")
+    ),
+  );
+  assert(
+    errors.some((e) =>
+      e.includes("evidence 'proof'") && e.includes("type: object")
+    ),
+  );
 });
 
 Deno.test("validateGraph: evidence-recorded resolves implicit resultEvidence", () => {

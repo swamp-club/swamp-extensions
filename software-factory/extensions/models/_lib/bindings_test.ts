@@ -54,6 +54,7 @@ function viewWith(): RunView {
         version: 1,
       },
     ]]),
+    validations: new Map(),
     approvals: new Map(),
   };
 }

@@ -27,8 +27,10 @@ import { SeveritySchema } from "./definition_schema.ts";
 // same path-bearing error messages — as everything else in swamp.
 // ---------------------------------------------------------------------------
 
-/** Payload shape required of `kind: findings` artifacts. */
-export const FindingSchema = z.looseObject({
+/** Payload shape required of `kind: findings` artifacts. Strict: a finding
+ * carries exactly the contract fields — drift (typo'd keys, stray data) is
+ * rejected, not silently absorbed. */
+export const FindingSchema = z.strictObject({
   id: z.string().min(1),
   severity: SeveritySchema,
   description: z.string().min(1),
@@ -39,11 +41,59 @@ export const FindingSchema = z.looseObject({
 
 export type Finding = z.infer<typeof FindingSchema>;
 
-export const FindingsPayloadSchema = z.looseObject({
+export const FindingsPayloadSchema = z.strictObject({
   findings: z.array(FindingSchema),
 });
 
 export type FindingsPayload = z.infer<typeof FindingsPayloadSchema>;
+
+/**
+ * Built-in payload contract for a stage's `resultEvidence` — the recorded
+ * outcome of a `workflow`/`method` stage. Required `status` + `runId` so a
+ * "succeeded but recorded nothing" outcome fails loudly at the write instead
+ * of leaving the gate quietly unsatisfied and the driver re-dispatching
+ * forever. Loose on extra keys: an outcome is an opaque external fact and a
+ * driver may attach context (duration, message). Authors who want a stricter
+ * outcome declare an explicit evidence entry of the same name with its own
+ * schema, which overrides this default.
+ */
+export const OutcomeEvidenceSchema = z.looseObject({
+  status: z.enum(["succeeded", "failed"]),
+  runId: z.string().min(1),
+  outputs: z.record(z.string(), z.unknown()).optional(),
+});
+
+/** Compiled object shape (zod fields) plus whether extra keys are allowed. */
+function compileObjectShape(
+  decl: DeclaredSchema,
+): { shape: Record<string, z.ZodType>; additional: boolean } {
+  const required = new Set(decl.required ?? []);
+  const shape: Record<string, z.ZodType> = {};
+  for (const [key, child] of Object.entries(decl.properties ?? {})) {
+    const compiled = compileDeclaredSchema(child);
+    shape[key] = required.has(key) ? compiled : compiled.optional();
+  }
+  for (const key of required) {
+    if (shape[key] === undefined) {
+      // Required key without a declared property: any value accepted,
+      // presence enforced.
+      shape[key] = z.unknown().refine(
+        (v) => v !== undefined,
+        "required",
+      );
+    }
+  }
+  return { shape, additional: decl.additionalProperties === true };
+}
+
+/** Build a zod object from a compiled shape: strict by default, loose when
+ * the declaration opts into `additionalProperties: true`. */
+function objectFromShape(
+  shape: Record<string, z.ZodType>,
+  additional: boolean,
+): z.ZodType {
+  return additional ? z.looseObject(shape) : z.strictObject(shape);
+}
 
 /** Compile a declared schema (validated subset) into a zod schema. */
 export function compileDeclaredSchema(decl: DeclaredSchema): z.ZodType {
@@ -90,27 +140,10 @@ export function compileDeclaredSchema(decl: DeclaredSchema): z.ZodType {
       return a;
     }
     case "object": {
-      const required = new Set(decl.required ?? []);
-      const shape: Record<string, z.ZodType> = {};
-      for (
-        const [key, child] of Object.entries(decl.properties ?? {})
-      ) {
-        const compiled = compileDeclaredSchema(child);
-        shape[key] = required.has(key) ? compiled : compiled.optional();
-      }
-      for (const key of required) {
-        if (shape[key] === undefined) {
-          // Required key without a declared property: any value accepted,
-          // presence enforced.
-          shape[key] = z.unknown().refine(
-            (v) => v !== undefined,
-            "required",
-          );
-        }
-      }
-      // Loose: undeclared keys pass through. The declared schema constrains
-      // what it names; it does not forbid extra payload fields.
-      return z.looseObject(shape);
+      // Strict by default: undeclared keys are rejected. The declaration
+      // opts back into open-ended payloads with `additionalProperties: true`.
+      const { shape, additional } = compileObjectShape(decl);
+      return objectFromShape(shape, additional);
     }
   }
 }
@@ -118,17 +151,36 @@ export function compileDeclaredSchema(decl: DeclaredSchema): z.ZodType {
 /**
  * Compile the full payload validator for an artifact spec: the declared
  * schema (if any) plus the findings contract (if `kind: findings`).
+ *
+ * A findings artifact that also declares a schema is merged into ONE strict
+ * object — intersecting two strict objects with `.and()` would reject every
+ * key, since each half forbids the other's fields.
  */
 export function compileArtifactSchema(spec: ArtifactSpec): z.ZodType {
-  const parts: z.ZodType[] = [];
-  if (spec.kind === "findings") parts.push(FindingsPayloadSchema);
-  if (spec.schema !== undefined) parts.push(compileDeclaredSchema(spec.schema));
-  if (parts.length === 0) {
-    // No declared constraints: any JSON object payload is acceptable.
-    return z.record(z.string(), z.unknown());
+  if (spec.kind === "findings") {
+    let shape: Record<string, z.ZodType> = {
+      findings: z.array(FindingSchema),
+    };
+    let additional = false;
+    if (spec.schema !== undefined) {
+      if (spec.schema.type !== "object") {
+        throw new Error(
+          "a kind: findings artifact's schema must be type: object " +
+            "(its payload is an object carrying a findings array)",
+        );
+      }
+      const obj = compileObjectShape(spec.schema);
+      // Declared properties first; the findings contract wins on conflict.
+      shape = { ...obj.shape, ...shape };
+      additional = obj.additional;
+    }
+    return objectFromShape(shape, additional);
   }
-  if (parts.length === 1) return parts[0];
-  return parts[0].and(parts[1]);
+  if (spec.schema !== undefined) return compileDeclaredSchema(spec.schema);
+  // No declared constraints. Mandatory-schema is enforced at graph validation,
+  // so a valid definition never reaches here; reject all keys defensively
+  // rather than silently accepting anything.
+  return z.strictObject({});
 }
 
 /** Format zod issues as compact, path-bearing reasons. */
@@ -148,6 +200,29 @@ export function validateArtifactPayload(
   payload: unknown,
 ): string[] | null {
   const result = compileArtifactSchema(spec).safeParse(payload);
+  if (result.success) return null;
+  return formatIssues(result.error);
+}
+
+/**
+ * Validate a payload against a declared schema (evidence payloads, resolved
+ * method/workflow inputs). Returns null when valid, else path-bearing errors.
+ */
+export function validateDeclaredPayload(
+  schema: DeclaredSchema,
+  payload: unknown,
+): string[] | null {
+  const result = compileDeclaredSchema(schema).safeParse(payload);
+  if (result.success) return null;
+  return formatIssues(result.error);
+}
+
+/**
+ * Validate a `resultEvidence` payload against the built-in outcome contract.
+ * Returns null when valid, else path-bearing errors.
+ */
+export function validateOutcomePayload(payload: unknown): string[] | null {
+  const result = OutcomeEvidenceSchema.safeParse(payload);
   if (result.success) return null;
   return formatIssues(result.error);
 }

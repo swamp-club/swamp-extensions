@@ -127,6 +127,53 @@ export function validateGraph(args: FactoryArguments): GraphValidation {
     }
   }
 
+  // Mandatory strong schemas. Every datum that crosses a stage boundary has a
+  // declared, validated contract: every artifact declares a schema (or is
+  // kind: findings, which carries a built-in findings contract); every
+  // explicitly-declared evidence declares a schema. A stage's resultEvidence
+  // is exempt — it inherits the engine's built-in outcome schema
+  // ({status, runId, outputs?}).
+  for (const { spec, stageId } of allArtifactSpecs(args)) {
+    if (spec.kind !== "findings" && spec.schema === undefined) {
+      errors.push(
+        `artifact '${spec.name}' (stage '${stageId}') has no schema. Every ` +
+          `artifact must declare a payload schema (or be kind: findings) so ` +
+          `its product is validated when recorded. Add one with ` +
+          `'swamp model edit <factory>' — e.g. ${SCHEMA_EXAMPLE}. ${SCHEMA_DOCS}`,
+      );
+    }
+    if (spec.schema !== undefined && spec.schema.type !== "object") {
+      errors.push(
+        `artifact '${spec.name}' (stage '${stageId}') schema must be ` +
+          `type: object — artifact payloads are JSON objects.`,
+      );
+    }
+  }
+  for (const stage of args.stages) {
+    for (const ev of stage.evidence ?? []) {
+      if (ev.schema === undefined) {
+        errors.push(
+          `evidence '${ev.name}' (stage '${stage.id}') has no schema. Every ` +
+            `declared evidence must declare a payload schema so it is ` +
+            `validated when recorded. Add one with ` +
+            `'swamp model edit <factory>' — e.g. ${SCHEMA_EXAMPLE}. ${SCHEMA_DOCS}`,
+        );
+      } else if (ev.schema.type !== "object") {
+        errors.push(
+          `evidence '${ev.name}' (stage '${stage.id}') schema must be ` +
+            `type: object — evidence payloads are JSON objects.`,
+        );
+      }
+    }
+    const inputsSchema = stage.work?.inputsSchema;
+    if (inputsSchema !== undefined && inputsSchema.type !== "object") {
+      errors.push(
+        `stage '${stage.id}' work.inputsSchema must be type: object — ` +
+          `method/workflow inputs are a key/value object.`,
+      );
+    }
+  }
+
   // Transitions: targets exist, names unique per stage, non-terminal stages
   // have a way out, terminal stages have no outgoing transitions.
   const validateTransitions = (
@@ -290,6 +337,15 @@ export function validateGraph(args: FactoryArguments): GraphValidation {
 
   return { errors, warnings };
 }
+
+/** A short inline schema example and a docs pointer for missing-schema
+ * errors. The driving agent reads the skill reference for the full keyword
+ * set rather than getting a paste-ready stub. */
+const SCHEMA_EXAMPLE =
+  "schema: { type: object, required: [field], properties: { field: { type: string } } }";
+const SCHEMA_DOCS =
+  "See 'Declaring schemas' in the software-factory skill's references/authoring.md " +
+  "for the full keyword set and the additionalProperties escape hatch.";
 
 function reachableFrom(args: FactoryArguments, startId: string): Set<string> {
   const byId = new Map<string, StageSpec>(args.stages.map((s) => [s.id, s]));

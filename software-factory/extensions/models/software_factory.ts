@@ -29,13 +29,17 @@ import {
   findArtifactSpec,
   findStage,
   initialStage,
+  isGlobalTransition,
   maxCyclesFor,
+  maxDispatchesFor,
   PlatformArgumentsSchema,
   transitionsFrom,
 } from "./_lib/definition_schema.ts";
 import {
   formatIssues,
   validateArtifactPayload,
+  validateDeclaredPayload,
+  validateOutcomePayload,
 } from "./_lib/artifact_schema.ts";
 import { validateGraph } from "./_lib/graph.ts";
 import type {
@@ -44,17 +48,30 @@ import type {
   DataRepositoryLike,
   RunState,
   RunView,
+  ValidationEnvelope,
 } from "./_lib/run_data.ts";
 import {
   approvalInstance,
+  ApprovalRecordSchema,
+  ArtifactEnvelopeSchema,
   artifactInstance,
   currentCycle,
+  dispatchAttempts,
   entriesInto,
+  EvidenceEnvelopeSchema,
   evidenceInstance,
+  JournalEntrySchema,
   journalInstance,
+  liveValidation,
   loadAllRunStates,
   loadRunView,
+  OVERVIEW_SLUG,
+  RunStateSchema,
   stateInstance,
+  StatusEnvelopeSchema,
+  statusInstance,
+  ValidationEnvelopeSchema,
+  validationInstance,
   workItemSlug,
 } from "./_lib/run_data.ts";
 import type { CelEnvironmentLike, GateContext } from "./_lib/gates.ts";
@@ -284,6 +301,24 @@ function cycleLimitError(targetStageId: string, limit: CycleLimit): string {
     `approve gateId=${CYCLE_OVERRIDE_PREFIX}${targetStageId} — or take an escalation/abort transition.`;
 }
 
+function stageNotExecutedError(stageId: string, workItem: string): string {
+  return `Stage '${stageId}' has no recorded execution this cycle. Call ` +
+    `record_dispatch (workItem=${workItem}) before advancing — the stage's ` +
+    `work must run through the factory so it cannot be skipped.`;
+}
+
+/** Whether advancing this transition requires a dispatch record first: a
+ * work-bearing stage leaving by one of its own (non-global) transitions. */
+function requiresDispatch(
+  args: FactoryArguments,
+  stage: StageSpec,
+  transitionName: string,
+): boolean {
+  return stage.work !== undefined &&
+    !isGlobalTransition(args, transitionName) &&
+    (stage.transitions ?? []).some((t) => t.name === transitionName);
+}
+
 function gateContextFrom(
   context: Ctx,
   args: FactoryArguments,
@@ -333,6 +368,57 @@ async function writeJournal(
   });
 }
 
+/**
+ * Persist a payload-validation failure so a retry can bind it back as feedback
+ * (`data.latest(self.name, "validation-<target>")`). Written just before the
+ * record method re-throws; the platform keeps writes that precede a throw
+ * (method_execution_service collects persisted handles on the error path), so
+ * the bad payload is still rejected while its diagnosis survives.
+ */
+async function recordValidationFailure(
+  context: Ctx,
+  slug: string,
+  envelope: ValidationEnvelope,
+): Promise<void> {
+  await context.writeResource(
+    "validation",
+    validationInstance(slug, envelope.target),
+    envelope as unknown as Record<string, unknown>,
+  );
+}
+
+/**
+ * Clear an open validation record once its target records cleanly, so a later
+ * read (or a fresh stage entry) never binds a stale failure. No-op when none
+ * is open.
+ */
+async function clearValidationIfOpen(
+  context: Ctx,
+  view: RunView,
+  slug: string,
+  target: string,
+  state: RunState,
+): Promise<{ name: string; version?: number } | undefined> {
+  const open = liveValidation(view, target);
+  if (open === undefined) return undefined;
+  const cleared: ValidationEnvelope = {
+    target: open.latest.target,
+    targetKind: open.latest.targetKind,
+    workItem: open.latest.workItem,
+    stageId: state.stageId,
+    cycle: currentCycle(state),
+    attempt: dispatchAttempts(state, state.stageId, currentCycle(state)),
+    cleared: true,
+    errors: [],
+    recordedAt: new Date().toISOString(),
+  };
+  return await context.writeResource(
+    "validation",
+    validationInstance(slug, target),
+    cleared as unknown as Record<string, unknown>,
+  );
+}
+
 function normalizePayload(payload: unknown): Record<string, unknown> {
   let value = payload;
   if (typeof value === "string") {
@@ -357,6 +443,92 @@ function stageEvidenceNames(stage: StageSpec): string[] {
     names.push(stage.work.resultEvidence);
   }
   return names;
+}
+
+/**
+ * What's keeping a stage's current entry from advancing: declared products
+ * not yet recorded this cycle, plus the gate reasons still failing. Powers the
+ * loud feedback on repeat dispatch and the runaway-loop diagnostics.
+ */
+async function stageExecutionDiagnostics(
+  context: Ctx,
+  args: FactoryArguments,
+  state: RunState,
+  view: RunView,
+  workItem: string,
+  slug: string,
+  stage: StageSpec,
+): Promise<{ missing: string[]; gateReasons: string[] }> {
+  const cycle = currentCycle(state);
+  const recordedThisCycle = (
+    rec: { latest: { stageId: string; cycle: number } } | undefined,
+  ) =>
+    rec !== undefined && rec.latest.stageId === stage.id &&
+    rec.latest.cycle === cycle;
+
+  const missing: string[] = [];
+  for (const spec of stage.artifacts ?? []) {
+    if (!recordedThisCycle(view.artifacts.get(spec.name))) {
+      missing.push(`artifact '${spec.name}'`);
+    }
+  }
+  for (const name of stageEvidenceNames(stage)) {
+    if (!recordedThisCycle(view.evidence.get(name))) {
+      missing.push(`evidence '${name}'`);
+    }
+  }
+
+  const gateCtx = gateContextFrom(context, args, state, view, workItem, slug);
+  const gateReasons: string[] = [];
+  for (const t of transitionsFrom(args, stage)) {
+    if (isGlobalTransition(args, t.name)) continue;
+    const evaluated = await evaluateTransitionGates(t, gateCtx);
+    for (const r of evaluated.results) {
+      if (!r.pass) {
+        gateReasons.push(`[${t.name}/${r.gate.type}] ${r.reasons.join("; ")}`);
+      }
+    }
+  }
+  return { missing, gateReasons };
+}
+
+/** Loud, actionable feedback for a repeat dispatch (warning) or a tripped cap
+ * (fatal). `fatal` is the runaway-loop-suspected hard stop. */
+function formatDispatchFeedback(
+  stage: StageSpec,
+  cycle: number,
+  attempt: number,
+  limit: number,
+  diag: { missing: string[]; gateReasons: string[] },
+  fatal: boolean,
+): string {
+  const lines: string[] = [];
+  lines.push(
+    fatal
+      ? `runaway-loop-suspected: stage '${stage.id}' dispatched ${attempt} time(s) this entry ` +
+        `(cycle ${cycle}, limit ${limit}) — refusing to dispatch again.`
+      : `repeat-dispatch warning: stage '${stage.id}' dispatched ${attempt}/${limit} time(s) ` +
+        `this entry (cycle ${cycle}). One dispatch left before the loop guard hard-fails.`,
+  );
+  lines.push(
+    diag.missing.length > 0
+      ? `Products not yet recorded for this entry: ${diag.missing.join(", ")}.`
+      : `All declared products are recorded for this entry.`,
+  );
+  if (diag.gateReasons.length > 0) {
+    lines.push("Gate(s) still failing:\n  " + diag.gateReasons.join("\n  "));
+  }
+  lines.push(
+    diag.missing.length > 0
+      ? `Do NOT re-dispatch. The stage ran but did not record ${
+        diag.missing.join(", ")
+      } — verify the work actually wrote it (swamp data query …); if it didn't, ` +
+        `the work spec or the recording step is the defect, not the gate.`
+      : `Do NOT re-dispatch. The products exist but a gate is failing for another ` +
+        `reason — address the gate reasons above, not the dispatch.`,
+  );
+  lines.push("Attempt history is in the journal ('dispatched' events).");
+  return lines.join("\n");
 }
 
 const WorkItemArg = z.string().min(1).describe(
@@ -469,6 +641,34 @@ async function buildStatus(
     unresolvedBindings = resolved.unresolved;
   }
 
+  // Validate the resolved method/workflow inputs against the stage's declared
+  // inputsSchema. This catches an upstream value that drifted shape (a list
+  // recorded as a string, a number as text) at the boundary the factory owns,
+  // before the driver dispatches it into a strict downstream method. Skipped
+  // while bindings are still unresolved — the inputs aren't complete yet.
+  const invalidInputs: { path: string; message: string }[] = [];
+  if (
+    stage.work?.inputsSchema !== undefined &&
+    work !== undefined &&
+    unresolvedBindings.length === 0
+  ) {
+    const resolvedInputs = work.method?.inputs ?? work.workflow?.inputs;
+    if (resolvedInputs !== undefined) {
+      const issues = validateDeclaredPayload(
+        stage.work.inputsSchema,
+        resolvedInputs,
+      );
+      for (const issue of issues ?? []) {
+        const sep = issue.indexOf(": ");
+        invalidInputs.push(
+          sep >= 0
+            ? { path: issue.slice(0, sep), message: issue.slice(sep + 2) }
+            : { path: "(root)", message: issue },
+        );
+      }
+    }
+  }
+
   const cycles: Record<string, { entries: number; limit: number }> = {};
   for (const s of args.stages) {
     cycles[s.id] = {
@@ -495,8 +695,30 @@ async function buildStatus(
       maxCycles: maxCyclesFor(stage),
     },
     status: state.status,
+    dispatch: {
+      cycle,
+      attempts: dispatchAttempts(state, stage.id, cycle),
+      limit: maxDispatchesFor(stage),
+      // A work-bearing stage must be dispatched (record_dispatch) before it
+      // can advance, so its execution is provable and can't be skipped.
+      required: stage.work !== undefined,
+      executed: dispatchAttempts(state, stage.id, cycle) >= 1,
+    },
+    // Open (uncleared) payload-validation failures, bindable as retry feedback
+    // via data.latest(self.name, "validation-<target>").
+    validations: [...view.validations.values()]
+      .filter((v) => !v.latest.cleared)
+      .map((v) => ({
+        target: v.latest.target,
+        targetKind: v.latest.targetKind,
+        stageId: v.latest.stageId,
+        cycle: v.latest.cycle,
+        attempt: v.latest.attempt,
+        errors: v.latest.errors,
+      })),
     work,
     unresolvedBindings,
+    invalidInputs,
     transitions,
     contextManifest: manifest,
     cycles,
@@ -509,6 +731,7 @@ async function buildStatus(
 // ---------------------------------------------------------------------------
 
 const MUTATING_METHODS = [
+  "record_dispatch",
   "record_artifact",
   "record_evidence",
   "resolve_findings",
@@ -533,7 +756,7 @@ async function checkState(
 
 export const model = {
   type: "@swamp/software-factory",
-  version: "2026.06.16.1",
+  version: "2026.06.24.1",
   globalArguments: PlatformArgumentsSchema,
   reports: ["@swamp/software-factory/work-item-summary"],
 
@@ -541,37 +764,58 @@ export const model = {
     "state": {
       description:
         "Per-work-item stage, cycle counts, and run status (instances: state-<workItem>)",
-      schema: z.record(z.string(), z.unknown()),
+      // Typed envelope: the resource layer validates structure on every write
+      // (payloads are validated separately against their declared schema).
+      schema: RunStateSchema,
       lifetime: "infinite" as const,
       garbageCollection: 25,
     },
     "artifact": {
       description:
         "Versioned, schema-validated data products (instances: artifact-<workItem>-<name>)",
-      schema: z.record(z.string(), z.unknown()),
+      schema: ArtifactEnvelopeSchema,
       lifetime: "infinite" as const,
       garbageCollection: 50,
     },
     "evidence": {
       description:
-        "Opaque external facts recorded by the driver (instances: evidence-<workItem>-<name>)",
-      schema: z.record(z.string(), z.unknown()),
+        "Schema-validated external facts recorded by the driver (instances: evidence-<workItem>-<name>)",
+      schema: EvidenceEnvelopeSchema,
       lifetime: "infinite" as const,
       garbageCollection: 50,
     },
     "approval": {
       description:
         "Human gate decisions, cycle-scoped (instances: approval-<workItem>-<gateId>)",
-      schema: z.record(z.string(), z.unknown()),
+      schema: ApprovalRecordSchema,
       lifetime: "infinite" as const,
       garbageCollection: 50,
+    },
+    "validation": {
+      description:
+        "Recorded payload-validation failures, bindable as retry feedback (instances: validation-<workItem>-<target>)",
+      schema: ValidationEnvelopeSchema,
+      lifetime: "infinite" as const,
+      garbageCollection: 10,
     },
     "journal": {
       description:
         "Append-only audit trail per work item (instances: journal-<workItem>)",
-      schema: z.record(z.string(), z.unknown()),
+      schema: JournalEntrySchema,
       lifetime: "infinite" as const,
       garbageCollection: 200,
+    },
+    "status": {
+      description:
+        "Materialized 'what is required next' view, refreshed on every status " +
+        "call and queryable with `swamp data query` (instances: " +
+        "status-<workItem>, status-_factory for the fleet overview)",
+      // Permissive envelope: the view is large and partly dynamic; the driver
+      // projects exact fields via --select rather than reading the whole blob.
+      schema: StatusEnvelopeSchema,
+      lifetime: "infinite" as const,
+      // A read-time cache, not history — keep only the last few refreshes.
+      garbageCollection: 3,
     },
   },
 
@@ -767,6 +1011,44 @@ export const model = {
         return { pass: true };
       },
     },
+
+    "stage-executed": {
+      description:
+        "Advancing out of a work-bearing stage requires a recorded dispatch for the current entry — the stage's work must run through the factory",
+      labels: ["policy"],
+      appliesTo: ["advance"],
+      execute: async (context: CheckCtx): Promise<CheckResult> => {
+        const name = context.unresolvedMethodArgs?.transition;
+        const workItem = checkWorkItem(context);
+        if (typeof name !== "string" || workItem === null) {
+          return { pass: true };
+        }
+        let args: FactoryArguments;
+        try {
+          ({ args } = await loadFactoryArgs(context));
+        } catch {
+          return { pass: true };
+        }
+        // Escape-hatch (global) transitions stay available unconditionally.
+        if (isGlobalTransition(args, name)) return { pass: true };
+        const state = await checkState(context, workItem);
+        if (state === null) return { pass: true };
+        const stage = findStage(args, state.stageId);
+        if (stage === undefined || stage.work === undefined) {
+          return { pass: true };
+        }
+        if (!(stage.transitions ?? []).some((t) => t.name === name)) {
+          return { pass: true }; // valid-transition reports unknown names
+        }
+        if (dispatchAttempts(state, stage.id, currentCycle(state)) < 1) {
+          return {
+            pass: false,
+            errors: [stageNotExecutedError(stage.id, workItem)],
+          };
+        }
+        return { pass: true };
+      },
+    },
   },
 
   methods: {
@@ -896,6 +1178,139 @@ export const model = {
       },
     },
 
+    record_dispatch: {
+      description:
+        "Record that the current stage's work is being executed — call this BEFORE dispatching subagents / running a workflow or method. It proves the stage ran (so it can't be skipped) and drives the runaway-loop guard: re-dispatching the same stage entry warns loudly, and the third attempt is rejected.",
+      arguments: z.object({
+        workItem: WorkItemArg,
+        stageId: z.string().optional().describe(
+          "The stage being executed; defaults to the current stage",
+        ),
+        mode: z.string().optional().describe(
+          "Work mode being executed (interactive|dispatch|workflow|method)",
+        ),
+        runId: z.string().optional().describe(
+          "Workflow/method run id, for the audit trail",
+        ),
+        note: z.string().optional(),
+      }),
+      execute: async (
+        methodArgs: {
+          workItem: string;
+          stageId?: string;
+          mode?: string;
+          runId?: string;
+          note?: string;
+        },
+        context: Ctx,
+      ) => {
+        const { args } = await loadFactoryArgs(context);
+        const workItem = methodArgs.workItem;
+        const slug = workItemSlug(workItem);
+        const view = await viewFor(context, slug);
+        const state = requireState(view, workItem);
+        requireActive(state);
+        const stage = requireCurrentStage(args, state);
+
+        if (
+          methodArgs.stageId !== undefined && methodArgs.stageId !== stage.id
+        ) {
+          throw new Error(
+            `Cannot dispatch stage '${methodArgs.stageId}': the run for '${workItem}' is at stage '${stage.id}'.`,
+          );
+        }
+        if (stage.work === undefined) {
+          throw new Error(
+            `Stage '${stage.id}' has no work to dispatch.`,
+          );
+        }
+
+        const cycle = currentCycle(state);
+        const limit = maxDispatchesFor(stage);
+        const attempt = dispatchAttempts(state, stage.id, cycle) + 1;
+
+        // Hard stop: the runaway-loop guard. Don't write — the previous
+        // attempts are already journaled; surface the diagnostics and refuse.
+        if (attempt > limit) {
+          const diag = await stageExecutionDiagnostics(
+            context,
+            args,
+            state,
+            view,
+            workItem,
+            slug,
+            stage,
+          );
+          throw new Error(
+            formatDispatchFeedback(stage, cycle, attempt, limit, diag, true),
+          );
+        }
+
+        const newState: RunState = {
+          ...state,
+          dispatches: {
+            ...(state.dispatches ?? {}),
+            [stage.id]: { cycle, count: attempt },
+          },
+        };
+        const handles = [];
+        handles.push(
+          await context.writeResource(
+            "state",
+            stateInstance(slug),
+            newState as unknown as Record<string, unknown>,
+          ),
+        );
+        handles.push(
+          await writeJournal(context, workItem, slug, {
+            event: "dispatched",
+            stageId: stage.id,
+            summary:
+              `Dispatched stage '${stage.id}' (attempt ${attempt}/${limit}` +
+              (methodArgs.mode !== undefined
+                ? `, mode ${methodArgs.mode}`
+                : "") +
+              ")",
+            payload: {
+              stageId: stage.id,
+              cycle,
+              attempt,
+              mode: methodArgs.mode,
+              runId: methodArgs.runId,
+            },
+          }),
+        );
+
+        // Repeat dispatch within the cap: record it, but feed back loudly.
+        if (attempt > 1) {
+          const diag = await stageExecutionDiagnostics(
+            context,
+            args,
+            state,
+            view,
+            workItem,
+            slug,
+            stage,
+          );
+          context.logger.warning("{feedback}", {
+            feedback: formatDispatchFeedback(
+              stage,
+              cycle,
+              attempt,
+              limit,
+              diag,
+              false,
+            ),
+          });
+        }
+        context.logger.info(
+          "Dispatched stage '{stage}' for '{workItem}' (attempt {attempt}/{limit})",
+          { stage: stage.id, workItem, attempt, limit },
+        );
+        return { dataHandles: handles };
+      },
+    },
+
     record_artifact: {
       description:
         "Record (or re-record) an artifact declared on the work item's current stage. Payload is validated against the declared schema.",
@@ -941,6 +1356,22 @@ export const model = {
         const payload = normalizePayload(methodArgs.payload);
         const issues = validateArtifactPayload(spec, payload);
         if (issues !== null) {
+          await recordValidationFailure(context, slug, {
+            target: spec.name,
+            targetKind: "artifact",
+            workItem,
+            stageId: state.stageId,
+            cycle: currentCycle(state),
+            attempt: dispatchAttempts(
+              state,
+              state.stageId,
+              currentCycle(state),
+            ),
+            cleared: false,
+            rejected: payload,
+            errors: issues,
+            recordedAt: new Date().toISOString(),
+          });
           throw new Error(
             `Artifact '${spec.name}' payload is invalid:\n  ` +
               issues.join("\n  "),
@@ -992,6 +1423,14 @@ export const model = {
             },
           }),
         );
+        const clearedArtifact = await clearValidationIfOpen(
+          context,
+          view,
+          slug,
+          spec.name,
+          state,
+        );
+        if (clearedArtifact !== undefined) handles.push(clearedArtifact);
         context.logger.info("Recorded artifact '{name}' for '{workItem}'", {
           name: spec.name,
           workItem,
@@ -1039,6 +1478,43 @@ export const model = {
         }
 
         const payload = normalizePayload(methodArgs.payload);
+
+        // Validate against the evidence's contract: an explicit declared
+        // schema if the stage declares one, otherwise the built-in outcome
+        // schema for the stage's resultEvidence. This is what turns "workflow
+        // succeeded but recorded nothing" from a silent re-dispatch loop into
+        // a loud, diagnosable failure at the write.
+        const explicitSpec = (stage.evidence ?? []).find(
+          (e) => e.name === methodArgs.name,
+        );
+        const issues = explicitSpec?.schema !== undefined
+          ? validateDeclaredPayload(explicitSpec.schema, payload)
+          : stage.work?.resultEvidence === methodArgs.name
+          ? validateOutcomePayload(payload)
+          : null;
+        if (issues !== null) {
+          await recordValidationFailure(context, slug, {
+            target: methodArgs.name,
+            targetKind: "evidence",
+            workItem,
+            stageId: state.stageId,
+            cycle: currentCycle(state),
+            attempt: dispatchAttempts(
+              state,
+              state.stageId,
+              currentCycle(state),
+            ),
+            cleared: false,
+            rejected: payload,
+            errors: issues,
+            recordedAt: new Date().toISOString(),
+          });
+          throw new Error(
+            `Evidence '${methodArgs.name}' payload is invalid:\n  ` +
+              issues.join("\n  "),
+          );
+        }
+
         const handles = [];
         const written = await context.writeResource(
           "evidence",
@@ -1061,6 +1537,14 @@ export const model = {
             payload: { name: methodArgs.name, version: written.version },
           }),
         );
+        const clearedEvidence = await clearValidationIfOpen(
+          context,
+          view,
+          slug,
+          methodArgs.name,
+          state,
+        );
+        if (clearedEvidence !== undefined) handles.push(clearedEvidence);
         context.logger.info("Recorded evidence '{name}' for '{workItem}'", {
           name: methodArgs.name,
           workItem,
@@ -1264,6 +1748,15 @@ export const model = {
           );
         }
 
+        // Defense in depth: the stage's work must have run through the factory
+        // (checks are skippable; this is not).
+        if (
+          requiresDispatch(args, stage, transition.name) &&
+          dispatchAttempts(state, stage.id, currentCycle(state)) < 1
+        ) {
+          throw new Error(stageNotExecutedError(stage.id, workItem));
+        }
+
         const limit = cycleLimitFor(args, view, state, transition.to);
         if (!limit.allowed) {
           throw new Error(cycleLimitError(transition.to, limit));
@@ -1281,6 +1774,10 @@ export const model = {
             ...state.cycles,
             [target.id]: entriesInto(state, target.id) + 1,
           },
+          // Dispatch counters are cycle-scoped, so the target stage's stale
+          // counter (from an earlier entry) is ignored on the new entry; carry
+          // the map forward for audit rather than wiping other stages' counts.
+          dispatches: state.dispatches,
           enteredAt: now,
           status: target.terminal === true ? "terminal" : "active",
           definitionVersion: state.definitionVersion,
@@ -1336,6 +1833,12 @@ export const model = {
       ) => {
         const { args } = await loadFactoryArgs(context);
 
+        // The status view is persisted as a queryable record rather than
+        // dumped to a log line: the driver reads exactly the fields it needs
+        // with `swamp data query --select 'attributes.<field>'`, instead of
+        // scraping and re-parsing a maximal JSON blob out of log output. Each
+        // call refreshes the record (it is a read-time materialized view, not
+        // history — see the `status` resource's garbageCollection).
         if (methodArgs.workItem === undefined) {
           const states = await loadAllRunStates(
             context.dataRepository,
@@ -1350,28 +1853,31 @@ export const model = {
             startedAt: s.startedAt,
           }));
           context.logger.info(
-            "{count} run(s) on this factory",
+            "{count} run(s) on this factory — query 'status-_factory' for the overview",
             { count: runs.length },
           );
-          context.logger.info("STATUS_JSON {status}", {
-            status: JSON.stringify({ factory: true, runs }),
-          });
-          return { dataHandles: [] };
+          const handle = await context.writeResource(
+            "status",
+            statusInstance(OVERVIEW_SLUG),
+            { factory: true, runs },
+          );
+          return { dataHandles: [handle] };
         }
 
         const workItem = methodArgs.workItem;
         const slug = workItemSlug(workItem);
         const view = await viewFor(context, slug);
         if (view.state === null) {
-          const status = { started: false, workItem };
           context.logger.info(
             "No run for '{workItem}'. Run 'start' first.",
             { workItem },
           );
-          context.logger.info("STATUS_JSON {status}", {
-            status: JSON.stringify(status),
-          });
-          return { dataHandles: [] };
+          const handle = await context.writeResource(
+            "status",
+            statusInstance(slug),
+            { started: false, workItem },
+          );
+          return { dataHandles: [handle] };
         }
         const status = await buildStatus(
           context,
@@ -1390,19 +1896,22 @@ export const model = {
           t.name
         );
         context.logger.info(
-          "'{workItem}' at stage '{stage}' (cycle {cycle}, {runStatus}) — satisfied transitions: {satisfied}",
+          "'{workItem}' at stage '{stage}' (cycle {cycle}, {runStatus}) — satisfied transitions: {satisfied}. Query 'status-{slug}' for the full view.",
           {
             workItem,
             stage: stage.id,
             cycle: stage.cycle,
             runStatus: view.state.status,
             satisfied: satisfied.join(", ") || "(none)",
+            slug,
           },
         );
-        context.logger.info("STATUS_JSON {status}", {
-          status: JSON.stringify(status),
-        });
-        return { dataHandles: [] };
+        const handle = await context.writeResource(
+          "status",
+          statusInstance(slug),
+          status,
+        );
+        return { dataHandles: [handle] };
       },
     },
 

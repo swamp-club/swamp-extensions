@@ -91,11 +91,22 @@ Deno.test("compileDeclaredSchema: nested objects with required keys", () => {
   assert(!schema.safeParse({ steps: [{ order: 1 }] }).success);
 });
 
-Deno.test("compileDeclaredSchema: undeclared keys pass through (loose)", () => {
+Deno.test("compileDeclaredSchema: undeclared keys are rejected (strict)", () => {
   const schema = compileDeclaredSchema({
     type: "object",
     required: ["a"],
     properties: { a: { type: "string" } },
+  });
+  assert(schema.safeParse({ a: "x" }).success);
+  assert(!schema.safeParse({ a: "x", extra: 42 }).success);
+});
+
+Deno.test("compileDeclaredSchema: additionalProperties opts back into loose", () => {
+  const schema = compileDeclaredSchema({
+    type: "object",
+    required: ["a"],
+    properties: { a: { type: "string" } },
+    additionalProperties: true,
   });
   assert(schema.safeParse({ a: "x", extra: 42 }).success);
 });
@@ -109,8 +120,11 @@ Deno.test("compileDeclaredSchema: required key without declared property", () =>
   assert(!schema.safeParse({}).success);
 });
 
-Deno.test("validateArtifactPayload: no constraints accepts any object", () => {
-  assertEquals(validateArtifactPayload({ name: "free" }, { x: 1 }), null);
+Deno.test("validateArtifactPayload: no declared schema rejects unknown keys", () => {
+  // A schemaless artifact is a graph-validation error; if one slips through
+  // (skip-checks), the compiled validator rejects rather than accepts blindly.
+  assertEquals(validateArtifactPayload({ name: "free" }, {}), null);
+  assert(validateArtifactPayload({ name: "free" }, { x: 1 }) !== null);
 });
 
 Deno.test("validateArtifactPayload: findings kind enforces the contract", () => {

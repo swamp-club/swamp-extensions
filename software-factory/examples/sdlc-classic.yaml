@@ -73,6 +73,12 @@ stages:
             summary: { type: string }
     evidence:
       - name: change-request
+        schema:
+          type: object
+          required: [branch]
+          properties:
+            branch: { type: string, minLength: 1 }
+            url: { type: string }
     transitions:
       - name: submit
         to: testing
@@ -107,6 +113,12 @@ stages:
       skills: [release]
     evidence:
       - name: release
+        schema:
+          type: object
+          required: [url]
+          properties:
+            url: { type: string, minLength: 1 }
+            version: { type: string }
     transitions:
       - name: released
         to: uat
