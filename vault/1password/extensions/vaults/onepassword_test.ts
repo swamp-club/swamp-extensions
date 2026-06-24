@@ -294,6 +294,15 @@ function createOpMock() {
       return { stdout: "", code: 0 };
     }
 
+    if (args[0] === "item" && args[1] === "delete") {
+      const item = args[2];
+      if (!items.has(item)) {
+        return { stdout: "", stderr: `item "${item}" not found`, code: 1 };
+      }
+      items.delete(item);
+      return { stdout: "", code: 0 };
+    }
+
     if (args[0] === "item" && args[1] === "list") {
       const list = [...items.keys()].map((title) => ({ title }));
       return { stdout: JSON.stringify(list), code: 0 };
@@ -759,4 +768,97 @@ Deno.test("1password vault: put and get round-trip with plain field (no section)
   });
 
   assertEquals(result, "plain-secret");
+});
+
+// --- Delete tests ---
+
+Deno.test("1password vault: delete removes a stored secret", async () => {
+  await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("to-delete", "secret-value");
+    await provider.delete("to-delete");
+    await assertRejects(() => provider.get("to-delete"));
+  });
+});
+
+Deno.test("1password vault: delete is idempotent on missing item", async () => {
+  await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.delete("nonexistent");
+  });
+});
+
+Deno.test("1password vault: delete removes item from list", async () => {
+  const { result } = await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("keep-me", "val1");
+    await provider.put("delete-me", "val2");
+    await provider.delete("delete-me");
+    return await provider.list();
+  });
+
+  assertEquals(result.includes("keep-me"), true);
+  assertEquals(result.includes("delete-me"), false);
+});
+
+Deno.test("1password vault: delete with item/field key deletes the whole item", async () => {
+  await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await provider.put("my-item/password", "secret");
+    await provider.delete("my-item/password");
+    await assertRejects(() => provider.get("my-item"));
+  });
+});
+
+Deno.test("1password vault: delete rejects full op:// URI", async () => {
+  await withMockedCommand(createOpMock(), async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "Engineering",
+    });
+    await assertRejects(
+      () => provider.delete("op://Engineering/my-item/password"),
+      Error,
+      "Cannot use full op:// URI for delete",
+    );
+  });
+});
+
+Deno.test("1password vault: delete propagates vault-not-found error", async () => {
+  await withMockedCommand((cmd: string, args: string[]) => {
+    if (cmd !== "op") {
+      return { stdout: "", stderr: `unknown command: ${cmd}`, code: 1 };
+    }
+    if (args.includes("--version")) {
+      return { stdout: "2.30.0", code: 0 };
+    }
+    return {
+      stdout: "",
+      stderr: `"BadVault" isn't a vault in this account`,
+      code: 1,
+    };
+  }, async () => {
+    const provider = vault.createProvider("test", {
+      op_vault: "BadVault",
+    });
+    await assertRejects(
+      () => provider.delete("some-item"),
+      Error,
+      "1Password vault",
+    );
+  });
+});
+
+Deno.test("1password vault: provider has delete method (duck-typing gate)", () => {
+  const provider = vault.createProvider("test", {
+    op_vault: "Engineering",
+  });
+  assertEquals(typeof provider.delete, "function");
 });

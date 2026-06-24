@@ -409,6 +409,41 @@ class OnePasswordVaultProvider implements VaultProvider {
     }
   }
 
+  async delete(secretKey: string): Promise<void> {
+    await this.checkOpInstalled();
+    const parsed = parseSecretKey(secretKey, this.opVault);
+
+    if (parsed.isFullUri) {
+      throw new Error(
+        "Cannot use full op:// URI for delete operations. Use a relative key (e.g., 'item-name' or 'item-name/field').",
+      );
+    }
+
+    const args = [
+      "item",
+      "delete",
+      parsed.item,
+      "--vault",
+      this.opVault,
+    ];
+    if (this.opAccount) {
+      args.push("--account", this.opAccount);
+    }
+
+    try {
+      await this.runOp(args);
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        error.message.includes("not found") &&
+        !error.message.startsWith("1Password vault")
+      ) {
+        return;
+      }
+      throw error;
+    }
+  }
+
   async list(): Promise<string[]> {
     await this.checkOpInstalled();
     const args = [
@@ -750,6 +785,7 @@ export const vault = {
     name: string,
     config: Record<string, unknown>,
   ): VaultProvider & {
+    delete(secretKey: string): Promise<void>;
     getAnnotation(secretKey: string): Promise<VaultAnnotation | null>;
     putAnnotation(
       secretKey: string,

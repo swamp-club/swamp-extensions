@@ -1,9 +1,9 @@
 # @swamp/1password
 
 Swamp vault provider backed by
-[1Password](https://developer.1password.com/docs/cli/). Stores, retrieves, and
-lists secrets by shelling out to the official `op` CLI, so it inherits whichever
-authentication mechanism `op` is configured with.
+[1Password](https://developer.1password.com/docs/cli/). Stores, retrieves,
+deletes, and lists secrets by shelling out to the official `op` CLI, so it
+inherits whichever authentication mechanism `op` is configured with.
 
 ## Prerequisites
 
@@ -30,11 +30,12 @@ swamp vault create @swamp/1password my-1password \
   --config '{"op_vault": "Private"}' --json
 ```
 
-Read, write, and list secrets:
+Read, write, delete, and list secrets:
 
 ```bash
 swamp vault get my-1password my-api-key --json
 swamp vault put my-1password my-api-key "s3cr3t" --json
+swamp vault delete my-1password my-api-key --json
 swamp vault list-keys my-1password --json
 ```
 
