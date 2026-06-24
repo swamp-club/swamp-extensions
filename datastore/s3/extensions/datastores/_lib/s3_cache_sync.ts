@@ -455,6 +455,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
   private lazyPullActive = false;
   private namespace: string | undefined = undefined;
   private namespaceBound = false;
+  private preflightDone = false;
 
   constructor(
     s3: S3Client,
@@ -491,6 +492,12 @@ export class S3CacheSyncService implements DatastoreSyncService {
           `but called with ${JSON.stringify(ns)}`,
       );
     }
+  }
+
+  private async ensurePreflight(signal?: AbortSignal): Promise<void> {
+    if (this.preflightDone) return;
+    await this.s3.preflightCredentials(signal);
+    this.preflightDone = true;
   }
 
   /**
@@ -1011,6 +1018,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
     const signal = options?.signal;
     this.bindNamespace(options?.namespace);
     throwIfAborted(signal);
+    await this.ensurePreflight(signal);
 
     const skipFastPath = this.lazyPullActive && !options?.metadataOnly;
     const fastStart = Date.now();
@@ -1257,6 +1265,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
     const signal = options?.signal;
     this.bindNamespace(options?.namespace);
     throwIfAborted(signal);
+    await this.ensurePreflight(signal);
 
     const fastStart = Date.now();
     const fastResult = await this.tryFastPushChanged(signal);

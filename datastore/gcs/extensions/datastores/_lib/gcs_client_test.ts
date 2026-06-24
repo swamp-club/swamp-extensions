@@ -33,6 +33,7 @@ import {
   assertStringIncludes,
 } from "jsr:@std/assert@1.0.19";
 import {
+  ADC_CHAIN_TIMEOUT_MS,
   classifyGcpCredentialError,
   clearTokenCache,
   formatGcpCredentialHint,
@@ -634,4 +635,122 @@ Deno.test("composition: invalid_grant token refresh → session-expired classifi
     classifyGcpCredentialError(err.name, err.httpStatusCode),
     "session-expired",
   );
+});
+
+// --- Credential preflight tests -------------------------------------------
+
+Deno.test({
+  name: "GcsClient.preflightCredentials: succeeds with fast tokenFn",
+  sanitizeResources: false,
+  fn: async () => {
+    clearTokenCache();
+    const { url, shutdown } = startServer(() =>
+      new Response("ok", { status: 200 })
+    );
+    try {
+      const client = new GcsClient(
+        { bucket: "b", apiEndpoint: url },
+        () => Promise.resolve("tok"),
+      );
+      await client.preflightCredentials();
+    } finally {
+      await shutdown();
+      clearTokenCache();
+    }
+  },
+});
+
+Deno.test({
+  name: "GcsClient.preflightCredentials: no-ops in emulator mode (no tokenFn)",
+  sanitizeResources: false,
+  fn: async () => {
+    const { url, shutdown } = startServer(() =>
+      new Response("ok", { status: 200 })
+    );
+    try {
+      const client = new GcsClient({ bucket: "b", apiEndpoint: url });
+      await client.preflightCredentials();
+    } finally {
+      await shutdown();
+    }
+  },
+});
+
+Deno.test({
+  name: "GcsClient.preflightCredentials: times out on slow credential source",
+  sanitizeResources: false,
+  // The slowTokenFn's 30s setTimeout is intentionally abandoned when the
+  // 5s Promise.race wins — Deno flags it as a leaked timer.
+  sanitizeOps: false,
+  fn: async () => {
+    clearTokenCache();
+    const { url, shutdown } = startServer(() =>
+      new Response("ok", { status: 200 })
+    );
+    try {
+      const slowTokenFn = () =>
+        new Promise<string>((resolve) => {
+          setTimeout(() => resolve("tok"), 30_000);
+        });
+      const client = new GcsClient(
+        { bucket: "b", apiEndpoint: url },
+        slowTokenFn,
+      );
+      const start = performance.now();
+      const err = await assertRejects(
+        () => client.preflightCredentials(),
+        GcsOperationError,
+      );
+      const elapsed = performance.now() - start;
+      assertEquals(err.name, "TimeoutError");
+      assertStringIncludes(
+        err.message,
+        `Credential preflight timed out after ${ADC_CHAIN_TIMEOUT_MS}ms`,
+      );
+      assert(
+        elapsed < ADC_CHAIN_TIMEOUT_MS + 2_000,
+        `expected timeout within ~${ADC_CHAIN_TIMEOUT_MS}ms, took ${elapsed}ms`,
+      );
+    } finally {
+      await shutdown();
+      clearTokenCache();
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "GcsClient.preflightCredentials: propagates token refresh errors with hints",
+  sanitizeResources: false,
+  fn: async () => {
+    clearTokenCache();
+    const { url, shutdown } = startServer(() =>
+      new Response("ok", { status: 200 })
+    );
+    try {
+      const failingTokenFn = () => {
+        throw tokenRefreshError(
+          "User credential token refresh failed",
+          400,
+          '{"error":"invalid_grant","error_description":"Token revoked"}',
+        );
+      };
+      const client = new GcsClient(
+        { bucket: "b", apiEndpoint: url },
+        failingTokenFn,
+      );
+      const err = await assertRejects(
+        () => client.preflightCredentials(),
+        GcsOperationError,
+      );
+      assertEquals(err.name, "CredentialsProviderError");
+      assert(
+        err.message.startsWith("Datastore session expired"),
+        `expected session-expired hint, got: ${err.message}`,
+      );
+    } finally {
+      await shutdown();
+      clearTokenCache();
+    }
+  },
 });

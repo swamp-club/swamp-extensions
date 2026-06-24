@@ -157,6 +157,10 @@ function createMockS3Client(): S3Client & {
         }));
       return Promise.resolve(entries);
     },
+
+    preflightCredentials(): Promise<void> {
+      return Promise.resolve();
+    },
   } as unknown as S3Client & {
     storage: Map<string, Uint8Array>;
     etagOverrides: Map<string, string>;
@@ -935,6 +939,9 @@ Deno.test("pushChanged: propagates non-NotFound remote errors and skips writebac
         // Simulate a transient 5xx: generic Error with no matching name.
         return Promise.reject(new Error("500 Internal Server Error"));
       },
+      preflightCredentials(): Promise<void> {
+        return Promise.resolve();
+      },
     } as unknown as S3Client;
 
     await seedFile(cachePath, "data/@m/payload.yaml", "data\n");
@@ -1059,6 +1066,9 @@ Deno.test("pushChanged: batch failure message includes underlying error details"
         }>
       > {
         return Promise.resolve([]);
+      },
+      preflightCredentials(): Promise<void> {
+        return Promise.resolve();
       },
     } as unknown as S3Client;
 

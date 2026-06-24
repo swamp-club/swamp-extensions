@@ -62,6 +62,13 @@ export interface S3ClientConfig {
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 
+/**
+ * Timeout for the credential preflight check. Short enough to fail fast
+ * when credentials are missing/expired, long enough for legitimate
+ * credential chains (env → profile → SSO → container metadata) to resolve.
+ */
+export const PREFLIGHT_TIMEOUT_MS = 3_000;
+
 export interface S3ListEntry {
   key: string;
   size: number;
@@ -325,6 +332,21 @@ export class S3Client {
   constructor(config: S3ClientConfig) {
     this.defaultRequestTimeoutMs = config.defaultRequestTimeoutMs ??
       DEFAULT_REQUEST_TIMEOUT_MS;
+
+    // When not running in a container environment (ECS/EKS), disable the
+    // SDK's IMDS credential lookup. Off-cloud, the metadata endpoint is
+    // unreachable and the default 1s timeout adds latency to every
+    // credential resolution. The env var is process-wide (the SDK checks
+    // it lazily inside `remoteProvider`), but acceptable because swamp's
+    // datastore is the sole AWS SDK consumer in the process.
+    if (
+      !Deno.env.get("AWS_EC2_METADATA_DISABLED") &&
+      !Deno.env.get("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI") &&
+      !Deno.env.get("AWS_CONTAINER_CREDENTIALS_FULL_URI")
+    ) {
+      Deno.env.set("AWS_EC2_METADATA_DISABLED", "true");
+    }
+
     this.client = new AwsS3Client({
       region: config.region,
       // Retries live at the cache-sync layer (see s3_cache_sync.ts) where
@@ -508,6 +530,54 @@ export class S3Client {
       new HeadBucketCommand({ Bucket: this.bucket }),
       signal,
     );
+  }
+
+  /**
+   * Bounded credential preflight: sends a HeadBucket racing against a
+   * `PREFLIGHT_TIMEOUT_MS` timer. Verifies that credentials are
+   * resolvable and the bucket is reachable before the first real
+   * operation. On credential failure the SDK error flows through
+   * `wrapError` → `classifyAwsCredentialError` →
+   * `formatAwsCredentialHint`, so the user sees an actionable message.
+   *
+   * Uses `Promise.race` rather than `AbortSignal.timeout` because the
+   * AWS SDK's NodeHttpHandler does not abort in-flight HTTP requests
+   * when an external signal fires — only the SDK's own `requestTimeout`
+   * terminates a hung connection.
+   */
+  async preflightCredentials(signal?: AbortSignal): Promise<void> {
+    const probe = this.headBucket(signal);
+    probe.catch(() => {});
+
+    let timer: ReturnType<typeof setTimeout>;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () =>
+          reject(
+            new S3OperationError(
+              `Credential preflight timed out after ${PREFLIGHT_TIMEOUT_MS}ms — ` +
+                `verify that AWS credentials are configured ` +
+                `(AWS_ACCESS_KEY_ID, AWS_PROFILE, or attached IAM role) ` +
+                `and that the credential source is responsive`,
+              {
+                name: "TimeoutError",
+                cause: undefined,
+                httpStatusCode: undefined,
+                code: undefined,
+                requestId: undefined,
+                bodyPreview: undefined,
+              },
+            ),
+          ),
+        PREFLIGHT_TIMEOUT_MS,
+      );
+    });
+
+    try {
+      await Promise.race([probe, timeout]);
+    } finally {
+      clearTimeout(timer!);
+    }
   }
 
   /**

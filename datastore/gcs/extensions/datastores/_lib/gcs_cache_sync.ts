@@ -419,6 +419,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   private lazyPullActive = false;
   private namespace: string | undefined = undefined;
   private namespaceBound = false;
+  private preflightDone = false;
 
   constructor(
     gcs: GcsClient,
@@ -448,6 +449,12 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           `but called with ${JSON.stringify(ns)}`,
       );
     }
+  }
+
+  private async ensurePreflight(signal?: AbortSignal): Promise<void> {
+    if (this.preflightDone) return;
+    await this.gcs.preflightCredentials(signal);
+    this.preflightDone = true;
   }
 
   private indexKey(): string {
@@ -939,6 +946,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     const signal = options?.signal;
     this.bindNamespace(options?.namespace);
     throwIfAborted(signal);
+    await this.ensurePreflight(signal);
 
     const skipFastPath = this.lazyPullActive && !options?.metadataOnly;
     const fastStart = Date.now();
@@ -1140,6 +1148,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     const signal = options?.signal;
     this.bindNamespace(options?.namespace);
     throwIfAborted(signal);
+    await this.ensurePreflight(signal);
 
     const fastStart = Date.now();
     const fastResult = await this.tryFastPushChanged(signal);
@@ -1175,22 +1184,41 @@ export class GcsCacheSyncService implements DatastoreSyncService {
               toPush.push(dirtyPath);
             }
           } else if (stat.isDirectory) {
+            const localFilesInDir = new Set<string>();
             for await (
               const entry of walk(absPath, { includeDirs: false })
             ) {
               const rel = relative(this.cachePath, entry.path);
               if (isInternalCacheFile(rel)) continue;
+              localFilesInDir.add(rel);
               if (await this.fileNeedsPush(entry.path, rel)) {
                 toPush.push(rel);
               }
             }
+            if (!this.lazyPullActive && this.index) {
+              const prefix = dirtyPath.endsWith("/")
+                ? dirtyPath
+                : dirtyPath + "/";
+              for (const key of Object.keys(this.index.entries)) {
+                if (isInternalCacheFile(key)) continue;
+                if (key.startsWith(prefix) && !localFilesInDir.has(key)) {
+                  toDelete.push(key);
+                }
+              }
+            }
           }
-        } catch {
-          // Dirty path absent on disk — collect matching index entries
-          // for remote deletion (markDirty contract rule #2). The dirty
-          // signal is explicit intent from core, so it wins over the
-          // lazy hydration guard for exact-match paths.
-          if (this.index) {
+        } catch (err) {
+          if (!(err instanceof Deno.errors.NotFound)) {
+            // Non-absence error (permission, I/O, NFS timeout) — do not
+            // assume deletion intent. Skip this dirty path silently;
+            // the next pushChanged will retry.
+            continue;
+          }
+          // Path is genuinely absent — collect matching index entries
+          // for GCS deletion (markDirty contract rule #2). Skip when
+          // lazy pull is active: absent files are un-hydrated, not
+          // deleted.
+          if (!this.lazyPullActive && this.index) {
             for (const key of Object.keys(this.index.entries)) {
               if (isInternalCacheFile(key)) continue;
               if (key === dirtyPath || key.startsWith(dirtyPath + "/")) {

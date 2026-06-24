@@ -183,6 +183,10 @@ function createMockGcsClient(): GcsClient & {
         }));
       return Promise.resolve(entries);
     },
+
+    preflightCredentials(): Promise<void> {
+      return Promise.resolve();
+    },
   } as unknown as GcsClient & {
     storage: Map<string, Uint8Array>;
     generationOverrides: Map<string, string>;
@@ -1053,6 +1057,99 @@ Deno.test("pushChanged: no markDirty means no deletion (reader-side safety)", as
   }
 });
 
+// -- (del5) pushChanged: partial deletion inside surviving directory ------
+//
+// When a dirty path points at a directory that still exists, and one file
+// inside it has been deleted while others survive, the scoped walk must
+// detect the orphan via index comparison and schedule it for remote
+// deletion. Regression coverage for the localFilesInDir pattern ported
+// from s3_cache_sync.ts.
+
+Deno.test("pushChanged: scoped walk detects partial deletion inside surviving directory", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-test-del5-" });
+  try {
+    const mock = createMockGcsClient();
+
+    // Remote index has three files under data/model/beta/.
+    await seedFile(cachePath, "data/model/beta/a.yaml", "aaa");
+    await seedFile(cachePath, "data/model/beta/b.yaml", "bbb");
+    await seedFile(cachePath, "data/model/beta/c.yaml", "ccc");
+    const remoteEntries = {
+      "data/model/beta/a.yaml": {
+        key: "data/model/beta/a.yaml",
+        size: 3,
+        lastModified: new Date().toISOString(),
+      },
+      "data/model/beta/b.yaml": {
+        key: "data/model/beta/b.yaml",
+        size: 3,
+        lastModified: new Date().toISOString(),
+      },
+      "data/model/beta/c.yaml": {
+        key: "data/model/beta/c.yaml",
+        size: 3,
+        lastModified: new Date().toISOString(),
+      },
+    };
+    mock.storage.set(".datastore-index.json", encodeIndex(remoteEntries));
+    mock.storage.set(
+      "data/model/beta/a.yaml",
+      new TextEncoder().encode("aaa"),
+    );
+    mock.storage.set(
+      "data/model/beta/b.yaml",
+      new TextEncoder().encode("bbb"),
+    );
+    mock.storage.set(
+      "data/model/beta/c.yaml",
+      new TextEncoder().encode("ccc"),
+    );
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    // Mark the parent directory dirty, then delete ONE file.
+    // The directory still exists with a.yaml and c.yaml.
+    await service.markDirty({ relPath: "data/model/beta" });
+    await Deno.remove(join(cachePath, "data/model/beta/b.yaml"));
+
+    const result = await service.pushChanged();
+
+    // b.yaml should be deleted from GCS.
+    assert(
+      mock.deletes.includes("data/model/beta/b.yaml"),
+      `expected b.yaml in deletes, got: ${JSON.stringify(mock.deletes)}`,
+    );
+    // a.yaml and c.yaml should NOT be deleted.
+    assert(
+      !mock.deletes.includes("data/model/beta/a.yaml"),
+      "a.yaml should not be deleted",
+    );
+    assert(
+      !mock.deletes.includes("data/model/beta/c.yaml"),
+      "c.yaml should not be deleted",
+    );
+
+    // Index writeback should not contain b.yaml.
+    const indexPuts = mock.puts.filter(
+      (p) => p.key === ".datastore-index.json",
+    );
+    assert(indexPuts.length >= 1, "index must be written back");
+    const writtenIndex = decodeIndex(indexPuts[indexPuts.length - 1].body);
+    assert(
+      !("data/model/beta/b.yaml" in writtenIndex.entries),
+      "b.yaml must be removed from the written index",
+    );
+
+    // The deletion should be reflected in the return value.
+    assert(
+      typeof result === "number" && result >= 1,
+      `expected at least 1 change reported, got: ${result}`,
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
 // -- (f) pushChanged scrubs remote zombies and is idempotent --------------
 
 // Migration path for swamp-club#29: when the remote `.datastore-index.json`
@@ -1139,6 +1236,9 @@ Deno.test("pushChanged: propagates non-NotFound remote errors and skips writebac
       ): Promise<{ data: Uint8Array; generation?: string }> {
         // Simulate a transient 5xx: generic Error, NOT a NotFoundError.
         return Promise.reject(new Error("500 Internal Server Error"));
+      },
+      preflightCredentials(): Promise<void> {
+        return Promise.resolve();
       },
     } as unknown as GcsClient;
 

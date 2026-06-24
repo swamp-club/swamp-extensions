@@ -25,11 +25,10 @@
  * 2. gcloud CLI default credentials (~/.config/gcloud/application_default_credentials.json)
  * 3. GCE/Cloud Run/GKE metadata server
  *
- * The ADC token-refresh path (`getAccessToken` and its callees) is NOT
- * plumbed with AbortSignal. Token acquisition runs once per ~1 hour via
- * the cached-token path; aborting a token refresh mid-request is out of
- * scope. An operator reporting "token refresh hang on abort" should
- * reach for this comment first.
+ * Each individual token-exchange fetch is bounded by
+ * `TOKEN_FETCH_TIMEOUT_MS` (2s). The overall ADC chain is bounded by
+ * `ADC_CHAIN_TIMEOUT_MS` (5s) via the preflight's `AbortSignal`, which
+ * composes with the per-call timeout through `AbortSignal.any()`.
  */
 
 export interface GcsClientConfig {
@@ -48,6 +47,23 @@ export interface GcsClientConfig {
 }
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+
+/**
+ * Per-call timeout for individual token-exchange fetch calls (service
+ * account JWT exchange, user credential refresh, metadata server probe).
+ * Short enough to fail fast on unreachable endpoints; long enough for
+ * legitimate exchanges across a WAN hop.
+ */
+export const TOKEN_FETCH_TIMEOUT_MS = 2_000;
+
+/**
+ * Overall timeout for the ADC credential chain. Caps the total time spent
+ * resolving credentials from file reads, token exchanges, and metadata
+ * server probes. With 2s per-call and up to 3 sequential sources, the
+ * chain can take up to 6s; this 5s cap ensures a deterministic upper
+ * bound that fires before the worst case.
+ */
+export const ADC_CHAIN_TIMEOUT_MS = 5_000;
 
 /** Result of a GCS object write, including the generation number. */
 export interface GcsWriteResult {
@@ -331,9 +347,19 @@ export function tokenRefreshError(
   );
 }
 
+/**
+ * Compose a chain-level abort signal with the per-call token timeout.
+ * When both are present, whichever fires first wins.
+ */
+function composeTokenSignal(chainSignal?: AbortSignal): AbortSignal {
+  const perCall = AbortSignal.timeout(TOKEN_FETCH_TIMEOUT_MS);
+  return chainSignal ? AbortSignal.any([chainSignal, perCall]) : perCall;
+}
+
 /** Exchange a signed JWT for an access token. */
 async function tokenFromServiceAccount(
   sa: ServiceAccountKey,
+  signal?: AbortSignal,
 ): Promise<TokenResponse> {
   const jwt = await createSignedJwt(sa);
   const resp = await fetch(sa.token_uri, {
@@ -343,6 +369,7 @@ async function tokenFromServiceAccount(
       grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
       assertion: jwt,
     }),
+    signal: composeTokenSignal(signal),
   });
   if (!resp.ok) {
     throw tokenRefreshError(
@@ -357,6 +384,7 @@ async function tokenFromServiceAccount(
 /** Refresh an access token using user credentials (gcloud ADC). */
 async function tokenFromUserCredentials(
   creds: UserCredentials,
+  signal?: AbortSignal,
 ): Promise<TokenResponse> {
   const resp = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -367,6 +395,7 @@ async function tokenFromUserCredentials(
       client_secret: creds.client_secret,
       refresh_token: creds.refresh_token,
     }),
+    signal: composeTokenSignal(signal),
   });
   if (!resp.ok) {
     throw tokenRefreshError(
@@ -379,10 +408,15 @@ async function tokenFromUserCredentials(
 }
 
 /** Fetch an access token from the GCE metadata server. */
-async function tokenFromMetadataServer(): Promise<TokenResponse> {
+async function tokenFromMetadataServer(
+  signal?: AbortSignal,
+): Promise<TokenResponse> {
   const resp = await fetch(
     "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
-    { headers: { "Metadata-Flavor": "Google" } },
+    {
+      headers: { "Metadata-Flavor": "Google" },
+      signal: composeTokenSignal(signal),
+    },
   );
   if (!resp.ok) {
     // Intentionally a plain Error rather than the typed `tokenRefreshError`
@@ -406,8 +440,13 @@ async function tokenFromMetadataServer(): Promise<TokenResponse> {
  * 1. GOOGLE_APPLICATION_CREDENTIALS → service account key file
  * 2. Well-known gcloud ADC file → user or service account credentials
  * 3. GCE metadata server → attached service account
+ *
+ * An optional `signal` is forwarded to each token-exchange fetch call
+ * (composed with the per-call `TOKEN_FETCH_TIMEOUT_MS` timeout). The
+ * caller (typically `preflightCredentials`) uses
+ * `AbortSignal.timeout(ADC_CHAIN_TIMEOUT_MS)` to cap the entire chain.
  */
-async function getAccessToken(): Promise<string> {
+async function getAccessToken(signal?: AbortSignal): Promise<string> {
   if (cachedToken && Date.now() < cachedToken.expiresAt - 60_000) {
     return cachedToken.token;
   }
@@ -419,9 +458,15 @@ async function getAccessToken(): Promise<string> {
     const raw = await Deno.readTextFile(credsPath);
     const parsed = JSON.parse(raw);
     if (parsed.type === "service_account") {
-      tokenResp = await tokenFromServiceAccount(parsed as ServiceAccountKey);
+      tokenResp = await tokenFromServiceAccount(
+        parsed as ServiceAccountKey,
+        signal,
+      );
     } else if (parsed.type === "authorized_user") {
-      tokenResp = await tokenFromUserCredentials(parsed as UserCredentials);
+      tokenResp = await tokenFromUserCredentials(
+        parsed as UserCredentials,
+        signal,
+      );
     } else {
       throw new Error(
         `Unsupported credential type in GOOGLE_APPLICATION_CREDENTIALS: ${parsed.type}`,
@@ -437,19 +482,27 @@ async function getAccessToken(): Promise<string> {
       const raw = await Deno.readTextFile(adcPath);
       const parsed = JSON.parse(raw);
       if (parsed.type === "service_account") {
-        tokenResp = await tokenFromServiceAccount(parsed as ServiceAccountKey);
+        tokenResp = await tokenFromServiceAccount(
+          parsed as ServiceAccountKey,
+          signal,
+        );
       } else if (parsed.type === "authorized_user") {
-        tokenResp = await tokenFromUserCredentials(parsed as UserCredentials);
+        tokenResp = await tokenFromUserCredentials(
+          parsed as UserCredentials,
+          signal,
+        );
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.name === "TimeoutError") throw err;
       // ADC file not found — try metadata server
     }
   }
 
   if (!tokenResp) {
     try {
-      tokenResp = await tokenFromMetadataServer();
-    } catch {
+      tokenResp = await tokenFromMetadataServer(signal);
+    } catch (err) {
+      if (err instanceof Error && err.name === "TimeoutError") throw err;
       throw new Error(
         "Could not obtain GCP credentials. Set GOOGLE_APPLICATION_CREDENTIALS, " +
           "run 'gcloud auth application-default login', or run on a GCE instance " +
@@ -594,12 +647,14 @@ export class GcsClient {
   private readonly bucket: string;
   private readonly prefix: string;
   private readonly apiBase: string;
-  private readonly getToken: (() => Promise<string>) | null;
+  private readonly getToken:
+    | ((signal?: AbortSignal) => Promise<string>)
+    | null;
   private readonly defaultRequestTimeoutMs: number;
 
   constructor(
     config: GcsClientConfig,
-    tokenFn?: () => Promise<string>,
+    tokenFn?: (signal?: AbortSignal) => Promise<string>,
   ) {
     this.bucket = config.bucket;
     this.prefix = config.prefix ?? "";
@@ -630,8 +685,110 @@ export class GcsClient {
 
   private async headers(): Promise<Record<string, string>> {
     if (!this.getToken) return {};
-    const token = await this.getToken();
-    return { "Authorization": `Bearer ${token}` };
+    try {
+      const token = await this.getToken();
+      return { "Authorization": `Bearer ${token}` };
+    } catch (err) {
+      if (err instanceof GcsOperationError) throw err;
+      if (
+        err instanceof Error &&
+        (err.name === "TimeoutError" || err.name === "AbortError")
+      ) {
+        throw new GcsOperationError(
+          `GCS credential refresh timed out — ` +
+            `check GOOGLE_APPLICATION_CREDENTIALS, gcloud ADC, ` +
+            `or attached service account`,
+          {
+            name: "TimeoutError",
+            httpStatusCode: null,
+            code: undefined,
+            bodyPreview: undefined,
+            uploadId: undefined,
+            cause: err,
+          },
+        );
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Bounded credential preflight: eagerly resolves a token from the ADC
+   * chain, racing against `ADC_CHAIN_TIMEOUT_MS`. Verifies that
+   * credentials are available before the first real operation. On
+   * failure, token-refresh errors (including `invalid_grant` →
+   * session-expired) propagate with their existing swamp-flavoured hints.
+   * Timeout fires as `GcsOperationError` with an actionable message.
+   *
+   * Uses `Promise.race` so the timeout fires even when the underlying
+   * token function does not respect `AbortSignal` (e.g.
+   * `Deno.readTextFile` inside `getAccessToken`).
+   *
+   * No-ops when `apiEndpoint` is set (emulator mode: no credentials).
+   */
+  async preflightCredentials(signal?: AbortSignal): Promise<void> {
+    if (!this.getToken) return;
+    if (signal?.aborted) {
+      throw new GcsOperationError("GCS credential preflight aborted", {
+        name: "AbortError",
+        httpStatusCode: null,
+        code: undefined,
+        bodyPreview: undefined,
+        uploadId: undefined,
+        cause: signal.reason,
+      });
+    }
+
+    const probe = this.getToken();
+    probe.catch(() => {});
+
+    let timer: ReturnType<typeof setTimeout>;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () =>
+          reject(
+            new GcsOperationError(
+              `Credential preflight timed out after ${ADC_CHAIN_TIMEOUT_MS}ms — ` +
+                `check GOOGLE_APPLICATION_CREDENTIALS, gcloud ADC, ` +
+                `or attached service account`,
+              {
+                name: "TimeoutError",
+                httpStatusCode: null,
+                code: undefined,
+                bodyPreview: undefined,
+                uploadId: undefined,
+              },
+            ),
+          ),
+        ADC_CHAIN_TIMEOUT_MS,
+      );
+    });
+
+    const racers: Promise<unknown>[] = [probe, timeout];
+    if (signal) {
+      racers.push(
+        new Promise<never>((_, reject) => {
+          signal.addEventListener("abort", () => {
+            reject(
+              new GcsOperationError("GCS credential preflight aborted", {
+                name: "AbortError",
+                httpStatusCode: null,
+                code: undefined,
+                bodyPreview: undefined,
+                uploadId: undefined,
+                cause: signal.reason,
+              }),
+            );
+          }, { once: true });
+        }),
+      );
+    }
+
+    try {
+      await Promise.race(racers);
+    } finally {
+      clearTimeout(timer!);
+    }
   }
 
   /**

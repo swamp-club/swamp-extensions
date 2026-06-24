@@ -22,6 +22,7 @@ import {
   classifyAwsCredentialError,
   deriveAwsErrorCode,
   formatAwsCredentialHint,
+  PREFLIGHT_TIMEOUT_MS,
   S3Client,
   S3OperationError,
 } from "./s3_client.ts";
@@ -783,4 +784,91 @@ Deno.test({
       else Deno.env.delete("AWS_SHARED_CREDENTIALS_FILE");
     }
   },
+});
+
+// --- Credential preflight tests -------------------------------------------
+
+Deno.test({
+  sanitizeResources: false,
+  name: "preflightCredentials: succeeds on accessible bucket",
+  fn: () =>
+    withMockServer(
+      (req) => {
+        if (req.method === "HEAD") return new Response(null, { status: 200 });
+        return new Response(null, { status: 500 });
+      },
+      async (client) => {
+        await client.preflightCredentials();
+      },
+    ),
+});
+
+Deno.test({
+  sanitizeResources: false,
+  sanitizeOps: false,
+  name: "preflightCredentials: times out on stalled server",
+  fn: () =>
+    withMockServer(
+      () =>
+        new Promise<Response>((resolve) => {
+          setTimeout(
+            () => resolve(new Response(null, { status: 200 })),
+            30_000,
+          );
+        }),
+      async (client) => {
+        const start = performance.now();
+        let caught: unknown;
+        try {
+          await client.preflightCredentials();
+        } catch (e) {
+          caught = e;
+        }
+        const elapsed = performance.now() - start;
+        assert(
+          caught instanceof S3OperationError,
+          `expected S3OperationError, got: ${caught}`,
+        );
+        const err = caught as S3OperationError;
+        assertEquals(err.name, "TimeoutError");
+        assert(
+          err.message.includes("Credential preflight timed out"),
+          `expected preflight timeout message, got: ${err.message}`,
+        );
+        assert(
+          err.message.includes(`${PREFLIGHT_TIMEOUT_MS}ms`),
+          `expected timeout value in message, got: ${err.message}`,
+        );
+        assert(
+          elapsed < PREFLIGHT_TIMEOUT_MS + 2_000,
+          `expected timeout within ~${PREFLIGHT_TIMEOUT_MS}ms, took ${elapsed}ms`,
+        );
+      },
+      { defaultRequestTimeoutMs: 60_000 },
+    ),
+});
+
+Deno.test({
+  sanitizeResources: false,
+  name: "preflightCredentials: propagates 403 with auth hint",
+  fn: () =>
+    withAwsProfile(undefined, () =>
+      withMockServer(
+        () => new Response("", { status: 403 }),
+        async (client) => {
+          let caught: unknown;
+          try {
+            await client.preflightCredentials();
+          } catch (e) {
+            caught = e;
+          }
+          assert(caught instanceof S3OperationError);
+          const err = caught as S3OperationError;
+          assertEquals(err.httpStatusCode, 403);
+          assert(
+            err.message.toLowerCase().includes("credentials"),
+            `expected auth hint on 403, got: ${err.message}`,
+          );
+        },
+      )),
 });
