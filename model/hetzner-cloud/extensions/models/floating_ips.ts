@@ -42,14 +42,14 @@ import {
 } from "./_lib/hetzner.ts";
 
 const GlobalArgsSchema = z.object({
-  description: z.string().describe("Description of the Resource.").optional(),
+  description: z.unknown().describe("Description of the Resource.").optional(),
   name: z.string().describe("Name of the Resource. Must be unique per Project.")
     .optional(),
   labels: z.record(z.string(), z.unknown()).describe(
     'User-defined labels (`key/value` pairs) for the Resource.\nFor more information, see "[Labels](#description/labels)".\n',
   ).optional(),
   type: z.enum(["ipv4", "ipv6"]).describe("The Floating IP type."),
-  server: z.number().int().describe(
+  server: z.unknown().describe(
     "[Server](#tag/servers) the [Floating IP](#tag/floating-ips) is assigned to.\n\n`null` if not assigned.\n",
   ).optional(),
   home_location: z.string().describe(
@@ -63,10 +63,10 @@ const GlobalArgsSchema = z.object({
 const ResourceSchema = z.object({
   id: z.number(),
   name: z.string().optional(),
-  description: z.string().optional(),
+  description: z.unknown().optional(),
   ip: z.string().optional(),
   type: z.string().optional(),
-  server: z.number().optional(),
+  server: z.unknown().optional(),
   dns_ptr: z.array(z.object({
     ip: z.string().optional(),
     dns_ptr: z.string().optional(),
@@ -92,11 +92,11 @@ const ResourceSchema = z.object({
 type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
-  description: z.string().optional(),
+  description: z.unknown().optional(),
   name: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   type: z.enum(["ipv4", "ipv6"]).optional(),
-  server: z.number().int().optional(),
+  server: z.unknown().optional(),
   home_location: z.string().optional(),
   token: z.string().meta({ sensitive: true }).optional(),
 });
@@ -104,7 +104,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud floating ip. Registered at `@swamp/hetzner-cloud/floating-ips`. */
 export const model = {
   type: "@swamp/hetzner-cloud/floating-ips",
-  version: "2026.06.10.1",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -153,6 +153,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.10.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

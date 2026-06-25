@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/sagemaker/app_image_config` to see the
-full list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/sagemaker/algorithm` to see the full
+list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -47,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new app_image_config model
-swamp model create @swamp/aws/sagemaker/app_image_config my-app_image_config
+# Create a new algorithm model
+swamp model create @swamp/aws/sagemaker/algorithm my-algorithm
 
 # Edit the model to configure its properties
-swamp model edit my-app_image_config
+swamp model edit my-algorithm
 
 # Create the resource in AWS
-swamp model method run my-app_image_config create
+swamp model method run my-algorithm create
 
 # Sync current state from AWS
-swamp model method run my-app_image_config sync
+swamp model method run my-algorithm sync
 ```
 
 ## License

@@ -1,0 +1,19 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/aws/savingsplans"
+version: "2026.06.25.1"
+description: "AWS SAVINGSPLANS infrastructure models"
+repository: "https://github.com/swamp-club/swamp-extensions"
+labels:
+  - aws
+  - savingsplans
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: savings_plan
+models:
+  - savings_plan.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

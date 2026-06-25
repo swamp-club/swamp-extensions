@@ -49,7 +49,7 @@ const GlobalArgsSchema = z.object({
     'User-defined labels (`key/value` pairs) for the Resource.\nFor more information, see "[Labels](#description/labels)".\n',
   ).optional(),
   rules: z.array(z.object({
-    description: z.string().max(255).optional(),
+    description: z.unknown().optional(),
     direction: z.enum(["in", "out"]),
     source_ips: z.array(z.string()).optional(),
     destination_ips: z.array(z.string()).optional(),
@@ -80,12 +80,12 @@ const ResourceSchema = z.object({
   labels: z.record(z.string(), z.unknown()).optional(),
   created: z.string().optional(),
   rules: z.array(z.object({
-    description: z.string().optional(),
+    description: z.unknown().optional(),
     direction: z.string().optional(),
     source_ips: z.array(z.string()).optional(),
     destination_ips: z.array(z.string()).optional(),
     protocol: z.string().optional(),
-    port: z.string().optional(),
+    port: z.unknown().optional(),
   })).optional(),
   applied_to: z.array(z.object({
     type: z.string().optional(),
@@ -110,7 +110,7 @@ const InputsSchema = z.object({
   name: z.string().min(1).max(128).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   rules: z.array(z.object({
-    description: z.string().max(255).optional(),
+    description: z.unknown().optional(),
     direction: z.enum(["in", "out"]),
     source_ips: z.array(z.string()).optional(),
     destination_ips: z.array(z.string()).optional(),
@@ -132,7 +132,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud firewall. Registered at `@swamp/hetzner-cloud/firewalls`. */
 export const model = {
   type: "@swamp/hetzner-cloud/firewalls",
-  version: "2026.06.10.1",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -186,6 +186,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.10.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

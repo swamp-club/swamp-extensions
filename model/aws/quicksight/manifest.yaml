@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/quicksight"
-version: "2026.06.18.1"
+version: "2026.06.25.1"
 description: "AWS QUICKSIGHT infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -10,10 +10,12 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: topic
+  - Added: asset_bundle_export_job, asset_bundle_import_job
 models:
   - action_connector.ts
   - analysis.ts
+  - asset_bundle_export_job.ts
+  - asset_bundle_import_job.ts
   - custom_permissions.ts
   - dashboard.ts
   - data_set.ts

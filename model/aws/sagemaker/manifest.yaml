@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/sagemaker"
-version: "2026.06.17.1"
+version: "2026.06.25.1"
 description: "AWS SAGEMAKER infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -10,8 +10,9 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: cluster
+  - Added: algorithm, hub, model_card_export_job
 models:
+  - algorithm.ts
   - app.ts
   - app_image_config.ts
   - cluster.ts
@@ -21,6 +22,7 @@ models:
   - domain.ts
   - endpoint.ts
   - feature_group.ts
+  - hub.ts
   - image.ts
   - image_version.ts
   - inference_component.ts
@@ -30,6 +32,7 @@ models:
   - model.ts
   - model_bias_job_definition.ts
   - model_card.ts
+  - model_card_export_job.ts
   - model_explainability_job_definition.ts
   - model_package.ts
   - model_package_group.ts

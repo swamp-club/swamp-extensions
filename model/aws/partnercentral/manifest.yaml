@@ -1,0 +1,19 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/aws/partnercentral"
+version: "2026.06.25.1"
+description: "AWS PARTNERCENTRAL infrastructure models"
+repository: "https://github.com/swamp-club/swamp-extensions"
+labels:
+  - aws
+  - partnercentral
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: connection_preferences
+models:
+  - connection_preferences.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

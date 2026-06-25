@@ -68,20 +68,13 @@ const ResourceSchema = z.object({
   name: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   type: z.string().optional(),
-  certificate: z.string().optional(),
+  certificate: z.unknown().optional(),
   created: z.string().optional(),
-  not_valid_before: z.string().optional(),
-  not_valid_after: z.string().optional(),
+  not_valid_before: z.unknown().optional(),
+  not_valid_after: z.unknown().optional(),
   domain_names: z.array(z.string()).optional(),
-  fingerprint: z.string().optional(),
-  status: z.object({
-    issuance: z.string().optional(),
-    renewal: z.string().optional(),
-    error: z.object({
-      code: z.string().optional(),
-      message: z.string().optional(),
-    }).optional(),
-  }).optional(),
+  fingerprint: z.unknown().optional(),
+  status: z.unknown().optional(),
   used_by: z.array(z.object({
     id: z.number().optional(),
     type: z.string().optional(),
@@ -103,7 +96,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud certificate. Registered at `@swamp/hetzner-cloud/certificates`. */
 export const model = {
   type: "@swamp/hetzner-cloud/certificates",
-  version: "2026.06.10.1",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -152,6 +145,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.10.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

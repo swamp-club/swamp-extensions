@@ -493,7 +493,9 @@ const GlobalArgsSchema = z.object({
       username: z.string().describe(
         "Required. Username for the Salesforce connection.",
       ).optional(),
-    }).describe("Username-password credentials.").optional(),
+    }).describe(
+      "Deprecated: Salesforce is retiring Username-Password authentication. Use `Oauth2ClientCredentials` instead.",
+    ).optional(),
   }).describe("Profile for connecting to a Salesforce source.").optional(),
   serviceNowProfile: z.object({
     instance: z.string().describe(
@@ -1099,7 +1101,9 @@ const InputsSchema = z.object({
       username: z.string().describe(
         "Required. Username for the Salesforce connection.",
       ).optional(),
-    }).describe("Username-password credentials.").optional(),
+    }).describe(
+      "Deprecated: Salesforce is retiring Username-Password authentication. Use `Oauth2ClientCredentials` instead.",
+    ).optional(),
   }).describe("Profile for connecting to a Salesforce source.").optional(),
   serviceNowProfile: z.object({
     instance: z.string().describe(
@@ -1213,7 +1217,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Datastream ConnectionProfiles. Registered at `@swamp/gcp/datastream/connectionprofiles`. */
 export const model = {
   type: "@swamp/gcp/datastream/connectionprofiles",
-  version: "2026.06.08.1",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1293,6 +1297,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

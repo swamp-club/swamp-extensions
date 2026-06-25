@@ -79,7 +79,7 @@ const ResourceSchema = z.object({
     ip_range: z.string().optional(),
     network_zone: z.string().optional(),
     gateway: z.string().optional(),
-    vswitch_id: z.number().optional(),
+    vswitch_id: z.unknown().optional(),
   })).optional(),
   routes: z.array(z.object({
     destination: z.string().optional(),
@@ -118,7 +118,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud network. Registered at `@swamp/hetzner-cloud/networks`. */
 export const model = {
   type: "@swamp/hetzner-cloud/networks",
-  version: "2026.06.10.1",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -172,6 +172,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.10.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

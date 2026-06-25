@@ -42,14 +42,11 @@ const GlobalArgsSchema = z.object({
 
 const ResourceSchema = z.object({
   id: z.number(),
-  name: z.string().optional(),
+  name: z.unknown().optional(),
   description: z.string().optional(),
-  type: z.string().optional(),
-  deprecation: z.object({
-    unavailable_after: z.string().optional(),
-    announced: z.string().optional(),
-  }).optional(),
-  architecture: z.string().optional(),
+  type: z.unknown().optional(),
+  deprecation: z.unknown().optional(),
+  architecture: z.unknown().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -61,10 +58,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud iso. Registered at `@swamp/hetzner-cloud/isos`. */
 export const model = {
   type: "@swamp/hetzner-cloud/isos",
-  version: "2026.06.10.2",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.06.10.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

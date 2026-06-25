@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/dynamodb"
-version: "2026.06.15.1"
+version: "2026.06.25.1"
 description: "AWS DYNAMODB infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -10,9 +10,10 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: global_table
+  - Added: stream
 models:
   - global_table.ts
+  - stream.ts
 additionalFiles:
   - LICENSE.txt
   - README.md

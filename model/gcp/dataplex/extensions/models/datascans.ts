@@ -263,6 +263,9 @@ const GlobalArgsSchema = z.object({
         ).optional(),
       }).describe("Describes JSON data format.").optional(),
       unstructuredDataOptions: z.object({
+        globalEndpointEnabled: z.boolean().describe(
+          "Optional. Whether to use the global model endpoint.",
+        ).optional(),
         semanticInferenceEnabled: z.boolean().describe(
           "Optional. Specifies whether deeper semantic inference over the objects' contents using GenAI is enabled.",
         ).optional(),
@@ -355,6 +358,7 @@ const GlobalArgsSchema = z.object({
         "ALL",
         "TABLE_AND_COLUMN_DESCRIPTIONS",
         "SQL_QUERIES",
+        "BUSINESS_GLOSSARY_TERM_ASSOCIATIONS",
       ]),
     ).describe(
       "Optional. Specifies which components of the data documentation to generate. Any component that is required to generate the specified components will also be generated. If no generation scope is specified, all available documentation components will be generated.",
@@ -1098,6 +1102,7 @@ const StateSchema = z.object({
         typeInferenceDisabled: z.boolean(),
       }),
       unstructuredDataOptions: z.object({
+        globalEndpointEnabled: z.boolean(),
         semanticInferenceEnabled: z.boolean(),
       }),
     }),
@@ -1545,6 +1550,9 @@ const InputsSchema = z.object({
         ).optional(),
       }).describe("Describes JSON data format.").optional(),
       unstructuredDataOptions: z.object({
+        globalEndpointEnabled: z.boolean().describe(
+          "Optional. Whether to use the global model endpoint.",
+        ).optional(),
         semanticInferenceEnabled: z.boolean().describe(
           "Optional. Specifies whether deeper semantic inference over the objects' contents using GenAI is enabled.",
         ).optional(),
@@ -1637,6 +1645,7 @@ const InputsSchema = z.object({
         "ALL",
         "TABLE_AND_COLUMN_DESCRIPTIONS",
         "SQL_QUERIES",
+        "BUSINESS_GLOSSARY_TERM_ASSOCIATIONS",
       ]),
     ).describe(
       "Optional. Specifies which components of the data documentation to generate. Any component that is required to generate the specified components will also be generated. If no generation scope is specified, all available documentation components will be generated.",
@@ -2350,7 +2359,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex DataScans. Registered at `@swamp/gcp/dataplex/datascans`. */
 export const model = {
   type: "@swamp/gcp/dataplex/datascans",
-  version: "2026.06.08.2",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2484,6 +2493,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

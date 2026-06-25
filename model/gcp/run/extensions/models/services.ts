@@ -569,146 +569,6 @@ const GlobalArgsSchema = z.object({
     revision: z.string().describe(
       "Optional. The unique name for the revision. If this field is omitted, it will be automatically generated based on the Service name.",
     ).optional(),
-    sandboxes: z.object({
-      templates: z.array(z.object({
-        args: z.array(z.unknown()).describe(
-          "Arguments to the entrypoint. The docker image's CMD is used if this is not provided.",
-        ).optional(),
-        baseImageUri: z.string().describe(
-          "Base image for this container. Only supported for services. If set, it indicates that the service is enrolled into automatic base image update.",
-        ).optional(),
-        buildInfo: z.object({
-          functionTarget: z.unknown().describe(
-            "Output only. Entry point of the function when the image is a Cloud Run function.",
-          ).optional(),
-          sourceLocation: z.unknown().describe(
-            "Output only. Source code location of the image.",
-          ).optional(),
-        }).describe("Build information of the image.").optional(),
-        command: z.array(z.unknown()).describe(
-          "Entrypoint array. Not executed within a shell. The docker image's ENTRYPOINT is used if this is not provided.",
-        ).optional(),
-        dependsOn: z.array(z.unknown()).describe(
-          "Names of the containers that must start before this container.",
-        ).optional(),
-        env: z.array(z.unknown()).describe(
-          "List of environment variables to set in the container.",
-        ).optional(),
-        image: z.string().describe(
-          "Required. Name of the container image in Dockerhub, Google Artifact Registry, or Google Container Registry. If the host is not provided, Dockerhub is assumed.",
-        ).optional(),
-        livenessProbe: z.object({
-          failureThreshold: z.unknown().describe(
-            "Optional. Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.",
-          ).optional(),
-          grpc: z.unknown().describe(
-            "GRPCAction describes an action involving a GRPC port.",
-          ).optional(),
-          httpGet: z.unknown().describe(
-            "HTTPGetAction describes an action based on HTTP Get requests.",
-          ).optional(),
-          initialDelaySeconds: z.unknown().describe(
-            "Optional. Number of seconds after the container has started before the probe is initiated. Defaults to 0 seconds. Minimum value is 0. Maximum value for liveness probe is 3600. Maximum value for startup probe is 240.",
-          ).optional(),
-          periodSeconds: z.unknown().describe(
-            "Optional. How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1. Maximum value for liveness probe is 3600. Maximum value for startup probe is 240. Must be greater or equal than timeout_seconds.",
-          ).optional(),
-          tcpSocket: z.unknown().describe(
-            "TCPSocketAction describes an action based on opening a socket",
-          ).optional(),
-          timeoutSeconds: z.unknown().describe(
-            "Optional. Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. Maximum value is 3600. Must be smaller than period_seconds.",
-          ).optional(),
-        }).describe(
-          "Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.",
-        ).optional(),
-        name: z.string().describe(
-          "Name of the container specified as a DNS_LABEL (RFC 1123).",
-        ).optional(),
-        ports: z.array(z.unknown()).describe(
-          "List of ports to expose from the container. Only a single port can be specified. The specified ports must be listening on all interfaces (0.0.0.0) within the container to be accessible. If omitted, a port number will be chosen and passed to the container through the PORT environment variable for the container to listen on.",
-        ).optional(),
-        readinessProbe: z.object({
-          failureThreshold: z.unknown().describe(
-            "Optional. Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.",
-          ).optional(),
-          grpc: z.unknown().describe(
-            "GRPCAction describes an action involving a GRPC port.",
-          ).optional(),
-          httpGet: z.unknown().describe(
-            "HTTPGetAction describes an action based on HTTP Get requests.",
-          ).optional(),
-          initialDelaySeconds: z.unknown().describe(
-            "Optional. Number of seconds after the container has started before the probe is initiated. Defaults to 0 seconds. Minimum value is 0. Maximum value for liveness probe is 3600. Maximum value for startup probe is 240.",
-          ).optional(),
-          periodSeconds: z.unknown().describe(
-            "Optional. How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1. Maximum value for liveness probe is 3600. Maximum value for startup probe is 240. Must be greater or equal than timeout_seconds.",
-          ).optional(),
-          tcpSocket: z.unknown().describe(
-            "TCPSocketAction describes an action based on opening a socket",
-          ).optional(),
-          timeoutSeconds: z.unknown().describe(
-            "Optional. Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. Maximum value is 3600. Must be smaller than period_seconds.",
-          ).optional(),
-        }).describe(
-          "Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.",
-        ).optional(),
-        resources: z.object({
-          cpuIdle: z.unknown().describe(
-            "Determines whether CPU is only allocated during requests (true by default). However, if ResourceRequirements is set, the caller must explicitly set this field to true to preserve the default behavior.",
-          ).optional(),
-          limits: z.unknown().describe(
-            "Only `memory`, `cpu` and `nvidia.com/gpu` keys in the map are supported. Notes: * The only supported values for CPU are '1', '2', '4', and '8'. Setting 4 CPU requires at least 2Gi of memory. For more information, go to https://cloud.google.com/run/docs/configuring/cpu. * For supported 'memory' values and syntax, go to https://cloud.google.com/run/docs/configuring/memory-limits * The only supported 'nvidia.com/gpu' value is '1'.",
-          ).optional(),
-          startupCpuBoost: z.unknown().describe(
-            "Determines whether CPU should be boosted on startup of a new container instance above the requested CPU threshold, this can help reduce cold-start latency.",
-          ).optional(),
-        }).describe(
-          "ResourceRequirements describes the compute resource requirements.",
-        ).optional(),
-        sandboxLauncher: z.boolean().describe(
-          "Optional. Indicates that this container can act as a sandbox supervisor and launch sandboxes.",
-        ).optional(),
-        sourceCode: z.object({
-          cloudStorageSource: z.unknown().describe("Cloud Storage source.")
-            .optional(),
-          inlinedSource: z.unknown().describe("Inlined source.").optional(),
-        }).describe("Source type for the container.").optional(),
-        startupProbe: z.object({
-          failureThreshold: z.unknown().describe(
-            "Optional. Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.",
-          ).optional(),
-          grpc: z.unknown().describe(
-            "GRPCAction describes an action involving a GRPC port.",
-          ).optional(),
-          httpGet: z.unknown().describe(
-            "HTTPGetAction describes an action based on HTTP Get requests.",
-          ).optional(),
-          initialDelaySeconds: z.unknown().describe(
-            "Optional. Number of seconds after the container has started before the probe is initiated. Defaults to 0 seconds. Minimum value is 0. Maximum value for liveness probe is 3600. Maximum value for startup probe is 240.",
-          ).optional(),
-          periodSeconds: z.unknown().describe(
-            "Optional. How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1. Maximum value for liveness probe is 3600. Maximum value for startup probe is 240. Must be greater or equal than timeout_seconds.",
-          ).optional(),
-          tcpSocket: z.unknown().describe(
-            "TCPSocketAction describes an action based on opening a socket",
-          ).optional(),
-          timeoutSeconds: z.unknown().describe(
-            "Optional. Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. Maximum value is 3600. Must be smaller than period_seconds.",
-          ).optional(),
-        }).describe(
-          "Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.",
-        ).optional(),
-        volumeMounts: z.array(z.unknown()).describe(
-          "Volume to mount into the container's filesystem.",
-        ).optional(),
-        workingDir: z.string().describe(
-          "Container's working directory. If not specified, the container runtime's default will be used, which might be configured in the container image.",
-        ).optional(),
-      })).describe(
-        "Required. Container templates that can be launched through the `sandbox` CLI.",
-      ).optional(),
-    }).describe("Configuration for sandboxes.").optional(),
     scaling: z.object({
       concurrencyUtilization: z.number().describe(
         "Optional. Determines a threshold for concurrency utilization before scaling begins. Accepted values are between `0.1` and `0.95` (inclusive) or `0.0` to disable concurrency utilization as threshold for scaling. CPU and concurrency scaling cannot both be disabled.",
@@ -1089,61 +949,6 @@ const StateSchema = z.object({
       accelerator: z.string(),
     }),
     revision: z.string(),
-    sandboxes: z.object({
-      templates: z.array(z.object({
-        args: z.array(z.unknown()),
-        baseImageUri: z.string(),
-        buildInfo: z.object({
-          functionTarget: z.unknown(),
-          sourceLocation: z.unknown(),
-        }),
-        command: z.array(z.unknown()),
-        dependsOn: z.array(z.unknown()),
-        env: z.array(z.unknown()),
-        image: z.string(),
-        livenessProbe: z.object({
-          failureThreshold: z.unknown(),
-          grpc: z.unknown(),
-          httpGet: z.unknown(),
-          initialDelaySeconds: z.unknown(),
-          periodSeconds: z.unknown(),
-          tcpSocket: z.unknown(),
-          timeoutSeconds: z.unknown(),
-        }),
-        name: z.string(),
-        ports: z.array(z.unknown()),
-        readinessProbe: z.object({
-          failureThreshold: z.unknown(),
-          grpc: z.unknown(),
-          httpGet: z.unknown(),
-          initialDelaySeconds: z.unknown(),
-          periodSeconds: z.unknown(),
-          tcpSocket: z.unknown(),
-          timeoutSeconds: z.unknown(),
-        }),
-        resources: z.object({
-          cpuIdle: z.unknown(),
-          limits: z.unknown(),
-          startupCpuBoost: z.unknown(),
-        }),
-        sandboxLauncher: z.boolean(),
-        sourceCode: z.object({
-          cloudStorageSource: z.unknown(),
-          inlinedSource: z.unknown(),
-        }),
-        startupProbe: z.object({
-          failureThreshold: z.unknown(),
-          grpc: z.unknown(),
-          httpGet: z.unknown(),
-          initialDelaySeconds: z.unknown(),
-          periodSeconds: z.unknown(),
-          tcpSocket: z.unknown(),
-          timeoutSeconds: z.unknown(),
-        }),
-        volumeMounts: z.array(z.unknown()),
-        workingDir: z.string(),
-      })),
-    }),
     scaling: z.object({
       concurrencyUtilization: z.number(),
       cpuUtilization: z.number(),
@@ -1626,146 +1431,6 @@ const InputsSchema = z.object({
     revision: z.string().describe(
       "Optional. The unique name for the revision. If this field is omitted, it will be automatically generated based on the Service name.",
     ).optional(),
-    sandboxes: z.object({
-      templates: z.array(z.object({
-        args: z.array(z.unknown()).describe(
-          "Arguments to the entrypoint. The docker image's CMD is used if this is not provided.",
-        ).optional(),
-        baseImageUri: z.string().describe(
-          "Base image for this container. Only supported for services. If set, it indicates that the service is enrolled into automatic base image update.",
-        ).optional(),
-        buildInfo: z.object({
-          functionTarget: z.unknown().describe(
-            "Output only. Entry point of the function when the image is a Cloud Run function.",
-          ).optional(),
-          sourceLocation: z.unknown().describe(
-            "Output only. Source code location of the image.",
-          ).optional(),
-        }).describe("Build information of the image.").optional(),
-        command: z.array(z.unknown()).describe(
-          "Entrypoint array. Not executed within a shell. The docker image's ENTRYPOINT is used if this is not provided.",
-        ).optional(),
-        dependsOn: z.array(z.unknown()).describe(
-          "Names of the containers that must start before this container.",
-        ).optional(),
-        env: z.array(z.unknown()).describe(
-          "List of environment variables to set in the container.",
-        ).optional(),
-        image: z.string().describe(
-          "Required. Name of the container image in Dockerhub, Google Artifact Registry, or Google Container Registry. If the host is not provided, Dockerhub is assumed.",
-        ).optional(),
-        livenessProbe: z.object({
-          failureThreshold: z.unknown().describe(
-            "Optional. Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.",
-          ).optional(),
-          grpc: z.unknown().describe(
-            "GRPCAction describes an action involving a GRPC port.",
-          ).optional(),
-          httpGet: z.unknown().describe(
-            "HTTPGetAction describes an action based on HTTP Get requests.",
-          ).optional(),
-          initialDelaySeconds: z.unknown().describe(
-            "Optional. Number of seconds after the container has started before the probe is initiated. Defaults to 0 seconds. Minimum value is 0. Maximum value for liveness probe is 3600. Maximum value for startup probe is 240.",
-          ).optional(),
-          periodSeconds: z.unknown().describe(
-            "Optional. How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1. Maximum value for liveness probe is 3600. Maximum value for startup probe is 240. Must be greater or equal than timeout_seconds.",
-          ).optional(),
-          tcpSocket: z.unknown().describe(
-            "TCPSocketAction describes an action based on opening a socket",
-          ).optional(),
-          timeoutSeconds: z.unknown().describe(
-            "Optional. Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. Maximum value is 3600. Must be smaller than period_seconds.",
-          ).optional(),
-        }).describe(
-          "Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.",
-        ).optional(),
-        name: z.string().describe(
-          "Name of the container specified as a DNS_LABEL (RFC 1123).",
-        ).optional(),
-        ports: z.array(z.unknown()).describe(
-          "List of ports to expose from the container. Only a single port can be specified. The specified ports must be listening on all interfaces (0.0.0.0) within the container to be accessible. If omitted, a port number will be chosen and passed to the container through the PORT environment variable for the container to listen on.",
-        ).optional(),
-        readinessProbe: z.object({
-          failureThreshold: z.unknown().describe(
-            "Optional. Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.",
-          ).optional(),
-          grpc: z.unknown().describe(
-            "GRPCAction describes an action involving a GRPC port.",
-          ).optional(),
-          httpGet: z.unknown().describe(
-            "HTTPGetAction describes an action based on HTTP Get requests.",
-          ).optional(),
-          initialDelaySeconds: z.unknown().describe(
-            "Optional. Number of seconds after the container has started before the probe is initiated. Defaults to 0 seconds. Minimum value is 0. Maximum value for liveness probe is 3600. Maximum value for startup probe is 240.",
-          ).optional(),
-          periodSeconds: z.unknown().describe(
-            "Optional. How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1. Maximum value for liveness probe is 3600. Maximum value for startup probe is 240. Must be greater or equal than timeout_seconds.",
-          ).optional(),
-          tcpSocket: z.unknown().describe(
-            "TCPSocketAction describes an action based on opening a socket",
-          ).optional(),
-          timeoutSeconds: z.unknown().describe(
-            "Optional. Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. Maximum value is 3600. Must be smaller than period_seconds.",
-          ).optional(),
-        }).describe(
-          "Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.",
-        ).optional(),
-        resources: z.object({
-          cpuIdle: z.unknown().describe(
-            "Determines whether CPU is only allocated during requests (true by default). However, if ResourceRequirements is set, the caller must explicitly set this field to true to preserve the default behavior.",
-          ).optional(),
-          limits: z.unknown().describe(
-            "Only `memory`, `cpu` and `nvidia.com/gpu` keys in the map are supported. Notes: * The only supported values for CPU are '1', '2', '4', and '8'. Setting 4 CPU requires at least 2Gi of memory. For more information, go to https://cloud.google.com/run/docs/configuring/cpu. * For supported 'memory' values and syntax, go to https://cloud.google.com/run/docs/configuring/memory-limits * The only supported 'nvidia.com/gpu' value is '1'.",
-          ).optional(),
-          startupCpuBoost: z.unknown().describe(
-            "Determines whether CPU should be boosted on startup of a new container instance above the requested CPU threshold, this can help reduce cold-start latency.",
-          ).optional(),
-        }).describe(
-          "ResourceRequirements describes the compute resource requirements.",
-        ).optional(),
-        sandboxLauncher: z.boolean().describe(
-          "Optional. Indicates that this container can act as a sandbox supervisor and launch sandboxes.",
-        ).optional(),
-        sourceCode: z.object({
-          cloudStorageSource: z.unknown().describe("Cloud Storage source.")
-            .optional(),
-          inlinedSource: z.unknown().describe("Inlined source.").optional(),
-        }).describe("Source type for the container.").optional(),
-        startupProbe: z.object({
-          failureThreshold: z.unknown().describe(
-            "Optional. Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.",
-          ).optional(),
-          grpc: z.unknown().describe(
-            "GRPCAction describes an action involving a GRPC port.",
-          ).optional(),
-          httpGet: z.unknown().describe(
-            "HTTPGetAction describes an action based on HTTP Get requests.",
-          ).optional(),
-          initialDelaySeconds: z.unknown().describe(
-            "Optional. Number of seconds after the container has started before the probe is initiated. Defaults to 0 seconds. Minimum value is 0. Maximum value for liveness probe is 3600. Maximum value for startup probe is 240.",
-          ).optional(),
-          periodSeconds: z.unknown().describe(
-            "Optional. How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1. Maximum value for liveness probe is 3600. Maximum value for startup probe is 240. Must be greater or equal than timeout_seconds.",
-          ).optional(),
-          tcpSocket: z.unknown().describe(
-            "TCPSocketAction describes an action based on opening a socket",
-          ).optional(),
-          timeoutSeconds: z.unknown().describe(
-            "Optional. Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. Maximum value is 3600. Must be smaller than period_seconds.",
-          ).optional(),
-        }).describe(
-          "Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.",
-        ).optional(),
-        volumeMounts: z.array(z.unknown()).describe(
-          "Volume to mount into the container's filesystem.",
-        ).optional(),
-        workingDir: z.string().describe(
-          "Container's working directory. If not specified, the container runtime's default will be used, which might be configured in the container image.",
-        ).optional(),
-      })).describe(
-        "Required. Container templates that can be launched through the `sandbox` CLI.",
-      ).optional(),
-    }).describe("Configuration for sandboxes.").optional(),
     scaling: z.object({
       concurrencyUtilization: z.number().describe(
         "Optional. Determines a threshold for concurrency utilization before scaling begins. Accepted values are between `0.1` and `0.95` (inclusive) or `0.0` to disable concurrency utilization as threshold for scaling. CPU and concurrency scaling cannot both be disabled.",
@@ -1987,7 +1652,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Services. Registered at `@swamp/gcp/run/services`. */
 export const model = {
   type: "@swamp/gcp/run/services",
-  version: "2026.06.12.1",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2091,6 +1756,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.12.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

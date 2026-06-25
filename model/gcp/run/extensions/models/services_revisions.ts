@@ -263,105 +263,6 @@ const StateSchema = z.object({
   }).optional(),
   observedGeneration: z.string().optional(),
   reconciling: z.boolean().optional(),
-  sandboxes: z.object({
-    templates: z.array(z.object({
-      args: z.array(z.string()),
-      baseImageUri: z.string(),
-      buildInfo: z.object({
-        functionTarget: z.string(),
-        sourceLocation: z.string(),
-      }),
-      command: z.array(z.string()),
-      dependsOn: z.array(z.string()),
-      env: z.array(z.object({
-        name: z.unknown(),
-        value: z.unknown(),
-        valueSource: z.unknown(),
-      })),
-      image: z.string(),
-      livenessProbe: z.object({
-        failureThreshold: z.number(),
-        grpc: z.object({
-          port: z.unknown(),
-          service: z.unknown(),
-        }),
-        httpGet: z.object({
-          httpHeaders: z.unknown(),
-          path: z.unknown(),
-          port: z.unknown(),
-        }),
-        initialDelaySeconds: z.number(),
-        periodSeconds: z.number(),
-        tcpSocket: z.object({
-          port: z.unknown(),
-        }),
-        timeoutSeconds: z.number(),
-      }),
-      name: z.string(),
-      ports: z.array(z.object({
-        containerPort: z.unknown(),
-        name: z.unknown(),
-      })),
-      readinessProbe: z.object({
-        failureThreshold: z.number(),
-        grpc: z.object({
-          port: z.unknown(),
-          service: z.unknown(),
-        }),
-        httpGet: z.object({
-          httpHeaders: z.unknown(),
-          path: z.unknown(),
-          port: z.unknown(),
-        }),
-        initialDelaySeconds: z.number(),
-        periodSeconds: z.number(),
-        tcpSocket: z.object({
-          port: z.unknown(),
-        }),
-        timeoutSeconds: z.number(),
-      }),
-      resources: z.object({
-        cpuIdle: z.boolean(),
-        limits: z.record(z.string(), z.unknown()),
-        startupCpuBoost: z.boolean(),
-      }),
-      sandboxLauncher: z.boolean(),
-      sourceCode: z.object({
-        cloudStorageSource: z.object({
-          bucket: z.unknown(),
-          generation: z.unknown(),
-          object: z.unknown(),
-        }),
-        inlinedSource: z.object({
-          sources: z.unknown(),
-        }),
-      }),
-      startupProbe: z.object({
-        failureThreshold: z.number(),
-        grpc: z.object({
-          port: z.unknown(),
-          service: z.unknown(),
-        }),
-        httpGet: z.object({
-          httpHeaders: z.unknown(),
-          path: z.unknown(),
-          port: z.unknown(),
-        }),
-        initialDelaySeconds: z.number(),
-        periodSeconds: z.number(),
-        tcpSocket: z.object({
-          port: z.unknown(),
-        }),
-        timeoutSeconds: z.number(),
-      }),
-      volumeMounts: z.array(z.object({
-        mountPath: z.unknown(),
-        name: z.unknown(),
-        subPath: z.unknown(),
-      })),
-      workingDir: z.string(),
-    })),
-  }).optional(),
   satisfiesPzs: z.boolean().optional(),
   scaling: z.object({
     concurrencyUtilization: z.number(),
@@ -448,7 +349,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Services.Revisions. Registered at `@swamp/gcp/run/services-revisions`. */
 export const model = {
   type: "@swamp/gcp/run/services-revisions",
-  version: "2026.06.12.1",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -532,6 +433,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.12.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

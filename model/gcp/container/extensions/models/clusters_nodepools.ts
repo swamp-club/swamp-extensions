@@ -247,8 +247,9 @@ const GlobalArgsSchema = z.object({
       message: z.string().describe(
         "Human-friendly representation of the condition",
       ).optional(),
-    })).describe("Which conditions caused the current node pool state.")
-      .optional(),
+    })).describe(
+      "Output only. Which conditions caused the current node pool state.",
+    ).optional(),
     config: z.object({
       accelerators: z.array(z.object({
         acceleratorCount: z.string().describe(
@@ -859,7 +860,7 @@ const GlobalArgsSchema = z.object({
       "Parameters that describe the nodes in a cluster. GKE Autopilot clusters do not recognize parameters in `NodeConfig`. Use AutoprovisioningNodePoolDefaults instead.",
     ).optional(),
     etag: z.string().describe(
-      "This checksum is computed by the server based on the value of node pool fields, and may be sent on update requests to ensure the client has an up-to-date value before proceeding.",
+      "Output only. This checksum is computed by the server based on the value of node pool fields, and may be sent on update requests to ensure the client has an up-to-date value before proceeding.",
     ).optional(),
     initialNodeCount: z.number().int().describe(
       "The initial node count for the pool. You must ensure that your Compute Engine [resource quota](https://cloud.google.com/compute/quotas) is sufficient for this number of instances. You must also have available firewall and routes quota.",
@@ -2208,8 +2209,9 @@ const InputsSchema = z.object({
       message: z.string().describe(
         "Human-friendly representation of the condition",
       ).optional(),
-    })).describe("Which conditions caused the current node pool state.")
-      .optional(),
+    })).describe(
+      "Output only. Which conditions caused the current node pool state.",
+    ).optional(),
     config: z.object({
       accelerators: z.array(z.object({
         acceleratorCount: z.string().describe(
@@ -2820,7 +2822,7 @@ const InputsSchema = z.object({
       "Parameters that describe the nodes in a cluster. GKE Autopilot clusters do not recognize parameters in `NodeConfig`. Use AutoprovisioningNodePoolDefaults instead.",
     ).optional(),
     etag: z.string().describe(
-      "This checksum is computed by the server based on the value of node pool fields, and may be sent on update requests to ensure the client has an up-to-date value before proceeding.",
+      "Output only. This checksum is computed by the server based on the value of node pool fields, and may be sent on update requests to ensure the client has an up-to-date value before proceeding.",
     ).optional(),
     initialNodeCount: z.number().int().describe(
       "The initial node count for the pool. You must ensure that your Compute Engine [resource quota](https://cloud.google.com/compute/quotas) is sufficient for this number of instances. You must also have available firewall and routes quota.",
@@ -3748,7 +3750,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Kubernetes Engine Clusters.NodePools. Registered at `@swamp/gcp/container/clusters-nodepools`. */
 export const model = {
   type: "@swamp/gcp/container/clusters-nodepools",
-  version: "2026.06.24.1",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -3910,6 +3912,11 @@ export const model = {
     {
       toVersion: "2026.06.24.1",
       description: "Added: maintenancePolicy",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

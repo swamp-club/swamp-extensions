@@ -88,8 +88,8 @@ const GlobalArgsSchema = z.object({
   public_net: z.object({
     enable_ipv4: z.boolean().optional(),
     enable_ipv6: z.boolean().optional(),
-    ipv4: z.number().int().optional(),
-    ipv6: z.number().int().optional(),
+    ipv4: z.unknown().optional(),
+    ipv6: z.unknown().optional(),
   }).describe("Public Network options.").optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "Hetzner API token; overrides the HETZNER_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -102,21 +102,8 @@ const ResourceSchema = z.object({
   status: z.string().optional(),
   created: z.string().optional(),
   public_net: z.object({
-    ipv4: z.object({
-      id: z.number().optional(),
-      ip: z.string().optional(),
-      blocked: z.boolean().optional(),
-      dns_ptr: z.string().optional(),
-    }).optional(),
-    ipv6: z.object({
-      id: z.number().optional(),
-      ip: z.string().optional(),
-      blocked: z.boolean().optional(),
-      dns_ptr: z.array(z.object({
-        ip: z.string().optional(),
-        dns_ptr: z.string().optional(),
-      })).optional(),
-    }).optional(),
+    ipv4: z.unknown().optional(),
+    ipv6: z.unknown().optional(),
     floating_ips: z.array(z.number()).optional(),
     firewalls: z.array(z.object({
       id: z.number().optional(),
@@ -157,17 +144,11 @@ const ResourceSchema = z.object({
     cpu_type: z.string().optional(),
     category: z.string().optional(),
     architecture: z.string().optional(),
-    deprecation: z.object({
-      unavailable_after: z.string().optional(),
-      announced: z.string().optional(),
-    }).optional(),
+    deprecation: z.unknown().optional(),
     locations: z.array(z.object({
       id: z.number().optional(),
       name: z.string().optional(),
-      deprecation: z.object({
-        unavailable_after: z.string().optional(),
-        announced: z.string().optional(),
-      }).optional(),
+      deprecation: z.unknown().optional(),
       recommended: z.boolean().optional(),
       available: z.boolean().optional(),
     })).optional(),
@@ -202,48 +183,14 @@ const ResourceSchema = z.object({
     longitude: z.number().optional(),
     network_zone: z.string().optional(),
   }).optional(),
-  image: z.object({
-    id: z.number().optional(),
-    type: z.string().optional(),
-    status: z.string().optional(),
-    name: z.string().optional(),
-    description: z.string().optional(),
-    image_size: z.number().optional(),
-    disk_size: z.number().optional(),
-    created: z.string().optional(),
-    created_from: z.object({
-      id: z.number().optional(),
-      name: z.string().optional(),
-    }).optional(),
-    bound_to: z.number().optional(),
-    os_flavor: z.string().optional(),
-    os_version: z.string().optional(),
-    rapid_deploy: z.boolean().optional(),
-    protection: z.object({
-      delete: z.boolean().optional(),
-    }).optional(),
-    deprecated: z.string().optional(),
-    deleted: z.string().optional(),
-    labels: z.record(z.string(), z.unknown()).optional(),
-    architecture: z.string().optional(),
-  }).optional(),
-  iso: z.object({
-    id: z.number().optional(),
-    name: z.string().optional(),
-    description: z.string().optional(),
-    type: z.string().optional(),
-    deprecation: z.object({
-      unavailable_after: z.string().optional(),
-      announced: z.string().optional(),
-    }).optional(),
-    architecture: z.string().optional(),
-  }).optional(),
+  image: z.unknown().optional(),
+  iso: z.unknown().optional(),
   rescue_enabled: z.boolean().optional(),
   locked: z.boolean().optional(),
-  backup_window: z.string().optional(),
-  outgoing_traffic: z.number().optional(),
-  ingoing_traffic: z.number().optional(),
-  included_traffic: z.number().optional(),
+  backup_window: z.unknown().optional(),
+  outgoing_traffic: z.unknown().optional(),
+  ingoing_traffic: z.unknown().optional(),
+  included_traffic: z.unknown().optional(),
   protection: z.object({
     delete: z.boolean().optional(),
     rebuild: z.boolean().optional(),
@@ -252,14 +199,7 @@ const ResourceSchema = z.object({
   volumes: z.array(z.number()).optional(),
   load_balancers: z.array(z.number()).optional(),
   primary_disk_size: z.number().optional(),
-  placement_group: z.object({
-    id: z.number().optional(),
-    name: z.string().optional(),
-    labels: z.record(z.string(), z.unknown()).optional(),
-    type: z.string().optional(),
-    created: z.string().optional(),
-    servers: z.array(z.number()).optional(),
-  }).optional(),
+  placement_group: z.unknown().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -284,8 +224,8 @@ const InputsSchema = z.object({
   public_net: z.object({
     enable_ipv4: z.boolean().optional(),
     enable_ipv6: z.boolean().optional(),
-    ipv4: z.number().int().optional(),
-    ipv6: z.number().int().optional(),
+    ipv4: z.unknown().optional(),
+    ipv6: z.unknown().optional(),
   }).optional(),
   token: z.string().meta({ sensitive: true }).optional(),
 });
@@ -293,7 +233,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud server. Registered at `@swamp/hetzner-cloud/servers`. */
 export const model = {
   type: "@swamp/hetzner-cloud/servers",
-  version: "2026.06.10.1",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.04.02.1",
@@ -347,6 +287,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.10.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

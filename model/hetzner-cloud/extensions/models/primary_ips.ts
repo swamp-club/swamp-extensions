@@ -61,9 +61,9 @@ const GlobalArgsSchema = z.object({
     "[Location](#tag/locations) ID or name the [Primary IP](#tag/primary-ips) will be bound to.\n\nOmit if `assignee_id`/`assignee_type` or `datacenter` are provided.\n",
   ).optional(),
   assignee_type: z.enum(["server"]).describe(
-    "Type of resource the [Primary IP](#tag/primary-ips) can get assigned to.\n\nCurrently [Primary IPs](#tag/primary-ips) can only be assigned to [Servers](#tag/servers),\ntherefore this field must be set to `server`.\n",
-  ),
-  assignee_id: z.number().int().describe(
+    "Type of resource to assign the [Primary IP](#tag/primary-ips) to.\n\nOmitted if the [Primary IP](#tag/primary-ips) should not get assigned.\n",
+  ).optional(),
+  assignee_id: z.unknown().describe(
     "ID of resource to assign the [Primary IP](#tag/primary-ips) to.\n\nOmitted if the [Primary IP](#tag/primary-ips) should not get assigned.\n",
   ).optional(),
   token: z.string().meta({ sensitive: true }).describe(
@@ -118,7 +118,7 @@ const ResourceSchema = z.object({
   type: z.string().optional(),
   auto_delete: z.boolean().optional(),
   assignee_type: z.string().optional(),
-  assignee_id: z.number().optional(),
+  assignee_id: z.unknown().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -131,14 +131,14 @@ const InputsSchema = z.object({
   datacenter: z.string().optional(),
   location: z.string().optional(),
   assignee_type: z.enum(["server"]).optional(),
-  assignee_id: z.number().int().optional(),
+  assignee_id: z.unknown().optional(),
   token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Hetzner Cloud primary ip. Registered at `@swamp/hetzner-cloud/primary-ips`. */
 export const model = {
   type: "@swamp/hetzner-cloud/primary-ips",
-  version: "2026.06.10.1",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -187,6 +187,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.10.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -238,6 +238,56 @@ const WebDataSourceConfigurationSchema = z.object({
   ).optional(),
 });
 
+const DeletionProtectionConfigurationSchema = z.object({
+  DeletionProtectionStatus: z.enum(["ENABLED", "DISABLED"]).describe(
+    "Indicates whether a feature is enabled or disabled.",
+  ),
+  DeletionProtectionThreshold: z.number().int().min(0).max(100).describe(
+    "Threshold for deletion protection.",
+  ).optional(),
+});
+
+const ImageExtractionConfigurationSchema = z.object({
+  ImageExtractionStatus: z.enum(["ENABLED", "DISABLED"]).describe(
+    "Indicates whether a feature is enabled or disabled.",
+  ),
+});
+
+const AudioExtractionConfigurationSchema = z.object({
+  AudioExtractionStatus: z.enum(["ENABLED", "DISABLED"]).describe(
+    "Indicates whether a feature is enabled or disabled.",
+  ),
+});
+
+const VideoExtractionConfigurationSchema = z.object({
+  VideoExtractionStatus: z.enum(["ENABLED", "DISABLED"]).describe(
+    "Indicates whether a feature is enabled or disabled.",
+  ),
+});
+
+const MediaExtractionConfigurationSchema = z.object({
+  ImageExtractionConfiguration: ImageExtractionConfigurationSchema.describe(
+    "Configuration for image extraction.",
+  ).optional(),
+  AudioExtractionConfiguration: AudioExtractionConfigurationSchema.describe(
+    "Configuration for audio extraction.",
+  ).optional(),
+  VideoExtractionConfiguration: VideoExtractionConfigurationSchema.describe(
+    "Configuration for video extraction.",
+  ).optional(),
+});
+
+const ManagedKnowledgeBaseConnectorConfigurationSchema = z.object({
+  DeletionProtectionConfiguration: DeletionProtectionConfigurationSchema
+    .describe("Configuration for deletion protection.").optional(),
+  MediaExtractionConfiguration: MediaExtractionConfigurationSchema.describe(
+    "Configuration for media extraction settings.",
+  ).optional(),
+  ConnectorParameters: z.record(z.string(), z.unknown()).describe(
+    "Connector-specific parameters.",
+  ).optional(),
+});
+
 const FixedSizeChunkingConfigurationSchema = z.object({
   MaxTokens: z.number().int().min(1).describe(
     "The maximum number of tokens to include in a chunk.",
@@ -358,6 +408,7 @@ const ParsingConfigurationSchema = z.object({
   ParsingStrategy: z.enum([
     "BEDROCK_FOUNDATION_MODEL",
     "BEDROCK_DATA_AUTOMATION",
+    "SMART_PARSING",
   ]).describe("The parsing strategy for the data source."),
   BedrockFoundationModelConfiguration: BedrockFoundationModelConfigurationSchema
     .describe(
@@ -422,6 +473,7 @@ const GlobalArgsSchema = z.object({
       "WEB",
       "CUSTOM",
       "REDSHIFT_METADATA",
+      "MANAGED_KNOWLEDGE_BASE_CONNECTOR",
     ]).describe("The type of the data source location."),
     S3Configuration: S3DataSourceConfigurationSchema.describe(
       "The configuration information to connect to Amazon S3 as your data source.",
@@ -438,6 +490,10 @@ const GlobalArgsSchema = z.object({
     WebConfiguration: WebDataSourceConfigurationSchema.describe(
       "Configures a web data source location.",
     ).optional(),
+    ManagedKnowledgeBaseConnectorConfiguration:
+      ManagedKnowledgeBaseConnectorConfigurationSchema.describe(
+        "Configuration for managed knowledge base connector data sources.",
+      ).optional(),
   }).describe("Specifies a raw data source location to ingest."),
   Description: z.string().min(1).max(200).describe(
     "Description of the Resource.",
@@ -489,6 +545,8 @@ const StateSchema = z.object({
     SalesforceConfiguration: SalesforceDataSourceConfigurationSchema,
     SharePointConfiguration: SharePointDataSourceConfigurationSchema,
     WebConfiguration: WebDataSourceConfigurationSchema,
+    ManagedKnowledgeBaseConnectorConfiguration:
+      ManagedKnowledgeBaseConnectorConfigurationSchema,
   }).optional(),
   DataSourceId: z.string(),
   Description: z.string().optional(),
@@ -527,6 +585,7 @@ const InputsSchema = z.object({
       "WEB",
       "CUSTOM",
       "REDSHIFT_METADATA",
+      "MANAGED_KNOWLEDGE_BASE_CONNECTOR",
     ]).describe("The type of the data source location.").optional(),
     S3Configuration: S3DataSourceConfigurationSchema.describe(
       "The configuration information to connect to Amazon S3 as your data source.",
@@ -543,6 +602,10 @@ const InputsSchema = z.object({
     WebConfiguration: WebDataSourceConfigurationSchema.describe(
       "Configures a web data source location.",
     ).optional(),
+    ManagedKnowledgeBaseConnectorConfiguration:
+      ManagedKnowledgeBaseConnectorConfigurationSchema.describe(
+        "Configuration for managed knowledge base connector data sources.",
+      ).optional(),
   }).describe("Specifies a raw data source location to ingest.").optional(),
   Description: z.string().min(1).max(200).describe(
     "Description of the Resource.",
@@ -605,7 +668,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock DataSource. Registered at `@swamp/aws/bedrock/data-source`. */
 export const model = {
   type: "@swamp/aws/bedrock/data-source",
-  version: "2026.06.15.1",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -644,6 +707,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

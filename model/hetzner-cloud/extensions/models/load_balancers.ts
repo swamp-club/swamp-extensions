@@ -66,7 +66,7 @@ const GlobalArgsSchema = z.object({
       timeout: z.number().int().min(1).max(60),
       retries: z.number().int().min(1).max(5),
       http: z.object({
-        domain: z.string().max(128),
+        domain: z.unknown(),
         path: z.string().min(1).max(256),
         response: z.string().max(256).optional(),
         status_codes: z.array(z.string()).optional(),
@@ -78,6 +78,7 @@ const GlobalArgsSchema = z.object({
     type: z.enum(["server", "label_selector", "ip"]),
     server: z.object({
       id: z.number().int(),
+      ip: z.string().optional(),
     }).optional(),
     label_selector: z.object({
       selector: z.string().min(1).max(1000),
@@ -108,12 +109,12 @@ const ResourceSchema = z.object({
   public_net: z.object({
     enabled: z.boolean().optional(),
     ipv4: z.object({
-      ip: z.string().optional(),
-      dns_ptr: z.string().optional(),
+      ip: z.unknown().optional(),
+      dns_ptr: z.unknown().optional(),
     }).optional(),
     ipv6: z.object({
-      ip: z.string().optional(),
-      dns_ptr: z.string().optional(),
+      ip: z.unknown().optional(),
+      dns_ptr: z.unknown().optional(),
     }).optional(),
   }).optional(),
   private_net: z.array(z.object({
@@ -138,7 +139,8 @@ const ResourceSchema = z.object({
     max_services: z.number().optional(),
     max_targets: z.number().optional(),
     max_assigned_certificates: z.number().optional(),
-    deprecated: z.string().optional(),
+    deprecated: z.unknown().optional(),
+    deprecation: z.unknown().optional(),
     prices: z.array(z.object({
       location: z.string().optional(),
       price_hourly: z.object({
@@ -173,7 +175,7 @@ const ResourceSchema = z.object({
       timeout: z.number().optional(),
       retries: z.number().optional(),
       http: z.object({
-        domain: z.string().optional(),
+        domain: z.unknown().optional(),
         path: z.string().optional(),
         response: z.string().optional(),
         status_codes: z.array(z.string()).optional(),
@@ -185,6 +187,7 @@ const ResourceSchema = z.object({
     type: z.string().optional(),
     server: z.object({
       id: z.number().optional(),
+      ip: z.string().optional(),
     }).optional(),
     health_status: z.array(z.object({
       listen_port: z.number().optional(),
@@ -195,8 +198,8 @@ const ResourceSchema = z.object({
   algorithm: z.object({
     type: z.string().optional(),
   }).optional(),
-  outgoing_traffic: z.number().optional(),
-  ingoing_traffic: z.number().optional(),
+  outgoing_traffic: z.unknown().optional(),
+  ingoing_traffic: z.unknown().optional(),
   included_traffic: z.number().optional(),
 }).passthrough();
 
@@ -222,7 +225,7 @@ const InputsSchema = z.object({
       timeout: z.number().int().min(1).max(60),
       retries: z.number().int().min(1).max(5),
       http: z.object({
-        domain: z.string().max(128),
+        domain: z.unknown(),
         path: z.string().min(1).max(256),
         response: z.string().max(256).optional(),
         status_codes: z.array(z.string()).optional(),
@@ -234,6 +237,7 @@ const InputsSchema = z.object({
     type: z.enum(["server", "label_selector", "ip"]),
     server: z.object({
       id: z.number().int(),
+      ip: z.string().optional(),
     }).optional(),
     label_selector: z.object({
       selector: z.string().min(1).max(1000),
@@ -253,7 +257,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud load balancer. Registered at `@swamp/hetzner-cloud/load-balancers`. */
 export const model = {
   type: "@swamp/hetzner-cloud/load-balancers",
-  version: "2026.06.10.1",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -307,6 +311,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.10.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

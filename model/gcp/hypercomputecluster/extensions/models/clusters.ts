@@ -350,7 +350,7 @@ const GlobalArgsSchema = z.object({
           "When set in a SlurmNodeSet, indicates that the nodeset should be backed by Compute Engine VM instances.",
         ).optional(),
         id: z.string().describe(
-          "Required. Identifier for the nodeset, which allows it to be referenced by partitions. Must conform to [RFC-1034](https://datatracker.ietf.org/doc/html/rfc1034) (lower-case, alphanumeric, and at most 63 characters).",
+          "Required. The ID for the nodeset, which allows it to be referenced by cluster partitions. The nodeset ID must start with a lowercase letter (`a`-`z`), use only lowercase letters or numbers, and contain up to 15 characters. For example, specify `nodeset001`.",
         ).optional(),
         maxDynamicNodeCount: z.string().describe(
           "Optional. Controls how many additional nodes a cluster can bring online to handle workloads. Set this value to enable dynamic node creation and limit the number of additional nodes the cluster can bring online. Leave empty if you do not want the cluster to create nodes dynamically, and instead rely only on static nodes.",
@@ -508,7 +508,7 @@ const GlobalArgsSchema = z.object({
     "Optional. Storage resources available to the cluster. Keys specify the ID of the storage resource by which it can be referenced elsewhere, and must conform to [RFC-1034](https://datatracker.ietf.org/doc/html/rfc1034) (lower-case, alphanumeric, and at most 63 characters).",
   ).optional(),
   clusterId: z.string().describe(
-    "Required. ID of the cluster to create. Must conform to [RFC-1034](https://datatracker.ietf.org/doc/html/rfc1034) (lower-case, alphanumeric, and at most 63 characters).",
+    "Required. The ID of the cluster to create. The cluster ID must start with a lowercase letter (`a`-`z`), use only lowercase letters or numbers, and contain up to 10 characters. For example, specify `cluster001`.",
   ).optional(),
   requestId: z.string().describe(
     "Optional. A unique identifier for this request. A random UUID is recommended. This request is idempotent if and only if `request_id` is provided.",
@@ -765,7 +765,7 @@ const InputsSchema = z.object({
           "When set in a SlurmNodeSet, indicates that the nodeset should be backed by Compute Engine VM instances.",
         ).optional(),
         id: z.string().describe(
-          "Required. Identifier for the nodeset, which allows it to be referenced by partitions. Must conform to [RFC-1034](https://datatracker.ietf.org/doc/html/rfc1034) (lower-case, alphanumeric, and at most 63 characters).",
+          "Required. The ID for the nodeset, which allows it to be referenced by cluster partitions. The nodeset ID must start with a lowercase letter (`a`-`z`), use only lowercase letters or numbers, and contain up to 15 characters. For example, specify `nodeset001`.",
         ).optional(),
         maxDynamicNodeCount: z.string().describe(
           "Optional. Controls how many additional nodes a cluster can bring online to handle workloads. Set this value to enable dynamic node creation and limit the number of additional nodes the cluster can bring online. Leave empty if you do not want the cluster to create nodes dynamically, and instead rely only on static nodes.",
@@ -923,7 +923,7 @@ const InputsSchema = z.object({
     "Optional. Storage resources available to the cluster. Keys specify the ID of the storage resource by which it can be referenced elsewhere, and must conform to [RFC-1034](https://datatracker.ietf.org/doc/html/rfc1034) (lower-case, alphanumeric, and at most 63 characters).",
   ).optional(),
   clusterId: z.string().describe(
-    "Required. ID of the cluster to create. Must conform to [RFC-1034](https://datatracker.ietf.org/doc/html/rfc1034) (lower-case, alphanumeric, and at most 63 characters).",
+    "Required. The ID of the cluster to create. The cluster ID must start with a lowercase letter (`a`-`z`), use only lowercase letters or numbers, and contain up to 10 characters. For example, specify `cluster001`.",
   ).optional(),
   requestId: z.string().describe(
     "Optional. A unique identifier for this request. A random UUID is recommended. This request is idempotent if and only if `request_id` is provided.",
@@ -948,7 +948,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Cluster Director Clusters. Registered at `@swamp/gcp/hypercomputecluster/clusters`. */
 export const model = {
   type: "@swamp/gcp/hypercomputecluster/clusters",
-  version: "2026.06.18.1",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1067,6 +1067,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

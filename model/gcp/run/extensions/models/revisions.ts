@@ -295,120 +295,6 @@ const StateSchema = z.object({
     })),
     nodeSelector: z.record(z.string(), z.unknown()),
     runtimeClassName: z.string(),
-    sandboxes: z.array(z.object({
-      args: z.array(z.string()),
-      command: z.array(z.string()),
-      env: z.array(z.object({
-        name: z.unknown(),
-        value: z.unknown(),
-        valueFrom: z.unknown(),
-      })),
-      envFrom: z.array(z.object({
-        configMapRef: z.unknown(),
-        prefix: z.unknown(),
-        secretRef: z.unknown(),
-      })),
-      image: z.string(),
-      imagePullPolicy: z.string(),
-      livenessProbe: z.object({
-        exec: z.object({
-          command: z.unknown(),
-        }),
-        failureThreshold: z.number(),
-        grpc: z.object({
-          port: z.unknown(),
-          service: z.unknown(),
-        }),
-        httpGet: z.object({
-          host: z.unknown(),
-          httpHeaders: z.unknown(),
-          path: z.unknown(),
-          port: z.unknown(),
-          scheme: z.unknown(),
-        }),
-        initialDelaySeconds: z.number(),
-        periodSeconds: z.number(),
-        successThreshold: z.number(),
-        tcpSocket: z.object({
-          host: z.unknown(),
-          port: z.unknown(),
-        }),
-        timeoutSeconds: z.number(),
-      }),
-      name: z.string(),
-      ports: z.array(z.object({
-        containerPort: z.unknown(),
-        name: z.unknown(),
-        protocol: z.unknown(),
-      })),
-      readinessProbe: z.object({
-        exec: z.object({
-          command: z.unknown(),
-        }),
-        failureThreshold: z.number(),
-        grpc: z.object({
-          port: z.unknown(),
-          service: z.unknown(),
-        }),
-        httpGet: z.object({
-          host: z.unknown(),
-          httpHeaders: z.unknown(),
-          path: z.unknown(),
-          port: z.unknown(),
-          scheme: z.unknown(),
-        }),
-        initialDelaySeconds: z.number(),
-        periodSeconds: z.number(),
-        successThreshold: z.number(),
-        tcpSocket: z.object({
-          host: z.unknown(),
-          port: z.unknown(),
-        }),
-        timeoutSeconds: z.number(),
-      }),
-      resources: z.object({
-        limits: z.record(z.string(), z.unknown()),
-        requests: z.record(z.string(), z.unknown()),
-      }),
-      sandboxLauncher: z.boolean(),
-      securityContext: z.object({
-        runAsUser: z.number(),
-      }),
-      startupProbe: z.object({
-        exec: z.object({
-          command: z.unknown(),
-        }),
-        failureThreshold: z.number(),
-        grpc: z.object({
-          port: z.unknown(),
-          service: z.unknown(),
-        }),
-        httpGet: z.object({
-          host: z.unknown(),
-          httpHeaders: z.unknown(),
-          path: z.unknown(),
-          port: z.unknown(),
-          scheme: z.unknown(),
-        }),
-        initialDelaySeconds: z.number(),
-        periodSeconds: z.number(),
-        successThreshold: z.number(),
-        tcpSocket: z.object({
-          host: z.unknown(),
-          port: z.unknown(),
-        }),
-        timeoutSeconds: z.number(),
-      }),
-      terminationMessagePath: z.string(),
-      terminationMessagePolicy: z.string(),
-      volumeMounts: z.array(z.object({
-        mountPath: z.unknown(),
-        name: z.unknown(),
-        readOnly: z.unknown(),
-        subPath: z.unknown(),
-      })),
-      workingDir: z.string(),
-    })),
     serviceAccountName: z.string(),
     timeoutSeconds: z.number(),
     volumes: z.array(z.object({
@@ -485,7 +371,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Revisions. Registered at `@swamp/gcp/run/revisions`. */
 export const model = {
   type: "@swamp/gcp/run/revisions",
-  version: "2026.06.12.1",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.06.07.1",
@@ -499,6 +385,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.12.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

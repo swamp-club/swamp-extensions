@@ -82,7 +82,7 @@ const GlobalArgsSchema = z.object({
       "TLSA",
       "TXT",
     ]),
-    ttl: z.number().int().min(60).max(2147483647).optional(),
+    ttl: z.unknown().optional(),
     records: z.array(z.object({
       value: z.string(),
       comment: z.string().optional(),
@@ -121,7 +121,7 @@ const ResourceSchema = z.object({
     authoritative_nameservers: z.object({
       assigned: z.array(z.string()).optional(),
       delegated: z.array(z.string()).optional(),
-      delegation_last_check: z.string().optional(),
+      delegation_last_check: z.unknown().optional(),
       delegation_status: z.string().optional(),
     }).optional(),
     registrar: z.string().optional(),
@@ -162,7 +162,7 @@ const InputsSchema = z.object({
       "TLSA",
       "TXT",
     ]),
-    ttl: z.number().int().min(60).max(2147483647).optional(),
+    ttl: z.unknown().optional(),
     records: z.array(z.object({
       value: z.string(),
       comment: z.string().optional(),
@@ -176,7 +176,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud zone. Registered at `@swamp/hetzner-cloud/zones`. */
 export const model = {
   type: "@swamp/hetzner-cloud/zones",
-  version: "2026.06.10.1",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -225,6 +225,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.10.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

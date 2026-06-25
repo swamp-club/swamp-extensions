@@ -199,26 +199,6 @@ const StateSchema = z.object({
         })),
         nodeSelector: z.record(z.string(), z.unknown()),
         runtimeClassName: z.string(),
-        sandboxes: z.array(z.object({
-          args: z.unknown(),
-          command: z.unknown(),
-          env: z.unknown(),
-          envFrom: z.unknown(),
-          image: z.unknown(),
-          imagePullPolicy: z.unknown(),
-          livenessProbe: z.unknown(),
-          name: z.unknown(),
-          ports: z.unknown(),
-          readinessProbe: z.unknown(),
-          resources: z.unknown(),
-          sandboxLauncher: z.unknown(),
-          securityContext: z.unknown(),
-          startupProbe: z.unknown(),
-          terminationMessagePath: z.unknown(),
-          terminationMessagePolicy: z.unknown(),
-          volumeMounts: z.unknown(),
-          workingDir: z.unknown(),
-        })),
         serviceAccountName: z.string(),
         timeoutSeconds: z.number(),
         volumes: z.array(z.object({
@@ -274,7 +254,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Namespaces.Configurations. Registered at `@swamp/gcp/run/namespaces-configurations`. */
 export const model = {
   type: "@swamp/gcp/run/namespaces-configurations",
-  version: "2026.06.12.1",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.06.07.1",
@@ -288,6 +268,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.12.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

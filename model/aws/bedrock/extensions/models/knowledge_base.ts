@@ -281,6 +281,36 @@ const SqlKnowledgeBaseConfigurationSchema = z.object({
   ).optional(),
 });
 
+const ManagedKnowledgeBaseServerSideEncryptionConfigurationSchema = z.object({
+  KmsKeyArn: z.string().min(1).max(2048).regex(
+    new RegExp(
+      "^arn:aws(-cn|-us-gov|-eusc|-iso(-[b-f])?)?:kms:[a-zA-Z0-9-]*:[0-9]{12}:key/[a-zA-Z0-9-]{36}$",
+    ),
+  ).describe(
+    "The ARN of the AWS KMS key used to encrypt the managed knowledge base.",
+  ).optional(),
+});
+
+const ManagedKnowledgeBaseConfigurationSchema = z.object({
+  EmbeddingModelArn: z.string().min(20).max(2048).regex(
+    new RegExp(
+      "^(arn:aws(-[^:]+)?:[a-z0-9-]+:[a-z0-9-]{1,20}:[0-9]{0,12}:[a-zA-Z0-9-:/._+]+)$",
+    ),
+  ).describe(
+    "The ARN of the model used to create vector embeddings for the knowledge base.",
+  ),
+  EmbeddingModelType: z.enum(["CUSTOM", "MANAGED"]).describe(
+    "The type of embedding model to use for the managed knowledge base.",
+  ).optional(),
+  EmbeddingModelConfiguration: EmbeddingModelConfigurationSchema.describe(
+    "The embeddings model configuration details for the vector model used in Knowledge Base.",
+  ).optional(),
+  ServerSideEncryptionConfiguration:
+    ManagedKnowledgeBaseServerSideEncryptionConfigurationSchema.describe(
+      "Contains details about the server-side encryption for the managed knowledge base.",
+    ).optional(),
+});
+
 const OpenSearchServerlessFieldMappingSchema = z.object({
   VectorField: z.string().max(2048).regex(new RegExp("^.*$")).describe(
     "The name of the field in which Amazon Bedrock stores the vector embeddings for your data sources.",
@@ -506,7 +536,7 @@ const GlobalArgsSchema = z.object({
     "Description of the Resource.",
   ).optional(),
   KnowledgeBaseConfiguration: z.object({
-    Type: z.enum(["VECTOR", "KENDRA", "SQL"]).describe(
+    Type: z.enum(["VECTOR", "KENDRA", "SQL", "MANAGED"]).describe(
       "The type of a knowledge base.",
     ),
     VectorKnowledgeBaseConfiguration: VectorKnowledgeBaseConfigurationSchema
@@ -518,6 +548,10 @@ const GlobalArgsSchema = z.object({
     SqlKnowledgeBaseConfiguration: SqlKnowledgeBaseConfigurationSchema.describe(
       "Configurations for a SQL knowledge base",
     ).optional(),
+    ManagedKnowledgeBaseConfiguration: ManagedKnowledgeBaseConfigurationSchema
+      .describe(
+        "Contains details about the model used to create vector embeddings for a managed knowledge base.",
+      ).optional(),
   }).describe(
     "Contains details about the embeddings model used for the knowledge base.",
   ),
@@ -577,6 +611,7 @@ const StateSchema = z.object({
     VectorKnowledgeBaseConfiguration: VectorKnowledgeBaseConfigurationSchema,
     KendraKnowledgeBaseConfiguration: KendraKnowledgeBaseConfigurationSchema,
     SqlKnowledgeBaseConfiguration: SqlKnowledgeBaseConfigurationSchema,
+    ManagedKnowledgeBaseConfiguration: ManagedKnowledgeBaseConfigurationSchema,
   }).optional(),
   KnowledgeBaseId: z.string(),
   KnowledgeBaseArn: z.string().optional(),
@@ -612,7 +647,7 @@ const InputsSchema = z.object({
     "Description of the Resource.",
   ).optional(),
   KnowledgeBaseConfiguration: z.object({
-    Type: z.enum(["VECTOR", "KENDRA", "SQL"]).describe(
+    Type: z.enum(["VECTOR", "KENDRA", "SQL", "MANAGED"]).describe(
       "The type of a knowledge base.",
     ).optional(),
     VectorKnowledgeBaseConfiguration: VectorKnowledgeBaseConfigurationSchema
@@ -624,6 +659,10 @@ const InputsSchema = z.object({
     SqlKnowledgeBaseConfiguration: SqlKnowledgeBaseConfigurationSchema.describe(
       "Configurations for a SQL knowledge base",
     ).optional(),
+    ManagedKnowledgeBaseConfiguration: ManagedKnowledgeBaseConfigurationSchema
+      .describe(
+        "Contains details about the model used to create vector embeddings for a managed knowledge base.",
+      ).optional(),
   }).describe(
     "Contains details about the embeddings model used for the knowledge base.",
   ).optional(),
@@ -695,7 +734,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock KnowledgeBase. Registered at `@swamp/aws/bedrock/knowledge-base`. */
 export const model = {
   type: "@swamp/aws/bedrock/knowledge-base",
-  version: "2026.06.15.1",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -734,6 +773,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -849,6 +893,7 @@ export const model = {
             "Type",
             "VectorKnowledgeBaseConfiguration",
             "KendraKnowledgeBaseConfiguration",
+            "ManagedKnowledgeBaseConfiguration",
             "Type",
             "StorageConfigurations",
             "QueryEngineConfiguration",

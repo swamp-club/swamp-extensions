@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/rds"
-version: "2026.06.15.1"
+version: "2026.06.25.1"
 description: "AWS RDS infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: custom_dbengine_version, dbcluster, dbcluster_parameter_group, dbinstance, dbparameter_group, dbproxy, dbproxy_endpoint, dbproxy_target_group, dbshard_group, dbsubnet_group, event_subscription, global_cluster, integration, option_group
+  - Added: reserved_dbinstance
 models:
   - custom_dbengine_version.ts
   - dbcluster.ts
@@ -26,6 +26,7 @@ models:
   - global_cluster.ts
   - integration.ts
   - option_group.ts
+  - reserved_dbinstance.ts
 additionalFiles:
   - LICENSE.txt
   - README.md

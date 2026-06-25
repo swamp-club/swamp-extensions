@@ -1,0 +1,19 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/aws/outposts"
+version: "2026.06.25.1"
+description: "AWS OUTPOSTS infrastructure models"
+repository: "https://github.com/swamp-club/swamp-extensions"
+labels:
+  - aws
+  - outposts
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: site
+models:
+  - site.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

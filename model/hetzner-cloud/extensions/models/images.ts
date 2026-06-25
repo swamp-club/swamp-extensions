@@ -50,24 +50,21 @@ const ResourceSchema = z.object({
   id: z.number(),
   type: z.string().optional(),
   status: z.string().optional(),
-  name: z.string().optional(),
+  name: z.unknown().optional(),
   description: z.string().optional(),
-  image_size: z.number().optional(),
+  image_size: z.unknown().optional(),
   disk_size: z.number().optional(),
   created: z.string().optional(),
-  created_from: z.object({
-    id: z.number().optional(),
-    name: z.string().optional(),
-  }).optional(),
-  bound_to: z.number().optional(),
+  created_from: z.unknown().optional(),
+  bound_to: z.unknown().optional(),
   os_flavor: z.string().optional(),
-  os_version: z.string().optional(),
+  os_version: z.unknown().optional(),
   rapid_deploy: z.boolean().optional(),
   protection: z.object({
     delete: z.boolean().optional(),
   }).optional(),
-  deprecated: z.string().optional(),
-  deleted: z.string().optional(),
+  deprecated: z.unknown().optional(),
+  deleted: z.unknown().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   architecture: z.string().optional(),
 }).passthrough();
@@ -84,10 +81,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud image. Registered at `@swamp/hetzner-cloud/images`. */
 export const model = {
   type: "@swamp/hetzner-cloud/images",
-  version: "2026.06.10.2",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.06.10.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

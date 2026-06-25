@@ -437,7 +437,7 @@ const GlobalArgsSchema = z.object({
   ]).describe("The action to take if the encryption key is revoked.")
     .optional(),
   encryptionKeyShutdownDuration: z.string().describe(
-    "If encryption_key_revocation_action is SHUTDOWN, the duration before shutting down all instances. The minimum increment is 1 hour.",
+    "If `encryption_key_revocation_action` is `SHUTDOWN`, the duration before shutting down all instances. The minimum increment is 1 hour.",
   ).optional(),
   gpuZonalRedundancyDisabled: z.boolean().describe(
     "Optional. True if GPU zonal redundancy is disabled on this instance.",
@@ -451,10 +451,10 @@ const GlobalArgsSchema = z.object({
     "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER",
     "INGRESS_TRAFFIC_NONE",
   ]).describe(
-    "Optional. Provides the ingress settings for this Instance. On output, returns the currently observed ingress settings, or INGRESS_TRAFFIC_UNSPECIFIED if no revision is active.",
+    "Optional. Provides the ingress settings for this Instance. On output, returns the currently observed ingress settings, or `INGRESS_TRAFFIC_UNSPECIFIED` if no revision is active.",
   ).optional(),
   invokerIamDisabled: z.boolean().describe(
-    "Optional. Disables IAM permission check for run.routes.invoke for callers of this Instance. For more information, visit https://cloud.google.com/run/docs/securing/managing-access#invoker_check.",
+    "Optional. Disables IAM permission check for `run.routes.invoke` for callers of this Instance. For more information, visit https://cloud.google.com/run/docs/securing/managing-access#invoker_check.",
   ).optional(),
   labels: z.record(z.string(), z.string()).optional(),
   launchStage: z.enum([
@@ -467,10 +467,10 @@ const GlobalArgsSchema = z.object({
     "GA",
     "DEPRECATED",
   ]).describe(
-    "The launch stage as defined by [Google Cloud Platform Launch Stages](https://cloud.google.com/terms/launch-stages). Cloud Run supports `ALPHA`, `BETA`, and `GA`. If no value is specified, GA is assumed. Set the launch stage to a preview stage on input to allow use of preview features in that stage. On read (or output), describes whether the resource uses preview features. For example, if ALPHA is provided as input, but only BETA and GA-level features are used, this field will be BETA on output.",
+    "The launch stage as defined by [Google Cloud Platform Launch Stages](https://cloud.google.com/terms/launch-stages). Cloud Run supports `ALPHA`, `BETA`, and `GA`. If no value is specified, `GA` is assumed. Set the launch stage to a preview stage on input to allow use of preview features in that stage. On read (or output), describes whether the resource uses preview features. For example, if `ALPHA` is provided as input, but only `BETA` and `GA`-level features are used, this field will be `BETA` on output.",
   ).optional(),
   name: z.string().describe(
-    "The fully qualified name of this Instance. In CreateInstanceRequest, this field is ignored, and instead composed from CreateInstanceRequest.parent and CreateInstanceRequest.instance_id. Format: projects/{project}/locations/{location}/instances/{instance_id}",
+    "The fully qualified name of this Instance. In `CreateInstanceRequest`, this field is ignored, and instead composed from `CreateInstanceRequest.parent` and `CreateInstanceRequest.instance_id`.",
   ).optional(),
   nodeSelector: z.object({
     accelerator: z.string().describe(
@@ -1128,7 +1128,7 @@ const InputsSchema = z.object({
   ]).describe("The action to take if the encryption key is revoked.")
     .optional(),
   encryptionKeyShutdownDuration: z.string().describe(
-    "If encryption_key_revocation_action is SHUTDOWN, the duration before shutting down all instances. The minimum increment is 1 hour.",
+    "If `encryption_key_revocation_action` is `SHUTDOWN`, the duration before shutting down all instances. The minimum increment is 1 hour.",
   ).optional(),
   gpuZonalRedundancyDisabled: z.boolean().describe(
     "Optional. True if GPU zonal redundancy is disabled on this instance.",
@@ -1142,10 +1142,10 @@ const InputsSchema = z.object({
     "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER",
     "INGRESS_TRAFFIC_NONE",
   ]).describe(
-    "Optional. Provides the ingress settings for this Instance. On output, returns the currently observed ingress settings, or INGRESS_TRAFFIC_UNSPECIFIED if no revision is active.",
+    "Optional. Provides the ingress settings for this Instance. On output, returns the currently observed ingress settings, or `INGRESS_TRAFFIC_UNSPECIFIED` if no revision is active.",
   ).optional(),
   invokerIamDisabled: z.boolean().describe(
-    "Optional. Disables IAM permission check for run.routes.invoke for callers of this Instance. For more information, visit https://cloud.google.com/run/docs/securing/managing-access#invoker_check.",
+    "Optional. Disables IAM permission check for `run.routes.invoke` for callers of this Instance. For more information, visit https://cloud.google.com/run/docs/securing/managing-access#invoker_check.",
   ).optional(),
   labels: z.record(z.string(), z.string()).optional(),
   launchStage: z.enum([
@@ -1158,10 +1158,10 @@ const InputsSchema = z.object({
     "GA",
     "DEPRECATED",
   ]).describe(
-    "The launch stage as defined by [Google Cloud Platform Launch Stages](https://cloud.google.com/terms/launch-stages). Cloud Run supports `ALPHA`, `BETA`, and `GA`. If no value is specified, GA is assumed. Set the launch stage to a preview stage on input to allow use of preview features in that stage. On read (or output), describes whether the resource uses preview features. For example, if ALPHA is provided as input, but only BETA and GA-level features are used, this field will be BETA on output.",
+    "The launch stage as defined by [Google Cloud Platform Launch Stages](https://cloud.google.com/terms/launch-stages). Cloud Run supports `ALPHA`, `BETA`, and `GA`. If no value is specified, `GA` is assumed. Set the launch stage to a preview stage on input to allow use of preview features in that stage. On read (or output), describes whether the resource uses preview features. For example, if `ALPHA` is provided as input, but only `BETA` and `GA`-level features are used, this field will be `BETA` on output.",
   ).optional(),
   name: z.string().describe(
-    "The fully qualified name of this Instance. In CreateInstanceRequest, this field is ignored, and instead composed from CreateInstanceRequest.parent and CreateInstanceRequest.instance_id. Format: projects/{project}/locations/{location}/instances/{instance_id}",
+    "The fully qualified name of this Instance. In `CreateInstanceRequest`, this field is ignored, and instead composed from `CreateInstanceRequest.parent` and `CreateInstanceRequest.instance_id`.",
   ).optional(),
   nodeSelector: z.object({
     accelerator: z.string().describe(
@@ -1355,7 +1355,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Instances. Registered at `@swamp/gcp/run/instances`. */
 export const model = {
   type: "@swamp/gcp/run/instances",
-  version: "2026.06.12.1",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1486,6 +1486,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.12.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

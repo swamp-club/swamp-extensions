@@ -1,0 +1,20 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/aws/controlcatalog"
+version: "2026.06.25.1"
+description: "AWS CONTROLCATALOG infrastructure models"
+repository: "https://github.com/swamp-club/swamp-extensions"
+labels:
+  - aws
+  - controlcatalog
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: common_control, control
+models:
+  - common_control.ts
+  - control.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

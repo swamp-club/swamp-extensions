@@ -151,6 +151,7 @@ const StateSchema = z.object({
         typeInferenceDisabled: z.boolean(),
       }),
       unstructuredDataOptions: z.object({
+        globalEndpointEnabled: z.boolean(),
         semanticInferenceEnabled: z.boolean(),
       }),
     }),
@@ -501,7 +502,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex DataScans.Jobs. Registered at `@swamp/gcp/dataplex/datascans-jobs`. */
 export const model = {
   type: "@swamp/gcp/dataplex/datascans-jobs",
-  version: "2026.06.08.2",
+  version: "2026.06.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -620,6 +621,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
