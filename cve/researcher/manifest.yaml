@@ -1,0 +1,63 @@
+manifestVersion: 1
+name: "@swamp/cve/researcher"
+version: "2026.06.25.1"
+description: |
+  Daily CVE research pipeline — queries NVD, GitHub Advisory DB, and CISA
+  KEV for HIGH/CRITICAL vulnerabilities, classifies them by real-world
+  impact (supply-chain, infrastructure, open-source library, vendor product),
+  and scores each for actionability to identify which CVEs warrant a
+  dedicated swamp scanner extension.
+
+  ## Methods
+
+  - `research` — query all three CVE sources, filter by lookback window
+    and severity, deduplicate, classify, score, and persist results with
+    state tracking for idempotent alerting
+
+  ## Report
+
+  Generates a markdown report grouped by actionability:
+
+  - **Extension Candidates** (score 7+) — detailed with scoring breakdown
+  - **Monitor** (score 4–6) — worth tracking
+  - **Patch Only** (<4) — summary counts by classification
+
+  ## Workflow
+
+  Bundled `cve-research` workflow runs the research method and posts a
+  rich Discord embed summary via `@keeb/discord`. Designed to run daily
+  in a GitHub Action on a cron schedule.
+
+  ## Environment Variables
+
+  - `NVD_API_KEY` — NVD API key for higher rate limits (optional)
+  - `DISCORD_WEBHOOK_URL` — Discord webhook URL for notifications (required by workflow)
+
+repository: "https://github.com/swamp-club/swamp-extensions"
+
+models:
+  - cve_research.ts
+  - discord_webhook_env.ts
+
+reports:
+  - cve_research_report.ts
+
+workflows:
+  - cve-research-to-discord.yaml
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+labels:
+  - security
+  - cve
+  - vulnerability
+  - research
+  - nvd
+  - github-advisory
+  - cisa-kev
+  - discord
+
+dependencies:
+  - "@keeb/discord"

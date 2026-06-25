@@ -361,7 +361,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        cve: [dirtyfrag, mini-shai-hulud]
+        cve: [dirtyfrag, mini-shai-hulud, researcher]
         task: [check, lint, fmt, test]
     defaults:
       run:
@@ -391,7 +391,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        cve: [dirtyfrag, mini-shai-hulud]
+        cve: [dirtyfrag, mini-shai-hulud, researcher]
     defaults:
       run:
         working-directory: cve/${{ matrix.cve }}
