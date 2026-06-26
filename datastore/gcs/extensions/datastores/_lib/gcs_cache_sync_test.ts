@@ -1301,6 +1301,12 @@ Deno.test("isInternalCacheFile: excludes per-target FileLock files at any depth"
   assertEquals(isInternalCacheFile("data/@m/lock"), false);
 });
 
+Deno.test("isInternalCacheFile: excludes .namespace.json at any depth", () => {
+  assertEquals(isInternalCacheFile(".namespace.json"), true);
+  assertEquals(isInternalCacheFile("infra/.namespace.json"), true);
+  assertEquals(isInternalCacheFile("namespace.json"), false);
+});
+
 // -- (2) post-verified pullChanged short-circuits with zero index GETs ----
 
 Deno.test("pullChanged: post-verified second call hits fast path with zero index GETs", async () => {

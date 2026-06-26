@@ -109,7 +109,7 @@ export function isInternalCacheFile(rel: string): boolean {
   }
   if (rel === "_index" || rel.startsWith("_index/")) return true;
   const base = rel.split("/").pop() ?? "";
-  if (base === ".lock") return true;
+  if (base === ".lock" || base === ".namespace.json") return true;
   return base === "_catalog.db" || base.startsWith("_catalog.db-");
 }
 
