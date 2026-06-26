@@ -86,6 +86,24 @@ const ResourceSchema = z.object({
   performance_tier: z.string().optional(),
   mount_path: z.string().optional(),
   host: z.string().optional(),
+  access_points: z.array(z.object({
+    id: z.string().optional(),
+    name: z.string().optional(),
+    share_id: z.string().optional(),
+    path: z.string().optional(),
+    status: z.string().optional(),
+    access_policy: z.object({
+      anonuid: z.number().optional(),
+      anongid: z.number().optional(),
+      protocols: z.array(z.string()).optional(),
+      squash_config: z.string().optional(),
+      identity_enforcement_enabled: z.boolean().optional(),
+    }).optional(),
+    created_at: z.string().optional(),
+    updated_at: z.string().optional(),
+    is_default: z.boolean().optional(),
+    vpc_id: z.string().optional(),
+  })).optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -118,7 +136,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean nfs. Registered at `@swamp/digitalocean/nfs`. */
 export const model = {
   type: "@swamp/digitalocean/nfs",
-  version: "2026.06.24.1",
+  version: "2026.06.26.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -182,6 +200,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

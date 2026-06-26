@@ -54,7 +54,7 @@ const BASE_URL = "https://agentregistry.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "agentregistry.projects.locations.services.get",
-  "path": "v1alpha/{+name}",
+  "path": "v1/{+name}",
   "httpMethod": "GET",
   "parameterOrder": [
     "name",
@@ -69,7 +69,7 @@ const GET_CONFIG = {
 
 const INSERT_CONFIG = {
   "id": "agentregistry.projects.locations.services.create",
-  "path": "v1alpha/{+parent}/services",
+  "path": "v1/{+parent}/services",
   "httpMethod": "POST",
   "parameterOrder": [
     "parent",
@@ -90,7 +90,7 @@ const INSERT_CONFIG = {
 
 const PATCH_CONFIG = {
   "id": "agentregistry.projects.locations.services.patch",
-  "path": "v1alpha/{+name}",
+  "path": "v1/{+name}",
   "httpMethod": "PATCH",
   "parameterOrder": [
     "name",
@@ -111,7 +111,7 @@ const PATCH_CONFIG = {
 
 const DELETE_CONFIG = {
   "id": "agentregistry.projects.locations.services.delete",
-  "path": "v1alpha/{+name}",
+  "path": "v1/{+name}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "name",
@@ -129,7 +129,7 @@ const DELETE_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "agentregistry.projects.locations.services.list",
-  "path": "v1alpha/{+parent}/services",
+  "path": "v1/{+parent}/services",
   "httpMethod": "GET",
   "parameterOrder": [
     "parent",
@@ -313,7 +313,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Registry Services. Registered at `@swamp/gcp/agentregistry/services`. */
 export const model = {
   type: "@swamp/gcp/agentregistry/services",
-  version: "2026.06.08.1",
+  version: "2026.06.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -387,6 +387,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

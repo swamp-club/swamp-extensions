@@ -196,7 +196,7 @@ const GlobalArgsSchema = z.object({
     .describe("Required. Immutable. The identifier of a supported record type.")
     .optional(),
   serviceClass: z.string().describe(
-    "Required. Immutable. The service class identifier which authorizes this AutomatedDnsRecord. Any API calls targeting this AutomatedDnsRecord must have `networkconnectivity.serviceclasses.use` IAM permission for the provided service class.",
+    "Required. Immutable. The service class identifier which authorizes this AutomatedDnsRecord. Any API calls targeting this AutomatedDnsRecord must have `networkconnectivity.serviceClasses.use` IAM permission for the provided service class.",
   ).optional(),
   automatedDnsRecordId: z.string().describe(
     "Optional. Resource ID (i.e. 'foo' in '[...]/projects/p/locations/l/automatedDnsRecords/foo') See https://google.aip.dev/122#resource-id-segments Unique per location. If one is not provided, one will be generated.",
@@ -290,7 +290,7 @@ const InputsSchema = z.object({
     .describe("Required. Immutable. The identifier of a supported record type.")
     .optional(),
   serviceClass: z.string().describe(
-    "Required. Immutable. The service class identifier which authorizes this AutomatedDnsRecord. Any API calls targeting this AutomatedDnsRecord must have `networkconnectivity.serviceclasses.use` IAM permission for the provided service class.",
+    "Required. Immutable. The service class identifier which authorizes this AutomatedDnsRecord. Any API calls targeting this AutomatedDnsRecord must have `networkconnectivity.serviceClasses.use` IAM permission for the provided service class.",
   ).optional(),
   automatedDnsRecordId: z.string().describe(
     "Optional. Resource ID (i.e. 'foo' in '[...]/projects/p/locations/l/automatedDnsRecords/foo') See https://google.aip.dev/122#resource-id-segments Unique per location. If one is not provided, one will be generated.",
@@ -321,7 +321,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Connectivity AutomatedDnsRecords. Registered at `@swamp/gcp/networkconnectivity/automateddnsrecords`. */
 export const model = {
   type: "@swamp/gcp/networkconnectivity/automateddnsrecords",
-  version: "2026.06.24.2",
+  version: "2026.06.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -405,6 +405,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.24.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

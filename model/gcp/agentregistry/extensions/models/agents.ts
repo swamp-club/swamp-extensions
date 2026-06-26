@@ -52,7 +52,7 @@ const BASE_URL = "https://agentregistry.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "agentregistry.projects.locations.agents.get",
-  "path": "v1alpha/{+name}",
+  "path": "v1/{+name}",
   "httpMethod": "GET",
   "parameterOrder": [
     "name",
@@ -67,7 +67,7 @@ const GET_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "agentregistry.projects.locations.agents.list",
-  "path": "v1alpha/{+parent}/agents",
+  "path": "v1/{+parent}/agents",
   "httpMethod": "GET",
   "parameterOrder": [
     "parent",
@@ -169,7 +169,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Registry Agents. Registered at `@swamp/gcp/agentregistry/agents`. */
 export const model = {
   type: "@swamp/gcp/agentregistry/agents",
-  version: "2026.06.08.1",
+  version: "2026.06.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -263,6 +263,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -446,7 +451,7 @@ export const model = {
           BASE_URL,
           {
             "id": "agentregistry.projects.locations.agents.search",
-            "path": "v1alpha/{+parent}/agents:search",
+            "path": "v1/{+parent}/agents:search",
             "httpMethod": "POST",
             "parameterOrder": ["parent"],
             "parameters": {

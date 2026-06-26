@@ -17,15 +17,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/gcp/agentregistry/endpoints
+// Auto-generated extension model for @swamp/gcp/assuredworkloads/dbfindingsummaries
 // Do not edit manually. Re-generate with: deno task generate:gcp
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Agent Registry Endpoints.
+ * Swamp extension model for Google Cloud Assured Workloads DbFindingSummaries.
  *
- * Represents an Endpoint.
+ * The details for a finding.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -39,34 +39,14 @@ import {
   getProjectId,
   isResourceNotFoundError,
   listResources,
-  readResource,
+  readViaList,
 } from "./_lib/gcp.ts";
 
-/** Construct the fully-qualified resource name from parent and short name. */
-function buildResourceName(parent: string, shortName: string): string {
-  return `${parent}/endpoints/${shortName}`;
-}
-
-const BASE_URL = "https://agentregistry.googleapis.com/";
-
-const GET_CONFIG = {
-  "id": "agentregistry.projects.locations.endpoints.get",
-  "path": "v1/{+name}",
-  "httpMethod": "GET",
-  "parameterOrder": [
-    "name",
-  ],
-  "parameters": {
-    "name": {
-      "location": "path",
-      "required": true,
-    },
-  },
-} as const;
+const BASE_URL = "https://assuredworkloads.googleapis.com/";
 
 const LIST_CONFIG = {
-  "id": "agentregistry.projects.locations.endpoints.list",
-  "path": "v1/{+parent}/endpoints",
+  "id": "assuredworkloads.folders.locations.dbFindingSummaries.list",
+  "path": "v1/{+parent}/dbFindingSummaries",
   "httpMethod": "GET",
   "parameterOrder": [
     "parent",
@@ -101,22 +81,18 @@ const GlobalArgsSchema = z.object({
   project: z.string().describe(
     "GCP project ID; overrides GCP_PROJECT / GOOGLE_CLOUD_PROJECT environment variables.",
   ).optional(),
-  location: z.string().describe(
-    "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
+  parent: z.string().describe(
+    "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
   ).optional(),
 });
 
 const StateSchema = z.object({
-  attributes: z.record(z.string(), z.unknown()).optional(),
-  createTime: z.string().optional(),
-  description: z.string().optional(),
-  displayName: z.string().optional(),
-  endpointId: z.string().optional(),
-  interfaces: z.array(z.object({
-    protocolBinding: z.string(),
-    url: z.string(),
-  })).optional(),
+  findingCategory: z.string().optional(),
+  findingClass: z.string().optional(),
+  findingCount: z.string().optional(),
   name: z.string(),
+  relatedFrameworks: z.array(z.string()).optional(),
+  severity: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -127,8 +103,8 @@ const InputsSchema = z.object({
   accessToken: z.string().meta({ sensitive: true }).optional(),
   credentialsJson: z.string().meta({ sensitive: true }).optional(),
   project: z.string().optional(),
-  location: z.string().describe(
-    "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
+  parent: z.string().describe(
+    "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
   ).optional(),
 });
 
@@ -144,97 +120,15 @@ function _buildGcpCredentials(
   };
 }
 
-/** Swamp extension model for Google Cloud Agent Registry Endpoints. Registered at `@swamp/gcp/agentregistry/endpoints`. */
+/** Swamp extension model for Google Cloud Assured Workloads DbFindingSummaries. Registered at `@swamp/gcp/assuredworkloads/dbfindingsummaries`. */
 export const model = {
-  type: "@swamp/gcp/agentregistry/endpoints",
+  type: "@swamp/gcp/assuredworkloads/dbfindingsummaries",
   version: "2026.06.26.1",
-  upgrades: [
-    {
-      toVersion: "2026.04.01.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.02.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.3",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.18.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.19.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.19.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.21.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.21.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.24.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.25.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.07.1",
-      description: "Added: accessToken, credentialsJson, project",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.26.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Represents an Endpoint.",
+      description: "The details for a finding.",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -242,23 +136,22 @@ export const model = {
   },
   methods: {
     get: {
-      description: "Get a endpoints",
+      description: "Get a dbFindingSummaries",
       arguments: z.object({
-        identifier: z.string().describe("The name of the endpoints"),
+        identifier: z.string().describe("The name of the dbFindingSummaries"),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
-        params["name"] = buildResourceName(
-          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
-          args.identifier,
-        );
-        const result = await readResource(
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        const result = await readViaList(
           BASE_URL,
-          GET_CONFIG,
+          LIST_CONFIG,
           params,
+          "name",
+          args.identifier,
           credentials,
         ) as StateData;
         const instanceName = (g.name?.toString() ?? args.identifier).replace(
@@ -274,7 +167,7 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync endpoints state from GCP",
+      description: "Sync dbFindingSummaries state from GCP",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -295,16 +188,22 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         try {
           const params: Record<string, string> = { project: projectId };
-          const shortName = existing.name?.toString() ?? g["name"]?.toString();
-          if (!shortName) throw new Error("No identifier found");
-          params["name"] = buildResourceName(
-            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
-            shortName,
-          );
-          const result = await readResource(
+          if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+          else if (existing["parent"]) {
+            params["parent"] = String(existing["parent"]);
+          }
+          const identifier = existing.name?.toString() ?? g["name"]?.toString();
+          if (!identifier) {
+            throw new Error(
+              "No identifier found in existing state or globalArgs",
+            );
+          }
+          const result = await readViaList(
             BASE_URL,
-            GET_CONFIG,
+            LIST_CONFIG,
             params,
+            "name",
+            identifier,
             credentials,
           ) as StateData;
           const handle = await context.writeResource(
@@ -326,13 +225,12 @@ export const model = {
       },
     },
     list: {
-      description: "List endpoints resources",
+      description: "List dbFindingSummaries resources",
       arguments: z.object({
-        filter: z.string().describe(
-          'Optional. A query string used to filter the list of endpoints returned. The filter expression must follow AIP-160 syntax. Filtering is supported on the `name`, `display_name`, `description`, `version`, and `interfaces` fields. Some examples: * `name = "projects/p1/locations/l1/endpoints/e1"` * `display_name = "my-endpoint"` * `description = "my-endpoint-description"` * `version = "v1"` * `interfaces.transport = "HTTP_JSON"`',
-        ).optional(),
+        filter: z.string().describe("Optional. The filtering results.")
+          .optional(),
         pageSize: z.number().describe(
-          "Optional. Requested page size. Server may return fewer items than requested. If unspecified, server will pick an appropriate default.",
+          "Optional. The requested page size. The server might return fewer items than requested. If unspecified, the server picks an appropriate default.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
@@ -343,9 +241,7 @@ export const model = {
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
-        params["parent"] = `projects/${projectId}/locations/${
-          String(g["location"] ?? "")
-        }`;
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         if (args["filter"] !== undefined) {
           params["filter"] = String(args["filter"]);
         }
@@ -356,7 +252,7 @@ export const model = {
           BASE_URL,
           LIST_CONFIG,
           params,
-          "endpoints",
+          "dbFindingSummaries",
           (args.maxPages as number | undefined) ?? 10,
           credentials,
         );

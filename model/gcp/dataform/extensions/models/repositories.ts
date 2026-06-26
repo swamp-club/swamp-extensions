@@ -174,13 +174,13 @@ const GlobalArgsSchema = z.object({
       "Optional. The name of the Secret Manager secret version to use as an authentication token for Git operations. Must be in the format `projects/*/secrets/*/versions/*`.",
     ).optional(),
     defaultBranch: z.string().describe(
-      "Optional. The Git remote's default branch name. If not set `main` will be used.",
+      "Optional. The Git remote's default branch name. If not set, `main` will be used.",
     ).optional(),
     effectiveDefaultBranch: z.string().describe(
       "Output only. The Git remote's effective default branch name. This is the default branch name of the Git remote if it is set, otherwise it is `main`.",
     ).optional(),
     gitRepositoryLink: z.string().describe(
-      "Optional. Resource name for the GitRepositoryLink used for machine credentials. Must be in the format `projects/*/locations/*/connections/*/gitRepositoryLinks/*`",
+      "Optional. Resource name for the `GitRepositoryLink` used for machine credentials. Must be in the format `projects/*/locations/*/connections/*/gitRepositoryLinks/*`",
     ).optional(),
     sshAuthenticationConfig: z.object({
       hostPublicKey: z.string().describe(
@@ -293,13 +293,13 @@ const InputsSchema = z.object({
       "Optional. The name of the Secret Manager secret version to use as an authentication token for Git operations. Must be in the format `projects/*/secrets/*/versions/*`.",
     ).optional(),
     defaultBranch: z.string().describe(
-      "Optional. The Git remote's default branch name. If not set `main` will be used.",
+      "Optional. The Git remote's default branch name. If not set, `main` will be used.",
     ).optional(),
     effectiveDefaultBranch: z.string().describe(
       "Output only. The Git remote's effective default branch name. This is the default branch name of the Git remote if it is set, otherwise it is `main`.",
     ).optional(),
     gitRepositoryLink: z.string().describe(
-      "Optional. Resource name for the GitRepositoryLink used for machine credentials. Must be in the format `projects/*/locations/*/connections/*/gitRepositoryLinks/*`",
+      "Optional. Resource name for the `GitRepositoryLink` used for machine credentials. Must be in the format `projects/*/locations/*/connections/*/gitRepositoryLinks/*`",
     ).optional(),
     sshAuthenticationConfig: z.object({
       hostPublicKey: z.string().describe(
@@ -371,7 +371,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataform Repositories. Registered at `@swamp/gcp/dataform/repositories`. */
 export const model = {
   type: "@swamp/gcp/dataform/repositories",
-  version: "2026.06.25.1",
+  version: "2026.06.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -480,6 +480,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

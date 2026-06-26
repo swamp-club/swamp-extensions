@@ -123,6 +123,9 @@ const GlobalArgsSchema = z.object({
     instoreProductLocation: z.string().describe(
       "Optional. Location of the product inside the store. Maximum length is 20 bytes.",
     ).optional(),
+    localShippingLabel: z.string().describe(
+      "Optional. Specifies a label associated with the shipping for the `LocalInventory` resource. Can be used to group local shipping services to this particular inventory item. For accepted field format, see the [Local delivery](https://support.google.com/merchants/answer/14819809#localdelivery)",
+    ).optional(),
     loyaltyPrograms: z.array(z.object({
       cashbackForFutureUse: z.object({
         amountMicros: z.string().describe(
@@ -232,6 +235,7 @@ const StateSchema = z.object({
   localInventoryAttributes: z.object({
     availability: z.string(),
     instoreProductLocation: z.string(),
+    localShippingLabel: z.string(),
     loyaltyPrograms: z.array(z.object({
       cashbackForFutureUse: z.object({
         amountMicros: z.string(),
@@ -289,6 +293,9 @@ const InputsSchema = z.object({
     ).optional(),
     instoreProductLocation: z.string().describe(
       "Optional. Location of the product inside the store. Maximum length is 20 bytes.",
+    ).optional(),
+    localShippingLabel: z.string().describe(
+      "Optional. Specifies a label associated with the shipping for the `LocalInventory` resource. Can be used to group local shipping services to this particular inventory item. For accepted field format, see the [Local delivery](https://support.google.com/merchants/answer/14819809#localdelivery)",
     ).optional(),
     loyaltyPrograms: z.array(z.object({
       cashbackForFutureUse: z.object({
@@ -408,7 +415,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.Products.LocalInventories. Registered at `@swamp/gcp/merchantapi/accounts-products-localinventories`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-products-localinventories",
-  version: "2026.06.08.1",
+  version: "2026.06.26.1",
   upgrades: [
     {
       toVersion: "2026.06.07.1",
@@ -417,6 +424,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

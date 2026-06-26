@@ -17,15 +17,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/gcp/agentregistry/bindings
+// Auto-generated extension model for @swamp/gcp/cloudsupport/supporteventsubscriptions
 // Do not edit manually. Re-generate with: deno task generate:gcp
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Agent Registry Bindings.
+ * Swamp extension model for Google Cloud Google Cloud Support SupportEventSubscriptions.
  *
- * Represents a user-defined Binding.
+ * A support event subscription.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -47,14 +47,14 @@ import {
 
 /** Construct the fully-qualified resource name from parent and short name. */
 function buildResourceName(parent: string, shortName: string): string {
-  return `${parent}/bindings/${shortName}`;
+  return `${parent}/supportEventSubscriptions/${shortName}`;
 }
 
-const BASE_URL = "https://agentregistry.googleapis.com/";
+const BASE_URL = "https://cloudsupport.googleapis.com/";
 
 const GET_CONFIG = {
-  "id": "agentregistry.projects.locations.bindings.get",
-  "path": "v1/{+name}",
+  "id": "cloudsupport.supportEventSubscriptions.get",
+  "path": "v2/{+name}",
   "httpMethod": "GET",
   "parameterOrder": [
     "name",
@@ -68,29 +68,23 @@ const GET_CONFIG = {
 } as const;
 
 const INSERT_CONFIG = {
-  "id": "agentregistry.projects.locations.bindings.create",
-  "path": "v1/{+parent}/bindings",
+  "id": "cloudsupport.supportEventSubscriptions.create",
+  "path": "v2/{+parent}/supportEventSubscriptions",
   "httpMethod": "POST",
   "parameterOrder": [
     "parent",
   ],
   "parameters": {
-    "bindingId": {
-      "location": "query",
-    },
     "parent": {
       "location": "path",
       "required": true,
-    },
-    "requestId": {
-      "location": "query",
     },
   },
 } as const;
 
 const PATCH_CONFIG = {
-  "id": "agentregistry.projects.locations.bindings.patch",
-  "path": "v1/{+name}",
+  "id": "cloudsupport.supportEventSubscriptions.patch",
+  "path": "v2/{+name}",
   "httpMethod": "PATCH",
   "parameterOrder": [
     "name",
@@ -100,9 +94,6 @@ const PATCH_CONFIG = {
       "location": "path",
       "required": true,
     },
-    "requestId": {
-      "location": "query",
-    },
     "updateMask": {
       "location": "query",
     },
@@ -110,8 +101,8 @@ const PATCH_CONFIG = {
 } as const;
 
 const DELETE_CONFIG = {
-  "id": "agentregistry.projects.locations.bindings.delete",
-  "path": "v1/{+name}",
+  "id": "cloudsupport.supportEventSubscriptions.delete",
+  "path": "v2/{+name}",
   "httpMethod": "DELETE",
   "parameterOrder": [
     "name",
@@ -121,24 +112,18 @@ const DELETE_CONFIG = {
       "location": "path",
       "required": true,
     },
-    "requestId": {
-      "location": "query",
-    },
   },
 } as const;
 
 const LIST_CONFIG = {
-  "id": "agentregistry.projects.locations.bindings.list",
-  "path": "v1/{+parent}/bindings",
+  "id": "cloudsupport.supportEventSubscriptions.list",
+  "path": "v2/{+parent}/supportEventSubscriptions",
   "httpMethod": "GET",
   "parameterOrder": [
     "parent",
   ],
   "parameters": {
     "filter": {
-      "location": "query",
-    },
-    "orderBy": {
       "location": "query",
     },
     "pageSize": {
@@ -150,6 +135,9 @@ const LIST_CONFIG = {
     "parent": {
       "location": "path",
       "required": true,
+    },
+    "showDeleted": {
+      "location": "query",
     },
   },
 } as const;
@@ -164,63 +152,25 @@ const GlobalArgsSchema = z.object({
   project: z.string().describe(
     "GCP project ID; overrides GCP_PROJECT / GOOGLE_CLOUD_PROJECT environment variables.",
   ).optional(),
-  authProviderBinding: z.object({
-    authProvider: z.string().describe(
-      "Required. The resource name of the target AuthProvider. Format: * `projects/{project}/locations/{location}/authProviders/{auth_provider}`",
-    ).optional(),
-    continueUri: z.string().describe(
-      "Optional. The continue URI of the AuthProvider. The URI is used to reauthenticate the user and finalize the managed OAuth flow.",
-    ).optional(),
-    scopes: z.array(z.string()).describe(
-      "Optional. The list of OAuth2 scopes of the AuthProvider.",
-    ).optional(),
-  }).describe("The AuthProvider of the Binding.").optional(),
-  description: z.string().describe(
-    "Optional. User-defined description of a Binding. Can have a maximum length of `2048` characters.",
-  ).optional(),
-  displayName: z.string().describe(
-    "Optional. User-defined display name for the Binding. Can have a maximum length of `63` characters.",
-  ).optional(),
   name: z.string().describe(
-    "Required. Identifier. The resource name of the Binding. Format: `projects/{project}/locations/{location}/bindings/{binding}`.",
+    "Identifier. The resource name of the support event subscription.",
   ).optional(),
-  source: z.object({
-    identifier: z.string().describe(
-      "The identifier of the source Agent. Format: * `urn:agent:{publisher}:{namespace}:{name}`",
-    ).optional(),
-  }).describe("The source of the Binding.").optional(),
-  target: z.object({
-    identifier: z.string().describe(
-      "The identifier of the target Agent, MCP Server, or Endpoint. Format: * `urn:agent:{publisher}:{namespace}:{name}` * `urn:mcp:{publisher}:{namespace}:{name}` * `urn:endpoint:{publisher}:{namespace}:{name}`",
-    ).optional(),
-  }).describe("The target of the Binding.").optional(),
-  bindingId: z.string().describe(
-    "Required. The ID to use for the binding, which will become the final component of the binding's resource name. This value should be 4-63 characters, and must conform to RFC-1034. Specifically, it must match the regular expression `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`.",
+  pubSubTopic: z.string().describe(
+    "Required. The name of the Pub/Sub topic to publish notifications to. Format: projects/{project}/topics/{topic}",
   ).optional(),
-  requestId: z.string().describe(
-    "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
-  ).optional(),
-  location: z.string().describe(
-    "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
+  parent: z.string().describe(
+    "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
   ).optional(),
 });
 
 const StateSchema = z.object({
-  authProviderBinding: z.object({
-    authProvider: z.string(),
-    continueUri: z.string(),
-    scopes: z.array(z.string()),
-  }).optional(),
   createTime: z.string().optional(),
-  description: z.string().optional(),
-  displayName: z.string().optional(),
+  deleteTime: z.string().optional(),
+  failureReason: z.string().optional(),
   name: z.string(),
-  source: z.object({
-    identifier: z.string(),
-  }).optional(),
-  target: z.object({
-    identifier: z.string(),
-  }).optional(),
+  pubSubTopic: z.string().optional(),
+  purgeTime: z.string().optional(),
+  state: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -230,44 +180,14 @@ const InputsSchema = z.object({
   accessToken: z.string().meta({ sensitive: true }).optional(),
   credentialsJson: z.string().meta({ sensitive: true }).optional(),
   project: z.string().optional(),
-  authProviderBinding: z.object({
-    authProvider: z.string().describe(
-      "Required. The resource name of the target AuthProvider. Format: * `projects/{project}/locations/{location}/authProviders/{auth_provider}`",
-    ).optional(),
-    continueUri: z.string().describe(
-      "Optional. The continue URI of the AuthProvider. The URI is used to reauthenticate the user and finalize the managed OAuth flow.",
-    ).optional(),
-    scopes: z.array(z.string()).describe(
-      "Optional. The list of OAuth2 scopes of the AuthProvider.",
-    ).optional(),
-  }).describe("The AuthProvider of the Binding.").optional(),
-  description: z.string().describe(
-    "Optional. User-defined description of a Binding. Can have a maximum length of `2048` characters.",
-  ).optional(),
-  displayName: z.string().describe(
-    "Optional. User-defined display name for the Binding. Can have a maximum length of `63` characters.",
-  ).optional(),
   name: z.string().describe(
-    "Required. Identifier. The resource name of the Binding. Format: `projects/{project}/locations/{location}/bindings/{binding}`.",
+    "Identifier. The resource name of the support event subscription.",
   ).optional(),
-  source: z.object({
-    identifier: z.string().describe(
-      "The identifier of the source Agent. Format: * `urn:agent:{publisher}:{namespace}:{name}`",
-    ).optional(),
-  }).describe("The source of the Binding.").optional(),
-  target: z.object({
-    identifier: z.string().describe(
-      "The identifier of the target Agent, MCP Server, or Endpoint. Format: * `urn:agent:{publisher}:{namespace}:{name}` * `urn:mcp:{publisher}:{namespace}:{name}` * `urn:endpoint:{publisher}:{namespace}:{name}`",
-    ).optional(),
-  }).describe("The target of the Binding.").optional(),
-  bindingId: z.string().describe(
-    "Required. The ID to use for the binding, which will become the final component of the binding's resource name. This value should be 4-63 characters, and must conform to RFC-1034. Specifically, it must match the regular expression `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`.",
+  pubSubTopic: z.string().describe(
+    "Required. The name of the Pub/Sub topic to publish notifications to. Format: projects/{project}/topics/{topic}",
   ).optional(),
-  requestId: z.string().describe(
-    "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
-  ).optional(),
-  location: z.string().describe(
-    "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
+  parent: z.string().describe(
+    "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
   ).optional(),
 });
 
@@ -283,32 +203,15 @@ function _buildGcpCredentials(
   };
 }
 
-/** Swamp extension model for Google Cloud Agent Registry Bindings. Registered at `@swamp/gcp/agentregistry/bindings`. */
+/** Swamp extension model for Google Cloud Google Cloud Support SupportEventSubscriptions. Registered at `@swamp/gcp/cloudsupport/supporteventsubscriptions`. */
 export const model = {
-  type: "@swamp/gcp/agentregistry/bindings",
+  type: "@swamp/gcp/cloudsupport/supporteventsubscriptions",
   version: "2026.06.26.1",
-  upgrades: [
-    {
-      toVersion: "2026.06.07.1",
-      description: "Added: accessToken, credentialsJson, project",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.26.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Represents a user-defined Binding.",
+      description: "A support event subscription.",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -316,34 +219,22 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a bindings",
+      description: "Create a supportEventSubscriptions",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
-        params["parent"] = `projects/${projectId}/locations/${
-          String(g["location"] ?? "")
-        }`;
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         const body: Record<string, unknown> = {};
-        if (g["authProviderBinding"] !== undefined) {
-          body["authProviderBinding"] = g["authProviderBinding"];
-        }
-        if (g["description"] !== undefined) {
-          body["description"] = g["description"];
-        }
-        if (g["displayName"] !== undefined) {
-          body["displayName"] = g["displayName"];
-        }
         if (g["name"] !== undefined) body["name"] = g["name"];
-        if (g["source"] !== undefined) body["source"] = g["source"];
-        if (g["target"] !== undefined) body["target"] = g["target"];
-        if (g["bindingId"] !== undefined) body["bindingId"] = g["bindingId"];
-        if (g["requestId"] !== undefined) body["requestId"] = g["requestId"];
-        if (g["name"] !== undefined) {
+        if (g["pubSubTopic"] !== undefined) {
+          body["pubSubTopic"] = g["pubSubTopic"];
+        }
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["parent"]),
             String(g["name"]),
           );
         }
@@ -357,12 +248,10 @@ export const model = {
           {
             listConfig: LIST_CONFIG,
             listParams: {
-              "parent": `projects/${projectId}/locations/${
-                String(g["location"] ?? "")
-              }`,
+              "parent": String(body["parent"] ?? g["parent"] ?? ""),
             },
-            matchField: "displayName",
-            matchValue: String(g["displayName"] ?? ""),
+            matchField: "name",
+            matchValue: String(g["name"] ?? ""),
           },
           credentials,
         ) as StateData;
@@ -377,9 +266,11 @@ export const model = {
       },
     },
     get: {
-      description: "Get a bindings",
+      description: "Get a supportEventSubscriptions",
       arguments: z.object({
-        identifier: z.string().describe("The name of the bindings"),
+        identifier: z.string().describe(
+          "The name of the supportEventSubscriptions",
+        ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const g = context.globalArgs;
@@ -387,7 +278,7 @@ export const model = {
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+          String(g["parent"] ?? ""),
           args.identifier,
         );
         const result = await readResource(
@@ -410,7 +301,7 @@ export const model = {
       },
     },
     update: {
-      description: "Update bindings attributes",
+      description: "Update supportEventSubscriptions attributes",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -431,21 +322,13 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+          String(g["parent"] ?? ""),
           existing["name"]?.toString() ?? g["name"]?.toString() ?? "",
         );
         const body: Record<string, unknown> = {};
-        if (g["authProviderBinding"] !== undefined) {
-          body["authProviderBinding"] = g["authProviderBinding"];
+        if (g["pubSubTopic"] !== undefined) {
+          body["pubSubTopic"] = g["pubSubTopic"];
         }
-        if (g["description"] !== undefined) {
-          body["description"] = g["description"];
-        }
-        if (g["displayName"] !== undefined) {
-          body["displayName"] = g["displayName"];
-        }
-        if (g["source"] !== undefined) body["source"] = g["source"];
-        if (g["target"] !== undefined) body["target"] = g["target"];
         for (const key of Object.keys(existing)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||
@@ -472,9 +355,11 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete the bindings",
+      description: "Delete the supportEventSubscriptions",
       arguments: z.object({
-        identifier: z.string().describe("The name of the bindings"),
+        identifier: z.string().describe(
+          "The name of the supportEventSubscriptions",
+        ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const g = context.globalArgs;
@@ -482,7 +367,7 @@ export const model = {
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+          String(g["parent"] ?? ""),
           args.identifier,
         );
         const { existed } = await deleteResource(
@@ -505,7 +390,7 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync bindings state from GCP",
+      description: "Sync supportEventSubscriptions state from GCP",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -529,7 +414,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["parent"] ?? ""),
             shortName,
           );
           const result = await readResource(
@@ -557,16 +442,16 @@ export const model = {
       },
     },
     list: {
-      description: "List bindings resources",
+      description: "List supportEventSubscriptions resources",
       arguments: z.object({
         filter: z.string().describe(
-          "Optional. A query string used to filter the list of bindings returned. The filter expression must follow AIP-160 syntax.",
-        ).optional(),
-        orderBy: z.string().describe(
-          "Optional. Hint for how to order the results",
+          'Optional. Filter expression based on AIP-160. Supported fields: - pub_sub_topic - state Examples: - `pub_sub_topic="projects/example-project/topics/example-topic"` - `state=WORKING` - `pub_sub_topic="projects/example-project/topics/example-topic" AND state=WORKING`',
         ).optional(),
         pageSize: z.number().describe(
-          "Optional. Requested page size. Server may return fewer items than requested. Page size is 500 if unspecified and is capped at `500` even if a larger value is given.",
+          "Optional. The maximum number of support event subscriptions to return.",
+        ).optional(),
+        showDeleted: z.boolean().describe(
+          "Optional. Whether to show deleted subscriptions. By default, deleted subscriptions are not returned.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
@@ -577,23 +462,21 @@ export const model = {
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
-        params["parent"] = `projects/${projectId}/locations/${
-          String(g["location"] ?? "")
-        }`;
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         if (args["filter"] !== undefined) {
           params["filter"] = String(args["filter"]);
         }
-        if (args["orderBy"] !== undefined) {
-          params["orderBy"] = String(args["orderBy"]);
-        }
         if (args["pageSize"] !== undefined) {
           params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["showDeleted"] !== undefined) {
+          params["showDeleted"] = String(args["showDeleted"]);
         }
         const { items, nextPageToken } = await listResources(
           BASE_URL,
           LIST_CONFIG,
           params,
-          "bindings",
+          "supportEventSubscriptions",
           (args.maxPages as number | undefined) ?? 10,
           credentials,
         );
@@ -614,31 +497,28 @@ export const model = {
         return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
-    fetch_available: {
-      description: "fetch available",
+    undelete: {
+      description: "undelete",
       arguments: z.object({}),
       execute: async (_args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
-        params["parent"] = `projects/${projectId}/locations/${
-          String(g["location"] ?? "")
-        }`;
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
         const result = await createResource(
           BASE_URL,
           {
-            "id": "agentregistry.projects.locations.bindings.fetchAvailable",
-            "path": "v1/{+parent}/bindings:fetchAvailable",
-            "httpMethod": "GET",
-            "parameterOrder": ["parent"],
-            "parameters": {
-              "pageSize": { "location": "query" },
-              "pageToken": { "location": "query" },
-              "parent": { "location": "path", "required": true },
-              "sourceIdentifier": { "location": "query" },
-              "targetIdentifier": { "location": "query" },
-            },
+            "id": "cloudsupport.supportEventSubscriptions.undelete",
+            "path": "v2/{+name}:undelete",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
           },
           params,
           {},
