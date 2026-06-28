@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/route53resolver/firewall_config` to
-see the full list of configurable properties and available methods for this
+Use `swamp model type describe @swamp/aws/route53resolver/firewall_domain_list`
+to see the full list of configurable properties and available methods for this
 model.
 
 ## Authentication
@@ -48,17 +48,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new firewall_config model
-swamp model create @swamp/aws/route53resolver/firewall_config my-firewall_config
+# Create a new firewall_domain_list model
+swamp model create @swamp/aws/route53resolver/firewall_domain_list my-firewall_domain_list
 
 # Edit the model to configure its properties
-swamp model edit my-firewall_config
+swamp model edit my-firewall_domain_list
 
 # Create the resource in AWS
-swamp model method run my-firewall_config create
+swamp model method run my-firewall_domain_list create
 
 # Sync current state from AWS
-swamp model method run my-firewall_config sync
+swamp model method run my-firewall_domain_list sync
 ```
 
 ## License

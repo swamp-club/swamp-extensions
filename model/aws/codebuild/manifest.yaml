@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/codebuild"
-version: "2026.06.25.1"
+version: "2026.06.27.1"
 description: "AWS CODEBUILD infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,11 +9,7 @@ labels:
   - codebuild
   - cloud
   - infrastructure
-releaseNotes: |
-  - Added: build, build_batch
 models:
-  - build.ts
-  - build_batch.ts
   - fleet.ts
 additionalFiles:
   - LICENSE.txt

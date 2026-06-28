@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/personalize/data_deletion_job` to see
-the full list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/personalize/dataset_group` to see the
+full list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -47,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new data_deletion_job model
-swamp model create @swamp/aws/personalize/data_deletion_job my-data_deletion_job
+# Create a new dataset_group model
+swamp model create @swamp/aws/personalize/dataset_group my-dataset_group
 
 # Edit the model to configure its properties
-swamp model edit my-data_deletion_job
+swamp model edit my-dataset_group
 
 # Create the resource in AWS
-swamp model method run my-data_deletion_job create
+swamp model method run my-dataset_group create
 
 # Sync current state from AWS
-swamp model method run my-data_deletion_job sync
+swamp model method run my-dataset_group sync
 ```
 
 ## License

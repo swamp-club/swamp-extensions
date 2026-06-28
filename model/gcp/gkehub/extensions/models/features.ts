@@ -891,6 +891,17 @@ const GlobalArgsSchema = z.object({
     }).describe(
       "**Fleet Observability**: The Hub-wide input for the FleetObservability feature.",
     ).optional(),
+    mesh: z.object({
+      modernizationCompatibility: z.enum([
+        "MODERNIZATION_COMPATIBILITY_UNSPECIFIED",
+        "VALIDATION_ENABLED",
+        "VALIDATION_DISABLED",
+      ]).describe(
+        "Optional. Specifies modernization compatibility for the fleet.",
+      ).optional(),
+    }).describe(
+      "**Service Mesh**: Spec for the fleet for the servicemesh feature",
+    ).optional(),
     multiclusteringress: z.object({
       configMembership: z.string().describe(
         "Fully-qualified Membership name which hosts the MultiClusterIngress CRD. Example: `projects/foo-proj/locations/global/memberships/bar`",
@@ -1257,6 +1268,9 @@ const StateSchema = z.object({
           mode: z.string(),
         }),
       }),
+    }),
+    mesh: z.object({
+      modernizationCompatibility: z.string(),
     }),
     multiclusteringress: z.object({
       configMembership: z.string(),
@@ -2050,6 +2064,17 @@ const InputsSchema = z.object({
     }).describe(
       "**Fleet Observability**: The Hub-wide input for the FleetObservability feature.",
     ).optional(),
+    mesh: z.object({
+      modernizationCompatibility: z.enum([
+        "MODERNIZATION_COMPATIBILITY_UNSPECIFIED",
+        "VALIDATION_ENABLED",
+        "VALIDATION_DISABLED",
+      ]).describe(
+        "Optional. Specifies modernization compatibility for the fleet.",
+      ).optional(),
+    }).describe(
+      "**Service Mesh**: Spec for the fleet for the servicemesh feature",
+    ).optional(),
     multiclusteringress: z.object({
       configMembership: z.string().describe(
         "Fully-qualified Membership name which hosts the MultiClusterIngress CRD. Example: `projects/foo-proj/locations/global/memberships/bar`",
@@ -2252,7 +2277,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud GKE Hub Features. Registered at `@swamp/gcp/gkehub/features`. */
 export const model = {
   type: "@swamp/gcp/gkehub/features",
-  version: "2026.06.15.1",
+  version: "2026.06.27.1",
   upgrades: [
     {
       toVersion: "2026.06.07.1",
@@ -2271,6 +2296,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

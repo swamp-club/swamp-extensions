@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/iot"
-version: "2026.06.25.1"
+version: "2026.06.27.1"
 description: "AWS IOT infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,8 +9,6 @@ labels:
   - iot
   - cloud
   - infrastructure
-releaseNotes: |
-  - Added: index
 models:
   - account_audit_configuration.ts
   - authorizer.ts
@@ -24,7 +22,6 @@ models:
   - domain_configuration.ts
   - encryption_configuration.ts
   - fleet_metric.ts
-  - index.ts
   - job_template.ts
   - logging.ts
   - mitigation_action.ts

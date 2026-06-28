@@ -269,6 +269,10 @@ const StateSchema = z.object({
           wordList: z.unknown(),
         }),
         exclusionType: z.string(),
+        fileLabelInfoType: z.object({
+          googleDriveLabel: z.unknown(),
+          sensitivityLabel: z.unknown(),
+        }),
         infoType: z.object({
           name: z.unknown(),
           sensitivityScore: z.unknown(),
@@ -429,7 +433,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Sensitive Data Protection (DLP) TableDataProfiles. Registered at `@swamp/gcp/dlp/tabledataprofiles`. */
 export const model = {
   type: "@swamp/gcp/dlp/tabledataprofiles",
-  version: "2026.06.08.1",
+  version: "2026.06.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -503,6 +507,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -241,6 +241,9 @@ const GlobalArgsSchema = z.object({
           customConfigs: z.unknown().describe(
             'Optional. Custom configs for ParallelAiSearch. This field can be used to pass any parameter from the Parallel.ai Search API. See the Parallel.ai documentation for the full list of available parameters and their usage: https://docs.parallel.ai/api-reference/search-beta/search Currently only `source_policy`, `excerpts`, `max_results`, `mode`, `fetch_policy` can be set via this field. For example: { "source_policy": { "include_domains": ["google.com", "wikipedia.org"], "exclude_domains": ["example.com"] }, "fetch_policy": { "max_age_seconds": 3600 } }',
           ).optional(),
+          enableDataRetention: z.unknown().describe(
+            'Optional. Instructs Vertex Grounding to use Parallel\'s Zero Data Retention Marketplace product. If this value is "false" or omitted, the Parallel Web Search for Grounding standard subscription will be used. If this value is "true", the Parallel Web Search for Grounding - ZDR subscription will be used.',
+          ).optional(),
         }).describe(
           "ParallelAiSearch tool type. A tool that uses the Parallel.ai search engine for grounding.",
         ).optional(),
@@ -389,6 +392,9 @@ const InputsSchema = z.object({
           customConfigs: z.unknown().describe(
             'Optional. Custom configs for ParallelAiSearch. This field can be used to pass any parameter from the Parallel.ai Search API. See the Parallel.ai documentation for the full list of available parameters and their usage: https://docs.parallel.ai/api-reference/search-beta/search Currently only `source_policy`, `excerpts`, `max_results`, `mode`, `fetch_policy` can be set via this field. For example: { "source_policy": { "include_domains": ["google.com", "wikipedia.org"], "exclude_domains": ["example.com"] }, "fetch_policy": { "max_age_seconds": 3600 } }',
           ).optional(),
+          enableDataRetention: z.unknown().describe(
+            'Optional. Instructs Vertex Grounding to use Parallel\'s Zero Data Retention Marketplace product. If this value is "false" or omitted, the Parallel Web Search for Grounding standard subscription will be used. If this value is "true", the Parallel Web Search for Grounding - ZDR subscription will be used.',
+          ).optional(),
         }).describe(
           "ParallelAiSearch tool type. A tool that uses the Parallel.ai search engine for grounding.",
         ).optional(),
@@ -447,7 +453,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform EvaluationSets. Registered at `@swamp/gcp/aiplatform/evaluationsets`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/evaluationsets",
-  version: "2026.06.18.1",
+  version: "2026.06.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -547,6 +553,11 @@ export const model = {
     {
       toVersion: "2026.06.18.1",
       description: "Added: agentConfigs",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.27.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

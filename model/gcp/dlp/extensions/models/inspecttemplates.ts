@@ -187,6 +187,16 @@ const GlobalArgsSchema = z.object({
         ]).describe(
           "If set to EXCLUSION_TYPE_EXCLUDE this infoType will not cause a finding to be returned. It still can be used for rules matching. Only supported for the `dictionary`, `regex`, and `stored_type` CustomInfoTypes.",
         ).optional(),
+        fileLabelInfoType: z.object({
+          googleDriveLabel: z.unknown().describe(
+            "Google Drive labels published by Google.",
+          ).optional(),
+          sensitivityLabel: z.unknown().describe(
+            "Sensitivity labels published by Microsoft.",
+          ).optional(),
+        }).describe(
+          "Configuration for a custom infoType that detects file labels.",
+        ).optional(),
         infoType: z.object({
           name: z.unknown().describe(
             "Name of the information type. Either a name of your choosing when creating a CustomInfoType, or one of the names listed at https://cloud.google.com/sensitive-data-protection/docs/infotypes-reference when specifying a built-in type. When sending Cloud DLP results to Data Catalog, infoType names should conform to the pattern `[A-Za-z0-9$_-]{1,64}`.",
@@ -379,6 +389,15 @@ const StateSchema = z.object({
         }),
       }),
       exclusionType: z.string(),
+      fileLabelInfoType: z.object({
+        googleDriveLabel: z.object({
+          labelFieldsToMatch: z.unknown(),
+          labelId: z.unknown(),
+        }),
+        sensitivityLabel: z.object({
+          guid: z.unknown(),
+        }),
+      }),
       infoType: z.object({
         name: z.string(),
         sensitivityScore: z.object({
@@ -494,6 +513,16 @@ const InputsSchema = z.object({
           "EXCLUSION_TYPE_EXCLUDE",
         ]).describe(
           "If set to EXCLUSION_TYPE_EXCLUDE this infoType will not cause a finding to be returned. It still can be used for rules matching. Only supported for the `dictionary`, `regex`, and `stored_type` CustomInfoTypes.",
+        ).optional(),
+        fileLabelInfoType: z.object({
+          googleDriveLabel: z.unknown().describe(
+            "Google Drive labels published by Google.",
+          ).optional(),
+          sensitivityLabel: z.unknown().describe(
+            "Sensitivity labels published by Microsoft.",
+          ).optional(),
+        }).describe(
+          "Configuration for a custom infoType that detects file labels.",
         ).optional(),
         infoType: z.object({
           name: z.unknown().describe(
@@ -682,7 +711,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Sensitive Data Protection (DLP) InspectTemplates. Registered at `@swamp/gcp/dlp/inspecttemplates`. */
 export const model = {
   type: "@swamp/gcp/dlp/inspecttemplates",
-  version: "2026.06.08.1",
+  version: "2026.06.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -781,6 +810,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

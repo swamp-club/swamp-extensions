@@ -329,7 +329,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform ReasoningEngines.Memories. Registered at `@swamp/gcp/aiplatform/reasoningengines-memories`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines-memories",
-  version: "2026.06.08.1",
+  version: "2026.06.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -433,6 +433,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -833,6 +838,57 @@ export const model = {
             "id":
               "aiplatform.projects.locations.reasoningEngines.memories.generate",
             "path": "v1/{+parent}/memories:generate",
+            "httpMethod": "POST",
+            "parameterOrder": ["parent"],
+            "parameters": {
+              "parent": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    ingest_events: {
+      description: "ingest events",
+      arguments: z.object({
+        directContentsSource: z.any().optional(),
+        forceFlush: z.any().optional(),
+        generationTriggerConfig: z.any().optional(),
+        scope: z.any().optional(),
+        streamId: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        const body: Record<string, unknown> = {};
+        if (args["directContentsSource"] !== undefined) {
+          body["directContentsSource"] = args["directContentsSource"];
+        }
+        if (args["forceFlush"] !== undefined) {
+          body["forceFlush"] = args["forceFlush"];
+        }
+        if (args["generationTriggerConfig"] !== undefined) {
+          body["generationTriggerConfig"] = args["generationTriggerConfig"];
+        }
+        if (args["scope"] !== undefined) body["scope"] = args["scope"];
+        if (args["streamId"] !== undefined) body["streamId"] = args["streamId"];
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id":
+              "aiplatform.projects.locations.reasoningEngines.memories.ingestEvents",
+            "path": "v1/{+parent}/memories:ingestEvents",
             "httpMethod": "POST",
             "parameterOrder": ["parent"],
             "parameters": {

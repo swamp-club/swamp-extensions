@@ -483,6 +483,12 @@ const GlobalArgsSchema = z.object({
     member: z.string().optional(),
     role: z.string().optional(),
   })).optional(),
+  iamDetails: z.object({
+    iamRolePermissions: z.array(z.object({
+      name: z.string().optional(),
+      role: z.string().optional(),
+    })).optional(),
+  }).optional(),
   indicator: z.object({
     domains: z.array(z.string()).optional(),
     ipAddresses: z.array(z.string()).optional(),
@@ -1486,6 +1492,12 @@ const StateSchema = z.object({
       member: z.string(),
       role: z.string(),
     })),
+    iamDetails: z.object({
+      iamRolePermissions: z.array(z.object({
+        name: z.string(),
+        role: z.string(),
+      })),
+    }),
     indicator: z.object({
       domains: z.array(z.string()),
       ipAddresses: z.array(z.string()),
@@ -2274,6 +2286,12 @@ const InputsSchema = z.object({
     member: z.string().optional(),
     role: z.string().optional(),
   })).optional(),
+  iamDetails: z.object({
+    iamRolePermissions: z.array(z.object({
+      name: z.string().optional(),
+      role: z.string().optional(),
+    })).optional(),
+  }).optional(),
   indicator: z.object({
     domains: z.array(z.string()).optional(),
     ipAddresses: z.array(z.string()).optional(),
@@ -3028,7 +3046,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Security Command Center Sources.Findings. Registered at `@swamp/gcp/securitycenter/sources-findings`. */
 export const model = {
   type: "@swamp/gcp/securitycenter/sources-findings",
-  version: "2026.06.24.1",
+  version: "2026.06.27.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -3156,6 +3174,11 @@ export const model = {
     {
       toVersion: "2026.06.24.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.27.1",
+      description: "Added: iamDetails",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -3310,6 +3333,7 @@ export const model = {
         if (g["iamBindings"] !== undefined) {
           body["iamBindings"] = g["iamBindings"];
         }
+        if (g["iamDetails"] !== undefined) body["iamDetails"] = g["iamDetails"];
         if (g["indicator"] !== undefined) body["indicator"] = g["indicator"];
         if (g["ipRules"] !== undefined) body["ipRules"] = g["ipRules"];
         if (g["job"] !== undefined) body["job"] = g["job"];

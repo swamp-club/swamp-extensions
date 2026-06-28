@@ -134,7 +134,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Locations. Registered at `@swamp/gcp/aiplatform/locations`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/locations",
-  version: "2026.06.18.1",
+  version: "2026.06.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -233,6 +233,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1136,6 +1141,35 @@ export const model = {
         return { result };
       },
     },
+    get_semantic_governance_policy_engine: {
+      description: "get semantic governance policy engine",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) params["name"] = String(g["name"]);
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id":
+              "aiplatform.projects.locations.getSemanticGovernancePolicyEngine",
+            "path": "v1/{+name}",
+            "httpMethod": "GET",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          {},
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
     retrieve_contexts: {
       description: "retrieve contexts",
       arguments: z.object({
@@ -1201,6 +1235,68 @@ export const model = {
             "httpMethod": "PATCH",
             "parameterOrder": ["name"],
             "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    update_semantic_governance_policy_engine: {
+      description: "update semantic governance policy engine",
+      arguments: z.object({
+        createTime: z.any().optional(),
+        gatewayConfigs: z.any().optional(),
+        ipAddress: z.any().optional(),
+        name: z.any().optional(),
+        pscForwardingRule: z.any().optional(),
+        pscServiceAttachment: z.any().optional(),
+        state: z.any().optional(),
+        updateTime: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) params["name"] = String(g["name"]);
+        const body: Record<string, unknown> = {};
+        if (args["createTime"] !== undefined) {
+          body["createTime"] = args["createTime"];
+        }
+        if (args["gatewayConfigs"] !== undefined) {
+          body["gatewayConfigs"] = args["gatewayConfigs"];
+        }
+        if (args["ipAddress"] !== undefined) {
+          body["ipAddress"] = args["ipAddress"];
+        }
+        if (args["name"] !== undefined) body["name"] = args["name"];
+        if (args["pscForwardingRule"] !== undefined) {
+          body["pscForwardingRule"] = args["pscForwardingRule"];
+        }
+        if (args["pscServiceAttachment"] !== undefined) {
+          body["pscServiceAttachment"] = args["pscServiceAttachment"];
+        }
+        if (args["state"] !== undefined) body["state"] = args["state"];
+        if (args["updateTime"] !== undefined) {
+          body["updateTime"] = args["updateTime"];
+        }
+        const result = await createResource(
+          BASE_URL,
+          {
+            "id":
+              "aiplatform.projects.locations.updateSemanticGovernancePolicyEngine",
+            "path": "v1/{+name}",
+            "httpMethod": "PATCH",
+            "parameterOrder": ["name"],
+            "parameters": {
+              "name": { "location": "path", "required": true },
+              "updateMask": { "location": "query" },
+            },
           },
           params,
           body,

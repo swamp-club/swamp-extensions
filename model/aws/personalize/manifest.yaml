@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/personalize"
-version: "2026.06.26.1"
+version: "2026.06.27.1"
 description: "AWS PERSONALIZE infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,10 +9,7 @@ labels:
   - personalize
   - cloud
   - infrastructure
-releaseNotes: |
-  - Added: data_deletion_job
 models:
-  - data_deletion_job.ts
   - dataset.ts
   - dataset_group.ts
   - schema.ts
