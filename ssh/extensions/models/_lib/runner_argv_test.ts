@@ -24,6 +24,7 @@ import {
   buildCopyArgv,
   buildExecArgv,
   forwardedEnv,
+  rsyncQuoteArg,
   scriptRemoteCommand,
   sendEnvKeys,
   spawnEnv,
@@ -113,6 +114,40 @@ function tailscaleHost(over: Partial<{
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// rsyncQuoteArg
+// ---------------------------------------------------------------------------
+
+Deno.test("rsyncQuoteArg: passes through simple values", () => {
+  assertEquals(rsyncQuoteArg("ssh"), "ssh");
+  assertEquals(rsyncQuoteArg("-o"), "-o");
+  assertEquals(rsyncQuoteArg("ConnectTimeout=10"), "ConnectTimeout=10");
+  assertEquals(rsyncQuoteArg("-p"), "-p");
+  assertEquals(rsyncQuoteArg("22"), "22");
+});
+
+Deno.test("rsyncQuoteArg: quotes values containing spaces", () => {
+  assertEquals(
+    rsyncQuoteArg("ProxyCommand=ssh -i /key -W %h:%p user@jump"),
+    "'ProxyCommand=ssh -i /key -W %h:%p user@jump'",
+  );
+});
+
+Deno.test("rsyncQuoteArg: doubles embedded single quotes", () => {
+  assertEquals(
+    rsyncQuoteArg("ProxyCommand=ssh -o 'StrictHostKeyChecking=no' user@gw"),
+    "'ProxyCommand=ssh -o ''StrictHostKeyChecking=no'' user@gw'",
+  );
+});
+
+Deno.test("rsyncQuoteArg: quotes values containing double quotes", () => {
+  assertEquals(rsyncQuoteArg('say "hello"'), "'say \"hello\"'");
+});
+
+Deno.test("rsyncQuoteArg: empty string returns quoted empty", () => {
+  assertEquals(rsyncQuoteArg(""), "''");
+});
 
 // ---------------------------------------------------------------------------
 // applySudo / scriptRemoteCommand
@@ -334,9 +369,105 @@ Deno.test("buildCopyArgv: rsync over ssh with ControlPath in -e", () => {
   const eIdx = argv.indexOf("-e");
   assert(eIdx !== -1);
   const eArg = argv[eIdx + 1];
+  assert(eArg.includes("ControlMaster=auto"));
   assert(eArg.includes("ControlPath=/x.sock"));
+  assert(eArg.includes("ControlPersist=600"));
+  assert(eArg.includes("ConnectTimeout=10"));
   assert(eArg.includes("-i /key"));
   assert(eArg.includes("-p 2222"));
+});
+
+Deno.test("buildCopyArgv: rsync honors proxyCommand, extraOptions, and all transport options", () => {
+  const argv = buildCopyArgv(
+    sshHost({
+      proxyJump: "deploy@bastion",
+      proxyCommand: "ssh -i /jump-key -W %h:%p jump@bastion",
+      extraOptions: ["Compression=yes", "TCPKeepAlive=yes"],
+      knownHostsFile: "/known",
+      strictHostKeyChecking: "accept-new",
+      identityAgent: "~/.1password/agent.sock",
+      identitiesOnly: true,
+      serverAliveIntervalSec: 30,
+    }),
+    { src: "./app", dst: "/opt/app", direction: "to", useRsync: true },
+    ctx(),
+  );
+  assertEquals(argv[0], "rsync");
+  const eIdx = argv.indexOf("-e");
+  assert(eIdx !== -1);
+  const eArg = argv[eIdx + 1];
+  assert(
+    eArg.includes("ProxyCommand=ssh -i /jump-key -W %h:%p jump@bastion"),
+    `ProxyCommand missing from -e: ${eArg}`,
+  );
+  assert(
+    eArg.includes("Compression=yes"),
+    `extraOption Compression missing: ${eArg}`,
+  );
+  assert(
+    eArg.includes("TCPKeepAlive=yes"),
+    `extraOption TCPKeepAlive missing: ${eArg}`,
+  );
+  assert(eArg.includes("-J deploy@bastion"), `proxyJump missing: ${eArg}`);
+  assert(
+    eArg.includes("UserKnownHostsFile=/known"),
+    `knownHostsFile missing: ${eArg}`,
+  );
+  assert(
+    eArg.includes("StrictHostKeyChecking=accept-new"),
+    `strictHostKeyChecking missing: ${eArg}`,
+  );
+  assert(
+    eArg.includes("IdentityAgent=~/.1password/agent.sock"),
+    `identityAgent missing: ${eArg}`,
+  );
+  assert(
+    eArg.includes("IdentitiesOnly=yes"),
+    `identitiesOnly missing: ${eArg}`,
+  );
+  assert(
+    eArg.includes("ServerAliveInterval=30"),
+    `serverAliveInterval missing: ${eArg}`,
+  );
+});
+
+Deno.test("buildCopyArgv: rsync quotes -e args with spaces for rsync parser", () => {
+  const argv = buildCopyArgv(
+    sshHost({
+      proxyCommand: "ssh -i /key -W %h:%p jump@bastion",
+      extraOptions: ["ProxyCommand=ssh -i /other -W %h:%p user@gw"],
+    }),
+    { src: "./f", dst: "/f", direction: "to", useRsync: true },
+    ctx(),
+  );
+  const eIdx = argv.indexOf("-e");
+  const eArg = argv[eIdx + 1];
+  // Values with spaces must be single-quoted so rsync's parser keeps them as
+  // one token. rsync splits -e on spaces and respects single/double quotes.
+  assert(
+    eArg.includes("'ProxyCommand=ssh -i /key -W %h:%p jump@bastion'"),
+    `ProxyCommand not quoted in -e: ${eArg}`,
+  );
+  assert(
+    eArg.includes("'ProxyCommand=ssh -i /other -W %h:%p user@gw'"),
+    `extraOption ProxyCommand not quoted in -e: ${eArg}`,
+  );
+});
+
+Deno.test("buildCopyArgv: rsync quotes values containing single quotes by doubling", () => {
+  const argv = buildCopyArgv(
+    sshHost({
+      extraOptions: ["ProxyCommand=ssh -o 'StrictHostKeyChecking=no' user@gw"],
+    }),
+    { src: "./f", dst: "/f", direction: "to", useRsync: true },
+    ctx(),
+  );
+  const eIdx = argv.indexOf("-e");
+  const eArg = argv[eIdx + 1];
+  assert(
+    eArg.includes("'ProxyCommand=ssh -o ''StrictHostKeyChecking=no'' user@gw'"),
+    `Single quotes not doubled in -e: ${eArg}`,
+  );
 });
 
 Deno.test("buildCopyArgv: tailscale scp via ProxyCommand nc", () => {

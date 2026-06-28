@@ -240,6 +240,17 @@ function buildScpArgv(
   return maybeWrapSshpass(host, argv, ctx);
 }
 
+/**
+ * Quote a single argument for rsync's `-e` string parser. rsync splits on
+ * spaces and supports single/double quotes (escaped by doubling, NOT by
+ * backslash). See rsync `do_cmd()` in `main.c`.
+ */
+export function rsyncQuoteArg(s: string): string {
+  if (s === "") return "''";
+  if (!/[ '"]/.test(s)) return s;
+  return "'" + s.replaceAll("'", "''") + "'";
+}
+
 /** rsync argv (over ssh) for an ssh-transport host. */
 function buildRsyncArgv(
   host: EffectiveHost & { transport: SshEffective },
@@ -247,20 +258,14 @@ function buildRsyncArgv(
   ctx: ArgvContext,
 ): string[] {
   const { from, to } = copyEndpoints(host, spec);
-  // rsync drives ssh via -e. We embed the ControlPath + port there so the
-  // master is reused; identity/options likewise.
-  const sshParts: string[] = [ctx.binaries.ssh];
-  const t = host.transport;
-  if (ctx.controlPath && t.controlMaster.enabled) {
-    sshParts.push("-o", `ControlPath=${ctx.controlPath}`);
-  }
-  if (t.identityFile) sshParts.push("-i", t.identityFile);
-  if (t.proxyJump) sshParts.push("-J", t.proxyJump);
-  sshParts.push("-p", String(t.port));
+  const sshParts: string[] = [
+    ctx.binaries.ssh,
+    ...sshCommonOpts(host.transport, ctx, "-p"),
+  ];
 
   const argv = [ctx.binaries.rsync];
   argv.push(spec.recursive ? "-az" : "-a");
-  argv.push("-e", sshParts.join(" "));
+  argv.push("-e", sshParts.map(rsyncQuoteArg).join(" "));
   argv.push("--", from, to);
   return maybeWrapSshpass(host, argv, ctx);
 }

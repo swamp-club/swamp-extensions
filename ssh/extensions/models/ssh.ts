@@ -90,7 +90,7 @@ const SELECTOR_METHODS = [
  */
 export const model = {
   type: "@swamp/ssh",
-  version: "2026.06.04.2",
+  version: "2026.06.27.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -154,6 +154,18 @@ export const model = {
       toVersion: "2026.06.04.2",
       description: "Version bump to publish missing upgrade entries from " +
         "2026.06.04.1. No code, schema, or behavior change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.27.1",
+      description:
+        "Fix (#845): buildRsyncArgv now reuses sshCommonOpts instead of " +
+        "hand-rolling a subset of SSH options. rsync copies now honor " +
+        "proxyCommand, extraOptions, ConnectTimeout, StrictHostKeyChecking, " +
+        "IdentityAgent, IdentitiesOnly, ServerAliveInterval, ControlMaster, " +
+        "and ControlPersist — full parity with exec, script, and scp. " +
+        "Values with spaces are single-quoted for rsync's -e parser. " +
+        "No globalArguments schema change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
