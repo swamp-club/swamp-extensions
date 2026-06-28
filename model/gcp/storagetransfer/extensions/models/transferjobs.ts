@@ -243,6 +243,9 @@ const GlobalArgsSchema = z.object({
       includePrefixes: z.array(z.string()).describe(
         "If you specify `include_prefixes`, Storage Transfer Service uses the items in the `include_prefixes` array to determine which objects to include in a transfer. Objects must start with one of the matching `include_prefixes` for inclusion in the transfer. If exclude_prefixes is specified, objects must not start with any of the `exclude_prefixes` specified for inclusion in the transfer. The following are requirements of `include_prefixes`: * Each include-prefix can contain any sequence of Unicode characters, to a max length of 1024 bytes when UTF8-encoded, and must not contain Carriage Return or Line Feed characters. Wildcard matching and regular expression matching are not supported. * Each include-prefix must omit the leading slash. For example, to include the object `s3://my-aws-bucket/logs/y=2015/requests.gz`, specify the include-prefix as `logs/y=2015/requests.gz`. * None of the include-prefix values can be empty, if specified. * Each include-prefix must include a distinct portion of the object namespace. No include-prefix may be a prefix of another include-prefix. The max size of `include_prefixes` is 1000. For more information, see [Filtering objects from transfers](/storage-transfer/docs/filtering-objects-from-transfers).",
       ).optional(),
+      includeStorageClasses: z.array(z.string()).describe(
+        'Optional. If specified, objects in the source matching any of the storage classes in this field will be transferred. Objects in storage classes not included in this field will be skipped. If empty, the default behavior regarding the storage classes is applied. This includes all storage classes except "GLACIER" as per default behavior. Currently, this field only supports S3 data source. For the list of valid Amazon S3 storage classnames, please refer to the AWS documentation: https://docs.aws.amazon.com/AmazonS3/latest/userguide/sc-howtoset.html',
+      ).optional(),
       lastModifiedBefore: z.string().describe(
         'If specified, only objects with a "last modification time" before this timestamp and objects that don\'t have a "last modification time" are transferred.',
       ).optional(),
@@ -266,7 +269,7 @@ const GlobalArgsSchema = z.object({
         "Whether objects should be deleted from the source after they are transferred to the sink. **Note:** This option and delete_objects_unique_in_sink are mutually exclusive.",
       ).optional(),
       deleteObjectsUniqueInSink: z.boolean().describe(
-        "Whether objects that exist only in the sink should be deleted. **Note:** This option and delete_objects_from_source_after_transfer are mutually exclusive.",
+        "Whether objects that exist only in the sink should be deleted from the sink. **Note:** This option and delete_objects_from_source_after_transfer are mutually exclusive.",
       ).optional(),
       metadataOptions: z.object({
         acl: z.enum([
@@ -590,6 +593,9 @@ const GlobalArgsSchema = z.object({
       includePrefixes: z.array(z.string()).describe(
         "If you specify `include_prefixes`, Storage Transfer Service uses the items in the `include_prefixes` array to determine which objects to include in a transfer. Objects must start with one of the matching `include_prefixes` for inclusion in the transfer. If exclude_prefixes is specified, objects must not start with any of the `exclude_prefixes` specified for inclusion in the transfer. The following are requirements of `include_prefixes`: * Each include-prefix can contain any sequence of Unicode characters, to a max length of 1024 bytes when UTF8-encoded, and must not contain Carriage Return or Line Feed characters. Wildcard matching and regular expression matching are not supported. * Each include-prefix must omit the leading slash. For example, to include the object `s3://my-aws-bucket/logs/y=2015/requests.gz`, specify the include-prefix as `logs/y=2015/requests.gz`. * None of the include-prefix values can be empty, if specified. * Each include-prefix must include a distinct portion of the object namespace. No include-prefix may be a prefix of another include-prefix. The max size of `include_prefixes` is 1000. For more information, see [Filtering objects from transfers](/storage-transfer/docs/filtering-objects-from-transfers).",
       ).optional(),
+      includeStorageClasses: z.array(z.string()).describe(
+        'Optional. If specified, objects in the source matching any of the storage classes in this field will be transferred. Objects in storage classes not included in this field will be skipped. If empty, the default behavior regarding the storage classes is applied. This includes all storage classes except "GLACIER" as per default behavior. Currently, this field only supports S3 data source. For the list of valid Amazon S3 storage classnames, please refer to the AWS documentation: https://docs.aws.amazon.com/AmazonS3/latest/userguide/sc-howtoset.html',
+      ).optional(),
       lastModifiedBefore: z.string().describe(
         'If specified, only objects with a "last modification time" before this timestamp and objects that don\'t have a "last modification time" are transferred.',
       ).optional(),
@@ -634,7 +640,7 @@ const GlobalArgsSchema = z.object({
         "Whether objects should be deleted from the source after they are transferred to the sink. **Note:** This option and delete_objects_unique_in_sink are mutually exclusive.",
       ).optional(),
       deleteObjectsUniqueInSink: z.boolean().describe(
-        "Whether objects that exist only in the sink should be deleted. **Note:** This option and delete_objects_from_source_after_transfer are mutually exclusive.",
+        "Whether objects that exist only in the sink should be deleted from the sink. **Note:** This option and delete_objects_from_source_after_transfer are mutually exclusive.",
       ).optional(),
       metadataOptions: z.object({
         acl: z.enum([
@@ -822,6 +828,9 @@ const GlobalArgsSchema = z.object({
         includePrefixes: z.array(z.string()).describe(
           "If you specify `include_prefixes`, Storage Transfer Service uses the items in the `include_prefixes` array to determine which objects to include in a transfer. Objects must start with one of the matching `include_prefixes` for inclusion in the transfer. If exclude_prefixes is specified, objects must not start with any of the `exclude_prefixes` specified for inclusion in the transfer. The following are requirements of `include_prefixes`: * Each include-prefix can contain any sequence of Unicode characters, to a max length of 1024 bytes when UTF8-encoded, and must not contain Carriage Return or Line Feed characters. Wildcard matching and regular expression matching are not supported. * Each include-prefix must omit the leading slash. For example, to include the object `s3://my-aws-bucket/logs/y=2015/requests.gz`, specify the include-prefix as `logs/y=2015/requests.gz`. * None of the include-prefix values can be empty, if specified. * Each include-prefix must include a distinct portion of the object namespace. No include-prefix may be a prefix of another include-prefix. The max size of `include_prefixes` is 1000. For more information, see [Filtering objects from transfers](/storage-transfer/docs/filtering-objects-from-transfers).",
         ).optional(),
+        includeStorageClasses: z.array(z.string()).describe(
+          'Optional. If specified, objects in the source matching any of the storage classes in this field will be transferred. Objects in storage classes not included in this field will be skipped. If empty, the default behavior regarding the storage classes is applied. This includes all storage classes except "GLACIER" as per default behavior. Currently, this field only supports S3 data source. For the list of valid Amazon S3 storage classnames, please refer to the AWS documentation: https://docs.aws.amazon.com/AmazonS3/latest/userguide/sc-howtoset.html',
+        ).optional(),
         lastModifiedBefore: z.string().describe(
           'If specified, only objects with a "last modification time" before this timestamp and objects that don\'t have a "last modification time" are transferred.',
         ).optional(),
@@ -845,7 +854,7 @@ const GlobalArgsSchema = z.object({
           "Whether objects should be deleted from the source after they are transferred to the sink. **Note:** This option and delete_objects_unique_in_sink are mutually exclusive.",
         ).optional(),
         deleteObjectsUniqueInSink: z.boolean().describe(
-          "Whether objects that exist only in the sink should be deleted. **Note:** This option and delete_objects_from_source_after_transfer are mutually exclusive.",
+          "Whether objects that exist only in the sink should be deleted from the sink. **Note:** This option and delete_objects_from_source_after_transfer are mutually exclusive.",
         ).optional(),
         metadataOptions: z.object({
           acl: z.enum([
@@ -1169,6 +1178,9 @@ const GlobalArgsSchema = z.object({
         includePrefixes: z.array(z.string()).describe(
           "If you specify `include_prefixes`, Storage Transfer Service uses the items in the `include_prefixes` array to determine which objects to include in a transfer. Objects must start with one of the matching `include_prefixes` for inclusion in the transfer. If exclude_prefixes is specified, objects must not start with any of the `exclude_prefixes` specified for inclusion in the transfer. The following are requirements of `include_prefixes`: * Each include-prefix can contain any sequence of Unicode characters, to a max length of 1024 bytes when UTF8-encoded, and must not contain Carriage Return or Line Feed characters. Wildcard matching and regular expression matching are not supported. * Each include-prefix must omit the leading slash. For example, to include the object `s3://my-aws-bucket/logs/y=2015/requests.gz`, specify the include-prefix as `logs/y=2015/requests.gz`. * None of the include-prefix values can be empty, if specified. * Each include-prefix must include a distinct portion of the object namespace. No include-prefix may be a prefix of another include-prefix. The max size of `include_prefixes` is 1000. For more information, see [Filtering objects from transfers](/storage-transfer/docs/filtering-objects-from-transfers).",
         ).optional(),
+        includeStorageClasses: z.array(z.string()).describe(
+          'Optional. If specified, objects in the source matching any of the storage classes in this field will be transferred. Objects in storage classes not included in this field will be skipped. If empty, the default behavior regarding the storage classes is applied. This includes all storage classes except "GLACIER" as per default behavior. Currently, this field only supports S3 data source. For the list of valid Amazon S3 storage classnames, please refer to the AWS documentation: https://docs.aws.amazon.com/AmazonS3/latest/userguide/sc-howtoset.html',
+        ).optional(),
         lastModifiedBefore: z.string().describe(
           'If specified, only objects with a "last modification time" before this timestamp and objects that don\'t have a "last modification time" are transferred.',
         ).optional(),
@@ -1213,7 +1225,7 @@ const GlobalArgsSchema = z.object({
           "Whether objects should be deleted from the source after they are transferred to the sink. **Note:** This option and delete_objects_unique_in_sink are mutually exclusive.",
         ).optional(),
         deleteObjectsUniqueInSink: z.boolean().describe(
-          "Whether objects that exist only in the sink should be deleted. **Note:** This option and delete_objects_from_source_after_transfer are mutually exclusive.",
+          "Whether objects that exist only in the sink should be deleted from the sink. **Note:** This option and delete_objects_from_source_after_transfer are mutually exclusive.",
         ).optional(),
         metadataOptions: z.object({
           acl: z.enum([
@@ -1334,6 +1346,7 @@ const StateSchema = z.object({
     objectConditions: z.object({
       excludePrefixes: z.array(z.string()),
       includePrefixes: z.array(z.string()),
+      includeStorageClasses: z.array(z.string()),
       lastModifiedBefore: z.string(),
       lastModifiedSince: z.string(),
       matchGlob: z.string(),
@@ -1449,6 +1462,7 @@ const StateSchema = z.object({
     objectConditions: z.object({
       excludePrefixes: z.array(z.string()),
       includePrefixes: z.array(z.string()),
+      includeStorageClasses: z.array(z.string()),
       lastModifiedBefore: z.string(),
       lastModifiedSince: z.string(),
       matchGlob: z.string(),
@@ -1594,6 +1608,9 @@ const InputsSchema = z.object({
       includePrefixes: z.array(z.string()).describe(
         "If you specify `include_prefixes`, Storage Transfer Service uses the items in the `include_prefixes` array to determine which objects to include in a transfer. Objects must start with one of the matching `include_prefixes` for inclusion in the transfer. If exclude_prefixes is specified, objects must not start with any of the `exclude_prefixes` specified for inclusion in the transfer. The following are requirements of `include_prefixes`: * Each include-prefix can contain any sequence of Unicode characters, to a max length of 1024 bytes when UTF8-encoded, and must not contain Carriage Return or Line Feed characters. Wildcard matching and regular expression matching are not supported. * Each include-prefix must omit the leading slash. For example, to include the object `s3://my-aws-bucket/logs/y=2015/requests.gz`, specify the include-prefix as `logs/y=2015/requests.gz`. * None of the include-prefix values can be empty, if specified. * Each include-prefix must include a distinct portion of the object namespace. No include-prefix may be a prefix of another include-prefix. The max size of `include_prefixes` is 1000. For more information, see [Filtering objects from transfers](/storage-transfer/docs/filtering-objects-from-transfers).",
       ).optional(),
+      includeStorageClasses: z.array(z.string()).describe(
+        'Optional. If specified, objects in the source matching any of the storage classes in this field will be transferred. Objects in storage classes not included in this field will be skipped. If empty, the default behavior regarding the storage classes is applied. This includes all storage classes except "GLACIER" as per default behavior. Currently, this field only supports S3 data source. For the list of valid Amazon S3 storage classnames, please refer to the AWS documentation: https://docs.aws.amazon.com/AmazonS3/latest/userguide/sc-howtoset.html',
+      ).optional(),
       lastModifiedBefore: z.string().describe(
         'If specified, only objects with a "last modification time" before this timestamp and objects that don\'t have a "last modification time" are transferred.',
       ).optional(),
@@ -1617,7 +1634,7 @@ const InputsSchema = z.object({
         "Whether objects should be deleted from the source after they are transferred to the sink. **Note:** This option and delete_objects_unique_in_sink are mutually exclusive.",
       ).optional(),
       deleteObjectsUniqueInSink: z.boolean().describe(
-        "Whether objects that exist only in the sink should be deleted. **Note:** This option and delete_objects_from_source_after_transfer are mutually exclusive.",
+        "Whether objects that exist only in the sink should be deleted from the sink. **Note:** This option and delete_objects_from_source_after_transfer are mutually exclusive.",
       ).optional(),
       metadataOptions: z.object({
         acl: z.enum([
@@ -1941,6 +1958,9 @@ const InputsSchema = z.object({
       includePrefixes: z.array(z.string()).describe(
         "If you specify `include_prefixes`, Storage Transfer Service uses the items in the `include_prefixes` array to determine which objects to include in a transfer. Objects must start with one of the matching `include_prefixes` for inclusion in the transfer. If exclude_prefixes is specified, objects must not start with any of the `exclude_prefixes` specified for inclusion in the transfer. The following are requirements of `include_prefixes`: * Each include-prefix can contain any sequence of Unicode characters, to a max length of 1024 bytes when UTF8-encoded, and must not contain Carriage Return or Line Feed characters. Wildcard matching and regular expression matching are not supported. * Each include-prefix must omit the leading slash. For example, to include the object `s3://my-aws-bucket/logs/y=2015/requests.gz`, specify the include-prefix as `logs/y=2015/requests.gz`. * None of the include-prefix values can be empty, if specified. * Each include-prefix must include a distinct portion of the object namespace. No include-prefix may be a prefix of another include-prefix. The max size of `include_prefixes` is 1000. For more information, see [Filtering objects from transfers](/storage-transfer/docs/filtering-objects-from-transfers).",
       ).optional(),
+      includeStorageClasses: z.array(z.string()).describe(
+        'Optional. If specified, objects in the source matching any of the storage classes in this field will be transferred. Objects in storage classes not included in this field will be skipped. If empty, the default behavior regarding the storage classes is applied. This includes all storage classes except "GLACIER" as per default behavior. Currently, this field only supports S3 data source. For the list of valid Amazon S3 storage classnames, please refer to the AWS documentation: https://docs.aws.amazon.com/AmazonS3/latest/userguide/sc-howtoset.html',
+      ).optional(),
       lastModifiedBefore: z.string().describe(
         'If specified, only objects with a "last modification time" before this timestamp and objects that don\'t have a "last modification time" are transferred.',
       ).optional(),
@@ -1985,7 +2005,7 @@ const InputsSchema = z.object({
         "Whether objects should be deleted from the source after they are transferred to the sink. **Note:** This option and delete_objects_unique_in_sink are mutually exclusive.",
       ).optional(),
       deleteObjectsUniqueInSink: z.boolean().describe(
-        "Whether objects that exist only in the sink should be deleted. **Note:** This option and delete_objects_from_source_after_transfer are mutually exclusive.",
+        "Whether objects that exist only in the sink should be deleted from the sink. **Note:** This option and delete_objects_from_source_after_transfer are mutually exclusive.",
       ).optional(),
       metadataOptions: z.object({
         acl: z.enum([
@@ -2173,6 +2193,9 @@ const InputsSchema = z.object({
         includePrefixes: z.array(z.string()).describe(
           "If you specify `include_prefixes`, Storage Transfer Service uses the items in the `include_prefixes` array to determine which objects to include in a transfer. Objects must start with one of the matching `include_prefixes` for inclusion in the transfer. If exclude_prefixes is specified, objects must not start with any of the `exclude_prefixes` specified for inclusion in the transfer. The following are requirements of `include_prefixes`: * Each include-prefix can contain any sequence of Unicode characters, to a max length of 1024 bytes when UTF8-encoded, and must not contain Carriage Return or Line Feed characters. Wildcard matching and regular expression matching are not supported. * Each include-prefix must omit the leading slash. For example, to include the object `s3://my-aws-bucket/logs/y=2015/requests.gz`, specify the include-prefix as `logs/y=2015/requests.gz`. * None of the include-prefix values can be empty, if specified. * Each include-prefix must include a distinct portion of the object namespace. No include-prefix may be a prefix of another include-prefix. The max size of `include_prefixes` is 1000. For more information, see [Filtering objects from transfers](/storage-transfer/docs/filtering-objects-from-transfers).",
         ).optional(),
+        includeStorageClasses: z.array(z.string()).describe(
+          'Optional. If specified, objects in the source matching any of the storage classes in this field will be transferred. Objects in storage classes not included in this field will be skipped. If empty, the default behavior regarding the storage classes is applied. This includes all storage classes except "GLACIER" as per default behavior. Currently, this field only supports S3 data source. For the list of valid Amazon S3 storage classnames, please refer to the AWS documentation: https://docs.aws.amazon.com/AmazonS3/latest/userguide/sc-howtoset.html',
+        ).optional(),
         lastModifiedBefore: z.string().describe(
           'If specified, only objects with a "last modification time" before this timestamp and objects that don\'t have a "last modification time" are transferred.',
         ).optional(),
@@ -2196,7 +2219,7 @@ const InputsSchema = z.object({
           "Whether objects should be deleted from the source after they are transferred to the sink. **Note:** This option and delete_objects_unique_in_sink are mutually exclusive.",
         ).optional(),
         deleteObjectsUniqueInSink: z.boolean().describe(
-          "Whether objects that exist only in the sink should be deleted. **Note:** This option and delete_objects_from_source_after_transfer are mutually exclusive.",
+          "Whether objects that exist only in the sink should be deleted from the sink. **Note:** This option and delete_objects_from_source_after_transfer are mutually exclusive.",
         ).optional(),
         metadataOptions: z.object({
           acl: z.enum([
@@ -2520,6 +2543,9 @@ const InputsSchema = z.object({
         includePrefixes: z.array(z.string()).describe(
           "If you specify `include_prefixes`, Storage Transfer Service uses the items in the `include_prefixes` array to determine which objects to include in a transfer. Objects must start with one of the matching `include_prefixes` for inclusion in the transfer. If exclude_prefixes is specified, objects must not start with any of the `exclude_prefixes` specified for inclusion in the transfer. The following are requirements of `include_prefixes`: * Each include-prefix can contain any sequence of Unicode characters, to a max length of 1024 bytes when UTF8-encoded, and must not contain Carriage Return or Line Feed characters. Wildcard matching and regular expression matching are not supported. * Each include-prefix must omit the leading slash. For example, to include the object `s3://my-aws-bucket/logs/y=2015/requests.gz`, specify the include-prefix as `logs/y=2015/requests.gz`. * None of the include-prefix values can be empty, if specified. * Each include-prefix must include a distinct portion of the object namespace. No include-prefix may be a prefix of another include-prefix. The max size of `include_prefixes` is 1000. For more information, see [Filtering objects from transfers](/storage-transfer/docs/filtering-objects-from-transfers).",
         ).optional(),
+        includeStorageClasses: z.array(z.string()).describe(
+          'Optional. If specified, objects in the source matching any of the storage classes in this field will be transferred. Objects in storage classes not included in this field will be skipped. If empty, the default behavior regarding the storage classes is applied. This includes all storage classes except "GLACIER" as per default behavior. Currently, this field only supports S3 data source. For the list of valid Amazon S3 storage classnames, please refer to the AWS documentation: https://docs.aws.amazon.com/AmazonS3/latest/userguide/sc-howtoset.html',
+        ).optional(),
         lastModifiedBefore: z.string().describe(
           'If specified, only objects with a "last modification time" before this timestamp and objects that don\'t have a "last modification time" are transferred.',
         ).optional(),
@@ -2564,7 +2590,7 @@ const InputsSchema = z.object({
           "Whether objects should be deleted from the source after they are transferred to the sink. **Note:** This option and delete_objects_unique_in_sink are mutually exclusive.",
         ).optional(),
         deleteObjectsUniqueInSink: z.boolean().describe(
-          "Whether objects that exist only in the sink should be deleted. **Note:** This option and delete_objects_from_source_after_transfer are mutually exclusive.",
+          "Whether objects that exist only in the sink should be deleted from the sink. **Note:** This option and delete_objects_from_source_after_transfer are mutually exclusive.",
         ).optional(),
         metadataOptions: z.object({
           acl: z.enum([
@@ -2663,7 +2689,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Storage Transfer TransferJobs. Registered at `@swamp/gcp/storagetransfer/transferjobs`. */
 export const model = {
   type: "@swamp/gcp/storagetransfer/transferjobs",
-  version: "2026.06.08.1",
+  version: "2026.06.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2732,6 +2758,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -66,7 +66,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   CredentialArn: z.string().min(50).max(612).regex(
     new RegExp(
-      "^arn:aws:secretsmanager:[a-zA-Z0-9-:]+:secret:ecr\\-pullthroughcache\\/[a-zA-Z0-9\\/_+=.@-]+$",
+      "^arn:[a-zA-Z-]+:secretsmanager:[a-zA-Z0-9-:]+:secret:ecr\\-pullthroughcache\\/[a-zA-Z0-9\\/_+=.@-]+$",
     ),
   ).describe(
     "The ARN of the Secrets Manager secret associated with the pull through cache rule.",
@@ -114,7 +114,7 @@ const InputsSchema = z.object({
   ).optional(),
   CredentialArn: z.string().min(50).max(612).regex(
     new RegExp(
-      "^arn:aws:secretsmanager:[a-zA-Z0-9-:]+:secret:ecr\\-pullthroughcache\\/[a-zA-Z0-9\\/_+=.@-]+$",
+      "^arn:[a-zA-Z-]+:secretsmanager:[a-zA-Z0-9-:]+:secret:ecr\\-pullthroughcache\\/[a-zA-Z0-9\\/_+=.@-]+$",
     ),
   ).describe(
     "The ARN of the Secrets Manager secret associated with the pull through cache rule.",
@@ -153,7 +153,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECR PullThroughCacheRule. Registered at `@swamp/aws/ecr/pull-through-cache-rule`. */
 export const model = {
   type: "@swamp/aws/ecr/pull-through-cache-rule",
-  version: "2026.06.15.1",
+  version: "2026.06.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -192,6 +192,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
