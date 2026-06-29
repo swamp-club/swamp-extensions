@@ -398,6 +398,7 @@ interface DatastoreSyncStateV2 {
   dirtyPaths: string[];
   bulkInvalidated: boolean;
   lazyPullActive: boolean;
+  dirtyPathsOverflowed?: boolean;
 }
 
 type DatastoreSyncState = DatastoreSyncStateV1 | DatastoreSyncStateV2;
@@ -416,6 +417,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   private indexMutated = false;
   private dirtyPaths: Set<string> = new Set();
   private bulkInvalidated = false;
+  private dirtyPathsOverflowed = false;
   private lazyPullActive = false;
   private namespace: string | undefined = undefined;
   private namespaceBound = false;
@@ -489,6 +491,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
             this.dirtyPaths = new Set(v2.dirtyPaths);
           }
           this.bulkInvalidated = !!v2.bulkInvalidated;
+          this.dirtyPathsOverflowed = !!v2.dirtyPathsOverflowed;
           this.lazyPullActive = !!v2.lazyPullActive;
         } else if (parsed.version === 1) {
           this.syncState = parsed as DatastoreSyncStateV1;
@@ -529,6 +532,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       dirtyPaths: [...this.dirtyPaths],
       bulkInvalidated: overrides?.bulkInvalidated ?? this.bulkInvalidated,
       lazyPullActive: overrides?.lazyPullActive ?? this.lazyPullActive,
+      dirtyPathsOverflowed: this.dirtyPathsOverflowed,
     };
   }
 
@@ -556,6 +560,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       if (this.dirtyPaths.has(normalizedRel)) return;
       if (this.dirtyPaths.size >= DIRTY_PATHS_CAP) {
         this.bulkInvalidated = true;
+        this.dirtyPathsOverflowed = true;
         await this.writeSyncState(
           this.buildV2State({ localDirty: true, bulkInvalidated: true }),
         );
@@ -612,6 +617,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     }
     this.dirtyPaths.clear();
     this.bulkInvalidated = false;
+    this.dirtyPathsOverflowed = false;
     await this.writeSyncState({
       version: 2,
       remoteIndexGeneration,
@@ -620,6 +626,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       dirtyPaths: [],
       bulkInvalidated: false,
       lazyPullActive: this.lazyPullActive,
+      dirtyPathsOverflowed: false,
     });
   }
 
@@ -1049,7 +1056,13 @@ export class GcsCacheSyncService implements DatastoreSyncService {
         if (result.status === "fulfilled") {
           pulled++;
         } else {
-          failures.push({ file: batch[j], error: result.reason });
+          const err = result.reason;
+          if (err instanceof NotFoundError && this.index) {
+            delete this.index.entries[batch[j]];
+            this.indexMutated = true;
+          } else {
+            failures.push({ file: batch[j], error: err });
+          }
         }
       }
     }
@@ -1061,11 +1074,22 @@ export class GcsCacheSyncService implements DatastoreSyncService {
 
     if (indexGeneration) {
       try {
-        if (pulled > 0 && this.index) {
+        if ((pulled > 0 || this.indexMutated) && this.index) {
           await atomicWriteTextFile(
             this.indexPath,
             JSON.stringify(this.index, null, 2),
           );
+          if (this.indexMutated) {
+            const indexData = new TextEncoder().encode(
+              JSON.stringify(this.index, null, 2),
+            );
+            const putResult = await retryWithBackoff(
+              () => this.gcs.putObject(this.indexKey(), indexData, signal),
+              { signal },
+            );
+            this.indexMutated = false;
+            indexGeneration = putResult?.generation ?? indexGeneration;
+          }
         }
         await this.markSynced(indexGeneration);
       } catch {
@@ -1245,10 +1269,9 @@ export class GcsCacheSyncService implements DatastoreSyncService {
         // Cache directory may not exist yet
       }
       // Scan index for orphaned entries absent from local disk.
-      // Only when bulkInvalidated — a clean full walk without
-      // markDirty should never delete (preserves reader-side repos
-      // that call pushChanged against a near-empty local cache).
-      if (this.bulkInvalidated && this.index) {
+      // Only when per-path dirty tracking overflowed — a no-path
+      // markDirty() is a modification signal, not a deletion signal.
+      if (this.dirtyPathsOverflowed && !this.lazyPullActive && this.index) {
         for (const key of Object.keys(this.index.entries)) {
           if (isInternalCacheFile(key)) continue;
           if (localFiles.has(key)) continue;

@@ -1136,7 +1136,17 @@ export class S3CacheSyncService implements DatastoreSyncService {
         if (result.status === "fulfilled") {
           pulled++;
         } else {
-          failures.push({ file: batch[j], error: result.reason });
+          const err = result.reason;
+          if (
+            err instanceof Error &&
+            (err.name === "NotFound" || err.name === "NoSuchKey") &&
+            this.index
+          ) {
+            delete this.index.entries[batch[j]];
+            this.indexMutated = true;
+          } else {
+            failures.push({ file: batch[j], error: err });
+          }
         }
       }
     }
@@ -1176,11 +1186,22 @@ export class S3CacheSyncService implements DatastoreSyncService {
     // `indexMtime >= verifiedAt`.
     if (indexETag) {
       try {
-        if (pulled > 0 && this.index) {
+        if ((pulled > 0 || this.indexMutated) && this.index) {
           await atomicWriteTextFile(
             this.indexPath,
             JSON.stringify(this.index, null, 2),
           );
+          if (this.indexMutated) {
+            const indexData = new TextEncoder().encode(
+              JSON.stringify(this.index, null, 2),
+            );
+            const putResult = await retryWithBackoff(
+              () => this.s3.putObject(this.indexKey(), indexData, signal),
+              { signal },
+            );
+            this.indexMutated = false;
+            indexETag = putResult?.etag ?? indexETag;
+          }
         }
         await this.markSynced(indexETag);
       } catch {

@@ -4368,3 +4368,104 @@ Deno.test("pushChanged does NOT delete absent files when lazyPullActive is true"
     await Deno.remove(cachePath, { recursive: true });
   }
 });
+
+// -- pullChanged: dangling index entries (S3 object missing) are pruned -----
+
+Deno.test("pullChanged: prunes dangling index entries whose S3 object is missing", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-test-dangling-" });
+  try {
+    const mock = createMockS3Client();
+
+    const goodContent = new TextEncoder().encode("good-data");
+    const danglingContent = new TextEncoder().encode("gone");
+
+    const indexBody = encodeIndex({
+      "data/good/v1/raw": {
+        key: "data/good/v1/raw",
+        size: goodContent.length,
+        lastModified: new Date().toISOString(),
+      },
+      "data/dangling/v1/raw": {
+        key: "data/dangling/v1/raw",
+        size: danglingContent.length,
+        lastModified: new Date().toISOString(),
+      },
+    });
+    mock.storage.set(".datastore-index.json", indexBody);
+    mock.storage.set("data/good/v1/raw", goodContent);
+    // data/dangling/v1/raw deliberately NOT in storage — simulates
+    // a gc that deleted the S3 object but left the index entry.
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    const pulled = await service.pullChanged();
+
+    // Only the good file should have been pulled.
+    assertEquals(pulled, 1);
+
+    // The dangling entry should be removed from the in-memory index.
+    const state = privateState(service);
+    assertExists(state.index);
+    assertEquals("data/good/v1/raw" in state.index.entries, true);
+    assertEquals("data/dangling/v1/raw" in state.index.entries, false);
+
+    // The cleaned index should have been written back to S3.
+    const indexPuts = mock.puts.filter((p) =>
+      p.key === ".datastore-index.json"
+    );
+    assert(indexPuts.length > 0, "cleaned index should be pushed to S3");
+    const writtenIndex = decodeIndex(indexPuts[indexPuts.length - 1].body);
+    assertEquals("data/good/v1/raw" in writtenIndex.entries, true);
+    assertEquals("data/dangling/v1/raw" in writtenIndex.entries, false);
+
+    // The good file should exist locally.
+    const localStat = await Deno.stat(join(cachePath, "data/good/v1/raw"));
+    assertEquals(localStat.size, goodContent.length);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pullChanged: still throws on non-NotFound errors", async () => {
+  const cachePath = await Deno.makeTempDir({
+    prefix: "s3sync-test-non404-",
+  });
+  try {
+    const mock = createMockS3Client();
+
+    const indexBody = encodeIndex({
+      "data/file/v1/raw": {
+        key: "data/file/v1/raw",
+        size: 5,
+        lastModified: new Date().toISOString(),
+      },
+    });
+    mock.storage.set(".datastore-index.json", indexBody);
+    // Override getObject to return an auth error instead of NotFound.
+    const origGet = mock.getObject.bind(mock);
+    (mock as unknown as Record<string, unknown>).getObject = (
+      key: string,
+    ) => {
+      if (key === "data/file/v1/raw") {
+        const err = new S3OperationError("Access Denied", {
+          name: "AccessDenied",
+          cause: undefined,
+          httpStatusCode: 403,
+          code: "AccessDenied",
+          requestId: undefined,
+          bodyPreview: undefined,
+        });
+        return Promise.reject(err);
+      }
+      return origGet(key);
+    };
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    await assertRejects(
+      () => service.pullChanged(),
+      Error,
+      "Failed to pull",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});

@@ -901,7 +901,7 @@ Deno.test("pushChanged: scoped walk deletes absent dirty path from GCS and index
   }
 });
 
-Deno.test("pushChanged: bulk walk deletes orphaned index entries after markDirty()", async () => {
+Deno.test("pushChanged: bulk markDirty (no relPath) does NOT delete orphaned index entries", async () => {
   const cachePath = await Deno.makeTempDir({ prefix: "gcssync-test-del2-" });
   try {
     const mock = createMockGcsClient();
@@ -934,28 +934,22 @@ Deno.test("pushChanged: bulk walk deletes orphaned index entries after markDirty
 
     const service = new GcsCacheSyncService(mock, cachePath);
 
-    // Bulk markDirty (no relPath) triggers bulkInvalidated path.
+    // Bulk markDirty (no relPath) sets bulkInvalidated but NOT
+    // dirtyPathsOverflowed. A no-path markDirty is a modification
+    // signal, not a deletion signal — matching S3's semantics.
     await service.markDirty();
 
     const result = await service.pushChanged();
 
-    // The orphaned raw file should be deleted from GCS.
+    // No deletions — orphan detection only triggers on dirty-path
+    // overflow, not on a bare bulkInvalidated.
     assertEquals(
-      mock.deletes,
-      ["data/model/beta/v1/raw"],
-      "orphaned index entry must be deleted from GCS",
+      mock.deletes.length,
+      0,
+      "no-relPath markDirty must not trigger orphan deletion",
     );
 
-    // Index should only have the metadata file.
-    const indexPuts = mock.puts.filter(
-      (p) => p.key === ".datastore-index.json",
-    );
-    assert(indexPuts.length >= 1, "index must be written back");
-    const writtenIndex = decodeIndex(indexPuts[indexPuts.length - 1].body);
-    const keys = Object.keys(writtenIndex.entries);
-    assertEquals(keys, ["data/model/beta/v1/metadata.yaml"]);
-
-    assertEquals(result, 1, "should report 1 deletion");
+    assertEquals(result, 0, "should report 0 changes");
   } finally {
     await Deno.remove(cachePath, { recursive: true });
   }
@@ -4006,4 +4000,108 @@ Deno.test("capabilities advertises namespacedSync", () => {
   assertEquals(caps.namespacedSync, true);
   assertEquals(caps.scopedSync, true);
   assertEquals(caps.lazyHydration, true);
+});
+
+// -- pullChanged: dangling index entries (GCS object missing) are pruned -----
+
+Deno.test("pullChanged: prunes dangling index entries whose GCS object is missing", async () => {
+  const cachePath = await Deno.makeTempDir({
+    prefix: "gcssync-test-dangling-",
+  });
+  try {
+    const mock = createMockGcsClient();
+
+    const goodContent = new TextEncoder().encode("good-data");
+    const danglingContent = new TextEncoder().encode("gone");
+
+    const indexBody = encodeIndex({
+      "data/good/v1/raw": {
+        key: "data/good/v1/raw",
+        size: goodContent.length,
+        lastModified: new Date().toISOString(),
+      },
+      "data/dangling/v1/raw": {
+        key: "data/dangling/v1/raw",
+        size: danglingContent.length,
+        lastModified: new Date().toISOString(),
+      },
+    });
+    mock.storage.set(".datastore-index.json", indexBody);
+    mock.storage.set("data/good/v1/raw", goodContent);
+    // data/dangling/v1/raw deliberately NOT in storage — simulates
+    // a gc that deleted the GCS object but left the index entry.
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    const pulled = await service.pullChanged();
+
+    // Only the good file should have been pulled.
+    assertEquals(pulled, 1);
+
+    // The dangling entry should be removed from the in-memory index.
+    const state = privateState(service);
+    assertExists(state.index);
+    assertEquals("data/good/v1/raw" in state.index.entries, true);
+    assertEquals("data/dangling/v1/raw" in state.index.entries, false);
+
+    // The cleaned index should have been written back to GCS.
+    const indexPuts = mock.puts.filter((p) =>
+      p.key === ".datastore-index.json"
+    );
+    assert(indexPuts.length > 0, "cleaned index should be pushed to GCS");
+    const writtenIndex = decodeIndex(indexPuts[indexPuts.length - 1].body);
+    assertEquals("data/good/v1/raw" in writtenIndex.entries, true);
+    assertEquals("data/dangling/v1/raw" in writtenIndex.entries, false);
+
+    // The good file should exist locally.
+    const localStat = await Deno.stat(join(cachePath, "data/good/v1/raw"));
+    assertEquals(localStat.size, goodContent.length);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("pullChanged: still throws on non-NotFound errors", async () => {
+  const cachePath = await Deno.makeTempDir({
+    prefix: "gcssync-test-non404-",
+  });
+  try {
+    const mock = createMockGcsClient();
+
+    const indexBody = encodeIndex({
+      "data/file/v1/raw": {
+        key: "data/file/v1/raw",
+        size: 5,
+        lastModified: new Date().toISOString(),
+      },
+    });
+    mock.storage.set(".datastore-index.json", indexBody);
+    // Override getObject to return an auth error instead of NotFound.
+    const origGet = mock.getObject.bind(mock);
+    (mock as unknown as Record<string, unknown>).getObject = (
+      key: string,
+      signal?: AbortSignal,
+    ) => {
+      if (key === "data/file/v1/raw") {
+        return Promise.reject(
+          new GcsOperationError("Forbidden", {
+            name: "GcsOperationError",
+            httpStatusCode: 403,
+            code: "forbidden",
+            bodyPreview: undefined,
+            uploadId: undefined,
+          }),
+        );
+      }
+      return origGet(key, signal);
+    };
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    await assertRejects(
+      () => service.pullChanged(),
+      Error,
+      "Failed to pull",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
 });
