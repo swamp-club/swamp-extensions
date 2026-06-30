@@ -100,7 +100,18 @@ export interface SyncCapabilities {
   scopedSync: boolean;
   lazyHydration?: boolean;
   namespacedSync?: boolean;
+  twoPhaseSync?: boolean;
 }
+
+/**
+ * Opaque manifest returned by {@link DatastoreSyncService.preparePush}
+ * and consumed by {@link DatastoreSyncService.commitPush}.
+ *
+ * Core treats this as passthrough — it never inspects or validates the
+ * contents. The extension defines what goes inside; core only
+ * orchestrates when each phase runs.
+ */
+export type PushManifest = { readonly __brand: unique symbol };
 
 /** Optional flags passed to a sync operation. */
 export interface DatastoreSyncOptions {
@@ -175,6 +186,13 @@ export interface DatastoreSyncService {
     relPath: string,
     signal?: AbortSignal,
   ): Promise<Uint8Array | null>;
+  /** Phase 1 of two-phase push: upload changed files to the remote. */
+  preparePush?(options?: DatastoreSyncOptions): Promise<PushManifest>;
+  /** Phase 2 of two-phase push: merge the manifest into the remote index. */
+  commitPush?(
+    manifest: PushManifest,
+    options?: DatastoreSyncOptions,
+  ): Promise<number | void>;
 }
 
 /** Factory that produces the datastore's lock, verifier, and sync service. */

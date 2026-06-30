@@ -34,6 +34,7 @@ import type {
   CatalogExportRow,
   DatastoreSyncOptions,
   DatastoreSyncService,
+  PushManifest,
   SyncCapabilities,
 } from "./interfaces.ts";
 import { type S3Client, S3OperationError } from "./s3_client.ts";
@@ -261,6 +262,15 @@ interface DatastoreIndex {
   version: 1;
   lastPulled: string;
   entries: Record<string, IndexEntry>;
+}
+
+/** Internal manifest for two-phase push, opaque to core. */
+interface InternalPushManifest {
+  newEntries: Record<string, IndexEntry>;
+  deletedKeys: string[];
+  pushed: number;
+  deleted: number;
+  dirtyPartitionKeys: string[];
 }
 
 /** Push queue entry for files pending upload to S3. */
@@ -1561,6 +1571,278 @@ export class S3CacheSyncService implements DatastoreSyncService {
     return pushed + deleted;
   }
 
+  async preparePush(
+    options?: DatastoreSyncOptions,
+  ): Promise<PushManifest> {
+    const signal = options?.signal;
+    this.bindNamespace(options?.namespace);
+    throwIfAborted(signal);
+    await this.ensurePreflight(signal);
+
+    const emptyManifest: InternalPushManifest = {
+      newEntries: {},
+      deletedKeys: [],
+      pushed: 0,
+      deleted: 0,
+      dirtyPartitionKeys: [],
+    };
+
+    const fastResult = await this.tryFastPushChanged(signal);
+    if (fastResult !== null) {
+      return emptyManifest as unknown as PushManifest;
+    }
+
+    await this.pullIndex({ forceRemote: true, signal });
+
+    const toPush: string[] = [];
+    const toDelete: string[] = [];
+    const useScopedWalk = !this.bulkInvalidated && this.dirtyPaths.size > 0;
+
+    if (useScopedWalk) {
+      for (const dirtyPath of this.dirtyPaths) {
+        const absPath = join(this.cachePath, dirtyPath);
+        try {
+          const stat = await Deno.stat(absPath);
+          if (stat.isFile) {
+            if (
+              !isInternalCacheFile(dirtyPath) &&
+              await this.fileNeedsPush(absPath, dirtyPath)
+            ) {
+              toPush.push(dirtyPath);
+            }
+          } else if (stat.isDirectory) {
+            const localFilesInDir = new Set<string>();
+            for await (
+              const entry of walk(absPath, { includeDirs: false })
+            ) {
+              const rel = relative(this.cachePath, entry.path);
+              if (isInternalCacheFile(rel)) continue;
+              localFilesInDir.add(rel);
+              if (await this.fileNeedsPush(entry.path, rel)) {
+                toPush.push(rel);
+              }
+            }
+            if (!this.lazyPullActive && this.index) {
+              const prefix = dirtyPath.endsWith("/")
+                ? dirtyPath
+                : dirtyPath + "/";
+              for (const rel of Object.keys(this.index.entries)) {
+                if (isInternalCacheFile(rel)) continue;
+                if (rel.startsWith(prefix) && !localFilesInDir.has(rel)) {
+                  toDelete.push(rel);
+                }
+              }
+            }
+          }
+        } catch (err) {
+          if (!(err instanceof Deno.errors.NotFound)) {
+            continue;
+          }
+          if (!this.lazyPullActive && this.index) {
+            const prefix = dirtyPath.endsWith("/")
+              ? dirtyPath
+              : dirtyPath + "/";
+            for (const rel of Object.keys(this.index.entries)) {
+              if (isInternalCacheFile(rel)) continue;
+              if (rel === dirtyPath || rel.startsWith(prefix)) {
+                toDelete.push(rel);
+              }
+            }
+          }
+        }
+      }
+    } else {
+      const localFiles = new Set<string>();
+      try {
+        for await (
+          const entry of walk(this.cachePath, { includeDirs: false })
+        ) {
+          const rel = relative(this.cachePath, entry.path);
+          if (isInternalCacheFile(rel)) continue;
+          localFiles.add(rel);
+          if (await this.fileNeedsPush(entry.path, rel)) {
+            toPush.push(rel);
+          }
+        }
+      } catch {
+        // Cache directory may not exist yet
+      }
+      if (this.dirtyPathsOverflowed && !this.lazyPullActive && this.index) {
+        for (const rel of Object.keys(this.index.entries)) {
+          if (isInternalCacheFile(rel)) continue;
+          if (!localFiles.has(rel)) {
+            toDelete.push(rel);
+          }
+        }
+      }
+    }
+
+    const newEntries: Record<string, IndexEntry> = {};
+    let pushed = 0;
+    const failures: Array<{ file: string; error: unknown }> = [];
+    for (let i = 0; i < toPush.length; i += this.pushConcurrency) {
+      throwIfAborted(signal);
+      const batch = toPush.slice(i, i + this.pushConcurrency);
+      const results = await Promise.allSettled(
+        batch.map(async (rel) => {
+          const localPath = assertSafePath(this.cachePath, rel);
+          const data = await Deno.readFile(localPath);
+          const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+          const sha256 = Array.from(new Uint8Array(hashBuffer))
+            .map((b) => b.toString(16).padStart(2, "0"))
+            .join("");
+          await retryWithBackoff(
+            () => this.s3.putObject(rel, data, signal),
+            { signal },
+          );
+          const stat = await Deno.stat(localPath);
+          newEntries[rel] = {
+            key: rel,
+            size: data.length,
+            lastModified: new Date().toISOString(),
+            localMtime: stat.mtime?.toISOString(),
+            sha256,
+          };
+        }),
+      );
+      for (let j = 0; j < results.length; j++) {
+        if (results[j].status === "fulfilled") {
+          pushed++;
+        } else {
+          failures.push({
+            file: batch[j],
+            error: (results[j] as PromiseRejectedResult).reason,
+          });
+        }
+      }
+    }
+
+    if (failures.length > 0) {
+      throw new Error(formatBatchFailure("push", failures));
+    }
+
+    const deletedKeys: string[] = [];
+    let deleted = 0;
+    const deleteFailures: Array<{ file: string; error: unknown }> = [];
+    for (let i = 0; i < toDelete.length; i += this.pushConcurrency) {
+      throwIfAborted(signal);
+      const batch = toDelete.slice(i, i + this.pushConcurrency);
+      const results = await Promise.allSettled(
+        batch.map((rel) =>
+          retryWithBackoff(
+            () => this.s3.deleteObject(rel, signal),
+            { signal },
+          )
+        ),
+      );
+      for (let j = 0; j < results.length; j++) {
+        if (results[j].status === "fulfilled") {
+          deleted++;
+          deletedKeys.push(batch[j]);
+        } else {
+          deleteFailures.push({
+            file: batch[j],
+            error: (results[j] as PromiseRejectedResult).reason,
+          });
+        }
+      }
+    }
+
+    if (deleteFailures.length > 0) {
+      throw new Error(formatBatchFailure("delete", deleteFailures));
+    }
+
+    const dirtyPartitionKeys: string[] = [];
+    for (const rel of toPush) {
+      const key = S3CacheSyncService.partitionKeyFromPath(rel);
+      if (key && !dirtyPartitionKeys.includes(key)) {
+        dirtyPartitionKeys.push(key);
+      }
+    }
+    for (const rel of toDelete) {
+      const key = S3CacheSyncService.partitionKeyFromPath(rel);
+      if (key && !dirtyPartitionKeys.includes(key)) {
+        dirtyPartitionKeys.push(key);
+      }
+    }
+
+    const manifest: InternalPushManifest = {
+      newEntries,
+      deletedKeys,
+      pushed,
+      deleted,
+      dirtyPartitionKeys,
+    };
+    return manifest as unknown as PushManifest;
+  }
+
+  async commitPush(
+    manifest: PushManifest,
+    options?: DatastoreSyncOptions,
+  ): Promise<number | void> {
+    const data = manifest as unknown as InternalPushManifest;
+    const signal = options?.signal;
+
+    if (data.pushed === 0 && data.deleted === 0) {
+      const indexFingerprint = await this.pullIndex({
+        forceRemote: true,
+        signal,
+      });
+      if (
+        indexFingerprint && this.index &&
+        !isMultipartETag(indexFingerprint) &&
+        await this.localHasAllRemoteEntries()
+      ) {
+        try {
+          await this.markSynced(indexFingerprint);
+        } catch {
+          // Non-fatal: sidecar update is opportunistic.
+        }
+      }
+      return 0;
+    }
+
+    await this.pullIndex({ forceRemote: true, signal });
+
+    if (this.index) {
+      for (const [rel, entry] of Object.entries(data.newEntries)) {
+        this.index.entries[rel] = entry;
+      }
+      for (const key of data.deletedKeys) {
+        delete this.index.entries[key];
+      }
+      this.index.lastPulled = new Date().toISOString();
+
+      const indexJson = JSON.stringify(this.index, null, 2);
+      const indexData = new TextEncoder().encode(indexJson);
+      const putResult = await retryWithBackoff(
+        () => this.s3.putObject(this.indexKey(), indexData, signal),
+        { signal },
+      );
+      await atomicWriteTextFile(this.indexPath, indexJson);
+      this.indexMutated = false;
+
+      const dirtyKeys = data.dirtyPartitionKeys.length > 0
+        ? new Set(data.dirtyPartitionKeys)
+        : undefined;
+      await this.writePartitionedIndex(this.index, signal, dirtyKeys);
+
+      const etag = putResult?.etag;
+      if (
+        etag && !isMultipartETag(etag) &&
+        await this.localHasAllRemoteEntries()
+      ) {
+        try {
+          await this.markSynced(etag);
+        } catch {
+          // Non-fatal: sidecar update is opportunistic.
+        }
+      }
+    }
+
+    return data.pushed + data.deleted;
+  }
+
   /**
    * Returns true iff every entry in the in-memory remote index has a
    * local file with matching size. Used by `pushChanged`'s no-writeback
@@ -1757,7 +2039,12 @@ export class S3CacheSyncService implements DatastoreSyncService {
   }
 
   capabilities(): SyncCapabilities {
-    return { scopedSync: true, lazyHydration: true, namespacedSync: true };
+    return {
+      scopedSync: true,
+      lazyHydration: true,
+      namespacedSync: true,
+      twoPhaseSync: true,
+    };
   }
 
   async hydrateFile(

@@ -4105,3 +4105,157 @@ Deno.test("pullChanged: still throws on non-NotFound errors", async () => {
     await Deno.remove(cachePath, { recursive: true });
   }
 });
+
+// -- Two-Phase Sync Tests ---------------------------------------------------
+
+Deno.test("capabilities: returns twoPhaseSync true", () => {
+  const mock = createMockGcsClient();
+  const service = new GcsCacheSyncService(mock, "/tmp/unused");
+  const caps = service.capabilities();
+  assertEquals(caps.twoPhaseSync, true);
+});
+
+Deno.test("preparePush: uploads files but does not write the index", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-2p-a-" });
+  try {
+    const mock = createMockGcsClient();
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    await seedFile(cachePath, "data/model-a/file1.yaml", "content-a\n");
+    await seedFile(cachePath, "data/model-b/file2.yaml", "content-b\n");
+
+    const manifest = await service.preparePush();
+
+    const uploadedKeys = mock.puts.map((p) => p.key);
+    assertEquals(
+      uploadedKeys.includes("data/model-a/file1.yaml"),
+      true,
+      "file1 should be uploaded",
+    );
+    assertEquals(
+      uploadedKeys.includes("data/model-b/file2.yaml"),
+      true,
+      "file2 should be uploaded",
+    );
+
+    const indexPuts = mock.puts.filter((p) =>
+      p.key === ".datastore-index.json"
+    );
+    assertEquals(
+      indexPuts.length,
+      0,
+      "preparePush must NOT write the remote index",
+    );
+
+    assertExists(manifest, "manifest must be returned");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("commitPush: reads fresh index and merges manifest entries", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-2p-b-" });
+  try {
+    const mock = createMockGcsClient();
+
+    const existingIndex = encodeIndex({
+      "data/other/existing.yaml": {
+        key: "data/other/existing.yaml",
+        size: 10,
+        lastModified: new Date().toISOString(),
+      },
+    });
+    mock.storage.set(".datastore-index.json", existingIndex);
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    await seedFile(cachePath, "data/model-a/file1.yaml", "content-a\n");
+    await seedFile(cachePath, "data/other/existing.yaml", "0123456789");
+
+    const manifest = await service.preparePush();
+    const result = await service.commitPush(manifest);
+
+    assert(
+      typeof result === "number" && result > 0,
+      "commitPush should return count of changed entries",
+    );
+
+    const indexPut = mock.puts.find((p) => p.key === ".datastore-index.json");
+    assertExists(indexPut, "commitPush must write the remote index");
+
+    const writtenIndex = decodeIndex(indexPut.body);
+    assertExists(
+      writtenIndex.entries["data/model-a/file1.yaml"],
+      "new entry must be in written index",
+    );
+    assertExists(
+      writtenIndex.entries["data/other/existing.yaml"],
+      "existing entry must be preserved (merge, not replace)",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("preparePush + commitPush round-trip matches pushChanged behavior", async () => {
+  const cacheA = await Deno.makeTempDir({ prefix: "gcssync-2p-rt-a-" });
+  const cacheB = await Deno.makeTempDir({ prefix: "gcssync-2p-rt-b-" });
+  try {
+    const mockA = createMockGcsClient();
+    const mockB = createMockGcsClient();
+
+    await seedFile(cacheA, "data/m1/f1.yaml", "hello\n");
+    await seedFile(cacheB, "data/m1/f1.yaml", "hello\n");
+
+    const serviceA = new GcsCacheSyncService(mockA, cacheA);
+    await serviceA.pushChanged();
+
+    const serviceB = new GcsCacheSyncService(mockB, cacheB);
+    const manifest = await serviceB.preparePush();
+    await serviceB.commitPush(manifest);
+
+    const indexA = mockA.puts.filter((p) => p.key === ".datastore-index.json")
+      .pop();
+    const indexB = mockB.puts.filter((p) => p.key === ".datastore-index.json")
+      .pop();
+    assertExists(indexA, "pushChanged should write index");
+    assertExists(indexB, "commitPush should write index");
+
+    const parsedA = decodeIndex(indexA.body);
+    const parsedB = decodeIndex(indexB.body);
+
+    assertEquals(
+      Object.keys(parsedA.entries).sort(),
+      Object.keys(parsedB.entries).sort(),
+      "both paths should produce the same index entries",
+    );
+  } finally {
+    await Deno.remove(cacheA, { recursive: true });
+    await Deno.remove(cacheB, { recursive: true });
+  }
+});
+
+Deno.test("preparePush: fast path returns empty manifest when nothing dirty", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-2p-fp-" });
+  try {
+    const mock = createMockGcsClient();
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    await seedFile(cachePath, "data/m1/f1.yaml", "hi\n");
+    await service.pushChanged();
+
+    mock.puts.length = 0;
+
+    const manifest = await service.preparePush();
+    await service.commitPush(manifest);
+
+    const dataPuts = mock.puts.filter((p) => p.key === "data/m1/f1.yaml");
+    assertEquals(
+      dataPuts.length,
+      0,
+      "fast path should skip file uploads",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
