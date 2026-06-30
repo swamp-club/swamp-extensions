@@ -536,6 +536,13 @@ const GlobalArgsSchema = z.object({
         "IMPACT_COMPLETE",
       ]).describe("Confidentiality Impact (C). Defined in CVSS v2, v3.")
         .optional(),
+      exploitMaturity: z.enum([
+        "EXPLOIT_MATURITY_UNSPECIFIED",
+        "EXPLOIT_MATURITY_NOT_DEFINED",
+        "EXPLOIT_MATURITY_ATTACKED",
+        "EXPLOIT_MATURITY_POC",
+        "EXPLOIT_MATURITY_UNREPORTED",
+      ]).describe("Exploit Maturity (E). Defined in CVSS v4.").optional(),
       exploitabilityScore: z.number().optional(),
       impactScore: z.number().optional(),
       integrityImpact: z.enum([
@@ -726,6 +733,13 @@ const GlobalArgsSchema = z.object({
         "IMPACT_COMPLETE",
       ]).describe("Confidentiality Impact (C). Defined in CVSS v2, v3.")
         .optional(),
+      exploitMaturity: z.enum([
+        "EXPLOIT_MATURITY_UNSPECIFIED",
+        "EXPLOIT_MATURITY_NOT_DEFINED",
+        "EXPLOIT_MATURITY_ATTACKED",
+        "EXPLOIT_MATURITY_POC",
+        "EXPLOIT_MATURITY_UNREPORTED",
+      ]).describe("Exploit Maturity (E). Defined in CVSS v4.").optional(),
       exploitabilityScore: z.number().optional(),
       impactScore: z.number().optional(),
       integrityImpact: z.enum([
@@ -1238,6 +1252,7 @@ const StateSchema = z.object({
       availabilityImpact: z.string(),
       baseScore: z.number(),
       confidentialityImpact: z.string(),
+      exploitMaturity: z.string(),
       exploitabilityScore: z.number(),
       impactScore: z.number(),
       integrityImpact: z.string(),
@@ -1272,6 +1287,7 @@ const StateSchema = z.object({
       availabilityImpact: z.string(),
       baseScore: z.number(),
       confidentialityImpact: z.string(),
+      exploitMaturity: z.string(),
       exploitabilityScore: z.number(),
       impactScore: z.number(),
       integrityImpact: z.string(),
@@ -1762,6 +1778,13 @@ const InputsSchema = z.object({
         "IMPACT_COMPLETE",
       ]).describe("Confidentiality Impact (C). Defined in CVSS v2, v3.")
         .optional(),
+      exploitMaturity: z.enum([
+        "EXPLOIT_MATURITY_UNSPECIFIED",
+        "EXPLOIT_MATURITY_NOT_DEFINED",
+        "EXPLOIT_MATURITY_ATTACKED",
+        "EXPLOIT_MATURITY_POC",
+        "EXPLOIT_MATURITY_UNREPORTED",
+      ]).describe("Exploit Maturity (E). Defined in CVSS v4.").optional(),
       exploitabilityScore: z.number().optional(),
       impactScore: z.number().optional(),
       integrityImpact: z.enum([
@@ -1952,6 +1975,13 @@ const InputsSchema = z.object({
         "IMPACT_COMPLETE",
       ]).describe("Confidentiality Impact (C). Defined in CVSS v2, v3.")
         .optional(),
+      exploitMaturity: z.enum([
+        "EXPLOIT_MATURITY_UNSPECIFIED",
+        "EXPLOIT_MATURITY_NOT_DEFINED",
+        "EXPLOIT_MATURITY_ATTACKED",
+        "EXPLOIT_MATURITY_POC",
+        "EXPLOIT_MATURITY_UNREPORTED",
+      ]).describe("Exploit Maturity (E). Defined in CVSS v4.").optional(),
       exploitabilityScore: z.number().optional(),
       impactScore: z.number().optional(),
       integrityImpact: z.enum([
@@ -2333,7 +2363,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Container Analysis Notes. Registered at `@swamp/gcp/containeranalysis/notes`. */
 export const model = {
   type: "@swamp/gcp/containeranalysis/notes",
-  version: "2026.06.18.1",
+  version: "2026.06.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2476,6 +2506,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

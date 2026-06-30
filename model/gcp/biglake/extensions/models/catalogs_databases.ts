@@ -23,7 +23,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud BigLake Catalogs.Databases.
+ * Swamp extension model for Google Cloud Lakehouse Catalogs.Databases.
  *
  * Database is the container of tables.
  *
@@ -220,10 +220,10 @@ function _buildGcpCredentials(
   };
 }
 
-/** Swamp extension model for Google Cloud BigLake Catalogs.Databases. Registered at `@swamp/gcp/biglake/catalogs-databases`. */
+/** Swamp extension model for Google Cloud Lakehouse Catalogs.Databases. Registered at `@swamp/gcp/biglake/catalogs-databases`. */
 export const model = {
   type: "@swamp/gcp/biglake/catalogs-databases",
-  version: "2026.06.08.1",
+  version: "2026.06.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -297,6 +297,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

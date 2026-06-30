@@ -58,10 +58,8 @@ const TagSchema = z.object({
 const CapacityProviderLoggingConfigSchema = z.object({
   LogGroup: z.string().min(1).max(512).regex(
     new RegExp("[\\.\\-_/#A-Za-z0-9]+"),
-  ).describe("The log group name.").optional(),
-  SystemLogLevel: z.enum(["DEBUG", "INFO", "WARN"]).describe(
-    "System log granularity level",
   ).optional(),
+  SystemLogLevel: z.enum(["DEBUG", "INFO", "WARN"]).optional(),
 });
 
 const GlobalArgsSchema = z.object({
@@ -141,13 +139,17 @@ const GlobalArgsSchema = z.object({
     ),
   }).describe("The VPC configuration for the capacity provider."),
   PropagateTags: z.object({
-    Mode: z.enum(["None", "Explicit"]).optional(),
-    ExplicitTags: z.array(TagSchema).optional(),
-  }).optional(),
-  TelemetryConfig: z.object({
-    LoggingConfig: CapacityProviderLoggingConfigSchema.describe(
-      "The logging configuration for the capacity provider.",
+    Mode: z.enum(["None", "Explicit"]).describe(
+      "The mode for tag propagation. Use Explicit to propagate specific tags, or None to disable propagation.",
     ).optional(),
+    ExplicitTags: z.array(TagSchema).describe(
+      "A list of tags to explicitly propagate to managed resources. Maximum of 40 tags.",
+    ).optional(),
+  }).describe(
+    "Configuration for tag propagation to managed resources launched by the capacity provider.",
+  ).optional(),
+  TelemetryConfig: z.object({
+    LoggingConfig: CapacityProviderLoggingConfigSchema.optional(),
   }).optional(),
 });
 
@@ -255,13 +257,17 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe("The VPC configuration for the capacity provider.").optional(),
   PropagateTags: z.object({
-    Mode: z.enum(["None", "Explicit"]).optional(),
-    ExplicitTags: z.array(TagSchema).optional(),
-  }).optional(),
-  TelemetryConfig: z.object({
-    LoggingConfig: CapacityProviderLoggingConfigSchema.describe(
-      "The logging configuration for the capacity provider.",
+    Mode: z.enum(["None", "Explicit"]).describe(
+      "The mode for tag propagation. Use Explicit to propagate specific tags, or None to disable propagation.",
     ).optional(),
+    ExplicitTags: z.array(TagSchema).describe(
+      "A list of tags to explicitly propagate to managed resources. Maximum of 40 tags.",
+    ).optional(),
+  }).describe(
+    "Configuration for tag propagation to managed resources launched by the capacity provider.",
+  ).optional(),
+  TelemetryConfig: z.object({
+    LoggingConfig: CapacityProviderLoggingConfigSchema.optional(),
   }).optional(),
 });
 
@@ -284,7 +290,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda CapacityProvider. Registered at `@swamp/aws/lambda/capacity-provider`. */
 export const model = {
   type: "@swamp/aws/lambda/capacity-provider",
-  version: "2026.06.18.1",
+  version: "2026.06.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -344,6 +350,11 @@ export const model = {
     {
       toVersion: "2026.06.18.1",
       description: "Added: TelemetryConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.30.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -63,12 +63,85 @@ const GitHubCapabilitiesResourceSchema = z.object({
   ),
 });
 
+const GitLabRepositoryResourceSchema = z.object({
+  Name: z.string().describe("GitLab project name"),
+  Namespace: z.string().describe(
+    "GitLab project namespace (user, group, or subgroup path)",
+  ),
+});
+
+const GitLabCapabilitiesResourceSchema = z.object({
+  LeaveComments: z.boolean().describe("Enables Code Review in the repository")
+    .optional(),
+  RemediateCode: z.boolean().describe(
+    "Enables creation of merge requests with automated fixes",
+  ).optional(),
+});
+
+const BitbucketRepositoryResourceSchema = z.object({
+  Name: z.string().describe("Bitbucket repository name"),
+  Workspace: z.string().describe(
+    "Bitbucket workspace slug owning the repository",
+  ),
+});
+
+const BitbucketCapabilitiesResourceSchema = z.object({
+  LeaveComments: z.boolean().describe("Enables Code Review in the repository")
+    .optional(),
+  RemediateCode: z.boolean().describe(
+    "Enables creation of pull requests with automated fixes",
+  ).optional(),
+});
+
+const ConfluenceDocumentResourceSchema = z.object({
+  Name: z.string().describe(
+    "Customer-supplied logical name for the Confluence document",
+  ),
+  SpaceKey: z.string().describe("Confluence space key containing the document"),
+  PageId: z.string().describe("Confluence page identifier"),
+  Title: z.string().describe(
+    "Read-only human-readable title of the page, populated from service-side metadata",
+  ).optional(),
+  SpaceTitle: z.string().describe(
+    "Read-only human-readable title of the containing space, populated from service-side metadata",
+  ).optional(),
+});
+
+const ConfluenceCapabilitiesResourceSchema = z.object({
+  FetchDocument: z.boolean().describe(
+    "Enables read access to the document content",
+  ).optional(),
+  CreateDocument: z.boolean().describe(
+    "Enables creation of new Confluence documents in the same space",
+  ).optional(),
+  UpdateDocument: z.boolean().describe("Enables updates to the document")
+    .optional(),
+});
+
 const ProviderResourceSchema = z.object({
   GitHubRepository: GitHubRepositoryResourceSchema.describe(
     "GitHub repository details",
   ).optional(),
   GitHubCapabilities: GitHubCapabilitiesResourceSchema.describe(
     "GitHub repository capabilities",
+  ).optional(),
+  GitLabRepository: GitLabRepositoryResourceSchema.describe(
+    "GitLab repository details",
+  ).optional(),
+  GitLabCapabilities: GitLabCapabilitiesResourceSchema.describe(
+    "GitLab repository capabilities",
+  ).optional(),
+  BitbucketRepository: BitbucketRepositoryResourceSchema.describe(
+    "Bitbucket repository details",
+  ).optional(),
+  BitbucketCapabilities: BitbucketCapabilitiesResourceSchema.describe(
+    "Bitbucket repository capabilities",
+  ).optional(),
+  ConfluenceDocument: ConfluenceDocumentResourceSchema.describe(
+    "Confluence document details",
+  ).optional(),
+  ConfluenceCapabilities: ConfluenceCapabilitiesResourceSchema.describe(
+    "Confluence document capabilities",
   ).optional(),
 });
 
@@ -223,7 +296,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityAgent AgentSpace. Registered at `@swamp/aws/securityagent/agent-space`. */
 export const model = {
   type: "@swamp/aws/securityagent/agent-space",
-  version: "2026.06.15.1",
+  version: "2026.06.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -272,6 +345,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

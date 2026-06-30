@@ -1,22 +1,20 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
-name: "@swamp/gcp/datalineage"
+name: "@swamp/gcp/webcontentpublisher"
 version: "2026.06.30.1"
-description: "Google Cloud datalineage infrastructure models"
+description: "Google Cloud webcontentpublisher infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
   - gcp
   - google-cloud
-  - datalineage
+  - webcontentpublisher
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: config
+  - Added: publications, publications_ctas
 models:
-  - config.ts
-  - processes.ts
-  - processes_runs.ts
-  - processes_runs_lineageevents.ts
+  - publications.ts
+  - publications_ctas.ts
 additionalFiles:
   - LICENSE.txt
   - README.md

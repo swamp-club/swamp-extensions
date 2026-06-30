@@ -41,6 +41,17 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const EvaluationFormScoreThresholdSchema = z.object({
+  PerformanceCategory: z.enum(["NEEDS_IMPROVEMENT", "EXCEEDS_EXPECTATIONS"])
+    .describe("The performance category name."),
+  MinScorePercentage: z.number().min(0).max(100).describe(
+    "The minimum score percentage for this threshold.",
+  ).optional(),
+  MaxScorePercentage: z.number().min(0).max(100).describe(
+    "The maximum score percentage for this threshold.",
+  ).optional(),
+});
+
 const EvaluationReviewNotificationRecipientValueSchema = z.object({
   UserId: z.string().describe(
     "The user identifier for the notification recipient.",
@@ -94,12 +105,13 @@ const GlobalArgsSchema = z.object({
     "Items that are part of the evaluation form. The total number of sections and questions must not exceed 100 each. Questions must be contained in a section. *Minimum size*: 1 *Maximum size*: 100",
   ),
   ScoringStrategy: z.object({
-    Mode: z.enum(["QUESTION_ONLY", "SECTION_ONLY"]).describe(
+    Mode: z.enum(["QUESTION_ONLY", "SECTION_ONLY", "POINTS_BASED"]).describe(
       "The scoring mode of the evaluation form. *Allowed values*: QUESTION_ONLY | SECTION_ONLY",
     ),
     Status: z.enum(["ENABLED", "DISABLED"]).describe(
       "The scoring status of the evaluation form. *Allowed values*: ENABLED | DISABLED",
     ),
+    ScoreThresholds: z.array(EvaluationFormScoreThresholdSchema).optional(),
   }).describe("A scoring strategy of the evaluation form.").optional(),
   AutoEvaluationConfiguration: z.object({
     Enabled: z.boolean().optional(),
@@ -155,6 +167,7 @@ const StateSchema = z.object({
   ScoringStrategy: z.object({
     Mode: z.string(),
     Status: z.string(),
+    ScoreThresholds: z.array(EvaluationFormScoreThresholdSchema),
   }).optional(),
   AutoEvaluationConfiguration: z.object({
     Enabled: z.boolean(),
@@ -197,12 +210,13 @@ const InputsSchema = z.object({
     "Items that are part of the evaluation form. The total number of sections and questions must not exceed 100 each. Questions must be contained in a section. *Minimum size*: 1 *Maximum size*: 100",
   ).optional(),
   ScoringStrategy: z.object({
-    Mode: z.enum(["QUESTION_ONLY", "SECTION_ONLY"]).describe(
+    Mode: z.enum(["QUESTION_ONLY", "SECTION_ONLY", "POINTS_BASED"]).describe(
       "The scoring mode of the evaluation form. *Allowed values*: QUESTION_ONLY | SECTION_ONLY",
     ).optional(),
     Status: z.enum(["ENABLED", "DISABLED"]).describe(
       "The scoring status of the evaluation form. *Allowed values*: ENABLED | DISABLED",
     ).optional(),
+    ScoreThresholds: z.array(EvaluationFormScoreThresholdSchema).optional(),
   }).describe("A scoring strategy of the evaluation form.").optional(),
   AutoEvaluationConfiguration: z.object({
     Enabled: z.boolean().optional(),
@@ -268,7 +282,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect EvaluationForm. Registered at `@swamp/aws/connect/evaluation-form`. */
 export const model = {
   type: "@swamp/aws/connect/evaluation-form",
-  version: "2026.06.15.1",
+  version: "2026.06.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -312,6 +326,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

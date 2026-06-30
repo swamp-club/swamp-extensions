@@ -17,15 +17,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/gcp/biglake/catalogs
+// Auto-generated extension model for @swamp/gcp/webcontentpublisher/publications-ctas
 // Do not edit manually. Re-generate with: deno task generate:gcp
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Lakehouse Catalogs.
+ * Swamp extension model for Google Cloud Web Content Publisher Publications.Ctas.
  *
- * Catalog is the container of databases.
+ * Represents a Call-To-Action (CTA) configuration for a publication.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -36,7 +36,6 @@
 import { z } from "npm:zod@4.3.6";
 import {
   createResource,
-  deleteResource,
   type ExplicitGcpCredentials,
   getProjectId,
   isResourceNotFoundError,
@@ -46,13 +45,13 @@ import {
 
 /** Construct the fully-qualified resource name from parent and short name. */
 function buildResourceName(parent: string, shortName: string): string {
-  return `${parent}/catalogs/${shortName}`;
+  return `${parent}/ctas/${shortName}`;
 }
 
-const BASE_URL = "https://biglake.googleapis.com/";
+const BASE_URL = "https://webcontentpublisher.googleapis.com/";
 
 const GET_CONFIG = {
-  "id": "biglake.projects.locations.catalogs.get",
+  "id": "webcontentpublisher.organizations.publications.ctas.get",
   "path": "v1/{+name}",
   "httpMethod": "GET",
   "parameterOrder": [
@@ -67,14 +66,14 @@ const GET_CONFIG = {
 } as const;
 
 const INSERT_CONFIG = {
-  "id": "biglake.projects.locations.catalogs.create",
-  "path": "v1/{+parent}/catalogs",
+  "id": "webcontentpublisher.organizations.publications.ctas.create",
+  "path": "v1/{+parent}/ctas",
   "httpMethod": "POST",
   "parameterOrder": [
     "parent",
   ],
   "parameters": {
-    "catalogId": {
+    "ctaId": {
       "location": "query",
     },
     "parent": {
@@ -84,24 +83,9 @@ const INSERT_CONFIG = {
   },
 } as const;
 
-const DELETE_CONFIG = {
-  "id": "biglake.projects.locations.catalogs.delete",
-  "path": "v1/{+name}",
-  "httpMethod": "DELETE",
-  "parameterOrder": [
-    "name",
-  ],
-  "parameters": {
-    "name": {
-      "location": "path",
-      "required": true,
-    },
-  },
-} as const;
-
 const LIST_CONFIG = {
-  "id": "biglake.projects.locations.catalogs.list",
-  "path": "v1/{+parent}/catalogs",
+  "id": "webcontentpublisher.organizations.publications.ctas.list",
+  "path": "v1/{+parent}/ctas",
   "httpMethod": "GET",
   "parameterOrder": [
     "parent",
@@ -121,9 +105,6 @@ const LIST_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe(
-    "Instance name for this resource (used as the unique identifier in the factory pattern)",
-  ),
   accessToken: z.string().meta({ sensitive: true }).describe(
     "GCP OAuth2 access token; overrides GCP_ACCESS_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -133,34 +114,86 @@ const GlobalArgsSchema = z.object({
   project: z.string().describe(
     "GCP project ID; overrides GCP_PROJECT / GOOGLE_CLOUD_PROJECT environment variables.",
   ).optional(),
-  catalogId: z.string().describe(
-    "Required. The ID to use for the catalog, which will become the final component of the catalog's resource name.",
+  displayName: z.string().describe(
+    "Required. The user-visible display name of the CTA.",
   ).optional(),
-  location: z.string().describe(
-    "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
+  name: z.string().describe(
+    "Identifier. The resource name of the Cta. Format: organizations/{organization}/publications/{publication}/ctas/{cta}",
+  ).optional(),
+  newsletterConfig: z.object({
+    customConsentText: z.string().describe(
+      "Optional. Custom consent or disclosure text shown to the user.",
+    ).optional(),
+    customMessage: z.string().describe(
+      "Optional. A custom message displayed to the user in the signup prompt.",
+    ).optional(),
+    nameRequired: z.boolean().describe(
+      "Optional. Whether the user is required to provide their name to sign up.",
+    ).optional(),
+    title: z.string().describe(
+      "Required. The title of the newsletter signup prompt.",
+    ).optional(),
+  }).describe("Configuration for newsletter signup calls-to-action (CTAs).")
+    .optional(),
+  type: z.enum(["TYPE_UNSPECIFIED", "NEWSLETTER_SIGNUP"]).describe(
+    "Required. The type of this CTA.",
+  ).optional(),
+  ctaId: z.string().describe(
+    "Optional. The unique identifier of the CTA to create. If not specified, the server will generate a random CTA ID.",
+  ).optional(),
+  parent: z.string().describe(
+    "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
   ).optional(),
 });
 
 const StateSchema = z.object({
-  createTime: z.string().optional(),
-  deleteTime: z.string().optional(),
-  expireTime: z.string().optional(),
+  displayName: z.string().optional(),
   name: z.string(),
-  updateTime: z.string().optional(),
+  newsletterConfig: z.object({
+    customConsentText: z.string(),
+    customMessage: z.string(),
+    nameRequired: z.boolean(),
+    title: z.string(),
+  }).optional(),
+  state: z.string().optional(),
+  type: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().optional(),
   accessToken: z.string().meta({ sensitive: true }).optional(),
   credentialsJson: z.string().meta({ sensitive: true }).optional(),
   project: z.string().optional(),
-  catalogId: z.string().describe(
-    "Required. The ID to use for the catalog, which will become the final component of the catalog's resource name.",
+  displayName: z.string().describe(
+    "Required. The user-visible display name of the CTA.",
   ).optional(),
-  location: z.string().describe(
-    "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
+  name: z.string().describe(
+    "Identifier. The resource name of the Cta. Format: organizations/{organization}/publications/{publication}/ctas/{cta}",
+  ).optional(),
+  newsletterConfig: z.object({
+    customConsentText: z.string().describe(
+      "Optional. Custom consent or disclosure text shown to the user.",
+    ).optional(),
+    customMessage: z.string().describe(
+      "Optional. A custom message displayed to the user in the signup prompt.",
+    ).optional(),
+    nameRequired: z.boolean().describe(
+      "Optional. Whether the user is required to provide their name to sign up.",
+    ).optional(),
+    title: z.string().describe(
+      "Required. The title of the newsletter signup prompt.",
+    ).optional(),
+  }).describe("Configuration for newsletter signup calls-to-action (CTAs).")
+    .optional(),
+  type: z.enum(["TYPE_UNSPECIFIED", "NEWSLETTER_SIGNUP"]).describe(
+    "Required. The type of this CTA.",
+  ).optional(),
+  ctaId: z.string().describe(
+    "Optional. The unique identifier of the CTA to create. If not specified, the server will generate a random CTA ID.",
+  ).optional(),
+  parent: z.string().describe(
+    "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
   ).optional(),
 });
 
@@ -176,97 +209,16 @@ function _buildGcpCredentials(
   };
 }
 
-/** Swamp extension model for Google Cloud Lakehouse Catalogs. Registered at `@swamp/gcp/biglake/catalogs`. */
+/** Swamp extension model for Google Cloud Web Content Publisher Publications.Ctas. Registered at `@swamp/gcp/webcontentpublisher/publications-ctas`. */
 export const model = {
-  type: "@swamp/gcp/biglake/catalogs",
+  type: "@swamp/gcp/webcontentpublisher/publications-ctas",
   version: "2026.06.30.1",
-  upgrades: [
-    {
-      toVersion: "2026.04.01.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.02.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.3",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.18.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.19.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.19.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.21.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.21.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.24.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.25.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.07.1",
-      description: "Added: accessToken, credentialsJson, project",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.30.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Catalog is the container of databases.",
+      description:
+        "Represents a Call-To-Action (CTA) configuration for a publication.",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -274,21 +226,31 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a catalogs",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: any) => {
+      description: "Create a ctas",
+      arguments: z.object({
+        waitForReady: z.boolean().describe(
+          "Wait for the resource to reach a ready state after creation (default: true)",
+        ).optional(),
+      }),
+      execute: async (args: { waitForReady?: boolean }, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
-        params["parent"] = `projects/${projectId}/locations/${
-          String(g["location"] ?? "")
-        }`;
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         const body: Record<string, unknown> = {};
-        if (g["catalogId"] !== undefined) body["catalogId"] = g["catalogId"];
-        if (g["name"] !== undefined) {
+        if (g["displayName"] !== undefined) {
+          body["displayName"] = g["displayName"];
+        }
+        if (g["name"] !== undefined) body["name"] = g["name"];
+        if (g["newsletterConfig"] !== undefined) {
+          body["newsletterConfig"] = g["newsletterConfig"];
+        }
+        if (g["type"] !== undefined) body["type"] = g["type"];
+        if (g["ctaId"] !== undefined) body["ctaId"] = g["ctaId"];
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
           params["name"] = buildResourceName(
-            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["parent"]),
             String(g["name"]),
           );
         }
@@ -298,23 +260,25 @@ export const model = {
           params,
           body,
           GET_CONFIG,
-          undefined,
+          (args.waitForReady ?? true)
+            ? {
+              "statusField": "state",
+              "readyValues": ["ACTIVE"],
+              "failedValues": [],
+            }
+            : undefined,
           {
             listConfig: LIST_CONFIG,
             listParams: {
-              "parent": `projects/${projectId}/locations/${
-                String(g["location"] ?? "")
-              }`,
+              "parent": String(body["parent"] ?? g["parent"] ?? ""),
             },
-            matchField: "name",
-            matchValue: String(g["name"] ?? ""),
+            matchField: "displayName",
+            matchValue: String(g["displayName"] ?? ""),
           },
           credentials,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = ((result.name ?? g.name)?.toString() ?? "current")
+          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -324,9 +288,9 @@ export const model = {
       },
     },
     get: {
-      description: "Get a catalogs",
+      description: "Get a ctas",
       arguments: z.object({
-        identifier: z.string().describe("The name of the catalogs"),
+        identifier: z.string().describe("The name of the ctas"),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const g = context.globalArgs;
@@ -334,7 +298,7 @@ export const model = {
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         params["name"] = buildResourceName(
-          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+          String(g["parent"] ?? ""),
           args.identifier,
         );
         const result = await readResource(
@@ -343,10 +307,11 @@ export const model = {
           params,
           credentials,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? args.identifier).replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName =
+          ((result.name ?? g.name)?.toString() ?? args.identifier).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -355,41 +320,8 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
-    delete: {
-      description: "Delete the catalogs",
-      arguments: z.object({
-        identifier: z.string().describe("The name of the catalogs"),
-      }),
-      execute: async (args: { identifier: string }, context: any) => {
-        const g = context.globalArgs;
-        const credentials = _buildGcpCredentials(g);
-        const projectId = await getProjectId(credentials);
-        const params: Record<string, string> = { project: projectId };
-        params["name"] = buildResourceName(
-          `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
-          args.identifier,
-        );
-        const { existed } = await deleteResource(
-          BASE_URL,
-          DELETE_CONFIG,
-          params,
-          credentials,
-        );
-        const instanceName = (g.name?.toString() ?? args.identifier).replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
-        const handle = await context.writeResource("state", instanceName, {
-          identifier: args.identifier,
-          existed,
-          status: existed ? "deleted" : "not_found",
-          deletedAt: new Date().toISOString(),
-        });
-        return { dataHandles: [handle] };
-      },
-    },
     sync: {
-      description: "Sync catalogs state from GCP",
+      description: "Sync ctas state from GCP",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -413,7 +345,7 @@ export const model = {
           const shortName = existing.name?.toString() ?? g["name"]?.toString();
           if (!shortName) throw new Error("No identifier found");
           params["name"] = buildResourceName(
-            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["parent"] ?? ""),
             shortName,
           );
           const result = await readResource(
@@ -441,10 +373,10 @@ export const model = {
       },
     },
     list: {
-      description: "List catalogs resources",
+      description: "List ctas resources",
       arguments: z.object({
         pageSize: z.number().describe(
-          "The maximum number of catalogs to return. The service may return fewer than this value. If unspecified, at most 50 catalogs will be returned. The maximum value is 1000; values above 1000 will be coerced to 1000.",
+          "Optional. The maximum number of CTAs to return. The service may return fewer than this value. If unspecified, at most 50 CTAs will be returned.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
@@ -455,9 +387,7 @@ export const model = {
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
-        params["parent"] = `projects/${projectId}/locations/${
-          String(g["location"] ?? "")
-        }`;
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         if (args["pageSize"] !== undefined) {
           params["pageSize"] = String(args["pageSize"]);
         }
@@ -465,7 +395,7 @@ export const model = {
           BASE_URL,
           LIST_CONFIG,
           params,
-          "catalogs",
+          "ctas",
           (args.maxPages as number | undefined) ?? 10,
           credentials,
         );

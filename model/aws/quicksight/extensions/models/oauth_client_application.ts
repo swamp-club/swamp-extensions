@@ -17,13 +17,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/aws/connect/view
+// Auto-generated extension model for @swamp/aws/quicksight/oauth-client-application
 // Do not edit manually. Re-generate with: deno task generate:aws
 
-// deno-lint-ignore-file no-explicit-any
+// deno-lint-ignore-file no-explicit-any no-control-regex
 
 /**
- * Swamp extension model for Connect View (AWS::Connect::View).
+ * Swamp extension model for QuickSight OAuthClientApplication (AWS::QuickSight::OAuthClientApplication).
  *
  * Wraps the CloudFormation resource type as a swamp model so create,
  * get, update, delete, and sync can be driven through `swamp model`.
@@ -42,14 +42,8 @@ import {
 import type { AwsCredentials } from "./_lib/aws.ts";
 
 const TagSchema = z.object({
-  Key: z.string().min(1).max(128).regex(
-    new RegExp("^(?!aws:)[a-zA-Z+-=._:/]+$"),
-  ).describe(
-    "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters",
-  ),
-  Value: z.string().max(256).describe(
-    "The value for the tag.. You can specify a value that is maximum of 256 Unicode characters",
-  ),
+  Key: z.string().min(1).max(128),
+  Value: z.string().min(1).max(256),
 });
 
 const GlobalArgsSchema = z.object({
@@ -68,46 +62,78 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  InstanceArn: z.string().min(1).max(100).regex(
-    new RegExp(
-      "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
-    ),
-  ).describe("The Amazon Resource Name (ARN) of the instance."),
-  Name: z.string().min(1).max(512).regex(
-    new RegExp(
-      "^([\\p{L}\\p{N}_.:\\/=+\\-@()']+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@()']*)$",
-      "u",
-    ),
-  ).describe("The name of the view."),
-  Description: z.string().min(0).max(4096).regex(
-    new RegExp(
-      "^([\\p{L}\\p{N}_.:\\/=+\\-@,()']+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@,()']*)$",
-      "u",
-    ),
-  ).describe("The description of the view.").optional(),
-  Template: z.record(z.string(), z.unknown()).describe(
-    "The template of the view as JSON.",
+  OAuthClientApplicationId: z.string().min(1).max(256).regex(
+    new RegExp("[^/][^\\u0000-\\u001f]*"),
   ),
-  Actions: z.array(
-    z.string().min(1).max(255).regex(
-      new RegExp(
-        "^([\\p{L}\\p{N}_.:\\/=+\\-@]+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@]*)$",
-        "u",
-      ),
-    ),
-  ).describe("The actions of the view in an array."),
-  Tags: z.array(TagSchema).describe("One or more tags.").optional(),
+  Name: z.string().min(1).max(2048),
+  OAuthClientAuthenticationType: z.enum(["TOKEN"]),
+  ClientId: z.string().min(1).max(2048).optional(),
+  ClientSecret: z.string().min(1).max(2048).optional(),
+  OAuthTokenEndpointUrl: z.string().min(1).max(2048),
+  OAuthAuthorizationEndpointUrl: z.string().min(1).max(2048).optional(),
+  OAuthScopes: z.string().min(1).max(4096).optional(),
+  DataSourceType: z.enum([
+    "ADOBE_ANALYTICS",
+    "AMAZON_ELASTICSEARCH",
+    "AMAZON_OPENSEARCH",
+    "ATHENA",
+    "AURORA",
+    "AURORA_POSTGRESQL",
+    "AWS_IOT_ANALYTICS",
+    "BIGQUERY",
+    "CONFLUENCE",
+    "DATABRICKS",
+    "EXASOL",
+    "GITHUB",
+    "GOOGLESHEETS",
+    "GOOGLE_DRIVE",
+    "JIRA",
+    "MARIADB",
+    "MYSQL",
+    "ONE_DRIVE",
+    "ORACLE",
+    "POSTGRESQL",
+    "PRESTO",
+    "QBUSINESS",
+    "REDSHIFT",
+    "S3",
+    "S3_KNOWLEDGE_BASE",
+    "S3_TABLES",
+    "SALESFORCE",
+    "SERVICENOW",
+    "SHAREPOINT",
+    "SNOWFLAKE",
+    "SPARK",
+    "SQLSERVER",
+    "STARBURST",
+    "TERADATA",
+    "TIMESTREAM",
+    "TRINO",
+    "TWITTER",
+    "WEB_CRAWLER",
+  ]).optional(),
+  IdentityProviderVpcConnectionProperties: z.object({
+    VpcConnectionArn: z.string(),
+  }).optional(),
+  Tags: z.array(TagSchema).optional(),
 });
 
 const StateSchema = z.object({
-  InstanceArn: z.string().optional(),
-  ViewArn: z.string(),
-  ViewId: z.string().optional(),
+  OAuthClientApplicationId: z.string().optional(),
+  Arn: z.string(),
   Name: z.string().optional(),
-  Description: z.string().optional(),
-  Template: z.record(z.string(), z.unknown()).optional(),
-  Actions: z.array(z.string()).optional(),
-  ViewContentSha256: z.string().optional(),
+  OAuthClientAuthenticationType: z.string().optional(),
+  ClientId: z.string().optional(),
+  ClientSecret: z.string().optional(),
+  OAuthTokenEndpointUrl: z.string().optional(),
+  OAuthAuthorizationEndpointUrl: z.string().optional(),
+  OAuthScopes: z.string().optional(),
+  DataSourceType: z.string().optional(),
+  IdentityProviderVpcConnectionProperties: z.object({
+    VpcConnectionArn: z.string(),
+  }).optional(),
+  CreatedTime: z.string().optional(),
+  LastUpdatedTime: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -119,35 +145,60 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  InstanceArn: z.string().min(1).max(100).regex(
-    new RegExp(
-      "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
-    ),
-  ).describe("The Amazon Resource Name (ARN) of the instance.").optional(),
-  Name: z.string().min(1).max(512).regex(
-    new RegExp(
-      "^([\\p{L}\\p{N}_.:\\/=+\\-@()']+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@()']*)$",
-      "u",
-    ),
-  ).describe("The name of the view.").optional(),
-  Description: z.string().min(0).max(4096).regex(
-    new RegExp(
-      "^([\\p{L}\\p{N}_.:\\/=+\\-@,()']+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@,()']*)$",
-      "u",
-    ),
-  ).describe("The description of the view.").optional(),
-  Template: z.record(z.string(), z.unknown()).describe(
-    "The template of the view as JSON.",
+  OAuthClientApplicationId: z.string().min(1).max(256).regex(
+    new RegExp("[^/][^\\u0000-\\u001f]*"),
   ).optional(),
-  Actions: z.array(
-    z.string().min(1).max(255).regex(
-      new RegExp(
-        "^([\\p{L}\\p{N}_.:\\/=+\\-@]+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@]*)$",
-        "u",
-      ),
-    ),
-  ).describe("The actions of the view in an array.").optional(),
-  Tags: z.array(TagSchema).describe("One or more tags.").optional(),
+  Name: z.string().min(1).max(2048).optional(),
+  OAuthClientAuthenticationType: z.enum(["TOKEN"]).optional(),
+  ClientId: z.string().min(1).max(2048).optional(),
+  ClientSecret: z.string().min(1).max(2048).optional(),
+  OAuthTokenEndpointUrl: z.string().min(1).max(2048).optional(),
+  OAuthAuthorizationEndpointUrl: z.string().min(1).max(2048).optional(),
+  OAuthScopes: z.string().min(1).max(4096).optional(),
+  DataSourceType: z.enum([
+    "ADOBE_ANALYTICS",
+    "AMAZON_ELASTICSEARCH",
+    "AMAZON_OPENSEARCH",
+    "ATHENA",
+    "AURORA",
+    "AURORA_POSTGRESQL",
+    "AWS_IOT_ANALYTICS",
+    "BIGQUERY",
+    "CONFLUENCE",
+    "DATABRICKS",
+    "EXASOL",
+    "GITHUB",
+    "GOOGLESHEETS",
+    "GOOGLE_DRIVE",
+    "JIRA",
+    "MARIADB",
+    "MYSQL",
+    "ONE_DRIVE",
+    "ORACLE",
+    "POSTGRESQL",
+    "PRESTO",
+    "QBUSINESS",
+    "REDSHIFT",
+    "S3",
+    "S3_KNOWLEDGE_BASE",
+    "S3_TABLES",
+    "SALESFORCE",
+    "SERVICENOW",
+    "SHAREPOINT",
+    "SNOWFLAKE",
+    "SPARK",
+    "SQLSERVER",
+    "STARBURST",
+    "TERADATA",
+    "TIMESTREAM",
+    "TRINO",
+    "TWITTER",
+    "WEB_CRAWLER",
+  ]).optional(),
+  IdentityProviderVpcConnectionProperties: z.object({
+    VpcConnectionArn: z.string().optional(),
+  }).optional(),
+  Tags: z.array(TagSchema).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -166,67 +217,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
   };
 }
 
-/** Swamp extension model for Connect View. Registered at `@swamp/aws/connect/view`. */
+/** Swamp extension model for QuickSight OAuthClientApplication. Registered at `@swamp/aws/quicksight/oauth-client-application`. */
 export const model = {
-  type: "@swamp/aws/connect/view",
+  type: "@swamp/aws/quicksight/oauth-client-application",
   version: "2026.06.30.1",
-  upgrades: [
-    {
-      toVersion: "2026.04.01.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.27.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.06.1",
-      description: "Added: accessKeyId, secretAccessKey, sessionToken, region",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.15.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.30.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Connect View resource state",
+      description: "QuickSight OAuthClientApplication resource state",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -234,7 +233,7 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a Connect View",
+      description: "Create a QuickSight OAuthClientApplication",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -246,7 +245,7 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await createResource(
-          "AWS::Connect::View",
+          "AWS::QuickSight::OAuthClientApplication",
           desiredState,
           credentials,
         ) as StateData;
@@ -263,16 +262,16 @@ export const model = {
       },
     },
     get: {
-      description: "Get a Connect View",
+      description: "Get a QuickSight OAuthClientApplication",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the Connect View",
+          "The primary identifier of the QuickSight OAuthClientApplication",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const result = await readResource(
-          "AWS::Connect::View",
+          "AWS::QuickSight::OAuthClientApplication",
           args.identifier,
           credentials,
         ) as StateData;
@@ -290,7 +289,7 @@ export const model = {
       },
     },
     update: {
-      description: "Update a Connect View",
+      description: "Update a QuickSight OAuthClientApplication",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -308,12 +307,12 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.ViewArn?.toString();
+        const identifier = existing.Arn?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         const currentState = await readResource(
-          "AWS::Connect::View",
+          "AWS::QuickSight::OAuthClientApplication",
           identifier,
           credentials,
         ) as StateData;
@@ -324,11 +323,11 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await updateResource(
-          "AWS::Connect::View",
+          "AWS::QuickSight::OAuthClientApplication",
           identifier,
           currentState,
           desiredState,
-          undefined,
+          ["OAuthClientApplicationId", "OAuthClientAuthenticationType"],
           credentials,
         );
         const handle = await context.writeResource(
@@ -340,16 +339,16 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete a Connect View",
+      description: "Delete a QuickSight OAuthClientApplication",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the Connect View",
+          "The primary identifier of the QuickSight OAuthClientApplication",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const { existed } = await deleteResource(
-          "AWS::Connect::View",
+          "AWS::QuickSight::OAuthClientApplication",
           args.identifier,
           credentials,
         );
@@ -368,7 +367,7 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync Connect View state from AWS",
+      description: "Sync QuickSight OAuthClientApplication state from AWS",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -386,13 +385,13 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.ViewArn?.toString();
+        const identifier = existing.Arn?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         try {
           const result = await readResource(
-            "AWS::Connect::View",
+            "AWS::QuickSight::OAuthClientApplication",
             identifier,
             credentials,
           ) as StateData;

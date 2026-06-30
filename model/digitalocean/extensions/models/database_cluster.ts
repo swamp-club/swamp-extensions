@@ -468,7 +468,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean database cluster. Registered at `@swamp/digitalocean/database-cluster`. */
 export const model = {
   type: "@swamp/digitalocean/database-cluster",
-  version: "2026.06.08.1",
+  version: "2026.06.30.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -522,6 +522,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -778,6 +783,44 @@ export const model = {
           "config",
           body,
           "PATCH",
+          context.globalArgs.token,
+        );
+        const result = await read(
+          "/v2/databases",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
+        const instanceName = (result.name?.toString() ?? args.id.toString())
+          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    do_settings: {
+      description: "do settings the database cluster",
+      arguments: z.object({
+        id: z.string().describe("The UUID of the database cluster"),
+        do_settings: z.record(z.string(), z.unknown()).describe(
+          "DigitalOcean-specific settings for the database cluster.",
+        ),
+      }),
+      execute: async (
+        args: { id: string; do_settings: Record<string, unknown> },
+        context: any,
+      ) => {
+        const body: Record<string, unknown> = {};
+        if (args.do_settings !== undefined) body.do_settings = args.do_settings;
+        await subResourceUpdate(
+          "/v2/databases",
+          args.id,
+          "do_settings",
+          body,
+          "PUT",
           context.globalArgs.token,
         );
         const result = await read(

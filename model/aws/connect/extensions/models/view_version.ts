@@ -66,7 +66,7 @@ const GlobalArgsSchema = z.object({
   ),
   VersionDescription: z.string().min(1).max(4096).regex(
     new RegExp(
-      "^([\\p{L}\\p{N}_.:\\/=+\\-@,]+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@,]*)$",
+      "^([\\p{L}\\p{N}_.:\\/=+\\-@,()']+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@,()']*)$",
       "u",
     ),
   ).describe("The description for the view version.").optional(),
@@ -100,7 +100,7 @@ const InputsSchema = z.object({
   ).optional(),
   VersionDescription: z.string().min(1).max(4096).regex(
     new RegExp(
-      "^([\\p{L}\\p{N}_.:\\/=+\\-@,]+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@,]*)$",
+      "^([\\p{L}\\p{N}_.:\\/=+\\-@,()']+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@,()']*)$",
       "u",
     ),
   ).describe("The description for the view version.").optional(),
@@ -128,7 +128,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect ViewVersion. Registered at `@swamp/aws/connect/view-version`. */
 export const model = {
   type: "@swamp/aws/connect/view-version",
-  version: "2026.06.15.1",
+  version: "2026.06.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -167,6 +167,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -215,6 +215,9 @@ const GlobalArgsSchema = z.object({
       .describe(
         "Optional. The edition of the instance. See Edition for details.",
       ).optional(),
+    knowledgeCatalogRegion: z.string().describe(
+      "Output only. The region where Knowledge Catalog data is synced to and stored, including user-created aspects.",
+    ).optional(),
     labels: z.record(z.string(), z.string()).describe(
       "Labels are a flexible and lightweight mechanism for organizing cloud resources into groups that reflect a customer's organizational needs and deployment strategies. They can be used to filter resources and aggregate metrics. * Label keys must be between 1 and 63 characters long and must conform to the regular expression: `\\p{Ll}\\p{Lo}{0,62}`. * Label values must be between 0 and 63 characters long and must conform to the regular expression: `[\\p{Ll}\\p{Lo}\\p{N}_-]{0,63}`. * No more than 64 labels can be associated with a given resource. * Keys and values must both be under 128 bytes.",
     ).optional(),
@@ -252,6 +255,9 @@ const GlobalArgsSchema = z.object({
   edition: z.enum(["EDITION_UNSPECIFIED", "ENTERPRISE", "ENTERPRISE_PLUS"])
     .describe("Optional. The edition of the instance. See Edition for details.")
     .optional(),
+  knowledgeCatalogRegion: z.string().describe(
+    "Output only. The region where Knowledge Catalog data is synced to and stored, including user-created aspects.",
+  ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Labels are a flexible and lightweight mechanism for organizing cloud resources into groups that reflect a customer's organizational needs and deployment strategies. They can be used to filter resources and aggregate metrics. * Label keys must be between 1 and 63 characters long and must conform to the regular expression: `\\p{Ll}\\p{Lo}{0,62}`. * Label values must be between 0 and 63 characters long and must conform to the regular expression: `[\\p{Ll}\\p{Lo}\\p{N}_-]{0,63}`. * No more than 64 labels can be associated with a given resource. * Keys and values must both be under 128 bytes.",
   ).optional(),
@@ -277,6 +283,7 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   displayName: z.string().optional(),
   edition: z.string().optional(),
+  knowledgeCatalogRegion: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   satisfiesPzi: z.boolean().optional(),
@@ -367,6 +374,9 @@ const InputsSchema = z.object({
       .describe(
         "Optional. The edition of the instance. See Edition for details.",
       ).optional(),
+    knowledgeCatalogRegion: z.string().describe(
+      "Output only. The region where Knowledge Catalog data is synced to and stored, including user-created aspects.",
+    ).optional(),
     labels: z.record(z.string(), z.string()).describe(
       "Labels are a flexible and lightweight mechanism for organizing cloud resources into groups that reflect a customer's organizational needs and deployment strategies. They can be used to filter resources and aggregate metrics. * Label keys must be between 1 and 63 characters long and must conform to the regular expression: `\\p{Ll}\\p{Lo}{0,62}`. * Label values must be between 0 and 63 characters long and must conform to the regular expression: `[\\p{Ll}\\p{Lo}\\p{N}_-]{0,63}`. * No more than 64 labels can be associated with a given resource. * Keys and values must both be under 128 bytes.",
     ).optional(),
@@ -404,6 +414,9 @@ const InputsSchema = z.object({
   edition: z.enum(["EDITION_UNSPECIFIED", "ENTERPRISE", "ENTERPRISE_PLUS"])
     .describe("Optional. The edition of the instance. See Edition for details.")
     .optional(),
+  knowledgeCatalogRegion: z.string().describe(
+    "Output only. The region where Knowledge Catalog data is synced to and stored, including user-created aspects.",
+  ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Labels are a flexible and lightweight mechanism for organizing cloud resources into groups that reflect a customer's organizational needs and deployment strategies. They can be used to filter resources and aggregate metrics. * Label keys must be between 1 and 63 characters long and must conform to the regular expression: `\\p{Ll}\\p{Lo}{0,62}`. * Label values must be between 0 and 63 characters long and must conform to the regular expression: `[\\p{Ll}\\p{Lo}\\p{N}_-]{0,63}`. * No more than 64 labels can be associated with a given resource. * Keys and values must both be under 128 bytes.",
   ).optional(),
@@ -440,7 +453,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Bigtable Admin Instances. Registered at `@swamp/gcp/bigtableadmin/instances`. */
 export const model = {
   type: "@swamp/gcp/bigtableadmin/instances",
-  version: "2026.06.08.1",
+  version: "2026.06.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -530,6 +543,11 @@ export const model = {
     {
       toVersion: "2026.06.08.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.30.1",
+      description: "Added: knowledgeCatalogRegion",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -669,6 +687,9 @@ export const model = {
           body["displayName"] = g["displayName"];
         }
         if (g["edition"] !== undefined) body["edition"] = g["edition"];
+        if (g["knowledgeCatalogRegion"] !== undefined) {
+          body["knowledgeCatalogRegion"] = g["knowledgeCatalogRegion"];
+        }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["satisfiesPzi"] !== undefined) {
           body["satisfiesPzi"] = g["satisfiesPzi"];
@@ -886,6 +907,7 @@ export const model = {
         createTime: z.any().optional(),
         displayName: z.any().optional(),
         edition: z.any().optional(),
+        knowledgeCatalogRegion: z.any().optional(),
         labels: z.any().optional(),
         name: z.any().optional(),
         satisfiesPzi: z.any().optional(),
@@ -913,6 +935,9 @@ export const model = {
           body["displayName"] = args["displayName"];
         }
         if (args["edition"] !== undefined) body["edition"] = args["edition"];
+        if (args["knowledgeCatalogRegion"] !== undefined) {
+          body["knowledgeCatalogRegion"] = args["knowledgeCatalogRegion"];
+        }
         if (args["labels"] !== undefined) body["labels"] = args["labels"];
         if (args["name"] !== undefined) body["name"] = args["name"];
         if (args["satisfiesPzi"] !== undefined) {

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/config"
-version: "2026.06.15.1"
+version: "2026.06.30.1"
 description: "AWS CONFIG infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -10,13 +10,14 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: aggregation_authorization, config_rule, configuration_aggregator, conformance_pack, organization_conformance_pack, stored_query
+  - Added: remediation_configuration
 models:
   - aggregation_authorization.ts
   - config_rule.ts
   - configuration_aggregator.ts
   - conformance_pack.ts
   - organization_conformance_pack.ts
+  - remediation_configuration.ts
   - stored_query.ts
 additionalFiles:
   - LICENSE.txt

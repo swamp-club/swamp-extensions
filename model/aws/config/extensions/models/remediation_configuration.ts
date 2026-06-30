@@ -17,13 +17,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/aws/connect/view
+// Auto-generated extension model for @swamp/aws/config/remediation-configuration
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Connect View (AWS::Connect::View).
+ * Swamp extension model for Config RemediationConfiguration (AWS::Config::RemediationConfiguration).
  *
  * Wraps the CloudFormation resource type as a swamp model so create,
  * get, update, delete, and sync can be driven through `swamp model`.
@@ -41,21 +41,12 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
-const TagSchema = z.object({
-  Key: z.string().min(1).max(128).regex(
-    new RegExp("^(?!aws:)[a-zA-Z+-=._:/]+$"),
-  ).describe(
-    "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters",
-  ),
-  Value: z.string().max(256).describe(
-    "The value for the tag.. You can specify a value that is maximum of 256 Unicode characters",
-  ),
+const SsmControlsSchema = z.object({
+  ErrorPercentage: z.number().int().optional(),
+  ConcurrentExecutionRatePercentage: z.number().int().optional(),
 });
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe(
-    "Instance name for this resource (used as the unique identifier in the factory pattern)",
-  ),
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -68,86 +59,54 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  InstanceArn: z.string().min(1).max(100).regex(
-    new RegExp(
-      "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
-    ),
-  ).describe("The Amazon Resource Name (ARN) of the instance."),
-  Name: z.string().min(1).max(512).regex(
-    new RegExp(
-      "^([\\p{L}\\p{N}_.:\\/=+\\-@()']+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@()']*)$",
-      "u",
-    ),
-  ).describe("The name of the view."),
-  Description: z.string().min(0).max(4096).regex(
-    new RegExp(
-      "^([\\p{L}\\p{N}_.:\\/=+\\-@,()']+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@,()']*)$",
-      "u",
-    ),
-  ).describe("The description of the view.").optional(),
-  Template: z.record(z.string(), z.unknown()).describe(
-    "The template of the view as JSON.",
-  ),
-  Actions: z.array(
-    z.string().min(1).max(255).regex(
-      new RegExp(
-        "^([\\p{L}\\p{N}_.:\\/=+\\-@]+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@]*)$",
-        "u",
-      ),
-    ),
-  ).describe("The actions of the view in an array."),
-  Tags: z.array(TagSchema).describe("One or more tags.").optional(),
+  TargetVersion: z.string().optional(),
+  ExecutionControls: z.object({
+    SsmControls: SsmControlsSchema.optional(),
+  }).optional(),
+  Parameters: z.record(z.string(), z.unknown()).optional(),
+  TargetType: z.string(),
+  ConfigRuleName: z.string(),
+  ResourceType: z.string().optional(),
+  RetryAttemptSeconds: z.number().int().optional(),
+  MaximumAutomaticAttempts: z.number().int().optional(),
+  TargetId: z.string(),
+  Automatic: z.boolean().optional(),
 });
 
 const StateSchema = z.object({
-  InstanceArn: z.string().optional(),
-  ViewArn: z.string(),
-  ViewId: z.string().optional(),
-  Name: z.string().optional(),
-  Description: z.string().optional(),
-  Template: z.record(z.string(), z.unknown()).optional(),
-  Actions: z.array(z.string()).optional(),
-  ViewContentSha256: z.string().optional(),
-  Tags: z.array(TagSchema).optional(),
+  TargetVersion: z.string().optional(),
+  ExecutionControls: z.object({
+    SsmControls: SsmControlsSchema,
+  }).optional(),
+  Parameters: z.record(z.string(), z.unknown()).optional(),
+  TargetType: z.string().optional(),
+  ConfigRuleName: z.string(),
+  ResourceType: z.string().optional(),
+  RetryAttemptSeconds: z.number().optional(),
+  MaximumAutomaticAttempts: z.number().optional(),
+  TargetId: z.string().optional(),
+  Automatic: z.boolean().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().optional(),
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  InstanceArn: z.string().min(1).max(100).regex(
-    new RegExp(
-      "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
-    ),
-  ).describe("The Amazon Resource Name (ARN) of the instance.").optional(),
-  Name: z.string().min(1).max(512).regex(
-    new RegExp(
-      "^([\\p{L}\\p{N}_.:\\/=+\\-@()']+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@()']*)$",
-      "u",
-    ),
-  ).describe("The name of the view.").optional(),
-  Description: z.string().min(0).max(4096).regex(
-    new RegExp(
-      "^([\\p{L}\\p{N}_.:\\/=+\\-@,()']+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@,()']*)$",
-      "u",
-    ),
-  ).describe("The description of the view.").optional(),
-  Template: z.record(z.string(), z.unknown()).describe(
-    "The template of the view as JSON.",
-  ).optional(),
-  Actions: z.array(
-    z.string().min(1).max(255).regex(
-      new RegExp(
-        "^([\\p{L}\\p{N}_.:\\/=+\\-@]+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@]*)$",
-        "u",
-      ),
-    ),
-  ).describe("The actions of the view in an array.").optional(),
-  Tags: z.array(TagSchema).describe("One or more tags.").optional(),
+  TargetVersion: z.string().optional(),
+  ExecutionControls: z.object({
+    SsmControls: SsmControlsSchema.optional(),
+  }).optional(),
+  Parameters: z.record(z.string(), z.unknown()).optional(),
+  TargetType: z.string().optional(),
+  ConfigRuleName: z.string().optional(),
+  ResourceType: z.string().optional(),
+  RetryAttemptSeconds: z.number().int().optional(),
+  MaximumAutomaticAttempts: z.number().int().optional(),
+  TargetId: z.string().optional(),
+  Automatic: z.boolean().optional(),
 });
 
 const _credentialKeys = new Set([
@@ -166,67 +125,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
   };
 }
 
-/** Swamp extension model for Connect View. Registered at `@swamp/aws/connect/view`. */
+/** Swamp extension model for Config RemediationConfiguration. Registered at `@swamp/aws/config/remediation-configuration`. */
 export const model = {
-  type: "@swamp/aws/connect/view",
+  type: "@swamp/aws/config/remediation-configuration",
   version: "2026.06.30.1",
-  upgrades: [
-    {
-      toVersion: "2026.04.01.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.27.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.06.1",
-      description: "Added: accessKeyId, secretAccessKey, sessionToken, region",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.15.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.30.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Connect View resource state",
+      description: "Config RemediationConfiguration resource state",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -234,26 +141,24 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a Connect View",
+      description: "Create a Config RemediationConfiguration",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {
-          if (key === "name") continue;
           if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await createResource(
-          "AWS::Connect::View",
+          "AWS::Config::RemediationConfiguration",
           desiredState,
           credentials,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName =
+          ((result.ConfigRuleName ?? g.ConfigRuleName)?.toString() ?? "current")
+            .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -263,24 +168,25 @@ export const model = {
       },
     },
     get: {
-      description: "Get a Connect View",
+      description: "Get a Config RemediationConfiguration",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the Connect View",
+          "The primary identifier of the Config RemediationConfiguration",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const result = await readResource(
-          "AWS::Connect::View",
+          "AWS::Config::RemediationConfiguration",
           args.identifier,
           credentials,
         ) as StateData;
         const instanceName =
-          (context.globalArgs.name?.toString() ?? args.identifier).replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          ((result.ConfigRuleName ?? context.globalArgs.ConfigRuleName)
+            ?.toString() ?? args.identifier).replace(/[\/\\]/g, "_").replace(
+              /\.\./g,
+              "_",
+            ).replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -290,15 +196,13 @@ export const model = {
       },
     },
     update: {
-      description: "Update a Connect View",
+      description: "Update a Config RemediationConfiguration",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildCredentials(g);
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = (g.ConfigRuleName?.toString() ?? "current")
+          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType,
           context.modelId,
@@ -308,27 +212,26 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.ViewArn?.toString();
+        const identifier = existing.ConfigRuleName?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         const currentState = await readResource(
-          "AWS::Connect::View",
+          "AWS::Config::RemediationConfiguration",
           identifier,
           credentials,
         ) as StateData;
         const desiredState: Record<string, unknown> = { ...currentState };
         for (const [key, value] of Object.entries(g)) {
-          if (key === "name") continue;
           if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await updateResource(
-          "AWS::Connect::View",
+          "AWS::Config::RemediationConfiguration",
           identifier,
           currentState,
           desiredState,
-          undefined,
+          ["ConfigRuleName"],
           credentials,
         );
         const handle = await context.writeResource(
@@ -340,24 +243,22 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete a Connect View",
+      description: "Delete a Config RemediationConfiguration",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the Connect View",
+          "The primary identifier of the Config RemediationConfiguration",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const { existed } = await deleteResource(
-          "AWS::Connect::View",
+          "AWS::Config::RemediationConfiguration",
           args.identifier,
           credentials,
         );
         const instanceName =
-          (context.globalArgs.name?.toString() ?? args.identifier).replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          (context.globalArgs.ConfigRuleName?.toString() ?? args.identifier)
+            .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           identifier: args.identifier,
           existed,
@@ -368,15 +269,13 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync Connect View state from AWS",
+      description: "Sync Config RemediationConfiguration state from AWS",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildCredentials(g);
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = (g.ConfigRuleName?.toString() ?? "current")
+          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const content = await context.dataRepository.getContent(
           context.modelType,
           context.modelId,
@@ -386,13 +285,13 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.ViewArn?.toString();
+        const identifier = existing.ConfigRuleName?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         try {
           const result = await readResource(
-            "AWS::Connect::View",
+            "AWS::Config::RemediationConfiguration",
             identifier,
             credentials,
           ) as StateData;

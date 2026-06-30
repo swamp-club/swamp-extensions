@@ -17,13 +17,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/aws/connect/view
+// Auto-generated extension model for @swamp/aws/securityagent/security-requirement-pack
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Connect View (AWS::Connect::View).
+ * Swamp extension model for SecurityAgent SecurityRequirementPack (AWS::SecurityAgent::SecurityRequirementPack).
  *
  * Wraps the CloudFormation resource type as a swamp model so create,
  * get, update, delete, and sync can be driven through `swamp model`.
@@ -41,15 +41,24 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const SecurityRequirementSchema = z.object({
+  Name: z.string().max(80).describe("Name of the security requirement"),
+  Description: z.string().max(500).describe(
+    "Description of the security requirement",
+  ),
+  Domain: z.string().max(10000).describe(
+    "Security domain this requirement belongs to",
+  ),
+  Evaluation: z.string().max(10000).describe(
+    "How to evaluate compliance with this requirement",
+  ),
+  Remediation: z.string().max(10000).describe("How to remediate non-compliance")
+    .optional(),
+});
+
 const TagSchema = z.object({
-  Key: z.string().min(1).max(128).regex(
-    new RegExp("^(?!aws:)[a-zA-Z+-=._:/]+$"),
-  ).describe(
-    "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters",
-  ),
-  Value: z.string().max(256).describe(
-    "The value for the tag.. You can specify a value that is maximum of 256 Unicode characters",
-  ),
+  Key: z.string().min(1).max(128).describe("The key name of the tag"),
+  Value: z.string().min(0).max(256).describe("The value for the tag"),
 });
 
 const GlobalArgsSchema = z.object({
@@ -68,46 +77,31 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  InstanceArn: z.string().min(1).max(100).regex(
-    new RegExp(
-      "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
-    ),
-  ).describe("The Amazon Resource Name (ARN) of the instance."),
-  Name: z.string().min(1).max(512).regex(
-    new RegExp(
-      "^([\\p{L}\\p{N}_.:\\/=+\\-@()']+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@()']*)$",
-      "u",
-    ),
-  ).describe("The name of the view."),
-  Description: z.string().min(0).max(4096).regex(
-    new RegExp(
-      "^([\\p{L}\\p{N}_.:\\/=+\\-@,()']+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@,()']*)$",
-      "u",
-    ),
-  ).describe("The description of the view.").optional(),
-  Template: z.record(z.string(), z.unknown()).describe(
-    "The template of the view as JSON.",
+  Name: z.string().min(1).max(120).describe(
+    "Name of the security requirement pack",
   ),
-  Actions: z.array(
-    z.string().min(1).max(255).regex(
-      new RegExp(
-        "^([\\p{L}\\p{N}_.:\\/=+\\-@]+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@]*)$",
-        "u",
-      ),
-    ),
-  ).describe("The actions of the view in an array."),
-  Tags: z.array(TagSchema).describe("One or more tags.").optional(),
+  Description: z.string().max(500).describe("Description of the pack")
+    .optional(),
+  Status: z.enum(["ENABLED", "DISABLED"]).describe(
+    "Whether the pack is enabled or disabled",
+  ).optional(),
+  KmsKeyId: z.string().max(2048).describe(
+    "KMS key for client-side encryption of pack contents",
+  ).optional(),
+  SecurityRequirements: z.array(SecurityRequirementSchema).describe(
+    "Security requirements within this pack",
+  ).optional(),
+  Tags: z.array(TagSchema).describe("Tags for the security requirement pack")
+    .optional(),
 });
 
 const StateSchema = z.object({
-  InstanceArn: z.string().optional(),
-  ViewArn: z.string(),
-  ViewId: z.string().optional(),
+  PackId: z.string(),
   Name: z.string().optional(),
   Description: z.string().optional(),
-  Template: z.record(z.string(), z.unknown()).optional(),
-  Actions: z.array(z.string()).optional(),
-  ViewContentSha256: z.string().optional(),
+  Status: z.string().optional(),
+  KmsKeyId: z.string().optional(),
+  SecurityRequirements: z.array(SecurityRequirementSchema).optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -119,35 +113,22 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  InstanceArn: z.string().min(1).max(100).regex(
-    new RegExp(
-      "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
-    ),
-  ).describe("The Amazon Resource Name (ARN) of the instance.").optional(),
-  Name: z.string().min(1).max(512).regex(
-    new RegExp(
-      "^([\\p{L}\\p{N}_.:\\/=+\\-@()']+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@()']*)$",
-      "u",
-    ),
-  ).describe("The name of the view.").optional(),
-  Description: z.string().min(0).max(4096).regex(
-    new RegExp(
-      "^([\\p{L}\\p{N}_.:\\/=+\\-@,()']+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@,()']*)$",
-      "u",
-    ),
-  ).describe("The description of the view.").optional(),
-  Template: z.record(z.string(), z.unknown()).describe(
-    "The template of the view as JSON.",
+  Name: z.string().min(1).max(120).describe(
+    "Name of the security requirement pack",
   ).optional(),
-  Actions: z.array(
-    z.string().min(1).max(255).regex(
-      new RegExp(
-        "^([\\p{L}\\p{N}_.:\\/=+\\-@]+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@]*)$",
-        "u",
-      ),
-    ),
-  ).describe("The actions of the view in an array.").optional(),
-  Tags: z.array(TagSchema).describe("One or more tags.").optional(),
+  Description: z.string().max(500).describe("Description of the pack")
+    .optional(),
+  Status: z.enum(["ENABLED", "DISABLED"]).describe(
+    "Whether the pack is enabled or disabled",
+  ).optional(),
+  KmsKeyId: z.string().max(2048).describe(
+    "KMS key for client-side encryption of pack contents",
+  ).optional(),
+  SecurityRequirements: z.array(SecurityRequirementSchema).describe(
+    "Security requirements within this pack",
+  ).optional(),
+  Tags: z.array(TagSchema).describe("Tags for the security requirement pack")
+    .optional(),
 });
 
 const _credentialKeys = new Set([
@@ -166,67 +147,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
   };
 }
 
-/** Swamp extension model for Connect View. Registered at `@swamp/aws/connect/view`. */
+/** Swamp extension model for SecurityAgent SecurityRequirementPack. Registered at `@swamp/aws/securityagent/security-requirement-pack`. */
 export const model = {
-  type: "@swamp/aws/connect/view",
+  type: "@swamp/aws/securityagent/security-requirement-pack",
   version: "2026.06.30.1",
-  upgrades: [
-    {
-      toVersion: "2026.04.01.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.05.27.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.06.1",
-      description: "Added: accessKeyId, secretAccessKey, sessionToken, region",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.15.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.30.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Connect View resource state",
+      description: "SecurityAgent SecurityRequirementPack resource state",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -234,7 +163,7 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a Connect View",
+      description: "Create a SecurityAgent SecurityRequirementPack",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -246,7 +175,7 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await createResource(
-          "AWS::Connect::View",
+          "AWS::SecurityAgent::SecurityRequirementPack",
           desiredState,
           credentials,
         ) as StateData;
@@ -263,16 +192,16 @@ export const model = {
       },
     },
     get: {
-      description: "Get a Connect View",
+      description: "Get a SecurityAgent SecurityRequirementPack",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the Connect View",
+          "The primary identifier of the SecurityAgent SecurityRequirementPack",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const result = await readResource(
-          "AWS::Connect::View",
+          "AWS::SecurityAgent::SecurityRequirementPack",
           args.identifier,
           credentials,
         ) as StateData;
@@ -290,7 +219,7 @@ export const model = {
       },
     },
     update: {
-      description: "Update a Connect View",
+      description: "Update a SecurityAgent SecurityRequirementPack",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -308,12 +237,12 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.ViewArn?.toString();
+        const identifier = existing.PackId?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         const currentState = await readResource(
-          "AWS::Connect::View",
+          "AWS::SecurityAgent::SecurityRequirementPack",
           identifier,
           credentials,
         ) as StateData;
@@ -324,11 +253,11 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await updateResource(
-          "AWS::Connect::View",
+          "AWS::SecurityAgent::SecurityRequirementPack",
           identifier,
           currentState,
           desiredState,
-          undefined,
+          ["KmsKeyId"],
           credentials,
         );
         const handle = await context.writeResource(
@@ -340,16 +269,16 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete a Connect View",
+      description: "Delete a SecurityAgent SecurityRequirementPack",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the Connect View",
+          "The primary identifier of the SecurityAgent SecurityRequirementPack",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const { existed } = await deleteResource(
-          "AWS::Connect::View",
+          "AWS::SecurityAgent::SecurityRequirementPack",
           args.identifier,
           credentials,
         );
@@ -368,7 +297,7 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync Connect View state from AWS",
+      description: "Sync SecurityAgent SecurityRequirementPack state from AWS",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -386,13 +315,13 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.ViewArn?.toString();
+        const identifier = existing.PackId?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         try {
           const result = await readResource(
-            "AWS::Connect::View",
+            "AWS::SecurityAgent::SecurityRequirementPack",
             identifier,
             credentials,
           ) as StateData;

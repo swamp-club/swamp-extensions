@@ -84,6 +84,15 @@ const UrlRedirectionConfigSchema = z.object({
   ).optional(),
 });
 
+const AgentAccessSettingSchema = z.object({
+  AgentAction: z.string().describe(
+    "The agent action to configure. Valid values are COMPUTER_VISION, COMPUTER_INPUT, and FORWARD_MCP_TOOLS. COMPUTER_VISION allows agents to take screenshots of the desktop. COMPUTER_INPUT allows agents to click, type, and scroll on the desktop and requires COMPUTER_VISION to also be enabled. FORWARD_MCP_TOOLS allows agents to interact with applications and the desktop operating system through direct MCP calls rather than using computer use tools. Forwards MCP tools configured on the WorkSpaces application session to the agent.",
+  ),
+  Permission: z.string().describe(
+    "Whether the agent action is enabled or disabled.",
+  ),
+});
+
 const GlobalArgsSchema = z.object({
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -129,7 +138,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ApplicationSettings: z.object({
     SettingsGroup: z.string().describe(
-      "The path prefix for the S3 bucket where users’ persistent application settings are stored. You can allow the same persistent application settings to be used across multiple stacks by specifying the same settings group for each stack.",
+      "The path prefix for the S3 bucket where users' persistent application settings are stored. You can allow the same persistent application settings to be used across multiple stacks by specifying the same settings group for each stack.",
     ).optional(),
     Enabled: z.boolean().describe(
       "Enables or disables persistent application settings for users during their streaming sessions.",
@@ -148,6 +157,28 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "The content redirection settings for the stack. These settings control URL redirection between the streaming session and the local device.",
+  ).optional(),
+  AgentAccessConfig: z.object({
+    Settings: z.array(AgentAccessSettingSchema).describe(
+      "The list of agent access settings that define permissions for each agent action. You must specify at least one setting.",
+    ),
+    ScreenResolution: z.string().describe(
+      "The screen resolution for the agent streaming environment.",
+    ),
+    ScreenImageFormat: z.string().describe(
+      "The image format for agent screen captures.",
+    ),
+    S3BucketArn: z.string().describe(
+      "The Amazon Resource Name (ARN) of the Amazon S3 bucket where agent screenshots are stored. Required when ScreenshotsUploadEnabled is true.",
+    ).optional(),
+    ScreenshotsUploadEnabled: z.boolean().describe(
+      "Indicates whether screenshot uploads to Amazon S3 are enabled for agent sessions.",
+    ).optional(),
+    UserControlMode: z.string().describe(
+      "The user control mode for agent sessions. This setting determines how users can interact with agent sessions. Valid values are VIEW_ONLY, VIEW_STOP, and DISABLED.",
+    ).optional(),
+  }).describe(
+    "The configuration for agent access on the stack. If specified, agent access is enabled for the stack.",
   ).optional(),
 });
 
@@ -173,6 +204,14 @@ const StateSchema = z.object({
   AccessEndpoints: z.array(AccessEndpointSchema).optional(),
   ContentRedirection: z.object({
     HostToClient: UrlRedirectionConfigSchema,
+  }).optional(),
+  AgentAccessConfig: z.object({
+    Settings: z.array(AgentAccessSettingSchema),
+    ScreenResolution: z.string(),
+    ScreenImageFormat: z.string(),
+    S3BucketArn: z.string(),
+    ScreenshotsUploadEnabled: z.boolean(),
+    UserControlMode: z.string(),
   }).optional(),
 }).passthrough();
 
@@ -215,7 +254,7 @@ const InputsSchema = z.object({
   ).optional(),
   ApplicationSettings: z.object({
     SettingsGroup: z.string().describe(
-      "The path prefix for the S3 bucket where users’ persistent application settings are stored. You can allow the same persistent application settings to be used across multiple stacks by specifying the same settings group for each stack.",
+      "The path prefix for the S3 bucket where users' persistent application settings are stored. You can allow the same persistent application settings to be used across multiple stacks by specifying the same settings group for each stack.",
     ).optional(),
     Enabled: z.boolean().describe(
       "Enables or disables persistent application settings for users during their streaming sessions.",
@@ -234,6 +273,28 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe(
     "The content redirection settings for the stack. These settings control URL redirection between the streaming session and the local device.",
+  ).optional(),
+  AgentAccessConfig: z.object({
+    Settings: z.array(AgentAccessSettingSchema).describe(
+      "The list of agent access settings that define permissions for each agent action. You must specify at least one setting.",
+    ).optional(),
+    ScreenResolution: z.string().describe(
+      "The screen resolution for the agent streaming environment.",
+    ).optional(),
+    ScreenImageFormat: z.string().describe(
+      "The image format for agent screen captures.",
+    ).optional(),
+    S3BucketArn: z.string().describe(
+      "The Amazon Resource Name (ARN) of the Amazon S3 bucket where agent screenshots are stored. Required when ScreenshotsUploadEnabled is true.",
+    ).optional(),
+    ScreenshotsUploadEnabled: z.boolean().describe(
+      "Indicates whether screenshot uploads to Amazon S3 are enabled for agent sessions.",
+    ).optional(),
+    UserControlMode: z.string().describe(
+      "The user control mode for agent sessions. This setting determines how users can interact with agent sessions. Valid values are VIEW_ONLY, VIEW_STOP, and DISABLED.",
+    ).optional(),
+  }).describe(
+    "The configuration for agent access on the stack. If specified, agent access is enabled for the stack.",
   ).optional(),
 });
 
@@ -256,7 +317,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppStream Stack. Registered at `@swamp/aws/appstream/stack`. */
 export const model = {
   type: "@swamp/aws/appstream/stack",
-  version: "2026.06.15.1",
+  version: "2026.06.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -301,6 +362,11 @@ export const model = {
     {
       toVersion: "2026.06.15.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.30.1",
+      description: "Added: AgentAccessConfig",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

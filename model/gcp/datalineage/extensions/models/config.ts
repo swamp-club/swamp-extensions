@@ -92,8 +92,10 @@ const GlobalArgsSchema = z.object({
       integrationSelector: z.object({
         integration: z.enum([
           "INTEGRATION_UNSPECIFIED",
+          "BIGQUERY",
           "DATAPROC",
           "LOOKER_CORE",
+          "MANAGED_AIRFLOW",
         ]).describe(
           "Required. Integration to which the rule applies. This field can be used to specify the integration against which the ingestion rule should be applied.",
         ).optional(),
@@ -145,8 +147,10 @@ const InputsSchema = z.object({
       integrationSelector: z.object({
         integration: z.enum([
           "INTEGRATION_UNSPECIFIED",
+          "BIGQUERY",
           "DATAPROC",
           "LOOKER_CORE",
+          "MANAGED_AIRFLOW",
         ]).describe(
           "Required. Integration to which the rule applies. This field can be used to specify the integration against which the ingestion rule should be applied.",
         ).optional(),
@@ -184,7 +188,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Data Lineage Config. Registered at `@swamp/gcp/datalineage/config`. */
 export const model = {
   type: "@swamp/gcp/datalineage/config",
-  version: "2026.06.08.1",
+  version: "2026.06.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -253,6 +257,11 @@ export const model = {
     },
     {
       toVersion: "2026.06.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.06.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
