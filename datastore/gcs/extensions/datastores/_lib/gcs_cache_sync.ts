@@ -334,11 +334,21 @@ interface IndexEntry {
   sha256?: string;
 }
 
-/** Metadata for the partitioned index directory. */
-interface PartitionMeta {
+/** Metadata for the partitioned index directory (legacy dual-write). */
+interface PartitionMetaV1 {
   version: 1;
   partitions: string[];
 }
+
+/** Metadata for the shard-first index directory. */
+interface PartitionMetaV2 {
+  version: 2;
+  partitions: string[];
+  commitSeq: number;
+  lastCompacted?: string;
+}
+
+type PartitionMeta = PartitionMetaV1 | PartitionMetaV2;
 
 /** A single partition index file containing entries for one model. */
 interface PartitionIndex {
@@ -409,6 +419,7 @@ interface DatastoreSyncStateV2 {
   bulkInvalidated: boolean;
   lazyPullActive: boolean;
   dirtyPathsOverflowed?: boolean;
+  commitSeq?: number;
 }
 
 type DatastoreSyncState = DatastoreSyncStateV1 | DatastoreSyncStateV2;
@@ -473,6 +484,188 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     return this.namespace
       ? `${this.namespace}/.datastore-index.json`
       : ".datastore-index.json";
+  }
+
+  private metaKey(): string {
+    return this.namespace
+      ? `${this.namespace}/_index/_meta.json`
+      : "_index/_meta.json";
+  }
+
+  private shardKey(partitionKey: string): string {
+    return this.namespace
+      ? `${this.namespace}/_index/${partitionKey}.json`
+      : `_index/${partitionKey}.json`;
+  }
+
+  private async readPartitionMeta(
+    signal?: AbortSignal,
+  ): Promise<PartitionMeta | null> {
+    try {
+      const { data } = await this.gcs.getObject(this.metaKey(), signal);
+      const text = new TextDecoder().decode(data);
+      const parsed = JSON.parse(text) as PartitionMeta;
+      if (
+        (parsed.version === 1 || parsed.version === 2) &&
+        Array.isArray(parsed.partitions)
+      ) {
+        return parsed;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async readShard(
+    partitionKey: string,
+    signal?: AbortSignal,
+  ): Promise<Record<string, IndexEntry> | null> {
+    try {
+      const { data } = await this.gcs.getObject(
+        this.shardKey(partitionKey),
+        signal,
+      );
+      const text = new TextDecoder().decode(data);
+      const partition = JSON.parse(text) as PartitionIndex;
+      if (partition.version !== 1) return null;
+      return partition.entries;
+    } catch {
+      return null;
+    }
+  }
+
+  private async writeShard(
+    partitionKey: string,
+    entries: Record<string, IndexEntry>,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const partition: PartitionIndex = { version: 1, entries };
+    const data = new TextEncoder().encode(JSON.stringify(partition, null, 2));
+    await retryWithBackoff(
+      () => this.gcs.putObject(this.shardKey(partitionKey), data, signal),
+      { signal },
+    );
+  }
+
+  private async writePartitionMeta(
+    meta: PartitionMetaV2,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const data = new TextEncoder().encode(JSON.stringify(meta, null, 2));
+    await retryWithBackoff(
+      () => this.gcs.putObject(this.metaKey(), data, signal),
+      { signal },
+    );
+  }
+
+  async migrateMonolithToShards(
+    signal?: AbortSignal,
+  ): Promise<PartitionMetaV2> {
+    const migrateStart = Date.now();
+    await this.pullIndex({ forceRemote: true, signal });
+    const allEntries = this.index?.entries ?? {};
+    const entryCount = Object.keys(allEntries).length;
+
+    if (entryCount === 0) {
+      return await this.recoverMetaFromListing(signal);
+    }
+
+    const partitions = GcsCacheSyncService.groupEntriesByPartition(allEntries);
+
+    console.info(
+      `[gcs-sync] Migrating monolithic index to shard-first: ${entryCount} entries → ${partitions.size} shard(s)`,
+    );
+
+    const partitionKeys: string[] = [];
+    for (const [key, entries] of partitions) {
+      partitionKeys.push(key);
+      await this.writeShard(key, entries, signal);
+    }
+
+    const meta: PartitionMetaV2 = {
+      version: 2,
+      partitions: partitionKeys.sort(),
+      commitSeq: 1,
+    };
+    await this.writePartitionMeta(meta, signal);
+    tracePhase("migration", migrateStart, `shards=${partitions.size}`);
+    console.info(
+      `[gcs-sync] Migration complete: ${partitions.size} shard(s) written, _meta.json v2 with commitSeq=1 (${
+        Date.now() - migrateStart
+      }ms)`,
+    );
+    return meta;
+  }
+
+  private async assembleIndexFromShards(
+    signal?: AbortSignal,
+  ): Promise<
+    { entries: Record<string, IndexEntry>; commitSeq: number } | null
+  > {
+    const meta = await this.readPartitionMeta(signal);
+    if (!meta) return null;
+    if (meta.version !== 2) return null;
+
+    const v2Meta = meta as PartitionMetaV2;
+    const entries: Record<string, IndexEntry> = {};
+    const batchSize = 10;
+
+    for (let i = 0; i < v2Meta.partitions.length; i += batchSize) {
+      throwIfAborted(signal);
+      const batch = v2Meta.partitions.slice(i, i + batchSize);
+      const results = await Promise.allSettled(
+        batch.map((key) => this.readShard(key, signal)),
+      );
+      for (let j = 0; j < results.length; j++) {
+        const result = results[j];
+        if (result.status === "rejected") {
+          console.warn(
+            `[gcs-sync] Failed to read shard ${
+              batch[j]
+            }, falling back to monolith`,
+          );
+          return null;
+        }
+        if (result.value === null) {
+          console.warn(
+            `[gcs-sync] Shard ${
+              batch[j]
+            } listed in _meta.json but unreadable, falling back to monolith`,
+          );
+          return null;
+        }
+        for (const [rel, entry] of Object.entries(result.value)) {
+          entries[rel] = entry;
+        }
+      }
+    }
+
+    return { entries, commitSeq: v2Meta.commitSeq };
+  }
+
+  private async recoverMetaFromListing(
+    signal?: AbortSignal,
+  ): Promise<PartitionMetaV2> {
+    const prefix = this.namespace ? `${this.namespace}/_index/` : "_index/";
+    const listing = await this.gcs.listAllObjects(prefix, signal);
+    const partitionKeys: string[] = [];
+    for (const entry of listing) {
+      const name = entry.key.replace(prefix, "");
+      if (name === "_meta.json" || !name.endsWith(".json")) continue;
+      partitionKeys.push(name.slice(0, -5));
+    }
+
+    const meta: PartitionMetaV2 = {
+      version: 2,
+      partitions: partitionKeys.sort(),
+      commitSeq: 1,
+    };
+    await this.writePartitionMeta(meta, signal);
+    console.warn(
+      `[gcs-sync] Rebuilt _meta.json from _index/ listing: ${partitionKeys.length} shard(s)`,
+    );
+    return meta;
   }
 
   /**
@@ -641,29 +834,36 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   }
 
   /**
-   * Fast-path probe for `pullChanged`. Returns `0` when the sidecar
-   * proves we don't need the index GET or the cache walk; returns
-   * `null` to signal "fall through to the slow path" on any check
-   * miss (no sidecar, empty generation, local index touched after
-   * last verification, HEAD failure, or generation mismatch).
-   *
-   * The `getMetadata` call is wrapped in a bare try/catch that swallows
-   * EVERY thrown error (auth 401/403, transient 5xx, network failure,
-   * timeout) and returns null. A failed probe MUST fall through to the
-   * slow path — the slow path can still succeed via its own error
-   * handling and retries. The cost of this is that sustained auth
-   * regressions silently slow every sync instead of failing fast;
-   * operators noticing that behavior should start diagnosis at the
-   * slow-path code, not here.
-   *
-   * Self-healing note: when zombie-scrub (swamp-club#29) rewrites the
-   * remote index, the generation changes — so a fast-path HEAD sees a
-   * mismatch and falls through to the full pull path that re-runs the
-   * scrub. The fast path can never hide a needed migration.
+   * Fast-path probe using commitSeq from _meta.json. Returns `0` if
+   * the sidecar's commitSeq matches the remote _meta.json; `null` to
+   * fall through to the slow path.
+   */
+  private async tryCommitSeqFastPath(
+    signal: AbortSignal | undefined,
+  ): Promise<number | null> {
+    const sidecar = await this.loadSyncState();
+    if (!sidecar || sidecar.version !== 2) return null;
+    const v2 = sidecar as DatastoreSyncStateV2;
+    if (v2.commitSeq === undefined) return null;
+
+    const meta = await this.readPartitionMeta(signal);
+    if (!meta || meta.version !== 2) return null;
+    if ((meta as PartitionMetaV2).commitSeq !== v2.commitSeq) return null;
+    return 0;
+  }
+
+  /**
+   * Fast-path probe for `pullChanged`. Tries commitSeq first (shard-first
+   * remotes), then falls back to generation comparison (pre-shard remotes).
+   * Returns `0` when the sidecar proves nothing changed; `null` to fall
+   * through to the slow path.
    */
   private async tryFastPullChanged(
     signal: AbortSignal | undefined,
   ): Promise<number | null> {
+    const commitSeqResult = await this.tryCommitSeqFastPath(signal);
+    if (commitSeqResult !== null) return commitSeqResult;
+
     const sidecar = await this.loadSyncState();
     if (!sidecar) return null;
     if (
@@ -681,11 +881,6 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     if (!indexMtime) return null;
     const verifiedAt = Date.parse(sidecar.lastVerifiedAt);
     if (Number.isNaN(verifiedAt) || indexMtime.getTime() >= verifiedAt) {
-      // Local index was rewritten at-or-after our last verification —
-      // sidecar can't speak for what's on disk now. `>=` (not `>`)
-      // closes the second-precision filesystem hole where an mtime
-      // that rounds to the same second as `lastVerifiedAt` would
-      // otherwise spuriously fast-path past a real edit.
       return null;
     }
     let meta;
@@ -702,11 +897,9 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   }
 
   /**
-   * Fast-path probe for `pushChanged`. Returns `0` when the sidecar
-   * records a clean local cache and the remote index generation still
-   * matches; otherwise returns `null` so the slow path runs. Same
-   * error-swallowing property as `tryFastPullChanged` — any thrown
-   * error from `getMetadata` falls through.
+   * Fast-path probe for `pushChanged`. Tries commitSeq first, then falls
+   * back to generation. Also checks localDirty -- a dirty cache must always
+   * take the slow path.
    */
   private async tryFastPushChanged(
     signal: AbortSignal | undefined,
@@ -714,6 +907,10 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     const sidecar = await this.loadSyncState();
     if (!sidecar) return null;
     if (sidecar.localDirty) return null;
+
+    const commitSeqResult = await this.tryCommitSeqFastPath(signal);
+    if (commitSeqResult !== null) return commitSeqResult;
+
     if (
       !sidecar.remoteIndexGeneration || sidecar.remoteIndexGeneration === "0"
     ) {
@@ -888,7 +1085,13 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     const discoverStart = Date.now();
     const subPrefix = this.namespace ? `${this.namespace}/` : undefined;
     const listing = await this.gcs.listAllObjects(subPrefix, signal);
-    const filtered = listing.filter((entry) => !isInternalCacheFile(entry.key));
+    const nsPrefix = this.namespace ? `${this.namespace}/` : "";
+    const filtered = listing.filter((entry) => {
+      const rel = nsPrefix && entry.key.startsWith(nsPrefix)
+        ? entry.key.slice(nsPrefix.length)
+        : entry.key;
+      return !isInternalCacheFile(rel);
+    });
 
     if (filtered.length === 0) {
       this.index = {
@@ -999,7 +1202,24 @@ export class GcsCacheSyncService implements DatastoreSyncService {
         indexGeneration = await this.pullIndex({ forceRemote: true, signal });
       }
     } else {
-      indexGeneration = await this.pullIndex({ forceRemote: true, signal });
+      // Unscoped pull: try shard assembly when _meta.json is v2.
+      const assembled = await this.assembleIndexFromShards(signal);
+      if (assembled) {
+        this.index = {
+          version: 1,
+          lastPulled: new Date().toISOString(),
+          entries: assembled.entries,
+        };
+        this.scrubIndex();
+        await ensureDir(this.cachePath);
+        await atomicWriteTextFile(
+          this.indexPath,
+          JSON.stringify(this.index, null, 2),
+        );
+        indexGeneration = null;
+      } else {
+        indexGeneration = await this.pullIndex({ forceRemote: true, signal });
+      }
     }
     tracePhase("pullChanged.pullIndex", indexStart);
 
@@ -1640,6 +1860,127 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       return 0;
     }
 
+    // Check if shard-first mode is active (v2 meta exists).
+    // Migration is an explicit one-time operation — commitPush never
+    // migrates. If v2 meta isn't present, fall back to the legacy
+    // monolith path.
+    const meta = await this.readPartitionMeta(signal);
+
+    if (meta && meta.version === 2) {
+      return await this.commitPushShardFirst(
+        data,
+        meta as PartitionMetaV2,
+        signal,
+      );
+    }
+
+    console.info(
+      "[gcs-sync] Index is using monolithic format. Run 'swamp datastore sync --migrate-index' to enable shard-first commits for improved concurrency.",
+    );
+    return await this.commitPushMonolith(data, signal);
+  }
+
+  private async commitPushShardFirst(
+    data: InternalPushManifest,
+    v2Meta: PartitionMetaV2,
+    signal?: AbortSignal,
+  ): Promise<number> {
+    const dirtyKeys = new Set(data.dirtyPartitionKeys);
+
+    for (const rel of Object.keys(data.newEntries)) {
+      const key = GcsCacheSyncService.partitionKeyFromPath(rel);
+      if (key) dirtyKeys.add(key);
+    }
+    for (const rel of data.deletedKeys) {
+      const key = GcsCacheSyncService.partitionKeyFromPath(rel);
+      if (key) dirtyKeys.add(key);
+    }
+
+    const survivingPartitions = new Set(v2Meta.partitions);
+    for (const partKey of dirtyKeys) {
+      const existing = await this.readShard(partKey, signal) ?? {};
+
+      for (const [rel, entry] of Object.entries(data.newEntries)) {
+        const k = GcsCacheSyncService.partitionKeyFromPath(rel);
+        if (k === partKey) existing[rel] = entry;
+      }
+
+      for (const rel of data.deletedKeys) {
+        const k = GcsCacheSyncService.partitionKeyFromPath(rel);
+        if (k === partKey) delete existing[rel];
+      }
+
+      if (Object.keys(existing).length === 0) {
+        try {
+          await retryWithBackoff(
+            () =>
+              this.gcs.deleteObject(
+                this.shardKey(partKey),
+                undefined,
+                signal,
+              ),
+            { signal },
+          );
+        } catch {
+          // DeleteObject on non-existent key is a no-op in GCS
+        }
+        survivingPartitions.delete(partKey);
+      } else {
+        await this.writeShard(partKey, existing, signal);
+        survivingPartitions.add(partKey);
+      }
+    }
+
+    const newMeta: PartitionMetaV2 = {
+      version: 2,
+      partitions: [...survivingPartitions].sort(),
+      commitSeq: v2Meta.commitSeq + 1,
+    };
+    await this.writePartitionMeta(newMeta, signal);
+
+    // Phase 1 dual-write: monolith outside the shard-first critical section
+    await this.pullIndex({ forceRemote: true, signal });
+    if (this.index) {
+      for (const [rel, entry] of Object.entries(data.newEntries)) {
+        this.index.entries[rel] = entry;
+      }
+      for (const key of data.deletedKeys) {
+        delete this.index.entries[key];
+      }
+      this.index.lastPulled = new Date().toISOString();
+
+      try {
+        const indexJson = JSON.stringify(this.index, null, 2);
+        const indexData = new TextEncoder().encode(indexJson);
+        await retryWithBackoff(
+          () => this.gcs.putObject(this.indexKey(), indexData, signal),
+          { signal },
+        );
+        await atomicWriteTextFile(this.indexPath, indexJson);
+      } catch {
+        // Non-fatal: shards are the source of truth.
+      }
+      this.indexMutated = false;
+    }
+
+    try {
+      if (await this.localHasAllRemoteEntries()) {
+        const sidecar = this.buildV2State({ localDirty: false });
+        sidecar.commitSeq = newMeta.commitSeq;
+        sidecar.remoteIndexGeneration = "";
+        await this.writeSyncState(sidecar);
+      }
+    } catch {
+      // Non-fatal: sidecar update is opportunistic.
+    }
+
+    return data.pushed + data.deleted;
+  }
+
+  private async commitPushMonolith(
+    data: InternalPushManifest,
+    signal?: AbortSignal,
+  ): Promise<number> {
     await this.pullIndex({ forceRemote: true, signal });
 
     if (this.index) {
@@ -1736,14 +2077,48 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     return true;
   }
 
-  private static partitionKeyFromPath(rel: string): string | undefined {
-    if (!rel.startsWith("data/")) return undefined;
+  /**
+   * Derives a partition key from a relative path. Covers all datastore
+   * subdirectories:
+   *
+   * Per-model (data/, outputs/, definitions-evaluated/):
+   *   `{subdir}--{type segments}--{modelId}`
+   *
+   * Per-workflow (workflow-runs/, workflows-evaluated/):
+   *   `{subdir}--{workflowId}`
+   *
+   * Single-shard (auto-definitions, audit, telemetry, logs, files):
+   *   `{subdir}`
+   */
+  static partitionKeyFromPath(rel: string): string | undefined {
     const segments = rel.split("/");
-    if (segments.length < 4) return undefined;
-    const prefixEnd = segments.length >= 6
-      ? segments.length - 3
-      : segments.length - 1;
-    return segments.slice(0, prefixEnd).join("--");
+    if (segments.length < 2) return undefined;
+    const subdir = segments[0];
+
+    switch (subdir) {
+      case "data":
+      case "outputs":
+      case "definitions-evaluated": {
+        if (segments.length < 4) return undefined;
+        const prefixEnd = segments.length >= 6
+          ? segments.length - 3
+          : segments.length - 1;
+        return segments.slice(0, prefixEnd).join("--");
+      }
+      case "workflow-runs":
+      case "workflows-evaluated": {
+        if (segments.length < 3) return undefined;
+        return `${subdir}--${segments[1]}`;
+      }
+      case "auto-definitions":
+      case "audit":
+      case "telemetry":
+      case "logs":
+      case "files":
+        return subdir;
+      default:
+        return undefined;
+    }
   }
 
   private static groupEntriesByPartition(
@@ -1766,13 +2141,24 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     return partitions;
   }
 
-  private static partitionKeyFromModel(
+  /** Derives partition keys for all per-model subdirectories from a SyncModelRef. */
+  private static partitionKeysFromModel(
     modelType: string,
     modelId: string,
-  ): string {
-    return `data--${modelType.replace(/\//g, "--")}--${modelId}`;
+  ): string[] {
+    const slug = modelType.replace(/\//g, "--");
+    return [
+      `data--${slug}--${modelId}`,
+      `outputs--${slug}--${modelId}`,
+      `definitions-evaluated--${slug}--${modelId}`,
+    ];
   }
 
+  /**
+   * Writes partitioned index files to GCS alongside the monolithic index.
+   * Used by the legacy pushChanged path. Non-fatal -- errors are swallowed
+   * because the monolith is still the source of truth in this code path.
+   */
   private async writePartitionedIndex(
     index: DatastoreIndex,
     signal?: AbortSignal,
@@ -1784,7 +2170,8 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     if (partitions.size === 0) return;
 
     const partitionKeys: string[] = [];
-    const writes: Array<Promise<unknown>> = [];
+    const writes: Promise<void>[] = [];
+
     for (const [key, entries] of partitions) {
       partitionKeys.push(key);
       if (dirtyKeys && !dirtyKeys.has(key)) continue;
@@ -1792,24 +2179,50 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       const data = new TextEncoder().encode(JSON.stringify(partition, null, 2));
       writes.push(
         retryWithBackoff(
-          () => this.gcs.putObject(`_index/${key}.json`, data, signal),
+          () => this.gcs.putObject(this.shardKey(key), data, signal),
           { signal },
-        ).catch(() => {}),
+        ).then(() => {}).catch(() => {
+          // Non-fatal: partition files are an optimization in this path.
+        }),
       );
     }
 
-    const meta: PartitionMeta = { version: 1, partitions: partitionKeys };
-    const metaData = new TextEncoder().encode(JSON.stringify(meta, null, 2));
+    // Preserve v2 meta if it already exists (migration already happened).
+    // Only write v1 meta when no v2 is present — avoids demoting a
+    // migrated bucket back to v1 on a legacy pushChanged call.
     writes.push(
-      retryWithBackoff(
-        () => this.gcs.putObject("_index/_meta.json", metaData, signal),
-        { signal },
-      ).catch(() => {}),
+      (async () => {
+        try {
+          const existing = await this.readPartitionMeta(signal);
+          if (existing && existing.version === 2) return;
+          const meta: PartitionMetaV1 = {
+            version: 1,
+            partitions: partitionKeys,
+          };
+          const metaData = new TextEncoder().encode(
+            JSON.stringify(meta, null, 2),
+          );
+          await retryWithBackoff(
+            () => this.gcs.putObject(this.metaKey(), metaData, signal),
+            { signal },
+          );
+        } catch {
+          // Non-fatal: _meta.json is advisory in this path.
+        }
+      })(),
     );
 
     await Promise.allSettled(writes);
   }
 
+  /**
+   * Reads partition files for specific models across all per-model
+   * subdirectories (data/, outputs/, definitions-evaluated/). Returns
+   * merged entries or null if any partition is missing (triggers
+   * monolithic fallback). Missing shards for outputs/ and
+   * definitions-evaluated/ are tolerated -- only the data/ shard is
+   * required for fallback decisions.
+   */
   private async pullPartitionedIndex(
     models: ReadonlyArray<{ modelType: string; modelId: string }>,
     signal?: AbortSignal,
@@ -1817,23 +2230,20 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     const merged: Record<string, IndexEntry> = {};
 
     for (const model of models) {
-      const key = GcsCacheSyncService.partitionKeyFromModel(
+      const keys = GcsCacheSyncService.partitionKeysFromModel(
         model.modelType,
         model.modelId,
       );
-      try {
-        const { data } = await this.gcs.getObject(
-          `_index/${key}.json`,
-          signal,
-        );
-        const text = new TextDecoder().decode(data);
-        const partition = JSON.parse(text) as PartitionIndex;
-        if (partition.version !== 1) return null;
-        for (const [rel, entry] of Object.entries(partition.entries)) {
-          merged[rel] = entry;
+      for (const key of keys) {
+        const entries = await this.readShard(key, signal);
+        if (entries === null && key.startsWith("data--")) {
+          return null;
         }
-      } catch {
-        return null;
+        if (entries) {
+          for (const [rel, entry] of Object.entries(entries)) {
+            merged[rel] = entry;
+          }
+        }
       }
     }
 

@@ -4259,3 +4259,614 @@ Deno.test("preparePush: fast path returns empty manifest when nothing dirty", as
     await Deno.remove(cachePath, { recursive: true });
   }
 });
+
+// ==========================================================================
+// Shard-first index tests (swamp-club#906)
+// ==========================================================================
+
+function decodeShard(
+  body: Uint8Array,
+): { version: number; entries: Record<string, unknown> } {
+  return JSON.parse(new TextDecoder().decode(body));
+}
+
+function decodeMeta(
+  body: Uint8Array,
+): { version: number; partitions: string[]; commitSeq?: number } {
+  return JSON.parse(new TextDecoder().decode(body));
+}
+
+// (1) partitionKeyFromPath covers all subdirectory patterns
+Deno.test("partitionKeyFromPath: data/ per-model key", () => {
+  assertEquals(
+    GcsCacheSyncService.partitionKeyFromPath(
+      "data/aws/ec2/vpc/abc-123/state-main/1/raw",
+    ),
+    "data--aws--ec2--vpc--abc-123",
+  );
+});
+
+Deno.test("partitionKeyFromPath: outputs/ per-model key", () => {
+  assertEquals(
+    GcsCacheSyncService.partitionKeyFromPath(
+      "outputs/mytype/mymodel/out1/1/raw",
+    ),
+    "outputs--mytype--mymodel",
+  );
+});
+
+Deno.test("partitionKeyFromPath: definitions-evaluated/ per-model key", () => {
+  assertEquals(
+    GcsCacheSyncService.partitionKeyFromPath(
+      "definitions-evaluated/t/m/d/1/raw",
+    ),
+    "definitions-evaluated--t--m",
+  );
+});
+
+Deno.test("partitionKeyFromPath: workflow-runs/ per-workflow key", () => {
+  assertEquals(
+    GcsCacheSyncService.partitionKeyFromPath("workflow-runs/wf-1/run/data"),
+    "workflow-runs--wf-1",
+  );
+});
+
+Deno.test("partitionKeyFromPath: workflows-evaluated/ per-workflow key", () => {
+  assertEquals(
+    GcsCacheSyncService.partitionKeyFromPath(
+      "workflows-evaluated/wf-2/file",
+    ),
+    "workflows-evaluated--wf-2",
+  );
+});
+
+Deno.test("partitionKeyFromPath: single-shard directories", () => {
+  for (
+    const dir of [
+      "auto-definitions",
+      "audit",
+      "telemetry",
+      "logs",
+      "files",
+    ]
+  ) {
+    assertEquals(
+      GcsCacheSyncService.partitionKeyFromPath(`${dir}/some/file`),
+      dir,
+      `${dir}/ should produce single-shard key`,
+    );
+  }
+});
+
+Deno.test("partitionKeyFromPath: unknown directory returns undefined", () => {
+  assertEquals(
+    GcsCacheSyncService.partitionKeyFromPath("unknown/dir/file"),
+    undefined,
+  );
+});
+
+Deno.test("partitionKeyFromPath: short data/ path returns undefined", () => {
+  assertEquals(
+    GcsCacheSyncService.partitionKeyFromPath("data/a/b"),
+    undefined,
+  );
+});
+
+// (2) commitPush reads/merges/writes only touched shards
+Deno.test("shard-first commitPush: reads/writes only touched shards", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-sf-" });
+  try {
+    const mock = createMockGcsClient();
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    await seedFile(cachePath, "data/t1/m1/d1/1/raw", "aaa\n");
+    await seedFile(cachePath, "data/t2/m2/d2/1/raw", "bbb\n");
+    await service.pushChanged();
+    await service.migrateMonolithToShards();
+
+    await seedFile(cachePath, "data/t1/m1/d1/1/raw", "aaa-updated\n");
+    await service.markDirty({ relPath: "data/t1/m1/d1/1/raw" });
+
+    mock.gets.length = 0;
+    mock.puts.length = 0;
+
+    const manifest = await service.preparePush();
+    await service.commitPush(manifest);
+
+    const metaPuts = mock.puts.filter((p) => p.key === "_index/_meta.json");
+    assert(metaPuts.length >= 1, "should write _meta.json");
+
+    const meta = decodeMeta(metaPuts[metaPuts.length - 1].body);
+    assertEquals(meta.version, 2, "_meta.json should be version 2");
+    assert(
+      typeof meta.commitSeq === "number" && meta.commitSeq > 0,
+      "commitSeq should be positive",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// (3) Concurrent-writer simulation (sequential with shared state)
+Deno.test("shard-first commitPush: interleaved writers with disjoint models produce correct merged state", async () => {
+  const cacheA = await Deno.makeTempDir({ prefix: "gcssync-cw-a-" });
+  const cacheB = await Deno.makeTempDir({ prefix: "gcssync-cw-b-" });
+  try {
+    const shared = createMockGcsClient();
+    const serviceA = new GcsCacheSyncService(shared, cacheA);
+    const serviceB = new GcsCacheSyncService(shared, cacheB);
+
+    await seedFile(cacheA, "data/t1/m1/d1/1/raw", "from-A\n");
+    await serviceA.pushChanged();
+    await serviceA.migrateMonolithToShards();
+
+    await seedFile(cacheB, "data/t1/m1/d1/1/raw", "from-A\n");
+    await seedFile(cacheB, "data/t2/m2/d2/1/raw", "from-B\n");
+    await serviceB.markDirty({ relPath: "data/t2/m2/d2/1/raw" });
+
+    const manifestB = await serviceB.preparePush();
+    await serviceB.commitPush(manifestB);
+
+    assert(
+      shared.storage.has("_index/data--t1--m1.json"),
+      "t1/m1 shard should exist",
+    );
+    assert(
+      shared.storage.has("_index/data--t2--m2.json"),
+      "t2/m2 shard should exist",
+    );
+
+    const cacheC = await Deno.makeTempDir({ prefix: "gcssync-cw-c-" });
+    try {
+      const serviceC = new GcsCacheSyncService(shared, cacheC);
+      await serviceC.pullChanged();
+
+      const stat1 = await Deno.stat(join(cacheC, "data/t1/m1/d1/1/raw"));
+      const stat2 = await Deno.stat(join(cacheC, "data/t2/m2/d2/1/raw"));
+      assert(stat1.size > 0, "m1 data should be pulled");
+      assert(stat2.size > 0, "m2 data should be pulled");
+    } finally {
+      await Deno.remove(cacheC, { recursive: true });
+    }
+  } finally {
+    await Deno.remove(cacheA, { recursive: true });
+    await Deno.remove(cacheB, { recursive: true });
+  }
+});
+
+// (4) Unscoped pullChanged assembles from shards when _meta.json v2
+Deno.test("pullChanged: unscoped pull assembles from shards when _meta.json v2", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-assemble-" });
+  try {
+    const mock = createMockGcsClient();
+
+    const shard1 = {
+      version: 1,
+      entries: {
+        "data/t1/m1/d1/1/raw": {
+          key: "data/t1/m1/d1/1/raw",
+          size: 4,
+          lastModified: "2026-01-01T00:00:00Z",
+        },
+      },
+    };
+    const shard2 = {
+      version: 1,
+      entries: {
+        "data/t2/m2/d2/1/raw": {
+          key: "data/t2/m2/d2/1/raw",
+          size: 4,
+          lastModified: "2026-01-01T00:00:00Z",
+        },
+      },
+    };
+    mock.storage.set(
+      "_index/data--t1--m1.json",
+      new TextEncoder().encode(JSON.stringify(shard1)),
+    );
+    mock.storage.set(
+      "_index/data--t2--m2.json",
+      new TextEncoder().encode(JSON.stringify(shard2)),
+    );
+    mock.storage.set(
+      "_index/_meta.json",
+      new TextEncoder().encode(JSON.stringify({
+        version: 2,
+        partitions: ["data--t1--m1", "data--t2--m2"],
+        commitSeq: 5,
+      })),
+    );
+    mock.storage.set(
+      "data/t1/m1/d1/1/raw",
+      new TextEncoder().encode("aaa\n"),
+    );
+    mock.storage.set(
+      "data/t2/m2/d2/1/raw",
+      new TextEncoder().encode("bbb\n"),
+    );
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    await service.pullChanged();
+
+    const stat1 = await Deno.stat(join(cachePath, "data/t1/m1/d1/1/raw"));
+    const stat2 = await Deno.stat(join(cachePath, "data/t2/m2/d2/1/raw"));
+    assert(stat1.size > 0, "m1 data should be pulled via shard assembly");
+    assert(stat2.size > 0, "m2 data should be pulled via shard assembly");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// (5) Backward compat: v1 _meta.json falls back to monolith
+Deno.test("pullChanged: v1 _meta.json falls back to monolith", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-v1fb-" });
+  try {
+    const mock = createMockGcsClient();
+
+    mock.storage.set(
+      "_index/_meta.json",
+      new TextEncoder().encode(JSON.stringify({
+        version: 1,
+        partitions: ["data--t1--m1"],
+      })),
+    );
+
+    const index = {
+      version: 1,
+      lastPulled: "2026-01-01T00:00:00Z",
+      entries: {
+        "data/t1/m1/d1/1/raw": {
+          key: "data/t1/m1/d1/1/raw",
+          size: 4,
+          lastModified: "2026-01-01T00:00:00Z",
+        },
+      },
+    };
+    mock.storage.set(
+      ".datastore-index.json",
+      new TextEncoder().encode(JSON.stringify(index)),
+    );
+    mock.storage.set(
+      "data/t1/m1/d1/1/raw",
+      new TextEncoder().encode("aaa\n"),
+    );
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    await service.pullChanged();
+
+    const stat = await Deno.stat(join(cachePath, "data/t1/m1/d1/1/raw"));
+    assert(stat.size > 0, "should pull via monolith fallback");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// (6) Migration: first shard-first commit partitions monolith correctly
+Deno.test("migrateMonolithToShards: partitions monolith into shards", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-migrate-" });
+  try {
+    const mock = createMockGcsClient();
+
+    const index = {
+      version: 1,
+      lastPulled: "2026-01-01T00:00:00Z",
+      entries: {
+        "data/t1/m1/d1/1/raw": {
+          key: "data/t1/m1/d1/1/raw",
+          size: 4,
+          lastModified: "2026-01-01T00:00:00Z",
+        },
+        "audit/log1.json": {
+          key: "audit/log1.json",
+          size: 10,
+          lastModified: "2026-01-01T00:00:00Z",
+        },
+      },
+    };
+    mock.storage.set(
+      ".datastore-index.json",
+      new TextEncoder().encode(JSON.stringify(index)),
+    );
+    mock.storage.set(
+      "data/t1/m1/d1/1/raw",
+      new TextEncoder().encode("aaa\n"),
+    );
+    mock.storage.set(
+      "audit/log1.json",
+      new TextEncoder().encode("log data\n\n"),
+    );
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    await service.migrateMonolithToShards();
+
+    assert(
+      mock.storage.has("_index/_meta.json"),
+      "_meta.json should exist after migration",
+    );
+    const meta = decodeMeta(mock.storage.get("_index/_meta.json")!);
+    assertEquals(meta.version, 2, "should be version 2 after migration");
+    assert(
+      meta.partitions.includes("data--t1--m1"),
+      "should have t1/m1 partition from monolith",
+    );
+    assert(
+      meta.partitions.includes("audit"),
+      "should have audit partition from monolith",
+    );
+
+    assert(
+      mock.storage.has("_index/data--t1--m1.json"),
+      "data--t1--m1 shard should exist",
+    );
+    assert(
+      mock.storage.has("_index/audit.json"),
+      "audit shard should exist",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// (7) Migration idempotency
+Deno.test("migrateMonolithToShards: idempotent on retry with v1 meta", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-idem-" });
+  try {
+    const mock = createMockGcsClient();
+
+    const index = {
+      version: 1,
+      lastPulled: "2026-01-01T00:00:00Z",
+      entries: {
+        "data/t1/m1/d1/1/raw": {
+          key: "data/t1/m1/d1/1/raw",
+          size: 4,
+          lastModified: "2026-01-01T00:00:00Z",
+        },
+      },
+    };
+    mock.storage.set(
+      ".datastore-index.json",
+      new TextEncoder().encode(JSON.stringify(index)),
+    );
+    mock.storage.set(
+      "data/t1/m1/d1/1/raw",
+      new TextEncoder().encode("aaa\n"),
+    );
+
+    const shard = {
+      version: 1,
+      entries: {
+        "data/t1/m1/d1/1/raw": {
+          key: "data/t1/m1/d1/1/raw",
+          size: 4,
+          lastModified: "2026-01-01T00:00:00Z",
+        },
+      },
+    };
+    mock.storage.set(
+      "_index/data--t1--m1.json",
+      new TextEncoder().encode(JSON.stringify(shard)),
+    );
+    mock.storage.set(
+      "_index/_meta.json",
+      new TextEncoder().encode(JSON.stringify({
+        version: 1,
+        partitions: ["data--t1--m1"],
+      })),
+    );
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    await service.migrateMonolithToShards();
+
+    const meta = decodeMeta(mock.storage.get("_index/_meta.json")!);
+    assertEquals(meta.version, 2, "should upgrade to v2 on re-migration");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// (8) _meta.json recovery from listing
+Deno.test("migrateMonolithToShards: recovers when shards exist but no v2 meta", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-recover-" });
+  try {
+    const mock = createMockGcsClient();
+
+    const shard1 = {
+      version: 1,
+      entries: {
+        "data/t1/m1/d1/1/raw": {
+          key: "data/t1/m1/d1/1/raw",
+          size: 4,
+          lastModified: "2026-01-01T00:00:00Z",
+        },
+      },
+    };
+    mock.storage.set(
+      "_index/data--t1--m1.json",
+      new TextEncoder().encode(JSON.stringify(shard1)),
+    );
+    mock.storage.set(
+      "data/t1/m1/d1/1/raw",
+      new TextEncoder().encode("aaa\n"),
+    );
+
+    const index = {
+      version: 1,
+      lastPulled: "2026-01-01T00:00:00Z",
+      entries: {
+        "data/t1/m1/d1/1/raw": {
+          key: "data/t1/m1/d1/1/raw",
+          size: 4,
+          lastModified: "2026-01-01T00:00:00Z",
+        },
+      },
+    };
+    mock.storage.set(
+      ".datastore-index.json",
+      new TextEncoder().encode(JSON.stringify(index)),
+    );
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    await service.migrateMonolithToShards();
+
+    assert(
+      mock.storage.has("_index/_meta.json"),
+      "_meta.json should be rebuilt",
+    );
+    const meta = decodeMeta(mock.storage.get("_index/_meta.json")!);
+    assertEquals(meta.version, 2);
+    assert(
+      meta.partitions.includes("data--t1--m1"),
+      "should discover data--t1--m1 partition",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// (9) Zero-diff fast path uses commitSeq
+Deno.test("shard-first: commitSeq fast path returns 0 when matching", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-csq-" });
+  try {
+    const mock = createMockGcsClient();
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    await seedFile(cachePath, "data/t1/m1/d1/1/raw", "aaa\n");
+    await service.pushChanged();
+    await service.migrateMonolithToShards();
+
+    await seedFile(cachePath, "data/t1/m1/d1/1/raw", "bbb\n");
+    await service.markDirty({ relPath: "data/t1/m1/d1/1/raw" });
+    const manifest = await service.preparePush();
+    await service.commitPush(manifest);
+
+    mock.gets.length = 0;
+    const result = await service.pullChanged();
+    assertEquals(result, 0, "should return 0 on commitSeq fast-path hit");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// (10) Mixed partition types in one commit
+Deno.test("shard-first commitPush: mixed partition types (per-model + single-shard)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-mixed-" });
+  try {
+    const mock = createMockGcsClient();
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    await seedFile(cachePath, "data/t1/m1/d1/1/raw", "data\n");
+    await seedFile(cachePath, "audit/event1.json", "audit\n");
+    await service.pushChanged();
+    await service.migrateMonolithToShards();
+
+    await seedFile(cachePath, "data/t1/m1/d1/1/raw", "data-v2\n");
+    await seedFile(cachePath, "audit/event2.json", "audit2\n");
+    await service.markDirty({ relPath: "data/t1/m1" });
+    await service.markDirty({ relPath: "audit" });
+
+    const manifest = await service.preparePush();
+    await service.commitPush(manifest);
+
+    assert(
+      mock.storage.has("_index/data--t1--m1.json"),
+      "per-model shard should exist",
+    );
+    assert(
+      mock.storage.has("_index/audit.json"),
+      "single shard should exist",
+    );
+
+    const meta = decodeMeta(mock.storage.get("_index/_meta.json")!);
+    assert(
+      meta.partitions.includes("data--t1--m1"),
+      "partitions should include per-model key",
+    );
+    assert(
+      meta.partitions.includes("audit"),
+      "partitions should include single-shard key",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// (11) Shard cleanup on deletion
+Deno.test("shard-first commitPush: deleting all entries in a model removes shard and partition key", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-cleanup-" });
+  try {
+    const mock = createMockGcsClient();
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    await seedFile(cachePath, "data/t1/m1/d1/1/raw", "aaa\n");
+    await seedFile(cachePath, "data/t2/m2/d2/1/raw", "bbb\n");
+    await service.pushChanged();
+    await service.migrateMonolithToShards();
+
+    await Deno.remove(join(cachePath, "data/t1"), { recursive: true });
+    await service.markDirty({ relPath: "data/t1" });
+
+    const manifest = await service.preparePush();
+    await service.commitPush(manifest);
+
+    assertEquals(
+      mock.storage.has("_index/data--t1--m1.json"),
+      false,
+      "empty shard should be deleted",
+    );
+
+    const meta = decodeMeta(mock.storage.get("_index/_meta.json")!);
+    assertEquals(
+      meta.partitions.includes("data--t1--m1"),
+      false,
+      "deleted partition should be removed from _meta.json",
+    );
+
+    assert(
+      mock.storage.has("_index/data--t2--m2.json"),
+      "surviving shard should still exist",
+    );
+    assert(
+      meta.partitions.includes("data--t2--m2"),
+      "surviving partition should remain in _meta.json",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// (12) Empty shard edge case: create + delete in same manifest
+Deno.test("shard-first commitPush: create and delete in same manifest produces correct shard state", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-creatdel-" });
+  try {
+    const mock = createMockGcsClient();
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    await seedFile(cachePath, "data/t1/m1/d1/1/raw", "aaa\n");
+    await service.pushChanged();
+    await service.migrateMonolithToShards();
+
+    await seedFile(cachePath, "data/t1/m1/d2/1/raw", "new\n");
+    await Deno.remove(join(cachePath, "data/t1/m1/d1"), { recursive: true });
+    await service.markDirty({ relPath: "data/t1/m1" });
+
+    const manifest = await service.preparePush();
+    await service.commitPush(manifest);
+
+    assert(
+      mock.storage.has("_index/data--t1--m1.json"),
+      "shard should exist",
+    );
+    const shard = decodeShard(mock.storage.get("_index/data--t1--m1.json")!);
+    assert(
+      !("data/t1/m1/d1/1/raw" in shard.entries),
+      "deleted entry should be gone",
+    );
+    assert(
+      "data/t1/m1/d2/1/raw" in shard.entries,
+      "new entry should be present",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
