@@ -1105,15 +1105,22 @@ export class S3CacheSyncService implements DatastoreSyncService {
     const v2Meta = meta as PartitionMetaV2;
     const neededKeys = new Set<string>();
     const prefixes: string[] = [];
+    const nsPrefix = this.namespace ? `${this.namespace}/` : "";
     for (const p of dirtyPaths) {
-      const key = S3CacheSyncService.partitionKeyFromPath(p);
+      // Strip the namespace prefix — partitionKeyFromPath expects bare
+      // cache-relative paths (e.g. "data/type/model/file"), not
+      // namespace-prefixed ones ("ns/data/type/model/file").
+      const bare = nsPrefix && p.startsWith(nsPrefix)
+        ? p.substring(nsPrefix.length)
+        : p;
+      const key = S3CacheSyncService.partitionKeyFromPath(bare);
       if (key) {
         neededKeys.add(key);
       } else {
         // Dirty path is a directory prefix (e.g. "data/t1") that doesn't
         // resolve to a single partition key. Derive a "--"-joined prefix
         // and match all partition keys that start with it.
-        const segments = p.split("/").filter((s) => s !== "");
+        const segments = bare.split("/").filter((s) => s !== "");
         if (segments.length > 0) {
           prefixes.push(segments.join("--"));
         }

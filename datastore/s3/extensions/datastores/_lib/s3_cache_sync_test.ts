@@ -8162,3 +8162,114 @@ Deno.test("pullChanged + pushChanged: stale latest pointer is corrected, not pus
     await Deno.remove(cachePath, { recursive: true });
   }
 });
+
+// -- REPRO: push idempotency regression from PR #251 -----------------------
+
+Deno.test("REPRO #251: namespace push — markDirty between pushes, second push must not rewrite remote index", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-repro-" });
+  try {
+    const mock = createMockS3Client();
+    const service = new S3CacheSyncService(mock, cachePath);
+    const ns = "my-ns";
+
+    // Use a path with enough segments for proper partitioning (4+).
+    const relPath = `${ns}/data/my--type/my-model/payload.yaml`;
+    await seedFile(cachePath, relPath, "name: x\n");
+    await service.markDirty({ namespace: ns, relPath });
+
+    // First push — should upload the file
+    await service.pushChanged({ namespace: ns });
+
+    // Record the remote _meta.json state
+    const metaKey = `${ns}/_index/_meta.json`;
+    const metaAfterFirstPush = mock.storage.get(metaKey);
+    const metaETag1 = metaAfterFirstPush ? fakeETag(metaAfterFirstPush) : null;
+
+    // Reset tracking
+    mock.puts.length = 0;
+
+    // Mark dirty again (simulating core behavior — no actual content change)
+    await service.markDirty({ namespace: ns, relPath });
+
+    // Second push — should be no-op
+    await service.pushChanged({ namespace: ns });
+
+    // Check that _meta.json was NOT rewritten
+    const metaAfterSecondPush = mock.storage.get(metaKey);
+    const metaETag2 = metaAfterSecondPush
+      ? fakeETag(metaAfterSecondPush)
+      : null;
+
+    assertEquals(
+      metaETag2,
+      metaETag1,
+      "Second push must not rewrite _meta.json — ETags should be identical",
+    );
+
+    const metaPuts = mock.puts.filter((p: PutCall) => p.key === metaKey);
+    assertEquals(
+      metaPuts.length,
+      0,
+      "Second push must not PUT _meta.json",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("REPRO #251: namespace push — fresh instance, second push must be no-op", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-repro2-" });
+  try {
+    const mock = createMockS3Client();
+    const ns = "my-ns";
+
+    // First push with first instance
+    {
+      const service = new S3CacheSyncService(mock, cachePath);
+      await seedFile(
+        cachePath,
+        `${ns}/data/@my-model/payload.yaml`,
+        "name: x\n",
+      );
+      await service.markDirty({
+        namespace: ns,
+        relPath: `${ns}/data/@my-model/payload.yaml`,
+      });
+      await service.pushChanged({ namespace: ns });
+    }
+
+    const metaKey = `${ns}/_index/_meta.json`;
+    const metaAfterFirstPush = mock.storage.get(metaKey);
+    const metaETag1 = metaAfterFirstPush ? fakeETag(metaAfterFirstPush) : null;
+
+    // Reset tracking
+    mock.puts.length = 0;
+    mock.gets.length = 0;
+
+    // Second push with fresh instance — no markDirty, no content change
+    {
+      const service2 = new S3CacheSyncService(mock, cachePath);
+      await service2.pushChanged({ namespace: ns });
+    }
+
+    const metaAfterSecondPush = mock.storage.get(metaKey);
+    const metaETag2 = metaAfterSecondPush
+      ? fakeETag(metaAfterSecondPush)
+      : null;
+
+    assertEquals(
+      metaETag2,
+      metaETag1,
+      "Fresh-instance second push must not rewrite _meta.json",
+    );
+
+    const metaPuts = mock.puts.filter((p: PutCall) => p.key === metaKey);
+    assertEquals(
+      metaPuts.length,
+      0,
+      "Fresh-instance second push must not PUT _meta.json",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
