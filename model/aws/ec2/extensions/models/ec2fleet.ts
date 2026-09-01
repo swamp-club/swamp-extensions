@@ -330,6 +330,15 @@ const FleetLaunchTemplateConfigRequestSchema = z.object({
   Overrides: z.array(FleetLaunchTemplateOverridesRequestSchema).optional(),
 });
 
+const ReservedCapacityFallbackOptionsRequestSchema = z.object({
+  MarketTypes: z.array(z.enum(["on-demand"])).optional(),
+});
+
+const CapacityReservationTargetRequestSchema = z.object({
+  CapacityReservationIds: z.array(z.string()).optional(),
+  CapacityReservationResourceGroupArns: z.array(z.string()).optional(),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -397,7 +406,17 @@ const GlobalArgsSchema = z.object({
   ValidUntil: z.string().optional(),
   Type: z.enum(["maintain", "request", "instant"]).optional(),
   ReservedCapacityOptions: z.object({
-    ReservationTypes: z.array(z.enum(["interruptible-capacity-reservation"]))
+    AllocationStrategy: z.enum(["prioritized"]).optional(),
+    ReservedCapacityFallbackOptions:
+      ReservedCapacityFallbackOptionsRequestSchema.optional(),
+    ReservationTypes: z.array(
+      z.enum([
+        "on-demand-capacity-reservation",
+        "capacity-block",
+        "interruptible-capacity-reservation",
+      ]),
+    ).optional(),
+    CapacityReservationTarget: CapacityReservationTargetRequestSchema
       .optional(),
   }).optional(),
   ValidFrom: z.string().optional(),
@@ -439,7 +458,11 @@ const StateSchema = z.object({
   ValidUntil: z.string().optional(),
   Type: z.string().optional(),
   ReservedCapacityOptions: z.object({
+    AllocationStrategy: z.string(),
+    ReservedCapacityFallbackOptions:
+      ReservedCapacityFallbackOptionsRequestSchema,
     ReservationTypes: z.array(z.string()),
+    CapacityReservationTarget: CapacityReservationTargetRequestSchema,
   }).optional(),
   FleetId: z.string(),
   ValidFrom: z.string().optional(),
@@ -506,7 +529,17 @@ const InputsSchema = z.object({
   ValidUntil: z.string().optional(),
   Type: z.enum(["maintain", "request", "instant"]).optional(),
   ReservedCapacityOptions: z.object({
-    ReservationTypes: z.array(z.enum(["interruptible-capacity-reservation"]))
+    AllocationStrategy: z.enum(["prioritized"]).optional(),
+    ReservedCapacityFallbackOptions:
+      ReservedCapacityFallbackOptionsRequestSchema.optional(),
+    ReservationTypes: z.array(
+      z.enum([
+        "on-demand-capacity-reservation",
+        "capacity-block",
+        "interruptible-capacity-reservation",
+      ]),
+    ).optional(),
+    CapacityReservationTarget: CapacityReservationTargetRequestSchema
       .optional(),
   }).optional(),
   ValidFrom: z.string().optional(),
@@ -532,7 +565,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 EC2Fleet. Registered at `@swamp/aws/ec2/ec2fleet`. */
 export const model = {
   type: "@swamp/aws/ec2/ec2fleet",
-  version: "2026.08.17.2",
+  version: "2026.09.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -596,6 +629,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

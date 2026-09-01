@@ -688,7 +688,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine Collections.Engines.ServingConfigs. Registered at `@swamp/gcp/discoveryengine/collections-engines-servingconfigs`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-engines-servingconfigs",
-  version: "2026.08.14.1",
+  version: "2026.09.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -852,6 +852,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1454,6 +1459,7 @@ export const model = {
         relevanceScoreSpec: z.any().optional(),
         relevanceThreshold: z.any().optional(),
         safeSearch: z.any().optional(),
+        searchAddonSpec: z.any().optional(),
         searchAsYouTypeSpec: z.any().optional(),
         session: z.any().optional(),
         sessionSpec: z.any().optional(),
@@ -1558,6 +1564,9 @@ export const model = {
         }
         if (args["safeSearch"] !== undefined) {
           body["safeSearch"] = args["safeSearch"];
+        }
+        if (args["searchAddonSpec"] !== undefined) {
+          body["searchAddonSpec"] = args["searchAddonSpec"];
         }
         if (args["searchAsYouTypeSpec"] !== undefined) {
           body["searchAsYouTypeSpec"] = args["searchAsYouTypeSpec"];
@@ -1631,6 +1640,7 @@ export const model = {
         relevanceScoreSpec: z.any().optional(),
         relevanceThreshold: z.any().optional(),
         safeSearch: z.any().optional(),
+        searchAddonSpec: z.any().optional(),
         searchAsYouTypeSpec: z.any().optional(),
         session: z.any().optional(),
         sessionSpec: z.any().optional(),
@@ -1735,6 +1745,9 @@ export const model = {
         }
         if (args["safeSearch"] !== undefined) {
           body["safeSearch"] = args["safeSearch"];
+        }
+        if (args["searchAddonSpec"] !== undefined) {
+          body["searchAddonSpec"] = args["searchAddonSpec"];
         }
         if (args["searchAsYouTypeSpec"] !== undefined) {
           body["searchAsYouTypeSpec"] = args["searchAsYouTypeSpec"];

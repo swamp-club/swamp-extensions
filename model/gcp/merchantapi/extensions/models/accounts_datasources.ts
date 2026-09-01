@@ -287,6 +287,7 @@ const GlobalArgsSchema = z.object({
         "VEHICLE_ADS",
         "CLOUD_RETAIL",
         "LOCAL_CLOUD_RETAIL",
+        "RENTAL_ADS",
       ]).describe(
         "[Marketing methods](https://support.google.com/merchants/answer/15130232) (also known as destination) selections.",
       ).optional(),
@@ -560,6 +561,7 @@ const InputsSchema = z.object({
         "VEHICLE_ADS",
         "CLOUD_RETAIL",
         "LOCAL_CLOUD_RETAIL",
+        "RENTAL_ADS",
       ]).describe(
         "[Marketing methods](https://support.google.com/merchants/answer/15130232) (also known as destination) selections.",
       ).optional(),
@@ -655,7 +657,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.DataSources. Registered at `@swamp/gcp/merchantapi/accounts-datasources`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-datasources",
-  version: "2026.08.12.2",
+  version: "2026.09.01.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -664,6 +666,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

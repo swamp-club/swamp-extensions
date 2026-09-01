@@ -293,6 +293,130 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Identifier. The unique identifier of the agent. Format: `projects/{project}/locations/{location}/apps/{app}/agents/{agent}`",
   ).optional(),
+  remoteA2aAgent: z.object({
+    a2aConfig: z.object({
+      agentCard: z.object({
+        description: z.string().describe(
+          "Required. A description of the agent's domain of action/solution space.",
+        ).optional(),
+        name: z.string().describe(
+          "Required. A human-readable name for the agent.",
+        ).optional(),
+        skills: z.array(z.object({
+          description: z.unknown().describe(
+            "Required. A detailed description of the skill.",
+          ).optional(),
+          examples: z.unknown().describe(
+            "Example prompts or scenarios that this skill can handle.",
+          ).optional(),
+          id: z.unknown().describe(
+            "Required. A unique identifier for the agent's skill.",
+          ).optional(),
+          inputModes: z.unknown().describe(
+            "The set of supported input media types for this skill, overriding the agent's defaults.",
+          ).optional(),
+          name: z.unknown().describe(
+            "Required. A human-readable name for the skill.",
+          ).optional(),
+          outputModes: z.unknown().describe(
+            "The set of supported output media types for this skill, overriding the agent's defaults.",
+          ).optional(),
+          tags: z.unknown().describe(
+            "Required. A set of keywords describing the skill's capabilities.",
+          ).optional(),
+        })).describe(
+          "Required. Skills represent a unit of ability an agent can perform. This may somewhat abstract but represents a more focused set of actions that the agent is highly likely to succeed at.",
+        ).optional(),
+        supportedInterfaces: z.array(z.object({
+          protocolBinding: z.unknown().describe(
+            "Required. The protocol binding supported at this URL. This is an open form string, to be easily extended for other protocol bindings. The core ones officially supported are `JSONRPC`, `GRPC` and `HTTP+JSON`.",
+          ).optional(),
+          protocolVersion: z.unknown().describe(
+            'Required. The version of the A2A protocol this interface exposes. Use the latest supported minor version per major version. Examples: "0.3", "1.0"',
+          ).optional(),
+          tenant: z.unknown().describe(
+            "Tenant ID to be used in the request when calling the agent.",
+          ).optional(),
+          url: z.unknown().describe(
+            'Required. The URL where this interface is available. Must be a valid absolute HTTPS URL in production. Example: "https://api.example.com/a2a/v1", "https://grpc.example.com/a2a"',
+          ).optional(),
+        })).describe(
+          "Required. Ordered list of supported interfaces. The first entry is preferred.",
+        ).optional(),
+        version: z.string().describe("Required. The version of the agent.")
+          .optional(),
+      }).describe("Optional. The full agent card defined inline.").optional(),
+      agentRegistry: z.string().describe(
+        "Optional. Reference to the agent in the Agent Registry. Format: `projects/{project}/locations/{location}/agents/{agent}`",
+      ).optional(),
+      apiAuthentication: z.object({
+        apiKeyConfig: z.object({
+          apiKeySecretVersion: z.string().describe(
+            "Required. The name of the SecretManager secret version resource storing the API key. Format: `projects/{project}/secrets/{secret}/versions/{version}` Note: You should grant `roles/secretmanager.secretAccessor` role to the CES service agent `service-@gcp-sa-ces.iam.gserviceaccount.com`.",
+          ).optional(),
+          keyName: z.string().describe(
+            'Required. The parameter name or the header name of the API key. E.g., If the API request is "https://example.com/act?X-Api-Key=", "X-Api-Key" would be the parameter name.',
+          ).optional(),
+          requestLocation: z.enum([
+            "REQUEST_LOCATION_UNSPECIFIED",
+            "HEADER",
+            "QUERY_STRING",
+          ]).describe("Required. Key location in the request.").optional(),
+        }).describe("Optional. Config for API key auth.").optional(),
+        bearerTokenConfig: z.object({
+          token: z.string().describe(
+            "Required. The bearer token. Must be in the format `$context.variables.`.",
+          ).optional(),
+        }).describe("Optional. Config for bearer token auth.").optional(),
+        oauthConfig: z.object({
+          clientId: z.string().describe(
+            "Required. The client ID from the OAuth provider.",
+          ).optional(),
+          clientSecretVersion: z.string().describe(
+            "Required. The name of the SecretManager secret version resource storing the client secret. Format: `projects/{project}/secrets/{secret}/versions/{version}` Note: You should grant `roles/secretmanager.secretAccessor` role to the CES service agent `service-@gcp-sa-ces.iam.gserviceaccount.com`.",
+          ).optional(),
+          oauthGrantType: z.enum([
+            "OAUTH_GRANT_TYPE_UNSPECIFIED",
+            "CLIENT_CREDENTIAL",
+          ]).describe("Required. OAuth grant types.").optional(),
+          scopes: z.array(z.unknown()).describe(
+            "Optional. The OAuth scopes to grant.",
+          ).optional(),
+          tokenEndpoint: z.string().describe(
+            "Required. The token endpoint in the OAuth provider to exchange for an access token.",
+          ).optional(),
+        }).describe("Optional. Config for OAuth.").optional(),
+        serviceAccountAuthConfig: z.object({
+          scopes: z.array(z.unknown()).describe(
+            "Optional. The OAuth scopes to grant. If not specified, the default scope `https://www.googleapis.com/auth/cloud-platform` is used.",
+          ).optional(),
+          serviceAccount: z.string().describe(
+            "Required. The email address of the service account used for authentication. CES uses this service account to exchange an access token and the access token is then sent in the `Authorization` header of the request. The service account must have the `roles/iam.serviceAccountTokenCreator` role granted to the CES service agent `service-@gcp-sa-ces.iam.gserviceaccount.com`.",
+          ).optional(),
+        }).describe("Optional. Config for service account authentication.")
+          .optional(),
+        serviceAgentIdTokenAuthConfig: z.object({}).describe(
+          "Optional. Config for ID token auth generated from CES service agent.",
+        ).optional(),
+      }).describe(
+        "Optional. Authentication configuration for calling the remote agent. Optional if the registry reference already handles authentication.",
+      ).optional(),
+      contextId: z.string().describe(
+        "Optional. If not empty, interactions with the remote A2A agent will use this context ID. This context_id field can refer to a session variable like `$context.variables.order_agent_session_id`.",
+      ).optional(),
+      inputVariableMapping: z.record(z.string(), z.string()).describe(
+        "Optional. Mapping of input variable names of remote agent to GECX variable names.",
+      ).optional(),
+      outputVariableMapping: z.record(z.string(), z.string()).describe(
+        "Optional. Mapping of output variable names of remote agent to GECX variable names.",
+      ).optional(),
+      streamingEnabled: z.boolean().describe(
+        "Optional. Whether streaming is enabled for the remote agent.",
+      ).optional(),
+    }).describe("Required. The A2A connection configuration.").optional(),
+  }).describe(
+    "Optional. The remote [A2A](https://github.com/a2aproject/A2A) agent to be used for the agent execution.",
+  ).optional(),
   remoteDialogflowAgent: z.object({
     agent: z.string().describe(
       "Required. The [Dialogflow](https://docs.cloud.google.com/dialogflow/cx/docs/concept/agent) agent resource name. Format: `projects/{project}/locations/{location}/agents/{agent}`",
@@ -431,6 +555,57 @@ const StateSchema = z.object({
     temperature: z.number(),
   }).optional(),
   name: z.string(),
+  remoteA2aAgent: z.object({
+    a2aConfig: z.object({
+      agentCard: z.object({
+        description: z.string(),
+        name: z.string(),
+        skills: z.array(z.object({
+          description: z.unknown(),
+          examples: z.unknown(),
+          id: z.unknown(),
+          inputModes: z.unknown(),
+          name: z.unknown(),
+          outputModes: z.unknown(),
+          tags: z.unknown(),
+        })),
+        supportedInterfaces: z.array(z.object({
+          protocolBinding: z.unknown(),
+          protocolVersion: z.unknown(),
+          tenant: z.unknown(),
+          url: z.unknown(),
+        })),
+        version: z.string(),
+      }),
+      agentRegistry: z.string(),
+      apiAuthentication: z.object({
+        apiKeyConfig: z.object({
+          apiKeySecretVersion: z.string(),
+          keyName: z.string(),
+          requestLocation: z.string(),
+        }),
+        bearerTokenConfig: z.object({
+          token: z.string(),
+        }),
+        oauthConfig: z.object({
+          clientId: z.string(),
+          clientSecretVersion: z.string(),
+          oauthGrantType: z.string(),
+          scopes: z.array(z.unknown()),
+          tokenEndpoint: z.string(),
+        }),
+        serviceAccountAuthConfig: z.object({
+          scopes: z.array(z.unknown()),
+          serviceAccount: z.string(),
+        }),
+        serviceAgentIdTokenAuthConfig: z.object({}),
+      }),
+      contextId: z.string(),
+      inputVariableMapping: z.record(z.string(), z.unknown()),
+      outputVariableMapping: z.record(z.string(), z.unknown()),
+      streamingEnabled: z.boolean(),
+    }),
+  }).optional(),
   remoteDialogflowAgent: z.object({
     agent: z.string(),
     environmentId: z.string(),
@@ -598,6 +773,130 @@ const InputsSchema = z.object({
   name: z.string().describe(
     "Identifier. The unique identifier of the agent. Format: `projects/{project}/locations/{location}/apps/{app}/agents/{agent}`",
   ).optional(),
+  remoteA2aAgent: z.object({
+    a2aConfig: z.object({
+      agentCard: z.object({
+        description: z.string().describe(
+          "Required. A description of the agent's domain of action/solution space.",
+        ).optional(),
+        name: z.string().describe(
+          "Required. A human-readable name for the agent.",
+        ).optional(),
+        skills: z.array(z.object({
+          description: z.unknown().describe(
+            "Required. A detailed description of the skill.",
+          ).optional(),
+          examples: z.unknown().describe(
+            "Example prompts or scenarios that this skill can handle.",
+          ).optional(),
+          id: z.unknown().describe(
+            "Required. A unique identifier for the agent's skill.",
+          ).optional(),
+          inputModes: z.unknown().describe(
+            "The set of supported input media types for this skill, overriding the agent's defaults.",
+          ).optional(),
+          name: z.unknown().describe(
+            "Required. A human-readable name for the skill.",
+          ).optional(),
+          outputModes: z.unknown().describe(
+            "The set of supported output media types for this skill, overriding the agent's defaults.",
+          ).optional(),
+          tags: z.unknown().describe(
+            "Required. A set of keywords describing the skill's capabilities.",
+          ).optional(),
+        })).describe(
+          "Required. Skills represent a unit of ability an agent can perform. This may somewhat abstract but represents a more focused set of actions that the agent is highly likely to succeed at.",
+        ).optional(),
+        supportedInterfaces: z.array(z.object({
+          protocolBinding: z.unknown().describe(
+            "Required. The protocol binding supported at this URL. This is an open form string, to be easily extended for other protocol bindings. The core ones officially supported are `JSONRPC`, `GRPC` and `HTTP+JSON`.",
+          ).optional(),
+          protocolVersion: z.unknown().describe(
+            'Required. The version of the A2A protocol this interface exposes. Use the latest supported minor version per major version. Examples: "0.3", "1.0"',
+          ).optional(),
+          tenant: z.unknown().describe(
+            "Tenant ID to be used in the request when calling the agent.",
+          ).optional(),
+          url: z.unknown().describe(
+            'Required. The URL where this interface is available. Must be a valid absolute HTTPS URL in production. Example: "https://api.example.com/a2a/v1", "https://grpc.example.com/a2a"',
+          ).optional(),
+        })).describe(
+          "Required. Ordered list of supported interfaces. The first entry is preferred.",
+        ).optional(),
+        version: z.string().describe("Required. The version of the agent.")
+          .optional(),
+      }).describe("Optional. The full agent card defined inline.").optional(),
+      agentRegistry: z.string().describe(
+        "Optional. Reference to the agent in the Agent Registry. Format: `projects/{project}/locations/{location}/agents/{agent}`",
+      ).optional(),
+      apiAuthentication: z.object({
+        apiKeyConfig: z.object({
+          apiKeySecretVersion: z.string().describe(
+            "Required. The name of the SecretManager secret version resource storing the API key. Format: `projects/{project}/secrets/{secret}/versions/{version}` Note: You should grant `roles/secretmanager.secretAccessor` role to the CES service agent `service-@gcp-sa-ces.iam.gserviceaccount.com`.",
+          ).optional(),
+          keyName: z.string().describe(
+            'Required. The parameter name or the header name of the API key. E.g., If the API request is "https://example.com/act?X-Api-Key=", "X-Api-Key" would be the parameter name.',
+          ).optional(),
+          requestLocation: z.enum([
+            "REQUEST_LOCATION_UNSPECIFIED",
+            "HEADER",
+            "QUERY_STRING",
+          ]).describe("Required. Key location in the request.").optional(),
+        }).describe("Optional. Config for API key auth.").optional(),
+        bearerTokenConfig: z.object({
+          token: z.string().describe(
+            "Required. The bearer token. Must be in the format `$context.variables.`.",
+          ).optional(),
+        }).describe("Optional. Config for bearer token auth.").optional(),
+        oauthConfig: z.object({
+          clientId: z.string().describe(
+            "Required. The client ID from the OAuth provider.",
+          ).optional(),
+          clientSecretVersion: z.string().describe(
+            "Required. The name of the SecretManager secret version resource storing the client secret. Format: `projects/{project}/secrets/{secret}/versions/{version}` Note: You should grant `roles/secretmanager.secretAccessor` role to the CES service agent `service-@gcp-sa-ces.iam.gserviceaccount.com`.",
+          ).optional(),
+          oauthGrantType: z.enum([
+            "OAUTH_GRANT_TYPE_UNSPECIFIED",
+            "CLIENT_CREDENTIAL",
+          ]).describe("Required. OAuth grant types.").optional(),
+          scopes: z.array(z.unknown()).describe(
+            "Optional. The OAuth scopes to grant.",
+          ).optional(),
+          tokenEndpoint: z.string().describe(
+            "Required. The token endpoint in the OAuth provider to exchange for an access token.",
+          ).optional(),
+        }).describe("Optional. Config for OAuth.").optional(),
+        serviceAccountAuthConfig: z.object({
+          scopes: z.array(z.unknown()).describe(
+            "Optional. The OAuth scopes to grant. If not specified, the default scope `https://www.googleapis.com/auth/cloud-platform` is used.",
+          ).optional(),
+          serviceAccount: z.string().describe(
+            "Required. The email address of the service account used for authentication. CES uses this service account to exchange an access token and the access token is then sent in the `Authorization` header of the request. The service account must have the `roles/iam.serviceAccountTokenCreator` role granted to the CES service agent `service-@gcp-sa-ces.iam.gserviceaccount.com`.",
+          ).optional(),
+        }).describe("Optional. Config for service account authentication.")
+          .optional(),
+        serviceAgentIdTokenAuthConfig: z.object({}).describe(
+          "Optional. Config for ID token auth generated from CES service agent.",
+        ).optional(),
+      }).describe(
+        "Optional. Authentication configuration for calling the remote agent. Optional if the registry reference already handles authentication.",
+      ).optional(),
+      contextId: z.string().describe(
+        "Optional. If not empty, interactions with the remote A2A agent will use this context ID. This context_id field can refer to a session variable like `$context.variables.order_agent_session_id`.",
+      ).optional(),
+      inputVariableMapping: z.record(z.string(), z.string()).describe(
+        "Optional. Mapping of input variable names of remote agent to GECX variable names.",
+      ).optional(),
+      outputVariableMapping: z.record(z.string(), z.string()).describe(
+        "Optional. Mapping of output variable names of remote agent to GECX variable names.",
+      ).optional(),
+      streamingEnabled: z.boolean().describe(
+        "Optional. Whether streaming is enabled for the remote agent.",
+      ).optional(),
+    }).describe("Required. The A2A connection configuration.").optional(),
+  }).describe(
+    "Optional. The remote [A2A](https://github.com/a2aproject/A2A) agent to be used for the agent execution.",
+  ).optional(),
   remoteDialogflowAgent: z.object({
     agent: z.string().describe(
       "Required. The [Dialogflow](https://docs.cloud.google.com/dialogflow/cx/docs/concept/agent) agent resource name. Format: `projects/{project}/locations/{location}/agents/{agent}`",
@@ -711,7 +1010,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Agents. Registered at `@swamp/gcp/ces/apps-agents`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-agents",
-  version: "2026.08.12.2",
+  version: "2026.09.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -898,6 +1197,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.01.1",
+      description: "Added: remoteA2aAgent",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -959,6 +1263,9 @@ export const model = {
           body["modelSettings"] = g["modelSettings"];
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
+        if (g["remoteA2aAgent"] !== undefined) {
+          body["remoteA2aAgent"] = g["remoteA2aAgent"];
+        }
         if (g["remoteDialogflowAgent"] !== undefined) {
           body["remoteDialogflowAgent"] = g["remoteDialogflowAgent"];
         }
@@ -1112,6 +1419,9 @@ export const model = {
         if (g["llmAgent"] !== undefined) body["llmAgent"] = g["llmAgent"];
         if (g["modelSettings"] !== undefined) {
           body["modelSettings"] = g["modelSettings"];
+        }
+        if (g["remoteA2aAgent"] !== undefined) {
+          body["remoteA2aAgent"] = g["remoteA2aAgent"];
         }
         if (g["remoteDialogflowAgent"] !== undefined) {
           body["remoteDialogflowAgent"] = g["remoteDialogflowAgent"];

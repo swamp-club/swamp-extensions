@@ -96,6 +96,7 @@ const GlobalArgsSchema = z.object({
     query: z.string().optional(),
     recipient: z.string().optional(),
     sender: z.string().optional(),
+    smtp_helo_ip: z.string().optional(),
     start: z.string().optional(),
     subject: z.string().optional(),
     submissions: z.boolean().optional(),
@@ -140,6 +141,7 @@ const ResourceSchema = z.object({
     query: z.string().optional(),
     recipient: z.string().optional(),
     sender: z.string().optional(),
+    smtp_helo_ip: z.string().optional(),
     start: z.string().optional(),
     subject: z.string().optional(),
     submissions: z.boolean().optional(),
@@ -213,6 +215,7 @@ const InputsSchema = z.object({
     query: z.string().optional(),
     recipient: z.string().optional(),
     sender: z.string().optional(),
+    smtp_helo_ip: z.string().optional(),
     start: z.string().optional(),
     subject: z.string().optional(),
     submissions: z.boolean().optional(),
@@ -225,10 +228,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Bulk. Registered at `@swamp/cloudflare/email-security/bulk`. */
 export const model = {
   type: "@swamp/cloudflare/email-security/bulk",
-  version: "2026.08.26.1",
+  version: "2026.09.01.1",
   upgrades: [
     {
       toVersion: "2026.08.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

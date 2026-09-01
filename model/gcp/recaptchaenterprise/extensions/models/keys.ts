@@ -251,7 +251,7 @@ const GlobalArgsSchema = z.object({
       "BALANCE",
       "SECURITY",
     ]).describe(
-      "Optional. Settings for the frequency and difficulty at which this key triggers captcha challenges. This should only be specified for `IntegrationType` CHECKBOX, INVISIBLE or POLICY_BASED_CHALLENGE.",
+      "Optional. Settings for the frequency and difficulty at which this key triggers captcha challenges. This should only be specified for `IntegrationType` CHECKBOX (defaults to BALANCE), INVISIBLE (defaults to USABILITY), or POLICY_BASED_CHALLENGE (defaults to USABILITY).",
     ).optional(),
     challengeSettings: z.object({
       actionSettings: z.record(
@@ -436,7 +436,7 @@ const InputsSchema = z.object({
       "BALANCE",
       "SECURITY",
     ]).describe(
-      "Optional. Settings for the frequency and difficulty at which this key triggers captcha challenges. This should only be specified for `IntegrationType` CHECKBOX, INVISIBLE or POLICY_BASED_CHALLENGE.",
+      "Optional. Settings for the frequency and difficulty at which this key triggers captcha challenges. This should only be specified for `IntegrationType` CHECKBOX (defaults to BALANCE), INVISIBLE (defaults to USABILITY), or POLICY_BASED_CHALLENGE (defaults to USABILITY).",
     ).optional(),
     challengeSettings: z.object({
       actionSettings: z.record(
@@ -498,7 +498,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud reCAPTCHA Enterprise Keys. Registered at `@swamp/gcp/recaptchaenterprise/keys`. */
 export const model = {
   type: "@swamp/gcp/recaptchaenterprise/keys",
-  version: "2026.08.12.2",
+  version: "2026.09.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -632,6 +632,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

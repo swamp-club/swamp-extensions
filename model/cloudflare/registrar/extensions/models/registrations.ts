@@ -43,10 +43,10 @@ const GlobalArgsSchema = z.object({
     "Enable or disable automatic renewal. Defaults to `false` if omitted.\nSetting this field to `true` is an explicit opt-in authorizing\nCloudflare to charge the account's default payment method up to 30\ndays before domain expiry to renew the domain automatically.\nRenewal pricing may change over time based on registry pricing.\n",
   ).optional(),
   acknowledgements: z.record(z.string(), z.unknown()).describe(
-    "User acknowledgements required by a specific extension or premium\nregistration flow. The expected keys are described by the extension\nregistration schema returned by the extension discovery endpoint.\n",
+    "Provides user acknowledgements for a specific extension or premium\nregistration flow. The extension registration schema from the\nextension discovery endpoint identifies the required keys.\n",
   ).optional(),
   contact_extensions: z.record(z.string(), z.unknown()).describe(
-    "Registry-specific contact extension values for the registrant. The\nrequired keys and allowed values vary by extension and are described\nby `GET /accounts/{account_id}/registrar/extensions/{extension}` in\nthe `registration_schema.properties.contact_extensions` object.\n\nExamples include `.us` nexus fields, `.uk` registrant type fields,\nand `.ca` legal type fields. Omit this object for extensions whose\nregistration schema does not include `contact_extensions`.\n",
+    "Provides registry-specific contact extension values for the registrant.\n`GET /accounts/{account_id}/registrar/extensions/{extension}` identifies\nthe required keys and allowed values for each extension in the\n`registration_schema.properties.contact_extensions` object.\n\nExamples include `.us` nexus fields, `.uk` registrant type fields,\nand `.ca` legal type fields. Omit this object when the extension's\nregistration schema excludes `contact_extensions`.\n",
   ).optional(),
   contacts: z.object({
     administrator: z.object({
@@ -114,16 +114,16 @@ const GlobalArgsSchema = z.object({
       }),
     }).optional(),
   }).describe(
-    "Contact data for the registration request.\n\nThe per-extension schema returned by\n`GET /accounts/{account_id}/registrar/extensions/{extension}` is the\nauthoritative contract for which contact roles are accepted. Every\ncurrently supported extension requires only `contacts.registrant` from\nAPI callers. Additional roles such as `technical`, `administrator`, and\n`billing` may be provided when the extension schema includes them. If a\nregistry requires one of those roles and the caller omits it, Cloudflare\nmay derive that contact from `contacts.registrant`.\n\nIf the `contacts` object is omitted entirely from the request, or if\n`contacts.registrant` is not provided, the system will use the account's\ndefault address book entry as the registrant contact. This default must be\npre-configured by the account owner at\n`https://dash.cloudflare.com/{account_id}/domains/registrations`, where\nthey can create or update the address book entry and accept the required\nagreement. No API exists for managing address book entries at this time.\n\nIf no default address book entry exists and no registrant contact is\nprovided, the registration request will fail with a validation error.\n",
+    "Provides contact data for the registration request.\n\nThe per-extension schema from\n`GET /accounts/{account_id}/registrar/extensions/{extension}` defines the\naccepted contact roles. Every currently supported extension requires only\n`contacts.registrant` from API callers. Callers may provide additional roles\nsuch as `technical`, `administrator`, and `billing` when the extension\nschema includes them. When a registry requires an omitted role, Cloudflare\nmay derive that contact from `contacts.registrant`.\n\nWhen the request omits either the entire `contacts` object or\n`contacts.registrant`, the system uses the account's default address book\nentry as the registrant contact. The account owner must configure this\ndefault at `https://dash.cloudflare.com/{account_id}/domains/registrations`,\nwhere they can create or update the address book entry and accept the\nrequired agreement. Dashboard settings currently provide the only way to\nmanage address book entries.\n\nWithout either a default address book entry or a registrant contact, the\nregistration request fails validation.\n",
   ).optional(),
   domain_name: z.string().describe(
-    "Fully qualified domain name (FQDN) including the extension\n(e.g., `example.com`, `mybrand.app`). The domain name uniquely\nidentifies a registration — the same domain cannot be registered\ntwice, making it a natural idempotency key for registration requests.\n",
+    "Provides a fully qualified domain name (FQDN), including the extension\n(e.g., `example.com`, `mybrand.app`). The domain name uniquely identifies\na registration. Cloudflare permits only one registration per domain, making\nthe domain name a natural idempotency key for registration requests.\n",
   ),
   privacy_mode: z.enum(["off", "redaction"]).describe(
-    "WHOIS privacy mode for the registration. Defaults to `redaction`.\n- `off`: Do not request WHOIS privacy.\n- `redaction`: Request WHOIS redaction where supported by the extension.\n  Some extensions do not support privacy/redaction.\n",
+    "Sets the WHOIS privacy mode for the registration. Defaults to `redaction`.\n- `off`: Disables WHOIS privacy.\n- `redaction`: Requests WHOIS redaction where the extension supports it.\n  Some extensions exclude privacy and redaction.\n",
   ).optional(),
   years: z.number().int().min(1).max(10).describe(
-    "Number of years to register (1–10). If omitted, defaults to the\nminimum registration period required by the registry for this\nextension. For most extensions this is 1 year, but some extensions\nrequire longer minimum terms (e.g., `.ai` requires a minimum of\n2 years).\n\nThe registry for each extension may also enforce its own maximum\nregistration term. If the requested value exceeds the registry's\nmaximum, the registration will be rejected. When in doubt, use the\ndefault by omitting this field.\n",
+    "Sets the registration term from 1 to 10 years. When omitted, this\nfield defaults to the registry's minimum registration period for the\nextension. Most extensions require 1 year, while some require longer\nminimum terms (e.g., `.ai` requires 2 years).\n\nEach registry may also enforce its own maximum registration term. A\nrequest above that maximum fails. When uncertain, omit this field to\nuse the default.\n",
   ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -232,7 +232,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Registrations. Registered at `@swamp/cloudflare/registrar/registrations`. */
 export const model = {
   type: "@swamp/cloudflare/registrar/registrations",
-  version: "2026.08.26.1",
+  version: "2026.09.01.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -266,6 +266,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

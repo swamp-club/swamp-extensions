@@ -46,7 +46,9 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  app: z.string().describe(
+  app: z.object({
+    install_id: z.string().optional(),
+  }).describe(
     "Cloudflare Apps Marketplace is sunset. This field is retained for legacy grandfathered app subscriptions only.",
   ).optional(),
   component_values: z.array(z.object({
@@ -112,7 +114,9 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  app: z.string().optional(),
+  app: z.object({
+    install_id: z.string().optional(),
+  }).optional(),
   component_values: z.array(z.object({
     default: z.number().optional(),
     display_name: z.string().optional(),
@@ -148,7 +152,9 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 const InputsSchema = z.object({
   account_id: z.string().optional(),
   name: z.string().optional(),
-  app: z.string().optional(),
+  app: z.object({
+    install_id: z.string().optional(),
+  }).optional(),
   component_values: z.array(z.object({
     default: z.number().optional(),
     display_name: z.string().optional(),
@@ -195,7 +201,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Subscriptions. Registered at `@swamp/cloudflare/subscriptions/subscriptions`. */
 export const model = {
   type: "@swamp/cloudflare/subscriptions/subscriptions",
-  version: "2026.08.26.1",
+  version: "2026.09.01.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -281,7 +294,6 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/subscriptions";
         const filters: [string, string][] = [];
-        if (g.app !== undefined) filters.push(["app", String(g.app)]);
         if (g.currency !== undefined) {
           filters.push(["currency", String(g.currency)]);
         }

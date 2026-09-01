@@ -164,6 +164,13 @@ const GlobalArgsSchema = z.object({
   apiEndpoint: z.string().describe(
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
+  agentRegistryDeployment: z.object({
+    agentRegistryServiceName: z.string().describe(
+      "Optional. Output only. The resource name of the deployed Agent Registry service. Format: `projects/{project}/locations/{location}/services/{service}`",
+    ).optional(),
+  }).describe(
+    "Optional. Configuration for deploying this deployment to Agent Registry. If present, this deployment will be published to Agent Registry.",
+  ).optional(),
   appVersion: z.string().describe(
     "Optional. The resource name of the app version to deploy. Format: `projects/{project}/locations/{location}/apps/{app}/versions/{version}` Use `projects/{project}/locations/{location}/apps/{app}/versions/-` to use the draft app.",
   ).optional(),
@@ -355,6 +362,9 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  agentRegistryDeployment: z.object({
+    agentRegistryServiceName: z.string(),
+  }).optional(),
   appVersion: z.string().optional(),
   channelProfile: z.object({
     channelType: z.string(),
@@ -434,6 +444,13 @@ const InputsSchema = z.object({
   scopes: z.string().optional(),
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
+  agentRegistryDeployment: z.object({
+    agentRegistryServiceName: z.string().describe(
+      "Optional. Output only. The resource name of the deployed Agent Registry service. Format: `projects/{project}/locations/{location}/services/{service}`",
+    ).optional(),
+  }).describe(
+    "Optional. Configuration for deploying this deployment to Agent Registry. If present, this deployment will be published to Agent Registry.",
+  ).optional(),
   appVersion: z.string().describe(
     "Optional. The resource name of the app version to deploy. Format: `projects/{project}/locations/{location}/apps/{app}/versions/{version}` Use `projects/{project}/locations/{location}/apps/{app}/versions/-` to use the draft app.",
   ).optional(),
@@ -650,7 +667,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Deployments. Registered at `@swamp/gcp/ces/apps-deployments`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-deployments",
-  version: "2026.08.12.2",
+  version: "2026.09.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -794,6 +811,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.01.1",
+      description: "Added: agentRegistryDeployment",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -819,6 +841,9 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         const body: Record<string, unknown> = {};
+        if (g["agentRegistryDeployment"] !== undefined) {
+          body["agentRegistryDeployment"] = g["agentRegistryDeployment"];
+        }
         if (g["appVersion"] !== undefined) body["appVersion"] = g["appVersion"];
         if (g["channelProfile"] !== undefined) {
           body["channelProfile"] = g["channelProfile"];
@@ -951,6 +976,9 @@ export const model = {
           );
         }
         const body: Record<string, unknown> = {};
+        if (g["agentRegistryDeployment"] !== undefined) {
+          body["agentRegistryDeployment"] = g["agentRegistryDeployment"];
+        }
         if (g["appVersion"] !== undefined) body["appVersion"] = g["appVersion"];
         if (g["channelProfile"] !== undefined) {
           body["channelProfile"] = g["channelProfile"];

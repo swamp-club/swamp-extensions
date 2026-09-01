@@ -17,13 +17,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/aws/servicediscovery/service
+// Auto-generated extension model for @swamp/aws/codebuild/report-group
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for ServiceDiscovery Service (AWS::ServiceDiscovery::Service).
+ * Swamp extension model for CodeBuild ReportGroup (AWS::CodeBuild::ReportGroup).
  *
  * Wraps the CloudFormation resource type as a swamp model so create,
  * get, update, delete, sync, and list can be driven through `swamp model`.
@@ -42,14 +42,18 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
-const DnsRecordSchema = z.object({
-  Type: z.string().describe("The DNS record type (e.g., A, AAAA, SRV)."),
-  TTL: z.number().describe("The time-to-live (TTL) for the DNS record."),
+const S3ReportExportConfigSchema = z.object({
+  Path: z.string().optional(),
+  Bucket: z.string(),
+  Packaging: z.enum(["NONE", "ZIP"]).optional(),
+  EncryptionKey: z.string().optional(),
+  BucketOwner: z.string().optional(),
+  EncryptionDisabled: z.boolean().optional(),
 });
 
 const TagSchema = z.object({
-  Value: z.string().describe("The value of the tag."),
-  Key: z.string().describe("The key name of the tag."),
+  Value: z.string(),
+  Key: z.string(),
 });
 
 const GlobalArgsSchema = z.object({
@@ -68,70 +72,24 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Type: z.string().describe(
-    "The type of service. Supported values are HTTP or DNS.",
-  ).optional(),
-  Description: z.string().describe("A description for the service.").optional(),
-  HealthCheckCustomConfig: z.object({
-    FailureThreshold: z.number().describe(
-      "The number of consecutive health check failures required before the service is considered unhealthy.",
-    ).optional(),
-  }).describe("Settings for custom health checks.").optional(),
-  DnsConfig: z.object({
-    DnsRecords: z.array(DnsRecordSchema).describe(
-      "A list of DNS records associated with the service.",
-    ),
-    RoutingPolicy: z.string().describe(
-      "The routing policy to use for DNS queries.",
-    ).optional(),
-    NamespaceId: z.string().describe(
-      "The ID of the namespace for the DNS configuration.",
-    ).optional(),
-  }).describe("DNS-related configurations for the service.").optional(),
-  ServiceAttributes: z.record(z.string(), z.string()).describe(
-    "A string map that contains attributes and values for the service. You can specify a maximum of 30 key-value pairs.",
-  ).optional(),
-  NamespaceId: z.string().describe(
-    "The ID of the namespace in which the service is created.",
-  ).optional(),
-  HealthCheckConfig: z.object({
-    Type: z.string().describe(
-      "The type of health check (e.g., HTTP, HTTPS, TCP).",
-    ),
-    ResourcePath: z.string().describe(
-      "The path to ping on the service for health checks.",
-    ).optional(),
-    FailureThreshold: z.number().describe(
-      "The number of consecutive health check failures that must occur before declaring the service unhealthy.",
-    ).optional(),
-  }).describe("Settings for health checks. Used when routing is DNS-based.")
-    .optional(),
-  Tags: z.array(TagSchema).describe(
-    "An array of key-value pairs to associate with the service.",
-  ).optional(),
-  Name: z.string().describe("The name of the service.").optional(),
+  Type: z.enum(["TEST", "CODE_COVERAGE"]),
+  ExportConfig: z.object({
+    S3Destination: S3ReportExportConfigSchema.optional(),
+    ExportConfigType: z.enum(["S3", "NO_EXPORT"]),
+  }),
+  DeleteReports: z.boolean().optional(),
+  Tags: z.array(TagSchema).optional(),
+  Name: z.string().optional(),
 });
 
 const StateSchema = z.object({
   Type: z.string().optional(),
-  Description: z.string().optional(),
-  HealthCheckCustomConfig: z.object({
-    FailureThreshold: z.number(),
+  ExportConfig: z.object({
+    S3Destination: S3ReportExportConfigSchema,
+    ExportConfigType: z.string(),
   }).optional(),
-  DnsConfig: z.object({
-    DnsRecords: z.array(DnsRecordSchema),
-    RoutingPolicy: z.string(),
-    NamespaceId: z.string(),
-  }).optional(),
-  ServiceAttributes: z.record(z.string(), z.unknown()).optional(),
-  Id: z.string(),
-  NamespaceId: z.string().optional(),
-  HealthCheckConfig: z.object({
-    Type: z.string(),
-    ResourcePath: z.string(),
-    FailureThreshold: z.number(),
-  }).optional(),
-  Arn: z.string().optional(),
+  Arn: z.string(),
+  DeleteReports: z.boolean().optional(),
   Tags: z.array(TagSchema).optional(),
   Name: z.string().optional(),
 }).passthrough();
@@ -144,48 +102,14 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  Type: z.string().describe(
-    "The type of service. Supported values are HTTP or DNS.",
-  ).optional(),
-  Description: z.string().describe("A description for the service.").optional(),
-  HealthCheckCustomConfig: z.object({
-    FailureThreshold: z.number().describe(
-      "The number of consecutive health check failures required before the service is considered unhealthy.",
-    ).optional(),
-  }).describe("Settings for custom health checks.").optional(),
-  DnsConfig: z.object({
-    DnsRecords: z.array(DnsRecordSchema).describe(
-      "A list of DNS records associated with the service.",
-    ).optional(),
-    RoutingPolicy: z.string().describe(
-      "The routing policy to use for DNS queries.",
-    ).optional(),
-    NamespaceId: z.string().describe(
-      "The ID of the namespace for the DNS configuration.",
-    ).optional(),
-  }).describe("DNS-related configurations for the service.").optional(),
-  ServiceAttributes: z.record(z.string(), z.string()).describe(
-    "A string map that contains attributes and values for the service. You can specify a maximum of 30 key-value pairs.",
-  ).optional(),
-  NamespaceId: z.string().describe(
-    "The ID of the namespace in which the service is created.",
-  ).optional(),
-  HealthCheckConfig: z.object({
-    Type: z.string().describe(
-      "The type of health check (e.g., HTTP, HTTPS, TCP).",
-    ).optional(),
-    ResourcePath: z.string().describe(
-      "The path to ping on the service for health checks.",
-    ).optional(),
-    FailureThreshold: z.number().describe(
-      "The number of consecutive health check failures that must occur before declaring the service unhealthy.",
-    ).optional(),
-  }).describe("Settings for health checks. Used when routing is DNS-based.")
-    .optional(),
-  Tags: z.array(TagSchema).describe(
-    "An array of key-value pairs to associate with the service.",
-  ).optional(),
-  Name: z.string().describe("The name of the service.").optional(),
+  Type: z.enum(["TEST", "CODE_COVERAGE"]).optional(),
+  ExportConfig: z.object({
+    S3Destination: S3ReportExportConfigSchema.optional(),
+    ExportConfigType: z.enum(["S3", "NO_EXPORT"]).optional(),
+  }).optional(),
+  DeleteReports: z.boolean().optional(),
+  Tags: z.array(TagSchema).optional(),
+  Name: z.string().optional(),
 });
 
 const _credentialKeys = new Set([
@@ -204,32 +128,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
   };
 }
 
-/** Swamp extension model for ServiceDiscovery Service. Registered at `@swamp/aws/servicediscovery/service`. */
+/** Swamp extension model for CodeBuild ReportGroup. Registered at `@swamp/aws/codebuild/report-group`. */
 export const model = {
-  type: "@swamp/aws/servicediscovery/service",
+  type: "@swamp/aws/codebuild/report-group",
   version: "2026.09.01.1",
-  upgrades: [
-    {
-      toVersion: "2026.08.17.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.08.17.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.09.01.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "ServiceDiscovery Service resource state",
+      description: "CodeBuild ReportGroup resource state",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -237,7 +144,7 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a ServiceDiscovery Service",
+      description: "Create a CodeBuild ReportGroup",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -249,7 +156,7 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await createResource(
-          "AWS::ServiceDiscovery::Service",
+          "AWS::CodeBuild::ReportGroup",
           desiredState,
           credentials,
         ) as StateData;
@@ -266,16 +173,16 @@ export const model = {
       },
     },
     get: {
-      description: "Get a ServiceDiscovery Service",
+      description: "Get a CodeBuild ReportGroup",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the ServiceDiscovery Service",
+          "The primary identifier of the CodeBuild ReportGroup",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const result = await readResource(
-          "AWS::ServiceDiscovery::Service",
+          "AWS::CodeBuild::ReportGroup",
           args.identifier,
           credentials,
         ) as StateData;
@@ -293,7 +200,7 @@ export const model = {
       },
     },
     update: {
-      description: "Update a ServiceDiscovery Service",
+      description: "Update a CodeBuild ReportGroup",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -311,12 +218,12 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.Id?.toString();
+        const identifier = existing.Arn?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         const currentState = await readResource(
-          "AWS::ServiceDiscovery::Service",
+          "AWS::CodeBuild::ReportGroup",
           identifier,
           credentials,
         ) as StateData;
@@ -327,11 +234,11 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await updateResource(
-          "AWS::ServiceDiscovery::Service",
+          "AWS::CodeBuild::ReportGroup",
           identifier,
           currentState,
           desiredState,
-          ["HealthCheckCustomConfig", "Name", "Type", "NamespaceId"],
+          ["Name", "Type"],
           credentials,
         );
         const handle = await context.writeResource(
@@ -343,16 +250,16 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete a ServiceDiscovery Service",
+      description: "Delete a CodeBuild ReportGroup",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the ServiceDiscovery Service",
+          "The primary identifier of the CodeBuild ReportGroup",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const { existed } = await deleteResource(
-          "AWS::ServiceDiscovery::Service",
+          "AWS::CodeBuild::ReportGroup",
           args.identifier,
           credentials,
         );
@@ -371,7 +278,7 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync ServiceDiscovery Service state from AWS",
+      description: "Sync CodeBuild ReportGroup state from AWS",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -389,13 +296,13 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.Id?.toString();
+        const identifier = existing.Arn?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         try {
           const result = await readResource(
-            "AWS::ServiceDiscovery::Service",
+            "AWS::CodeBuild::ReportGroup",
             identifier,
             credentials,
           ) as StateData;
@@ -419,7 +326,7 @@ export const model = {
       },
     },
     list: {
-      description: "List ServiceDiscovery Service resources",
+      description: "List CodeBuild ReportGroup resources",
       arguments: z.object({
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
@@ -434,7 +341,7 @@ export const model = {
       ) => {
         const credentials = _buildCredentials(context.globalArgs);
         const { items, nextToken } = await listResources(
-          "AWS::ServiceDiscovery::Service",
+          "AWS::CodeBuild::ReportGroup",
           {
             resourceModel: args.resourceModel,
             maxPages: args.maxPages,
@@ -445,7 +352,7 @@ export const model = {
         for (let i = 0; i < items.length; i++) {
           const item = items[i];
           const instanceName =
-            (item.properties?.Id?.toString() ?? item.identifier).replace(
+            (item.properties?.Arn?.toString() ?? item.identifier).replace(
               /[\/\\]/g,
               "_",
             ).replace(/\.\./g, "_").replace(/\0/g, "");

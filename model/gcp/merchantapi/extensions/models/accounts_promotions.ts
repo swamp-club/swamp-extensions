@@ -316,6 +316,7 @@ const GlobalArgsSchema = z.object({
           "VEHICLE_ADS",
           "CLOUD_RETAIL",
           "LOCAL_CLOUD_RETAIL",
+          "RENTAL_ADS",
         ]),
       ).describe(
         "Required. The list of destinations (also known as [Marketing methods](https://support.google.com/merchants/answer/15130232)) where the promotion applies to. If you don't specify a destination by including a supported value in your data source, your promotion will display in Shopping ads and free listings by default. You may have previously submitted the following values as destinations for your products: Shopping Actions, Surfaces across Google, Local surfaces across Google. To represent these values use `FREE_LISTINGS`, `FREE_LOCAL_LISTINGS`, `LOCAL_INVENTORY_ADS`. For more details see [Promotion destination](https://support.google.com/merchants/answer/13837465)",
@@ -419,6 +420,7 @@ const GlobalArgsSchema = z.object({
           "PRODUCT_REVIEWS",
           "MERCHANT_REVIEWS",
           "YOUTUBE_CHECKOUT",
+          "RENTAL_ADS",
         ]).describe("Output only. The name of the promotion destination.")
           .optional(),
         status: z.enum([
@@ -472,6 +474,7 @@ const GlobalArgsSchema = z.object({
           "PRODUCT_REVIEWS",
           "MERCHANT_REVIEWS",
           "YOUTUBE_CHECKOUT",
+          "RENTAL_ADS",
         ]).describe("Output only. The destination the issue applies to.")
           .optional(),
         resolution: z.string().describe(
@@ -814,6 +817,7 @@ const InputsSchema = z.object({
           "VEHICLE_ADS",
           "CLOUD_RETAIL",
           "LOCAL_CLOUD_RETAIL",
+          "RENTAL_ADS",
         ]),
       ).describe(
         "Required. The list of destinations (also known as [Marketing methods](https://support.google.com/merchants/answer/15130232)) where the promotion applies to. If you don't specify a destination by including a supported value in your data source, your promotion will display in Shopping ads and free listings by default. You may have previously submitted the following values as destinations for your products: Shopping Actions, Surfaces across Google, Local surfaces across Google. To represent these values use `FREE_LISTINGS`, `FREE_LOCAL_LISTINGS`, `LOCAL_INVENTORY_ADS`. For more details see [Promotion destination](https://support.google.com/merchants/answer/13837465)",
@@ -917,6 +921,7 @@ const InputsSchema = z.object({
           "PRODUCT_REVIEWS",
           "MERCHANT_REVIEWS",
           "YOUTUBE_CHECKOUT",
+          "RENTAL_ADS",
         ]).describe("Output only. The name of the promotion destination.")
           .optional(),
         status: z.enum([
@@ -970,6 +975,7 @@ const InputsSchema = z.object({
           "PRODUCT_REVIEWS",
           "MERCHANT_REVIEWS",
           "YOUTUBE_CHECKOUT",
+          "RENTAL_ADS",
         ]).describe("Output only. The destination the issue applies to.")
           .optional(),
         resolution: z.string().describe(
@@ -1035,7 +1041,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.Promotions. Registered at `@swamp/gcp/merchantapi/accounts-promotions`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-promotions",
-  version: "2026.08.12.2",
+  version: "2026.09.01.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -1044,6 +1050,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

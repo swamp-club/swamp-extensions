@@ -71,10 +71,10 @@ const GlobalArgsSchema = z.object({
   last_modified: z.string(),
   modified_at: z.string().optional(),
   pattern: z.string().min(1).max(1024).describe(
-    "The pattern value to match. The format depends on `pattern_type`: a valid email address for EMAIL (e.g. `user@example.com`), a valid domain name for DOMAIN (e.g. `example.com`), or a plain IPv4 address or IPv4 CIDR block for IP (e.g. `1.2.3.4` or `1.2.3.0/24`); the API accepts only globally reachable IP addresses and rejects private, loopback, link-local, and unspecified addresses.",
+    "The pattern value to match. The format depends on `pattern_type`: a valid email address for EMAIL (e.g. `user@example.com`), a valid domain name for DOMAIN (e.g. `example.com`), or a plain IPv4 or IPv6 address or CIDR block for IP (e.g. `1.2.3.4`, `1.2.3.0/24`, `2606:4700:4700::1111`, or `2606:4700:4700::/48`); the API rejects private or unique-local, loopback, link-local, unspecified, and IPv4 broadcast addresses, including their IPv4-mapped IPv6 equivalents.",
   ).optional(),
   pattern_type: z.enum(["EMAIL", "DOMAIN", "IP", "UNKNOWN"]).describe(
-    "Type of pattern matching.\n- EMAIL: matches a full email address (e.g. `user@example.com`)\n- DOMAIN: matches a domain name (e.g. `example.com`)\n- IP: matches a plain IPv4 address (e.g. `1.2.3.4`) or an IPv4 CIDR block (e.g. `1.2.3.0/24`). The API accepts only globally reachable addresses.\n- UNKNOWN: deprecated; you cannot use this when creating or updating policies, but it may appear on existing entries.\n",
+    "Type of pattern matching.\n- EMAIL: matches a full email address (e.g. `user@example.com`)\n- DOMAIN: matches a domain name (e.g. `example.com`)\n- IP: matches a plain IPv4 or IPv6 address (e.g. `1.2.3.4` or `2606:4700:4700::1111`) or CIDR block (e.g. `1.2.3.0/24` or `2606:4700:4700::/48`). The API rejects private or unique-local, loopback, link-local, unspecified, and IPv4 broadcast addresses, including their IPv4-mapped IPv6 equivalents.\n- UNKNOWN: deprecated; you cannot use this when creating or updating policies, but it may appear on existing entries.\n",
   ).optional(),
   verify_sender: z.boolean().describe(
     "Enforce DMARC, SPF or DKIM authentication. When on, Email Security only honors policies that pass authentication.",
@@ -136,7 +136,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Allow Policies. Registered at `@swamp/cloudflare/email-security/allow-policies`. */
 export const model = {
   type: "@swamp/cloudflare/email-security/allow-policies",
-  version: "2026.08.25.2",
+  version: "2026.09.01.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -175,6 +175,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.25.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

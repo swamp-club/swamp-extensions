@@ -62,8 +62,6 @@ const ResourceSchema = z.object({
   cidr: z.string().nullable().optional(),
   createdAt: z.number().nullable().optional(),
   egressIpAddresses: z.array(z.string()).nullable().optional(),
-  reservedEgressIpAddresses: z.array(z.string()).nullable().optional(),
-  egressCidrBlock: z.string().nullable().optional(),
   hostedZones: z.object({
     count: z.number().optional(),
   }).nullable().optional(),
@@ -97,7 +95,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Networks. Registered at `@swamp/vercel/networking/networks`. */
 export const model = {
   type: "@swamp/vercel/networking/networks",
-  version: "2026.08.25.1",
+  version: "2026.09.01.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -131,6 +129,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -219,9 +222,6 @@ export const model = {
         }
         if (g.createdAt !== undefined) {
           filters.push(["createdAt", String(g.createdAt)]);
-        }
-        if (g.egressCidrBlock !== undefined) {
-          filters.push(["egressCidrBlock", String(g.egressCidrBlock)]);
         }
         if (g.id !== undefined) filters.push(["id", String(g.id)]);
         if (g.status !== undefined) filters.push(["status", String(g.status)]);

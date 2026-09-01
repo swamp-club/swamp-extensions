@@ -52,6 +52,21 @@ const DeployedImageSchema = z.object({
   ResolutionTime: z.string().optional(),
 });
 
+const MetricsEndpointSchema = z.object({
+  MetricsEndpointPath: z.string().max(256).regex(
+    new RegExp("^/(?!.*\\.\\.)[a-zA-Z0-9/_.\\-]+$"),
+  ).describe(
+    "The path to the Prometheus formatted metrics endpoint exposed by the container",
+  ),
+  MetricPublishFrequencyInSeconds: z.number().int().min(10).max(300).describe(
+    "The interval, in seconds, at which container metrics scraped from the endpoint are published to Amazon CloudWatch. Valid values per the SageMaker API Reference are 10, 30, 60, 120, 180, 240 and 300; the service validates the value.",
+  ).optional(),
+});
+
+const ContainerMetricsConfigSchema = z.object({
+  MetricsEndpoints: z.array(MetricsEndpointSchema),
+});
+
 const InferenceComponentContainerSpecificationSchema = z.object({
   DeployedImage: DeployedImageSchema.optional(),
   Image: z.string().max(255).regex(new RegExp("[\\S]+")).describe(
@@ -64,6 +79,9 @@ const InferenceComponentContainerSpecificationSchema = z.object({
     z.string(),
     z.string().max(1024).regex(new RegExp("^[\\S\\s]*$")),
   ).describe("Environment variables to specify on the container").optional(),
+  ContainerMetricsConfig: ContainerMetricsConfigSchema.describe(
+    "The configuration for container metrics scraping",
+  ).optional(),
 });
 
 const InferenceComponentStartupParametersSchema = z.object({
@@ -79,6 +97,69 @@ const InferenceComponentComputeResourceRequirementsSchema = z.object({
   NumberOfAcceleratorDevicesRequired: z.number().min(1).optional(),
   MinMemoryRequiredInMb: z.number().int().min(128).optional(),
   MaxMemoryRequiredInMb: z.number().int().min(128).optional(),
+});
+
+const InferenceComponentDataCacheConfigSchema = z.object({
+  EnableCaching: z.boolean().describe(
+    "Whether the endpoint caches the model artifacts and container image on each instance it provisions for the inference component",
+  ),
+});
+
+const InferenceComponentAvailabilityZoneBalanceSchema = z.object({
+  EnforcementMode: z.enum(["PERMISSIVE"]),
+  MaxImbalance: z.number().int().min(0).max(100).describe(
+    "The maximum allowed difference in the number of inference component copies between any two Availability Zones",
+  ).optional(),
+});
+
+const InferenceComponentSchedulingConfigSchema = z.object({
+  PlacementStrategy: z.enum(["SPREAD", "BINPACK"]),
+  AvailabilityZoneBalance: InferenceComponentAvailabilityZoneBalanceSchema
+    .describe(
+      "Configuration for balancing inference component copies across Availability Zones",
+    ),
+});
+
+const InferenceComponentContainerSpecificationForInstanceTypeSchema = z.object({
+  Image: z.string().max(255).regex(new RegExp("[\\S]+")).describe(
+    "The image to use for the container that will be materialized for the inference component",
+  ).optional(),
+  ArtifactUrl: z.string().max(1024).regex(
+    new RegExp("^(https|s3)://([^/]+)/?(.*)$"),
+  ).optional(),
+  Environment: z.record(
+    z.string(),
+    z.string().max(1024).regex(new RegExp("^[\\S\\s]*$")),
+  ).describe("Environment variables to specify on the container").optional(),
+  ContainerMetricsConfig: ContainerMetricsConfigSchema.describe(
+    "The configuration for container metrics scraping",
+  ).optional(),
+});
+
+const InferenceComponentSpecificationForInstanceTypeSchema = z.object({
+  InstanceType: z.string().max(64).regex(new RegExp("^ml\\..*")).describe(
+    "An ML compute instance type",
+  ),
+  ModelName: z.string().max(63).regex(
+    new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9])*$"),
+  ).describe("The name of the model to use with the inference component")
+    .optional(),
+  Container: InferenceComponentContainerSpecificationForInstanceTypeSchema
+    .describe(
+      "Container specification for one Specifications entry. Distinct from InferenceComponentContainerSpecification: DescribeInferenceComponent returns no per-entry DeployedImage (VERIFIED in us-west-2), so DeployedImage is intentionally omitted here and this definition can never be aggregated into a plural READ response. The singular InferenceComponentContainerSpecification keeps DeployedImage - the service DOES return it there.",
+    ).optional(),
+  StartupParameters: InferenceComponentStartupParametersSchema.optional(),
+  ComputeResourceRequirements:
+    InferenceComponentComputeResourceRequirementsSchema.optional(),
+  DataCacheConfig: InferenceComponentDataCacheConfigSchema.describe(
+    "Settings that affect how the inference component caches data",
+  ).optional(),
+  CurrentDataCacheConfig: InferenceComponentDataCacheConfigSchema.describe(
+    "The data caching configuration actually in effect for this instance type, including a value the service chose rather than the template: SageMaker enables caching automatically on instance types with more than 232 GiB of local NVMe storage, whether or not DataCacheConfig was set. Returned by Describe and not settable; set DataCacheConfig instead.",
+  ).optional(),
+  SchedulingConfig: InferenceComponentSchedulingConfigSchema.describe(
+    "The scheduling configuration that determines how inference component copies are placed across available instances",
+  ).optional(),
 });
 
 const InferenceComponentCapacitySizeSchema = z.object({
@@ -161,7 +242,22 @@ const GlobalArgsSchema = z.object({
     StartupParameters: InferenceComponentStartupParametersSchema.optional(),
     ComputeResourceRequirements:
       InferenceComponentComputeResourceRequirementsSchema.optional(),
-  }).describe("The specification for the inference component"),
+    DataCacheConfig: InferenceComponentDataCacheConfigSchema.describe(
+      "Settings that affect how the inference component caches data",
+    ).optional(),
+    CurrentDataCacheConfig: InferenceComponentDataCacheConfigSchema.describe(
+      "The data caching configuration actually in effect, including a value the service chose rather than the template: SageMaker enables caching automatically on instance types with more than 232 GiB of local NVMe storage, whether or not DataCacheConfig was set. Returned by Describe and not settable; set DataCacheConfig instead.",
+    ).optional(),
+    SchedulingConfig: InferenceComponentSchedulingConfigSchema.describe(
+      "The scheduling configuration that determines how inference component copies are placed across available instances",
+    ).optional(),
+  }).describe(
+    "The specification for the inference component, for an endpoint with a single instance type. Specify exactly one of Specification or Specifications. InstanceType is not accepted here; use Specifications for per instance type configuration.",
+  ).optional(),
+  Specifications: z.array(InferenceComponentSpecificationForInstanceTypeSchema)
+    .describe(
+      "A list of specification objects for the inference component, one per instance type. The service requires at least two entries; use the singular Specification for a single instance type.",
+    ).optional(),
   RuntimeConfig: z.object({
     CopyCount: z.number().int().min(0).describe(
       "The number of copies for the inference component",
@@ -191,11 +287,20 @@ const StateSchema = z.object({
     StartupParameters: InferenceComponentStartupParametersSchema,
     ComputeResourceRequirements:
       InferenceComponentComputeResourceRequirementsSchema,
+    DataCacheConfig: InferenceComponentDataCacheConfigSchema,
+    CurrentDataCacheConfig: InferenceComponentDataCacheConfigSchema,
+    SchedulingConfig: InferenceComponentSchedulingConfigSchema,
   }).optional(),
+  Specifications: z.array(InferenceComponentSpecificationForInstanceTypeSchema)
+    .optional(),
   RuntimeConfig: z.object({
     CopyCount: z.number(),
     DesiredCopyCount: z.number(),
     CurrentCopyCount: z.number(),
+    PlacementStatus: z.array(z.object({
+      InstanceType: z.string(),
+      CurrentCopyCount: z.number(),
+    })),
   }).optional(),
   DeploymentConfig: z.object({
     RollingUpdatePolicy: InferenceComponentRollingUpdatePolicySchema,
@@ -243,7 +348,22 @@ const InputsSchema = z.object({
     StartupParameters: InferenceComponentStartupParametersSchema.optional(),
     ComputeResourceRequirements:
       InferenceComponentComputeResourceRequirementsSchema.optional(),
-  }).describe("The specification for the inference component").optional(),
+    DataCacheConfig: InferenceComponentDataCacheConfigSchema.describe(
+      "Settings that affect how the inference component caches data",
+    ).optional(),
+    CurrentDataCacheConfig: InferenceComponentDataCacheConfigSchema.describe(
+      "The data caching configuration actually in effect, including a value the service chose rather than the template: SageMaker enables caching automatically on instance types with more than 232 GiB of local NVMe storage, whether or not DataCacheConfig was set. Returned by Describe and not settable; set DataCacheConfig instead.",
+    ).optional(),
+    SchedulingConfig: InferenceComponentSchedulingConfigSchema.describe(
+      "The scheduling configuration that determines how inference component copies are placed across available instances",
+    ).optional(),
+  }).describe(
+    "The specification for the inference component, for an endpoint with a single instance type. Specify exactly one of Specification or Specifications. InstanceType is not accepted here; use Specifications for per instance type configuration.",
+  ).optional(),
+  Specifications: z.array(InferenceComponentSpecificationForInstanceTypeSchema)
+    .describe(
+      "A list of specification objects for the inference component, one per instance type. The service requires at least two entries; use the singular Specification for a single instance type.",
+    ).optional(),
   RuntimeConfig: z.object({
     CopyCount: z.number().int().min(0).describe(
       "The number of copies for the inference component",
@@ -278,7 +398,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker InferenceComponent. Registered at `@swamp/aws/sagemaker/inference-component`. */
 export const model = {
   type: "@swamp/aws/sagemaker/inference-component",
-  version: "2026.08.17.2",
+  version: "2026.09.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -328,6 +448,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.01.1",
+      description: "Added: Specifications",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

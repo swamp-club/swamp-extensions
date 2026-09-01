@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/discoveryengine"
-version: "2026.08.25.1"
+version: "2026.09.01.1"
 description: "Google Cloud discoveryengine infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: collections_datastores_widgetconfigs, collections_engines_assistants, collections_engines_widgetconfigs, datastores_widgetconfigs
+  - Updated: collections_datastores, collections_datastores_servingconfigs, collections_datastores_widgetconfigs, collections_engines, collections_engines_servingconfigs, collections_engines_widgetconfigs, datastores, datastores_servingconfigs, datastores_widgetconfigs
 models:
   - cmekconfigs.ts
   - collections_datastores.ts

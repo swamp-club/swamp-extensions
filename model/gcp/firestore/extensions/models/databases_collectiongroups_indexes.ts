@@ -159,7 +159,7 @@ const GlobalArgsSchema = z.object({
     searchConfig: z.object({
       geoSpec: z.object({
         geoJsonIndexingDisabled: z.boolean().describe(
-          "Optional. Disables geoJSON indexing for the field. By default, geoJSON points are indexed.",
+          "Optional. Disables geoJSON indexing for the field. By default, geoJSON points are indexed. Firestore GeoPoints are indexed regardless of the value of this field.",
         ).optional(),
       }).describe(
         "Optional. The specification for building a geo search index for a field.",
@@ -279,7 +279,7 @@ const InputsSchema = z.object({
     searchConfig: z.object({
       geoSpec: z.object({
         geoJsonIndexingDisabled: z.boolean().describe(
-          "Optional. Disables geoJSON indexing for the field. By default, geoJSON points are indexed.",
+          "Optional. Disables geoJSON indexing for the field. By default, geoJSON points are indexed. Firestore GeoPoints are indexed regardless of the value of this field.",
         ).optional(),
       }).describe(
         "Optional. The specification for building a geo search index for a field.",
@@ -366,7 +366,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firestore Databases.CollectionGroups.Indexes. Registered at `@swamp/gcp/firestore/databases-collectiongroups-indexes`. */
 export const model = {
   type: "@swamp/gcp/firestore/databases-collectiongroups-indexes",
-  version: "2026.08.14.1",
+  version: "2026.09.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -515,6 +515,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.14.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

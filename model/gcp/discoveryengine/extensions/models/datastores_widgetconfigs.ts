@@ -361,6 +361,14 @@ const GlobalArgsSchema = z.object({
     "Output only. Timestamp the WidgetConfig was created.",
   ).optional(),
   customerProvidedConfig: z.object({
+    complianceLevel: z.enum([
+      "COMPLIANCE_LEVEL_UNSPECIFIED",
+      "COMPLIANCE_LEVEL_FEDRAMP_HIGH",
+      "COMPLIANCE_LEVEL_IL4",
+      "COMPLIANCE_LEVEL_IL5",
+    ]).describe(
+      "Output only. The customer's Assured Workloads compliance level. `customer_type` collapses every compliance level into a single `GOVERNMENT_CUSTOMER` value, so a client that gates a feature on one specific level rather than on government status as a whole must read this field instead.",
+    ).optional(),
     customerType: z.enum(["DEFAULT_CUSTOMER", "GOVERNMENT_CUSTOMER"]).describe(
       "Customer type.",
     ).optional(),
@@ -522,7 +530,7 @@ const GlobalArgsSchema = z.object({
         "FEATURE_STATE_OFF",
       ]),
     ).describe(
-      "Output only. Feature config for the engine to opt in or opt out of features. Supported keys: * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `speech-to-text` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `skills` * `skill-sharing` * `skill-sharing-without-admin-approval` * `disable-projects` * `sobi` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence` * `workflow-agents` * `in-app-notifications`",
+      "Output only. Feature config for the engine to opt in or opt out of features. Supported keys: * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `speech-to-text` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `canvas-app-builder` * `skills` * `skill-sharing` * `skill-sharing-without-admin-approval` * `disable-projects` * `sobi` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence` * `workflow-agents` * `in-app-notifications`",
     ).optional(),
     generativeAnswerConfig: z.object({
       disableRelatedQuestions: z.boolean().describe(
@@ -630,6 +638,19 @@ const GlobalArgsSchema = z.object({
     ]).describe(
       "Controls whether result extract is display and how (snippet or extractive answer). Default to no result if unspecified.",
     ).optional(),
+    searchAddonSpec: z.object({
+      generativeAnswerAddOnDisabled: z.boolean().describe(
+        "Optional. If true, generative answer add-on is disabled. Generative answer add-on includes natural language to filters and simple answers.",
+      ).optional(),
+      kpiPersonalizationAddOnDisabled: z.boolean().describe(
+        "Optional. If true, disables event re-ranking and personalization to optimize KPIs & personalize results.",
+      ).optional(),
+      semanticAddOnDisabled: z.boolean().describe(
+        "Optional. If true, semantic add-on is disabled. Semantic add-on includes embeddings and jetstream.",
+      ).optional(),
+    }).describe(
+      "Optional. SearchAddonSpec is used to disable add-ons for search. This field is only supported for search requests.",
+    ).optional(),
     sourceAdminDisplayNameEnabled: z.boolean().describe(
       "Optional. Whether to show the admin-configured display name for data connectors in the widget sources UI (instead of the connector kind). Opt-in; defaults to false.",
     ).optional(),
@@ -734,6 +755,7 @@ const StateSchema = z.object({
   }).optional(),
   createTime: z.string().optional(),
   customerProvidedConfig: z.object({
+    complianceLevel: z.string(),
     customerType: z.string(),
   }).optional(),
   dataStoreType: z.string().optional(),
@@ -846,6 +868,11 @@ const StateSchema = z.object({
     modelConfigs: z.record(z.string(), z.unknown()),
     onedrivePickerEnabled: z.boolean(),
     resultDescriptionType: z.string(),
+    searchAddonSpec: z.object({
+      generativeAnswerAddOnDisabled: z.boolean(),
+      kpiPersonalizationAddOnDisabled: z.boolean(),
+      semanticAddOnDisabled: z.boolean(),
+    }),
     sourceAdminDisplayNameEnabled: z.boolean(),
   }).optional(),
   updateTime: z.string().optional(),
@@ -1113,6 +1140,14 @@ const InputsSchema = z.object({
     "Output only. Timestamp the WidgetConfig was created.",
   ).optional(),
   customerProvidedConfig: z.object({
+    complianceLevel: z.enum([
+      "COMPLIANCE_LEVEL_UNSPECIFIED",
+      "COMPLIANCE_LEVEL_FEDRAMP_HIGH",
+      "COMPLIANCE_LEVEL_IL4",
+      "COMPLIANCE_LEVEL_IL5",
+    ]).describe(
+      "Output only. The customer's Assured Workloads compliance level. `customer_type` collapses every compliance level into a single `GOVERNMENT_CUSTOMER` value, so a client that gates a feature on one specific level rather than on government status as a whole must read this field instead.",
+    ).optional(),
     customerType: z.enum(["DEFAULT_CUSTOMER", "GOVERNMENT_CUSTOMER"]).describe(
       "Customer type.",
     ).optional(),
@@ -1274,7 +1309,7 @@ const InputsSchema = z.object({
         "FEATURE_STATE_OFF",
       ]),
     ).describe(
-      "Output only. Feature config for the engine to opt in or opt out of features. Supported keys: * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `speech-to-text` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `skills` * `skill-sharing` * `skill-sharing-without-admin-approval` * `disable-projects` * `sobi` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence` * `workflow-agents` * `in-app-notifications`",
+      "Output only. Feature config for the engine to opt in or opt out of features. Supported keys: * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `speech-to-text` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `canvas-app-builder` * `skills` * `skill-sharing` * `skill-sharing-without-admin-approval` * `disable-projects` * `sobi` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence` * `workflow-agents` * `in-app-notifications`",
     ).optional(),
     generativeAnswerConfig: z.object({
       disableRelatedQuestions: z.boolean().describe(
@@ -1382,6 +1417,19 @@ const InputsSchema = z.object({
     ]).describe(
       "Controls whether result extract is display and how (snippet or extractive answer). Default to no result if unspecified.",
     ).optional(),
+    searchAddonSpec: z.object({
+      generativeAnswerAddOnDisabled: z.boolean().describe(
+        "Optional. If true, generative answer add-on is disabled. Generative answer add-on includes natural language to filters and simple answers.",
+      ).optional(),
+      kpiPersonalizationAddOnDisabled: z.boolean().describe(
+        "Optional. If true, disables event re-ranking and personalization to optimize KPIs & personalize results.",
+      ).optional(),
+      semanticAddOnDisabled: z.boolean().describe(
+        "Optional. If true, semantic add-on is disabled. Semantic add-on includes embeddings and jetstream.",
+      ).optional(),
+    }).describe(
+      "Optional. SearchAddonSpec is used to disable add-ons for search. This field is only supported for search requests.",
+    ).optional(),
     sourceAdminDisplayNameEnabled: z.boolean().describe(
       "Optional. Whether to show the admin-configured display name for data connectors in the widget sources UI (instead of the connector kind). Opt-in; defaults to false.",
     ).optional(),
@@ -1419,7 +1467,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine DataStores.WidgetConfigs. Registered at `@swamp/gcp/discoveryengine/datastores-widgetconfigs`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/datastores-widgetconfigs",
-  version: "2026.08.25.1",
+  version: "2026.09.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1653,6 +1701,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

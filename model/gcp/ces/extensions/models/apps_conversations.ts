@@ -167,6 +167,7 @@ const StateSchema = z.object({
       }),
       defaultVariables: z.record(z.string(), z.unknown()),
       image: z.object({
+        altText: z.unknown(),
         data: z.unknown(),
         mimeType: z.unknown(),
       }),
@@ -262,7 +263,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Conversations. Registered at `@swamp/gcp/ces/apps-conversations`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-conversations",
-  version: "2026.08.28.1",
+  version: "2026.09.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -401,6 +402,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

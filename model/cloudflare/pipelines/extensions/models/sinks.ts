@@ -79,7 +79,6 @@ const GlobalArgsSchema = z.object({
       required: z.boolean().optional(),
       sql_name: z.string().optional(),
     })).optional(),
-    format: z.string().optional(),
     inferred: z.boolean().optional(),
   }).optional(),
   type: z.enum(["r2", "r2_data_catalog"]).describe(
@@ -137,7 +136,6 @@ const ResourceSchema = z.object({
       required: z.boolean().optional(),
       sql_name: z.string().optional(),
     })).optional(),
-    format: z.string().optional(),
     inferred: z.boolean().optional(),
   }).optional(),
   type: z.string().optional(),
@@ -190,7 +188,6 @@ const InputsSchema = z.object({
       required: z.boolean().optional(),
       sql_name: z.string().optional(),
     })).optional(),
-    format: z.string().optional(),
     inferred: z.boolean().optional(),
   }).optional(),
   type: z.enum(["r2", "r2_data_catalog"]).optional(),
@@ -202,7 +199,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Sinks. Registered at `@swamp/cloudflare/pipelines/sinks`. */
 export const model = {
   type: "@swamp/cloudflare/pipelines/sinks",
-  version: "2026.08.11.1",
+  version: "2026.09.01.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -226,6 +223,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.11.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

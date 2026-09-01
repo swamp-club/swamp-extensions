@@ -196,6 +196,9 @@ const GlobalArgsSchema = z.object({
         "A struct represents default variables at the start of the conversation, keyed by variable names.",
       ).optional(),
       image: z.object({
+        altText: z.unknown().describe(
+          "Optional. The alternative text for the image.",
+        ).optional(),
         data: z.unknown().describe("Required. Raw bytes of the image.")
           .optional(),
         mimeType: z.unknown().describe(
@@ -302,6 +305,7 @@ const StateSchema = z.object({
       }),
       defaultVariables: z.record(z.string(), z.unknown()),
       image: z.object({
+        altText: z.unknown(),
         data: z.unknown(),
         mimeType: z.unknown(),
       }),
@@ -373,6 +377,9 @@ const InputsSchema = z.object({
         "A struct represents default variables at the start of the conversation, keyed by variable names.",
       ).optional(),
       image: z.object({
+        altText: z.unknown().describe(
+          "Optional. The alternative text for the image.",
+        ).optional(),
         data: z.unknown().describe("Required. Raw bytes of the image.")
           .optional(),
         mimeType: z.unknown().describe(
@@ -486,7 +493,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Examples. Registered at `@swamp/gcp/ces/apps-examples`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-examples",
-  version: "2026.08.28.1",
+  version: "2026.09.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -625,6 +632,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
