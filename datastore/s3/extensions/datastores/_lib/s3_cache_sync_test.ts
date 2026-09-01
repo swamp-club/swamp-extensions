@@ -1690,15 +1690,12 @@ Deno.test("pullChanged: post-verified second call hits fast path with zero index
 
 // -- (3) post-verified pushChanged short-circuits with zero walk ----------
 
-Deno.test("pushChanged: post-verified second call hits fast path with zero index GETs", async () => {
+Deno.test("pushChanged: post-verified second call hits fast path with zero S3 calls", async () => {
   const cachePath = await Deno.makeTempDir({ prefix: "s3sync-fast-push-" });
   try {
     const mock = createMockS3Client();
     // Empty remote, empty local cache. Priming via pullChanged sets the
     // sidecar via its end-of-walk markSynced (the legitimate path).
-    // pushChanged's no-op no-writeback branch deliberately does NOT
-    // mark the sidecar clean (swamp-club #1225) since `pushed === 0`
-    // doesn't prove local matches remote.
     mock.storage.set(".datastore-index.json", encodeIndex({}));
     await Deno.mkdir(cachePath, { recursive: true });
 
@@ -1721,10 +1718,11 @@ Deno.test("pushChanged: post-verified second call hits fast path with zero index
       0,
       "fast path must NOT trigger an index writeback",
     );
+    // Push fast path now uses localDirty alone — no HEAD needed.
     assertEquals(
       mock.heads.filter((k) => k === ".datastore-index.json").length,
-      1,
-      "fast path issues exactly one HEAD on the index",
+      0,
+      "push fast path must NOT HEAD the index (localDirty suffices)",
     );
   } finally {
     await Deno.remove(cachePath, { recursive: true });
@@ -2794,7 +2792,7 @@ Deno.test("markDirty with relPath: tracks per-path dirty state", async () => {
   }
 });
 
-Deno.test("markDirty: dirty set cap flips to bulkInvalidated at 200 paths", async () => {
+Deno.test("markDirty: dirty set cap flips to bulkInvalidated at 2000 paths", async () => {
   const cachePath = await Deno.makeTempDir({ prefix: "s3sync-dirty-cap-" });
   try {
     const mock = createMockS3Client();
@@ -2802,15 +2800,15 @@ Deno.test("markDirty: dirty set cap flips to bulkInvalidated at 200 paths", asyn
     const service = new S3CacheSyncService(mock, cachePath);
     await service.pullChanged();
 
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 2000; i++) {
       await service.markDirty({ relPath: `data/m/id-${i}` });
     }
 
     let sidecar = await readSidecar(cachePath);
-    assertEquals(sidecar?.dirtyPaths?.length, 200);
+    assertEquals(sidecar?.dirtyPaths?.length, 2000);
     assertEquals(sidecar?.bulkInvalidated, false);
 
-    // The 201st path exceeds the cap
+    // The 2001st path exceeds the cap
     await service.markDirty({ relPath: "data/m/id-overflow" });
 
     sidecar = await readSidecar(cachePath);
@@ -4712,10 +4710,10 @@ Deno.test("pushChanged bulk walk deletes S3 objects when dirty paths overflowed"
 
     const svc = new S3CacheSyncService(s3, cachePath);
 
-    // Simulate per-path dirty tracking overflow: emit 201 markDirty
-    // calls with relPath to exceed the 200-path cap.
-    for (let i = 0; i < 201; i++) {
-      await svc.markDirty({ relPath: `data/gc-path-${i}` });
+    // Simulate per-path dirty tracking overflow: emit enough markDirty
+    // calls with relPath to exceed the 2000-path cap.
+    for (let i = 0; i < 2001; i++) {
+      await svc.markDirty({ relPath: `data/t/m/d/gc-path-${i}/raw` });
     }
 
     const synced = await svc.pushChanged();
@@ -6582,7 +6580,7 @@ Deno.test("#1052: preparePush slow path on v2 uses shard assembly, not monolith"
   }
 });
 
-Deno.test("#1052: commitPush v2 no-op does NOT mark sidecar clean when cache is incomplete", async () => {
+Deno.test("#1052: commitPush v2 no-op omits commitSeq when cache is incomplete", async () => {
   const cachePath = await Deno.makeTempDir({
     prefix: "s3sync-1052-partial-",
   });
@@ -6620,23 +6618,151 @@ Deno.test("#1052: commitPush v2 no-op does NOT mark sidecar clean when cache is 
 
     // preparePush populates the index from shards
     const manifest = await service.preparePush();
-    // commitPush no-op: should NOT mark sidecar clean because
-    // localHasAllRemoteEntries will fail (t2/m2 missing locally)
+    // commitPush no-op: sidecar is marked localDirty:false (nothing
+    // to push), but commitSeq must NOT be set — pull fast path uses
+    // commitSeq and must not skip unfetched shards (#1225).
     await service.commitPush(manifest);
 
     const sidecarPath = join(cachePath, ".datastore-sync-state.json");
-    let sidecarHasCommitSeq = false;
-    try {
-      const sidecar = JSON.parse(await Deno.readTextFile(sidecarPath));
-      sidecarHasCommitSeq = typeof sidecar.commitSeq === "number" &&
-        sidecar.commitSeq > 0;
-    } catch {
-      // No sidecar written — that's also acceptable
-    }
+    const sidecar = JSON.parse(await Deno.readTextFile(sidecarPath));
+    assertEquals(
+      sidecar.localDirty,
+      false,
+      "sidecar must be marked localDirty:false (nothing to push)",
+    );
+    const sidecarHasCommitSeq = typeof sidecar.commitSeq === "number" &&
+      sidecar.commitSeq > 0;
     assertEquals(
       sidecarHasCommitSeq,
       false,
       "commitPush no-op must NOT write commitSeq when local cache is incomplete",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// -- swamp-club#1913: scoped assembly must not false-positive commitSeq ---
+
+Deno.test("#1913: scoped push with incomplete cache for non-dirty shards must NOT write commitSeq", async () => {
+  const cachePath = await Deno.makeTempDir({
+    prefix: "s3sync-1913-scoped-",
+  });
+  try {
+    const mock = createMockS3Client();
+    const ts = new Date().toISOString();
+    const entries = {
+      "data/t1/m1/d1/1/raw": {
+        key: "data/t1/m1/d1/1/raw",
+        size: 4,
+        lastModified: ts,
+      },
+      "data/t2/m2/d2/1/raw": {
+        key: "data/t2/m2/d2/1/raw",
+        size: 4,
+        lastModified: ts,
+      },
+    };
+    seedV2Repo(mock, entries, 5);
+    mock.storage.set(
+      "data/t1/m1/d1/1/raw",
+      new TextEncoder().encode("aaa\n"),
+    );
+    mock.storage.set(
+      "data/t2/m2/d2/1/raw",
+      new TextEncoder().encode("bbb\n"),
+    );
+
+    const service = new S3CacheSyncService(mock, cachePath);
+
+    // Partial pull: only seed ONE of the two models locally.
+    // Simulates an interrupted full pull where t2/m2 was never fetched.
+    await seedFile(cachePath, "data/t1/m1/d1/1/raw", "aaa\n");
+
+    // Modify the locally-present file and mark it dirty — this triggers
+    // the scoped assembly path (assembleDirtyShardsOnly), which only
+    // reads the t1/m1 shard. The partial index won't contain t2/m2
+    // entries, so localHasAllRemoteEntries would false-positive.
+    await seedFile(cachePath, "data/t1/m1/d1/1/raw", "changed\n");
+    await service.markDirty({ relPath: "data/t1/m1/d1/1/raw" });
+
+    const manifest = await service.preparePush();
+    await service.commitPush(manifest);
+
+    const sidecarPath = join(cachePath, ".datastore-sync-state.json");
+    const sidecar = JSON.parse(await Deno.readTextFile(sidecarPath));
+    assertEquals(
+      sidecar.localDirty,
+      false,
+      "sidecar must be marked localDirty:false (push succeeded)",
+    );
+    const hasCommitSeq = typeof sidecar.commitSeq === "number" &&
+      sidecar.commitSeq > 0;
+    assertEquals(
+      hasCommitSeq,
+      false,
+      "commitSeq must NOT be written when scoped assembly hides non-dirty shards",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("#1913: pushChanged v2 writeback preserves non-dirty partitions in _meta.json", async () => {
+  const cachePath = await Deno.makeTempDir({
+    prefix: "s3sync-1913-meta-trunc-",
+  });
+  try {
+    const mock = createMockS3Client();
+    const ts = new Date().toISOString();
+    const entries = {
+      "data/t1/m1/d1/1/raw": {
+        key: "data/t1/m1/d1/1/raw",
+        size: 4,
+        lastModified: ts,
+      },
+      "data/t2/m2/d2/1/raw": {
+        key: "data/t2/m2/d2/1/raw",
+        size: 4,
+        lastModified: ts,
+      },
+    };
+    seedV2Repo(mock, entries, 5);
+    mock.storage.set(
+      "data/t1/m1/d1/1/raw",
+      new TextEncoder().encode("aaa\n"),
+    );
+    mock.storage.set(
+      "data/t2/m2/d2/1/raw",
+      new TextEncoder().encode("bbb\n"),
+    );
+
+    // Seed both files locally so the push walk finds them
+    await seedFile(cachePath, "data/t1/m1/d1/1/raw", "aaa\n");
+    await seedFile(cachePath, "data/t2/m2/d2/1/raw", "bbb\n");
+
+    const service = new S3CacheSyncService(mock, cachePath);
+
+    // Modify only one model and mark it dirty — triggers scoped assembly
+    await seedFile(cachePath, "data/t1/m1/d1/1/raw", "changed\n");
+    await service.markDirty({ relPath: "data/t1/m1/d1/1/raw" });
+
+    await service.pushChanged();
+
+    // _meta.json must still list BOTH partitions
+    const meta = decodeMeta(mock.storage.get("_index/_meta.json")!);
+    assert(
+      meta.partitions.includes("data--t1--m1"),
+      "dirty partition must be in _meta.json",
+    );
+    assert(
+      meta.partitions.includes("data--t2--m2"),
+      "non-dirty partition must be preserved in _meta.json",
+    );
+    // Non-dirty shard must still exist in storage
+    assert(
+      mock.storage.has("_index/data--t2--m2.json"),
+      "non-dirty shard must not be deleted",
     );
   } finally {
     await Deno.remove(cachePath, { recursive: true });

@@ -2753,12 +2753,12 @@ Deno.test("markDirty with relPath: tracks individual dirty paths", async () => {
   }
 });
 
-Deno.test("markDirty with relPath: caps at 200 and flips bulkInvalidated", async () => {
+Deno.test("markDirty with relPath: caps at 2000 and flips bulkInvalidated", async () => {
   const cachePath = await Deno.makeTempDir();
   const mock = createMockGcsClient();
   const service = new GcsCacheSyncService(mock, cachePath);
   try {
-    for (let i = 0; i < 201; i++) {
+    for (let i = 0; i < 2001; i++) {
       await service.markDirty({ relPath: `data/model/item-${i}/output` });
     }
     const stateText = await Deno.readTextFile(
@@ -6118,7 +6118,7 @@ Deno.test("#1052: GCS preparePush slow path on v2 uses shard assembly, not monol
   }
 });
 
-Deno.test("#1052: GCS commitPush v2 no-op does NOT mark sidecar clean when cache is incomplete", async () => {
+Deno.test("#1052: GCS commitPush v2 no-op omits commitSeq when cache is incomplete", async () => {
   const cachePath = await Deno.makeTempDir({
     prefix: "gcssync-1052-partial-",
   });
@@ -6152,21 +6152,151 @@ Deno.test("#1052: GCS commitPush v2 no-op does NOT mark sidecar clean when cache
     // data/t2/m2/d2/1/raw intentionally absent
 
     const manifest = await service.preparePush();
+    // commitPush no-op: sidecar is marked localDirty:false (nothing
+    // to push), but commitSeq must NOT be set — pull fast path uses
+    // commitSeq and must not skip unfetched shards (#1225).
     await service.commitPush(manifest);
 
     const sidecarPath = join(cachePath, ".datastore-sync-state.json");
-    let sidecarHasCommitSeq = false;
-    try {
-      const sidecar = JSON.parse(await Deno.readTextFile(sidecarPath));
-      sidecarHasCommitSeq = typeof sidecar.commitSeq === "number" &&
-        sidecar.commitSeq > 0;
-    } catch {
-      // No sidecar written — also acceptable
-    }
+    const sidecar = JSON.parse(await Deno.readTextFile(sidecarPath));
+    assertEquals(
+      sidecar.localDirty,
+      false,
+      "sidecar must be marked localDirty:false (nothing to push)",
+    );
+    const sidecarHasCommitSeq = typeof sidecar.commitSeq === "number" &&
+      sidecar.commitSeq > 0;
     assertEquals(
       sidecarHasCommitSeq,
       false,
       "commitPush no-op must NOT write commitSeq when local cache is incomplete",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// -- swamp-club#1913: scoped assembly must not false-positive commitSeq ---
+
+Deno.test("#1913: GCS scoped push with incomplete cache for non-dirty shards must NOT write commitSeq", async () => {
+  const cachePath = await Deno.makeTempDir({
+    prefix: "gcssync-1913-scoped-",
+  });
+  try {
+    const mock = createMockGcsClient();
+    const ts = new Date().toISOString();
+    const entries = {
+      "data/t1/m1/d1/1/raw": {
+        key: "data/t1/m1/d1/1/raw",
+        size: 4,
+        lastModified: ts,
+      },
+      "data/t2/m2/d2/1/raw": {
+        key: "data/t2/m2/d2/1/raw",
+        size: 4,
+        lastModified: ts,
+      },
+    };
+    seedV2Repo(mock, entries, 5);
+    mock.storage.set(
+      "data/t1/m1/d1/1/raw",
+      new TextEncoder().encode("aaa\n"),
+    );
+    mock.storage.set(
+      "data/t2/m2/d2/1/raw",
+      new TextEncoder().encode("bbb\n"),
+    );
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    // Partial pull: only seed ONE of the two models locally.
+    // Simulates an interrupted full pull where t2/m2 was never fetched.
+    await seedFile(cachePath, "data/t1/m1/d1/1/raw", "aaa\n");
+
+    // Modify the locally-present file and mark it dirty — this triggers
+    // the scoped assembly path (assembleDirtyShardsOnly), which only
+    // reads the t1/m1 shard. The partial index won't contain t2/m2
+    // entries, so localHasAllRemoteEntries would false-positive.
+    await seedFile(cachePath, "data/t1/m1/d1/1/raw", "changed\n");
+    await service.markDirty({ relPath: "data/t1/m1/d1/1/raw" });
+
+    const manifest = await service.preparePush();
+    await service.commitPush(manifest);
+
+    const sidecarPath = join(cachePath, ".datastore-sync-state.json");
+    const sidecar = JSON.parse(await Deno.readTextFile(sidecarPath));
+    assertEquals(
+      sidecar.localDirty,
+      false,
+      "sidecar must be marked localDirty:false (push succeeded)",
+    );
+    const hasCommitSeq = typeof sidecar.commitSeq === "number" &&
+      sidecar.commitSeq > 0;
+    assertEquals(
+      hasCommitSeq,
+      false,
+      "commitSeq must NOT be written when scoped assembly hides non-dirty shards",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("#1913: GCS pushChanged v2 writeback preserves non-dirty partitions in _meta.json", async () => {
+  const cachePath = await Deno.makeTempDir({
+    prefix: "gcssync-1913-meta-trunc-",
+  });
+  try {
+    const mock = createMockGcsClient();
+    const ts = new Date().toISOString();
+    const entries = {
+      "data/t1/m1/d1/1/raw": {
+        key: "data/t1/m1/d1/1/raw",
+        size: 4,
+        lastModified: ts,
+      },
+      "data/t2/m2/d2/1/raw": {
+        key: "data/t2/m2/d2/1/raw",
+        size: 4,
+        lastModified: ts,
+      },
+    };
+    seedV2Repo(mock, entries, 5);
+    mock.storage.set(
+      "data/t1/m1/d1/1/raw",
+      new TextEncoder().encode("aaa\n"),
+    );
+    mock.storage.set(
+      "data/t2/m2/d2/1/raw",
+      new TextEncoder().encode("bbb\n"),
+    );
+
+    // Seed both files locally so the push walk finds them
+    await seedFile(cachePath, "data/t1/m1/d1/1/raw", "aaa\n");
+    await seedFile(cachePath, "data/t2/m2/d2/1/raw", "bbb\n");
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+
+    // Modify only one model and mark it dirty — triggers scoped assembly
+    await seedFile(cachePath, "data/t1/m1/d1/1/raw", "changed\n");
+    await service.markDirty({ relPath: "data/t1/m1/d1/1/raw" });
+
+    await service.pushChanged();
+
+    // _meta.json must still list BOTH partitions
+    const meta = decodeMeta(mock.storage.get("_index/_meta.json")!);
+    assert(
+      meta.partitions.includes("data--t1--m1"),
+      "dirty partition must be in _meta.json",
+    );
+    assert(
+      meta.partitions.includes("data--t2--m2"),
+      "non-dirty partition must be preserved in _meta.json",
+    );
+    // Non-dirty shard must still exist in storage
+    assert(
+      mock.storage.has("_index/data--t2--m2.json"),
+      "non-dirty shard must not be deleted",
     );
   } finally {
     await Deno.remove(cachePath, { recursive: true });

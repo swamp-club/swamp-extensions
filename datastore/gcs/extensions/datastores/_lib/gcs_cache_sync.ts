@@ -441,7 +441,7 @@ const DEFAULT_PULL_CONCURRENCY = 50;
 const DEFAULT_PUSH_CONCURRENCY = 25;
 
 /** When the dirty-path set exceeds this cap, fall back to a full walk. */
-const DIRTY_PATHS_CAP = 200;
+const DIRTY_PATHS_CAP = 2000;
 
 /**
  * Fast-path sidecar persisted alongside the cache. Records the last
@@ -496,6 +496,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   private readonly pullConcurrency: number;
   private readonly pushConcurrency: number;
   private index: DatastoreIndex | null = null;
+  private indexIsPartial = false;
   private syncState: DatastoreSyncState | null = null;
   private syncStateLoaded = false;
   private indexMutated = false;
@@ -1019,6 +1020,96 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     return { entries, commitSeq: v2Meta.commitSeq };
   }
 
+  /**
+   * Like assembleIndexFromShards but only reads shards whose partition
+   * key matches a path in `dirtyPaths`. Returns the partial index
+   * (only entries from dirty shards) and the commitSeq. Falls back to
+   * full assembly when no partition keys can be derived.
+   */
+  private async assembleDirtyShardsOnly(
+    dirtyPaths: ReadonlySet<string>,
+    signal?: AbortSignal,
+  ): Promise<
+    { entries: Record<string, IndexEntry>; commitSeq: number } | null
+  > {
+    const meta = await this.readPartitionMeta(signal);
+    if (!meta) return null;
+    if (meta.version !== 2) return null;
+
+    const v2Meta = meta as PartitionMetaV2;
+    const neededKeys = new Set<string>();
+    const prefixes: string[] = [];
+    for (const p of dirtyPaths) {
+      const key = GcsCacheSyncService.partitionKeyFromPath(p);
+      if (key) {
+        neededKeys.add(key);
+      } else {
+        // Dirty path is a directory prefix (e.g. "data/t1") that doesn't
+        // resolve to a single partition key. Derive a "--"-joined prefix
+        // and match all partition keys that start with it.
+        const segments = p.split("/").filter((s) => s !== "");
+        if (segments.length > 0) {
+          prefixes.push(segments.join("--"));
+        }
+      }
+    }
+
+    // Expand prefixes against the partition list
+    if (prefixes.length > 0) {
+      for (const partition of v2Meta.partitions) {
+        for (const prefix of prefixes) {
+          if (partition === prefix || partition.startsWith(prefix + "--")) {
+            neededKeys.add(partition);
+          }
+        }
+      }
+    }
+
+    if (neededKeys.size === 0) {
+      return { entries: {}, commitSeq: v2Meta.commitSeq };
+    }
+
+    // Only read shards that exist in the partition list AND are needed.
+    const partitionSet = new Set(v2Meta.partitions);
+    const toRead = [...neededKeys].filter((k) => partitionSet.has(k));
+
+    const entries: Record<string, IndexEntry> = {};
+    const batchSize = 10;
+
+    for (let i = 0; i < toRead.length; i += batchSize) {
+      throwIfAborted(signal);
+      const batch = toRead.slice(i, i + batchSize);
+      const results = await Promise.allSettled(
+        batch.map((key) => this.readShard(key, signal)),
+      );
+      for (let j = 0; j < results.length; j++) {
+        const result = results[j];
+        if (result.status === "rejected") {
+          throw new Error(
+            `[gcs-sync] Failed to read shard ${batch[j]} after retries: ${
+              result.reason instanceof Error
+                ? result.reason.message
+                : String(result.reason)
+            }`,
+          );
+        }
+        if (result.value === null) {
+          throw new Error(
+            `[gcs-sync] Shard ${
+              batch[j]
+            } listed in _meta.json v2 but missing from GCS — index is corrupt. ` +
+              `Run 'swamp datastore migrate-index' to rebuild.`,
+          );
+        }
+        for (const [rel, entry] of Object.entries(result.value)) {
+          entries[rel] = entry;
+        }
+      }
+    }
+
+    return { entries, commitSeq: v2Meta.commitSeq };
+  }
+
   private async recoverMetaFromListing(
     signal?: AbortSignal,
   ): Promise<PartitionMetaV2> {
@@ -1286,31 +1377,15 @@ export class GcsCacheSyncService implements DatastoreSyncService {
    * take the slow path.
    */
   private async tryFastPushChanged(
-    signal: AbortSignal | undefined,
+    _signal: AbortSignal | undefined,
   ): Promise<number | null> {
     const sidecar = await this.loadSyncState();
     if (!sidecar) return null;
-    if (sidecar.localDirty) return null;
-
-    const commitSeqResult = await this.tryCommitSeqFastPath(signal);
-    if (commitSeqResult !== null) return commitSeqResult;
-
-    if (
-      !sidecar.remoteIndexGeneration || sidecar.remoteIndexGeneration === "0"
-    ) {
-      return null;
-    }
-    let meta;
-    try {
-      meta = await this.gcs.getMetadata(this.indexKey(), signal);
-    } catch {
-      return null;
-    }
-    if (!meta.exists || !meta.generation || meta.generation === "0") {
-      return null;
-    }
-    if (meta.generation !== sidecar.remoteIndexGeneration) return null;
-    return 0;
+    // localDirty is the authority on whether local changes need pushing.
+    // No need to verify commitSeq/generation — those track remote state,
+    // which is irrelevant to whether WE have something to push.
+    if (!sidecar.localDirty) return 0;
+    return null;
   }
 
   /**
@@ -2002,26 +2077,31 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           const indexStart = Date.now();
           let indexGeneration: string | null = null;
           let v2CommitSeq: number | null = null;
-          const assembled = await this.assembleIndexFromShards(signal);
+          const willScopeWalk = !this.bulkInvalidated &&
+            this.dirtyPaths.size > 0;
+          const assembled = willScopeWalk
+            ? await this.assembleDirtyShardsOnly(this.dirtyPaths, signal)
+            : await this.assembleIndexFromShards(signal);
           if (assembled) {
             this.index = {
               version: 1,
               lastPulled: new Date().toISOString(),
               entries: assembled.entries,
             };
+            this.indexIsPartial = willScopeWalk;
             this.scrubIndex();
-            await ensureDir(this.cachePath);
-            await atomicWriteTextFile(
-              this.indexPath,
-              JSON.stringify(this.index, null, 2),
-            );
             v2CommitSeq = assembled.commitSeq;
-            tracePhase("pushChanged.shardAssembly", indexStart);
+            tracePhase(
+              "pushChanged.shardAssembly",
+              indexStart,
+              willScopeWalk ? `scoped=${this.dirtyPaths.size}` : `full`,
+            );
           } else {
             indexGeneration = await this.pullIndex({
               forceRemote: true,
               signal,
             });
+            this.indexIsPartial = false;
             if (this.freshV2Initialized) {
               v2CommitSeq = 0;
               indexGeneration = null;
@@ -2279,11 +2359,18 @@ export class GcsCacheSyncService implements DatastoreSyncService {
               const allPartitions = GcsCacheSyncService.groupEntriesByPartition(
                 this.index.entries,
               );
-              const survivingPartitions = new Set(allPartitions.keys());
+              // Initialize from the full partition list so non-dirty
+              // shards are preserved — this.index may be partial when
+              // scoped assembly was used (#1913).
+              const currentMeta = await this.readPartitionMeta(signal);
+              const survivingPartitions = currentMeta?.version === 2
+                ? new Set((currentMeta as PartitionMetaV2).partitions)
+                : new Set(allPartitions.keys());
               for (const partKey of dirtyPartitionKeys) {
                 const entries = allPartitions.get(partKey);
                 if (entries && Object.keys(entries).length > 0) {
                   await this.writeShard(partKey, entries, signal);
+                  survivingPartitions.add(partKey);
                 } else {
                   try {
                     await retryWithBackoff(
@@ -2315,15 +2402,18 @@ export class GcsCacheSyncService implements DatastoreSyncService {
               this.indexMutated = false;
 
               try {
-                if (await this.localHasAllRemoteEntries()) {
-                  this.dirtyPaths.clear();
-                  this.bulkInvalidated = false;
-                  this.dirtyPathsOverflowed = false;
-                  const sidecar = this.buildV2State({ localDirty: false });
+                this.dirtyPaths.clear();
+                this.bulkInvalidated = false;
+                this.dirtyPathsOverflowed = false;
+                const sidecar = this.buildV2State({ localDirty: false });
+                if (
+                  !this.indexIsPartial &&
+                  await this.localHasAllRemoteEntries()
+                ) {
                   sidecar.commitSeq = newMeta.commitSeq;
-                  sidecar.remoteIndexGeneration = "";
-                  await this.writeSyncState(sidecar);
                 }
+                sidecar.remoteIndexGeneration = "";
+                await this.writeSyncState(sidecar);
               } catch {
                 // Non-fatal: sidecar update is opportunistic.
               }
@@ -2362,15 +2452,18 @@ export class GcsCacheSyncService implements DatastoreSyncService {
             }
           } else if (v2CommitSeq !== null && this.index) {
             try {
-              if (await this.localHasAllRemoteEntries()) {
-                this.dirtyPaths.clear();
-                this.bulkInvalidated = false;
-                this.dirtyPathsOverflowed = false;
-                const sidecar = this.buildV2State({ localDirty: false });
+              this.dirtyPaths.clear();
+              this.bulkInvalidated = false;
+              this.dirtyPathsOverflowed = false;
+              const sidecar = this.buildV2State({ localDirty: false });
+              if (
+                !this.indexIsPartial &&
+                await this.localHasAllRemoteEntries()
+              ) {
                 sidecar.commitSeq = v2CommitSeq;
-                sidecar.remoteIndexGeneration = "";
-                await this.writeSyncState(sidecar);
               }
+              sidecar.remoteIndexGeneration = "";
+              await this.writeSyncState(sidecar);
             } catch {
               // Non-fatal: sidecar update is opportunistic.
             }
@@ -2449,22 +2542,27 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           }
 
           const indexStart = Date.now();
-          const prepAssembled = await this.assembleIndexFromShards(signal);
+          const prepWillScope = !this.bulkInvalidated &&
+            this.dirtyPaths.size > 0;
+          const prepAssembled = prepWillScope
+            ? await this.assembleDirtyShardsOnly(this.dirtyPaths, signal)
+            : await this.assembleIndexFromShards(signal);
           if (prepAssembled) {
             this.index = {
               version: 1,
               lastPulled: new Date().toISOString(),
               entries: prepAssembled.entries,
             };
+            this.indexIsPartial = prepWillScope;
             this.scrubIndex();
-            await ensureDir(this.cachePath);
-            await atomicWriteTextFile(
-              this.indexPath,
-              JSON.stringify(this.index, null, 2),
+            tracePhase(
+              "preparePush.shardAssembly",
+              indexStart,
+              prepWillScope ? `scoped=${this.dirtyPaths.size}` : `full`,
             );
-            tracePhase("preparePush.shardAssembly", indexStart);
           } else {
             await this.pullIndex({ forceRemote: true, signal });
+            this.indexIsPartial = false;
             tracePhase("preparePush.pullIndex", indexStart);
           }
 
@@ -2735,20 +2833,25 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           if (data.pushed === 0 && data.deleted === 0) {
             const noopMeta = await this.readPartitionMeta(signal);
             if (noopMeta && noopMeta.version === 2) {
-              if (
-                this.index && await this.localHasAllRemoteEntries()
-              ) {
-                try {
-                  this.dirtyPaths.clear();
-                  this.bulkInvalidated = false;
-                  this.dirtyPathsOverflowed = false;
-                  const sidecar = this.buildV2State({ localDirty: false });
+              // v2: the dirty paths were walked and nothing needed pushing,
+              // so mark the push as clean. commitSeq is only recorded when
+              // the local cache is complete — pull fast path uses the same
+              // commitSeq and must not skip unfetched shards (#1225).
+              try {
+                this.dirtyPaths.clear();
+                this.bulkInvalidated = false;
+                this.dirtyPathsOverflowed = false;
+                const sidecar = this.buildV2State({ localDirty: false });
+                if (
+                  !this.indexIsPartial && this.index &&
+                  await this.localHasAllRemoteEntries()
+                ) {
                   sidecar.commitSeq = (noopMeta as PartitionMetaV2).commitSeq;
-                  sidecar.remoteIndexGeneration = "";
-                  await this.writeSyncState(sidecar);
-                } catch {
-                  // Non-fatal: sidecar update is opportunistic.
                 }
+                sidecar.remoteIndexGeneration = "";
+                await this.writeSyncState(sidecar);
+              } catch {
+                // Non-fatal: sidecar update is opportunistic.
               }
               tracePhase("commitPush", commitStart, "v2noop");
               return 0;
@@ -2903,12 +3006,21 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     tracePhase("commitPush.localIndex", localStart);
 
     try {
-      if (await this.localHasAllRemoteEntries()) {
-        const sidecar = this.buildV2State({ localDirty: false });
+      this.dirtyPaths.clear();
+      this.bulkInvalidated = false;
+      this.dirtyPathsOverflowed = false;
+      const sidecar = this.buildV2State({ localDirty: false });
+      // Only record commitSeq when the index is complete (not a scoped
+      // assembly) AND local cache has all remote entries — pull fast
+      // path uses commitSeq and must not skip unfetched shards (#1225).
+      if (
+        !this.indexIsPartial &&
+        await this.localHasAllRemoteEntries()
+      ) {
         sidecar.commitSeq = newMeta.commitSeq;
-        sidecar.remoteIndexGeneration = "";
-        await this.writeSyncState(sidecar);
       }
+      sidecar.remoteIndexGeneration = "";
+      await this.writeSyncState(sidecar);
     } catch {
       // Non-fatal: sidecar update is opportunistic.
     }
@@ -3009,15 +3121,18 @@ export class GcsCacheSyncService implements DatastoreSyncService {
 
     if (existing.size !== stat.size) return true;
 
-    // Same size + same mtime — usually safe to skip, but on filesystems
-    // with coarse mtime granularity (e.g. Linux tmpfs at 1s resolution),
-    // same-size writes within the same second are invisible to stat alone.
-    // Hash-compare when available before trusting the fast path.
+    // Same size + exact mtime match — usually safe to skip. The
+    // coarse-granularity concern (same-second writes on Linux tmpfs)
+    // only applies to recently-written files; for files whose mtime
+    // is >1 s old, an exact match is a reliable skip signal.
     if (
       existing.localMtime && stat.mtime &&
       existing.localMtime === stat.mtime.toISOString()
     ) {
-      if (existing.sha256) {
+      if (
+        existing.sha256 &&
+        Date.now() - stat.mtime.getTime() < 1000
+      ) {
         const data = await Deno.readFile(absPath);
         const hashBuffer = await crypto.subtle.digest("SHA-256", data);
         const localHash = Array.from(new Uint8Array(hashBuffer))
