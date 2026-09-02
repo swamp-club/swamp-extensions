@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/appconfig"
-version: "2026.09.01.1"
+version: "2026.09.02.1"
 description: "AWS APPCONFIG infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - appconfig
   - cloud
   - infrastructure
+releaseNotes: |
+  - Added: experiment_run
 models:
   - application.ts
   - configuration_profile.ts
@@ -16,6 +18,7 @@ models:
   - deployment_strategy.ts
   - environment.ts
   - experiment_definition.ts
+  - experiment_run.ts
   - extension.ts
   - extension_association.ts
   - hosted_configuration_version.ts

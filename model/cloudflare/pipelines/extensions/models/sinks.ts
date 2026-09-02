@@ -80,7 +80,8 @@ const GlobalArgsSchema = z.object({
       sql_name: z.string().optional(),
     })).optional(),
     inferred: z.boolean().optional(),
-  }).optional(),
+  }).describe("Defines the schema of the events in the data stream.")
+    .optional(),
   type: z.enum(["r2", "r2_data_catalog"]).describe(
     "Specifies the type of sink.",
   ),
@@ -199,7 +200,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Sinks. Registered at `@swamp/cloudflare/pipelines/sinks`. */
 export const model = {
   type: "@swamp/cloudflare/pipelines/sinks",
-  version: "2026.09.01.1",
+  version: "2026.09.02.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -228,6 +229,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

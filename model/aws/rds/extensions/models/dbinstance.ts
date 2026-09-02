@@ -86,6 +86,8 @@ const AdditionalStorageVolumeSchema = z.object({
   StorageThroughput: z.number().int().describe(
     "The storage throughput value for the additional storage volume, in mebibytes per second (MiBps). This setting applies only to the General Purpose SSD ( gp3) storage type.",
   ).optional(),
+  StorageOperationStatus: z.string().optional(),
+  StorageOperationPercentProgress: z.number().int().optional(),
 });
 
 const GlobalArgsSchema = z.object({
@@ -460,6 +462,8 @@ const StateSchema = z.object({
     StatusType: z.string(),
   })).optional(),
   StorageEncrypted: z.boolean().optional(),
+  StorageOperationStatus: z.string().optional(),
+  StorageOperationPercentProgress: z.number().optional(),
   StorageType: z.string().optional(),
   StorageThroughput: z.number().optional(),
   Tags: z.array(TagSchema).optional(),
@@ -750,7 +754,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RDS DBInstance. Registered at `@swamp/aws/rds/dbinstance`. */
 export const model = {
   type: "@swamp/aws/rds/dbinstance",
-  version: "2026.08.17.2",
+  version: "2026.09.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -809,6 +813,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

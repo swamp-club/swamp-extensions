@@ -204,9 +204,13 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  RegistryId: z.string().min(12).max(16).regex(
-    new RegExp("^[a-zA-Z0-9]{12,16}$"),
-  ).describe("The identifier of the registry containing the record."),
+  RegistryId: z.string().min(1).max(2048).regex(
+    new RegExp(
+      "^(arn:aws(-[^:]+)?:agent-registry:[a-z0-9-]+:[0-9]{12}:registry/)?[a-zA-Z0-9]{12,16}$",
+    ),
+  ).describe(
+    "The identifier of the registry in which to create the record. You can specify either the registry ID or the registry Amazon Resource Name (ARN). Use the ARN form to reference a registry shared from another account via AWS Resource Access Manager (RAM).",
+  ).optional(),
   Name: z.string().min(1).max(255).regex(
     new RegExp("^[a-zA-Z0-9][a-zA-Z0-9_\\-\\.\\/]*$"),
   ).describe("The name of the registry record."),
@@ -272,10 +276,13 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  RegistryId: z.string().min(12).max(16).regex(
-    new RegExp("^[a-zA-Z0-9]{12,16}$"),
-  ).describe("The identifier of the registry containing the record.")
-    .optional(),
+  RegistryId: z.string().min(1).max(2048).regex(
+    new RegExp(
+      "^(arn:aws(-[^:]+)?:agent-registry:[a-z0-9-]+:[0-9]{12}:registry/)?[a-zA-Z0-9]{12,16}$",
+    ),
+  ).describe(
+    "The identifier of the registry in which to create the record. You can specify either the registry ID or the registry Amazon Resource Name (ARN). Use the ARN form to reference a registry shared from another account via AWS Resource Access Manager (RAM).",
+  ).optional(),
   Name: z.string().min(1).max(255).regex(
     new RegExp("^[a-zA-Z0-9][a-zA-Z0-9_\\-\\.\\/]*$"),
   ).describe("The name of the registry record.").optional(),
@@ -330,7 +337,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AgentRegistry RegistryRecord. Registered at `@swamp/aws/agentregistry/registry-record`. */
 export const model = {
   type: "@swamp/aws/agentregistry/registry-record",
-  version: "2026.08.29.1",
+  version: "2026.09.02.1",
   upgrades: [
     {
       toVersion: "2026.08.28.1",
@@ -339,6 +346,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

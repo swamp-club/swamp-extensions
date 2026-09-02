@@ -58,14 +58,18 @@ const CroppingConfigSchema = z.object({
 });
 
 const DataSourceConfigurationSchema = z.object({
-  FixtureId: z.string().min(1).max(128),
+  FixtureId: z.string().min(1).max(128).describe(
+    "The ID of the fixture whose event data you want Elemental Inference to map onto this clipping output. To obtain this ID, use the SearchFixtures operation.",
+  ),
 });
 
 const ClippingConfigSchema = z.object({
   CallbackMetadata: z.string().max(1024).regex(
     new RegExp("^[\\w \\-\\.',@:;]*$"),
   ).optional(),
-  DataSourceConfiguration: DataSourceConfigurationSchema.optional(),
+  DataSourceConfiguration: DataSourceConfigurationSchema.describe(
+    "Identifies the fixture whose event data Elemental Inference maps onto the clipping metadata for an output.",
+  ).optional(),
 });
 
 const AspectRatioSchema = z.object({
@@ -178,7 +182,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElementalInference Feed. Registered at `@swamp/aws/elementalinference/feed`. */
 export const model = {
   type: "@swamp/aws/elementalinference/feed",
-  version: "2026.08.27.1",
+  version: "2026.09.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -243,6 +247,11 @@ export const model = {
     {
       toVersion: "2026.08.27.1",
       description: "Added: AccessRoleArn",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.02.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

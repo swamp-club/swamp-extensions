@@ -145,6 +145,16 @@ const GlobalArgsSchema = z.object({
   apiEndpoint: z.string().describe(
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
+  compiledProtoSchema: z.object({
+    compiledBytes: z.string().describe(
+      "Required. The compiled FileDescriptorSet binary.",
+    ).optional(),
+    rootMessage: z.string().describe(
+      "Required. The name of the root message type in the schema.",
+    ).optional(),
+  }).describe(
+    "Optional. Configuration for a schema provided as a pre-compiled Protocol Buffer FileDescriptorSet. The `type` field above must be set to PROTOCOL_BUFFER.",
+  ).optional(),
   definition: z.string().describe(
     "The definition of the schema. This should contain a string representing the full definition of the schema that is a valid schema definition of the type specified in `type`.",
   ).optional(),
@@ -163,6 +173,10 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  compiledProtoSchema: z.object({
+    compiledBytes: z.string(),
+    rootMessage: z.string(),
+  }).optional(),
   definition: z.string().optional(),
   name: z.string(),
   revisionCreateTime: z.string().optional(),
@@ -179,6 +193,16 @@ const InputsSchema = z.object({
   scopes: z.string().optional(),
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
+  compiledProtoSchema: z.object({
+    compiledBytes: z.string().describe(
+      "Required. The compiled FileDescriptorSet binary.",
+    ).optional(),
+    rootMessage: z.string().describe(
+      "Required. The name of the root message type in the schema.",
+    ).optional(),
+  }).describe(
+    "Optional. Configuration for a schema provided as a pre-compiled Protocol Buffer FileDescriptorSet. The `type` field above must be set to PROTOCOL_BUFFER.",
+  ).optional(),
   definition: z.string().describe(
     "The definition of the schema. This should contain a string representing the full definition of the schema that is a valid schema definition of the type specified in `type`.",
   ).optional(),
@@ -222,7 +246,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Pub/Sub Schemas. Registered at `@swamp/gcp/pubsub/schemas`. */
 export const model = {
   type: "@swamp/gcp/pubsub/schemas",
-  version: "2026.08.12.2",
+  version: "2026.09.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -349,6 +373,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.02.1",
+      description: "Added: compiledProtoSchema",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -375,6 +404,9 @@ export const model = {
           String(g["location"] ?? "")
         }`;
         const body: Record<string, unknown> = {};
+        if (g["compiledProtoSchema"] !== undefined) {
+          body["compiledProtoSchema"] = g["compiledProtoSchema"];
+        }
         if (g["definition"] !== undefined) body["definition"] = g["definition"];
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["type"] !== undefined) body["type"] = g["type"];

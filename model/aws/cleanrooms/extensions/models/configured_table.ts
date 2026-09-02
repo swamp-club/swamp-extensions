@@ -133,6 +133,38 @@ const DifferentialPrivacySchema = z.object({
   Columns: z.array(DifferentialPrivacyColumnSchema),
 });
 
+const OutputColumnThresholdSchema = z.object({
+  OutputColumnName: z.string().min(1).max(127).regex(
+    new RegExp("^[a-z0-9_](([a-z0-9_ ]+-)*([a-z0-9_ ]+))?$"),
+  ),
+  MinimumIdentityCount: z.number().int().min(0).max(100000),
+});
+
+const AggregationThresholdSchema = z.object({
+  IdentityColumns: z.array(
+    z.string().min(1).max(127).regex(
+      new RegExp("^[a-z0-9_](([a-z0-9_ ]+-)*([a-z0-9_ ]+))?$"),
+    ),
+  ),
+  MinimumIdentityCount: z.number().int().min(2).max(100000),
+  Type: z.enum(["COUNT_DISTINCT"]),
+  OutputColumnThresholds: z.array(OutputColumnThresholdSchema).optional(),
+  AllowedAggregateExpressionType: z.enum(["COLUMNS_ONLY", "ANY_EXPRESSION"]),
+});
+
+const ComparisonControlsSchema = z.object({
+  AllowedLiteralComparisonColumns: z.array(
+    z.string().min(1).max(127).regex(
+      new RegExp("^[a-z0-9_](([a-z0-9_ ]+-)*([a-z0-9_ ]+))?$"),
+    ),
+  ),
+  AllowedColumnComparisonColumns: z.array(
+    z.string().min(1).max(127).regex(
+      new RegExp("^[a-z0-9_](([a-z0-9_ ]+-)*([a-z0-9_ ]+))?$"),
+    ),
+  ),
+});
+
 const AnalysisRuleCustomSchema = z.object({
   AllowedAnalyses: z.array(
     z.string().min(0).max(200).regex(
@@ -151,6 +183,8 @@ const AnalysisRuleCustomSchema = z.object({
     ),
   ).optional(),
   AdditionalAnalyses: z.enum(["ALLOWED", "REQUIRED", "NOT_ALLOWED"]).optional(),
+  AggregationThresholds: z.array(AggregationThresholdSchema).optional(),
+  ComparisonControls: ComparisonControlsSchema.optional(),
 });
 
 const V1Schema = z.object({
@@ -386,7 +420,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CleanRooms ConfiguredTable. Registered at `@swamp/aws/cleanrooms/configured-table`. */
 export const model = {
   type: "@swamp/aws/cleanrooms/configured-table",
-  version: "2026.08.17.2",
+  version: "2026.09.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -435,6 +469,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

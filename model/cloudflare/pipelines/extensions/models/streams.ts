@@ -73,7 +73,8 @@ const GlobalArgsSchema = z.object({
       sql_name: z.string().optional(),
     })).optional(),
     inferred: z.boolean().optional(),
-  }).optional(),
+  }).describe("Defines the schema of the events in the data stream.")
+    .optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -162,7 +163,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Streams. Registered at `@swamp/cloudflare/pipelines/streams`. */
 export const model = {
   type: "@swamp/cloudflare/pipelines/streams",
-  version: "2026.09.01.1",
+  version: "2026.09.02.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -191,6 +192,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
