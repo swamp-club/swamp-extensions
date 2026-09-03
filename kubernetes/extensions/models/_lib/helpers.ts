@@ -34,6 +34,11 @@ export interface K8sContext {
     instanceName: string,
     data: Record<string, unknown>,
   ): Promise<DataHandle>;
+  deleteResource?(instanceName: string): Promise<void>;
+  readModelData?(
+    modelName: string,
+    specName?: string,
+  ): Promise<{ name: string }[]>;
   createFileWriter(
     specName: string,
     instanceName: string,

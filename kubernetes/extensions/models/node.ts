@@ -20,6 +20,7 @@ type NodeGlobalArgs = z.infer<typeof NodeGlobalArgsSchema>;
 
 interface NodeContext {
   globalArgs: NodeGlobalArgs;
+  definition: { name: string };
   logger: {
     info(msg: string, props?: Record<string, unknown>): void;
     warning(msg: string, props?: Record<string, unknown>): void;
@@ -31,6 +32,11 @@ interface NodeContext {
     instanceName: string,
     data: Record<string, unknown>,
   ): Promise<DataHandle>;
+  deleteResource?(instanceName: string): Promise<void>;
+  readModelData?(
+    modelName: string,
+    specName?: string,
+  ): Promise<{ name: string }[]>;
 }
 
 // --- Schemas ---
@@ -220,7 +226,7 @@ function normalizePodForNode(raw: V1Pod) {
 /** Kubernetes Node model. */
 export const model = {
   type: "@swamp/kubernetes/node",
-  version: "2026.08.01.1",
+  version: "2026.09.03.1",
   globalArguments: NodeGlobalArgsSchema,
   upgrades: [
     {
@@ -259,6 +265,12 @@ export const model = {
         "add statefulset model type. No schema or behavior change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.03.1",
+      description: "Node list now syncs: upserts live nodes and prunes " +
+        "records for departed ones. No schema change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     node: {
@@ -284,7 +296,7 @@ export const model = {
   methods: {
     list: {
       description:
-        "List all nodes with status, capacity, conditions, and taints",
+        "Sync all nodes: upsert live nodes and prune records for departed ones",
       arguments: ListArgsSchema,
       execute: async (
         _args: Record<string, never>,
@@ -298,16 +310,43 @@ export const model = {
 
         context.logger.info("Found {count} nodes", { count: nodes.length });
 
+        const liveNames = new Set<string>();
         const handles: DataHandle[] = [];
         for (const node of nodes) {
           const normalized = normalizeNode(node);
+          const instanceName = sanitizeInstanceName(normalized.name);
+          liveNames.add(instanceName);
           const handle = await context.writeResource(
             "node",
-            sanitizeInstanceName(normalized.name),
+            instanceName,
             normalized,
           );
           handles.push(handle);
         }
+
+        if (
+          context.deleteResource && context.readModelData &&
+          !labels && liveNames.size > 0
+        ) {
+          const existing = await context.readModelData(
+            context.definition.name,
+            "node",
+          );
+
+          let pruned = 0;
+          for (const record of existing) {
+            if (!liveNames.has(record.name)) {
+              await context.deleteResource(record.name);
+              pruned++;
+            }
+          }
+          if (pruned > 0) {
+            context.logger.info("Pruned {count} departed node(s)", {
+              count: pruned,
+            });
+          }
+        }
+
         return { dataHandles: handles };
       },
     },

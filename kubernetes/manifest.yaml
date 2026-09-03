@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/kubernetes"
-version: "2026.08.01.1"
+version: "2026.09.03.1"
 description: "Kubernetes operational toolkit — 16 model types covering pods, deployments, statefulsets, services, RBAC, storage, networking, autoscaling, batch jobs, and more. Includes 14 ready-to-run workflows for namespace debugging, security audits, RBAC analysis, cluster health, and operational diagnostics."
 repository: https://github.com/swamp-club/swamp-extensions
 additionalFiles:

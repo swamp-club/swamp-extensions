@@ -51,7 +51,7 @@ Cluster-scoped models (`namespace`, `node`) omit the `namespace` field.
 | `deployment` | `@swamp/kubernetes/deployment` | Deployment CRUD, scaling, rolling restart, pause/resume, rollout status |
 | `service` | `@swamp/kubernetes/service` | Service CRUD, endpoint inspection, and selector diagnosis |
 | `namespace` | `@swamp/kubernetes/namespace` | Namespace CRUD, resource quotas, limit ranges, resource counts, health |
-| `node` | `@swamp/kubernetes/node` | Node conditions, capacity, taints, cordon/uncordon, drain, metrics |
+| `node` | `@swamp/kubernetes/node` | Node conditions, capacity, taints, cordon/uncordon, drain, metrics. `list` syncs: upserts live nodes and prunes departed ones. |
 | `configmap` | `@swamp/kubernetes/configmap` | ConfigMap CRUD |
 | `secret` | `@swamp/kubernetes/secret` | Secret CRUD with base64 decoding and vault-backed sensitive storage |
 | `ingress` | `@swamp/kubernetes/ingress` | Ingress CRUD with TLS and rule inspection |
