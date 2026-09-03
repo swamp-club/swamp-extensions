@@ -462,7 +462,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee Organizations. Registered at `@swamp/gcp/apigee/organizations`. */
 export const model = {
   type: "@swamp/gcp/apigee/organizations",
-  version: "2026.08.12.2",
+  version: "2026.09.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -586,6 +586,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1036,6 +1041,36 @@ export const model = {
               "name": { "location": "path", "required": true },
               "view": { "location": "query" },
             },
+          },
+          params,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    get_mcp_server_config: {
+      description: "get mcp server config",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) params["name"] = String(g["name"]);
+        const result = await createResource(
+          baseUrl,
+          {
+            "id": "apigee.organizations.getMcpServerConfig",
+            "path": "v1/{+name}",
+            "httpMethod": "GET",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
           },
           params,
           undefined,

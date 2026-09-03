@@ -36,12 +36,17 @@ import {
   createResource,
   deleteResource,
   isResourceNotFoundError,
+  listResources,
   readResource,
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const CatalogResourceSchema = z.object({
+  Id: z.string().min(12).max(255).optional(),
+});
+
 const DatabaseResourceSchema = z.object({
-  CatalogId: z.string().min(12).max(12).describe(
+  CatalogId: z.string().min(12).max(255).describe(
     "The identifier for the Data Catalog. By default, it is the account ID of the caller.",
   ),
   Name: z.string().min(1).max(255).describe(
@@ -50,7 +55,7 @@ const DatabaseResourceSchema = z.object({
 });
 
 const TableResourceSchema = z.object({
-  CatalogId: z.string().min(12).max(12).describe(
+  CatalogId: z.string().min(12).max(255).describe(
     "The identifier for the Data Catalog. By default, it is the account ID of the caller.",
   ),
   DatabaseName: z.string().min(1).max(255).describe(
@@ -70,7 +75,7 @@ const ColumnWildcardSchema = z.object({
 });
 
 const TableWithColumnsResourceSchema = z.object({
-  CatalogId: z.string().min(12).max(12).describe(
+  CatalogId: z.string().min(12).max(255).describe(
     "The identifier for the GLUDC where the location is registered with LFlong.",
   ),
   DatabaseName: z.string().min(1).max(255).describe(
@@ -88,7 +93,7 @@ const TableWithColumnsResourceSchema = z.object({
 });
 
 const DataLocationResourceSchema = z.object({
-  CatalogId: z.string().min(12).max(12).describe(
+  CatalogId: z.string().min(12).max(255).describe(
     "The identifier for the GLUDC where the location is registered with LFlong.",
   ),
   ResourceArn: z.string().describe(
@@ -97,7 +102,7 @@ const DataLocationResourceSchema = z.object({
 });
 
 const DataCellsFilterResourceSchema = z.object({
-  TableCatalogId: z.string().min(12).max(12).describe(
+  TableCatalogId: z.string().min(12).max(255).describe(
     "The ID of the catalog to which the table belongs.",
   ),
   DatabaseName: z.string().min(1).max(255).describe("A database in the GLUDC."),
@@ -108,7 +113,7 @@ const DataCellsFilterResourceSchema = z.object({
 });
 
 const LFTagKeyResourceSchema = z.object({
-  CatalogId: z.string().min(12).max(12).describe(
+  CatalogId: z.string().min(12).max(255).describe(
     "The identifier for the GLUDC where the location is registered with GLUDC.",
   ),
   TagKey: z.string().min(1).max(255).describe("The key-name for the LF-tag."),
@@ -126,7 +131,7 @@ const LFTagSchema = z.object({
 });
 
 const LFTagPolicyResourceSchema = z.object({
-  CatalogId: z.string().min(12).max(12).describe(
+  CatalogId: z.string().min(12).max(255).describe(
     "The identifier for the GLUDC. The GLUDC is the persistent metadata store. It contains database definitions, table definitions, and other control information to manage your LFlong environment.",
   ),
   ResourceType: z.enum(["DATABASE", "TABLE"]).describe(
@@ -153,7 +158,7 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Catalog: z.string().min(12).max(12).describe(
+  Catalog: z.string().min(12).max(255).describe(
     "The identifier for the GLUDC. By default, the account ID. The GLUDC is the persistent metadata store. It contains database definitions, table definitions, and other control information to manage your Lake Formation environment.",
   ).optional(),
   Principal: z.object({
@@ -162,7 +167,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe("The principal to be granted a permission."),
   Resource: z.object({
-    Catalog: z.record(z.string(), z.unknown()).describe(
+    Catalog: CatalogResourceSchema.describe(
       "The identifier for the Data Catalog. By default, the account ID. The Data Catalog is the persistent metadata store. It contains database definitions, table definitions, and other control information to manage your LFlong environment.",
     ).optional(),
     Database: DatabaseResourceSchema.describe(
@@ -231,7 +236,7 @@ const StateSchema = z.object({
     DataLakePrincipalIdentifier: z.string(),
   }).optional(),
   Resource: z.object({
-    Catalog: z.record(z.string(), z.unknown()),
+    Catalog: CatalogResourceSchema,
     Database: DatabaseResourceSchema,
     Table: TableResourceSchema,
     TableWithColumns: TableWithColumnsResourceSchema,
@@ -254,7 +259,7 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  Catalog: z.string().min(12).max(12).describe(
+  Catalog: z.string().min(12).max(255).describe(
     "The identifier for the GLUDC. By default, the account ID. The GLUDC is the persistent metadata store. It contains database definitions, table definitions, and other control information to manage your Lake Formation environment.",
   ).optional(),
   Principal: z.object({
@@ -263,7 +268,7 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe("The principal to be granted a permission.").optional(),
   Resource: z.object({
-    Catalog: z.record(z.string(), z.unknown()).describe(
+    Catalog: CatalogResourceSchema.describe(
       "The identifier for the Data Catalog. By default, the account ID. The Data Catalog is the persistent metadata store. It contains database definitions, table definitions, and other control information to manage your LFlong environment.",
     ).optional(),
     Database: DatabaseResourceSchema.describe(
@@ -345,7 +350,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for LakeFormation PrincipalPermissions. Registered at `@swamp/aws/lakeformation/principal-permissions`. */
 export const model = {
   type: "@swamp/aws/lakeformation/principal-permissions",
-  version: "2026.08.17.1",
+  version: "2026.09.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -394,6 +399,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -545,6 +555,48 @@ export const model = {
           }
           throw error;
         }
+      },
+    },
+    list: {
+      description: "List LakeFormation PrincipalPermissions resources",
+      arguments: z.object({
+        maxPages: z.number().describe(
+          "Maximum number of pages to fetch (default: 10)",
+        ).optional(),
+        resourceModel: z.string().describe(
+          "JSON resource model for parent-scoped listing (e.g. parent identifier)",
+        ).optional(),
+      }),
+      execute: async (
+        args: { maxPages?: number; resourceModel?: string },
+        context: any,
+      ) => {
+        const credentials = _buildCredentials(context.globalArgs);
+        const { items, nextToken } = await listResources(
+          "AWS::LakeFormation::PrincipalPermissions",
+          {
+            resourceModel: args.resourceModel,
+            maxPages: args.maxPages,
+            credentials,
+          },
+        );
+        const dataHandles = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          const instanceName = item.identifier.replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, "");
+          const handle = await context.writeResource("state", instanceName, {
+            ...item.properties,
+            _identifier: item.identifier,
+          });
+          dataHandles.push(handle);
+        }
+        return {
+          dataHandles,
+          result: { count: items.length, nextPageToken: nextToken },
+        };
       },
     },
   },

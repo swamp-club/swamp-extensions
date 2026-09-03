@@ -507,6 +507,7 @@ const GlobalArgsSchema = z.object({
   StartoverWindowSeconds: z.number().int().min(0).max(1209600).describe(
     "The size of the window (in seconds) to create a window of the live stream that's available for on-demand viewing. Viewers can start-over or catch-up on content that falls within the window. The maximum startover window is 1,209,600 seconds (14 days).",
   ).optional(),
+  StreamNameOutputMode: z.enum(["INDEX", "PASSTHROUGH_NAME"]).optional(),
   UriSeparator: z.enum(["UNDERSCORE", "HYPHEN"]).optional(),
   Tags: z.array(TagSchema).optional(),
 });
@@ -539,6 +540,7 @@ const StateSchema = z.object({
     OutputTimestampMode: z.string(),
   }).optional(),
   StartoverWindowSeconds: z.number().optional(),
+  StreamNameOutputMode: z.string().optional(),
   UriSeparator: z.string().optional(),
   DashManifestUrls: z.array(z.string()).optional(),
   MssManifestUrls: z.array(z.string()).optional(),
@@ -620,6 +622,7 @@ const InputsSchema = z.object({
   StartoverWindowSeconds: z.number().int().min(0).max(1209600).describe(
     "The size of the window (in seconds) to create a window of the live stream that's available for on-demand viewing. Viewers can start-over or catch-up on content that falls within the window. The maximum startover window is 1,209,600 seconds (14 days).",
   ).optional(),
+  StreamNameOutputMode: z.enum(["INDEX", "PASSTHROUGH_NAME"]).optional(),
   UriSeparator: z.enum(["UNDERSCORE", "HYPHEN"]).optional(),
   Tags: z.array(TagSchema).optional(),
 });
@@ -643,7 +646,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaPackageV2 OriginEndpoint. Registered at `@swamp/aws/mediapackagev2/origin-endpoint`. */
 export const model = {
   type: "@swamp/aws/mediapackagev2/origin-endpoint",
-  version: "2026.08.17.2",
+  version: "2026.09.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -708,6 +711,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.03.1",
+      description: "Added: StreamNameOutputMode",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

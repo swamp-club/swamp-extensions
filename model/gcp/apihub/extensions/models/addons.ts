@@ -117,6 +117,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  boostSpecGeminiRegionId: z.string().optional(),
   config: z.object({
     allDataAddonConfig: z.object({
       enabled: z.boolean(),
@@ -186,7 +187,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API hub Addons. Registered at `@swamp/gcp/apihub/addons`. */
 export const model = {
   type: "@swamp/gcp/apihub/addons",
-  version: "2026.08.12.2",
+  version: "2026.09.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -310,6 +311,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -111,6 +111,13 @@ const StateSchema = z.object({
         maxSeverity: z.string(),
         modelId: z.string(),
         scanStatus: z.string(),
+        tokenUsage: z.object({
+          cacheCount: z.string(),
+          candidateCount: z.string(),
+          promptCount: z.string(),
+          thinkingCount: z.string(),
+          toolUsePromptCount: z.string(),
+        }),
       }),
       maliciousContentStaticResult: z.object({
         maxSeverity: z.string(),
@@ -804,7 +811,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Container Analysis Notes.Occurrences. Registered at `@swamp/gcp/containeranalysis/notes-occurrences`. */
 export const model = {
   type: "@swamp/gcp/containeranalysis/notes-occurrences",
-  version: "2026.08.28.1",
+  version: "2026.09.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1018,6 +1025,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

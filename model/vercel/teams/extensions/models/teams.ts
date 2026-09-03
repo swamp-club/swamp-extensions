@@ -216,6 +216,11 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "When enabled, adding, changing, or removing project password protection requires Owner role.",
   ).optional(),
+  strictConnectors: z.object({
+    enabled: z.boolean(),
+  }).describe(
+    "When enabled, creating and managing connectors requires Owner role.",
+  ).optional(),
   nsnbConfig: z.object({
     preference: z.enum(["auto-approval", "manual-approval", "block"]),
   }).describe("NSNB configuration for the team.").optional(),
@@ -367,6 +372,10 @@ const ResourceSchema = z.object({
     updatedAt: z.number().optional(),
   }).nullable().optional(),
   strictPasswordProtectionSettings: z.object({
+    enabled: z.boolean().optional(),
+    updatedAt: z.number().optional(),
+  }).nullable().optional(),
+  strictConnectors: z.object({
     enabled: z.boolean().optional(),
     updatedAt: z.number().optional(),
   }).nullable().optional(),
@@ -573,6 +582,9 @@ const InputsSchema = z.object({
   strictPasswordProtectionSettings: z.object({
     enabled: z.boolean(),
   }).optional(),
+  strictConnectors: z.object({
+    enabled: z.boolean(),
+  }).optional(),
   nsnbConfig: z.object({
     preference: z.enum(["auto-approval", "manual-approval", "block"]),
   }).optional(),
@@ -607,7 +619,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Teams. Registered at `@swamp/vercel/teams/teams`. */
 export const model = {
   type: "@swamp/vercel/teams/teams",
-  version: "2026.08.25.1",
+  version: "2026.09.03.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -657,6 +669,11 @@ export const model = {
     {
       toVersion: "2026.08.25.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.03.1",
+      description: "Added: strictConnectors",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1016,6 +1033,9 @@ export const model = {
         if (g.strictPasswordProtectionSettings !== undefined) {
           body.strictPasswordProtectionSettings =
             g.strictPasswordProtectionSettings;
+        }
+        if (g.strictConnectors !== undefined) {
+          body.strictConnectors = g.strictConnectors;
         }
         if (g.nsnbConfig !== undefined) body.nsnbConfig = g.nsnbConfig;
         if (g.defaultProjectJobs !== undefined) {

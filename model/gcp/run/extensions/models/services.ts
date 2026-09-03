@@ -238,9 +238,6 @@ const GlobalArgsSchema = z.object({
   description: z.string().describe(
     "User-provided description of the Service. This field currently has a 512-character limit.",
   ).optional(),
-  durableExecution: z.boolean().describe(
-    "Optional. Immutable. Indicates whether the Service has durable execution enabled. This field is immutable once the Service is created.",
-  ).optional(),
   iapEnabled: z.boolean().describe("Optional. IAP settings on the Service.")
     .optional(),
   ingress: z.enum([
@@ -479,9 +476,11 @@ const GlobalArgsSchema = z.object({
             "Required. Input only. The source code.",
           ).optional(),
         }).describe(
-          "Optional. Input only. Source code inlined in the request. Cloud Run will store the inlined_source to Cloud Storage and replace the field with cloud_storage_source.",
+          "Optional. Input only. Source code inlined in the request. Cloud Run will store the inlined_source to Cloud Storage and replace the field with cloud_storage_source. This field is only supported in Cloud Run Service.",
         ).optional(),
-      }).describe("Optional. Location of the source.").optional(),
+      }).describe(
+        "Optional. Location of the source. This field is only supported in Cloud Run Service.",
+      ).optional(),
       startupProbe: z.object({
         failureThreshold: z.number().int().describe(
           "Optional. Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.",
@@ -758,7 +757,6 @@ const StateSchema = z.object({
   defaultUriDisabled: z.boolean().optional(),
   deleteTime: z.string().optional(),
   description: z.string().optional(),
-  durableExecution: z.boolean().optional(),
   etag: z.string().optional(),
   expireTime: z.string().optional(),
   generation: z.string().optional(),
@@ -1044,9 +1042,6 @@ const InputsSchema = z.object({
   description: z.string().describe(
     "User-provided description of the Service. This field currently has a 512-character limit.",
   ).optional(),
-  durableExecution: z.boolean().describe(
-    "Optional. Immutable. Indicates whether the Service has durable execution enabled. This field is immutable once the Service is created.",
-  ).optional(),
   iapEnabled: z.boolean().describe("Optional. IAP settings on the Service.")
     .optional(),
   ingress: z.enum([
@@ -1285,9 +1280,11 @@ const InputsSchema = z.object({
             "Required. Input only. The source code.",
           ).optional(),
         }).describe(
-          "Optional. Input only. Source code inlined in the request. Cloud Run will store the inlined_source to Cloud Storage and replace the field with cloud_storage_source.",
+          "Optional. Input only. Source code inlined in the request. Cloud Run will store the inlined_source to Cloud Storage and replace the field with cloud_storage_source. This field is only supported in Cloud Run Service.",
         ).optional(),
-      }).describe("Optional. Location of the source.").optional(),
+      }).describe(
+        "Optional. Location of the source. This field is only supported in Cloud Run Service.",
+      ).optional(),
       startupProbe: z.object({
         failureThreshold: z.number().int().describe(
           "Optional. Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.",
@@ -1553,7 +1550,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Services. Registered at `@swamp/gcp/run/services`. */
 export const model = {
   type: "@swamp/gcp/run/services",
-  version: "2026.08.20.1",
+  version: "2026.09.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1738,6 +1735,14 @@ export const model = {
       description: "Added: durableExecution",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.03.1",
+      description: "Removed: durableExecution",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { durableExecution: _durableExecution, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1786,9 +1791,6 @@ export const model = {
         }
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
-        }
-        if (g["durableExecution"] !== undefined) {
-          body["durableExecution"] = g["durableExecution"];
         }
         if (g["iapEnabled"] !== undefined) body["iapEnabled"] = g["iapEnabled"];
         if (g["ingress"] !== undefined) body["ingress"] = g["ingress"];

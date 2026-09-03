@@ -396,131 +396,6 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }).describe("Optional. InspectConfig to use to produce findings.")
       .optional(),
-    inspectTemplate: z.object({
-      allowLimitedAvailabilityInfoTypes: z.boolean().describe(
-        "Optional. Enables the use of [limited-availability built-in infoTypes](https://docs.cloud.google.com/sensitive-data-protection/docs/infotypes-reference#limited-availability-infotypes) in inspect_config. These infoTypes are supported only in specific regions and can cause scanning errors if used elsewhere.",
-      ).optional(),
-      createTime: z.string().describe(
-        "Output only. The creation timestamp of an inspectTemplate.",
-      ).optional(),
-      description: z.string().describe("Short description (max 256 chars).")
-        .optional(),
-      displayName: z.string().describe("Display name (max 256 chars).")
-        .optional(),
-      inspectConfig: z.object({
-        contentOptions: z.array(
-          z.enum(["CONTENT_UNSPECIFIED", "CONTENT_TEXT", "CONTENT_IMAGE"]),
-        ).describe("Deprecated and unused.").optional(),
-        customInfoTypes: z.array(z.object({
-          detectionRules: z.unknown().describe(
-            "Set of detection rules to apply to all findings of this CustomInfoType. Rules are applied in the order that they are specified. Only supported for the `dictionary`, `regex`, and `stored_type` CustomInfoTypes.",
-          ).optional(),
-          dictionary: z.unknown().describe(
-            "A list of phrases to detect as a CustomInfoType.",
-          ).optional(),
-          exclusionType: z.unknown().describe(
-            "If set to EXCLUSION_TYPE_EXCLUDE this infoType will not cause a finding to be returned. It still can be used for rules matching. Only supported for the `dictionary`, `regex`, and `stored_type` CustomInfoTypes.",
-          ).optional(),
-          fileLabelInfoType: z.unknown().describe("File label to detect.")
-            .optional(),
-          infoType: z.unknown().describe(
-            "CustomInfoType can either be a new infoType, or an extension of built-in infoType, when the name matches one of existing infoTypes and that infoType is specified in `InspectContent.info_types` field. Specifying the latter adds findings to the one detected by the system. If built-in info type is not specified in `InspectContent.info_types` list then the name is treated as a custom info type.",
-          ).optional(),
-          likelihood: z.unknown().describe(
-            "Likelihood to return for this CustomInfoType. This base value can be altered by a detection rule if the finding meets the criteria specified by the rule. Defaults to `VERY_LIKELY` if not specified.",
-          ).optional(),
-          metadataKeyValueExpression: z.unknown().describe(
-            "Key-value pair to detect in the metadata.",
-          ).optional(),
-          regex: z.unknown().describe(
-            "Regular expression based CustomInfoType.",
-          ).optional(),
-          sensitivityScore: z.unknown().describe(
-            "Sensitivity for this CustomInfoType. If this CustomInfoType extends an existing InfoType, the sensitivity here will take precedence over that of the original InfoType. If unset for a CustomInfoType, it will default to HIGH. This only applies to data profiling.",
-          ).optional(),
-          storedType: z.unknown().describe(
-            "Loads an existing `StoredInfoType` resource.",
-          ).optional(),
-          surrogateType: z.unknown().describe(
-            "Message for detecting output from deidentification transformations that support reversing.",
-          ).optional(),
-        })).describe(
-          "CustomInfoTypes provided by the user. See https://docs.cloud.google.com/sensitive-data-protection/docs/creating-custom-infotypes to learn more.",
-        ).optional(),
-        excludeInfoTypes: z.boolean().describe(
-          "When true, excludes type information of the findings. This is not used for data profiling.",
-        ).optional(),
-        includeQuote: z.boolean().describe(
-          "When true, a contextual quote from the data that triggered a finding is included in the response; see Finding.quote. This is not used for data profiling.",
-        ).optional(),
-        infoTypes: z.array(z.object({
-          name: z.unknown().describe(
-            "Name of the information type. Either a name of your choosing when creating a CustomInfoType, or one of the names listed at https://docs.cloud.google.com/sensitive-data-protection/docs/infotypes-reference when specifying a built-in type. When sending Cloud DLP results to Data Catalog, infoType names should conform to the pattern `[A-Za-z0-9$_-]{1,64}`.",
-          ).optional(),
-          sensitivityScore: z.unknown().describe(
-            "Optional custom sensitivity for this InfoType. This only applies to data profiling.",
-          ).optional(),
-          version: z.unknown().describe(
-            "Optional version name for this InfoType.",
-          ).optional(),
-        })).describe(
-          "Restricts what info_types to look for. The values must correspond to InfoType values returned by ListInfoTypes or listed at https://docs.cloud.google.com/sensitive-data-protection/docs/infotypes-reference. When no InfoTypes or CustomInfoTypes are specified in a request, the system may automatically choose a default list of detectors to run, which may change over time. If you need precise control and predictability as to what detectors are run you should specify specific InfoTypes listed in the reference, otherwise a default list will be used, which may change over time.",
-        ).optional(),
-        limits: z.object({
-          maxFindingsPerInfoType: z.array(z.unknown()).describe(
-            "Configuration of findings limit given for specified infoTypes.",
-          ).optional(),
-          maxFindingsPerItem: z.number().int().describe(
-            "Max number of findings that are returned for each item scanned. When set within an InspectContentRequest, this field is ignored. This value isn't a hard limit. If the number of findings for an item reaches this limit, the inspection of that item ends gradually, not abruptly. Therefore, the actual number of findings that Cloud DLP returns for the item can be multiple times higher than this value.",
-          ).optional(),
-          maxFindingsPerRequest: z.number().int().describe(
-            "Max number of findings that are returned per request or job. If you set this field in an InspectContentRequest, the resulting maximum value is the value that you set or 3,000, whichever is lower. This value isn't a hard limit. If an inspection reaches this limit, the inspection ends gradually, not abruptly. Therefore, the actual number of findings that Cloud DLP returns can be multiple times higher than this value.",
-          ).optional(),
-        }).describe(
-          "Configuration to control the number of findings returned. This is not used for data profiling. When redacting sensitive data from images, finding limits don't apply. They can cause unexpected or inconsistent results, where only some data is redacted. Don't include finding limits in RedactImage requests. Otherwise, Cloud DLP returns an error. When set within an InspectJobConfig, the specified maximum values aren't hard limits. If an inspection job reaches these limits, the job ends gradually, not abruptly. Therefore, the actual number of findings that Cloud DLP returns can be multiple times higher than these maximum values.",
-        ).optional(),
-        minLikelihood: z.enum([
-          "LIKELIHOOD_UNSPECIFIED",
-          "VERY_UNLIKELY",
-          "UNLIKELY",
-          "POSSIBLE",
-          "LIKELY",
-          "VERY_LIKELY",
-        ]).describe(
-          "Only returns findings equal to or above this threshold. The default is POSSIBLE. In general, the highest likelihood setting yields the fewest findings in results and the lowest chance of a false positive. For more information, see [Match likelihood](https://docs.cloud.google.com/sensitive-data-protection/docs/likelihood).",
-        ).optional(),
-        minLikelihoodPerInfoType: z.array(z.object({
-          infoType: z.unknown().describe(
-            "Type of information the likelihood threshold applies to. Only one likelihood per info_type should be provided. If InfoTypeLikelihood does not have an info_type, the configuration fails.",
-          ).optional(),
-          minLikelihood: z.unknown().describe(
-            "Only returns findings equal to or above this threshold. This field is required or else the configuration fails.",
-          ).optional(),
-        })).describe(
-          "Minimum likelihood per infotype. For each infotype, a user can specify a minimum likelihood. The system only returns a finding if its likelihood is above this threshold. If this field is not set, the system uses the InspectConfig min_likelihood.",
-        ).optional(),
-        ruleSet: z.array(z.object({
-          infoTypes: z.unknown().describe(
-            "List of infoTypes this rule set is applied to.",
-          ).optional(),
-          rules: z.unknown().describe(
-            "Set of rules to be applied to infoTypes. The rules are applied in order.",
-          ).optional(),
-        })).describe(
-          "Set of rules to apply to the findings for this InspectConfig. Exclusion rules, contained in the set are executed in the end, other rules are executed in the order they are specified for each info type. Not supported for the `metadata_key_value_expression` CustomInfoType.",
-        ).optional(),
-      }).describe(
-        "The core content of the template. Configuration of the scanning process.",
-      ).optional(),
-      name: z.string().describe(
-        "Output only. The template name. The template will have one of the following formats: `projects/PROJECT_ID/inspectTemplates/TEMPLATE_ID` OR `organizations/ORGANIZATION_ID/inspectTemplates/TEMPLATE_ID`;",
-      ).optional(),
-      updateTime: z.string().describe(
-        "Output only. The last update timestamp of an inspectTemplate.",
-      ).optional(),
-    }).describe(
-      "Optional. InspectTemplate to use to produce findings. Deprecated: use inspect_config instead.",
-    ).optional(),
     loggingConfigs: z.array(z.object({
       logToBigQuery: z.object({
         datasetId: z.string().describe(
@@ -555,13 +430,6 @@ const GlobalArgsSchema = z.object({
         ).optional(),
       })).describe(
         "Optional. Conditions that must match for this rule to apply. All conditions must match (`AND`). For `OR` conditions, use multiple rules.",
-      ).optional(),
-      returnVerdict: z.enum([
-        "CONTENT_POLICY_VERDICT_UNSPECIFIED",
-        "ALLOW",
-        "BLOCK",
-      ]).describe(
-        "If set, the verdict will be returned to the user. Deprecated: Use `action` instead.",
       ).optional(),
     })).describe(
       "Required. Policies to apply, based on the findings returned by inspection. The first rule to match applies.",
@@ -708,81 +576,6 @@ const StateSchema = z.object({
       })),
     })),
   }).optional(),
-  inspectTemplate: z.object({
-    allowLimitedAvailabilityInfoTypes: z.boolean(),
-    createTime: z.string(),
-    description: z.string(),
-    displayName: z.string(),
-    inspectConfig: z.object({
-      contentOptions: z.array(z.string()),
-      customInfoTypes: z.array(z.object({
-        detectionRules: z.array(z.unknown()),
-        dictionary: z.object({
-          cloudStoragePath: z.unknown(),
-          wordList: z.unknown(),
-        }),
-        exclusionType: z.string(),
-        fileLabelInfoType: z.object({
-          googleDriveLabel: z.unknown(),
-          sensitivityLabel: z.unknown(),
-        }),
-        infoType: z.object({
-          name: z.unknown(),
-          sensitivityScore: z.unknown(),
-          version: z.unknown(),
-        }),
-        likelihood: z.string(),
-        metadataKeyValueExpression: z.object({
-          keyRegex: z.unknown(),
-          valueRegex: z.unknown(),
-        }),
-        regex: z.object({
-          groupIndexes: z.unknown(),
-          pattern: z.unknown(),
-        }),
-        sensitivityScore: z.object({
-          score: z.unknown(),
-        }),
-        storedType: z.object({
-          createTime: z.unknown(),
-          name: z.unknown(),
-        }),
-        surrogateType: z.object({}),
-      })),
-      excludeInfoTypes: z.boolean(),
-      includeQuote: z.boolean(),
-      infoTypes: z.array(z.object({
-        name: z.string(),
-        sensitivityScore: z.object({
-          score: z.unknown(),
-        }),
-        version: z.string(),
-      })),
-      limits: z.object({
-        maxFindingsPerInfoType: z.array(z.object({
-          infoType: z.unknown(),
-          maxFindings: z.unknown(),
-        })),
-        maxFindingsPerItem: z.number(),
-        maxFindingsPerRequest: z.number(),
-      }),
-      minLikelihood: z.string(),
-      minLikelihoodPerInfoType: z.array(z.object({
-        infoType: z.object({
-          name: z.unknown(),
-          sensitivityScore: z.unknown(),
-          version: z.unknown(),
-        }),
-        minLikelihood: z.string(),
-      })),
-      ruleSet: z.array(z.object({
-        infoTypes: z.array(z.unknown()),
-        rules: z.array(z.unknown()),
-      })),
-    }),
-    name: z.string(),
-    updateTime: z.string(),
-  }).optional(),
   loggingConfigs: z.array(z.object({
     logToBigQuery: z.object({
       datasetId: z.string(),
@@ -802,7 +595,6 @@ const StateSchema = z.object({
         minCount: z.unknown(),
       }),
     })),
-    returnVerdict: z.string(),
   })).optional(),
   unsupportedFileType: z.object({
     returnVerdict: z.string(),
@@ -1061,131 +853,6 @@ const InputsSchema = z.object({
       ).optional(),
     }).describe("Optional. InspectConfig to use to produce findings.")
       .optional(),
-    inspectTemplate: z.object({
-      allowLimitedAvailabilityInfoTypes: z.boolean().describe(
-        "Optional. Enables the use of [limited-availability built-in infoTypes](https://docs.cloud.google.com/sensitive-data-protection/docs/infotypes-reference#limited-availability-infotypes) in inspect_config. These infoTypes are supported only in specific regions and can cause scanning errors if used elsewhere.",
-      ).optional(),
-      createTime: z.string().describe(
-        "Output only. The creation timestamp of an inspectTemplate.",
-      ).optional(),
-      description: z.string().describe("Short description (max 256 chars).")
-        .optional(),
-      displayName: z.string().describe("Display name (max 256 chars).")
-        .optional(),
-      inspectConfig: z.object({
-        contentOptions: z.array(
-          z.enum(["CONTENT_UNSPECIFIED", "CONTENT_TEXT", "CONTENT_IMAGE"]),
-        ).describe("Deprecated and unused.").optional(),
-        customInfoTypes: z.array(z.object({
-          detectionRules: z.unknown().describe(
-            "Set of detection rules to apply to all findings of this CustomInfoType. Rules are applied in the order that they are specified. Only supported for the `dictionary`, `regex`, and `stored_type` CustomInfoTypes.",
-          ).optional(),
-          dictionary: z.unknown().describe(
-            "A list of phrases to detect as a CustomInfoType.",
-          ).optional(),
-          exclusionType: z.unknown().describe(
-            "If set to EXCLUSION_TYPE_EXCLUDE this infoType will not cause a finding to be returned. It still can be used for rules matching. Only supported for the `dictionary`, `regex`, and `stored_type` CustomInfoTypes.",
-          ).optional(),
-          fileLabelInfoType: z.unknown().describe("File label to detect.")
-            .optional(),
-          infoType: z.unknown().describe(
-            "CustomInfoType can either be a new infoType, or an extension of built-in infoType, when the name matches one of existing infoTypes and that infoType is specified in `InspectContent.info_types` field. Specifying the latter adds findings to the one detected by the system. If built-in info type is not specified in `InspectContent.info_types` list then the name is treated as a custom info type.",
-          ).optional(),
-          likelihood: z.unknown().describe(
-            "Likelihood to return for this CustomInfoType. This base value can be altered by a detection rule if the finding meets the criteria specified by the rule. Defaults to `VERY_LIKELY` if not specified.",
-          ).optional(),
-          metadataKeyValueExpression: z.unknown().describe(
-            "Key-value pair to detect in the metadata.",
-          ).optional(),
-          regex: z.unknown().describe(
-            "Regular expression based CustomInfoType.",
-          ).optional(),
-          sensitivityScore: z.unknown().describe(
-            "Sensitivity for this CustomInfoType. If this CustomInfoType extends an existing InfoType, the sensitivity here will take precedence over that of the original InfoType. If unset for a CustomInfoType, it will default to HIGH. This only applies to data profiling.",
-          ).optional(),
-          storedType: z.unknown().describe(
-            "Loads an existing `StoredInfoType` resource.",
-          ).optional(),
-          surrogateType: z.unknown().describe(
-            "Message for detecting output from deidentification transformations that support reversing.",
-          ).optional(),
-        })).describe(
-          "CustomInfoTypes provided by the user. See https://docs.cloud.google.com/sensitive-data-protection/docs/creating-custom-infotypes to learn more.",
-        ).optional(),
-        excludeInfoTypes: z.boolean().describe(
-          "When true, excludes type information of the findings. This is not used for data profiling.",
-        ).optional(),
-        includeQuote: z.boolean().describe(
-          "When true, a contextual quote from the data that triggered a finding is included in the response; see Finding.quote. This is not used for data profiling.",
-        ).optional(),
-        infoTypes: z.array(z.object({
-          name: z.unknown().describe(
-            "Name of the information type. Either a name of your choosing when creating a CustomInfoType, or one of the names listed at https://docs.cloud.google.com/sensitive-data-protection/docs/infotypes-reference when specifying a built-in type. When sending Cloud DLP results to Data Catalog, infoType names should conform to the pattern `[A-Za-z0-9$_-]{1,64}`.",
-          ).optional(),
-          sensitivityScore: z.unknown().describe(
-            "Optional custom sensitivity for this InfoType. This only applies to data profiling.",
-          ).optional(),
-          version: z.unknown().describe(
-            "Optional version name for this InfoType.",
-          ).optional(),
-        })).describe(
-          "Restricts what info_types to look for. The values must correspond to InfoType values returned by ListInfoTypes or listed at https://docs.cloud.google.com/sensitive-data-protection/docs/infotypes-reference. When no InfoTypes or CustomInfoTypes are specified in a request, the system may automatically choose a default list of detectors to run, which may change over time. If you need precise control and predictability as to what detectors are run you should specify specific InfoTypes listed in the reference, otherwise a default list will be used, which may change over time.",
-        ).optional(),
-        limits: z.object({
-          maxFindingsPerInfoType: z.array(z.unknown()).describe(
-            "Configuration of findings limit given for specified infoTypes.",
-          ).optional(),
-          maxFindingsPerItem: z.number().int().describe(
-            "Max number of findings that are returned for each item scanned. When set within an InspectContentRequest, this field is ignored. This value isn't a hard limit. If the number of findings for an item reaches this limit, the inspection of that item ends gradually, not abruptly. Therefore, the actual number of findings that Cloud DLP returns for the item can be multiple times higher than this value.",
-          ).optional(),
-          maxFindingsPerRequest: z.number().int().describe(
-            "Max number of findings that are returned per request or job. If you set this field in an InspectContentRequest, the resulting maximum value is the value that you set or 3,000, whichever is lower. This value isn't a hard limit. If an inspection reaches this limit, the inspection ends gradually, not abruptly. Therefore, the actual number of findings that Cloud DLP returns can be multiple times higher than this value.",
-          ).optional(),
-        }).describe(
-          "Configuration to control the number of findings returned. This is not used for data profiling. When redacting sensitive data from images, finding limits don't apply. They can cause unexpected or inconsistent results, where only some data is redacted. Don't include finding limits in RedactImage requests. Otherwise, Cloud DLP returns an error. When set within an InspectJobConfig, the specified maximum values aren't hard limits. If an inspection job reaches these limits, the job ends gradually, not abruptly. Therefore, the actual number of findings that Cloud DLP returns can be multiple times higher than these maximum values.",
-        ).optional(),
-        minLikelihood: z.enum([
-          "LIKELIHOOD_UNSPECIFIED",
-          "VERY_UNLIKELY",
-          "UNLIKELY",
-          "POSSIBLE",
-          "LIKELY",
-          "VERY_LIKELY",
-        ]).describe(
-          "Only returns findings equal to or above this threshold. The default is POSSIBLE. In general, the highest likelihood setting yields the fewest findings in results and the lowest chance of a false positive. For more information, see [Match likelihood](https://docs.cloud.google.com/sensitive-data-protection/docs/likelihood).",
-        ).optional(),
-        minLikelihoodPerInfoType: z.array(z.object({
-          infoType: z.unknown().describe(
-            "Type of information the likelihood threshold applies to. Only one likelihood per info_type should be provided. If InfoTypeLikelihood does not have an info_type, the configuration fails.",
-          ).optional(),
-          minLikelihood: z.unknown().describe(
-            "Only returns findings equal to or above this threshold. This field is required or else the configuration fails.",
-          ).optional(),
-        })).describe(
-          "Minimum likelihood per infotype. For each infotype, a user can specify a minimum likelihood. The system only returns a finding if its likelihood is above this threshold. If this field is not set, the system uses the InspectConfig min_likelihood.",
-        ).optional(),
-        ruleSet: z.array(z.object({
-          infoTypes: z.unknown().describe(
-            "List of infoTypes this rule set is applied to.",
-          ).optional(),
-          rules: z.unknown().describe(
-            "Set of rules to be applied to infoTypes. The rules are applied in order.",
-          ).optional(),
-        })).describe(
-          "Set of rules to apply to the findings for this InspectConfig. Exclusion rules, contained in the set are executed in the end, other rules are executed in the order they are specified for each info type. Not supported for the `metadata_key_value_expression` CustomInfoType.",
-        ).optional(),
-      }).describe(
-        "The core content of the template. Configuration of the scanning process.",
-      ).optional(),
-      name: z.string().describe(
-        "Output only. The template name. The template will have one of the following formats: `projects/PROJECT_ID/inspectTemplates/TEMPLATE_ID` OR `organizations/ORGANIZATION_ID/inspectTemplates/TEMPLATE_ID`;",
-      ).optional(),
-      updateTime: z.string().describe(
-        "Output only. The last update timestamp of an inspectTemplate.",
-      ).optional(),
-    }).describe(
-      "Optional. InspectTemplate to use to produce findings. Deprecated: use inspect_config instead.",
-    ).optional(),
     loggingConfigs: z.array(z.object({
       logToBigQuery: z.object({
         datasetId: z.string().describe(
@@ -1220,13 +887,6 @@ const InputsSchema = z.object({
         ).optional(),
       })).describe(
         "Optional. Conditions that must match for this rule to apply. All conditions must match (`AND`). For `OR` conditions, use multiple rules.",
-      ).optional(),
-      returnVerdict: z.enum([
-        "CONTENT_POLICY_VERDICT_UNSPECIFIED",
-        "ALLOW",
-        "BLOCK",
-      ]).describe(
-        "If set, the verdict will be returned to the user. Deprecated: Use `action` instead.",
       ).optional(),
     })).describe(
       "Required. Policies to apply, based on the findings returned by inspection. The first rule to match applies.",
@@ -1284,7 +944,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Sensitive Data Protection (DLP) ContentPolicies. Registered at `@swamp/gcp/dlp/contentpolicies`. */
 export const model = {
   type: "@swamp/gcp/dlp/contentpolicies",
-  version: "2026.08.12.2",
+  version: "2026.09.03.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -1293,6 +953,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

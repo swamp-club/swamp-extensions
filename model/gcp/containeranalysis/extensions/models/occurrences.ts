@@ -209,6 +209,21 @@ const GlobalArgsSchema = z.object({
           "PERFORMED",
           "NOT_PERFORMED",
         ]).describe("Status of the scan.").optional(),
+        tokenUsage: z.object({
+          cacheCount: z.string().describe(
+            "Cache matched tokens for implicit cache.",
+          ).optional(),
+          candidateCount: z.string().describe("Tokens in the model response.")
+            .optional(),
+          promptCount: z.string().describe("Tokens in the user request.")
+            .optional(),
+          thinkingCount: z.string().describe("Tokens in the thinking output.")
+            .optional(),
+          toolUsePromptCount: z.string().describe(
+            "Prompt tokens for using tools.",
+          ).optional(),
+        }).describe("Telemetry metrics tracking token usage for the AI scan.")
+          .optional(),
       }).describe("Malicious Content LLM scan result.").optional(),
       maliciousContentStaticResult: z.object({
         maxSeverity: z.enum(["SEVERITY_UNSPECIFIED", "CRITICAL", "HIGH"])
@@ -1948,6 +1963,13 @@ const StateSchema = z.object({
         maxSeverity: z.string(),
         modelId: z.string(),
         scanStatus: z.string(),
+        tokenUsage: z.object({
+          cacheCount: z.string(),
+          candidateCount: z.string(),
+          promptCount: z.string(),
+          thinkingCount: z.string(),
+          toolUsePromptCount: z.string(),
+        }),
       }),
       maliciousContentStaticResult: z.object({
         maxSeverity: z.string(),
@@ -2656,6 +2678,21 @@ const InputsSchema = z.object({
           "PERFORMED",
           "NOT_PERFORMED",
         ]).describe("Status of the scan.").optional(),
+        tokenUsage: z.object({
+          cacheCount: z.string().describe(
+            "Cache matched tokens for implicit cache.",
+          ).optional(),
+          candidateCount: z.string().describe("Tokens in the model response.")
+            .optional(),
+          promptCount: z.string().describe("Tokens in the user request.")
+            .optional(),
+          thinkingCount: z.string().describe("Tokens in the thinking output.")
+            .optional(),
+          toolUsePromptCount: z.string().describe(
+            "Prompt tokens for using tools.",
+          ).optional(),
+        }).describe("Telemetry metrics tracking token usage for the AI scan.")
+          .optional(),
       }).describe("Malicious Content LLM scan result.").optional(),
       maliciousContentStaticResult: z.object({
         maxSeverity: z.enum(["SEVERITY_UNSPECIFIED", "CRITICAL", "HIGH"])
@@ -4402,7 +4439,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Container Analysis Occurrences. Registered at `@swamp/gcp/containeranalysis/occurrences`. */
 export const model = {
   type: "@swamp/gcp/containeranalysis/occurrences",
-  version: "2026.08.28.1",
+  version: "2026.09.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -4611,6 +4648,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

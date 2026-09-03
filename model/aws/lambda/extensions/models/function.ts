@@ -304,7 +304,7 @@ const GlobalArgsSchema = z.object({
     "Environment variables that are accessible from function code during execution.",
   ).optional(),
   EphemeralStorage: z.object({
-    Size: z.number().int().min(512).max(10240).describe(
+    Size: z.number().int().min(512).max(32768).describe(
       "The size of the function's /tmp directory.",
     ),
   }).describe(
@@ -612,7 +612,7 @@ const InputsSchema = z.object({
     "Environment variables that are accessible from function code during execution.",
   ).optional(),
   EphemeralStorage: z.object({
-    Size: z.number().int().min(512).max(10240).describe(
+    Size: z.number().int().min(512).max(32768).describe(
       "The size of the function's /tmp directory.",
     ).optional(),
   }).describe(
@@ -642,7 +642,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda Function. Registered at `@swamp/aws/lambda/function`. */
 export const model = {
   type: "@swamp/aws/lambda/function",
-  version: "2026.08.27.1",
+  version: "2026.09.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -726,6 +726,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.27.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

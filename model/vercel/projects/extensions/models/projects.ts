@@ -111,6 +111,7 @@ const GlobalArgsSchema = z.object({
     "fasthtml",
     "django",
     "ash",
+    "factory-eve",
     "eve",
     "sanity",
     "sanity-v2",
@@ -1447,6 +1448,7 @@ const InputsSchema = z.object({
     "fasthtml",
     "django",
     "ash",
+    "factory-eve",
     "eve",
     "sanity",
     "sanity-v2",
@@ -1711,7 +1713,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.09.02.1",
+  version: "2026.09.03.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1810,6 +1812,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

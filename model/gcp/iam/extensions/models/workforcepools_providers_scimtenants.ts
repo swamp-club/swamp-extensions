@@ -250,7 +250,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Identity and Access Management (IAM) WorkforcePools.Providers.ScimTenants. Registered at `@swamp/gcp/iam/workforcepools-providers-scimtenants`. */
 export const model = {
   type: "@swamp/gcp/iam/workforcepools-providers-scimtenants",
-  version: "2026.09.02.1",
+  version: "2026.09.03.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -269,6 +269,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -628,6 +633,162 @@ export const model = {
           dataHandles.push(handle);
         }
         return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
+    get_iam_policy: {
+      description: "get iam policy",
+      arguments: z.object({
+        options: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["options"] !== undefined) body["options"] = args["options"];
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "iam.locations.workforcePools.providers.scimTenants.getIamPolicy",
+            "path": "v1/{+resource}:getIamPolicy",
+            "httpMethod": "POST",
+            "parameterOrder": ["resource"],
+            "parameters": {
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    set_iam_policy: {
+      description: "set iam policy",
+      arguments: z.object({
+        policy: z.any().optional(),
+        updateMask: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["policy"] !== undefined) body["policy"] = args["policy"];
+        if (args["updateMask"] !== undefined) {
+          body["updateMask"] = args["updateMask"];
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "iam.locations.workforcePools.providers.scimTenants.setIamPolicy",
+            "path": "v1/{+resource}:setIamPolicy",
+            "httpMethod": "POST",
+            "parameterOrder": ["resource"],
+            "parameters": {
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    test_iam_permissions: {
+      description: "test iam permissions",
+      arguments: z.object({
+        permissions: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["permissions"] !== undefined) {
+          body["permissions"] = args["permissions"];
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "iam.locations.workforcePools.providers.scimTenants.testIamPermissions",
+            "path": "v1/{+resource}:testIamPermissions",
+            "httpMethod": "POST",
+            "parameterOrder": ["resource"],
+            "parameters": {
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
       },
     },
     undelete: {

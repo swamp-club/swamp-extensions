@@ -25,7 +25,7 @@
 /**
  * Swamp extension model for Google Cloud Display & Video 360 Advertisers.AdGroupAds.
  *
- * A single ad associated with an ad group.
+ * LINT: LEGACY_NAMES A single ad associated with an ad group.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -1444,7 +1444,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.AdGroupAds. Registered at `@swamp/gcp/displayvideo/advertisers-adgroupads`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-adgroupads",
-  version: "2026.08.12.2",
+  version: "2026.09.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1606,12 +1606,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "A single ad associated with an ad group.",
+      description:
+        "LINT: LEGACY_NAMES A single ad associated with an ad group.",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,

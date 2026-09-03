@@ -90,9 +90,11 @@ const GlobalArgsSchema = z.object({
       "Contains ECR settings for vulnerability scans.",
     ).optional(),
     ImageScanningEnabled: z.boolean().describe(
-      "This sets whether Image Builder keeps a snapshot of the vulnerability scans that Amazon Inspector runs against the build instance when you create a new image.",
+      "This sets whether Image Builder keeps a snapshot of the vulnerability scans that Amazon Inspector runs against the test instance when you create a new image.",
     ).optional(),
-  }).describe("Contains settings for vulnerability scans.").optional(),
+  }).describe(
+    "Contains settings for vulnerability scans that Amazon Inspector runs against the test instance during image creation.",
+  ).optional(),
   ContainerRecipeArn: z.string().describe(
     "The Amazon Resource Name (ARN) of the container recipe that defines how images are configured and tested.",
   ).optional(),
@@ -198,9 +200,11 @@ const InputsSchema = z.object({
       "Contains ECR settings for vulnerability scans.",
     ).optional(),
     ImageScanningEnabled: z.boolean().describe(
-      "This sets whether Image Builder keeps a snapshot of the vulnerability scans that Amazon Inspector runs against the build instance when you create a new image.",
+      "This sets whether Image Builder keeps a snapshot of the vulnerability scans that Amazon Inspector runs against the test instance when you create a new image.",
     ).optional(),
-  }).describe("Contains settings for vulnerability scans.").optional(),
+  }).describe(
+    "Contains settings for vulnerability scans that Amazon Inspector runs against the test instance during image creation.",
+  ).optional(),
   ContainerRecipeArn: z.string().describe(
     "The Amazon Resource Name (ARN) of the container recipe that defines how images are configured and tested.",
   ).optional(),
@@ -273,7 +277,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ImageBuilder Image. Registered at `@swamp/aws/imagebuilder/image`. */
 export const model = {
   type: "@swamp/aws/imagebuilder/image",
-  version: "2026.08.17.2",
+  version: "2026.09.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -322,6 +326,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

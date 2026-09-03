@@ -47,7 +47,9 @@ const GlobalArgsSchema = z.object({
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
   ai_gateway_id: z.string().optional(),
-  ai_search_model: z.string().optional(),
+  ai_search_model: z.string().describe(
+    "A Workers AI model ID or an AI Gateway model ID compatible with the OpenAI Chat Completions API. An empty string uses the configured or default model.",
+  ).optional(),
   cache: z.boolean().optional(),
   cache_threshold: z.enum([
     "super_strict_match",
@@ -110,7 +112,9 @@ const GlobalArgsSchema = z.object({
     })).optional(),
     keyword_match_mode: z.enum(["and", "or"]).optional(),
   }).optional(),
-  rewrite_model: z.string().optional(),
+  rewrite_model: z.string().describe(
+    "A Workers AI model ID or an AI Gateway model ID compatible with the OpenAI Chat Completions API. An empty string uses the configured or default model.",
+  ).optional(),
   rewrite_query: z.boolean().optional(),
   score_threshold: z.number().min(0).max(1).optional(),
   source: z.string().optional(),
@@ -399,7 +403,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Instances. Registered at `@swamp/cloudflare/ai-search/instances`. */
 export const model = {
   type: "@swamp/cloudflare/ai-search/instances",
-  version: "2026.08.26.1",
+  version: "2026.09.03.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -458,6 +462,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

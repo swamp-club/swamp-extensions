@@ -364,9 +364,11 @@ const GlobalArgsSchema = z.object({
           "Required. Input only. The source code.",
         ).optional(),
       }).describe(
-        "Optional. Input only. Source code inlined in the request. Cloud Run will store the inlined_source to Cloud Storage and replace the field with cloud_storage_source.",
+        "Optional. Input only. Source code inlined in the request. Cloud Run will store the inlined_source to Cloud Storage and replace the field with cloud_storage_source. This field is only supported in Cloud Run Service.",
       ).optional(),
-    }).describe("Optional. Location of the source.").optional(),
+    }).describe(
+      "Optional. Location of the source. This field is only supported in Cloud Run Service.",
+    ).optional(),
     startupProbe: z.object({
       failureThreshold: z.number().int().describe(
         "Optional. Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.",
@@ -990,9 +992,11 @@ const InputsSchema = z.object({
           "Required. Input only. The source code.",
         ).optional(),
       }).describe(
-        "Optional. Input only. Source code inlined in the request. Cloud Run will store the inlined_source to Cloud Storage and replace the field with cloud_storage_source.",
+        "Optional. Input only. Source code inlined in the request. Cloud Run will store the inlined_source to Cloud Storage and replace the field with cloud_storage_source. This field is only supported in Cloud Run Service.",
       ).optional(),
-    }).describe("Optional. Location of the source.").optional(),
+    }).describe(
+      "Optional. Location of the source. This field is only supported in Cloud Run Service.",
+    ).optional(),
     startupProbe: z.object({
       failureThreshold: z.number().int().describe(
         "Optional. Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.",
@@ -1240,7 +1244,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Instances. Registered at `@swamp/gcp/run/instances`. */
 export const model = {
   type: "@swamp/gcp/run/instances",
-  version: "2026.08.12.2",
+  version: "2026.09.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1431,6 +1435,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

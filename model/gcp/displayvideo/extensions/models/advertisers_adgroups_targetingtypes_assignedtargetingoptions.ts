@@ -663,7 +663,7 @@ const GlobalArgsSchema = z.object({
       "CONTENT_RATING_TIER_MATURE",
       "CONTENT_RATING_TIER_FAMILIES",
     ]).describe(
-      "Required. The display name of the digital content label rating tier to be EXCLUDED.",
+      "Required. The display name of the digital content label rating tier to be EXCLUDED. **Starting on *October 1, 2026*, this field will only accept the value `CONTENT_RATING_TIER_UNRATED`. All other values will be deprecated and no longer be accepted.**",
     ).optional(),
   }).describe(
     "Digital content label details. This field will be populated when the targeting_type is `TARGETING_TYPE_DIGITAL_CONTENT_LABEL_EXCLUSION`. Digital content labels are targeting exclusions. Advertiser level digital content label exclusions, if set, are always applied in serving (even though they aren't visible in resource settings). Resource settings can exclude content labels in addition to advertiser exclusions, but can't override them. A line item won't serve if all the digital content labels are excluded.",
@@ -1059,7 +1059,7 @@ const GlobalArgsSchema = z.object({
       "SENSITIVE_CATEGORY_EMBEDDED_VIDEO",
       "SENSITIVE_CATEGORY_LIVE_STREAMING_VIDEO",
     ]).describe(
-      "Required. An enum for the DV360 Sensitive category content classified to be EXCLUDED.",
+      "Required. An enum for the DV360 Sensitive category content classified to be EXCLUDED. **Starting on *October 1, 2026*, this field will only accept `SENSITIVE_CATEGORY_EMBEDDED_VIDEO` or `SENSITIVE_CATEGORY_LIVE_STREAMING_VIDEO`. All other values will be deprecated and no longer be accepted.**",
     ).optional(),
   }).describe(
     "Sensitive category details. This field will be populated when the targeting_type is `TARGETING_TYPE_SENSITIVE_CATEGORY_EXCLUSION`. Sensitive categories are targeting exclusions. Advertiser level sensitive category exclusions, if set, are always applied in serving (even though they aren't visible in resource settings). Resource settings can exclude sensitive categories in addition to advertiser exclusions, but can't override them.",
@@ -2381,7 +2381,7 @@ const InputsSchema = z.object({
       "CONTENT_RATING_TIER_MATURE",
       "CONTENT_RATING_TIER_FAMILIES",
     ]).describe(
-      "Required. The display name of the digital content label rating tier to be EXCLUDED.",
+      "Required. The display name of the digital content label rating tier to be EXCLUDED. **Starting on *October 1, 2026*, this field will only accept the value `CONTENT_RATING_TIER_UNRATED`. All other values will be deprecated and no longer be accepted.**",
     ).optional(),
   }).describe(
     "Digital content label details. This field will be populated when the targeting_type is `TARGETING_TYPE_DIGITAL_CONTENT_LABEL_EXCLUSION`. Digital content labels are targeting exclusions. Advertiser level digital content label exclusions, if set, are always applied in serving (even though they aren't visible in resource settings). Resource settings can exclude content labels in addition to advertiser exclusions, but can't override them. A line item won't serve if all the digital content labels are excluded.",
@@ -2777,7 +2777,7 @@ const InputsSchema = z.object({
       "SENSITIVE_CATEGORY_EMBEDDED_VIDEO",
       "SENSITIVE_CATEGORY_LIVE_STREAMING_VIDEO",
     ]).describe(
-      "Required. An enum for the DV360 Sensitive category content classified to be EXCLUDED.",
+      "Required. An enum for the DV360 Sensitive category content classified to be EXCLUDED. **Starting on *October 1, 2026*, this field will only accept `SENSITIVE_CATEGORY_EMBEDDED_VIDEO` or `SENSITIVE_CATEGORY_LIVE_STREAMING_VIDEO`. All other values will be deprecated and no longer be accepted.**",
     ).optional(),
   }).describe(
     "Sensitive category details. This field will be populated when the targeting_type is `TARGETING_TYPE_SENSITIVE_CATEGORY_EXCLUSION`. Sensitive categories are targeting exclusions. Advertiser level sensitive category exclusions, if set, are always applied in serving (even though they aren't visible in resource settings). Resource settings can exclude sensitive categories in addition to advertiser exclusions, but can't override them.",
@@ -3354,7 +3354,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/displayvideo/advertisers-adgroups-targetingtypes-assignedtargetingoptions",
-  version: "2026.08.12.2",
+  version: "2026.09.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3508,6 +3508,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -154,6 +154,9 @@ const GlobalArgsSchema = z.object({
     new RegExp("^([0-9a-z][-]?){1,100}-[0-9a-z]{10}$"),
   ).optional(),
   Priority: z.number().min(1).max(1000000),
+  System: z.object({
+    ManagedBy: z.string(),
+  }).optional(),
 });
 
 const StateSchema = z.object({
@@ -178,6 +181,9 @@ const StateSchema = z.object({
   Priority: z.number().optional(),
   RuleId: z.string(),
   Status: z.string().optional(),
+  System: z.object({
+    ManagedBy: z.string(),
+  }).optional(),
   UpdatedAt: z.string().optional(),
 }).passthrough();
 
@@ -208,6 +214,9 @@ const InputsSchema = z.object({
     new RegExp("^([0-9a-z][-]?){1,100}-[0-9a-z]{10}$"),
   ).optional(),
   Priority: z.number().min(1).max(1000000).optional(),
+  System: z.object({
+    ManagedBy: z.string().optional(),
+  }).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -229,7 +238,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore GatewayRule. Registered at `@swamp/aws/bedrockagentcore/gateway-rule`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/gateway-rule",
-  version: "2026.08.17.2",
+  version: "2026.09.03.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -239,6 +248,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.03.1",
+      description: "Added: System",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

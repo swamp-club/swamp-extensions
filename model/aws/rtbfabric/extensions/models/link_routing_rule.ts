@@ -50,7 +50,9 @@ const QueryStringKeyValuePairSchema = z.object({
 });
 
 const TagSchema = z.object({
-  Key: z.string().min(1).max(128).describe(
+  Key: z.string().min(1).max(128).regex(
+    new RegExp("^(resourceArn|internalId|[a-zA-Z0-9+\\-=._:/@]+)$"),
+  ).describe(
     "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
   ),
   Value: z.string().min(0).max(256).describe(
@@ -198,7 +200,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RTBFabric LinkRoutingRule. Registered at `@swamp/aws/rtbfabric/link-routing-rule`. */
 export const model = {
   type: "@swamp/aws/rtbfabric/link-routing-rule",
-  version: "2026.08.17.2",
+  version: "2026.09.03.1",
   upgrades: [
     {
       toVersion: "2026.06.06.1",
@@ -222,6 +224,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
