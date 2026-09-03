@@ -509,3 +509,121 @@ Deno.test("GcsLock: passes DistributedLock conformance suite", async () => {
   const lock = new GcsLock(mock, { ttlMs: 5000 });
   await assertLockConformance(lock);
 });
+
+// --- #1980-F1: holderContext appears in lock body --------------------------
+
+Deno.test("GcsLock: holderContext is embedded in the lock body", async () => {
+  const mock = createMockGcsClient();
+  const lock = new GcsLock(mock, {
+    ttlMs: 5000,
+    holderContext: {
+      model: "software-factory",
+      method: "record_dispatch",
+      requestId: "abc-123",
+    },
+  });
+
+  await lock.acquire();
+  const info = await lock.inspect();
+  assertEquals(info !== null, true);
+  assertEquals(info!.context, {
+    model: "software-factory",
+    method: "record_dispatch",
+    requestId: "abc-123",
+  });
+
+  await lock.release();
+});
+
+Deno.test("GcsLock: lock body omits context when holderContext not provided", async () => {
+  const mock = createMockGcsClient();
+  const lock = new GcsLock(mock, { ttlMs: 5000 });
+
+  await lock.acquire();
+  const info = await lock.inspect();
+  assertEquals(info !== null, true);
+  assertEquals(info!.context, undefined);
+
+  await lock.release();
+});
+
+// --- #1980-F2: exponential backoff reduces operations ----------------------
+
+Deno.test("GcsLock: exponential backoff reduces operations under contention", async () => {
+  const mock = createMockGcsClient();
+  const holder = new GcsLock(mock, { ttlMs: 60_000 });
+  await holder.acquire();
+
+  mock.putConditionalCalls = 0;
+
+  const waiter = new GcsLock(mock, {
+    ttlMs: 60_000,
+    retryIntervalMs: 10,
+    maxRetryIntervalMs: 100,
+    maxWaitMs: 1_500,
+  });
+
+  await assertRejects(() => waiter.acquire(), LockTimeoutError);
+
+  // With fixed 10ms interval over 1.5s: ~150 attempts.
+  // With exponential backoff (10, 20, 40, 80, 100, 100, ...): far fewer.
+  assertEquals(
+    mock.putConditionalCalls < 80,
+    true,
+    `expected backoff to reduce attempts, got ${mock.putConditionalCalls} putObjectConditional calls`,
+  );
+
+  await holder.release();
+});
+
+// --- #1980-F3: LockTimeoutError carries structured metadata ----------------
+
+Deno.test("GcsLock: LockTimeoutError has code and retryable fields", async () => {
+  const mock = createMockGcsClient();
+  const holder = new GcsLock(mock, { ttlMs: 60_000 });
+  await holder.acquire();
+
+  const waiter = new GcsLock(mock, {
+    ttlMs: 60_000,
+    retryIntervalMs: 50,
+    maxWaitMs: 200,
+  });
+
+  try {
+    await waiter.acquire();
+    throw new Error("should not reach here");
+  } catch (err) {
+    if (!(err instanceof LockTimeoutError)) throw err;
+    assertEquals(err.code, "LOCK_TIMEOUT");
+    assertEquals(err.retryable, true);
+    assertEquals(err.name, "LockTimeoutError");
+  } finally {
+    await holder.release();
+  }
+});
+
+Deno.test("GcsLock: LockTimeoutError message includes holderContext", async () => {
+  const mock = createMockGcsClient();
+  const holder = new GcsLock(mock, {
+    ttlMs: 60_000,
+    holderContext: { model: "my-model", method: "run" },
+  });
+  await holder.acquire();
+
+  const waiter = new GcsLock(mock, {
+    ttlMs: 60_000,
+    retryIntervalMs: 50,
+    maxWaitMs: 200,
+  });
+
+  try {
+    await waiter.acquire();
+    throw new Error("should not reach here");
+  } catch (err) {
+    if (!(err instanceof LockTimeoutError)) throw err;
+    assertEquals(err.message.includes("model=my-model"), true);
+    assertEquals(err.message.includes("method=run"), true);
+  } finally {
+    await holder.release();
+  }
+});

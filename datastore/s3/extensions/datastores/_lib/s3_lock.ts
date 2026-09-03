@@ -34,6 +34,7 @@ import { Attr, getTracer } from "./tracing.ts";
 const DEFAULT_TTL_MS = 30_000;
 const DEFAULT_RETRY_INTERVAL_MS = 1_000;
 const DEFAULT_MAX_WAIT_MS = 60_000;
+const DEFAULT_MAX_RETRY_INTERVAL_MS = 8_000;
 const DEFAULT_LOCK_KEY = ".datastore.lock";
 
 /**
@@ -56,14 +57,21 @@ function randomSleep(minMs: number, maxMs: number): Promise<void> {
 /** Thrown when a lock cannot be acquired within the configured timeout. */
 export class LockTimeoutError extends Error {
   override readonly name = "LockTimeoutError";
+  readonly code = "LOCK_TIMEOUT" as const;
+  readonly retryable = true as const;
 
   constructor(
     public readonly lockKey: string,
     public readonly holder: LockInfo | null,
     public readonly waitedMs: number,
   ) {
+    const holderCtx = holder?.context
+      ? ` [${
+        Object.entries(holder.context).map(([k, v]) => `${k}=${v}`).join(", ")
+      }]`
+      : "";
     const msg = holder
-      ? `Lock "${lockKey}" held by ${holder.holder} (pid ${holder.pid}) — ` +
+      ? `Lock "${lockKey}" held by ${holder.holder} (pid ${holder.pid})${holderCtx} — ` +
         `timed out after ${waitedMs}ms`
       : `Lock "${lockKey}" — timed out after ${waitedMs}ms`;
     super(msg);
@@ -71,10 +79,14 @@ export class LockTimeoutError extends Error {
 }
 
 /** Build a LockInfo for the current process. */
-function buildLockInfo(ttlMs: number, nonce: string): LockInfo {
+function buildLockInfo(
+  ttlMs: number,
+  nonce: string,
+  context?: Record<string, string>,
+): LockInfo {
   const host = hostname();
   const user = Deno.env.get("USER") ?? Deno.env.get("USERNAME") ?? "unknown";
-  return {
+  const info: LockInfo = {
     holder: `${user}@${host}`,
     hostname: host,
     pid: Deno.pid,
@@ -82,6 +94,8 @@ function buildLockInfo(ttlMs: number, nonce: string): LockInfo {
     ttlMs,
     nonce,
   };
+  if (context) info.context = context;
+  return info;
 }
 
 /** Encode LockInfo as a UTF-8 Uint8Array. */
@@ -107,7 +121,9 @@ export class S3Lock implements DistributedLock {
   private readonly lockKey: string;
   private readonly ttlMs: number;
   private readonly retryIntervalMs: number;
+  private readonly maxRetryIntervalMs: number;
   private readonly maxWaitMs: number;
+  private readonly holderContext: Record<string, string> | undefined;
   private heartbeatId: ReturnType<typeof setInterval> | undefined;
   private held = false;
   private releasing = false;
@@ -122,7 +138,10 @@ export class S3Lock implements DistributedLock {
     this.ttlMs = options?.ttlMs ?? DEFAULT_TTL_MS;
     this.retryIntervalMs = options?.retryIntervalMs ??
       DEFAULT_RETRY_INTERVAL_MS;
+    this.maxRetryIntervalMs = options?.maxRetryIntervalMs ??
+      DEFAULT_MAX_RETRY_INTERVAL_MS;
     this.maxWaitMs = options?.maxWaitMs ?? DEFAULT_MAX_WAIT_MS;
+    this.holderContext = options?.holderContext;
   }
 
   async acquire(): Promise<void> {
@@ -138,6 +157,7 @@ export class S3Lock implements DistributedLock {
         this.releasing = false;
         const nonce = crypto.randomUUID();
         let contended = false;
+        let attempt = 0;
 
         try {
           while (true) {
@@ -165,7 +185,7 @@ export class S3Lock implements DistributedLock {
               throw err;
             }
 
-            const info = buildLockInfo(this.ttlMs, nonce);
+            const info = buildLockInfo(this.ttlMs, nonce, this.holderContext);
             const body = encodeLockInfo(info);
 
             // Attempt conditional write — atomic create
@@ -214,10 +234,13 @@ export class S3Lock implements DistributedLock {
               }
             }
 
-            // Wait and retry
-            await new Promise((resolve) =>
-              setTimeout(resolve, this.retryIntervalMs)
+            // Exponential backoff with jitter: sleep in [base, min(cap, base * 2^attempt))
+            const cap = Math.min(
+              this.maxRetryIntervalMs,
+              this.retryIntervalMs * Math.pow(2, attempt),
             );
+            await randomSleep(this.retryIntervalMs, cap + 1);
+            attempt++;
           }
         } finally {
           span.end();
@@ -363,7 +386,7 @@ export class S3Lock implements DistributedLock {
     // been called while we were reading the lock.
     if (this.releasing) return;
 
-    const info = buildLockInfo(this.ttlMs, this.nonce);
+    const info = buildLockInfo(this.ttlMs, this.nonce, this.holderContext);
     const body = encodeLockInfo(info);
     await this.s3.putObject(this.lockKey, body);
 

@@ -387,3 +387,130 @@ Deno.test("S3Lock: release deletes normally when we still hold the lock", async 
     "uncontested release must delete the lock object",
   );
 });
+
+// --- #1980-F1: holderContext appears in lock body --------------------------
+
+Deno.test("S3Lock: holderContext is embedded in the lock body", async () => {
+  const mock = createMockS3Client();
+  const lock = new S3Lock(mock, {
+    ttlMs: 5000,
+    holderContext: {
+      model: "software-factory",
+      method: "record_dispatch",
+      requestId: "abc-123",
+    },
+  });
+
+  await lock.acquire();
+  const info = await lock.inspect();
+  assertEquals(info !== null, true);
+  assertEquals(info!.context, {
+    model: "software-factory",
+    method: "record_dispatch",
+    requestId: "abc-123",
+  });
+
+  await lock.release();
+});
+
+Deno.test("S3Lock: lock body omits context when holderContext not provided", async () => {
+  const mock = createMockS3Client();
+  const lock = new S3Lock(mock, { ttlMs: 5000 });
+
+  await lock.acquire();
+  const info = await lock.inspect();
+  assertEquals(info !== null, true);
+  assertEquals(info!.context, undefined);
+
+  await lock.release();
+});
+
+// --- #1980-F2: exponential backoff reduces S3 operations -------------------
+
+Deno.test("S3Lock: exponential backoff reduces operations under contention", async () => {
+  const mock = createMockS3Client();
+  const holder = new S3Lock(mock, { ttlMs: 60_000 });
+  await holder.acquire();
+
+  let putConditionalCount = 0;
+  const origPutCond = mock.putObjectConditional.bind(mock);
+  (mock as unknown as Record<string, unknown>).putObjectConditional = (
+    key: string,
+    body: Uint8Array,
+  ) => {
+    putConditionalCount++;
+    return origPutCond(key, body);
+  };
+
+  const waiter = new S3Lock(mock, {
+    ttlMs: 60_000,
+    retryIntervalMs: 10,
+    maxRetryIntervalMs: 100,
+    maxWaitMs: 1_500,
+  });
+
+  await assertRejects(() => waiter.acquire(), LockTimeoutError);
+
+  // With fixed 10ms interval over 1.5s: ~150 attempts.
+  // With exponential backoff (10, 20, 40, 80, 100, 100, ...): far fewer.
+  // Each iteration does putObjectConditional + getObject + headObject.
+  assertEquals(
+    putConditionalCount < 80,
+    true,
+    `expected backoff to reduce attempts, got ${putConditionalCount} putObjectConditional calls`,
+  );
+
+  await holder.release();
+});
+
+// --- #1980-F3: LockTimeoutError carries structured metadata ----------------
+
+Deno.test("S3Lock: LockTimeoutError has code and retryable fields", async () => {
+  const mock = createMockS3Client();
+  const holder = new S3Lock(mock, { ttlMs: 60_000 });
+  await holder.acquire();
+
+  const waiter = new S3Lock(mock, {
+    ttlMs: 60_000,
+    retryIntervalMs: 50,
+    maxWaitMs: 200,
+  });
+
+  try {
+    await waiter.acquire();
+    throw new Error("should not reach here");
+  } catch (err) {
+    if (!(err instanceof LockTimeoutError)) throw err;
+    assertEquals(err.code, "LOCK_TIMEOUT");
+    assertEquals(err.retryable, true);
+    assertEquals(err.name, "LockTimeoutError");
+  } finally {
+    await holder.release();
+  }
+});
+
+Deno.test("S3Lock: LockTimeoutError message includes holderContext", async () => {
+  const mock = createMockS3Client();
+  const holder = new S3Lock(mock, {
+    ttlMs: 60_000,
+    holderContext: { model: "my-model", method: "run" },
+  });
+  await holder.acquire();
+
+  const waiter = new S3Lock(mock, {
+    ttlMs: 60_000,
+    retryIntervalMs: 50,
+    maxWaitMs: 200,
+  });
+
+  try {
+    await waiter.acquire();
+    throw new Error("should not reach here");
+  } catch (err) {
+    if (!(err instanceof LockTimeoutError)) throw err;
+    assertEquals(err.message.includes("model=my-model"), true);
+    assertEquals(err.message.includes("method=run"), true);
+  } finally {
+    await holder.release();
+  }
+});

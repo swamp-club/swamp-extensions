@@ -1,13 +1,13 @@
 manifestVersion: 1
 name: "@swamp/s3-datastore"
-version: "2026.08.31.1"
+version: "2026.09.03.1"
 description: |
   Store data in an Amazon S3 bucket with local cache synchronization.
-  Provides distributed locking via S3 conditional writes and bidirectional
-  sync between a local cache directory and S3. Emits OpenTelemetry spans
-  for S3 operations, lock acquisition/release, and push/pull sync so
-  datastore activity is visible in traces when a TracerProvider is
-  configured. Features shard-first indexing
+  Provides distributed locking via S3 conditional writes with exponential
+  backoff under contention and bidirectional sync between a local cache
+  directory and S3. Emits OpenTelemetry spans for S3 operations, lock
+  acquisition/release, and push/pull sync so datastore activity is visible
+  in traces when a TracerProvider is configured. Features shard-first indexing
   with per-model/per-workflow partition shards under _index/ as the source of
   truth (v2 repos skip the monolithic index upload entirely),
   commitSeq-based zero-diff fast path, two-phase sync to narrow the

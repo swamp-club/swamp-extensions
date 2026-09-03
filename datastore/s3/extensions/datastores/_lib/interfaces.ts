@@ -36,6 +36,8 @@ export interface LockInfo {
   ttlMs: number;
   /** Random per-acquisition nonce used by `forceRelease`. */
   nonce?: string;
+  /** Caller-supplied key-value context embedded in the lock body. */
+  context?: Record<string, string>;
 }
 
 /** Tuning knobs for a single lock acquisition attempt. */
@@ -48,10 +50,14 @@ export interface LockOptions {
   namespace?: string;
   /** Lease duration in milliseconds before the lock auto-expires. */
   ttlMs?: number;
-  /** Delay between retries while another holder owns the lock. */
+  /** Base delay between retries (exponential backoff starting point). */
   retryIntervalMs?: number;
   /** Upper bound on the total time spent waiting to acquire. */
   maxWaitMs?: number;
+  /** Cap on the backoff interval between retries. Default: 8000ms. */
+  maxRetryIntervalMs?: number;
+  /** Caller-supplied context embedded in the lock body for diagnostics. */
+  holderContext?: Record<string, string>;
 }
 
 /** Distributed mutex backing the datastore's write path. */
