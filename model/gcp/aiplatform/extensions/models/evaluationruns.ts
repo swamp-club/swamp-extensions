@@ -456,6 +456,14 @@ const GlobalArgsSchema = z.object({
         topP: z.number().describe(
           "Optional. Specifies the nucleus sampling threshold. The model considers only the smallest set of tokens whose cumulative probability is at least `top_p`. This helps generate more diverse and less repetitive responses. For example, a `top_p` of 0.9 means the model considers tokens until the cumulative probability of the tokens to select from reaches 0.9. It's recommended to adjust either temperature or `top_p`, but not both.",
         ).optional(),
+        translationConfig: z.object({
+          echoTargetLanguage: z.boolean().describe(
+            "Optional. If `true`, the model will generate audio when the target language is spoken, essentially it will parrot the input. If `false`, we will not produce audio for the target language.",
+          ).optional(),
+          targetLanguageCode: z.string().describe(
+            'Required. The target language for translation. Supported values are BCP-47 language codes (e.g. "en", "es", "fr").',
+          ).optional(),
+        }).describe("Optional. Config for translation.").optional(),
       }).describe(
         "Optional. Configuration options for model generation and outputs.",
       ).optional(),
@@ -924,6 +932,9 @@ const GlobalArgsSchema = z.object({
             topP: z.unknown().describe(
               "Optional. Specifies the nucleus sampling threshold. The model considers only the smallest set of tokens whose cumulative probability is at least `top_p`. This helps generate more diverse and less repetitive responses. For example, a `top_p` of 0.9 means the model considers tokens until the cumulative probability of the tokens to select from reaches 0.9. It's recommended to adjust either temperature or `top_p`, but not both.",
             ).optional(),
+            translationConfig: z.unknown().describe(
+              "Optional. Config for translation.",
+            ).optional(),
           }).describe("The configuration for the model.").optional(),
           modelName: z.string().describe(
             'The model name to use for multi-turn agent scraping to get next user message, e.g. "gemini-3-flash-preview".',
@@ -1226,6 +1237,14 @@ const GlobalArgsSchema = z.object({
         topP: z.number().describe(
           "Optional. Specifies the nucleus sampling threshold. The model considers only the smallest set of tokens whose cumulative probability is at least `top_p`. This helps generate more diverse and less repetitive responses. For example, a `top_p` of 0.9 means the model considers tokens until the cumulative probability of the tokens to select from reaches 0.9. It's recommended to adjust either temperature or `top_p`, but not both.",
         ).optional(),
+        translationConfig: z.object({
+          echoTargetLanguage: z.boolean().describe(
+            "Optional. If `true`, the model will generate audio when the target language is spoken, essentially it will parrot the input. If `false`, we will not produce audio for the target language.",
+          ).optional(),
+          targetLanguageCode: z.string().describe(
+            'Required. The target language for translation. Supported values are BCP-47 language codes (e.g. "en", "es", "fr").',
+          ).optional(),
+        }).describe("Optional. Config for translation.").optional(),
       }).describe("Optional. Generation config.").optional(),
       model: z.string().describe(
         "Optional. The fully qualified name of the publisher model or endpoint to use. Anthropic and Llama third-party models are also supported through Model Garden. Publisher model format: `projects/{project}/locations/{location}/publishers/*/models/*` Third-party model formats: `projects/{project}/locations/{location}/publishers/anthropic/models/{model}` or `projects/{project}/locations/{location}/publishers/llama/models/{model}` Endpoint format: `projects/{project}/locations/{location}/endpoints/{endpoint}`",
@@ -1385,6 +1404,10 @@ const StateSchema = z.object({
         }),
         topK: z.number(),
         topP: z.number(),
+        translationConfig: z.object({
+          echoTargetLanguage: z.boolean(),
+          targetLanguageCode: z.string(),
+        }),
       }),
       sampleCount: z.number(),
     }),
@@ -1879,6 +1902,14 @@ const InputsSchema = z.object({
         topP: z.number().describe(
           "Optional. Specifies the nucleus sampling threshold. The model considers only the smallest set of tokens whose cumulative probability is at least `top_p`. This helps generate more diverse and less repetitive responses. For example, a `top_p` of 0.9 means the model considers tokens until the cumulative probability of the tokens to select from reaches 0.9. It's recommended to adjust either temperature or `top_p`, but not both.",
         ).optional(),
+        translationConfig: z.object({
+          echoTargetLanguage: z.boolean().describe(
+            "Optional. If `true`, the model will generate audio when the target language is spoken, essentially it will parrot the input. If `false`, we will not produce audio for the target language.",
+          ).optional(),
+          targetLanguageCode: z.string().describe(
+            'Required. The target language for translation. Supported values are BCP-47 language codes (e.g. "en", "es", "fr").',
+          ).optional(),
+        }).describe("Optional. Config for translation.").optional(),
       }).describe(
         "Optional. Configuration options for model generation and outputs.",
       ).optional(),
@@ -2347,6 +2378,9 @@ const InputsSchema = z.object({
             topP: z.unknown().describe(
               "Optional. Specifies the nucleus sampling threshold. The model considers only the smallest set of tokens whose cumulative probability is at least `top_p`. This helps generate more diverse and less repetitive responses. For example, a `top_p` of 0.9 means the model considers tokens until the cumulative probability of the tokens to select from reaches 0.9. It's recommended to adjust either temperature or `top_p`, but not both.",
             ).optional(),
+            translationConfig: z.unknown().describe(
+              "Optional. Config for translation.",
+            ).optional(),
           }).describe("The configuration for the model.").optional(),
           modelName: z.string().describe(
             'The model name to use for multi-turn agent scraping to get next user message, e.g. "gemini-3-flash-preview".',
@@ -2649,6 +2683,14 @@ const InputsSchema = z.object({
         topP: z.number().describe(
           "Optional. Specifies the nucleus sampling threshold. The model considers only the smallest set of tokens whose cumulative probability is at least `top_p`. This helps generate more diverse and less repetitive responses. For example, a `top_p` of 0.9 means the model considers tokens until the cumulative probability of the tokens to select from reaches 0.9. It's recommended to adjust either temperature or `top_p`, but not both.",
         ).optional(),
+        translationConfig: z.object({
+          echoTargetLanguage: z.boolean().describe(
+            "Optional. If `true`, the model will generate audio when the target language is spoken, essentially it will parrot the input. If `false`, we will not produce audio for the target language.",
+          ).optional(),
+          targetLanguageCode: z.string().describe(
+            'Required. The target language for translation. Supported values are BCP-47 language codes (e.g. "en", "es", "fr").',
+          ).optional(),
+        }).describe("Optional. Config for translation.").optional(),
       }).describe("Optional. Generation config.").optional(),
       model: z.string().describe(
         "Optional. The fully qualified name of the publisher model or endpoint to use. Anthropic and Llama third-party models are also supported through Model Garden. Publisher model format: `projects/{project}/locations/{location}/publishers/*/models/*` Third-party model formats: `projects/{project}/locations/{location}/publishers/anthropic/models/{model}` or `projects/{project}/locations/{location}/publishers/llama/models/{model}` Endpoint format: `projects/{project}/locations/{location}/endpoints/{endpoint}`",
@@ -2710,7 +2752,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform EvaluationRuns. Registered at `@swamp/gcp/aiplatform/evaluationruns`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/evaluationruns",
-  version: "2026.08.30.1",
+  version: "2026.09.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2931,6 +2973,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

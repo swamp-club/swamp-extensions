@@ -161,6 +161,13 @@ const GlobalArgsSchema = z.object({
   condition: z.string().describe(
     "Optional. The condition associated with this role assignment. Note: Feature is available to Enterprise Standard, Enterprise Plus, Google Workspace for Education Plus and Cloud Identity Premium customers. A `RoleAssignment` with the `condition` field set will only take effect when the resource being accessed meets the condition. If `condition` is empty, the role (`role_id`) is applied to the actor (`assigned_to`) at the scope (`scope_type`) unconditionally. Currently, the following conditions are supported: - To make the `RoleAssignment` only applicable to [Security Groups](https://cloud.google.com/identity/docs/groups#group_types): `api.getAttribute('cloudidentity.googleapis.com/groups.labels', []).hasAny(['groups.security']) && resource.type == 'cloudidentity.googleapis.com/Group'` - To make the `RoleAssignment` not applicable to [Security Groups](https://cloud.google.com/identity/docs/groups#group_types): `!api.getAttribute('cloudidentity.googleapis.com/groups.labels', []).hasAny(['groups.security']) && resource.type == 'cloudidentity.googleapis.com/Group'` Currently, the condition strings have to be verbatim and they only work with the following [pre-built administrator roles](https://support.google.com/a/answer/2405986): - Groups Editor - Groups Reader The condition follows [Cloud IAM condition syntax](https://cloud.google.com/iam/docs/conditions-overview). - To make the `RoleAssignment` not applicable to [Locked Groups](https://cloud.google.com/identity/docs/groups#group_types): `!api.getAttribute('cloudidentity.googleapis.com/groups.labels', []).hasAny(['groups.locked']) && resource.type == 'cloudidentity.googleapis.com/Group'` This condition can also be used in conjunction with a Security-related condition.",
   ).optional(),
+  expirationDetails: z.object({
+    expireTime: z.string().describe(
+      "The specific timestamp when the role assignment expires.",
+    ).optional(),
+  }).describe(
+    "Optional. Details regarding the expiration of this role assignment.",
+  ).optional(),
   orgUnitId: z.string().describe(
     "If the role is restricted to an organization unit, this contains the ID for the organization unit the exercise of this role is restricted to.",
   ).optional(),
@@ -180,6 +187,9 @@ const StateSchema = z.object({
   assigneeType: z.string().optional(),
   condition: z.string().optional(),
   etag: z.string().optional(),
+  expirationDetails: z.object({
+    expireTime: z.string(),
+  }).optional(),
   kind: z.string().optional(),
   orgUnitId: z.string().optional(),
   roleAssignmentId: z.string().optional(),
@@ -202,6 +212,13 @@ const InputsSchema = z.object({
   ).optional(),
   condition: z.string().describe(
     "Optional. The condition associated with this role assignment. Note: Feature is available to Enterprise Standard, Enterprise Plus, Google Workspace for Education Plus and Cloud Identity Premium customers. A `RoleAssignment` with the `condition` field set will only take effect when the resource being accessed meets the condition. If `condition` is empty, the role (`role_id`) is applied to the actor (`assigned_to`) at the scope (`scope_type`) unconditionally. Currently, the following conditions are supported: - To make the `RoleAssignment` only applicable to [Security Groups](https://cloud.google.com/identity/docs/groups#group_types): `api.getAttribute('cloudidentity.googleapis.com/groups.labels', []).hasAny(['groups.security']) && resource.type == 'cloudidentity.googleapis.com/Group'` - To make the `RoleAssignment` not applicable to [Security Groups](https://cloud.google.com/identity/docs/groups#group_types): `!api.getAttribute('cloudidentity.googleapis.com/groups.labels', []).hasAny(['groups.security']) && resource.type == 'cloudidentity.googleapis.com/Group'` Currently, the condition strings have to be verbatim and they only work with the following [pre-built administrator roles](https://support.google.com/a/answer/2405986): - Groups Editor - Groups Reader The condition follows [Cloud IAM condition syntax](https://cloud.google.com/iam/docs/conditions-overview). - To make the `RoleAssignment` not applicable to [Locked Groups](https://cloud.google.com/identity/docs/groups#group_types): `!api.getAttribute('cloudidentity.googleapis.com/groups.labels', []).hasAny(['groups.locked']) && resource.type == 'cloudidentity.googleapis.com/Group'` This condition can also be used in conjunction with a Security-related condition.",
+  ).optional(),
+  expirationDetails: z.object({
+    expireTime: z.string().describe(
+      "The specific timestamp when the role assignment expires.",
+    ).optional(),
+  }).describe(
+    "Optional. Details regarding the expiration of this role assignment.",
   ).optional(),
   orgUnitId: z.string().describe(
     "If the role is restricted to an organization unit, this contains the ID for the organization unit the exercise of this role is restricted to.",
@@ -242,7 +259,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK RoleAssignments. Registered at `@swamp/gcp/admin/roleassignments`. */
 export const model = {
   type: "@swamp/gcp/admin/roleassignments",
-  version: "2026.08.12.2",
+  version: "2026.09.04.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -252,6 +269,11 @@ export const model = {
     {
       toVersion: "2026.08.12.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.04.1",
+      description: "Added: expirationDetails",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -282,6 +304,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["assignedTo"] !== undefined) body["assignedTo"] = g["assignedTo"];
         if (g["condition"] !== undefined) body["condition"] = g["condition"];
+        if (g["expirationDetails"] !== undefined) {
+          body["expirationDetails"] = g["expirationDetails"];
+        }
         if (g["orgUnitId"] !== undefined) body["orgUnitId"] = g["orgUnitId"];
         if (g["roleAssignmentId"] !== undefined) {
           body["roleAssignmentId"] = g["roleAssignmentId"];

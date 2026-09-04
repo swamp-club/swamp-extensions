@@ -164,6 +164,13 @@ const GlobalArgsSchema = z.object({
   agent: z.string().describe(
     "Required. The name of the agent in Agent Registry that is affected by this policy.",
   ).optional(),
+  agentResponseCustomization: z.object({
+    denialMessage: z.string().describe(
+      "Optional. Custom message shown to the end user when the policy check results in a denial. Use this to explain the rationale to the user. Max 1000 characters.",
+    ).optional(),
+  }).describe(
+    "Optional. Settings for customizing the agent's response to end users when this policy is evaluated, such as messages displayed when the policy denies a request.",
+  ).optional(),
   description: z.string().describe(
     "Optional. The description of the SemanticGovernancePolicy.",
   ).optional(),
@@ -196,6 +203,9 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   agent: z.string().optional(),
   agentIdentity: z.string().optional(),
+  agentResponseCustomization: z.object({
+    denialMessage: z.string(),
+  }).optional(),
   createTime: z.string().optional(),
   description: z.string().optional(),
   displayName: z.string().optional(),
@@ -220,6 +230,13 @@ const InputsSchema = z.object({
   apiEndpoint: z.string().optional(),
   agent: z.string().describe(
     "Required. The name of the agent in Agent Registry that is affected by this policy.",
+  ).optional(),
+  agentResponseCustomization: z.object({
+    denialMessage: z.string().describe(
+      "Optional. Custom message shown to the end user when the policy check results in a denial. Use this to explain the rationale to the user. Max 1000 characters.",
+    ).optional(),
+  }).describe(
+    "Optional. Settings for customizing the agent's response to end users when this policy is evaluated, such as messages displayed when the policy denies a request.",
   ).optional(),
   description: z.string().describe(
     "Optional. The description of the SemanticGovernancePolicy.",
@@ -276,7 +293,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform SemanticGovernancePolicies. Registered at `@swamp/gcp/aiplatform/semanticgovernancepolicies`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/semanticgovernancepolicies",
-  version: "2026.08.12.2",
+  version: "2026.09.04.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -291,6 +308,11 @@ export const model = {
     {
       toVersion: "2026.08.12.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.04.1",
+      description: "Added: agentResponseCustomization",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -321,6 +343,9 @@ export const model = {
         }`;
         const body: Record<string, unknown> = {};
         if (g["agent"] !== undefined) body["agent"] = g["agent"];
+        if (g["agentResponseCustomization"] !== undefined) {
+          body["agentResponseCustomization"] = g["agentResponseCustomization"];
+        }
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
         }
@@ -450,6 +475,9 @@ export const model = {
         }
         const body: Record<string, unknown> = {};
         if (g["agent"] !== undefined) body["agent"] = g["agent"];
+        if (g["agentResponseCustomization"] !== undefined) {
+          body["agentResponseCustomization"] = g["agentResponseCustomization"];
+        }
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
         }

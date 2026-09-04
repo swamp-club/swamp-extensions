@@ -189,13 +189,13 @@ const GlobalArgsSchema = z.object({
       "Optional. The headers for the MCP server, such as for authentication. Only applicable when `type` is `mcp_server`.",
     ).optional(),
     name: z.string().describe(
-      "Optional. The name of the MCP server. Only applicable when `type` is `mcp_server`.",
+      "Optional. The tool's GCP resource name, used to resolve the tool. Applicable when `type` is `mcp_server` or `endpoint` (a tool registered in Agent Registry), for example `projects/{project}/locations/{location}/.../mcpServers/{id}` or `projects/{project}/locations/{location}/.../endpoints/{id}`.",
     ).optional(),
     type: z.string().describe(
-      "Required. The type of the tool. Supported types: * `code_execution` * `filesystem` * `google_search` * `mcp_server` * `url_context`",
+      "Required. The type of the tool. Supported types: * `code_execution` * `endpoint` * `filesystem` * `google_search` * `mcp_server` * `url_context`",
     ).optional(),
     url: z.string().describe(
-      "Optional. The URL for the MCP server endpoint. Only applicable when `type` is `mcp_server`.",
+      "Optional. Temporary: the tool's runtime reference, consumed by CreateAgent to create the downstream AI App. Applicable when `type` is `mcp_server` or `endpoint`. It is duplicated here (the resource name is already in `name`) only because the Agent service is not yet connected to Agent Registry to derive it from `name`; the Task Service instead resolves it from Agent Registry (GetMcpServer / GetEndpoint) at task creation.",
     ).optional(),
   })).describe("Optional. The tools available to the agent.").optional(),
   location: z.string().describe(
@@ -256,13 +256,13 @@ const InputsSchema = z.object({
       "Optional. The headers for the MCP server, such as for authentication. Only applicable when `type` is `mcp_server`.",
     ).optional(),
     name: z.string().describe(
-      "Optional. The name of the MCP server. Only applicable when `type` is `mcp_server`.",
+      "Optional. The tool's GCP resource name, used to resolve the tool. Applicable when `type` is `mcp_server` or `endpoint` (a tool registered in Agent Registry), for example `projects/{project}/locations/{location}/.../mcpServers/{id}` or `projects/{project}/locations/{location}/.../endpoints/{id}`.",
     ).optional(),
     type: z.string().describe(
-      "Required. The type of the tool. Supported types: * `code_execution` * `filesystem` * `google_search` * `mcp_server` * `url_context`",
+      "Required. The type of the tool. Supported types: * `code_execution` * `endpoint` * `filesystem` * `google_search` * `mcp_server` * `url_context`",
     ).optional(),
     url: z.string().describe(
-      "Optional. The URL for the MCP server endpoint. Only applicable when `type` is `mcp_server`.",
+      "Optional. Temporary: the tool's runtime reference, consumed by CreateAgent to create the downstream AI App. Applicable when `type` is `mcp_server` or `endpoint`. It is duplicated here (the resource name is already in `name`) only because the Agent service is not yet connected to Agent Registry to derive it from `name`; the Task Service instead resolves it from Agent Registry (GetMcpServer / GetEndpoint) at task creation.",
     ).optional(),
   })).describe("Optional. The tools available to the agent.").optional(),
   location: z.string().describe(
@@ -296,7 +296,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Agents. Registered at `@swamp/gcp/aiplatform/agents`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/agents",
-  version: "2026.08.30.1",
+  version: "2026.09.04.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -320,6 +320,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -619,7 +624,7 @@ export const model = {
       description: "List agents resources",
       arguments: z.object({
         filter: z.string().describe(
-          'Optional. An [AIP-160](https://google.aip.dev/160) filter over the returned agents. An empty filter returns the unfiltered collection. Supported fields: * `created` * `updated` Both are timestamps and take an RFC-3339 value, for example `2026-08-01T00:00:00Z`. Supported operators: `=`, `!=`, `<`, `>`, `<=`, `>=`, `:`, `AND`, `OR`, `NOT` (equivalently `-`), and parentheses. Note that `OR` binds more tightly than `AND`, so `a AND b OR c` means `a AND (b OR c)`; parentheses are recommended, not required. Example: `created > "2026-08-01T00:00:00Z" AND updated < "2026-08-09T00:00:00Z"`. Not supported: any field other than those listed above, wildcards other than `field:*`, bare literals with no field name, functions, and the regular-expression operators `=~` and `!~`. A filter that names an unsupported field, exceeds 1000 characters, or nests parentheses more than 5 deep fails with `INVALID_ARGUMENT`.',
+          'Optional. An [AIP-160](https://google.aip.dev/160) filter over the returned agents. An empty filter returns the unfiltered collection. Supported fields, and the operators each accepts: * `created` * `updated` * `base_agent` * `metadata.agent_type` `created` and `updated` are timestamps and take an RFC-3339 value, for example `2026-08-01T00:00:00Z`. Supported operators: `=`, `!=`, `<`, `>`, `<=`, `>=`, `:`, `AND`, `OR`, `NOT` (equivalently `-`), and parentheses. Note that `OR` binds more tightly than `AND`, so `a AND b OR c` means `a AND (b OR c)`; parentheses are recommended, not required. `metadata.agent_type` accepts only the value `"default_agent"`, matched exactly: `metadata.agent_type:"default_agent"` selects the caller\'s default agent, of which there is at most one, and the negated form selects the rest. Any other value is `INVALID_ARGUMENT` rather than an empty page -- `metadata` is an opaque blob, so only this one marker is indexed, and the server cannot answer a question about the others. An agent designated before the server began recording the marker is not matched by the positive form; there is no backfill. `base_agent` accepts `=` and `!=` against the value an agent was created with, and selects only among the agents you own: an agent that belongs to the project rather than to a user is never returned by a filter naming it, including the negated form. An agent created before the server began recording the value is not matched either. Example: `created > "2026-08-01T00:00:00Z" AND updated < "2026-08-09T00:00:00Z"`. IMPORTANT -- `base_agent` and `metadata.agent_type` select only among the agents you own. An agent that belongs to the project rather than to a user is never returned by a filter naming either of them, including a negated one: `base_agent != "some-value"` returns your matching agents and no project-owned agents at all. Filtering on `created` or `updated` alone is unaffected and still spans both. If you want every agent in the project, do not filter on these two fields. Not supported: any field other than those listed above, wildcards other than `field:*`, bare literals with no field name, functions, and the regular-expression operators `=~` and `!~`. A filter that names an unsupported field, exceeds 1000 characters, or nests parentheses more than 5 deep fails with `INVALID_ARGUMENT`.',
         ).optional(),
         orderBy: z.string().describe(
           "Optional. A comma-separated list of fields to order by. Supported fields: * `created` * `updated` Use `desc` after a field name for descending order. Example: `created desc`.",

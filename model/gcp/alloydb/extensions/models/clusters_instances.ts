@@ -343,6 +343,13 @@ const GlobalArgsSchema = z.object({
     allowedConsumerProjects: z.array(z.string()).describe(
       "Optional. List of consumer projects that are allowed to create PSC endpoints to service-attachments to this instance.",
     ).optional(),
+    pscAutoConnectionPolicyState: z.enum([
+      "PSC_AUTO_CONNECTION_POLICY_STATE_UNSPECIFIED",
+      "ENABLED",
+      "DISABLED",
+    ]).describe(
+      "Optional. Configuration for setting up PSC auto connection for the instance.",
+    ).optional(),
     pscAutoConnections: z.array(z.object({
       consumerNetwork: z.string().describe(
         'The consumer network for the PSC service automation, example: "projects/vpc-host-project/global/networks/default". The consumer network might be hosted a different project than the consumer project.',
@@ -353,14 +360,37 @@ const GlobalArgsSchema = z.object({
       consumerProject: z.string().describe(
         "The consumer project to which the PSC service automation endpoint will be created.",
       ).optional(),
+      dnsAutomationInfos: z.array(z.object({
+        fullyQualifiedDomainName: z.unknown().describe(
+          'Output only. The fully qualified domain name of the instance for DNS automation. Example: "...alloydb.goog.". Note: The AUDIT directive is intentionally omitted because this field contains sensitive network topology information.',
+        ).optional(),
+        state: z.unknown().describe(
+          "Output only. The state of the DNS automation.",
+        ).optional(),
+      })).describe(
+        "Output only. List of DNS automation info for the PSC auto connection.",
+      ).optional(),
       ipAddress: z.string().describe(
         "Output only. The IP address of the PSC service automation endpoint.",
+      ).optional(),
+      serviceConnectionPolicy: z.string().describe(
+        'Output only. The PSC service connection policy name. The format is "projects//regions//serviceConnectionPolicies/"',
+      ).optional(),
+      serviceConnectionPolicyCreationState: z.string().describe(
+        "Output only. The creation state or result of the connection policy. Possible values include: - `ACTIVE`: The policy was created successfully. - `PERMISSION_DENIED`: Sufficient permissions were not provided. Note that this field is an unstructured output and customers should not rely on the specific string value or error message directly.",
       ).optional(),
       status: z.string().describe(
         'Output only. The status of the PSC service automation connection. Possible values: "STATE_UNSPECIFIED" - An invalid state as the default case. "ACTIVE" - The connection has been created successfully. "FAILED" - The connection is not functional since some resources on the connection fail to be created. "CREATING" - The connection is being created. "DELETING" - The connection is being deleted. "CREATE_REPAIRING" - The connection is being repaired to complete creation. "DELETE_REPAIRING" - The connection is being repaired to complete deletion.',
       ).optional(),
     })).describe(
       "Optional. Configurations for setting up PSC service automation.",
+    ).optional(),
+    pscAutoDnsState: z.enum([
+      "PSC_AUTO_DNS_STATE_UNSPECIFIED",
+      "PSC_AUTO_DNS_STATE_ENABLED",
+      "PSC_AUTO_DNS_STATE_DISABLED",
+    ]).describe(
+      "Optional. Configuration for setting up PSC auto DNS for the instance.",
     ).optional(),
     pscDnsName: z.string().describe(
       "Output only. The DNS name of the instance for PSC connectivity. Name convention:...alloydb-psc.goog",
@@ -476,18 +506,32 @@ const StateSchema = z.object({
   outboundPublicIpAddresses: z.array(z.string()).optional(),
   pscInstanceConfig: z.object({
     allowedConsumerProjects: z.array(z.string()),
+    pscAutoConnectionPolicyState: z.string(),
     pscAutoConnections: z.array(z.object({
       consumerNetwork: z.string(),
       consumerNetworkStatus: z.string(),
       consumerProject: z.string(),
+      dnsAutomationInfos: z.array(z.object({
+        fullyQualifiedDomainName: z.unknown(),
+        state: z.unknown(),
+      })),
       ipAddress: z.string(),
+      serviceConnectionPolicy: z.string(),
+      serviceConnectionPolicyCreationState: z.string(),
       status: z.string(),
     })),
+    pscAutoDnsState: z.string(),
     pscDnsName: z.string(),
     pscInterfaceConfigs: z.array(z.object({
       networkAttachmentResource: z.string(),
     })),
     serviceAttachmentLink: z.string(),
+  }).optional(),
+  pscInstanceInfo: z.object({
+    effectivePscAutoConnectionPolicy: z.boolean(),
+    effectivePscAutoDnsEnabled: z.boolean(),
+    pscAutoDnsNames: z.array(z.string()),
+    serviceConnectionPolicy: z.string(),
   }).optional(),
   publicIpAddress: z.string().optional(),
   queryInsightsConfig: z.object({
@@ -672,6 +716,13 @@ const InputsSchema = z.object({
     allowedConsumerProjects: z.array(z.string()).describe(
       "Optional. List of consumer projects that are allowed to create PSC endpoints to service-attachments to this instance.",
     ).optional(),
+    pscAutoConnectionPolicyState: z.enum([
+      "PSC_AUTO_CONNECTION_POLICY_STATE_UNSPECIFIED",
+      "ENABLED",
+      "DISABLED",
+    ]).describe(
+      "Optional. Configuration for setting up PSC auto connection for the instance.",
+    ).optional(),
     pscAutoConnections: z.array(z.object({
       consumerNetwork: z.string().describe(
         'The consumer network for the PSC service automation, example: "projects/vpc-host-project/global/networks/default". The consumer network might be hosted a different project than the consumer project.',
@@ -682,14 +733,37 @@ const InputsSchema = z.object({
       consumerProject: z.string().describe(
         "The consumer project to which the PSC service automation endpoint will be created.",
       ).optional(),
+      dnsAutomationInfos: z.array(z.object({
+        fullyQualifiedDomainName: z.unknown().describe(
+          'Output only. The fully qualified domain name of the instance for DNS automation. Example: "...alloydb.goog.". Note: The AUDIT directive is intentionally omitted because this field contains sensitive network topology information.',
+        ).optional(),
+        state: z.unknown().describe(
+          "Output only. The state of the DNS automation.",
+        ).optional(),
+      })).describe(
+        "Output only. List of DNS automation info for the PSC auto connection.",
+      ).optional(),
       ipAddress: z.string().describe(
         "Output only. The IP address of the PSC service automation endpoint.",
+      ).optional(),
+      serviceConnectionPolicy: z.string().describe(
+        'Output only. The PSC service connection policy name. The format is "projects//regions//serviceConnectionPolicies/"',
+      ).optional(),
+      serviceConnectionPolicyCreationState: z.string().describe(
+        "Output only. The creation state or result of the connection policy. Possible values include: - `ACTIVE`: The policy was created successfully. - `PERMISSION_DENIED`: Sufficient permissions were not provided. Note that this field is an unstructured output and customers should not rely on the specific string value or error message directly.",
       ).optional(),
       status: z.string().describe(
         'Output only. The status of the PSC service automation connection. Possible values: "STATE_UNSPECIFIED" - An invalid state as the default case. "ACTIVE" - The connection has been created successfully. "FAILED" - The connection is not functional since some resources on the connection fail to be created. "CREATING" - The connection is being created. "DELETING" - The connection is being deleted. "CREATE_REPAIRING" - The connection is being repaired to complete creation. "DELETE_REPAIRING" - The connection is being repaired to complete deletion.',
       ).optional(),
     })).describe(
       "Optional. Configurations for setting up PSC service automation.",
+    ).optional(),
+    pscAutoDnsState: z.enum([
+      "PSC_AUTO_DNS_STATE_UNSPECIFIED",
+      "PSC_AUTO_DNS_STATE_ENABLED",
+      "PSC_AUTO_DNS_STATE_DISABLED",
+    ]).describe(
+      "Optional. Configuration for setting up PSC auto DNS for the instance.",
     ).optional(),
     pscDnsName: z.string().describe(
       "Output only. The DNS name of the instance for PSC connectivity. Name convention:...alloydb-psc.goog",
@@ -767,7 +841,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud AlloyDB Clusters.Instances. Registered at `@swamp/gcp/alloydb/clusters-instances`. */
 export const model = {
   type: "@swamp/gcp/alloydb/clusters-instances",
-  version: "2026.08.12.2",
+  version: "2026.09.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -939,6 +1013,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1404,6 +1483,7 @@ export const model = {
         observabilityConfig: z.any().optional(),
         outboundPublicIpAddresses: z.any().optional(),
         pscInstanceConfig: z.any().optional(),
+        pscInstanceInfo: z.any().optional(),
         publicIpAddress: z.any().optional(),
         queryInsightsConfig: z.any().optional(),
         readPoolConfig: z.any().optional(),
@@ -1481,6 +1561,9 @@ export const model = {
         }
         if (args["pscInstanceConfig"] !== undefined) {
           body["pscInstanceConfig"] = args["pscInstanceConfig"];
+        }
+        if (args["pscInstanceInfo"] !== undefined) {
+          body["pscInstanceInfo"] = args["pscInstanceInfo"];
         }
         if (args["publicIpAddress"] !== undefined) {
           body["publicIpAddress"] = args["publicIpAddress"];

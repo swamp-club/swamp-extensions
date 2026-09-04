@@ -1054,7 +1054,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Drive Files. Registered at `@swamp/gcp/drive/files`. */
 export const model = {
   type: "@swamp/gcp/drive/files",
-  version: "2026.08.12.2",
+  version: "2026.09.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1211,6 +1211,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1974,6 +1979,7 @@ export const model = {
             "httpMethod": "POST",
             "parameterOrder": ["fileId"],
             "parameters": {
+              "copyComments": { "location": "query" },
               "enforceSingleParent": { "location": "query" },
               "fileId": { "location": "path", "required": true },
               "ignoreDefaultVisibility": { "location": "query" },

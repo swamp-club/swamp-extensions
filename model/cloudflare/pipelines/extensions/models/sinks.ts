@@ -66,9 +66,9 @@ const GlobalArgsSchema = z.object({
     decimal_encoding: z.enum(["number", "string", "bytes"]).optional(),
     timestamp_format: z.enum(["rfc3339", "unix_millis"]).optional(),
     unstructured: z.boolean().optional(),
-    type: z.enum(["json", "parquet"]),
-    compression: z.enum(["uncompressed", "snappy", "gzip", "zstd", "lz4"])
+    compression: z.enum(["uncompressed", "gzip", "snappy", "zstd", "lz4"])
       .optional(),
+    type: z.enum(["json", "parquet"]),
     row_group_bytes: z.number().int().min(0).optional(),
   }).optional(),
   name: z.string().min(1).max(128).describe("Defines the name of the Sink."),
@@ -123,8 +123,8 @@ const ResourceSchema = z.object({
     decimal_encoding: z.string().optional(),
     timestamp_format: z.string().optional(),
     unstructured: z.boolean().optional(),
-    type: z.string().optional(),
     compression: z.string().optional(),
+    type: z.string().optional(),
     row_group_bytes: z.number().optional(),
   }).optional(),
   id: z.string(),
@@ -176,9 +176,9 @@ const InputsSchema = z.object({
     decimal_encoding: z.enum(["number", "string", "bytes"]).optional(),
     timestamp_format: z.enum(["rfc3339", "unix_millis"]).optional(),
     unstructured: z.boolean().optional(),
-    type: z.enum(["json", "parquet"]),
-    compression: z.enum(["uncompressed", "snappy", "gzip", "zstd", "lz4"])
+    compression: z.enum(["uncompressed", "gzip", "snappy", "zstd", "lz4"])
       .optional(),
+    type: z.enum(["json", "parquet"]),
     row_group_bytes: z.number().int().min(0).optional(),
   }).optional(),
   name: z.string().min(1).max(128).optional(),
@@ -200,7 +200,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Sinks. Registered at `@swamp/cloudflare/pipelines/sinks`. */
 export const model = {
   type: "@swamp/cloudflare/pipelines/sinks",
-  version: "2026.09.02.1",
+  version: "2026.09.04.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -234,6 +234,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

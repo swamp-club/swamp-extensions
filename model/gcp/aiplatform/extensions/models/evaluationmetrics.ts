@@ -429,6 +429,14 @@ const GlobalArgsSchema = z.object({
           topP: z.number().describe(
             "Optional. Specifies the nucleus sampling threshold. The model considers only the smallest set of tokens whose cumulative probability is at least `top_p`. This helps generate more diverse and less repetitive responses. For example, a `top_p` of 0.9 means the model considers tokens until the cumulative probability of the tokens to select from reaches 0.9. It's recommended to adjust either temperature or `top_p`, but not both.",
           ).optional(),
+          translationConfig: z.object({
+            echoTargetLanguage: z.unknown().describe(
+              "Optional. If `true`, the model will generate audio when the target language is spoken, essentially it will parrot the input. If `false`, we will not produce audio for the target language.",
+            ).optional(),
+            targetLanguageCode: z.unknown().describe(
+              'Required. The target language for translation. Supported values are BCP-47 language codes (e.g. "en", "es", "fr").',
+            ).optional(),
+          }).describe("Optional. Config for translation.").optional(),
         }).describe(
           "Optional. Configuration options for model generation and outputs.",
         ).optional(),
@@ -539,6 +547,9 @@ const GlobalArgsSchema = z.object({
             ).optional(),
             topP: z.unknown().describe(
               "Optional. Specifies the nucleus sampling threshold. The model considers only the smallest set of tokens whose cumulative probability is at least `top_p`. This helps generate more diverse and less repetitive responses. For example, a `top_p` of 0.9 means the model considers tokens until the cumulative probability of the tokens to select from reaches 0.9. It's recommended to adjust either temperature or `top_p`, but not both.",
+            ).optional(),
+            translationConfig: z.unknown().describe(
+              "Optional. Config for translation.",
             ).optional(),
           }).describe(
             "Optional. Configuration options for model generation and outputs.",
@@ -768,6 +779,10 @@ const StateSchema = z.object({
           }),
           topK: z.number(),
           topP: z.number(),
+          translationConfig: z.object({
+            echoTargetLanguage: z.unknown(),
+            targetLanguageCode: z.unknown(),
+          }),
         }),
         samplingCount: z.number(),
       }),
@@ -810,6 +825,7 @@ const StateSchema = z.object({
             thinkingConfig: z.unknown(),
             topK: z.unknown(),
             topP: z.unknown(),
+            translationConfig: z.unknown(),
           }),
           samplingCount: z.number(),
         }),
@@ -1153,6 +1169,14 @@ const InputsSchema = z.object({
           topP: z.number().describe(
             "Optional. Specifies the nucleus sampling threshold. The model considers only the smallest set of tokens whose cumulative probability is at least `top_p`. This helps generate more diverse and less repetitive responses. For example, a `top_p` of 0.9 means the model considers tokens until the cumulative probability of the tokens to select from reaches 0.9. It's recommended to adjust either temperature or `top_p`, but not both.",
           ).optional(),
+          translationConfig: z.object({
+            echoTargetLanguage: z.unknown().describe(
+              "Optional. If `true`, the model will generate audio when the target language is spoken, essentially it will parrot the input. If `false`, we will not produce audio for the target language.",
+            ).optional(),
+            targetLanguageCode: z.unknown().describe(
+              'Required. The target language for translation. Supported values are BCP-47 language codes (e.g. "en", "es", "fr").',
+            ).optional(),
+          }).describe("Optional. Config for translation.").optional(),
         }).describe(
           "Optional. Configuration options for model generation and outputs.",
         ).optional(),
@@ -1263,6 +1287,9 @@ const InputsSchema = z.object({
             ).optional(),
             topP: z.unknown().describe(
               "Optional. Specifies the nucleus sampling threshold. The model considers only the smallest set of tokens whose cumulative probability is at least `top_p`. This helps generate more diverse and less repetitive responses. For example, a `top_p` of 0.9 means the model considers tokens until the cumulative probability of the tokens to select from reaches 0.9. It's recommended to adjust either temperature or `top_p`, but not both.",
+            ).optional(),
+            translationConfig: z.unknown().describe(
+              "Optional. Config for translation.",
             ).optional(),
           }).describe(
             "Optional. Configuration options for model generation and outputs.",
@@ -1415,7 +1442,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform EvaluationMetrics. Registered at `@swamp/gcp/aiplatform/evaluationmetrics`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/evaluationmetrics",
-  version: "2026.08.30.1",
+  version: "2026.09.04.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -1449,6 +1476,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -75,6 +75,14 @@ const GlobalArgsSchema = z.object({
     "syd1",
     "atl1",
   ]).describe("The region in which the VPC NAT gateway is created."),
+  egresses: z.object({
+    public_gateways: z.array(z.object({
+      ip: z.string().optional(),
+      ipv4: z.string().optional(),
+    })).optional(),
+  }).describe(
+    "An optional object specifying the public egress IP address to assign to the VPC NAT gateway. Provide this only to use a specific address. If omitted, DigitalOcean allocates a public IP address automatically.",
+  ).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -133,13 +141,19 @@ const InputsSchema = z.object({
     "syd1",
     "atl1",
   ]).optional(),
+  egresses: z.object({
+    public_gateways: z.array(z.object({
+      ip: z.string().optional(),
+      ipv4: z.string().optional(),
+    })).optional(),
+  }).optional(),
   token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean vpc nat gateway. Registered at `@swamp/digitalocean/vpc-nat-gateway`. */
 export const model = {
   type: "@swamp/digitalocean/vpc-nat-gateway",
-  version: "2026.06.08.1",
+  version: "2026.09.04.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -189,6 +203,11 @@ export const model = {
     {
       toVersion: "2026.06.08.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.04.1",
+      description: "Added: egresses",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -242,6 +261,7 @@ export const model = {
         if (g.tcp_timeout_seconds !== undefined) {
           body.tcp_timeout_seconds = g.tcp_timeout_seconds;
         }
+        if (g.egresses !== undefined) body.egresses = g.egresses;
         const result = await create(
           "/v2/vpc_nat_gateways",
           body,

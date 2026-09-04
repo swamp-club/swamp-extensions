@@ -168,6 +168,13 @@ const GlobalArgsSchema = z.object({
   tag: z.string().describe(
     "The name of a Droplet tag corresponding to Droplets assigned to the load balancer.",
   ).optional(),
+  ip: z.string().regex(
+    new RegExp(
+      "^$|^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$",
+    ),
+  ).describe(
+    "An optional IP address to assign to the load balancer from one of your Bring Your Own IP (BYOIP) prefixes. The address must be an unassigned BYOIP address on your account in the same region as the load balancer. If omitted, DigitalOcean assigns a public IP address automatically. This field is only applied when creating the load balancer, cannot be changed afterward, and is not supported for `GLOBAL` or `INTERNAL` load balancers.",
+  ).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -177,7 +184,6 @@ const ResourceSchema = z.object({
   id: z.string(),
   name: z.string().optional(),
   project_id: z.string().optional(),
-  ip: z.string().optional(),
   ipv6: z.string().optional(),
   size_unit: z.number().optional(),
   size: z.string().optional(),
@@ -235,6 +241,7 @@ const ResourceSchema = z.object({
   }).optional(),
   target_load_balancer_ids: z.array(z.string()).optional(),
   tls_cipher_policy: z.string().optional(),
+  ip: z.string().optional(),
   region: z.object({
     name: z.string().optional(),
     slug: z.string().optional(),
@@ -324,13 +331,18 @@ const InputsSchema = z.object({
   target_load_balancer_ids: z.array(z.string()).optional(),
   tls_cipher_policy: z.enum(["DEFAULT", "STRONG"]).optional(),
   tag: z.string().optional(),
+  ip: z.string().regex(
+    new RegExp(
+      "^$|^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$",
+    ),
+  ).optional(),
   token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean load balancer. Registered at `@swamp/digitalocean/load-balancer`. */
 export const model = {
   type: "@swamp/digitalocean/load-balancer",
-  version: "2026.06.08.1",
+  version: "2026.09.04.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -385,6 +397,11 @@ export const model = {
     {
       toVersion: "2026.06.08.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.04.1",
+      description: "Added: ip",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -474,6 +491,7 @@ export const model = {
           body.tls_cipher_policy = g.tls_cipher_policy;
         }
         if (g.tag !== undefined) body.tag = g.tag;
+        if (g.ip !== undefined) body.ip = g.ip;
         let result = await create(
           "/v2/load_balancers",
           body,

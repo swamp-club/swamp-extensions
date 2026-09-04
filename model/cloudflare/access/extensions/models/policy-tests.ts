@@ -66,6 +66,7 @@ const GlobalArgsSchema = z.object({
         country_code: z.string(),
       }).optional(),
       device_posture: z.object({
+        account_id: z.string().optional(),
         integration_uid: z.string(),
       }).optional(),
       email_domain: z.object({
@@ -152,6 +153,7 @@ const GlobalArgsSchema = z.object({
         country_code: z.string(),
       }).optional(),
       device_posture: z.object({
+        account_id: z.string().optional(),
         integration_uid: z.string(),
       }).optional(),
       email_domain: z.object({
@@ -239,6 +241,7 @@ const GlobalArgsSchema = z.object({
         country_code: z.string(),
       }).optional(),
       device_posture: z.object({
+        account_id: z.string().optional(),
         integration_uid: z.string(),
       }).optional(),
       email_domain: z.object({
@@ -357,6 +360,7 @@ const InputsSchema = z.object({
         country_code: z.string(),
       }).optional(),
       device_posture: z.object({
+        account_id: z.string().optional(),
         integration_uid: z.string(),
       }).optional(),
       email_domain: z.object({
@@ -443,6 +447,7 @@ const InputsSchema = z.object({
         country_code: z.string(),
       }).optional(),
       device_posture: z.object({
+        account_id: z.string().optional(),
         integration_uid: z.string(),
       }).optional(),
       email_domain: z.object({
@@ -530,6 +535,7 @@ const InputsSchema = z.object({
         country_code: z.string(),
       }).optional(),
       device_posture: z.object({
+        account_id: z.string().optional(),
         integration_uid: z.string(),
       }).optional(),
       email_domain: z.object({
@@ -600,7 +606,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Policy-tests. Registered at `@swamp/cloudflare/access/policy-tests`. */
 export const model = {
   type: "@swamp/cloudflare/access/policy-tests",
-  version: "2026.08.11.1",
+  version: "2026.09.04.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -624,6 +630,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.11.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

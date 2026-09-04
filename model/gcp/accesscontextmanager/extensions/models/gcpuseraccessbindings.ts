@@ -273,7 +273,7 @@ const GlobalArgsSchema = z.object({
       "Optional. Application, etc. to which the access settings will be applied to. Implicitly, this is the scoped access settings key; as such, it must be unique and non-empty.",
     ).optional(),
   })).describe(
-    "Optional. A list of scoped access settings that set this binding's restrictions on a subset of applications. This field cannot be set if restricted_client_applications is set.",
+    "Optional. A list of scoped access settings that set this binding's restrictions on a subset of applications.",
   ).optional(),
   sessionSettings: z.object({
     maxInactivity: z.string().describe(
@@ -314,10 +314,6 @@ const StateSchema = z.object({
     serviceAccount: z.string(),
     serviceAccountProjectNumber: z.string(),
   }).optional(),
-  restrictedClientApplications: z.array(z.object({
-    clientId: z.string(),
-    name: z.string(),
-  })).optional(),
   scopedAccessSettings: z.array(z.object({
     activeSettings: z.object({
       accessLevels: z.array(z.string()),
@@ -481,7 +477,7 @@ const InputsSchema = z.object({
       "Optional. Application, etc. to which the access settings will be applied to. Implicitly, this is the scoped access settings key; as such, it must be unique and non-empty.",
     ).optional(),
   })).describe(
-    "Optional. A list of scoped access settings that set this binding's restrictions on a subset of applications. This field cannot be set if restricted_client_applications is set.",
+    "Optional. A list of scoped access settings that set this binding's restrictions on a subset of applications.",
   ).optional(),
   sessionSettings: z.object({
     maxInactivity: z.string().describe(
@@ -538,7 +534,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Access Context Manager GcpUserAccessBindings. Registered at `@swamp/gcp/accesscontextmanager/gcpuseraccessbindings`. */
 export const model = {
   type: "@swamp/gcp/accesscontextmanager/gcpuseraccessbindings",
-  version: "2026.08.25.1",
+  version: "2026.09.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -688,6 +684,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

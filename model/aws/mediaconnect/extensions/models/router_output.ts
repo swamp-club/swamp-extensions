@@ -242,6 +242,10 @@ const GlobalArgsSchema = z.object({
       "Configuration settings for connecting a router output to a MediaLive input.",
     ).optional(),
   }).describe("The configuration settings for a router output."),
+  FabricConfiguration: z.object({
+    RecoveryLatencyMode: z.enum(["BALANCED", "LOW_LATENCY"]),
+  }).describe("The fabric configuration settings for the router output.")
+    .optional(),
   MaintenanceConfiguration: z.object({
     PreferredDayTime: PreferredDayTimeMaintenanceConfigurationSchema.describe(
       "Configuration for preferred day and time maintenance settings.",
@@ -275,6 +279,9 @@ const StateSchema = z.object({
     MediaLiveInput: MediaLiveInputRouterOutputConfigurationSchema,
   }).optional(),
   CreatedAt: z.string().optional(),
+  FabricConfiguration: z.object({
+    RecoveryLatencyMode: z.string(),
+  }).optional(),
   Id: z.string().optional(),
   IpAddress: z.string().optional(),
   MaintenanceConfiguration: z.object({
@@ -316,6 +323,10 @@ const InputsSchema = z.object({
       "Configuration settings for connecting a router output to a MediaLive input.",
     ).optional(),
   }).describe("The configuration settings for a router output.").optional(),
+  FabricConfiguration: z.object({
+    RecoveryLatencyMode: z.enum(["BALANCED", "LOW_LATENCY"]).optional(),
+  }).describe("The fabric configuration settings for the router output.")
+    .optional(),
   MaintenanceConfiguration: z.object({
     PreferredDayTime: PreferredDayTimeMaintenanceConfigurationSchema.describe(
       "Configuration for preferred day and time maintenance settings.",
@@ -360,7 +371,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaConnect RouterOutput. Registered at `@swamp/aws/mediaconnect/router-output`. */
 export const model = {
   type: "@swamp/aws/mediaconnect/router-output",
-  version: "2026.08.17.2",
+  version: "2026.09.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -420,6 +431,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.04.1",
+      description: "Added: FabricConfiguration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

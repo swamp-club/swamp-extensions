@@ -71,6 +71,7 @@ const GlobalArgsSchema = z.object({
       country_code: z.string(),
     }).optional(),
     device_posture: z.object({
+      account_id: z.string().optional(),
       integration_uid: z.string(),
     }).optional(),
     email_domain: z.object({
@@ -159,6 +160,7 @@ const GlobalArgsSchema = z.object({
       country_code: z.string(),
     }).optional(),
     device_posture: z.object({
+      account_id: z.string().optional(),
       integration_uid: z.string(),
     }).optional(),
     email_domain: z.object({
@@ -248,6 +250,7 @@ const GlobalArgsSchema = z.object({
       country_code: z.string(),
     }).optional(),
     device_posture: z.object({
+      account_id: z.string().optional(),
       integration_uid: z.string(),
     }).optional(),
     email_domain: z.object({
@@ -350,6 +353,7 @@ const ResourceSchema = z.object({
       country_code: z.string().optional(),
     }).optional(),
     device_posture: z.object({
+      account_id: z.string().optional(),
       integration_uid: z.string().optional(),
     }).optional(),
     email_domain: z.object({
@@ -437,6 +441,7 @@ const ResourceSchema = z.object({
       country_code: z.string().optional(),
     }).optional(),
     device_posture: z.object({
+      account_id: z.string().optional(),
       integration_uid: z.string().optional(),
     }).optional(),
     email_domain: z.object({
@@ -524,6 +529,7 @@ const ResourceSchema = z.object({
       country_code: z.string().optional(),
     }).optional(),
     device_posture: z.object({
+      account_id: z.string().optional(),
       integration_uid: z.string().optional(),
     }).optional(),
     email_domain: z.object({
@@ -586,6 +592,7 @@ const ResourceSchema = z.object({
     }).optional(),
   })).optional(),
   updated_at: z.string().optional(),
+  account_id: z.string().optional(),
   app_count: z.number().optional(),
   reusable: z.boolean().optional(),
 }).passthrough();
@@ -620,6 +627,7 @@ const InputsSchema = z.object({
       country_code: z.string(),
     }).optional(),
     device_posture: z.object({
+      account_id: z.string().optional(),
       integration_uid: z.string(),
     }).optional(),
     email_domain: z.object({
@@ -706,6 +714,7 @@ const InputsSchema = z.object({
       country_code: z.string(),
     }).optional(),
     device_posture: z.object({
+      account_id: z.string().optional(),
       integration_uid: z.string(),
     }).optional(),
     email_domain: z.object({
@@ -793,6 +802,7 @@ const InputsSchema = z.object({
       country_code: z.string(),
     }).optional(),
     device_posture: z.object({
+      account_id: z.string().optional(),
       integration_uid: z.string(),
     }).optional(),
     email_domain: z.object({
@@ -862,7 +872,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Policies. Registered at `@swamp/cloudflare/access/policies`. */
 export const model = {
   type: "@swamp/cloudflare/access/policies",
-  version: "2026.08.11.1",
+  version: "2026.09.04.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -886,6 +896,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.11.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

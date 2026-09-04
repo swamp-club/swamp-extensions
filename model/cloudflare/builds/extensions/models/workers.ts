@@ -50,7 +50,7 @@ const GlobalArgsSchema = z.object({
     branch: z.string().min(1).max(256),
     provider_account_id: z.string(),
     provider_account_name: z.string(),
-    provider_type: z.enum(["github", "gitlab", "gitlab_internal"]),
+    provider_type: z.enum(["github", "gitlab", "gitlab_internal", "origin"]),
     repo_id: z.string(),
     repo_name: z.string(),
     grant_id: z.string().min(1).optional(),
@@ -112,7 +112,7 @@ const InputsSchema = z.object({
     branch: z.string().min(1).max(256),
     provider_account_id: z.string(),
     provider_account_name: z.string(),
-    provider_type: z.enum(["github", "gitlab", "gitlab_internal"]),
+    provider_type: z.enum(["github", "gitlab", "gitlab_internal", "origin"]),
     repo_id: z.string(),
     repo_name: z.string(),
     grant_id: z.string().min(1).optional(),
@@ -136,7 +136,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Workers. Registered at `@swamp/cloudflare/builds/workers`. */
 export const model = {
   type: "@swamp/cloudflare/builds/workers",
-  version: "2026.08.11.1",
+  version: "2026.09.04.1",
   upgrades: [
     {
       toVersion: "2026.07.18.1",
@@ -150,6 +150,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.11.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

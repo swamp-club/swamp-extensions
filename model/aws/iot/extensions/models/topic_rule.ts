@@ -131,6 +131,24 @@ const HttpActionSchema = z.object({
   BatchConfig: BatchConfigSchema.optional(),
 });
 
+const InfluxDBBatchConfigSchema = z.object({
+  MaxBatchSize: z.number().int().optional(),
+  MaxBatchOpenMs: z.number().int().optional(),
+  MaxBatchSizeBytes: z.number().int().optional(),
+  BatchAcrossTopics: z.boolean().optional(),
+});
+
+const InfluxDBActionSchema = z.object({
+  DestinationArn: z.string(),
+  RoleArn: z.string(),
+  DatabaseName: z.string(),
+  TableName: z.string(),
+  Organization: z.string().optional(),
+  TimestampUnit: z.string().optional(),
+  Tags: z.record(z.string(), z.string()).optional(),
+  BatchConfig: InfluxDBBatchConfigSchema.optional(),
+});
+
 const IotAnalyticsActionSchema = z.object({
   RoleArn: z.string(),
   ChannelName: z.string(),
@@ -303,6 +321,7 @@ const ActionSchema = z.object({
   Elasticsearch: ElasticsearchActionSchema.optional(),
   Firehose: FirehoseActionSchema.optional(),
   Http: HttpActionSchema.optional(),
+  InfluxDB: InfluxDBActionSchema.optional(),
   IotAnalytics: IotAnalyticsActionSchema.optional(),
   IotEvents: IotEventsActionSchema.optional(),
   IotSiteWise: IotSiteWiseActionSchema.optional(),
@@ -401,7 +420,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoT TopicRule. Registered at `@swamp/aws/iot/topic-rule`. */
 export const model = {
   type: "@swamp/aws/iot/topic-rule",
-  version: "2026.08.17.2",
+  version: "2026.09.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -455,6 +474,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

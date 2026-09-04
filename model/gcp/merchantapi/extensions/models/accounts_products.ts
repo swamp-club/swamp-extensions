@@ -185,6 +185,8 @@ const StateSchema = z.object({
     certifications: z.array(z.object({
       certificationAuthority: z.string(),
       certificationCode: z.string(),
+      certificationDocumentLink: z.string(),
+      certificationLabelLink: z.string(),
       certificationName: z.string(),
       certificationValue: z.string(),
     })),
@@ -636,7 +638,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.Products. Registered at `@swamp/gcp/merchantapi/accounts-products`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-products",
-  version: "2026.08.12.2",
+  version: "2026.09.04.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -645,6 +647,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

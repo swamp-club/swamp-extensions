@@ -17,13 +17,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/aws/iot/topic-rule-destination
+// Auto-generated extension model for @swamp/aws/iotsitewise/pipeline
 // Do not edit manually. Re-generate with: deno task generate:aws
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for IoT TopicRuleDestination (AWS::IoT::TopicRuleDestination).
+ * Swamp extension model for IoTSiteWise Pipeline (AWS::IoTSiteWise::Pipeline).
  *
  * Wraps the CloudFormation resource type as a swamp model so create,
  * get, update, delete, sync, and list can be driven through `swamp model`.
@@ -42,6 +42,27 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const ComputeNodeSchema = z.object({
+  ComputeNodeName: z.string().min(1).max(128).regex(
+    new RegExp("^[a-zA-Z0-9_-]+$"),
+  ).describe("The unique name for this compute node within the pipeline."),
+  TaskName: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
+    .describe("The name of the task to execute for this compute node."),
+  EnvironmentVariables: z.record(z.string(), z.string().max(2048)).describe(
+    "A map of environment variable key-value pairs.",
+  ).optional(),
+  DependsOn: z.array(
+    z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9_-]+$")),
+  ).describe(
+    "A list of compute node names that must complete successfully before this node can start.",
+  ).optional(),
+});
+
+const TagSchema = z.object({
+  Key: z.string().min(1).max(128).describe("The key name of the tag."),
+  Value: z.string().min(0).max(256).describe("The value for the tag."),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -58,55 +79,34 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Status: z.enum(["ENABLED", "IN_PROGRESS", "DISABLED"]).describe(
-    "The status of the TopicRuleDestination.",
+  WorkspaceName: z.string().min(1).max(128).regex(
+    new RegExp("^[a-zA-Z0-9_-]+$"),
+  ).describe("The name of the workspace."),
+  PipelineName: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
+    .describe("The name of the pipeline. Must be unique within the workspace."),
+  Description: z.string().min(0).max(2048).describe(
+    "A description of the pipeline.",
   ).optional(),
-  HttpUrlProperties: z.object({
-    ConfirmationUrl: z.string().optional(),
-  }).describe("HTTP URL destination properties.").optional(),
-  VpcProperties: z.object({
-    SubnetIds: z.array(z.string()).optional(),
-    SecurityGroups: z.array(z.string()).optional(),
-    VpcId: z.string().optional(),
-    RoleArn: z.string().optional(),
-  }).describe("VPC destination properties.").optional(),
-  InfluxDBProperties: z.object({
-    Endpoint: z.string().describe("The endpoint URL of the InfluxDB database."),
-    InfluxDBVersion: z.string().describe(
-      "The version of the InfluxDB database (for example, V2 or V3).",
-    ),
-    SecretId: z.string().describe(
-      "The ARN or name of the Secrets Manager secret containing the InfluxDB API token.",
-    ),
-    SecretType: z.string().describe(
-      "The type of the secret value (SecretString or SecretBinary).",
-    ).optional(),
-    SecretKey: z.string().describe(
-      "The key name within the secret that contains the InfluxDB token.",
-    ).optional(),
-  }).describe("InfluxDB destination properties.").optional(),
+  EnvironmentVariables: z.record(z.string(), z.string().max(2048)).describe(
+    "Environment variables shared across all compute nodes in the pipeline.",
+  ).optional(),
+  Computations: z.array(ComputeNodeSchema).describe(
+    "The list of compute nodes that form the pipeline DAG.",
+  ),
+  Tags: z.array(TagSchema).describe(
+    "An array of key-value pairs to apply to this resource.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
-  Arn: z.string(),
+  WorkspaceName: z.string().optional(),
+  PipelineName: z.string().optional(),
+  PipelineArn: z.string(),
+  Description: z.string().optional(),
+  EnvironmentVariables: z.record(z.string(), z.unknown()).optional(),
+  Computations: z.array(ComputeNodeSchema).optional(),
   Status: z.string().optional(),
-  HttpUrlProperties: z.object({
-    ConfirmationUrl: z.string(),
-  }).optional(),
-  StatusReason: z.string().optional(),
-  VpcProperties: z.object({
-    SubnetIds: z.array(z.string()),
-    SecurityGroups: z.array(z.string()),
-    VpcId: z.string(),
-    RoleArn: z.string(),
-  }).optional(),
-  InfluxDBProperties: z.object({
-    Endpoint: z.string(),
-    InfluxDBVersion: z.string(),
-    SecretId: z.string(),
-    SecretType: z.string(),
-    SecretKey: z.string(),
-  }).optional(),
+  Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -117,34 +117,24 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  Status: z.enum(["ENABLED", "IN_PROGRESS", "DISABLED"]).describe(
-    "The status of the TopicRuleDestination.",
+  WorkspaceName: z.string().min(1).max(128).regex(
+    new RegExp("^[a-zA-Z0-9_-]+$"),
+  ).describe("The name of the workspace.").optional(),
+  PipelineName: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
+    .describe("The name of the pipeline. Must be unique within the workspace.")
+    .optional(),
+  Description: z.string().min(0).max(2048).describe(
+    "A description of the pipeline.",
   ).optional(),
-  HttpUrlProperties: z.object({
-    ConfirmationUrl: z.string().optional(),
-  }).describe("HTTP URL destination properties.").optional(),
-  VpcProperties: z.object({
-    SubnetIds: z.array(z.string()).optional(),
-    SecurityGroups: z.array(z.string()).optional(),
-    VpcId: z.string().optional(),
-    RoleArn: z.string().optional(),
-  }).describe("VPC destination properties.").optional(),
-  InfluxDBProperties: z.object({
-    Endpoint: z.string().describe("The endpoint URL of the InfluxDB database.")
-      .optional(),
-    InfluxDBVersion: z.string().describe(
-      "The version of the InfluxDB database (for example, V2 or V3).",
-    ).optional(),
-    SecretId: z.string().describe(
-      "The ARN or name of the Secrets Manager secret containing the InfluxDB API token.",
-    ).optional(),
-    SecretType: z.string().describe(
-      "The type of the secret value (SecretString or SecretBinary).",
-    ).optional(),
-    SecretKey: z.string().describe(
-      "The key name within the secret that contains the InfluxDB token.",
-    ).optional(),
-  }).describe("InfluxDB destination properties.").optional(),
+  EnvironmentVariables: z.record(z.string(), z.string().max(2048)).describe(
+    "Environment variables shared across all compute nodes in the pipeline.",
+  ).optional(),
+  Computations: z.array(ComputeNodeSchema).describe(
+    "The list of compute nodes that form the pipeline DAG.",
+  ).optional(),
+  Tags: z.array(TagSchema).describe(
+    "An array of key-value pairs to apply to this resource.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -163,72 +153,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
   };
 }
 
-/** Swamp extension model for IoT TopicRuleDestination. Registered at `@swamp/aws/iot/topic-rule-destination`. */
+/** Swamp extension model for IoTSiteWise Pipeline. Registered at `@swamp/aws/iotsitewise/pipeline`. */
 export const model = {
-  type: "@swamp/aws/iot/topic-rule-destination",
+  type: "@swamp/aws/iotsitewise/pipeline",
   version: "2026.09.04.1",
-  upgrades: [
-    {
-      toVersion: "2026.04.01.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.06.1",
-      description: "Added: accessKeyId, secretAccessKey, sessionToken, region",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.15.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.08.17.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.08.17.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.09.04.1",
-      description: "Added: InfluxDBProperties",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "IoT TopicRuleDestination resource state",
+      description: "IoTSiteWise Pipeline resource state",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -236,7 +169,7 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a IoT TopicRuleDestination",
+      description: "Create a IoTSiteWise Pipeline",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -248,7 +181,7 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await createResource(
-          "AWS::IoT::TopicRuleDestination",
+          "AWS::IoTSiteWise::Pipeline",
           desiredState,
           credentials,
         ) as StateData;
@@ -265,16 +198,16 @@ export const model = {
       },
     },
     get: {
-      description: "Get a IoT TopicRuleDestination",
+      description: "Get a IoTSiteWise Pipeline",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the IoT TopicRuleDestination",
+          "The primary identifier of the IoTSiteWise Pipeline",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const result = await readResource(
-          "AWS::IoT::TopicRuleDestination",
+          "AWS::IoTSiteWise::Pipeline",
           args.identifier,
           credentials,
         ) as StateData;
@@ -292,7 +225,7 @@ export const model = {
       },
     },
     update: {
-      description: "Update a IoT TopicRuleDestination",
+      description: "Update a IoTSiteWise Pipeline",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -310,12 +243,12 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.Arn?.toString();
+        const identifier = existing.PipelineArn?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         const currentState = await readResource(
-          "AWS::IoT::TopicRuleDestination",
+          "AWS::IoTSiteWise::Pipeline",
           identifier,
           credentials,
         ) as StateData;
@@ -326,11 +259,11 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await updateResource(
-          "AWS::IoT::TopicRuleDestination",
+          "AWS::IoTSiteWise::Pipeline",
           identifier,
           currentState,
           desiredState,
-          ["HttpUrlProperties", "VpcProperties", "InfluxDBProperties"],
+          ["WorkspaceName", "PipelineName"],
           credentials,
         );
         const handle = await context.writeResource(
@@ -342,16 +275,16 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete a IoT TopicRuleDestination",
+      description: "Delete a IoTSiteWise Pipeline",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the IoT TopicRuleDestination",
+          "The primary identifier of the IoTSiteWise Pipeline",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const { existed } = await deleteResource(
-          "AWS::IoT::TopicRuleDestination",
+          "AWS::IoTSiteWise::Pipeline",
           args.identifier,
           credentials,
         );
@@ -370,7 +303,7 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync IoT TopicRuleDestination state from AWS",
+      description: "Sync IoTSiteWise Pipeline state from AWS",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -388,13 +321,13 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.Arn?.toString();
+        const identifier = existing.PipelineArn?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         try {
           const result = await readResource(
-            "AWS::IoT::TopicRuleDestination",
+            "AWS::IoTSiteWise::Pipeline",
             identifier,
             credentials,
           ) as StateData;
@@ -418,7 +351,7 @@ export const model = {
       },
     },
     list: {
-      description: "List IoT TopicRuleDestination resources",
+      description: "List IoTSiteWise Pipeline resources",
       arguments: z.object({
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
@@ -433,7 +366,7 @@ export const model = {
       ) => {
         const credentials = _buildCredentials(context.globalArgs);
         const { items, nextToken } = await listResources(
-          "AWS::IoT::TopicRuleDestination",
+          "AWS::IoTSiteWise::Pipeline",
           {
             resourceModel: args.resourceModel,
             maxPages: args.maxPages,
@@ -444,10 +377,8 @@ export const model = {
         for (let i = 0; i < items.length; i++) {
           const item = items[i];
           const instanceName =
-            (item.properties?.Arn?.toString() ?? item.identifier).replace(
-              /[\/\\]/g,
-              "_",
-            ).replace(/\.\./g, "_").replace(/\0/g, "");
+            (item.properties?.PipelineArn?.toString() ?? item.identifier)
+              .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
           const handle = await context.writeResource("state", instanceName, {
             ...item.properties,
             _identifier: item.identifier,

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/cloudflare/pipelines"
-version: "2026.09.02.1"
+version: "2026.09.04.1"
 description: "Cloudflare pipelines infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +11,6 @@ labels:
   - infrastructure
 releaseNotes: |
   - Updated: sinks
-  - Updated: streams
 models:
   - pipelines.ts
   - pipelines_v2.ts
