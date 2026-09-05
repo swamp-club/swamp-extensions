@@ -359,8 +359,11 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }).describe("Specifies a Compute Engine instance as the host.").optional(),
   }).describe("Optional. Runtime host for the workstation.").optional(),
+  idleAction: z.enum(["IDLE_ACTION_UNSPECIFIED", "STOP", "SUSPEND"]).describe(
+    "Optional. The action to take when the workstation has been idle for the duration specified in idle_timeout. Defaults to STOP.",
+  ).optional(),
   idleTimeout: z.string().describe(
-    'Optional. Number of seconds to wait before automatically stopping a workstation after it last received user traffic. A value of `"0s"` indicates that Cloud Workstations VMs created with this configuration should never time out due to idleness. Provide [duration](https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#duration) terminated by `s` for seconds—for example, `"7200s"` (2 hours). The default is `"1200s"` (20 minutes).',
+    'Optional. Number of seconds to wait before automatically stopping or suspending a workstation after it last received user traffic. See idle_action to configure whether to stop or suspend idle workstations. A value of `"0s"` indicates that Cloud Workstations VMs created with this configuration should never time out due to idleness. Provide [duration](https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#duration) terminated by `s` for seconds—for example, `"7200s"` (2 hours). The default is `"1200s"` (20 minutes).',
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. [Labels](https://cloud.google.com/workstations/docs/label-resources) that are applied to the workstation configuration and that are also propagated to the underlying Compute Engine resources.",
@@ -437,7 +440,7 @@ const GlobalArgsSchema = z.object({
     "Optional. Immutable. Specifies the zones used to replicate the VM and disk resources within the region. If set, exactly two zones within the workstation cluster's region must be specified—for example, `['us-central1-a', 'us-central1-f']`. If this field is empty, two default zones within the region are used. Immutable after the workstation configuration is created.",
   ).optional(),
   runningTimeout: z.string().describe(
-    'Optional. Number of seconds to wait before automatically stopping a workstation. We recommend that workstations be stopped daily so that security updates can be applied upon restart. The idle_timeout and running_timeout fields are independent of each other. Note that the running_timeout field stops workstations after the specified time, regardless of whether or not the workstations are idle. Provide duration terminated by `s` for seconds—for example, `"54000s"` (15 hours). Defaults to `"43200s"` (12 hours). A value of `"0s"` indicates that workstations using this configuration should never time out. If encryption_key is set, it must be greater than `"0s"` and less than `"86400s"` (24 hours). Warning: A value of `"0s"` indicates that Cloud Workstations VMs created with this configuration have no maximum running time. This is strongly discouraged because you incur costs and will not pick up security updates.',
+    'Optional. Number of seconds to wait before automatically stopping a workstation. We recommend that workstations be stopped daily so that security updates can be applied upon restart. The idle_timeout and running_timeout fields are independent of each other. Note that the running_timeout field stops workstations after the specified time, regardless of whether or not the workstations are idle. Note: This timeout applies to workstations in the following states: * STATE_RUNNING * STATE_SUSPENDED Suspending a workstation does not reset this timeout. Provide duration terminated by `s` for seconds—for example, `"54000s"` (15 hours). Defaults to `"43200s"` (12 hours). A value of `"0s"` indicates that workstations using this configuration should never time out. If encryption_key is set, it must be greater than `"0s"` and less than `"86400s"` (24 hours). Warning: A value of `"0s"` indicates that Cloud Workstations VMs created with this configuration have no maximum running time. This is strongly discouraged because you incur costs and will not pick up security updates.',
   ).optional(),
   workstationConfigId: z.string().describe(
     "Required. ID to use for the workstation configuration.",
@@ -527,6 +530,7 @@ const StateSchema = z.object({
       vmTags: z.record(z.string(), z.unknown()),
     }),
   }).optional(),
+  idleAction: z.string().optional(),
   idleTimeout: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   maxUsableWorkstations: z.number().optional(),
@@ -745,8 +749,11 @@ const InputsSchema = z.object({
       ).optional(),
     }).describe("Specifies a Compute Engine instance as the host.").optional(),
   }).describe("Optional. Runtime host for the workstation.").optional(),
+  idleAction: z.enum(["IDLE_ACTION_UNSPECIFIED", "STOP", "SUSPEND"]).describe(
+    "Optional. The action to take when the workstation has been idle for the duration specified in idle_timeout. Defaults to STOP.",
+  ).optional(),
   idleTimeout: z.string().describe(
-    'Optional. Number of seconds to wait before automatically stopping a workstation after it last received user traffic. A value of `"0s"` indicates that Cloud Workstations VMs created with this configuration should never time out due to idleness. Provide [duration](https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#duration) terminated by `s` for seconds—for example, `"7200s"` (2 hours). The default is `"1200s"` (20 minutes).',
+    'Optional. Number of seconds to wait before automatically stopping or suspending a workstation after it last received user traffic. See idle_action to configure whether to stop or suspend idle workstations. A value of `"0s"` indicates that Cloud Workstations VMs created with this configuration should never time out due to idleness. Provide [duration](https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#duration) terminated by `s` for seconds—for example, `"7200s"` (2 hours). The default is `"1200s"` (20 minutes).',
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. [Labels](https://cloud.google.com/workstations/docs/label-resources) that are applied to the workstation configuration and that are also propagated to the underlying Compute Engine resources.",
@@ -823,7 +830,7 @@ const InputsSchema = z.object({
     "Optional. Immutable. Specifies the zones used to replicate the VM and disk resources within the region. If set, exactly two zones within the workstation cluster's region must be specified—for example, `['us-central1-a', 'us-central1-f']`. If this field is empty, two default zones within the region are used. Immutable after the workstation configuration is created.",
   ).optional(),
   runningTimeout: z.string().describe(
-    'Optional. Number of seconds to wait before automatically stopping a workstation. We recommend that workstations be stopped daily so that security updates can be applied upon restart. The idle_timeout and running_timeout fields are independent of each other. Note that the running_timeout field stops workstations after the specified time, regardless of whether or not the workstations are idle. Provide duration terminated by `s` for seconds—for example, `"54000s"` (15 hours). Defaults to `"43200s"` (12 hours). A value of `"0s"` indicates that workstations using this configuration should never time out. If encryption_key is set, it must be greater than `"0s"` and less than `"86400s"` (24 hours). Warning: A value of `"0s"` indicates that Cloud Workstations VMs created with this configuration have no maximum running time. This is strongly discouraged because you incur costs and will not pick up security updates.',
+    'Optional. Number of seconds to wait before automatically stopping a workstation. We recommend that workstations be stopped daily so that security updates can be applied upon restart. The idle_timeout and running_timeout fields are independent of each other. Note that the running_timeout field stops workstations after the specified time, regardless of whether or not the workstations are idle. Note: This timeout applies to workstations in the following states: * STATE_RUNNING * STATE_SUSPENDED Suspending a workstation does not reset this timeout. Provide duration terminated by `s` for seconds—for example, `"54000s"` (15 hours). Defaults to `"43200s"` (12 hours). A value of `"0s"` indicates that workstations using this configuration should never time out. If encryption_key is set, it must be greater than `"0s"` and less than `"86400s"` (24 hours). Warning: A value of `"0s"` indicates that Cloud Workstations VMs created with this configuration have no maximum running time. This is strongly discouraged because you incur costs and will not pick up security updates.',
   ).optional(),
   workstationConfigId: z.string().describe(
     "Required. ID to use for the workstation configuration.",
@@ -862,7 +869,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Workstations WorkstationClusters.WorkstationConfigs. Registered at `@swamp/gcp/workstations/workstationclusters-workstationconfigs`. */
 export const model = {
   type: "@swamp/gcp/workstations/workstationclusters-workstationconfigs",
-  version: "2026.08.16.1",
+  version: "2026.09.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1049,6 +1056,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.05.1",
+      description: "Added: idleAction",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1101,6 +1113,7 @@ export const model = {
             g["grantWorkstationAdminRoleOnCreate"];
         }
         if (g["host"] !== undefined) body["host"] = g["host"];
+        if (g["idleAction"] !== undefined) body["idleAction"] = g["idleAction"];
         if (g["idleTimeout"] !== undefined) {
           body["idleTimeout"] = g["idleTimeout"];
         }
@@ -1256,6 +1269,7 @@ export const model = {
             g["grantWorkstationAdminRoleOnCreate"];
         }
         if (g["host"] !== undefined) body["host"] = g["host"];
+        if (g["idleAction"] !== undefined) body["idleAction"] = g["idleAction"];
         if (g["idleTimeout"] !== undefined) {
           body["idleTimeout"] = g["idleTimeout"];
         }

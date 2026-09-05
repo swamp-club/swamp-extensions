@@ -149,6 +149,9 @@ const LIST_CONFIG = {
       "location": "path",
       "required": true,
     },
+    "regionalFanoutRequested": {
+      "location": "query",
+    },
     "view": {
       "location": "query",
     },
@@ -1964,7 +1967,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataflow Jobs. Registered at `@swamp/gcp/dataflow/jobs`. */
 export const model = {
   type: "@swamp/gcp/dataflow/jobs",
-  version: "2026.08.25.1",
+  version: "2026.09.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2161,6 +2164,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2495,6 +2503,7 @@ export const model = {
         pageSize: z.number().describe(
           "If there are many jobs, limit response to at most this many. The actual number of jobs returned will be the lesser of max_responses and an unspecified server-defined limit.",
         ).optional(),
+        regionalFanoutRequested: z.boolean().describe("Optional.").optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
         ).optional(),
@@ -2515,6 +2524,11 @@ export const model = {
         if (args["name"] !== undefined) params["name"] = String(args["name"]);
         if (args["pageSize"] !== undefined) {
           params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["regionalFanoutRequested"] !== undefined) {
+          params["regionalFanoutRequested"] = String(
+            args["regionalFanoutRequested"],
+          );
         }
         const { items, nextPageToken } = await listResources(
           baseUrl,
@@ -2565,6 +2579,7 @@ export const model = {
               "pageSize": { "location": "query" },
               "pageToken": { "location": "query" },
               "projectId": { "location": "path", "required": true },
+              "regionalFanoutRequested": { "location": "query" },
               "view": { "location": "query" },
             },
           },

@@ -62,7 +62,7 @@ const GlobalArgsSchema = z.object({
     "The name of the pricing plan family.",
   ),
   PlanTier: z.string().describe(
-    "The tier of the pricing plan. Upgrades take effect immediately. However, rolling back an upgrade does not revert billing instantly; it schedules a downgrade to the end of the current billing period, and the higher-tier charge applies for the remainder of that month. While a downgrade is scheduled, the CurrentPlanTier property reports the tier currently being billed.",
+    "The tier of the pricing plan. CloudFormation does not change the tier of an existing subscription; a stack update that changes the tier, upgrading or downgrading it, is rejected.",
   ),
   UsageLevel: z.enum([
     "DEFAULT",
@@ -103,7 +103,7 @@ const InputsSchema = z.object({
     "The name of the pricing plan family.",
   ).optional(),
   PlanTier: z.string().describe(
-    "The tier of the pricing plan. Upgrades take effect immediately. However, rolling back an upgrade does not revert billing instantly; it schedules a downgrade to the end of the current billing period, and the higher-tier charge applies for the remainder of that month. While a downgrade is scheduled, the CurrentPlanTier property reports the tier currently being billed.",
+    "The tier of the pricing plan. CloudFormation does not change the tier of an existing subscription; a stack update that changes the tier, upgrading or downgrading it, is rejected.",
   ).optional(),
   UsageLevel: z.enum([
     "DEFAULT",
@@ -138,7 +138,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for PricingPlanManager Subscription. Registered at `@swamp/aws/pricingplanmanager/subscription`. */
 export const model = {
   type: "@swamp/aws/pricingplanmanager/subscription",
-  version: "2026.09.02.1",
+  version: "2026.09.05.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

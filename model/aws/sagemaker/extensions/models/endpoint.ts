@@ -43,7 +43,9 @@ import {
 import type { AwsCredentials } from "./_lib/aws.ts";
 
 const AlarmSchema = z.object({
-  AlarmName: z.string().describe("The name of the CloudWatch alarm."),
+  AlarmName: z.string().min(1).max(255).describe(
+    "The name of the CloudWatch alarm.",
+  ),
 });
 
 const AutoRollbackConfigSchema = z.object({
@@ -56,7 +58,7 @@ const CapacitySizeSchema = z.object({
   Type: z.string().describe(
     "Specifies whether the `Value` is an instance count or a capacity unit.",
   ),
-  Value: z.number().int().describe(
+  Value: z.number().int().min(1).describe(
     "The value representing either the number of instances or the number of capacity units.",
   ),
 });
@@ -71,16 +73,16 @@ const TrafficRoutingConfigSchema = z.object({
   Type: z.string().describe(
     "Specifies the type of traffic routing (e.g., 'AllAtOnce', 'Canary', 'Linear').",
   ),
-  WaitIntervalInSeconds: z.number().int().describe(
+  WaitIntervalInSeconds: z.number().int().min(0).max(3600).describe(
     "Specifies the wait interval between traffic shifts, in seconds.",
   ).optional(),
 });
 
 const BlueGreenUpdatePolicySchema = z.object({
-  MaximumExecutionTimeoutInSeconds: z.number().int().describe(
-    "The maximum time allowed for the blue/green update, in seconds.",
-  ).optional(),
-  TerminationWaitInSeconds: z.number().int().describe(
+  MaximumExecutionTimeoutInSeconds: z.number().int().min(600).max(28800)
+    .describe("The maximum time allowed for the blue/green update, in seconds.")
+    .optional(),
+  TerminationWaitInSeconds: z.number().int().min(0).max(3600).describe(
     "The wait time before terminating the old endpoint during a blue/green deployment.",
   ).optional(),
   TrafficRoutingConfiguration: TrafficRoutingConfigSchema.describe(
@@ -92,13 +94,13 @@ const RollingUpdatePolicySchema = z.object({
   MaximumBatchSize: CapacitySizeSchema.describe(
     "Specifies the maximum batch size for each rolling update.",
   ),
-  MaximumExecutionTimeoutInSeconds: z.number().int().describe(
-    "The maximum time allowed for the rolling update, in seconds.",
-  ).optional(),
+  MaximumExecutionTimeoutInSeconds: z.number().int().min(600).max(28800)
+    .describe("The maximum time allowed for the rolling update, in seconds.")
+    .optional(),
   RollbackMaximumBatchSize: CapacitySizeSchema.describe(
     "The maximum batch size for rollback during an update failure.",
   ).optional(),
-  WaitIntervalInSeconds: z.number().int().describe(
+  WaitIntervalInSeconds: z.number().int().min(0).max(3600).describe(
     "The time to wait between steps during the rolling update, in seconds.",
   ),
 });
@@ -143,9 +145,12 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Specifies deployment configuration for updating the SageMaker endpoint. Includes rollback and update policies.",
   ).optional(),
-  EndpointConfigName: z.string().describe(
+  EndpointConfigName: z.string().min(1).max(64).describe(
     "The name of the endpoint configuration for the SageMaker endpoint. This is a required property.",
   ),
+  EndpointName: z.string().min(1).max(64).describe(
+    "The name of the SageMaker endpoint. This name must be unique within an AWS Region.",
+  ).optional(),
   ExcludeRetainedVariantProperties: z.array(VariantPropertySchema).describe(
     "Specifies a list of variant properties that you want to exclude when updating an endpoint.",
   ).optional(),
@@ -196,8 +201,11 @@ const InputsSchema = z.object({
   }).describe(
     "Specifies deployment configuration for updating the SageMaker endpoint. Includes rollback and update policies.",
   ).optional(),
-  EndpointConfigName: z.string().describe(
+  EndpointConfigName: z.string().min(1).max(64).describe(
     "The name of the endpoint configuration for the SageMaker endpoint. This is a required property.",
+  ).optional(),
+  EndpointName: z.string().min(1).max(64).describe(
+    "The name of the SageMaker endpoint. This name must be unique within an AWS Region.",
   ).optional(),
   ExcludeRetainedVariantProperties: z.array(VariantPropertySchema).describe(
     "Specifies a list of variant properties that you want to exclude when updating an endpoint.",
@@ -232,7 +240,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker Endpoint. Registered at `@swamp/aws/sagemaker/endpoint`. */
 export const model = {
   type: "@swamp/aws/sagemaker/endpoint",
-  version: "2026.08.17.2",
+  version: "2026.09.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -282,6 +290,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.05.1",
+      description: "Added: EndpointName",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

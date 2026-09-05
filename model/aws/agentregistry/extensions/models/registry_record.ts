@@ -180,6 +180,30 @@ const CustomDescriptorSchema = z.object({
     .optional(),
 });
 
+const SourceOnlyDescriptorSourceFromUrlSchema = z.object({
+  Url: z.string().min(1).max(2048).regex(new RegExp("^https://.*$")).describe(
+    "URL source for descriptor content.",
+  ),
+});
+
+const SourceOnlyDescriptorSourceSchema = z.object({
+  FromUrl: SourceOnlyDescriptorSourceFromUrlSchema.describe(
+    "URL-based source configuration for a source-only descriptor.",
+  ).optional(),
+});
+
+const HttpDescriptorSchema = z.object({
+  Source: SourceOnlyDescriptorSourceSchema.describe(
+    "Source configuration for a source-only descriptor. Unlike mcpServer/a2aAgentCard sources, source-only descriptors do not support credential providers.",
+  ).optional(),
+});
+
+const AgUiDescriptorSchema = z.object({
+  Source: SourceOnlyDescriptorSourceSchema.describe(
+    "Source configuration for a source-only descriptor. Unlike mcpServer/a2aAgentCard sources, source-only descriptors do not support credential providers.",
+  ).optional(),
+});
+
 const TagSchema = z.object({
   Key: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9\\s._:/=+@-]*$"))
     .describe("The key of the tag."),
@@ -220,7 +244,7 @@ const GlobalArgsSchema = z.object({
   Description: z.string().min(1).max(4096).describe(
     "The description of the registry record.",
   ).optional(),
-  RecordType: z.enum(["MCP", "AGENT", "SKILL", "CUSTOM"]).describe(
+  RecordType: z.enum(["MCP", "AGENT", "SKILL", "CUSTOM", "GATEWAY"]).describe(
     "The type of the registry record.",
   ),
   Descriptors: z.object({
@@ -235,6 +259,12 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     Custom: CustomDescriptorSchema.describe(
       "The custom descriptor, populated when the record type is CUSTOM.",
+    ).optional(),
+    Http: HttpDescriptorSchema.describe(
+      "The HTTP descriptor, populated for records detected from an HTTP protocol source. This descriptor is source-only: its content is synchronized from the configured source URL rather than supplied inline.",
+    ).optional(),
+    Agui: AgUiDescriptorSchema.describe(
+      "The AG-UI (Agent-User Interaction) descriptor, populated for records detected from an AG-UI protocol source. This descriptor is source-only: its content is synchronized from the configured source URL rather than supplied inline.",
     ).optional(),
   }).describe(
     "The typed set of descriptors for a registry record. Exactly one descriptor field is populated based on the record type.",
@@ -260,12 +290,15 @@ const StateSchema = z.object({
     A2aAgentCard: A2aAgentCardDescriptorSchema,
     AgentSkillsDefinition: AgentSkillsDefinitionDescriptorSchema,
     Custom: CustomDescriptorSchema,
+    Http: HttpDescriptorSchema,
+    Agui: AgUiDescriptorSchema,
   }).optional(),
   RecordVersion: z.string().optional(),
   Status: z.string().optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
+  CreatedBy: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -292,7 +325,7 @@ const InputsSchema = z.object({
   Description: z.string().min(1).max(4096).describe(
     "The description of the registry record.",
   ).optional(),
-  RecordType: z.enum(["MCP", "AGENT", "SKILL", "CUSTOM"]).describe(
+  RecordType: z.enum(["MCP", "AGENT", "SKILL", "CUSTOM", "GATEWAY"]).describe(
     "The type of the registry record.",
   ).optional(),
   Descriptors: z.object({
@@ -307,6 +340,12 @@ const InputsSchema = z.object({
     ).optional(),
     Custom: CustomDescriptorSchema.describe(
       "The custom descriptor, populated when the record type is CUSTOM.",
+    ).optional(),
+    Http: HttpDescriptorSchema.describe(
+      "The HTTP descriptor, populated for records detected from an HTTP protocol source. This descriptor is source-only: its content is synchronized from the configured source URL rather than supplied inline.",
+    ).optional(),
+    Agui: AgUiDescriptorSchema.describe(
+      "The AG-UI (Agent-User Interaction) descriptor, populated for records detected from an AG-UI protocol source. This descriptor is source-only: its content is synchronized from the configured source URL rather than supplied inline.",
     ).optional(),
   }).describe(
     "The typed set of descriptors for a registry record. Exactly one descriptor field is populated based on the record type.",
@@ -337,7 +376,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AgentRegistry RegistryRecord. Registered at `@swamp/aws/agentregistry/registry-record`. */
 export const model = {
   type: "@swamp/aws/agentregistry/registry-record",
-  version: "2026.09.02.1",
+  version: "2026.09.05.1",
   upgrades: [
     {
       toVersion: "2026.08.28.1",
@@ -351,6 +390,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

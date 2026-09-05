@@ -319,7 +319,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/workstations/workstationclusters-workstationconfigs-workstations",
-  version: "2026.08.12.2",
+  version: "2026.09.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -456,6 +456,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1076,6 +1081,50 @@ export const model = {
             "id":
               "workstations.projects.locations.workstationClusters.workstationConfigs.workstations.stop",
             "path": "v1/{+name}:stop",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    suspend: {
+      description: "suspend",
+      arguments: z.object({
+        etag: z.any().optional(),
+        validateOnly: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (args["etag"] !== undefined) body["etag"] = args["etag"];
+        if (args["validateOnly"] !== undefined) {
+          body["validateOnly"] = args["validateOnly"];
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "workstations.projects.locations.workstationClusters.workstationConfigs.workstations.suspend",
+            "path": "v1/{+name}:suspend",
             "httpMethod": "POST",
             "parameterOrder": ["name"],
             "parameters": { "name": { "location": "path", "required": true } },

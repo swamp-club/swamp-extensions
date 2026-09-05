@@ -147,7 +147,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   additionalDomains: z.array(z.object({
     ownershipVerified: z.boolean().describe(
-      "Optional. Whether the domain ownership has been verified (e.g., via Google Search Console).",
+      "Output only. Whether the domain ownership has been verified (e.g., via Google Search Console).",
     ).optional(),
     url: z.string().describe(
       'Required. The URL of the domain property (e.g., "https://example.com").',
@@ -166,7 +166,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   primaryDomain: z.object({
     ownershipVerified: z.boolean().describe(
-      "Optional. Whether the domain ownership has been verified (e.g., via Google Search Console).",
+      "Output only. Whether the domain ownership has been verified (e.g., via Google Search Console).",
     ).optional(),
     url: z.string().describe(
       'Required. The URL of the domain property (e.g., "https://example.com").',
@@ -271,7 +271,7 @@ const InputsSchema = z.object({
   apiEndpoint: z.string().optional(),
   additionalDomains: z.array(z.object({
     ownershipVerified: z.boolean().describe(
-      "Optional. Whether the domain ownership has been verified (e.g., via Google Search Console).",
+      "Output only. Whether the domain ownership has been verified (e.g., via Google Search Console).",
     ).optional(),
     url: z.string().describe(
       'Required. The URL of the domain property (e.g., "https://example.com").',
@@ -290,7 +290,7 @@ const InputsSchema = z.object({
   ).optional(),
   primaryDomain: z.object({
     ownershipVerified: z.boolean().describe(
-      "Optional. Whether the domain ownership has been verified (e.g., via Google Search Console).",
+      "Output only. Whether the domain ownership has been verified (e.g., via Google Search Console).",
     ).optional(),
     url: z.string().describe(
       'Required. The URL of the domain property (e.g., "https://example.com").',
@@ -371,7 +371,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Web Content Publisher Publications. Registered at `@swamp/gcp/webcontentpublisher/publications`. */
 export const model = {
   type: "@swamp/gcp/webcontentpublisher/publications",
-  version: "2026.08.29.1",
+  version: "2026.09.05.1",
   upgrades: [
     {
       toVersion: "2026.07.17.1",
@@ -433,6 +433,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
