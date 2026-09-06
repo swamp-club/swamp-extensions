@@ -213,6 +213,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   allInstancesConfig: z.object({
     properties: z.object({
+      exposeHostTopology: z.boolean().describe(
+        "This optional flag exposes the hashed physical host ID.",
+      ).optional(),
       labels: z.record(z.string(), z.string()).describe(
         "The label key-value pairs that you want to patch onto the instance.",
       ).optional(),
@@ -454,6 +457,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   allInstancesConfig: z.object({
     properties: z.object({
+      exposeHostTopology: z.boolean(),
       labels: z.record(z.string(), z.unknown()),
       metadata: z.record(z.string(), z.unknown()),
     }),
@@ -624,6 +628,9 @@ const InputsSchema = z.object({
   apiEndpoint: z.string().optional(),
   allInstancesConfig: z.object({
     properties: z.object({
+      exposeHostTopology: z.boolean().describe(
+        "This optional flag exposes the hashed physical host ID.",
+      ).optional(),
       labels: z.record(z.string(), z.string()).describe(
         "The label key-value pairs that you want to patch onto the instance.",
       ).optional(),
@@ -888,7 +895,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine InstanceGroupManagers. Registered at `@swamp/gcp/compute/instancegroupmanagers`. */
 export const model = {
   type: "@swamp/gcp/compute/instancegroupmanagers",
-  version: "2026.08.12.2",
+  version: "2026.09.06.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1101,6 +1108,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

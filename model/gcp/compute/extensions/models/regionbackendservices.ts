@@ -501,7 +501,7 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       networkEndpoint: z.object({
         instance: z.string().describe(
-          "The name of the VM instance of the leader network endpoint. The instance must already be attached to the NEG specified in the haPolicy.leader.backendGroup. The name must be 1-63 characters long, and comply with RFC1035. Authorization requires the following IAM permission on the specified resource instance: compute.instances.use",
+          "The name of the VM instance of the leader network endpoint. The instance must already be attached to the NEG specified in the haPolicy.leader.backendGroup. The value must be a valid RFC1035 name (1-63 characters) or a valid instance URL. Authorization requires the following IAM permission on the specified resource instance: compute.instances.use",
         ).optional(),
       }).describe(
         "The network endpoint within the leader.backendGroup that is designated as the leader. This network endpoint cannot be detached from the NEG specified in the haPolicy.leader.backendGroup until the leader is updated with another network endpoint, or the leader is removed from the haPolicy.",
@@ -1370,7 +1370,7 @@ const InputsSchema = z.object({
       ).optional(),
       networkEndpoint: z.object({
         instance: z.string().describe(
-          "The name of the VM instance of the leader network endpoint. The instance must already be attached to the NEG specified in the haPolicy.leader.backendGroup. The name must be 1-63 characters long, and comply with RFC1035. Authorization requires the following IAM permission on the specified resource instance: compute.instances.use",
+          "The name of the VM instance of the leader network endpoint. The instance must already be attached to the NEG specified in the haPolicy.leader.backendGroup. The value must be a valid RFC1035 name (1-63 characters) or a valid instance URL. Authorization requires the following IAM permission on the specified resource instance: compute.instances.use",
         ).optional(),
       }).describe(
         "The network endpoint within the leader.backendGroup that is designated as the leader. This network endpoint cannot be detached from the NEG specified in the haPolicy.leader.backendGroup until the leader is updated with another network endpoint, or the leader is removed from the haPolicy.",
@@ -1735,7 +1735,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine RegionBackendServices. Registered at `@swamp/gcp/compute/regionbackendservices`. */
 export const model = {
   type: "@swamp/gcp/compute/regionbackendservices",
-  version: "2026.08.16.1",
+  version: "2026.09.06.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1939,6 +1939,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.16.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

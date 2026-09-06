@@ -409,6 +409,7 @@ const StateSchema = z.object({
     scheduling: z.object({
       automaticRestart: z.boolean(),
       availabilityDomain: z.number(),
+      exposeHostTopology: z.boolean(),
       gracefulShutdown: z.object({
         enabled: z.boolean(),
         maxDuration: z.object({
@@ -601,6 +602,7 @@ const StateSchema = z.object({
     scheduling: z.object({
       automaticRestart: z.boolean(),
       availabilityDomain: z.number(),
+      exposeHostTopology: z.boolean(),
       gracefulShutdown: z.object({
         enabled: z.boolean(),
         maxDuration: z.object({
@@ -766,7 +768,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine MachineImages. Registered at `@swamp/gcp/compute/machineimages`. */
 export const model = {
   type: "@swamp/gcp/compute/machineimages",
-  version: "2026.08.12.2",
+  version: "2026.09.06.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1002,6 +1004,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

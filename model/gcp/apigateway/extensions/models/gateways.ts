@@ -174,6 +174,12 @@ const GlobalArgsSchema = z.object({
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Resource labels to represent user-provided metadata. Refer to cloud documentation on labels for more details. https://cloud.google.com/compute/docs/labeling-resources",
   ).optional(),
+  streamingMode: z.enum([
+    "STREAMING_MODE_UNSPECIFIED",
+    "STREAMING_MODE_ENABLED",
+  ]).describe(
+    "Optional. Immutable. Requests response streaming for a new gateway. An attempt to change it on update is rejected. If unset, the service selects the mode. This field records only what was requested and is never modified by the service; read `effective_streaming_mode` for the mode the gateway is served with.",
+  ).optional(),
   gatewayId: z.string().describe(
     "Required. Identifier to assign to the Gateway. Must be unique within scope of the parent resource.",
   ).optional(),
@@ -187,9 +193,11 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   defaultHostname: z.string().optional(),
   displayName: z.string().optional(),
+  effectiveStreamingMode: z.string().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   state: z.string().optional(),
+  streamingMode: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
 
@@ -209,6 +217,12 @@ const InputsSchema = z.object({
   displayName: z.string().describe("Optional. Display name.").optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Resource labels to represent user-provided metadata. Refer to cloud documentation on labels for more details. https://cloud.google.com/compute/docs/labeling-resources",
+  ).optional(),
+  streamingMode: z.enum([
+    "STREAMING_MODE_UNSPECIFIED",
+    "STREAMING_MODE_ENABLED",
+  ]).describe(
+    "Optional. Immutable. Requests response streaming for a new gateway. An attempt to change it on update is rejected. If unset, the service selects the mode. This field records only what was requested and is never modified by the service; read `effective_streaming_mode` for the mode the gateway is served with.",
   ).optional(),
   gatewayId: z.string().describe(
     "Required. Identifier to assign to the Gateway. Must be unique within scope of the parent resource.",
@@ -244,7 +258,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API Gateway Gateways. Registered at `@swamp/gcp/apigateway/gateways`. */
 export const model = {
   type: "@swamp/gcp/apigateway/gateways",
-  version: "2026.08.12.2",
+  version: "2026.09.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -371,6 +385,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.06.1",
+      description: "Added: streamingMode",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -407,6 +426,9 @@ export const model = {
           body["displayName"] = g["displayName"];
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        if (g["streamingMode"] !== undefined) {
+          body["streamingMode"] = g["streamingMode"];
+        }
         if (g["gatewayId"] !== undefined) {
           params["gatewayId"] = String(g["gatewayId"]);
         }
