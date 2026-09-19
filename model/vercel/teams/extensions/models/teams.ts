@@ -325,6 +325,13 @@ const ResourceSchema = z.object({
       })).optional(),
     })).optional(),
   }).nullable().optional(),
+  deploymentStorageRollout: z.object({
+    cohort: z.string().optional(),
+    meteredAt: z.number().optional(),
+    meterReason: z.string().optional(),
+    retentionAppliedAt: z.number().optional(),
+    retentionOptOutAt: z.number().optional(),
+  }).nullable().optional(),
   description: z.string().nullable().optional(),
   disableHardAutoBlocks: z.number().nullable().optional(),
   disableRepositoryDispatchEvents: z.boolean().nullable().optional(),
@@ -619,7 +626,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Teams. Registered at `@swamp/vercel/teams/teams`. */
 export const model = {
   type: "@swamp/vercel/teams/teams",
-  version: "2026.09.16.1",
+  version: "2026.09.19.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -678,6 +685,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.16.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

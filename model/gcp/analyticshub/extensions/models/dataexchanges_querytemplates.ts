@@ -170,6 +170,13 @@ const GlobalArgsSchema = z.object({
   documentation: z.string().describe(
     "Optional. Documentation describing the QueryTemplate.",
   ).optional(),
+  encryptionConfiguration: z.object({
+    kmsKeyName: z.string().describe(
+      "Optional. The KMS key used to encrypt the query template. Format: `projects/{project}/locations/{location}/keyRings/{keyring}/cryptoKeys/{key}`",
+    ).optional(),
+  }).describe(
+    "Optional. Encryption configuration for the query template. If set, the customer-managed KMS key is used to encrypt the query template definition body.",
+  ).optional(),
   primaryContact: z.string().describe(
     "Optional. Email or URL of the primary point of contact of the QueryTemplate. Max Length: 1000 bytes.",
   ).optional(),
@@ -197,6 +204,9 @@ const StateSchema = z.object({
   description: z.string().optional(),
   displayName: z.string().optional(),
   documentation: z.string().optional(),
+  encryptionConfiguration: z.object({
+    kmsKeyName: z.string(),
+  }).optional(),
   name: z.string(),
   primaryContact: z.string().optional(),
   proposer: z.string().optional(),
@@ -226,6 +236,13 @@ const InputsSchema = z.object({
   ).optional(),
   documentation: z.string().describe(
     "Optional. Documentation describing the QueryTemplate.",
+  ).optional(),
+  encryptionConfiguration: z.object({
+    kmsKeyName: z.string().describe(
+      "Optional. The KMS key used to encrypt the query template. Format: `projects/{project}/locations/{location}/keyRings/{keyring}/cryptoKeys/{key}`",
+    ).optional(),
+  }).describe(
+    "Optional. Encryption configuration for the query template. If set, the customer-managed KMS key is used to encrypt the query template definition body.",
   ).optional(),
   primaryContact: z.string().describe(
     "Optional. Email or URL of the primary point of contact of the QueryTemplate. Max Length: 1000 bytes.",
@@ -275,7 +292,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Analytics Hub DataExchanges.QueryTemplates. Registered at `@swamp/gcp/analyticshub/dataexchanges-querytemplates`. */
 export const model = {
   type: "@swamp/gcp/analyticshub/dataexchanges-querytemplates",
-  version: "2026.08.12.2",
+  version: "2026.09.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -415,6 +432,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.19.1",
+      description: "Added: encryptionConfiguration",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -448,6 +470,9 @@ export const model = {
         }
         if (g["documentation"] !== undefined) {
           body["documentation"] = g["documentation"];
+        }
+        if (g["encryptionConfiguration"] !== undefined) {
+          body["encryptionConfiguration"] = g["encryptionConfiguration"];
         }
         if (g["primaryContact"] !== undefined) {
           body["primaryContact"] = g["primaryContact"];
@@ -573,6 +598,9 @@ export const model = {
         }
         if (g["documentation"] !== undefined) {
           body["documentation"] = g["documentation"];
+        }
+        if (g["encryptionConfiguration"] !== undefined) {
+          body["encryptionConfiguration"] = g["encryptionConfiguration"];
         }
         if (g["primaryContact"] !== undefined) {
           body["primaryContact"] = g["primaryContact"];

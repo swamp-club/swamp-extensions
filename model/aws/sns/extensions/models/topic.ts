@@ -111,6 +111,7 @@ const GlobalArgsSchema = z.object({
   FifoThroughputScope: z.string().describe(
     "Specifies the throughput quota and deduplication behavior to apply for the FIFO topic. Valid values are Topic or MessageGroup.",
   ).optional(),
+  MaximumMessageSize: z.number().int().min(1024).max(1048576).optional(),
   Tags: z.array(TagSchema).describe(
     "The list of tags to add to a new topic. To be able to tag a topic on creation, you must have the sns:CreateTopic and sns:TagResource permissions.",
   ).optional(),
@@ -137,6 +138,7 @@ const StateSchema = z.object({
   ContentBasedDeduplication: z.boolean().optional(),
   ArchivePolicy: z.record(z.string(), z.unknown()).optional(),
   FifoThroughputScope: z.string().optional(),
+  MaximumMessageSize: z.number().optional(),
   Tags: z.array(TagSchema).optional(),
   TopicName: z.string().optional(),
   TopicArn: z.string(),
@@ -176,6 +178,7 @@ const InputsSchema = z.object({
   FifoThroughputScope: z.string().describe(
     "Specifies the throughput quota and deduplication behavior to apply for the FIFO topic. Valid values are Topic or MessageGroup.",
   ).optional(),
+  MaximumMessageSize: z.number().int().min(1024).max(1048576).optional(),
   Tags: z.array(TagSchema).describe(
     "The list of tags to add to a new topic. To be able to tag a topic on creation, you must have the sns:CreateTopic and sns:TagResource permissions.",
   ).optional(),
@@ -212,7 +215,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SNS Topic. Registered at `@swamp/aws/sns/topic`. */
 export const model = {
   type: "@swamp/aws/sns/topic",
-  version: "2026.08.17.2",
+  version: "2026.09.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -272,6 +275,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.19.1",
+      description: "Added: MaximumMessageSize",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

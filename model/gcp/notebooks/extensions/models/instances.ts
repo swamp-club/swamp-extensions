@@ -372,6 +372,9 @@ const GlobalArgsSchema = z.object({
     }).describe(
       "Optional. Shielded VM configuration. [Images using supported Shielded VM features](https://cloud.google.com/compute/docs/instances/modifying-shielded-vm).",
     ).optional(),
+    systemMetadata: z.record(z.string(), z.string()).describe(
+      "Output only. Represents system-managed metadata for this instance: the subset of `metadata` whose keys are recognized Workbench system keys.",
+    ).optional(),
     tags: z.array(z.string()).describe(
       "Optional. The Compute Engine network tags to add to runtime (see [Add network tags](https://cloud.google.com/vpc/docs/add-remove-network-tags)).",
     ).optional(),
@@ -474,6 +477,7 @@ const StateSchema = z.object({
       enableSecureBoot: z.boolean(),
       enableVtpm: z.boolean(),
     }),
+    systemMetadata: z.record(z.string(), z.unknown()),
     tags: z.array(z.string()),
     vmImage: z.object({
       family: z.string(),
@@ -713,6 +717,9 @@ const InputsSchema = z.object({
     }).describe(
       "Optional. Shielded VM configuration. [Images using supported Shielded VM features](https://cloud.google.com/compute/docs/instances/modifying-shielded-vm).",
     ).optional(),
+    systemMetadata: z.record(z.string(), z.string()).describe(
+      "Output only. Represents system-managed metadata for this instance: the subset of `metadata` whose keys are recognized Workbench system keys.",
+    ).optional(),
     tags: z.array(z.string()).describe(
       "Optional. The Compute Engine network tags to add to runtime (see [Add network tags](https://cloud.google.com/vpc/docs/add-remove-network-tags)).",
     ).optional(),
@@ -777,7 +784,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Notebooks Instances. Registered at `@swamp/gcp/notebooks/instances`. */
 export const model = {
   type: "@swamp/gcp/notebooks/instances",
-  version: "2026.09.07.2",
+  version: "2026.09.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1012,6 +1019,11 @@ export const model = {
         } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.09.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

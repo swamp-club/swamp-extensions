@@ -131,13 +131,13 @@ const GlobalArgsSchema = z.object({
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
   commandType: z.string().describe(
-    'Required. Type of the remote command. The only supported command_type is "clearBrowsingData".',
+    'Required. Type of the remote command. Supported commands: "clearBrowsingData" and "extensionUpdateCheck".',
   ).optional(),
   name: z.string().describe(
     "Identifier. Format: customers/{customer_id}/profiles/{profile_permanent_id}/commands/{command_id}",
   ).optional(),
   payload: z.record(z.string(), z.string()).describe(
-    'Required. Payload of the remote command. The payload for "clearBrowsingData" command supports: - fields "clearCache" and "clearCookies" - values of boolean type.',
+    'Required. Payload of the remote command. The payload for "clearBrowsingData" command supports: - fields "clearCache" and "clearCookies" - values of boolean type. The payload for "extensionUpdateCheck" should be empty.',
   ).optional(),
   parent: z.string().describe(
     "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
@@ -168,13 +168,13 @@ const InputsSchema = z.object({
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
   commandType: z.string().describe(
-    'Required. Type of the remote command. The only supported command_type is "clearBrowsingData".',
+    'Required. Type of the remote command. Supported commands: "clearBrowsingData" and "extensionUpdateCheck".',
   ).optional(),
   name: z.string().describe(
     "Identifier. Format: customers/{customer_id}/profiles/{profile_permanent_id}/commands/{command_id}",
   ).optional(),
   payload: z.record(z.string(), z.string()).describe(
-    'Required. Payload of the remote command. The payload for "clearBrowsingData" command supports: - fields "clearCache" and "clearCookies" - values of boolean type.',
+    'Required. Payload of the remote command. The payload for "clearBrowsingData" command supports: - fields "clearCache" and "clearCookies" - values of boolean type. The payload for "extensionUpdateCheck" should be empty.',
   ).optional(),
   parent: z.string().describe(
     "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
@@ -207,7 +207,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Chrome Management Customers.Profiles.Commands. Registered at `@swamp/gcp/chromemanagement/customers-profiles-commands`. */
 export const model = {
   type: "@swamp/gcp/chromemanagement/customers-profiles-commands",
-  version: "2026.08.12.2",
+  version: "2026.09.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -334,6 +334,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

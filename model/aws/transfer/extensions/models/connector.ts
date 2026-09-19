@@ -150,6 +150,9 @@ const GlobalArgsSchema = z.object({
     MaxConcurrentConnections: z.number().int().min(1).max(5).describe(
       "Specifies the number of active connections that your connector can establish with the remote server at the same time.",
     ).optional(),
+    OrderedUserSecretVersionStages: z.array(z.string()).describe(
+      "Specifies the order in which the connector attempts to use secret versions during authentication. This enables fallback to alternative credentials if the primary version fails.",
+    ).optional(),
   }).describe("Configuration for an SFTP connector.").optional(),
   LoggingRole: z.string().min(20).max(2048).regex(new RegExp("arn:.*role/.*"))
     .describe("Specifies the logging role for the connector.").optional(),
@@ -189,6 +192,7 @@ const StateSchema = z.object({
     UserSecretId: z.string(),
     TrustedHostKeys: z.array(z.string()),
     MaxConcurrentConnections: z.number(),
+    OrderedUserSecretVersionStages: z.array(z.string()),
   }).optional(),
   Arn: z.string().optional(),
   ConnectorId: z.string(),
@@ -274,6 +278,9 @@ const InputsSchema = z.object({
     MaxConcurrentConnections: z.number().int().min(1).max(5).describe(
       "Specifies the number of active connections that your connector can establish with the remote server at the same time.",
     ).optional(),
+    OrderedUserSecretVersionStages: z.array(z.string()).describe(
+      "Specifies the order in which the connector attempts to use secret versions during authentication. This enables fallback to alternative credentials if the primary version fails.",
+    ).optional(),
   }).describe("Configuration for an SFTP connector.").optional(),
   LoggingRole: z.string().min(20).max(2048).regex(new RegExp("arn:.*role/.*"))
     .describe("Specifies the logging role for the connector.").optional(),
@@ -308,7 +315,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Transfer Connector. Registered at `@swamp/aws/transfer/connector`. */
 export const model = {
   type: "@swamp/aws/transfer/connector",
-  version: "2026.08.17.2",
+  version: "2026.09.19.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -362,6 +369,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.19.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

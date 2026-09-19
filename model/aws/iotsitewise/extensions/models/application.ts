@@ -17,13 +17,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/aws/connect/queue
+// Auto-generated extension model for @swamp/aws/iotsitewise/application
 // Do not edit manually. Re-generate with: deno task generate:aws
 
-// deno-lint-ignore-file no-explicit-any
+// deno-lint-ignore-file no-explicit-any no-control-regex
 
 /**
- * Swamp extension model for Connect Queue (AWS::Connect::Queue).
+ * Swamp extension model for IoTSiteWise Application (AWS::IoTSiteWise::Application).
  *
  * Wraps the CloudFormation resource type as a swamp model so create,
  * get, update, delete, sync, and list can be driven through `swamp model`.
@@ -42,23 +42,9 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
-const EmailAddressSchema = z.object({
-  EmailAddressArn: z.string().regex(
-    new RegExp(
-      "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-f0-9]{8}-[-a-f0-9]{4}-[-a-f0-9]{4}-[-a-f0-9]{4}-[-a-f0-9]{12}/email-address/[-a-f0-9]{8}-[-a-f0-9]{4}-[-a-f0-9]{4}-[-a-f0-9]{4}-[-a-f0-9]{12}$",
-    ),
-  ).describe("The Amazon Resource Name (ARN) of the email address"),
-});
-
 const TagSchema = z.object({
-  Value: z.string().min(0).max(256).describe(
-    "The value for the tag. You can specify a value that is 0 to 256 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
-  ),
-  Key: z.string().min(1).max(128).regex(
-    new RegExp("^(?!aws:)[a-zA-Z+-=._:/]+$"),
-  ).describe(
-    "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
-  ),
+  Key: z.string().min(1).max(128).describe("The key name of the tag."),
+  Value: z.string().min(0).max(256).describe("The value for the tag."),
 });
 
 const GlobalArgsSchema = z.object({
@@ -77,88 +63,36 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Status: z.enum(["ENABLED", "DISABLED"]).describe("The status of the queue.")
-    .optional(),
-  Description: z.string().min(1).max(250).describe(
-    "The description of the queue.",
-  ).optional(),
-  QuickConnectArns: z.array(
-    z.string().regex(
-      new RegExp(
-        "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*/transfer-destination/[-a-zA-Z0-9]*$",
-      ),
-    ),
+  WorkspaceName: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
+    .describe("The name of the workspace that the application belongs to."),
+  Name: z.string().min(1).max(256).regex(
+    new RegExp("^[A-Za-z0-9](?:[A-Za-z0-9 ._()\\-]*[A-Za-z0-9._()\\-])?$"),
+  ).describe("The name of the application."),
+  Description: z.string().min(1).max(2048).regex(
+    new RegExp("^[^\\u0000-\\u001F\\u007F]+$"),
+  ).describe("A description of the application.").optional(),
+  IdcInstanceArn: z.string().min(1).max(1600).regex(
+    new RegExp("^arn:aws(-cn|-us-gov)?:[a-zA-Z0-9-:\\/_\\.]+$"),
   ).describe(
-    "The quick connects available to agents who are working the queue.",
+    "The ARN of the IAM Identity Center instance used to create the application.",
   ).optional(),
-  OutboundCallerConfig: z.object({
-    OutboundCallerIdNumberArn: z.string().regex(
-      new RegExp(
-        "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:phone-number/[-a-zA-Z0-9]*$",
-      ),
-    ).describe("The caller ID number.").optional(),
-    OutboundFlowArn: z.string().min(1).max(500).regex(
-      new RegExp(
-        "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*/contact-flow/[-a-zA-Z0-9]*(:[a-zA-Z0-9-]+)?$",
-      ),
-    ).describe("The outbound whisper flow to be used during an outbound call.")
-      .optional(),
-    OutboundCallerIdName: z.string().min(1).max(255).describe(
-      "The caller ID name.",
-    ).optional(),
-  }).describe("The outbound caller ID name, number, and outbound whisper flow.")
-    .optional(),
-  AdditionalEmailAddresses: z.array(EmailAddressSchema).describe(
-    "The email addresses that agents can use when replying to or initiating email contacts",
-  ).optional(),
-  MaxContacts: z.number().int().min(0).describe(
-    "The maximum number of contacts that can be in the queue before it is considered full.",
-  ).optional(),
-  Name: z.string().min(1).max(127).describe("The name of the queue."),
-  HoursOfOperationArn: z.string().regex(
-    new RegExp(
-      "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*/operating-hours/[-a-zA-Z0-9]*$",
-    ),
-  ).describe("The identifier for the hours of operation."),
-  InstanceArn: z.string().regex(
-    new RegExp(
-      "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
-    ),
-  ).describe("The identifier of the Amazon Connect instance."),
-  OutboundEmailConfig: z.object({
-    OutboundEmailAddressId: z.string().regex(
-      new RegExp(
-        "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*/email-address/[-a-zA-Z0-9]*$",
-      ),
-    ).describe("The email address connect resource ID.").optional(),
-  }).describe("The outbound email configuration for a specified queue.")
-    .optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
 });
 
 const StateSchema = z.object({
-  Status: z.string().optional(),
-  Description: z.string().optional(),
-  QuickConnectArns: z.array(z.string()).optional(),
-  OutboundCallerConfig: z.object({
-    OutboundCallerIdNumberArn: z.string(),
-    OutboundFlowArn: z.string(),
-    OutboundCallerIdName: z.string(),
-  }).optional(),
-  AdditionalEmailAddresses: z.array(EmailAddressSchema).optional(),
-  MaxContacts: z.number().optional(),
-  LastModifiedRegion: z.string().optional(),
+  Arn: z.string(),
+  ApplicationId: z.string().optional(),
+  WorkspaceName: z.string().optional(),
   Name: z.string().optional(),
-  HoursOfOperationArn: z.string().optional(),
-  Type: z.string().optional(),
-  InstanceArn: z.string().optional(),
-  OutboundEmailConfig: z.object({
-    OutboundEmailAddressId: z.string(),
-  }).optional(),
-  LastModifiedTime: z.number().optional(),
-  QueueArn: z.string(),
+  Description: z.string().optional(),
+  IdcInstanceArn: z.string().optional(),
+  IdcApplicationArn: z.string().optional(),
+  DnsSubdomain: z.string().optional(),
+  Status: z.string().optional(),
+  CreatedAt: z.string().optional(),
+  UpdatedAt: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -170,63 +104,20 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  Status: z.enum(["ENABLED", "DISABLED"]).describe("The status of the queue.")
+  WorkspaceName: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
+    .describe("The name of the workspace that the application belongs to.")
     .optional(),
-  Description: z.string().min(1).max(250).describe(
-    "The description of the queue.",
-  ).optional(),
-  QuickConnectArns: z.array(
-    z.string().regex(
-      new RegExp(
-        "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*/transfer-destination/[-a-zA-Z0-9]*$",
-      ),
-    ),
+  Name: z.string().min(1).max(256).regex(
+    new RegExp("^[A-Za-z0-9](?:[A-Za-z0-9 ._()\\-]*[A-Za-z0-9._()\\-])?$"),
+  ).describe("The name of the application.").optional(),
+  Description: z.string().min(1).max(2048).regex(
+    new RegExp("^[^\\u0000-\\u001F\\u007F]+$"),
+  ).describe("A description of the application.").optional(),
+  IdcInstanceArn: z.string().min(1).max(1600).regex(
+    new RegExp("^arn:aws(-cn|-us-gov)?:[a-zA-Z0-9-:\\/_\\.]+$"),
   ).describe(
-    "The quick connects available to agents who are working the queue.",
+    "The ARN of the IAM Identity Center instance used to create the application.",
   ).optional(),
-  OutboundCallerConfig: z.object({
-    OutboundCallerIdNumberArn: z.string().regex(
-      new RegExp(
-        "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:phone-number/[-a-zA-Z0-9]*$",
-      ),
-    ).describe("The caller ID number.").optional(),
-    OutboundFlowArn: z.string().min(1).max(500).regex(
-      new RegExp(
-        "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*/contact-flow/[-a-zA-Z0-9]*(:[a-zA-Z0-9-]+)?$",
-      ),
-    ).describe("The outbound whisper flow to be used during an outbound call.")
-      .optional(),
-    OutboundCallerIdName: z.string().min(1).max(255).describe(
-      "The caller ID name.",
-    ).optional(),
-  }).describe("The outbound caller ID name, number, and outbound whisper flow.")
-    .optional(),
-  AdditionalEmailAddresses: z.array(EmailAddressSchema).describe(
-    "The email addresses that agents can use when replying to or initiating email contacts",
-  ).optional(),
-  MaxContacts: z.number().int().min(0).describe(
-    "The maximum number of contacts that can be in the queue before it is considered full.",
-  ).optional(),
-  Name: z.string().min(1).max(127).describe("The name of the queue.")
-    .optional(),
-  HoursOfOperationArn: z.string().regex(
-    new RegExp(
-      "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*/operating-hours/[-a-zA-Z0-9]*$",
-    ),
-  ).describe("The identifier for the hours of operation.").optional(),
-  InstanceArn: z.string().regex(
-    new RegExp(
-      "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
-    ),
-  ).describe("The identifier of the Amazon Connect instance.").optional(),
-  OutboundEmailConfig: z.object({
-    OutboundEmailAddressId: z.string().regex(
-      new RegExp(
-        "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*/email-address/[-a-zA-Z0-9]*$",
-      ),
-    ).describe("The email address connect resource ID.").optional(),
-  }).describe("The outbound email configuration for a specified queue.")
-    .optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -248,77 +139,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
   };
 }
 
-/** Swamp extension model for Connect Queue. Registered at `@swamp/aws/connect/queue`. */
+/** Swamp extension model for IoTSiteWise Application. Registered at `@swamp/aws/iotsitewise/application`. */
 export const model = {
-  type: "@swamp/aws/connect/queue",
+  type: "@swamp/aws/iotsitewise/application",
   version: "2026.09.19.1",
-  upgrades: [
-    {
-      toVersion: "2026.04.01.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.03.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.04.23.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.06.1",
-      description: "Added: accessKeyId, secretAccessKey, sessionToken, region",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.15.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.08.15.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.08.17.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.08.17.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.09.19.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Connect Queue resource state",
+      description: "IoTSiteWise Application resource state",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -326,7 +155,7 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a Connect Queue",
+      description: "Create a IoTSiteWise Application",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -338,7 +167,7 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await createResource(
-          "AWS::Connect::Queue",
+          "AWS::IoTSiteWise::Application",
           desiredState,
           credentials,
         ) as StateData;
@@ -355,16 +184,16 @@ export const model = {
       },
     },
     get: {
-      description: "Get a Connect Queue",
+      description: "Get a IoTSiteWise Application",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the Connect Queue",
+          "The primary identifier of the IoTSiteWise Application",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const result = await readResource(
-          "AWS::Connect::Queue",
+          "AWS::IoTSiteWise::Application",
           args.identifier,
           credentials,
         ) as StateData;
@@ -382,7 +211,7 @@ export const model = {
       },
     },
     update: {
-      description: "Update a Connect Queue",
+      description: "Update a IoTSiteWise Application",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -400,12 +229,12 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.QueueArn?.toString();
+        const identifier = existing.Arn?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         const currentState = await readResource(
-          "AWS::Connect::Queue",
+          "AWS::IoTSiteWise::Application",
           identifier,
           credentials,
         ) as StateData;
@@ -416,11 +245,11 @@ export const model = {
           if (value !== undefined) desiredState[key] = value;
         }
         const result = await updateResource(
-          "AWS::Connect::Queue",
+          "AWS::IoTSiteWise::Application",
           identifier,
           currentState,
           desiredState,
-          undefined,
+          ["WorkspaceName", "Name", "Description", "IdcInstanceArn"],
           credentials,
         );
         const handle = await context.writeResource(
@@ -432,16 +261,16 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete a Connect Queue",
+      description: "Delete a IoTSiteWise Application",
       arguments: z.object({
         identifier: z.string().describe(
-          "The primary identifier of the Connect Queue",
+          "The primary identifier of the IoTSiteWise Application",
         ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const credentials = _buildCredentials(context.globalArgs);
         const { existed } = await deleteResource(
-          "AWS::Connect::Queue",
+          "AWS::IoTSiteWise::Application",
           args.identifier,
           credentials,
         );
@@ -460,7 +289,7 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync Connect Queue state from AWS",
+      description: "Sync IoTSiteWise Application state from AWS",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
@@ -478,13 +307,13 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.QueueArn?.toString();
+        const identifier = existing.Arn?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
         try {
           const result = await readResource(
-            "AWS::Connect::Queue",
+            "AWS::IoTSiteWise::Application",
             identifier,
             credentials,
           ) as StateData;
@@ -508,7 +337,7 @@ export const model = {
       },
     },
     list: {
-      description: "List Connect Queue resources",
+      description: "List IoTSiteWise Application resources",
       arguments: z.object({
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
@@ -523,7 +352,7 @@ export const model = {
       ) => {
         const credentials = _buildCredentials(context.globalArgs);
         const { items, nextToken } = await listResources(
-          "AWS::Connect::Queue",
+          "AWS::IoTSiteWise::Application",
           {
             resourceModel: args.resourceModel,
             maxPages: args.maxPages,
@@ -534,7 +363,7 @@ export const model = {
         for (let i = 0; i < items.length; i++) {
           const item = items[i];
           const instanceName =
-            (item.properties?.QueueArn?.toString() ?? item.identifier).replace(
+            (item.properties?.Arn?.toString() ?? item.identifier).replace(
               /[\/\\]/g,
               "_",
             ).replace(/\.\./g, "_").replace(/\0/g, "");
