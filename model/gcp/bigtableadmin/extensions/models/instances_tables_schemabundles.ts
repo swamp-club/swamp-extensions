@@ -167,6 +167,11 @@ const GlobalArgsSchema = z.object({
   apiEndpoint: z.string().describe(
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
+  avroSchema: z.object({
+    jsonSchemas: z.array(z.string()).describe(
+      "Required. The Avro schemas in JSON format. Each element must be the content of a valid, self-contained Avro schema file (.avsc), as described in https://avro.apache.org/docs/1.8.1/spec.html. Use repeated elements to include multiple Avro schema files in a single bundle.",
+    ).optional(),
+  }).describe("Optional. Schema for Avros.").optional(),
   name: z.string().describe(
     "Identifier. The unique name identifying this schema bundle. Values are of the form `projects/{project}/instances/{instance}/tables/{table}/schemaBundles/{schema_bundle}`",
   ).optional(),
@@ -190,6 +195,9 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  avroSchema: z.object({
+    jsonSchemas: z.array(z.string()),
+  }).optional(),
   etag: z.string().optional(),
   name: z.string(),
   protoSchema: z.object({
@@ -206,6 +214,11 @@ const InputsSchema = z.object({
   scopes: z.string().optional(),
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
+  avroSchema: z.object({
+    jsonSchemas: z.array(z.string()).describe(
+      "Required. The Avro schemas in JSON format. Each element must be the content of a valid, self-contained Avro schema file (.avsc), as described in https://avro.apache.org/docs/1.8.1/spec.html. Use repeated elements to include multiple Avro schema files in a single bundle.",
+    ).optional(),
+  }).describe("Optional. Schema for Avros.").optional(),
   name: z.string().describe(
     "Identifier. The unique name identifying this schema bundle. Values are of the form `projects/{project}/instances/{instance}/tables/{table}/schemaBundles/{schema_bundle}`",
   ).optional(),
@@ -254,7 +267,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Bigtable Admin Instances.Tables.SchemaBundles. Registered at `@swamp/gcp/bigtableadmin/instances-tables-schemabundles`. */
 export const model = {
   type: "@swamp/gcp/bigtableadmin/instances-tables-schemabundles",
-  version: "2026.09.07.1",
+  version: "2026.09.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -411,6 +424,11 @@ export const model = {
       description: "Added: ignoreWarnings",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.20.1",
+      description: "Added: avroSchema",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -435,6 +453,7 @@ export const model = {
         const params: Record<string, string> = { project: projectId };
         if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         const body: Record<string, unknown> = {};
+        if (g["avroSchema"] !== undefined) body["avroSchema"] = g["avroSchema"];
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["protoSchema"] !== undefined) {
           body["protoSchema"] = g["protoSchema"];
@@ -550,6 +569,7 @@ export const model = {
           );
         }
         const body: Record<string, unknown> = {};
+        if (g["avroSchema"] !== undefined) body["avroSchema"] = g["avroSchema"];
         if (g["protoSchema"] !== undefined) {
           body["protoSchema"] = g["protoSchema"];
         }

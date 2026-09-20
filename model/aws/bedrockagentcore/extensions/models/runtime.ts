@@ -45,7 +45,7 @@ import type { AwsCredentials } from "./_lib/aws.ts";
 const ContainerConfigurationSchema = z.object({
   ContainerUri: z.string().min(1).max(1024).regex(
     new RegExp(
-      "^(([0-9]{12})\\.dkr\\.ecr\\.([a-z0-9-]+)\\.amazonaws\\.com(\\.cn)?|public\\.ecr\\.aws)/((?:[a-z0-9]+(?:[._-][a-z0-9]+)*/)*[a-z0-9]+(?:[._-][a-z0-9]+)*)(?::([^:@]{1,300}))?(?:@(.+))?$",
+      "^(([0-9]{12})\\.dkr\\.ecr\\.([a-z0-9-]+)\\.(amazonaws\\.com\\.cn|csp\\.hci\\.ic\\.gov|cloud\\.adc-e\\.uk|cloud\\.adc-g\\.au|sc2s\\.sgov\\.gov|amazonaws\\.com|amazonaws\\.eu|c2s\\.ic\\.gov)|public\\.ecr\\.aws)/((?:[a-z0-9]+(?:[._-][a-z0-9]+)*/)*[a-z0-9]+(?:[._-][a-z0-9]+)*)(?::([^:@]{1,300}))?(?:@(.+))?$",
     ),
   ).describe("The ECR URI of the container"),
 });
@@ -251,6 +251,8 @@ const GlobalArgsSchema = z.object({
   ProtocolConfiguration: z.enum(["MCP", "HTTP", "A2A", "AGUI"]).describe(
     "Protocol configuration for the agent runtime",
   ).optional(),
+  PlatformVersion: z.string().min(1).max(128).regex(new RegExp("^[^\\s]+$"))
+    .describe("The version of the runtime platform").optional(),
   EnvironmentVariables: z.record(z.string(), z.string().max(2048)).describe(
     "Environment variables for the agent runtime",
   ).optional(),
@@ -313,6 +315,7 @@ const StateSchema = z.object({
     NetworkModeConfig: VpcConfigSchema,
   }).optional(),
   ProtocolConfiguration: z.string().optional(),
+  PlatformVersion: z.string().optional(),
   EnvironmentVariables: z.record(z.string(), z.unknown()).optional(),
   AuthorizerConfiguration: z.object({
     CustomJWTAuthorizer: CustomJWTAuthorizerConfigurationSchema,
@@ -372,6 +375,8 @@ const InputsSchema = z.object({
   ProtocolConfiguration: z.enum(["MCP", "HTTP", "A2A", "AGUI"]).describe(
     "Protocol configuration for the agent runtime",
   ).optional(),
+  PlatformVersion: z.string().min(1).max(128).regex(new RegExp("^[^\\s]+$"))
+    .describe("The version of the runtime platform").optional(),
   EnvironmentVariables: z.record(z.string(), z.string().max(2048)).describe(
     "Environment variables for the agent runtime",
   ).optional(),
@@ -438,7 +443,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Runtime. Registered at `@swamp/aws/bedrockagentcore/runtime`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/runtime",
-  version: "2026.08.22.1",
+  version: "2026.09.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -513,6 +518,11 @@ export const model = {
     {
       toVersion: "2026.08.22.1",
       description: "Added: CapacityProviderConfiguration",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.20.1",
+      description: "Added: PlatformVersion",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

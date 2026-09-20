@@ -181,6 +181,15 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Identifier. The resource name of the agent. Format: `projects/{project}/locations/{location}/agents/{agent}`.",
   ).optional(),
+  observabilityConfig: z.object({
+    observabilityEnabled: z.boolean().describe(
+      "Optional. Enables observability for this agent's sessions: OpenTelemetry span emission covering tool names, model names, token counts, latencies and status. If `false`, the other fields here are ignored.",
+    ).optional(),
+    sensitiveLoggingEnabled: z.boolean().describe(
+      "Optional. Enables sensitive logging. Sensitive logging includes customer core content (prompts, model completions, tool argument payloads and tool responses). If `false`, those are sanitized and only structural attributes are recorded. No effect unless `observability_enabled` is true. Not yet enforced: `CreateAgent` and `UpdateAgent` currently reject setting this to `true`.",
+    ).optional(),
+  }).describe("Optional. Observability settings for this agent's sessions.")
+    .optional(),
   system_instruction: z.string().describe(
     "Optional. The instructions for the agent to follow. These instructions are passed to the LLM as a system instruction.",
   ).optional(),
@@ -212,6 +221,10 @@ const StateSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   object: z.string().optional(),
+  observabilityConfig: z.object({
+    observabilityEnabled: z.boolean(),
+    sensitiveLoggingEnabled: z.boolean(),
+  }).optional(),
   system_instruction: z.string().optional(),
   tools: z.array(z.object({
     headers: z.record(z.string(), z.unknown()),
@@ -248,6 +261,15 @@ const InputsSchema = z.object({
   name: z.string().describe(
     "Identifier. The resource name of the agent. Format: `projects/{project}/locations/{location}/agents/{agent}`.",
   ).optional(),
+  observabilityConfig: z.object({
+    observabilityEnabled: z.boolean().describe(
+      "Optional. Enables observability for this agent's sessions: OpenTelemetry span emission covering tool names, model names, token counts, latencies and status. If `false`, the other fields here are ignored.",
+    ).optional(),
+    sensitiveLoggingEnabled: z.boolean().describe(
+      "Optional. Enables sensitive logging. Sensitive logging includes customer core content (prompts, model completions, tool argument payloads and tool responses). If `false`, those are sanitized and only structural attributes are recorded. No effect unless `observability_enabled` is true. Not yet enforced: `CreateAgent` and `UpdateAgent` currently reject setting this to `true`.",
+    ).optional(),
+  }).describe("Optional. Observability settings for this agent's sessions.")
+    .optional(),
   system_instruction: z.string().describe(
     "Optional. The instructions for the agent to follow. These instructions are passed to the LLM as a system instruction.",
   ).optional(),
@@ -296,7 +318,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Agents. Registered at `@swamp/gcp/aiplatform/agents`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/agents",
-  version: "2026.09.12.1",
+  version: "2026.09.20.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -346,6 +368,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.20.1",
+      description: "Added: observabilityConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -383,6 +410,9 @@ export const model = {
         if (g["id"] !== undefined) body["id"] = g["id"];
         if (g["metadata"] !== undefined) body["metadata"] = g["metadata"];
         if (g["name"] !== undefined) body["name"] = g["name"];
+        if (g["observabilityConfig"] !== undefined) {
+          body["observabilityConfig"] = g["observabilityConfig"];
+        }
         if (g["system_instruction"] !== undefined) {
           body["system_instruction"] = g["system_instruction"];
         }
@@ -504,6 +534,9 @@ export const model = {
           body["description"] = g["description"];
         }
         if (g["metadata"] !== undefined) body["metadata"] = g["metadata"];
+        if (g["observabilityConfig"] !== undefined) {
+          body["observabilityConfig"] = g["observabilityConfig"];
+        }
         if (g["system_instruction"] !== undefined) {
           body["system_instruction"] = g["system_instruction"];
         }

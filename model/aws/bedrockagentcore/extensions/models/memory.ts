@@ -103,14 +103,14 @@ const SemanticMemoryStrategySchema = z.object({
   Namespaces: z.array(
     z.string().regex(
       new RegExp(
-        "^[a-zA-Z0-9\\-_/]*(\\{(actorId|sessionId|memoryStrategyId)\\}[a-zA-Z0-9\\-_/]*)*$",
+        "^[a-zA-Z0-9\\-_/]*(\\{[a-zA-Z][a-zA-Z0-9]*\\}[a-zA-Z0-9\\-_/]*)*$",
       ),
     ),
   ).describe("List of namespaces for memory strategy").optional(),
   NamespaceTemplates: z.array(
     z.string().regex(
       new RegExp(
-        "^[a-zA-Z0-9\\-_/]*(\\{(actorId|sessionId|memoryStrategyId)\\}[a-zA-Z0-9\\-_/]*)*$",
+        "^[a-zA-Z0-9\\-_/]*(\\{[a-zA-Z][a-zA-Z0-9]*\\}[a-zA-Z0-9\\-_/]*)*$",
       ),
     ),
   ).describe("List of namespaces for memory strategy").optional(),
@@ -143,14 +143,14 @@ const SummaryMemoryStrategySchema = z.object({
   Namespaces: z.array(
     z.string().regex(
       new RegExp(
-        "^[a-zA-Z0-9\\-_/]*(\\{(actorId|sessionId|memoryStrategyId)\\}[a-zA-Z0-9\\-_/]*)*$",
+        "^[a-zA-Z0-9\\-_/]*(\\{[a-zA-Z][a-zA-Z0-9]*\\}[a-zA-Z0-9\\-_/]*)*$",
       ),
     ),
   ).describe("List of namespaces for memory strategy").optional(),
   NamespaceTemplates: z.array(
     z.string().regex(
       new RegExp(
-        "^[a-zA-Z0-9\\-_/]*(\\{(actorId|sessionId|memoryStrategyId)\\}[a-zA-Z0-9\\-_/]*)*$",
+        "^[a-zA-Z0-9\\-_/]*(\\{[a-zA-Z][a-zA-Z0-9]*\\}[a-zA-Z0-9\\-_/]*)*$",
       ),
     ),
   ).describe("List of namespaces for memory strategy").optional(),
@@ -183,14 +183,14 @@ const UserPreferenceMemoryStrategySchema = z.object({
   Namespaces: z.array(
     z.string().regex(
       new RegExp(
-        "^[a-zA-Z0-9\\-_/]*(\\{(actorId|sessionId|memoryStrategyId)\\}[a-zA-Z0-9\\-_/]*)*$",
+        "^[a-zA-Z0-9\\-_/]*(\\{[a-zA-Z][a-zA-Z0-9]*\\}[a-zA-Z0-9\\-_/]*)*$",
       ),
     ),
   ).describe("List of namespaces for memory strategy").optional(),
   NamespaceTemplates: z.array(
     z.string().regex(
       new RegExp(
-        "^[a-zA-Z0-9\\-_/]*(\\{(actorId|sessionId|memoryStrategyId)\\}[a-zA-Z0-9\\-_/]*)*$",
+        "^[a-zA-Z0-9\\-_/]*(\\{[a-zA-Z][a-zA-Z0-9]*\\}[a-zA-Z0-9\\-_/]*)*$",
       ),
     ),
   ).describe("List of namespaces for memory strategy").optional(),
@@ -324,14 +324,14 @@ const EpisodicOverrideReflectionConfigurationInputSchema = z.object({
   Namespaces: z.array(
     z.string().regex(
       new RegExp(
-        "^[a-zA-Z0-9\\-_/]*(\\{(actorId|sessionId|memoryStrategyId)\\}[a-zA-Z0-9\\-_/]*)*$",
+        "^[a-zA-Z0-9\\-_/]*(\\{[a-zA-Z][a-zA-Z0-9]*\\}[a-zA-Z0-9\\-_/]*)*$",
       ),
     ),
   ).describe("List of namespaces for memory strategy").optional(),
   NamespaceTemplates: z.array(
     z.string().regex(
       new RegExp(
-        "^[a-zA-Z0-9\\-_/]*(\\{(actorId|sessionId|memoryStrategyId)\\}[a-zA-Z0-9\\-_/]*)*$",
+        "^[a-zA-Z0-9\\-_/]*(\\{[a-zA-Z][a-zA-Z0-9]*\\}[a-zA-Z0-9\\-_/]*)*$",
       ),
     ),
   ).describe("List of namespaces for memory strategy").optional(),
@@ -362,14 +362,14 @@ const CustomMemoryStrategySchema = z.object({
   Namespaces: z.array(
     z.string().regex(
       new RegExp(
-        "^[a-zA-Z0-9\\-_/]*(\\{(actorId|sessionId|memoryStrategyId)\\}[a-zA-Z0-9\\-_/]*)*$",
+        "^[a-zA-Z0-9\\-_/]*(\\{[a-zA-Z][a-zA-Z0-9]*\\}[a-zA-Z0-9\\-_/]*)*$",
       ),
     ),
   ).describe("List of namespaces for memory strategy").optional(),
   NamespaceTemplates: z.array(
     z.string().regex(
       new RegExp(
-        "^[a-zA-Z0-9\\-_/]*(\\{(actorId|sessionId|memoryStrategyId)\\}[a-zA-Z0-9\\-_/]*)*$",
+        "^[a-zA-Z0-9\\-_/]*(\\{[a-zA-Z][a-zA-Z0-9]*\\}[a-zA-Z0-9\\-_/]*)*$",
       ),
     ),
   ).describe("List of namespaces for memory strategy").optional(),
@@ -398,14 +398,14 @@ const EpisodicReflectionConfigurationInputSchema = z.object({
   Namespaces: z.array(
     z.string().regex(
       new RegExp(
-        "^[a-zA-Z0-9\\-_/]*(\\{(actorId|sessionId|memoryStrategyId)\\}[a-zA-Z0-9\\-_/]*)*$",
+        "^[a-zA-Z0-9\\-_/]*(\\{[a-zA-Z][a-zA-Z0-9]*\\}[a-zA-Z0-9\\-_/]*)*$",
       ),
     ),
   ).describe("List of namespaces for memory strategy").optional(),
   NamespaceTemplates: z.array(
     z.string().regex(
       new RegExp(
-        "^[a-zA-Z0-9\\-_/]*(\\{(actorId|sessionId|memoryStrategyId)\\}[a-zA-Z0-9\\-_/]*)*$",
+        "^[a-zA-Z0-9\\-_/]*(\\{[a-zA-Z][a-zA-Z0-9]*\\}[a-zA-Z0-9\\-_/]*)*$",
       ),
     ),
   ).describe("List of namespaces for memory strategy").optional(),
@@ -421,14 +421,14 @@ const EpisodicMemoryStrategySchema = z.object({
   Namespaces: z.array(
     z.string().regex(
       new RegExp(
-        "^[a-zA-Z0-9\\-_/]*(\\{(actorId|sessionId|memoryStrategyId)\\}[a-zA-Z0-9\\-_/]*)*$",
+        "^[a-zA-Z0-9\\-_/]*(\\{[a-zA-Z][a-zA-Z0-9]*\\}[a-zA-Z0-9\\-_/]*)*$",
       ),
     ),
   ).describe("List of namespaces for memory strategy").optional(),
   NamespaceTemplates: z.array(
     z.string().regex(
       new RegExp(
-        "^[a-zA-Z0-9\\-_/]*(\\{(actorId|sessionId|memoryStrategyId)\\}[a-zA-Z0-9\\-_/]*)*$",
+        "^[a-zA-Z0-9\\-_/]*(\\{[a-zA-Z][a-zA-Z0-9]*\\}[a-zA-Z0-9\\-_/]*)*$",
       ),
     ),
   ).describe("List of namespaces for memory strategy").optional(),
@@ -468,6 +468,26 @@ const IndexedKeySchema = z.object({
   Type: z.enum(["STRING", "STRINGLIST", "NUMBER"]).describe(
     "Supported data types for metadata values",
   ),
+});
+
+const NamespaceKeyValidationSchema = z.object({
+  AllowedValues: z.array(
+    z.string().min(1).max(64).regex(new RegExp("^[a-z0-9][a-z0-9-_]*$")),
+  ).describe("List of allowed values for this namespace variable").optional(),
+  RegexPattern: z.string().min(1).max(64).describe(
+    "A regex pattern that a namespace variable value must match",
+  ).optional(),
+});
+
+const NamespaceKeyEntrySchema = z.object({
+  Key: z.string().min(1).max(32).regex(
+    new RegExp("^(?!memoryStrategyId$|actorId$|sessionId$)[a-z][a-z0-9]*$"),
+  ).describe(
+    "A namespace variable key name. Must start with a lowercase letter and contain only lowercase alphanumeric characters. Cannot be a built-in variable (memoryStrategyId, sessionId, actorId).",
+  ),
+  Validation: NamespaceKeyValidationSchema.describe(
+    "Validation rules for namespace variable values. Multiple rules can be specified and all must pass.",
+  ).optional(),
 });
 
 const ContentConfigurationSchema = z.object({
@@ -530,6 +550,9 @@ const GlobalArgsSchema = z.object({
   IndexedKeys: z.array(IndexedKeySchema).describe(
     "List of indexed keys for the memory",
   ).optional(),
+  NamespaceKeys: z.array(NamespaceKeyEntrySchema).describe(
+    "List of namespace variable key definitions for a memory resource",
+  ).optional(),
   StreamDeliveryResources: z.object({
     Resources: z.array(StreamDeliveryResourceSchema),
   }).optional(),
@@ -553,6 +576,7 @@ const StateSchema = z.object({
   UpdatedAt: z.string().optional(),
   MemoryStrategies: z.array(MemoryStrategySchema).optional(),
   IndexedKeys: z.array(IndexedKeySchema).optional(),
+  NamespaceKeys: z.array(NamespaceKeyEntrySchema).optional(),
   StreamDeliveryResources: z.object({
     Resources: z.array(StreamDeliveryResourceSchema),
   }).optional(),
@@ -591,6 +615,9 @@ const InputsSchema = z.object({
   IndexedKeys: z.array(IndexedKeySchema).describe(
     "List of indexed keys for the memory",
   ).optional(),
+  NamespaceKeys: z.array(NamespaceKeyEntrySchema).describe(
+    "List of namespace variable key definitions for a memory resource",
+  ).optional(),
   StreamDeliveryResources: z.object({
     Resources: z.array(StreamDeliveryResourceSchema).optional(),
   }).optional(),
@@ -619,7 +646,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Memory. Registered at `@swamp/aws/bedrockagentcore/memory`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/memory",
-  version: "2026.08.17.2",
+  version: "2026.09.20.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -684,6 +711,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.20.1",
+      description: "Added: NamespaceKeys",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
