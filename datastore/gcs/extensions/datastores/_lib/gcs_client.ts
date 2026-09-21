@@ -104,6 +104,24 @@ export class NotFoundError extends Error {
   override readonly name = "NotFoundError";
 }
 
+/**
+ * True when an error means "the generation precondition was not met".
+ *
+ * Real GCS answers 412, which `send` maps to `PreconditionFailedError` on
+ * status alone. Some GCS-compatible endpoints answer 409 Conflict instead;
+ * no specific offender is confirmed, so 409 here is defensive coverage
+ * rather than a workaround for a known store.
+ *
+ * Deliberately not folded into `send`: 409 is a generic Conflict in the GCS
+ * JSON API and remapping it globally would mislabel unrelated operations.
+ * Only `putObjectConditional` and `putObjectCas` — where a 409 can only mean
+ * the precondition failed — consult this.
+ */
+export function isPreconditionFailure(err: unknown): boolean {
+  return err instanceof PreconditionFailedError ||
+    (err instanceof GcsOperationError && err.httpStatusCode === 409);
+}
+
 /** Max bytes of response body displayed in the error preview string. */
 const ERROR_BODY_PREVIEW_BYTES = 256;
 
@@ -1154,6 +1172,8 @@ export class GcsClient {
    * "only succeed if no live version of this object exists."
    *
    * Returns the generation on success, or null if the object already exists.
+   * A 409 from a non-conforming endpoint counts as "already exists" too —
+   * see `isPreconditionFailure`.
    */
   async putObjectConditional(
     key: string,
@@ -1191,7 +1211,7 @@ export class GcsClient {
             const meta = await resp.json();
             return { generation: meta.generation };
           } catch (err) {
-            if (err instanceof PreconditionFailedError) return null;
+            if (isPreconditionFailure(err)) return null;
             throw err;
           }
         } catch (err) {
@@ -1215,6 +1235,8 @@ export class GcsClient {
    * has modified the object since we last read it.
    *
    * Returns the new generation on success, or null on generation mismatch.
+   * A 409 from a non-conforming endpoint counts as a mismatch too — see
+   * `isPreconditionFailure`.
    */
   async putObjectCas(
     key: string,
@@ -1253,7 +1275,7 @@ export class GcsClient {
             const meta = await resp.json();
             return { generation: meta.generation };
           } catch (err) {
-            if (err instanceof PreconditionFailedError) return null;
+            if (isPreconditionFailure(err)) return null;
             throw err;
           }
         } catch (err) {

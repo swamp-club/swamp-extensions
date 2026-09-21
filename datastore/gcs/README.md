@@ -101,8 +101,8 @@ The authenticated principal needs the following permissions on the bucket:
 |---|---|
 | `storage.buckets.get` | Health checks (verify bucket exists) |
 | `storage.objects.get` | Reading data and lock files |
-| `storage.objects.create` | Writing data and acquiring locks |
-| `storage.objects.delete` | Releasing locks and cleanup |
+| `storage.objects.create` | Writing data, acquiring locks, and the health-check precondition probe |
+| `storage.objects.delete` | Releasing locks, cleanup, and removing the health-check probe object |
 | `storage.objects.list` | Sync service (listing remote files) |
 
 ### Recommended approach: custom role
@@ -176,7 +176,48 @@ GCS bucket metadata endpoint) to confirm:
 - IAM permissions are sufficient (`storage.buckets.get`)
 
 Returns latency metrics and diagnostic hints on failure (missing bucket,
-bad credentials, insufficient permissions).
+bad credentials, insufficient permissions). The configured
+`requestTimeoutMs` applies to these requests.
+
+It then probes generation preconditions, because everything above can
+succeed on an endpoint that would still corrupt data. Locking rests on
+`ifGenerationMatch` (see [Distributed Locking](#distributed-locking)), and an
+endpoint that silently ignores it — 200 where a 412 is required — hands the
+lock to every writer at once and loses index updates, with nothing reporting
+it. Real GCS honours preconditions; the exposure is emulators, proxies, and
+GCS-compatible fronts.
+
+The probe writes a throwaway `_control/conditional-write-probe-<uuid>` key,
+repeats the write to confirm the precondition is enforced, tries a
+deliberately stale `ifGenerationMatch`, and deletes the key. The result is
+reported as `details.conditionalWrites`:
+
+| Verdict | Healthy | Meaning |
+|---|---|---|
+| `supported` | yes | preconditions are enforced |
+| `ignored` | **no** | a precondition was silently ignored; distributed locking would not be safe |
+| `write-denied` | **no** | the request was not authenticated, or lacks `storage.objects.create` / `storage.objects.delete` under the configured prefix — named separately so a permissions problem is not mistaken for a compatibility bug |
+| `inconclusive` | **no** | the probe could not run |
+
+A failed precondition is accepted as either a 412 (what real GCS returns) or
+a 409, so an endpoint that reports the conflict with the wrong status is not
+misread as ignoring the precondition.
+
+`_control/` is deliberate: `isInternalCacheFile` already filters it from
+cache hydration, so a probe object left behind cannot surface as a phantom
+data file.
+
+The verdict is memoized per process for 5 minutes, keyed on endpoint, bucket
+and prefix — `swamp serve` streams health once a second, and the probe must
+not become sustained write traffic. A repaired endpoint therefore takes up to
+5 minutes to report healthy again in a long-running `swamp serve`;
+`swamp datastore setup` runs in a fresh process and always probes for real.
+
+Cleanup is best-effort. An endpoint that honours preconditions but rejects
+`DELETE` is still safe for locking, so verification stays healthy and reports
+`details.probeCleanup: "failed"` with the key it could not remove. Probe
+objects then accumulate under `_control/` (at most one per process per 5
+minutes) and need occasional manual cleanup.
 
 ### Bidirectional Sync
 

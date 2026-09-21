@@ -153,7 +153,11 @@ class GcsDatastoreProviderImpl implements DatastoreProvider {
   }
 
   createVerifier(): DatastoreVerifier {
-    return new GcsDatastoreVerifier(this.config);
+    // gcsClientConfig(), not this.config: the client reads
+    // `defaultRequestTimeoutMs`, which is what the rename produces. Passing
+    // the raw config silently dropped a configured requestTimeoutMs and left
+    // the verifier on the 30s default.
+    return new GcsDatastoreVerifier(this.gcsClientConfig());
   }
 
   createSyncService(

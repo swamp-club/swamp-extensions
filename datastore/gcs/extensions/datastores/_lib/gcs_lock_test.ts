@@ -21,7 +21,7 @@ import { assert, assertEquals, assertRejects } from "jsr:@std/assert@1.0.19";
 import { assertLockConformance } from "@systeminit/swamp-testing";
 import { GcsLock, LockTimeoutError } from "./gcs_lock.ts";
 import {
-  type GcsClient,
+  GcsClient,
   type GcsObjectMetadata,
   type GcsWriteResult,
   PreconditionFailedError,
@@ -626,4 +626,96 @@ Deno.test("GcsLock: LockTimeoutError message includes holderContext", async () =
   } finally {
     await holder.release();
   }
+});
+
+// --- swamp-club#2315: 409 on acquire reads as contention, not a throw ----
+//
+// This case deliberately does NOT use createMockGcsClient. That mock
+// implements putObjectConditional directly, which bypasses the HTTP
+// status-to-PreconditionFailedError mapping that is the whole thing under
+// test. It drives a real GcsClient against a local endpoint instead — the
+// same wiring gcs.ts uses — so the 409 travels the real path.
+//
+// The mock serves more than the 409: once acquire reads "not acquired" it
+// sets contended, then reads the lock body and its metadata to decide
+// whether the holder is stale. Leaving those 404ing would send the loop
+// down the "no existing lock" branch and spin until the deadline, so the
+// case would pass for the wrong reason.
+Deno.test({
+  name: "GcsLock: acquire against a 409-answering endpoint reports contention",
+  sanitizeResources: false,
+  fn: async () => {
+    const holder: LockInfo = {
+      holder: "other-process",
+      hostname: "elsewhere",
+      pid: 4242,
+      acquiredAt: new Date().toISOString(),
+      ttlMs: 60_000,
+      nonce: "held-by-someone-else",
+    };
+
+    let uploads = 0;
+    const ac = new AbortController();
+    const server = Deno.serve(
+      { port: 0, signal: ac.signal, onListen() {} },
+      async (req) => {
+        const url = new URL(req.url);
+
+        // Conditional upload: answer 409 instead of GCS's 412.
+        if (req.method === "POST" && url.pathname.includes("/upload/")) {
+          uploads++;
+          await req.arrayBuffer();
+          return new Response(
+            JSON.stringify({ error: { code: 409, message: "Conflict" } }),
+            { status: 409, headers: { "Content-Type": "application/json" } },
+          );
+        }
+
+        // Lock body, for readLock().
+        if (req.method === "GET" && url.searchParams.get("alt") === "media") {
+          return new Response(JSON.stringify(holder), {
+            status: 200,
+            headers: { "x-goog-generation": "17" },
+          });
+        }
+
+        // Object metadata, for the staleness check. A fresh `updated` keeps
+        // the holder live, so acquire waits rather than stealing the lock.
+        if (req.method === "GET") {
+          return new Response(
+            JSON.stringify({
+              size: "128",
+              generation: "17",
+              updated: new Date().toISOString(),
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+
+        return new Response(null, { status: 404 });
+      },
+    );
+    const addr = server.addr as Deno.NetAddr;
+
+    try {
+      const gcs = new GcsClient(
+        { bucket: "test-bucket", apiEndpoint: `http://localhost:${addr.port}` },
+      );
+      // Bounded like the existing held-lock case, so a regression fails on
+      // the deadline instead of hanging the run.
+      const lock = new GcsLock(gcs, {
+        ttlMs: 60_000,
+        retryIntervalMs: 50,
+        maxWaitMs: 300,
+      });
+
+      const err = await assertRejects(() => lock.acquire(), LockTimeoutError);
+      // Contention, reported with the holder — not a leaked 409.
+      assertEquals(err.holder?.holder, "other-process");
+      assert(uploads > 0, "the conditional upload should have been attempted");
+    } finally {
+      ac.abort();
+      await server.finished;
+    }
+  },
 });

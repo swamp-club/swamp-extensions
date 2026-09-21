@@ -39,6 +39,7 @@ import {
   formatGcpCredentialHint,
   GcsClient,
   GcsOperationError,
+  isPreconditionFailure,
   NotFoundError,
   PreconditionFailedError,
   tokenRefreshError,
@@ -816,4 +817,111 @@ Deno.test("env var override: absent env var uses config value", () => {
   } finally {
     if (prior) Deno.env.set("SWAMP_GCS_REQUEST_TIMEOUT_MS", prior);
   }
+});
+
+// --- swamp-club#2315: 409 as a generation-precondition failure -----------
+//
+// Real GCS answers 412, which `send` maps to PreconditionFailedError on
+// status alone. Some GCS-compatible endpoints answer 409 Conflict. On the
+// two conditional-write methods that can only mean "the precondition
+// failed", so they must report "not written" rather than throwing — lock
+// acquisition (gcs_lock.ts) depends on that distinction.
+
+function conflictResponse(): Response {
+  return new Response(
+    JSON.stringify({ error: { code: 409, message: "Conflict" } }),
+    { status: 409, headers: { "Content-Type": "application/json" } },
+  );
+}
+
+Deno.test({
+  name: "putObjectConditional: 409 reads as precondition failure, not a throw",
+  sanitizeResources: false,
+  fn: async () => {
+    const { url, shutdown } = startServer(() => conflictResponse());
+    try {
+      const client = new GcsClient(
+        { bucket: "b", apiEndpoint: url },
+        () => Promise.resolve("tok"),
+      );
+      assertEquals(
+        await client.putObjectConditional("k", new Uint8Array([1])),
+        null,
+      );
+    } finally {
+      await shutdown();
+    }
+  },
+});
+
+Deno.test({
+  name: "putObjectCas: 409 reads as generation mismatch, not a throw",
+  sanitizeResources: false,
+  fn: async () => {
+    const { url, shutdown } = startServer(() => conflictResponse());
+    try {
+      const client = new GcsClient(
+        { bucket: "b", apiEndpoint: url },
+        () => Promise.resolve("tok"),
+      );
+      assertEquals(
+        await client.putObjectCas("k", new Uint8Array([1]), "42"),
+        null,
+      );
+    } finally {
+      await shutdown();
+    }
+  },
+});
+
+Deno.test({
+  name: "putObjectConditional: 412 still reads as precondition failure",
+  sanitizeResources: false,
+  fn: async () => {
+    const { url, shutdown } = startServer(() =>
+      new Response(
+        JSON.stringify({
+          error: { code: 412, message: "Precondition Failed" },
+        }),
+        { status: 412, headers: { "Content-Type": "application/json" } },
+      )
+    );
+    try {
+      const client = new GcsClient(
+        { bucket: "b", apiEndpoint: url },
+        () => Promise.resolve("tok"),
+      );
+      assertEquals(
+        await client.putObjectConditional("k", new Uint8Array([1])),
+        null,
+      );
+    } finally {
+      await shutdown();
+    }
+  },
+});
+
+// The widening is scoped to the two conditional-write methods. A 409 on any
+// other operation must still surface as a GcsOperationError — this is the
+// assertion that catches the widening leaking into send().
+Deno.test({
+  name: "409 on a non-conditional operation still surfaces as an error",
+  sanitizeResources: false,
+  fn: async () => {
+    const { url, shutdown } = startServer(() => conflictResponse());
+    try {
+      const client = new GcsClient(
+        { bucket: "b", apiEndpoint: url },
+        () => Promise.resolve("tok"),
+      );
+      const err = await assertRejects(
+        () => client.putObject("k", new Uint8Array([1])),
+        GcsOperationError,
+      );
+      assertEquals(err.httpStatusCode, 409);
+      assertEquals(isPreconditionFailure(err), true);
+    } finally {
+      await shutdown();
+    }
+  },
 });
