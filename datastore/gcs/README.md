@@ -255,7 +255,11 @@ The cache sync service maintains a local cache directory and syncs with GCS:
   argument and tracks per-path dirty sets (capped at 200 paths). When
   pushing, only dirty directories/files are walked instead of the entire
   cache. Overflows (> 200 paths) or path-escape trigger a full walk
-  fallback.
+  fallback. Such a push assembles only the dirty partition shards, so it
+  merges its delta into the on-disk `.datastore-index.json` rather than
+  replacing it, and it re-arms the pull fast path when the sidecar was
+  already at the `commitSeq` the push read — a process that writes often
+  keeps its own fast path armed instead of disarming it on every write.
 - **Scoped sync** — advertises `capabilities().scopedSync = true`. When
   core passes `context.models`, pull reads partition files for just those
   models, avoiding the full monolithic index parse.
@@ -267,7 +271,13 @@ The cache sync service maintains a local cache directory and syncs with GCS:
   changes.
 - **Namespace-scoped sync** — when `options.namespace` is set, index
   operations scope to `{namespace}/.datastore-index.json` and data walks
-  are restricted to the namespace subtree. Three additional methods support
+  are restricted to the namespace subtree. The pull's bulk-diff listing is
+  scoped the same way — it lists `{namespace}/` plus the root-level
+  segments the index references, so a bucket prefix shared with other
+  namespaces costs O(this namespace) rather than O(every namespace under
+  the prefix). The root-level segments are still listed because `pullFile`
+  falls back to a pre-namespace root key when the namespaced key 404s.
+  Three additional methods support
   multi-repo shared datastores: `exportCatalog`, `pullForeignCatalogs`,
   and `fetchForeignContent`. Solo mode (no namespace) is fully backward
   compatible.

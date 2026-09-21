@@ -139,7 +139,13 @@ export SWAMP_S3_REQUEST_TIMEOUT_MS=120000
   hydration, so a later full pull still picks up out-of-scope changes.
 - **Namespace-scoped sync**: When `options.namespace` is set, index operations
   are scoped to `{namespace}/.datastore-index.json` and data walks are
-  restricted to the namespace subtree. Three additional methods support
+  restricted to the namespace subtree. The pull's bulk-diff listing is
+  scoped the same way — it lists `{namespace}/` plus the root-level
+  segments the index references, so a bucket prefix shared with other
+  namespaces costs O(this namespace) rather than O(every namespace under
+  the prefix). The root-level segments are still listed because `pullFile`
+  falls back to a pre-namespace root key when the namespaced key 404s.
+  Three additional methods support
   multi-repo shared datastores: `exportCatalog` writes a catalog manifest,
   `pullForeignCatalogs` fetches catalogs from other namespaces, and
   `fetchForeignContent` downloads individual files from foreign namespaces.
@@ -193,6 +199,15 @@ index. If per-path dirty tracking overflows (>200 paths), the bulk walk
 compares the full index against local files and deletes remote-only
 entries. Deletions are suppressed when lazy hydration is active to avoid
 removing un-hydrated content.
+
+A per-path push assembles only the dirty partition shards, so it merges
+its delta into the on-disk `.datastore-index.json` rather than replacing
+it — the shards it did not walk stay in the index. When the sidecar was
+already at the `commitSeq` the push read, the push also re-arms the pull
+fast path: nobody else committed in between, so this process wrote the
+only delta and the cache is still complete. A process that writes often
+(heartbeats, locks, catalog exports) therefore keeps its own fast path
+armed instead of disarming it on every write.
 
 ## License
 

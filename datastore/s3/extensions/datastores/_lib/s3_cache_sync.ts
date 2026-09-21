@@ -2062,6 +2062,109 @@ export class S3CacheSyncService implements DatastoreSyncService {
     return putResult?.etag ?? null;
   }
 
+  /**
+   * Prefixes covering every remote key the index could resolve to, for the
+   * bulk-diff listing. `<namespace>/` catches the namespaced objects, and one
+   * prefix per distinct leading path segment catches the pre-namespace root
+   * keys `pullFile` falls back to on a 404.
+   *
+   * Derived from the index rather than `DATA_SUBDIRS` because
+   * `migrateRootDataToNamespace` only ever migrated keys in that set — root
+   * keys outside it still exist and must stay visible to the pruning pass.
+   *
+   * An empty result means the index is empty and there is no namespace, so
+   * the pruning loop has nothing to walk. It never widens to the whole
+   * prefix: that is the O(all co-tenant objects) listing this exists to
+   * avoid (swamp-club #2242).
+   */
+  private bulkDiffPrefixes(): string[] {
+    const prefixes = new Set<string>();
+    if (this.namespace) prefixes.add(`${this.namespace}/`);
+    for (const rel of Object.keys(this.index?.entries ?? {})) {
+      const slash = rel.indexOf("/");
+      // A slash-less entry is a root key and becomes its own prefix, so the
+      // listing can over-match a sibling like `topfileXYZ`. Harmless: the
+      // resulting `remoteKeys` set is only ever probed with keys already in
+      // the index, so an extra key is never read (swamp-club #2242).
+      prefixes.add(slash > 0 ? rel.slice(0, slash + 1) : rel);
+    }
+    return [...prefixes];
+  }
+
+  /**
+   * Writes `.datastore-index.json` after a push, and reports whether the
+   * on-disk index is complete afterwards.
+   *
+   * A dirty-path-scoped push assembles only the dirty shards, so `this.index`
+   * is a partial view (`indexIsPartial`). Writing it verbatim truncates the
+   * on-disk index, dropping every untouched shard's entries. Until
+   * swamp-club #2242 that was survivable only because the stale commitSeq
+   * forced the next pull down the slow path, which rebuilt the index from
+   * all shards. Now that a scoped push can re-arm the fast path, the write
+   * has to preserve what it did not touch: merge the delta into the complete
+   * on-disk index instead of replacing it.
+   *
+   * Returns false when the index could not be written or merged. That is not
+   * fatal — the caller declines to arm the fast path, so the next pull takes
+   * the slow path and rebuilds, exactly as before.
+   */
+  private async writeLocalIndexAfterPush(
+    changed: Iterable<string>,
+    removed: Iterable<string>,
+  ): Promise<boolean> {
+    if (!this.index) return false;
+    if (!this.indexIsPartial) {
+      try {
+        await atomicWriteTextFile(
+          this.indexPath,
+          JSON.stringify(this.index, null, 2),
+        );
+        return true;
+      } catch (err) {
+        console.warn(
+          `[s3-sync] Index writeback failed, fast path stays unarmed: ${err}`,
+        );
+        return false;
+      }
+    }
+    try {
+      const onDisk = JSON.parse(
+        await Deno.readTextFile(this.indexPath),
+      ) as DatastoreIndex;
+      if (!onDisk?.entries) return false;
+      for (const rel of changed) {
+        const entry = this.index.entries[rel];
+        if (entry) onDisk.entries[rel] = entry;
+      }
+      for (const rel of removed) {
+        delete onDisk.entries[rel];
+      }
+      onDisk.lastPulled = this.index.lastPulled;
+      await atomicWriteTextFile(
+        this.indexPath,
+        JSON.stringify(onDisk, null, 2),
+      );
+      // Keep the in-memory view in step with disk: a re-armed fast path
+      // returns early on the next pull and would otherwise leave this
+      // process reading a partial index for the rest of its life.
+      //
+      // `indexIsPartial` deliberately stays set. The merge is only provably
+      // complete when the on-disk baseline was current, and that is the
+      // caller's condition to check (`committed.upToDate` plus
+      // `priorCommitSeq`), not something visible from here. Clearing it
+      // would let the `localHasAllRemoteEntries()` arm validate a baseline
+      // that is stale because another writer committed — the exact case
+      // the compare-and-swap verdict exists to catch (swamp-club #2242).
+      this.index = onDisk;
+      return true;
+    } catch (err) {
+      console.warn(
+        `[s3-sync] Index merge failed, fast path stays unarmed: ${err}`,
+      );
+      return false;
+    }
+  }
+
   /** Fetches a single file from S3 to the local cache. */
   async pullFile(
     relativePath: string,
@@ -2228,13 +2331,17 @@ export class S3CacheSyncService implements DatastoreSyncService {
           // getObject 404s — O(files/1000) list calls instead of
           // O(files) round-trips (swamp-club #2033).
           //
-          // List the full prefix (not just namespace) so root-level files
-          // from pre-namespace pushes are captured — pullFile falls back
-          // to root keys when the namespaced key is 404.
+          // The listing is scoped to `bulkDiffPrefixes()` — the namespace
+          // subtree plus the root segments the index references — never the
+          // whole prefix, which would walk every co-tenant namespace sharing
+          // it (swamp-club #2242).
           //
           // On listing failure (permissions, network), fall back to the
           // pre-#2033 per-file behavior — no pruning, 404s discovered
-          // during download.
+          // during download. `Promise.all` keeps that all-or-nothing: one
+          // failed prefix aborts into the catch and leaves `remoteKeys`
+          // null. Partial listings must never drive pruning — an entry
+          // missing only because its listing failed would be deleted.
           //
           // Scoped pulls list each subdir at both root and namespace so the
           // same pre-namespace root-key fallback still holds.
@@ -2242,20 +2349,32 @@ export class S3CacheSyncService implements DatastoreSyncService {
           const listNsPrefix = this.namespace ? `${this.namespace}/` : "";
           let remoteKeys: Set<string> | null = null;
           try {
-            const remoteListing = scoped
-              ? (await Promise.all(
-                subdirs.flatMap((d) =>
-                  [`${d}/`, ...(listNsPrefix ? [`${listNsPrefix}${d}/`] : [])]
-                    .map((p) => this.s3.listAllObjects(p, signal))
+            const listPrefixes = scoped
+              ? subdirs.flatMap((d) => [
+                `${d}/`,
+                ...(listNsPrefix ? [`${listNsPrefix}${d}/`] : []),
+              ])
+              : this.bulkDiffPrefixes();
+            // No prefixes means no index entries to diff, so there is
+            // nothing to prune. `remoteKeys` stays null rather than
+            // becoming an empty set, because an empty listing must never
+            // be read as "every entry is gone from the remote"
+            // (swamp-club #2242).
+            if (listPrefixes.length > 0) {
+              const remoteListing = (await Promise.all(
+                listPrefixes.map((p) =>
+                  retryWithBackoff(() => this.s3.listAllObjects(p, signal), {
+                    signal,
+                  })
                 ),
-              )).flat()
-              : await this.s3.listAllObjects(undefined, signal);
-            remoteKeys = new Set<string>();
-            for (const listEntry of remoteListing) {
-              if (listNsPrefix && listEntry.key.startsWith(listNsPrefix)) {
-                remoteKeys.add(listEntry.key.slice(listNsPrefix.length));
-              } else {
-                remoteKeys.add(listEntry.key);
+              )).flat();
+              remoteKeys = new Set<string>();
+              for (const listEntry of remoteListing) {
+                if (listNsPrefix && listEntry.key.startsWith(listNsPrefix)) {
+                  remoteKeys.add(listEntry.key.slice(listNsPrefix.length));
+                } else {
+                  remoteKeys.add(listEntry.key);
+                }
               }
             }
           } catch {
@@ -2643,6 +2762,14 @@ export class S3CacheSyncService implements DatastoreSyncService {
           const syncState = await this.loadSyncState() as
             | DatastoreSyncStateV2
             | null;
+          // Captured before any intermediate sidecar write. This is the
+          // commitSeq the on-disk index baseline was built at; the arm below
+          // needs it to see commits that landed BEFORE this push read its
+          // base, which the compare-and-swap verdict cannot (swamp-club
+          // #2242, swamp-club #2245).
+          const priorCommitSeq = syncState?.version === 2
+            ? syncState.commitSeq
+            : undefined;
           const needsDataKeyMigration = this.namespace != null &&
             !syncState?.dataKeyMigrated;
           const needsControlPlaneMigration = this.namespace != null &&
@@ -2980,20 +3107,47 @@ export class S3CacheSyncService implements DatastoreSyncService {
                 signal,
               );
 
-              await atomicWriteTextFile(
-                this.indexPath,
-                JSON.stringify(this.index, null, 2),
+              const indexComplete = await this.writeLocalIndexAfterPush(
+                toPush.map(({ rel }) => rel),
+                toDelete,
               );
               this.indexMutated = false;
+
+              // The merged-index arm below assumes this push is the only
+              // delta since the sidecar was armed. That holds only when the
+              // walk turned every local absence into a remote delete: a
+              // scoped walk stats each dirty path, and a bulk walk
+              // reconciles only under `dirtyPathsOverflowed`. A bare
+              // `markDirty()` bulk walk deliberately keeps remote files
+              // whose local copies are gone, and lazy pull leaves entries
+              // un-hydrated on purpose — in both cases the cache is less
+              // complete than when it was armed, and only
+              // `localHasAllRemoteEntries()` can see it (swamp-club #2242).
+              const deletionsReconciled = !this.lazyPullActive &&
+                (useScopedWalk || this.dirtyPathsOverflowed);
 
               try {
                 this.dirtyPaths.clear();
                 this.bulkInvalidated = false;
                 this.dirtyPathsOverflowed = false;
                 const sidecar = this.buildV2State({ localDirty: false });
+                // Two windows have to be clean for the merged-index arm.
+                // `committed.upToDate` is the compare-and-swap's verdict that
+                // nothing landed between the base commitSeq and this commit
+                // (swamp-club #2245); `priorCommitSeq === v2CommitSeq` says
+                // nothing landed before this push read that base, so the
+                // on-disk index it merged into is not itself stale
+                // (swamp-club #2242). A full index still arms the old way,
+                // via the stat walk, but `indexComplete` gates both arms: a
+                // failed index write leaves disk missing this push's entries,
+                // and an armed commitSeq would stop the next pull from ever
+                // rebuilding it.
                 if (
-                  committed.upToDate && !this.indexIsPartial &&
-                  await this.localHasAllRemoteEntries()
+                  committed.upToDate && indexComplete &&
+                  ((deletionsReconciled &&
+                    priorCommitSeq === v2CommitSeq) ||
+                    (!this.indexIsPartial &&
+                      await this.localHasAllRemoteEntries()))
                 ) {
                   sidecar.commitSeq = committed.commitSeq;
                 }
@@ -3530,6 +3684,20 @@ export class S3CacheSyncService implements DatastoreSyncService {
     signal?: AbortSignal,
   ): Promise<number> {
     const shardStart = Date.now();
+    // Captured before any intermediate sidecar write. `markSynced` writes a
+    // sidecar literal with no commitSeq field at all, so reading the value
+    // back after the push can lose it.
+    const priorCommitSeq = this.syncState?.version === 2
+      ? (this.syncState as DatastoreSyncStateV2).commitSeq
+      : undefined;
+    // Mirrors `preparePush`'s `useScopedWalk`: only a scoped walk (or a
+    // bulk walk that overflowed) turns local absences into remote deletes,
+    // and lazy pull leaves entries un-hydrated on purpose. Captured here
+    // because the dirty state is cleared below, before the arm is decided
+    // (swamp-club #2242).
+    const deletionsReconciled = !this.lazyPullActive &&
+      (this.dirtyPathsOverflowed ||
+        (!this.bulkInvalidated && this.dirtyPaths.size > 0));
     const committed = await this.commitShardChanges(
       data.newEntries,
       data.deletedKeys,
@@ -3562,14 +3730,10 @@ export class S3CacheSyncService implements DatastoreSyncService {
       delete this.index.entries[key];
     }
     this.index.lastPulled = new Date().toISOString();
-    try {
-      await atomicWriteTextFile(
-        this.indexPath,
-        JSON.stringify(this.index, null, 2),
-      );
-    } catch {
-      // Non-fatal: local cache is rebuilt on next pull.
-    }
+    const indexComplete = await this.writeLocalIndexAfterPush(
+      Object.keys(data.newEntries),
+      data.deletedKeys,
+    );
     this.indexMutated = false;
     tracePhase("commitPush.localIndex", localStart);
 
@@ -3578,12 +3742,28 @@ export class S3CacheSyncService implements DatastoreSyncService {
       this.bulkInvalidated = false;
       this.dirtyPathsOverflowed = false;
       const sidecar = this.buildV2State({ localDirty: false });
-      // Only record commitSeq when the index is complete (not a scoped
+      // Record commitSeq when the index is complete (not a scoped
       // assembly) AND local cache has all remote entries — pull fast
       // path uses commitSeq and must not skip unfetched shards (#1225).
+      //
+      // A scoped push can arm too, without that walk: if the sidecar was
+      // already at the commitSeq this push read, then nobody else committed
+      // in between and this process wrote the only delta, so the cache is
+      // still as complete as it was when it was last armed. That needs the
+      // merged index to have persisted, or the next fast-path hit would
+      // serve a truncated view, and it needs the push to have reconciled
+      // its deletions — otherwise this push is itself what made the cache
+      // incomplete (swamp-club #2242). `indexComplete` gates the stat-walk
+      // arm too: a failed index write leaves disk missing this push's
+      // entries, and an armed commitSeq would stop the next pull from ever
+      // rebuilding it. Cheap checks first — the other arm is an O(index)
+      // stat walk.
       if (
-        committed.upToDate && !this.indexIsPartial &&
-        await this.localHasAllRemoteEntries()
+        committed.upToDate && indexComplete &&
+        ((deletionsReconciled &&
+          priorCommitSeq === v2Meta.commitSeq) ||
+          (!this.indexIsPartial &&
+            await this.localHasAllRemoteEntries()))
       ) {
         sidecar.commitSeq = committed.commitSeq;
       }

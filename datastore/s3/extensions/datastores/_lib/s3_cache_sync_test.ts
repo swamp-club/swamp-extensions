@@ -9362,3 +9362,485 @@ Deno.test("swamp-club#2245: a partition that exhausts CAS still leaves its commi
     await Deno.remove(cachePath, { recursive: true });
   }
 });
+
+Deno.test("pullChanged slow path lists only the namespace prefix (swamp-club#2242)", async () => {
+  const s3 = createMockS3Client();
+  const cachePath = await Deno.makeTempDir();
+  try {
+    const nsIndex = encodeIndex({
+      "data/model/1/raw": {
+        key: "data/model/1/raw",
+        size: 5,
+        lastModified: new Date().toISOString(),
+      },
+    });
+    s3.storage.set("my-ns/.datastore-index.json", nsIndex);
+    s3.storage.set("my-ns/data/model/1/raw", new TextEncoder().encode("hello"));
+    // A foreign namespace sharing the bucket prefix.
+    for (let i = 0; i < 50; i++) {
+      s3.storage.set(`other-ns/data/model/${i}/raw`, new Uint8Array([1]));
+    }
+
+    const subPrefixes: (string | undefined)[] = [];
+    const inner = s3.listAllObjects.bind(s3);
+    (s3 as unknown as Record<string, unknown>).listAllObjects = (
+      subPrefix?: string,
+      signal?: AbortSignal,
+    ) => {
+      subPrefixes.push(subPrefix);
+      return inner(subPrefix, signal);
+    };
+
+    const svc = new S3CacheSyncService(s3, cachePath);
+    await svc.pullChanged({ namespace: "my-ns" });
+
+    // The namespace subtree plus the one root segment the index
+    // references — never `undefined`, which lists every co-tenant.
+    assertEquals([...subPrefixes].sort(), ["data/", "my-ns/"]);
+    assertEquals(
+      subPrefixes.filter((p) => p === undefined),
+      [],
+      "slow-path listing must never widen to the whole prefix",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2242: scoped push re-arms the sidecar commitSeq", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2242-push-" });
+  try {
+    const mock = createMockS3Client();
+    const ts = new Date().toISOString();
+    seedV2Repo(mock, {
+      "data/t1/m1/d1/1/raw": {
+        key: "data/t1/m1/d1/1/raw",
+        size: 3,
+        lastModified: ts,
+      },
+    }, 5);
+    mock.storage.set("data/t1/m1/d1/1/raw", new TextEncoder().encode("t1\n"));
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    assertEquals((await readSidecar(cachePath))?.commitSeq, 5);
+
+    // A scoped write from this same process: one dirty path, nothing else.
+    await seedFile(cachePath, "data/t1/m1/d1/2/raw", "t1-v2\n");
+    await svc.markDirty({ relPath: "data/t1/m1/d1/2/raw" });
+    await svc.pushChanged();
+
+    const remoteMeta = JSON.parse(
+      new TextDecoder().decode(mock.storage.get("_index/_meta.json")!),
+    );
+    assertEquals(
+      (await readSidecar(cachePath))?.commitSeq,
+      remoteMeta.commitSeq,
+      "sidecar commitSeq must track the commitSeq this process just wrote",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2242: root-key entries survive the scoped listing", async () => {
+  const s3 = createMockS3Client();
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2242-root-" });
+  try {
+    s3.storage.set(
+      "my-ns/.datastore-index.json",
+      encodeIndex({
+        "data/legacy/1/raw": {
+          key: "data/legacy/1/raw",
+          size: 6,
+          lastModified: new Date().toISOString(),
+        },
+      }),
+    );
+    // The object exists ONLY at the pre-namespace root key, which is what
+    // the root-prefix carve-out in bulkDiffPrefixes exists to keep visible.
+    s3.storage.set("data/legacy/1/raw", new TextEncoder().encode("legacy"));
+    for (let i = 0; i < 20; i++) {
+      s3.storage.set(`other-ns/data/x/${i}/raw`, new Uint8Array([1]));
+    }
+
+    const svc = new S3CacheSyncService(s3, cachePath);
+    assertEquals(await svc.pullChanged({ namespace: "my-ns" }), 1);
+    assertEquals(
+      await Deno.readTextFile(join(cachePath, "my-ns/data/legacy/1/raw")),
+      "legacy",
+      "root-key fallback must still resolve after the listing was scoped",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2242: one failed prefix listing skips pruning entirely", async () => {
+  const s3 = createMockS3Client();
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2242-partial-" });
+  try {
+    s3.storage.set(
+      ".datastore-index.json",
+      encodeIndex({
+        "data/live/1/raw": {
+          key: "data/live/1/raw",
+          size: 4,
+          lastModified: new Date().toISOString(),
+        },
+        "config/stale.yaml": {
+          key: "config/stale.yaml",
+          size: 5,
+          lastModified: new Date().toISOString(),
+        },
+      }),
+    );
+    s3.storage.set("data/live/1/raw", new TextEncoder().encode("live"));
+    // "config/stale.yaml" is NOT in storage — the listing would prune it.
+
+    const inner = s3.listAllObjects.bind(s3);
+    (s3 as unknown as Record<string, unknown>).listAllObjects = (
+      subPrefix?: string,
+      signal?: AbortSignal,
+    ) =>
+      subPrefix === "config/"
+        ? Promise.reject(new Error("throttled"))
+        : inner(subPrefix, signal);
+
+    const svc = new S3CacheSyncService(s3, cachePath);
+    await svc.pullChanged();
+
+    assertEquals(
+      s3.gets.filter((k: string) => k === "config/stale.yaml").length,
+      1,
+      "a partial listing must not prune — the entry falls back to a 404 probe",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2242: scoped push keeps untouched shards in the on-disk index", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2242-merge-" });
+  try {
+    const mock = createMockS3Client();
+    const ts = new Date().toISOString();
+    seedV2Repo(mock, {
+      "data/t1/m1/d1/1/raw": {
+        key: "data/t1/m1/d1/1/raw",
+        size: 3,
+        lastModified: ts,
+      },
+      "data/t2/m1/d1/1/raw": {
+        key: "data/t2/m1/d1/1/raw",
+        size: 3,
+        lastModified: ts,
+      },
+    }, 5);
+    mock.storage.set("data/t1/m1/d1/1/raw", new TextEncoder().encode("t1\n"));
+    mock.storage.set("data/t2/m1/d1/1/raw", new TextEncoder().encode("t2\n"));
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+
+    await seedFile(cachePath, "data/t1/m1/d1/2/raw", "t1-v2\n");
+    await svc.markDirty({ relPath: "data/t1/m1/d1/2/raw" });
+    await svc.pushChanged();
+
+    const onDisk = JSON.parse(
+      await Deno.readTextFile(join(cachePath, ".datastore-index.json")),
+    );
+    assert(
+      onDisk.entries["data/t2/m1/d1/1/raw"],
+      "a dirty-path push must not drop the shards it never touched",
+    );
+    assert(onDisk.entries["data/t1/m1/d1/2/raw"], "the pushed file is indexed");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2242: a failed index merge leaves the fast path unarmed", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2242-nomerge-" });
+  try {
+    const mock = createMockS3Client();
+    const ts = new Date().toISOString();
+    seedV2Repo(mock, {
+      "data/t1/m1/d1/1/raw": {
+        key: "data/t1/m1/d1/1/raw",
+        size: 3,
+        lastModified: ts,
+      },
+      "data/t2/m1/d1/1/raw": {
+        key: "data/t2/m1/d1/1/raw",
+        size: 3,
+        lastModified: ts,
+      },
+    }, 5);
+    mock.storage.set("data/t1/m1/d1/1/raw", new TextEncoder().encode("t1\n"));
+    mock.storage.set("data/t2/m1/d1/1/raw", new TextEncoder().encode("t2\n"));
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    assertEquals((await readSidecar(cachePath))?.commitSeq, 5);
+
+    await seedFile(cachePath, "data/t1/m1/d1/2/raw", "t1-v2\n");
+    await svc.markDirty({ relPath: "data/t1/m1/d1/2/raw" });
+    // Unparseable on-disk index — not a chmod, which is a no-op for the
+    // root user CI containers run as. The merge must fail, and a failed
+    // merge must not arm: the next pull has to rebuild from the shards.
+    await Deno.writeTextFile(
+      join(cachePath, ".datastore-index.json"),
+      "{ not json",
+    );
+    await svc.pushChanged();
+
+    assertEquals(
+      (await readSidecar(cachePath))?.commitSeq,
+      5,
+      "arming on an unmerged index would pin a truncated view behind a hit",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// A full push writes the index verbatim rather than merging, but a failed
+// write is just as fatal: disk is missing this push's entries, and an armed
+// commitSeq keeps the next pull from ever rebuilding it (swamp-club#2242).
+Deno.test("swamp-club#2242: a failed full-index write leaves the fast path unarmed", async () => {
+  const cachePath = await Deno.makeTempDir({
+    prefix: "s3sync-2242-fullwrite-",
+  });
+  try {
+    const mock = createMockS3Client();
+    const ts = new Date().toISOString();
+    seedV2Repo(mock, {
+      "data/t1/m1/d1/1/raw": {
+        key: "data/t1/m1/d1/1/raw",
+        size: 3,
+        lastModified: ts,
+      },
+    }, 5);
+    mock.storage.set("data/t1/m1/d1/1/raw", new TextEncoder().encode("t1\n"));
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    assertEquals((await readSidecar(cachePath))?.commitSeq, 5);
+
+    await seedFile(cachePath, "data/t1/m1/d1/2/raw", "t1-v2\n");
+    // Bulk invalidation, so the push walks everything and writes the index
+    // verbatim instead of merging a scoped delta.
+    await svc.markDirty();
+    // A directory where the index file goes: the atomic rename fails for
+    // any user, unlike a chmod on the root CI containers run as.
+    await Deno.remove(join(cachePath, ".datastore-index.json"));
+    await Deno.mkdir(join(cachePath, ".datastore-index.json"));
+    await svc.pushChanged();
+
+    assertEquals(
+      (await readSidecar(cachePath))?.commitSeq,
+      5,
+      "arming after a failed index write pins a stale index behind a hit",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2242: pull after a scoped push hits the commitSeq fast path", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2242-rt-" });
+  try {
+    const mock = createMockS3Client();
+    const ts = new Date().toISOString();
+    seedV2Repo(mock, {
+      "data/t1/m1/d1/1/raw": {
+        key: "data/t1/m1/d1/1/raw",
+        size: 3,
+        lastModified: ts,
+      },
+    }, 5);
+    mock.storage.set("data/t1/m1/d1/1/raw", new TextEncoder().encode("t1\n"));
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+
+    await seedFile(cachePath, "data/t1/m1/d1/2/raw", "t1-v2\n");
+    await svc.markDirty({ relPath: "data/t1/m1/d1/2/raw" });
+    await svc.pushChanged();
+
+    const listsBefore = mock.lists;
+    assertEquals(await svc.pullChanged(), 0);
+    assertEquals(
+      mock.lists,
+      listsBefore,
+      "the serve's own scoped write must not disarm its next pull",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// preparePush/commitPush is the other push entry point — it commits through
+// commitPushShardFirst, not the pushChanged writeback, so the merge and the
+// re-arm need their own coverage here (swamp-club#2242).
+Deno.test("swamp-club#2242: scoped commitPush keeps untouched shards and re-arms", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2242-commit-" });
+  try {
+    const mock = createMockS3Client();
+    const ts = new Date().toISOString();
+    seedV2Repo(mock, {
+      "data/t1/m1/d1/1/raw": {
+        key: "data/t1/m1/d1/1/raw",
+        size: 3,
+        lastModified: ts,
+      },
+      "data/t2/m1/d1/1/raw": {
+        key: "data/t2/m1/d1/1/raw",
+        size: 3,
+        lastModified: ts,
+      },
+    }, 5);
+    mock.storage.set("data/t1/m1/d1/1/raw", new TextEncoder().encode("t1\n"));
+    mock.storage.set("data/t2/m1/d1/1/raw", new TextEncoder().encode("t2\n"));
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    assertEquals((await readSidecar(cachePath))?.commitSeq, 5);
+
+    await seedFile(cachePath, "data/t1/m1/d1/2/raw", "t1-v2\n");
+    await svc.markDirty({ relPath: "data/t1/m1/d1/2/raw" });
+    const manifest = await svc.preparePush();
+    await svc.commitPush(manifest);
+
+    const onDisk = JSON.parse(
+      await Deno.readTextFile(join(cachePath, ".datastore-index.json")),
+    );
+    assert(
+      onDisk.entries["data/t2/m1/d1/1/raw"],
+      "commitPush must not drop the shards the scoped push never touched",
+    );
+
+    const remoteMeta = JSON.parse(
+      new TextDecoder().decode(mock.storage.get("_index/_meta.json")!),
+    );
+    assertEquals(
+      (await readSidecar(cachePath))?.commitSeq,
+      remoteMeta.commitSeq,
+      "a self-authored scoped commitPush must re-arm the fast path",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// The seq-equality re-arm above is a shortcut past the
+// `localHasAllRemoteEntries()` stat walk. It is only sound when this push
+// is genuinely the sole delta since the sidecar was armed — these two cover
+// the ways that stops being true (swamp-club#2242).
+Deno.test("swamp-club#2242: a concurrent commit must not re-arm through a stale index merge", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2242-stale-" });
+  try {
+    const mock = createMockS3Client();
+    const ts = new Date().toISOString();
+    seedV2Repo(mock, {
+      "data/t1/m1/d1/1/raw": {
+        key: "data/t1/m1/d1/1/raw",
+        size: 3,
+        lastModified: ts,
+      },
+    }, 5);
+    mock.storage.set("data/t1/m1/d1/1/raw", new TextEncoder().encode("t1\n"));
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    assertEquals((await readSidecar(cachePath))?.commitSeq, 5);
+
+    // Another writer commits a whole new shard. The on-disk index — the
+    // baseline a scoped push merges its delta into — predates it, so the
+    // merged result is stale no matter how well the merge itself works.
+    seedV2Repo(mock, {
+      "data/t1/m1/d1/1/raw": {
+        key: "data/t1/m1/d1/1/raw",
+        size: 3,
+        lastModified: ts,
+      },
+      "data/t3/m1/d1/1/raw": {
+        key: "data/t3/m1/d1/1/raw",
+        size: 3,
+        lastModified: ts,
+      },
+    }, 6);
+    mock.storage.set("data/t3/m1/d1/1/raw", new TextEncoder().encode("t3\n"));
+
+    await seedFile(cachePath, "data/t1/m1/d1/2/raw", "t1-v2\n");
+    await svc.markDirty({ relPath: "data/t1/m1/d1/2/raw" });
+    await svc.pushChanged();
+
+    await svc.pullChanged();
+    assertEquals(
+      await Deno.readTextFile(join(cachePath, "data/t3/m1/d1/1/raw")),
+      "t3\n",
+      "arming over a stale merge baseline strands the other writer's shard " +
+        "behind a commitSeq fast-path hit",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2242: a bulk-invalidated push must not re-arm over missing local files", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2242-bulk-" });
+  try {
+    const mock = createMockS3Client();
+    const ts = new Date().toISOString();
+    seedV2Repo(mock, {
+      "data/t1/m1/d1/1/raw": {
+        key: "data/t1/m1/d1/1/raw",
+        size: 3,
+        lastModified: ts,
+      },
+      "data/t1/m1/d1/2/raw": {
+        key: "data/t1/m1/d1/2/raw",
+        size: 3,
+        lastModified: ts,
+      },
+    }, 5);
+    mock.storage.set("data/t1/m1/d1/1/raw", new TextEncoder().encode("t1\n"));
+    mock.storage.set("data/t1/m1/d1/2/raw", new TextEncoder().encode("t2\n"));
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    assertEquals((await readSidecar(cachePath))?.commitSeq, 5);
+
+    // Drop a file locally and signal it with a bare markDirty(). That is a
+    // modification signal, not a deletion signal, so the bulk walk keeps the
+    // remote copy — the local cache is now a strict subset of the index, and
+    // only the stat walk can see it.
+    await Deno.remove(join(cachePath, "data/t1/m1/d1/2/raw"));
+    await seedFile(cachePath, "data/t2/m1/d1/1/raw", "t3\n");
+    await svc.markDirty();
+    await svc.pushChanged();
+
+    assert(
+      mock.storage.has("data/t1/m1/d1/2/raw"),
+      "a bare markDirty() push preserves remote files by design",
+    );
+    assertEquals(
+      await Deno.readTextFile(join(cachePath, "data/t2/m1/d1/1/raw")),
+      "t3\n",
+      "the unrelated upload still had to go through for this to be the " +
+        "writeback branch",
+    );
+
+    await svc.pullChanged();
+    assertEquals(
+      await Deno.readTextFile(join(cachePath, "data/t1/m1/d1/2/raw")),
+      "t2\n",
+      "arming after a push that never reconciled the deletion leaves the " +
+        "file unfetchable",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
