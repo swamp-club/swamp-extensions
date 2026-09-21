@@ -160,6 +160,28 @@ Deno.test({
     ),
 });
 
+Deno.test({
+  sanitizeResources: false,
+  name: "putObjectConditional returns false on 412 with a non-XML body",
+  fn: () =>
+    withMockServer(
+      () =>
+        new Response("precondition failed", {
+          status: 412,
+          headers: { "Content-Type": "text/plain" },
+        }),
+      async (client) => {
+        // The SDK can't parse an error code out of a non-XML body, so the
+        // name alone isn't reliable. Lock acquisition must still read this
+        // as "not acquired" rather than throwing.
+        assertEquals(
+          await client.putObjectConditional("k", new Uint8Array([1])),
+          false,
+        );
+      },
+    ),
+});
+
 // --- swamp-club#2245: compare-and-swap index writes -----------------------
 
 Deno.test({

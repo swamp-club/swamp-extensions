@@ -18,6 +18,7 @@
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
 import {
+  assert,
   assertEquals,
   assertRejects,
   assertThrows,
@@ -26,6 +27,7 @@ import {
   assertDatastoreExportConformance,
   assertVerifierConformance,
 } from "@systeminit/swamp-testing";
+import type { DatastoreHealthResult } from "./_lib/interfaces.ts";
 import { datastore } from "./s3.ts";
 
 Deno.test("datastore export conforms to DatastoreProvider contract", () => {
@@ -76,14 +78,12 @@ Deno.test({
   name: "s3 verifier: reports healthy when bucket is accessible",
   sanitizeResources: false,
   fn: async () => {
-    // Start a mock S3 server that responds to HeadBucket
-    const server = Deno.serve({ port: 0, onListen() {} }, (req) => {
-      // HeadBucket is a HEAD request to /{bucket}
-      if (req.method === "HEAD") {
-        return new Response(null, { status: 200 });
-      }
-      return new Response(null, { status: 404 });
-    });
+    // Answers HeadBucket and honours the conditional-write probe that
+    // verify() now runs after it.
+    const server = Deno.serve(
+      { port: 0, onListen() {} },
+      conditionalWriteHandler(),
+    );
 
     const addr = server.addr as Deno.NetAddr;
     const endpoint = `http://localhost:${addr.port}`;
@@ -107,10 +107,16 @@ Deno.test({
       assertEquals(result.healthy, true);
       assertEquals(result.datastoreType, "@swamp/s3-datastore");
       assertEquals(result.details?.bucket, "my-test-bucket");
+      assertEquals(result.details?.conditionalWrites, "supported");
       assertEquals(typeof result.latencyMs, "number");
 
-      // Also passes the generic verifier conformance
+      // Also passes the generic verifier conformance, which calls verify()
+      // a second time — served from the probe memo, same verdict.
       await assertVerifierConformance(verifier);
+      assertEquals(
+        (await verifier.verify()).details?.conditionalWrites,
+        "supported",
+      );
     } finally {
       if (originalKey) {
         Deno.env.set("AWS_ACCESS_KEY_ID", originalKey);
@@ -176,6 +182,206 @@ Deno.test({
       await server.shutdown();
     }
   },
+});
+
+// --- swamp-club#2300: conditional-write conformance probe ----------------
+
+const MOCK_ETAG = '"abc123"';
+
+function xmlError(code: string, status: number): Response {
+  return new Response(
+    `<?xml version="1.0"?><Error><Code>${code}</Code><Message>${code}</Message></Error>`,
+    { status, headers: { "content-type": "application/xml" } },
+  );
+}
+
+/**
+ * A mock S3 endpoint that honours If-None-Match / If-Match, with knobs for
+ * each way a real S3-compatible store deviates. The handler only enforces a
+ * precondition it actually read, so "saw the header and enforced it" is
+ * distinguishable from "never looked at it".
+ */
+function conditionalWriteHandler(
+  opts: {
+    ignoreConditionals?: boolean;
+    ifMatchNotImplemented?: boolean;
+    denyPut?: boolean;
+    denyDelete?: boolean;
+    nonXmlPreconditionBody?: boolean;
+  } = {},
+): (req: Request) => Promise<Response> {
+  const storage = new Set<string>();
+
+  const precondition = () =>
+    opts.nonXmlPreconditionBody
+      ? new Response("precondition failed", {
+        status: 412,
+        headers: { "content-type": "text/plain" },
+      })
+      : xmlError("PreconditionFailed", 412);
+
+  return async (req) => {
+    const key = new URL(req.url).pathname;
+
+    if (req.method === "HEAD") return new Response(null, { status: 200 });
+
+    if (req.method === "DELETE") {
+      if (opts.denyDelete) return xmlError("AccessDenied", 403);
+      storage.delete(key);
+      return new Response(null, { status: 204 });
+    }
+
+    if (req.method === "PUT") {
+      await req.arrayBuffer();
+      if (opts.denyPut) return xmlError("AccessDenied", 403);
+
+      const ifNoneMatch = req.headers.get("if-none-match");
+      const ifMatch = req.headers.get("if-match");
+
+      if (ifMatch !== null && opts.ifMatchNotImplemented) {
+        return xmlError("NotImplemented", 501);
+      }
+      if (!opts.ignoreConditionals) {
+        if (ifNoneMatch === "*" && storage.has(key)) return precondition();
+        if (ifMatch !== null && ifMatch !== MOCK_ETAG) return precondition();
+      }
+
+      storage.add(key);
+      return new Response(null, {
+        status: 200,
+        headers: { etag: MOCK_ETAG },
+      });
+    }
+
+    return new Response(null, { status: 404 });
+  };
+}
+
+/**
+ * Runs `fn` against a verifier wired to a fresh mock endpoint. Each case gets
+ * its own `Deno.serve({ port: 0 })`, so the endpoint is distinct — and since
+ * the probe memo is keyed on endpoint|bucket|prefix, that alone isolates the
+ * cases from each other. Narrowing the memo key to the bucket would make
+ * these tests read each other's cached verdicts and fail here.
+ */
+async function withProbeVerifier(
+  handler: (req: Request) => Promise<Response>,
+  fn: (result: DatastoreHealthResult) => void,
+): Promise<void> {
+  const server = Deno.serve({ port: 0, onListen() {} }, handler);
+  const addr = server.addr as Deno.NetAddr;
+
+  const originalKey = Deno.env.get("AWS_ACCESS_KEY_ID");
+  const originalSecret = Deno.env.get("AWS_SECRET_ACCESS_KEY");
+  Deno.env.set("AWS_ACCESS_KEY_ID", "test");
+  Deno.env.set("AWS_SECRET_ACCESS_KEY", "test");
+
+  try {
+    const provider = datastore.createProvider({
+      bucket: "my-test-bucket",
+      region: "us-east-1",
+      endpoint: `http://localhost:${addr.port}`,
+      forcePathStyle: true,
+    });
+    fn(await provider.createVerifier().verify());
+  } finally {
+    if (originalKey) Deno.env.set("AWS_ACCESS_KEY_ID", originalKey);
+    else Deno.env.delete("AWS_ACCESS_KEY_ID");
+    if (originalSecret) Deno.env.set("AWS_SECRET_ACCESS_KEY", originalSecret);
+    else Deno.env.delete("AWS_SECRET_ACCESS_KEY");
+    await server.shutdown();
+  }
+}
+
+// sanitizeResources: false throughout — the AWS SDK's pooled connections
+// outlive the test body but are reclaimed by GC.
+Deno.test({
+  name: "s3 verifier: endpoint honouring both conditional headers is healthy",
+  sanitizeResources: false,
+  fn: () =>
+    withProbeVerifier(conditionalWriteHandler(), (result) => {
+      assertEquals(result.healthy, true);
+      assertEquals(result.details?.conditionalWrites, "supported");
+      assertEquals(result.details?.probeCleanup, "ok");
+    }),
+});
+
+Deno.test({
+  name: "s3 verifier: endpoint ignoring conditional writes is unhealthy",
+  sanitizeResources: false,
+  fn: () =>
+    withProbeVerifier(
+      conditionalWriteHandler({ ignoreConditionals: true }),
+      (result) => {
+        assertEquals(result.healthy, false);
+        assertEquals(result.details?.conditionalWrites, "ignored");
+        assert(result.message.includes("conditional writes"));
+        assert(result.message.includes("locking would not be safe"));
+      },
+    ),
+});
+
+Deno.test({
+  name:
+    "s3 verifier: If-Match NotImplemented stays healthy (documented fallback)",
+  sanitizeResources: false,
+  fn: () =>
+    withProbeVerifier(
+      conditionalWriteHandler({ ifMatchNotImplemented: true }),
+      (result) => {
+        assertEquals(result.healthy, true);
+        assertEquals(result.details?.conditionalWrites, "if-match-unsupported");
+      },
+    ),
+});
+
+Deno.test({
+  name: "s3 verifier: probe write denied reports permissions, not a compat bug",
+  sanitizeResources: false,
+  fn: () =>
+    withProbeVerifier(
+      conditionalWriteHandler({ denyPut: true }),
+      (result) => {
+        assertEquals(result.healthy, false);
+        assertEquals(result.details?.conditionalWrites, "write-denied");
+        assert(result.message.includes("PutObject"));
+        assert(result.message.includes("DeleteObject"));
+        // Must not send a narrow-IAM user hunting for an S3 compat bug.
+        assert(!result.message.includes("ignores conditional writes"));
+      },
+    ),
+});
+
+Deno.test({
+  name: "s3 verifier: a non-XML 412 body still reads as supported",
+  sanitizeResources: false,
+  fn: () =>
+    withProbeVerifier(
+      conditionalWriteHandler({ nonXmlPreconditionBody: true }),
+      (result) => {
+        // The endpoint does honour If-None-Match, it just returns an
+        // unparseable error body — which is what the widened match in
+        // putObjectConditional exists to handle.
+        assertEquals(result.healthy, true);
+        assertEquals(result.details?.conditionalWrites, "supported");
+      },
+    ),
+});
+
+Deno.test({
+  name:
+    "s3 verifier: a rejected cleanup delete cannot turn a working endpoint unhealthy",
+  sanitizeResources: false,
+  fn: () =>
+    withProbeVerifier(
+      conditionalWriteHandler({ denyDelete: true }),
+      (result) => {
+        assertEquals(result.healthy, true);
+        assertEquals(result.details?.conditionalWrites, "supported");
+        assertEquals(result.details?.probeCleanup, "failed");
+        assert(result.message.includes("_control/conditional-write-probe-"));
+      },
+    ),
 });
 
 // --- Namespace manifest tests using a stateful mock S3 server ---

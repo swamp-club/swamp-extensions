@@ -48,16 +48,44 @@ swamp datastore status
 swamp datastore verify
 ```
 
+Verification does more than reach the bucket: it also probes conditional
+writes (see below), so the credentials need `s3:PutObject` and
+`s3:DeleteObject` under the configured prefix, not just `s3:ListBucket`.
+
 ## S3-compatible endpoints
 
 The datastore speaks the S3 API, so any S3-compatible object store works. Set
 `endpoint` (and `forcePathStyle: true` where required) to point at MinIO,
 DigitalOcean Spaces, Cloudflare R2, or other providers.
 
-The shard-first index needs If-Match support on PutObject for safe
-concurrent writes (AWS S3 and MinIO support it). When an endpoint answers
-`NotImplemented`, the extension warns once and falls back to merge-on-write
-without compare-and-swap, so concurrent writers can still lose index entries.
+Correctness rests on conditional writes. Lock acquisition is a PutObject with
+`If-None-Match: *`, and the shard-first index merges with `If-Match`. Setup,
+`swamp datastore status` and `swamp doctor datastores` all probe both under a
+throwaway `_control/conditional-write-probe-<uuid>` key, and an endpoint can
+answer in three ways:
+
+- **Both honoured** — healthy, `details.conditionalWrites: "supported"`.
+- **`If-Match` answers `NotImplemented`** — still healthy,
+  `details.conditionalWrites: "if-match-unsupported"`. Locking only needs
+  `If-None-Match`; the extension warns once and falls back to merge-on-write
+  without compare-and-swap, so concurrent writers can still lose index
+  entries.
+- **Either header silently ignored** (200 where a 412 is required) — setup
+  fails and status reports unhealthy, with
+  `details.conditionalWrites: "ignored"`. This is the dangerous case: every
+  writer would "acquire" the lock at once and index merges would lose
+  updates, with nothing reporting it.
+
+The verdict is memoized per process for 5 minutes, keyed on endpoint, bucket
+and prefix — `swamp serve` streams health once a second, and the probe must
+not become sustained write traffic. A repaired endpoint therefore takes up to
+5 minutes to report healthy again in a long-running `swamp serve`;
+`swamp datastore setup` runs in a fresh process and always probes for real.
+
+If the endpoint honours both headers but rejects `DeleteObject`, verification
+still reports healthy with `details.probeCleanup: "failed"` and names the key
+it could not remove. Probe objects then accumulate under `_control/` (at most
+one per process per 5 minutes) and need occasional manual cleanup.
 
 ## Sync configuration
 

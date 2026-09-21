@@ -682,11 +682,15 @@ export class S3Client {
           );
           return true;
         } catch (error) {
+          // Match on status too: a non-XML 412 body leaves the SDK unable to
+          // parse the error code, so the name alone isn't reliable.
           if (
             error instanceof Error &&
             (error.name === "PreconditionFailed" ||
               error.name === "ConditionalCheckFailed" ||
-              error.name === "ConditionalRequestConflict")
+              error.name === "ConditionalRequestConflict" ||
+              (error instanceof S3OperationError &&
+                (error.httpStatusCode === 412 || error.httpStatusCode === 409)))
           ) {
             return false;
           }

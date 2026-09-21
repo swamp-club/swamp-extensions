@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/s3-datastore"
-version: "2026.09.17.2"
+version: "2026.09.21.1"
 description: |
   Store data in an Amazon S3 bucket with local cache synchronization.
   Provides distributed locking via S3 conditional writes with exponential
@@ -43,7 +43,11 @@ description: |
   ## S3-Compatible Endpoints
 
   Supports S3-compatible services (MinIO, DigitalOcean Spaces, etc.) via the
-  `endpoint` and `forcePathStyle` config options.
+  `endpoint` and `forcePathStyle` config options. Verification probes
+  conditional writes (If-None-Match and If-Match) under a throwaway
+  `_control/` key, so an endpoint that silently ignores those headers — on
+  which distributed locking would be unsafe — fails setup instead of
+  reporting healthy.
 repository: "https://github.com/systeminit/swamp-extensions"
 datastores:
   - s3.ts
