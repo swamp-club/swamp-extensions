@@ -14,9 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/mgn/network_migration_definition` to
-see the full list of configurable properties and available methods for this
-model.
+Use `swamp model type describe @swamp/aws/mgn/connector` to see the full list of
+configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -48,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new network_migration_definition model
-swamp model create @swamp/aws/mgn/network_migration_definition my-network_migration_definition
+# Create a new connector model
+swamp model create @swamp/aws/mgn/connector my-connector
 
 # Edit the model to configure its properties
-swamp model edit my-network_migration_definition
+swamp model edit my-connector
 
 # Create the resource in AWS
-swamp model method run my-network_migration_definition create
+swamp model method run my-connector create
 
 # Sync current state from AWS
-swamp model method run my-network_migration_definition sync
+swamp model method run my-connector sync
 ```
 
 ## License

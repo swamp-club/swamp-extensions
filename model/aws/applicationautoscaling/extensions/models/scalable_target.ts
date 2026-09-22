@@ -68,6 +68,11 @@ const ScheduledActionSchema = z.object({
   ).optional(),
 });
 
+const TagSchema = z.object({
+  Value: z.string().min(0).max(256),
+  Key: z.string().min(1).max(128),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -115,6 +120,7 @@ const GlobalArgsSchema = z.object({
   RoleARN: z.string().describe(
     "Specify the Amazon Resource Name (ARN) of an Identity and Access Management (IAM) role that allows Application Auto Scaling to modify the scalable target on your behalf. This can be either an IAM service role that Application Auto Scaling can assume to make calls to other AWS resources on your behalf, or a service-linked role for the specified service. For more information, see [How Application Auto Scaling works with IAM](https://docs.aws.amazon.com/autoscaling/application/userguide/security_iam_service-with-iam.html) in the *Application Auto Scaling User Guide*. To automatically create a service-linked role (recommended), specify the full ARN of the service-linked role in your stack template. To find the exact ARN of the service-linked role for your AWS or custom resource, see the [Service-linked roles](https://docs.aws.amazon.com/autoscaling/application/userguide/application-auto-scaling-service-linked-roles.html) topic in the *Application Auto Scaling User Guide*. Look for the ARN in the table at the bottom of the page.",
   ).optional(),
+  Tags: z.array(TagSchema).optional(),
   MaxCapacity: z.number().int().describe(
     "The maximum value that you plan to scale out to. When a scaling policy is in effect, Application Auto Scaling can scale out (expand) as needed to the maximum capacity limit in response to changing demand.",
   ),
@@ -133,6 +139,7 @@ const StateSchema = z.object({
   Id: z.string().optional(),
   MinCapacity: z.number().optional(),
   RoleARN: z.string().optional(),
+  Tags: z.array(TagSchema).optional(),
   MaxCapacity: z.number().optional(),
 }).passthrough();
 
@@ -175,6 +182,7 @@ const InputsSchema = z.object({
   RoleARN: z.string().describe(
     "Specify the Amazon Resource Name (ARN) of an Identity and Access Management (IAM) role that allows Application Auto Scaling to modify the scalable target on your behalf. This can be either an IAM service role that Application Auto Scaling can assume to make calls to other AWS resources on your behalf, or a service-linked role for the specified service. For more information, see [How Application Auto Scaling works with IAM](https://docs.aws.amazon.com/autoscaling/application/userguide/security_iam_service-with-iam.html) in the *Application Auto Scaling User Guide*. To automatically create a service-linked role (recommended), specify the full ARN of the service-linked role in your stack template. To find the exact ARN of the service-linked role for your AWS or custom resource, see the [Service-linked roles](https://docs.aws.amazon.com/autoscaling/application/userguide/application-auto-scaling-service-linked-roles.html) topic in the *Application Auto Scaling User Guide*. Look for the ARN in the table at the bottom of the page.",
   ).optional(),
+  Tags: z.array(TagSchema).optional(),
   MaxCapacity: z.number().int().describe(
     "The maximum value that you plan to scale out to. When a scaling policy is in effect, Application Auto Scaling can scale out (expand) as needed to the maximum capacity limit in response to changing demand.",
   ).optional(),
@@ -199,7 +207,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApplicationAutoScaling ScalableTarget. Registered at `@swamp/aws/applicationautoscaling/scalable-target`. */
 export const model = {
   type: "@swamp/aws/applicationautoscaling/scalable-target",
-  version: "2026.08.17.2",
+  version: "2026.09.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -249,6 +257,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.22.1",
+      description: "Added: Tags",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

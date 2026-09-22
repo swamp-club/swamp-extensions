@@ -203,6 +203,11 @@ const GlobalArgsSchema = z.object({
       "short-build-duration",
       "enterprise-floor",
     ]).optional(),
+    buildMachineElasticTransition: z.object({
+      at: z.number(),
+      direction: z.enum(["upgrade", "downgrade"]),
+      algorithmVersion: z.string(),
+    }).optional(),
     isNSNBDisabled: z.boolean().optional(),
     buildQueue: z.object({
       configuration: z.enum([
@@ -446,6 +451,11 @@ const ResourceSchema = z.object({
       ineligibleForAppeal: z.boolean().optional(),
       isCascading: z.boolean().optional(),
       reason: z.string().optional(),
+      registeredShaBlock: z.object({
+        createdAt: z.string().optional(),
+        createdBy: z.string().optional(),
+        sha: z.string().optional(),
+      }).optional(),
       statusCode: z.number().optional(),
     }).optional(),
     blockHistory: z.array(z.object({
@@ -457,6 +467,11 @@ const ResourceSchema = z.object({
       ineligibleForAppeal: z.boolean().optional(),
       isCascading: z.boolean().optional(),
       reason: z.string().optional(),
+      registeredShaBlock: z.object({
+        createdAt: z.string().optional(),
+        createdBy: z.string().optional(),
+        sha: z.string().optional(),
+      }).optional(),
       statusCode: z.number().optional(),
     })).optional(),
     history: z.array(z.object({
@@ -660,6 +675,11 @@ const ResourceSchema = z.object({
   defaultResourceConfig: z.object({
     buildMachineElasticLastUpdated: z.number().optional(),
     buildMachineElasticReason: z.string().optional(),
+    buildMachineElasticTransition: z.object({
+      algorithmVersion: z.string().optional(),
+      at: z.number().optional(),
+      direction: z.string().optional(),
+    }).optional(),
     buildMachineSelection: z.string().optional(),
     buildMachineType: z.string().optional(),
     buildQueue: z.object({
@@ -1221,6 +1241,11 @@ const ResourceSchema = z.object({
   resourceConfig: z.object({
     buildMachineElasticLastUpdated: z.number().optional(),
     buildMachineElasticReason: z.string().optional(),
+    buildMachineElasticTransition: z.object({
+      algorithmVersion: z.string().optional(),
+      at: z.number().optional(),
+      direction: z.string().optional(),
+    }).optional(),
     buildMachineSelection: z.string().optional(),
     buildMachineType: z.string().optional(),
     buildQueue: z.object({
@@ -1527,6 +1552,11 @@ const InputsSchema = z.object({
       "short-build-duration",
       "enterprise-floor",
     ]).optional(),
+    buildMachineElasticTransition: z.object({
+      at: z.number(),
+      direction: z.enum(["upgrade", "downgrade"]),
+      algorithmVersion: z.string(),
+    }).optional(),
     isNSNBDisabled: z.boolean().optional(),
     buildQueue: z.object({
       configuration: z.enum([
@@ -1717,7 +1747,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.09.18.1",
+  version: "2026.09.22.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1846,6 +1876,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

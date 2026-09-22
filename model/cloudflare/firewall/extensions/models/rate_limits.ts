@@ -95,38 +95,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  action: z.object({
-    mode: z.string().optional(),
-    response: z.object({
-      body: z.string().optional(),
-      content_type: z.string().optional(),
-    }).optional(),
-    timeout: z.number().optional(),
-  }).optional(),
-  bypass: z.array(z.object({
-    name: z.string().optional(),
-    value: z.string().optional(),
-  })).optional(),
-  description: z.string().optional(),
-  disabled: z.boolean().optional(),
   id: z.string(),
-  match: z.object({
-    headers: z.array(z.object({
-      name: z.string().optional(),
-      op: z.string().optional(),
-      value: z.string().optional(),
-    })).optional(),
-    request: z.object({
-      methods: z.array(z.string()).optional(),
-      schemes: z.array(z.string()).optional(),
-      url: z.string().optional(),
-    }).optional(),
-    response: z.object({
-      origin_traffic: z.boolean().optional(),
-    }).optional(),
-  }).optional(),
-  period: z.number().optional(),
-  threshold: z.number().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -175,7 +144,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Rate Limits. Registered at `@swamp/cloudflare/firewall/rate-limits`. */
 export const model = {
   type: "@swamp/cloudflare/firewall/rate-limits",
-  version: "2026.07.21.1",
+  version: "2026.09.22.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -194,6 +163,11 @@ export const model = {
     },
     {
       toVersion: "2026.07.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

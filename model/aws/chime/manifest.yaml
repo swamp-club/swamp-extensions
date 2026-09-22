@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/chime"
-version: "2026.09.21.1"
+version: "2026.09.22.1"
 description: "AWS CHIME infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,10 +9,13 @@ labels:
   - chime
   - cloud
   - infrastructure
+releaseNotes: |
+  - Added: channel
 models:
   - app_instance.ts
   - app_instance_bot.ts
   - app_instance_user.ts
+  - channel.ts
   - channel_flow.ts
   - media_insights_pipeline_configuration.ts
   - media_pipeline_kinesis_video_stream_pool.ts

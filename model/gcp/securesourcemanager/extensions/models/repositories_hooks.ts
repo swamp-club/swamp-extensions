@@ -175,6 +175,9 @@ const GlobalArgsSchema = z.object({
   sensitiveQueryString: z.string().describe(
     "Optional. The sensitive query string to be appended to the target URI.",
   ).optional(),
+  serviceAccountAuth: z.boolean().describe(
+    "Optional. Determines if the hook uses the Repository Service Account to generate an OIDC ID Token for webhook authentication.",
+  ).optional(),
   targetUri: z.string().describe(
     "Required. The target URI to which the payloads will be delivered.",
   ).optional(),
@@ -198,6 +201,7 @@ const StateSchema = z.object({
     branchFilter: z.string(),
   }).optional(),
   sensitiveQueryString: z.string().optional(),
+  serviceAccountAuth: z.boolean().optional(),
   targetUri: z.string().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
@@ -228,6 +232,9 @@ const InputsSchema = z.object({
   }).describe("Optional. The trigger option for push events.").optional(),
   sensitiveQueryString: z.string().describe(
     "Optional. The sensitive query string to be appended to the target URI.",
+  ).optional(),
+  serviceAccountAuth: z.boolean().describe(
+    "Optional. Determines if the hook uses the Repository Service Account to generate an OIDC ID Token for webhook authentication.",
   ).optional(),
   targetUri: z.string().describe(
     "Required. The target URI to which the payloads will be delivered.",
@@ -269,7 +276,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Secure Source Manager Repositories.Hooks. Registered at `@swamp/gcp/securesourcemanager/repositories-hooks`. */
 export const model = {
   type: "@swamp/gcp/securesourcemanager/repositories-hooks",
-  version: "2026.08.18.1",
+  version: "2026.09.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -406,6 +413,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.22.1",
+      description: "Added: serviceAccountAuth",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -436,6 +448,9 @@ export const model = {
         if (g["pushOption"] !== undefined) body["pushOption"] = g["pushOption"];
         if (g["sensitiveQueryString"] !== undefined) {
           body["sensitiveQueryString"] = g["sensitiveQueryString"];
+        }
+        if (g["serviceAccountAuth"] !== undefined) {
+          body["serviceAccountAuth"] = g["serviceAccountAuth"];
         }
         if (g["targetUri"] !== undefined) body["targetUri"] = g["targetUri"];
         if (g["hookId"] !== undefined) params["hookId"] = String(g["hookId"]);
@@ -552,6 +567,9 @@ export const model = {
         if (g["pushOption"] !== undefined) body["pushOption"] = g["pushOption"];
         if (g["sensitiveQueryString"] !== undefined) {
           body["sensitiveQueryString"] = g["sensitiveQueryString"];
+        }
+        if (g["serviceAccountAuth"] !== undefined) {
+          body["serviceAccountAuth"] = g["serviceAccountAuth"];
         }
         if (g["targetUri"] !== undefined) body["targetUri"] = g["targetUri"];
         const updateMaskKeys = Object.keys(body);

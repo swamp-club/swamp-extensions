@@ -82,6 +82,29 @@ const ResourceTagSchema = z.object({
   Values: z.array(z.string()).describe("Tag values."),
 });
 
+const EksLabelSelectorRequirementSchema = z.object({
+  Key: z.string().min(1).max(317).regex(
+    new RegExp(
+      "^([a-z0-9]([-a-z0-9.]{0,251}[a-z0-9])?/)?[a-zA-Z0-9]([-a-zA-Z0-9_.]{0,61}[a-zA-Z0-9])?$",
+    ),
+  ).describe("Label key the requirement applies to."),
+  Operator: z.enum(["IN", "NOT_IN", "EXISTS", "DOES_NOT_EXIST"]).describe(
+    "Operator applied to the label key.",
+  ),
+  Values: z.array(z.string().min(0).max(63)).describe(
+    "Label values the requirement compares against. Up to 20 values. Required for IN and NOT_IN; omit for EXISTS and DOES_NOT_EXIST.",
+  ).optional(),
+});
+
+const EksLabelSelectorSchema = z.object({
+  MatchLabels: z.record(z.string(), z.string().min(0).max(63)).describe(
+    "Label key/value pairs an object must carry to be discovered. Up to 20 pairs.",
+  ).optional(),
+  MatchExpressions: z.array(EksLabelSelectorRequirementSchema).describe(
+    "Label selector requirements an object must satisfy to be discovered. Up to 20 requirements, all of which must match.",
+  ).optional(),
+});
+
 const EksSourceSchema = z.object({
   ClusterArn: z.string().regex(
     new RegExp(
@@ -89,6 +112,9 @@ const EksSourceSchema = z.object({
     ),
   ).describe("ARN of the EKS cluster."),
   Namespaces: z.array(z.string()).describe("EKS namespaces."),
+  LabelSelector: EksLabelSelectorSchema.describe(
+    "Kubernetes label selector that scopes discovery to matching objects in the specified namespaces. An object must satisfy both MatchLabels and MatchExpressions. Specify at least one of them; a selector carrying neither is treated as though no selector were supplied, and all supported objects in the specified namespaces are discovered.",
+  ).optional(),
 });
 
 const ResourceConfigurationSchema = z.object({
@@ -331,7 +357,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ResilienceHubV2 Service. Registered at `@swamp/aws/resiliencehubv2/service`. */
 export const model = {
   type: "@swamp/aws/resiliencehubv2/service",
-  version: "2026.08.22.1",
+  version: "2026.09.22.1",
   upgrades: [
     {
       toVersion: "2026.06.06.1",
@@ -360,6 +386,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.22.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

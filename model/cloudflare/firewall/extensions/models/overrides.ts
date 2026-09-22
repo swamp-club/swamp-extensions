@@ -79,20 +79,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  description: z.string().optional(),
-  groups: z.record(z.string(), z.unknown()).optional(),
   id: z.string(),
-  paused: z.boolean().optional(),
-  priority: z.number().optional(),
-  rewrite_action: z.object({
-    block: z.string().optional(),
-    challenge: z.string().optional(),
-    default: z.string().optional(),
-    disable: z.string().optional(),
-    simulate: z.string().optional(),
-  }).optional(),
-  rules: z.record(z.string(), z.unknown()).optional(),
-  urls: z.array(z.string()).optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -123,7 +110,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Overrides. Registered at `@swamp/cloudflare/firewall/overrides`. */
 export const model = {
   type: "@swamp/cloudflare/firewall/overrides",
-  version: "2026.07.21.1",
+  version: "2026.09.22.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -142,6 +129,11 @@ export const model = {
     },
     {
       toVersion: "2026.07.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

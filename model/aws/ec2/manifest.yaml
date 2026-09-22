@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/ec2"
-version: "2026.09.21.1"
+version: "2026.09.22.1"
 description: "AWS EC2 infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - ec2
   - cloud
   - infrastructure
+releaseNotes: |
+  - Added: subnet_cidr_reservation
 models:
   - application_status_check.ts
   - capacity_manager_data_export.ts
@@ -75,6 +77,7 @@ models:
   - sql_ha_standby_detected_instance.ts
   - subnet.ts
   - subnet_cidr_block.ts
+  - subnet_cidr_reservation.ts
   - subnet_network_acl_association.ts
   - subnet_route_table_association.ts
   - traffic_mirror_filter.ts

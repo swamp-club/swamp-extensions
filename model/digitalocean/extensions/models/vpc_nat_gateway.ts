@@ -46,6 +46,7 @@ const GlobalArgsSchema = z.object({
   size: z.number().int().describe("The size of the VPC NAT gateway."),
   vpcs: z.array(z.object({
     vpc_uuid: z.string(),
+    subnet_uuid: z.string().optional(),
     default_gateway: z.boolean().optional(),
   })).describe("An array of VPCs associated with the VPC NAT gateway."),
   udp_timeout_seconds: z.number().int().describe(
@@ -97,6 +98,7 @@ const ResourceSchema = z.object({
   size: z.number().optional(),
   vpcs: z.array(z.object({
     vpc_uuid: z.string().optional(),
+    subnet_uuid: z.string().optional(),
     gateway_ip: z.string().optional(),
   })).optional(),
   egresses: z.object({
@@ -118,6 +120,7 @@ const InputsSchema = z.object({
   size: z.number().int().optional(),
   vpcs: z.array(z.object({
     vpc_uuid: z.string(),
+    subnet_uuid: z.string().optional(),
     default_gateway: z.boolean().optional(),
   })).optional(),
   udp_timeout_seconds: z.number().int().optional(),
@@ -153,7 +156,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean vpc nat gateway. Registered at `@swamp/digitalocean/vpc-nat-gateway`. */
 export const model = {
   type: "@swamp/digitalocean/vpc-nat-gateway",
-  version: "2026.09.04.1",
+  version: "2026.09.22.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -208,6 +211,11 @@ export const model = {
     {
       toVersion: "2026.09.04.1",
       description: "Added: egresses",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.22.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

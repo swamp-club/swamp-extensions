@@ -57,6 +57,15 @@ const SourceDetailSchema = z.object({
   ).optional(),
 });
 
+const SessionConfigSchema = z.object({
+  SessionStartTime: z.string().describe(
+    "The start time of the session as an ISO 8601 UTC instant, for example 2024-01-01T00:00:00Z.",
+  ),
+  SessionEndTime: z.string().describe(
+    "The end time of the session as an ISO 8601 UTC instant, for example 2024-12-31T23:59:59Z.",
+  ),
+});
+
 const TagSchema = z.object({
   Key: z.string(),
   Value: z.string(),
@@ -83,16 +92,27 @@ const GlobalArgsSchema = z.object({
     "A description about the dataset, and its functionality.",
   ).optional(),
   DatasetSource: z.object({
-    SourceFormat: z.enum(["KNOWLEDGE_BASE"]).describe(
+    SourceFormat: z.enum(["KNOWLEDGE_BASE", "TIMESERIES"]).describe(
       "The format of the dataset source associated with the dataset.",
     ),
-    SourceType: z.enum(["KENDRA"]).describe(
+    SourceType: z.enum(["KENDRA", "SITEWISE"]).describe(
       "The type of data source for the dataset.",
     ),
     SourceDetail: SourceDetailSchema.describe(
       "The details of the dataset source associated with the dataset.",
     ).optional(),
-  }).describe("The data source for the dataset."),
+  }).describe("The data source for the dataset.").optional(),
+  DatasetType: z.enum(["SESSION", "CURATED", "EXTERNAL"]).describe(
+    "The type of the dataset.",
+  ).optional(),
+  WorkspaceName: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
+    .describe("The name of the workspace associated with the dataset.")
+    .optional(),
+  DatasetConfig: z.object({
+    Session: SessionConfigSchema.describe(
+      "The session configuration for a SESSION dataset.",
+    ).optional(),
+  }).describe("The configuration for the dataset.").optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -107,6 +127,11 @@ const StateSchema = z.object({
     SourceFormat: z.string(),
     SourceType: z.string(),
     SourceDetail: SourceDetailSchema,
+  }).optional(),
+  DatasetType: z.string().optional(),
+  WorkspaceName: z.string().optional(),
+  DatasetConfig: z.object({
+    Session: SessionConfigSchema,
   }).optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
@@ -124,16 +149,27 @@ const InputsSchema = z.object({
     "A description about the dataset, and its functionality.",
   ).optional(),
   DatasetSource: z.object({
-    SourceFormat: z.enum(["KNOWLEDGE_BASE"]).describe(
+    SourceFormat: z.enum(["KNOWLEDGE_BASE", "TIMESERIES"]).describe(
       "The format of the dataset source associated with the dataset.",
     ).optional(),
-    SourceType: z.enum(["KENDRA"]).describe(
+    SourceType: z.enum(["KENDRA", "SITEWISE"]).describe(
       "The type of data source for the dataset.",
     ).optional(),
     SourceDetail: SourceDetailSchema.describe(
       "The details of the dataset source associated with the dataset.",
     ).optional(),
   }).describe("The data source for the dataset.").optional(),
+  DatasetType: z.enum(["SESSION", "CURATED", "EXTERNAL"]).describe(
+    "The type of the dataset.",
+  ).optional(),
+  WorkspaceName: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
+    .describe("The name of the workspace associated with the dataset.")
+    .optional(),
+  DatasetConfig: z.object({
+    Session: SessionConfigSchema.describe(
+      "The session configuration for a SESSION dataset.",
+    ).optional(),
+  }).describe("The configuration for the dataset.").optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -158,7 +194,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTSiteWise Dataset. Registered at `@swamp/aws/iotsitewise/dataset`. */
 export const model = {
   type: "@swamp/aws/iotsitewise/dataset",
-  version: "2026.08.17.2",
+  version: "2026.09.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -208,6 +244,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.22.1",
+      description: "Added: DatasetType, WorkspaceName, DatasetConfig",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -317,7 +358,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          undefined,
+          ["DatasetType", "WorkspaceName"],
           credentials,
         );
         const handle = await context.writeResource(

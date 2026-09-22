@@ -74,6 +74,44 @@ const GlobalArgsSchema = z.object({
       propagation_policy: z.enum(["authenticated", "accept"]).optional(),
     }).optional(),
   }).describe("Observability settings for the Worker."),
+  previews_base_config: z.object({
+    cache_options: z.object({
+      cross_version_cache: z.boolean().optional(),
+      enabled: z.boolean(),
+    }).optional(),
+    env: z.record(z.string(), z.unknown()).optional(),
+    limits: z.object({
+      cpu_ms: z.number().int().optional(),
+      subrequests: z.number().int().optional(),
+    }).optional(),
+    logpush: z.boolean().optional(),
+    observability: z.object({
+      enabled: z.boolean().optional(),
+      head_sampling_rate: z.number().optional(),
+      issues: z.object({
+        enabled: z.boolean().optional(),
+      }).optional(),
+      logs: z.object({
+        destinations: z.array(z.string()).optional(),
+        enabled: z.boolean().optional(),
+        head_sampling_rate: z.number().optional(),
+        invocation_logs: z.boolean().optional(),
+        persist: z.boolean().optional(),
+      }).optional(),
+      redact_query_string: z.boolean().optional(),
+      traces: z.object({
+        destinations: z.array(z.string()).optional(),
+        enabled: z.boolean().optional(),
+        head_sampling_rate: z.number().optional(),
+        persist: z.boolean().optional(),
+        propagation_policy: z.enum(["authenticated", "accept"]).optional(),
+      }).optional(),
+    }).optional(),
+    placement: z.record(z.string(), z.unknown()).optional(),
+    tail_consumers: z.array(z.object({
+      name: z.string(),
+    })).optional(),
+  }).optional(),
   references: z.object({
     dispatch_namespace_outbounds: z.array(z.object({
       namespace_id: z.string(),
@@ -158,6 +196,44 @@ const ResourceSchema = z.object({
       propagation_policy: z.string().optional(),
     }).optional(),
   }).optional(),
+  previews_base_config: z.object({
+    cache_options: z.object({
+      cross_version_cache: z.boolean().optional(),
+      enabled: z.boolean().optional(),
+    }).optional(),
+    env: z.record(z.string(), z.unknown()).optional(),
+    limits: z.object({
+      cpu_ms: z.number().optional(),
+      subrequests: z.number().optional(),
+    }).optional(),
+    logpush: z.boolean().optional(),
+    observability: z.object({
+      enabled: z.boolean().optional(),
+      head_sampling_rate: z.number().optional(),
+      issues: z.object({
+        enabled: z.boolean().optional(),
+      }).optional(),
+      logs: z.object({
+        destinations: z.array(z.string()).optional(),
+        enabled: z.boolean().optional(),
+        head_sampling_rate: z.number().optional(),
+        invocation_logs: z.boolean().optional(),
+        persist: z.boolean().optional(),
+      }).optional(),
+      redact_query_string: z.boolean().optional(),
+      traces: z.object({
+        destinations: z.array(z.string()).optional(),
+        enabled: z.boolean().optional(),
+        head_sampling_rate: z.number().optional(),
+        persist: z.boolean().optional(),
+        propagation_policy: z.string().optional(),
+      }).optional(),
+    }).optional(),
+    placement: z.record(z.string(), z.unknown()).optional(),
+    tail_consumers: z.array(z.object({
+      name: z.string().optional(),
+    })).optional(),
+  }).optional(),
   references: z.object({
     dispatch_namespace_outbounds: z.array(z.object({
       namespace_id: z.string().optional(),
@@ -232,6 +308,44 @@ const InputsSchema = z.object({
       propagation_policy: z.enum(["authenticated", "accept"]).optional(),
     }).optional(),
   }).optional(),
+  previews_base_config: z.object({
+    cache_options: z.object({
+      cross_version_cache: z.boolean().optional(),
+      enabled: z.boolean(),
+    }).optional(),
+    env: z.record(z.string(), z.unknown()).optional(),
+    limits: z.object({
+      cpu_ms: z.number().int().optional(),
+      subrequests: z.number().int().optional(),
+    }).optional(),
+    logpush: z.boolean().optional(),
+    observability: z.object({
+      enabled: z.boolean().optional(),
+      head_sampling_rate: z.number().optional(),
+      issues: z.object({
+        enabled: z.boolean().optional(),
+      }).optional(),
+      logs: z.object({
+        destinations: z.array(z.string()).optional(),
+        enabled: z.boolean().optional(),
+        head_sampling_rate: z.number().optional(),
+        invocation_logs: z.boolean().optional(),
+        persist: z.boolean().optional(),
+      }).optional(),
+      redact_query_string: z.boolean().optional(),
+      traces: z.object({
+        destinations: z.array(z.string()).optional(),
+        enabled: z.boolean().optional(),
+        head_sampling_rate: z.number().optional(),
+        persist: z.boolean().optional(),
+        propagation_policy: z.enum(["authenticated", "accept"]).optional(),
+      }).optional(),
+    }).optional(),
+    placement: z.record(z.string(), z.unknown()).optional(),
+    tail_consumers: z.array(z.object({
+      name: z.string(),
+    })).optional(),
+  }).optional(),
   references: z.object({
     dispatch_namespace_outbounds: z.array(z.object({
       namespace_id: z.string(),
@@ -281,7 +395,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Workers. Registered at `@swamp/cloudflare/workers/workers`. */
 export const model = {
   type: "@swamp/cloudflare/workers/workers",
-  version: "2026.09.16.1",
+  version: "2026.09.22.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -328,6 +442,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.22.1",
+      description: "Added: previews_base_config",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -353,6 +472,9 @@ export const model = {
         if (g.logpush !== undefined) body.logpush = g.logpush;
         if (g.name !== undefined) body.name = g.name;
         if (g.observability !== undefined) body.observability = g.observability;
+        if (g.previews_base_config !== undefined) {
+          body.previews_base_config = g.previews_base_config;
+        }
         if (g.references !== undefined) body.references = g.references;
         if (g.subdomain !== undefined) body.subdomain = g.subdomain;
         if (g.tags !== undefined) body.tags = g.tags;
@@ -525,6 +647,9 @@ export const model = {
         if (g.logpush !== undefined) body.logpush = g.logpush;
         if (g.name !== undefined) body.name = g.name;
         if (g.observability !== undefined) body.observability = g.observability;
+        if (g.previews_base_config !== undefined) {
+          body.previews_base_config = g.previews_base_config;
+        }
         if (g.references !== undefined) body.references = g.references;
         if (g.subdomain !== undefined) body.subdomain = g.subdomain;
         if (g.tags !== undefined) body.tags = g.tags;

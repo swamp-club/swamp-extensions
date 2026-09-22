@@ -55,6 +55,21 @@ const GlobalArgsSchema = z.object({
     repo_name: z.string(),
     grant_id: z.string().min(1).optional(),
   }),
+  previews_base_config: z.object({
+    build_caching_enabled: z.boolean().optional(),
+    build_command: z.string(),
+    build_token_uuid: z.string(),
+    deploy_command: z.string(),
+    environment_variables: z.record(z.string(), z.unknown()).optional(),
+    path_excludes: z.array(z.string()).optional(),
+    path_includes: z.array(z.string()).optional(),
+    root_directory: z.string().optional(),
+  }).describe(
+    "Build and deploy settings when creating a Worker build configuration",
+  ),
+  previews_enabled: z.boolean().describe(
+    "Whether Previews are enabled for this Worker",
+  ),
   production_settings: z.object({
     build_caching_enabled: z.boolean().optional(),
     build_command: z.string(),
@@ -91,6 +106,18 @@ const ResourceSchema = z.object({
     repo_id: z.string().optional(),
     repo_name: z.string().optional(),
   }).optional(),
+  previews_base_config: z.object({
+    build_caching_enabled: z.boolean().optional(),
+    build_command: z.string().optional(),
+    build_token_uuid: z.string().optional(),
+    deploy_command: z.string().optional(),
+    environment_variables: z.record(z.string(), z.unknown()).optional(),
+    path_excludes: z.array(z.string()).optional(),
+    path_includes: z.array(z.string()).optional(),
+    proposed_deploy_command: z.string().optional(),
+    root_directory: z.string().optional(),
+  }).optional(),
+  previews_enabled: z.boolean().optional(),
   production_settings: z.object({
     build_caching_enabled: z.boolean().optional(),
     build_command: z.string().optional(),
@@ -99,6 +126,7 @@ const ResourceSchema = z.object({
     environment_variables: z.record(z.string(), z.unknown()).optional(),
     path_excludes: z.array(z.string()).optional(),
     path_includes: z.array(z.string()).optional(),
+    proposed_deploy_command: z.string().optional(),
     root_directory: z.string().optional(),
   }).optional(),
   script_tag: z.string().optional(),
@@ -119,6 +147,17 @@ const InputsSchema = z.object({
     repo_name: z.string(),
     grant_id: z.string().min(1).optional(),
   }).optional(),
+  previews_base_config: z.object({
+    build_caching_enabled: z.boolean().optional(),
+    build_command: z.string(),
+    build_token_uuid: z.string(),
+    deploy_command: z.string(),
+    environment_variables: z.record(z.string(), z.unknown()).optional(),
+    path_excludes: z.array(z.string()).optional(),
+    path_includes: z.array(z.string()).optional(),
+    root_directory: z.string().optional(),
+  }).optional(),
+  previews_enabled: z.boolean().optional(),
   production_settings: z.object({
     build_caching_enabled: z.boolean().optional(),
     build_command: z.string(),
@@ -138,7 +177,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Workers. Registered at `@swamp/cloudflare/builds/workers`. */
 export const model = {
   type: "@swamp/cloudflare/builds/workers",
-  version: "2026.09.11.1",
+  version: "2026.09.22.1",
   upgrades: [
     {
       toVersion: "2026.07.18.1",
@@ -165,6 +204,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.22.1",
+      description: "Added: previews_base_config, previews_enabled",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -186,6 +230,12 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.git_repository !== undefined) {
           body.git_repository = g.git_repository;
+        }
+        if (g.previews_base_config !== undefined) {
+          body.previews_base_config = g.previews_base_config;
+        }
+        if (g.previews_enabled !== undefined) {
+          body.previews_enabled = g.previews_enabled;
         }
         if (g.production_settings !== undefined) {
           body.production_settings = g.production_settings;
@@ -239,6 +289,9 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/builds/workers";
         const filters: [string, string][] = [];
+        if (g.previews_enabled !== undefined) {
+          filters.push(["previews_enabled", String(g.previews_enabled)]);
+        }
         if (g.script_tag !== undefined) {
           filters.push(["script_tag", String(g.script_tag)]);
         }
@@ -341,6 +394,12 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.git_repository !== undefined) {
           body.git_repository = g.git_repository;
+        }
+        if (g.previews_base_config !== undefined) {
+          body.previews_base_config = g.previews_base_config;
+        }
+        if (g.previews_enabled !== undefined) {
+          body.previews_enabled = g.previews_enabled;
         }
         if (g.production_settings !== undefined) {
           body.production_settings = g.production_settings;

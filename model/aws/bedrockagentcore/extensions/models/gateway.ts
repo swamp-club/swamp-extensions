@@ -56,7 +56,7 @@ const AuthorizingClaimMatchValueTypeSchema = z.object({
 
 const CustomClaimValidationTypeSchema = z.object({
   InboundTokenClaimName: z.string().min(1).max(255).regex(
-    new RegExp("^[A-Za-z0-9_.-:]+$"),
+    new RegExp("^[A-Za-z0-9_.:-]+$"),
   ),
   InboundTokenClaimValueType: z.enum(["STRING", "STRING_ARRAY"]),
   AuthorizingClaimMatchValue: AuthorizingClaimMatchValueTypeSchema,
@@ -320,7 +320,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Gateway. Registered at `@swamp/aws/bedrockagentcore/gateway`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/gateway",
-  version: "2026.09.17.1",
+  version: "2026.09.22.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -412,6 +412,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

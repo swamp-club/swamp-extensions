@@ -601,6 +601,9 @@ const GlobalArgsSchema = z.object({
         displayName: z.string().describe(
           "Output only. Localized display name of the model (e.g. `Gemini 3.1 Pro`). Localized server-side based on the LookupWidgetConfigRequest.language_code and LookupWidgetConfigRequest.region_code of the request.",
         ).optional(),
+        family: z.string().describe(
+          "Output only. Groups models that render together in the selector. Models sharing a value form one group; empty means the model belongs to no group. Compared for equality only -- never parsed, and never shown to a user, so it is not localized.",
+        ).optional(),
         icon: z.string().describe(
           "Output only. GM3-compatible icon token associated with the model (e.g. `rocket_launch`, `bolt`, `graph_5`).",
         ).optional(),
@@ -861,6 +864,7 @@ const StateSchema = z.object({
         }),
         description: z.string(),
         displayName: z.string(),
+        family: z.string(),
         icon: z.string(),
         iconUrl: z.string(),
         isPreview: z.boolean(),
@@ -1384,6 +1388,9 @@ const InputsSchema = z.object({
         displayName: z.string().describe(
           "Output only. Localized display name of the model (e.g. `Gemini 3.1 Pro`). Localized server-side based on the LookupWidgetConfigRequest.language_code and LookupWidgetConfigRequest.region_code of the request.",
         ).optional(),
+        family: z.string().describe(
+          "Output only. Groups models that render together in the selector. Models sharing a value form one group; empty means the model belongs to no group. Compared for equality only -- never parsed, and never shown to a user, so it is not localized.",
+        ).optional(),
         icon: z.string().describe(
           "Output only. GM3-compatible icon token associated with the model (e.g. `rocket_launch`, `bolt`, `graph_5`).",
         ).optional(),
@@ -1474,7 +1481,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine DataStores.WidgetConfigs. Registered at `@swamp/gcp/discoveryengine/datastores-widgetconfigs`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/datastores-widgetconfigs",
-  version: "2026.09.09.1",
+  version: "2026.09.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1718,6 +1725,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.09.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

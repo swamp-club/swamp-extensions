@@ -44,12 +44,14 @@ import type { AwsCredentials } from "./_lib/aws.ts";
 
 const S3FilesConfigSchema = z.object({
   DirectS3Read: z.enum(["ENABLED", "DISABLED", "AUTO"]).describe(
-    'Specifies if a function reads from the file system for the lowest latency, or through Amazon S3 Files feature "direct Amazon S3 bucket reads" for the highest throughput',
+    'Specifies if a function reads from the file system for the lowest latency, or through Amazon S3 Files feature "direct Amazon S3 bucket reads" for the highest throughput. Valid values: AUTO (default) – Direct reads are active for functions you configure with 512 MB or more of memory. ENABLED – Enforces all reads are directly from the Amazon S3 bucket, regardless of available memory (less than 512 MB). DISABLED – Routes all reads through the file system, regardless of memory configuration. To use direct reads, you must grant the execution role the s3:GetObject and s3:GetObjectVersion permissions. If a direct read fails, Lambda automatically falls back to reading through the file system.',
   ).optional(),
 });
 
 const FileSystemConfigSchema = z.object({
-  S3FilesConfig: S3FilesConfigSchema.optional(),
+  S3FilesConfig: S3FilesConfigSchema.describe(
+    "The configuration for how your function accesses data on an Amazon S3 file system. Valid only when the file system access point ARN is an Amazon S3 Files access point. If you specify a different access point type (for example, Amazon Elastic File System), the operation returns an InvalidParameterException.",
+  ).optional(),
   Arn: z.string().max(200).regex(
     new RegExp(
       "^arn:aws[a-zA-Z-]*:elasticfilesystem:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:access-point/fsap-[a-f0-9]{17}$|^arn:aws[-a-z]*:s3files:[0-9a-z-:]+:file-system/fs-[0-9a-f]{17,40}/access-point/fsap-[0-9a-f]{17,40}$",
@@ -642,7 +644,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda Function. Registered at `@swamp/aws/lambda/function`. */
 export const model = {
   type: "@swamp/aws/lambda/function",
-  version: "2026.09.03.1",
+  version: "2026.09.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -731,6 +733,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

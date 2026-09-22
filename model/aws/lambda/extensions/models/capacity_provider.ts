@@ -104,12 +104,12 @@ const GlobalArgsSchema = z.object({
       "A list of supported CPU architectures for compute instances. Valid values include x86_64 and arm64.",
     ).optional(),
     AllowedInstanceTypes: z.array(
-      z.string().min(1).max(30).regex(new RegExp("^[a-zA-Z0-9\\.\\-]+$")),
+      z.string().min(1).max(30).regex(new RegExp("^[a-zA-Z0-9\\.\\*\\-]+$")),
     ).describe(
       "A list of EC2 instance types that the capacity provider is allowed to use. If not specified, all compatible instance types are allowed.",
     ).optional(),
     ExcludedInstanceTypes: z.array(
-      z.string().min(1).max(30).regex(new RegExp("^[a-zA-Z0-9\\.\\-]+$")),
+      z.string().min(1).max(30).regex(new RegExp("^[a-zA-Z0-9\\.\\*\\-]+$")),
     ).describe(
       "A list of EC2 instance types that the capacity provider should not use, even if they meet other requirements.",
     ).optional(),
@@ -225,12 +225,12 @@ const InputsSchema = z.object({
       "A list of supported CPU architectures for compute instances. Valid values include x86_64 and arm64.",
     ).optional(),
     AllowedInstanceTypes: z.array(
-      z.string().min(1).max(30).regex(new RegExp("^[a-zA-Z0-9\\.\\-]+$")),
+      z.string().min(1).max(30).regex(new RegExp("^[a-zA-Z0-9\\.\\*\\-]+$")),
     ).describe(
       "A list of EC2 instance types that the capacity provider is allowed to use. If not specified, all compatible instance types are allowed.",
     ).optional(),
     ExcludedInstanceTypes: z.array(
-      z.string().min(1).max(30).regex(new RegExp("^[a-zA-Z0-9\\.\\-]+$")),
+      z.string().min(1).max(30).regex(new RegExp("^[a-zA-Z0-9\\.\\*\\-]+$")),
     ).describe(
       "A list of EC2 instance types that the capacity provider should not use, even if they meet other requirements.",
     ).optional(),
@@ -305,7 +305,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda CapacityProvider. Registered at `@swamp/aws/lambda/capacity-provider`. */
 export const model = {
   type: "@swamp/aws/lambda/capacity-provider",
-  version: "2026.08.17.2",
+  version: "2026.09.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -389,6 +389,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

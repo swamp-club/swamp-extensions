@@ -123,6 +123,9 @@ const GlobalArgsSchema = z.object({
   vpc_uuid: z.string().describe(
     "A string specifying the UUID of the VPC to which the load balancer is assigned.",
   ).optional(),
+  subnet_uuid: z.string().describe(
+    "A string specifying the UUID of the VPC subnet to which the load balancer is assigned.",
+  ).optional(),
   disable_lets_encrypt_dns_records: z.boolean().describe(
     "A boolean value indicating whether to disable automatic DNS record creation for Let's Encrypt certificates that are added to the load balancer.",
   ).optional(),
@@ -217,6 +220,7 @@ const ResourceSchema = z.object({
   enable_backend_keepalive: z.boolean().optional(),
   http_idle_timeout_seconds: z.number().optional(),
   vpc_uuid: z.string().optional(),
+  subnet_uuid: z.string().optional(),
   disable_lets_encrypt_dns_records: z.boolean().optional(),
   firewall: z.object({
     deny: z.array(z.string()).optional(),
@@ -306,6 +310,7 @@ const InputsSchema = z.object({
   enable_backend_keepalive: z.boolean().optional(),
   http_idle_timeout_seconds: z.number().int().min(30).max(600).optional(),
   vpc_uuid: z.string().optional(),
+  subnet_uuid: z.string().optional(),
   disable_lets_encrypt_dns_records: z.boolean().optional(),
   firewall: z.object({
     deny: z.array(z.string()).optional(),
@@ -342,7 +347,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean load balancer. Registered at `@swamp/digitalocean/load-balancer`. */
 export const model = {
   type: "@swamp/digitalocean/load-balancer",
-  version: "2026.09.04.1",
+  version: "2026.09.22.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -402,6 +407,11 @@ export const model = {
     {
       toVersion: "2026.09.04.1",
       description: "Added: ip",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.22.1",
+      description: "Added: subnet_uuid",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -474,6 +484,7 @@ export const model = {
           body.http_idle_timeout_seconds = g.http_idle_timeout_seconds;
         }
         if (g.vpc_uuid !== undefined) body.vpc_uuid = g.vpc_uuid;
+        if (g.subnet_uuid !== undefined) body.subnet_uuid = g.subnet_uuid;
         if (g.disable_lets_encrypt_dns_records !== undefined) {
           body.disable_lets_encrypt_dns_records =
             g.disable_lets_encrypt_dns_records;
@@ -593,6 +604,7 @@ export const model = {
           body.http_idle_timeout_seconds = g.http_idle_timeout_seconds;
         }
         if (g.vpc_uuid !== undefined) body.vpc_uuid = g.vpc_uuid;
+        if (g.subnet_uuid !== undefined) body.subnet_uuid = g.subnet_uuid;
         if (g.disable_lets_encrypt_dns_records !== undefined) {
           body.disable_lets_encrypt_dns_records =
             g.disable_lets_encrypt_dns_records;

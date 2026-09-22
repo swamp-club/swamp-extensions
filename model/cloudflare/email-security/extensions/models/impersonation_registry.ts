@@ -55,12 +55,7 @@ const GlobalArgsSchema = z.object({
   last_modified: z.string().optional(),
   modified_at: z.string().optional(),
   name: z.string().max(1024).optional(),
-  provenance: z.enum([
-    "A1S_INTERNAL",
-    "SNOOPY-CASB_OFFICE_365",
-    "SNOOPY-OFFICE_365",
-    "SNOOPY-GOOGLE_DIRECTORY",
-  ]).optional(),
+  provenance: z.string().optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -96,19 +91,14 @@ const InputsSchema = z.object({
   last_modified: z.string().optional(),
   modified_at: z.string().optional(),
   name: z.string().max(1024).optional(),
-  provenance: z.enum([
-    "A1S_INTERNAL",
-    "SNOOPY-CASB_OFFICE_365",
-    "SNOOPY-OFFICE_365",
-    "SNOOPY-GOOGLE_DIRECTORY",
-  ]).optional(),
+  provenance: z.string().optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Cloudflare Impersonation Registry. Registered at `@swamp/cloudflare/email-security/impersonation-registry`. */
 export const model = {
   type: "@swamp/cloudflare/email-security/impersonation-registry",
-  version: "2026.08.25.2",
+  version: "2026.09.22.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -142,6 +132,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.25.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

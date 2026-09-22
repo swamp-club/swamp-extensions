@@ -42,6 +42,10 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const ProxyConfigSchema = z.object({
+  SftpMode: z.enum(["PROXY_PROTOCOL_V2_ENFORCED", "NONE"]).optional(),
+});
+
 const TagSchema = z.object({
   Key: z.string().min(0).max(128),
   Value: z.string().min(0).max(256),
@@ -126,6 +130,7 @@ const GlobalArgsSchema = z.object({
       .optional(),
     SetStatOption: z.enum(["DEFAULT", "ENABLE_NO_OP"]).optional(),
     As2Transports: z.array(z.enum(["HTTP"])).optional(),
+    ProxyConfig: ProxyConfigSchema.optional(),
   }).optional(),
   Protocols: z.array(z.enum(["SFTP", "FTP", "FTPS", "AS2"])).optional(),
   S3StorageOptions: z.object({
@@ -176,6 +181,7 @@ const StateSchema = z.object({
     TlsSessionResumptionMode: z.string(),
     SetStatOption: z.string(),
     As2Transports: z.array(z.string()),
+    ProxyConfig: ProxyConfigSchema,
   }).optional(),
   Protocols: z.array(z.string()).optional(),
   S3StorageOptions: z.object({
@@ -254,6 +260,7 @@ const InputsSchema = z.object({
       .optional(),
     SetStatOption: z.enum(["DEFAULT", "ENABLE_NO_OP"]).optional(),
     As2Transports: z.array(z.enum(["HTTP"])).optional(),
+    ProxyConfig: ProxyConfigSchema.optional(),
   }).optional(),
   Protocols: z.array(z.enum(["SFTP", "FTP", "FTPS", "AS2"])).optional(),
   S3StorageOptions: z.object({
@@ -293,7 +300,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Transfer Server. Registered at `@swamp/aws/transfer/server`. */
 export const model = {
   type: "@swamp/aws/transfer/server",
-  version: "2026.08.17.2",
+  version: "2026.09.22.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -342,6 +349,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.22.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
