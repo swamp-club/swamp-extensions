@@ -163,6 +163,25 @@ function createMockGcsClient(): GcsClient & {
       return Promise.resolve({ data, generation: genFor(key) });
     },
 
+    getObjectStream(
+      key: string,
+      signal?: AbortSignal,
+    ): Promise<{ body: ReadableStream<Uint8Array>; generation?: string }> {
+      throwIfAborted(signal);
+      gets.push(key);
+      const data = storage.get(key);
+      if (!data) {
+        return Promise.reject(new NotFoundError(`Object not found: ${key}`));
+      }
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(data);
+          controller.close();
+        },
+      });
+      return Promise.resolve({ body, generation: genFor(key) });
+    },
+
     getMetadata(
       key: string,
       signal?: AbortSignal,
@@ -4545,9 +4564,9 @@ Deno.test("pullChanged: still throws on non-NotFound errors", async () => {
     });
     mock.storage.set(".datastore-index.json", indexBody);
     mock.storage.set("data/file/v1/raw", new TextEncoder().encode("hello"));
-    // Override getObject to return an auth error instead of NotFound.
-    const origGet = mock.getObject.bind(mock);
-    (mock as unknown as Record<string, unknown>).getObject = (
+    // Override getObjectStream to return an auth error instead of NotFound.
+    const origGetStream = mock.getObjectStream.bind(mock);
+    (mock as unknown as Record<string, unknown>).getObjectStream = (
       key: string,
       signal?: AbortSignal,
     ) => {
@@ -4562,7 +4581,7 @@ Deno.test("pullChanged: still throws on non-NotFound errors", async () => {
           }),
         );
       }
-      return origGet(key, signal);
+      return origGetStream(key, signal);
     };
 
     const service = new GcsCacheSyncService(mock, cachePath);

@@ -607,6 +607,32 @@ export class S3Client {
     };
   }
 
+  /**
+   * Downloads an object from S3 as a stream. Unlike `getObject`, the body
+   * is returned as a `ReadableStream` so callers can pipe directly to disk
+   * without buffering the entire file in the JS heap.
+   */
+  async getObjectStream(
+    key: string,
+    signal?: AbortSignal,
+  ): Promise<{ body: ReadableStream<Uint8Array>; etag?: string }> {
+    const response = await this.run(
+      "getObject",
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: this.fullKey(key),
+      }),
+      signal,
+    );
+    if (!response.Body) {
+      throw new Error(`S3 GetObject returned empty body for key: ${key}`);
+    }
+    return {
+      body: response.Body.transformToWebStream() as ReadableStream<Uint8Array>,
+      etag: response.ETag,
+    };
+  }
+
   /** Deletes an object from S3. */
   async deleteObject(key: string, signal?: AbortSignal): Promise<void> {
     await this.run(

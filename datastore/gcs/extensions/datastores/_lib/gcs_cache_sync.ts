@@ -187,6 +187,30 @@ function isInSubdirs(rel: string, subdirs: readonly string[]): boolean {
   return subdirs.some((d) => rel.startsWith(d + "/"));
 }
 
+import { createHash } from "node:crypto";
+
+/**
+ * Computes a SHA-256 hex digest by streaming chunks from disk instead of
+ * reading the entire file into memory. Used by comparison-only sites
+ * (pull walk, push change detection) where the file bytes are not needed
+ * after hashing.
+ */
+async function streamingSha256(path: string): Promise<string> {
+  const file = await Deno.open(path, { read: true });
+  try {
+    const hasher = createHash("sha256");
+    for await (const chunk of file.readable) {
+      hasher.update(chunk);
+    }
+    return hasher.digest("hex");
+  } catch (err) {
+    try {
+      file.close();
+    } catch { /* already closed by readable iteration */ }
+    throw err;
+  }
+}
+
 /**
  * Rejects with `AbortError` if the signal is already aborted. Used at
  * phase boundaries so abort propagation doesn't have to ride on a
@@ -2066,24 +2090,38 @@ export class GcsCacheSyncService implements DatastoreSyncService {
             this.cachePath,
             this.localRelPath(relativePath),
           );
-          let data: Uint8Array;
+          await ensureDir(dirname(localPath));
+          const streamToDisk = async (key: string) => {
+            const { body } = await this.gcs.getObjectStream(key, signal);
+            const file = await Deno.open(localPath, {
+              write: true,
+              create: true,
+              truncate: true,
+            });
+            try {
+              await body.pipeTo(file.writable);
+            } catch (err) {
+              try {
+                file.close();
+              } catch { /* already closed by pipeTo */ }
+              throw err;
+            }
+          };
           try {
-            ({ data } = await retryWithBackoff(
-              () => this.gcs.getObject(this.dataKey(relativePath), signal),
+            await retryWithBackoff(
+              () => streamToDisk(this.dataKey(relativePath)),
               { signal },
-            ));
+            );
           } catch (err) {
             if (this.namespace && err instanceof NotFoundError) {
-              ({ data } = await retryWithBackoff(
-                () => this.gcs.getObject(relativePath, signal),
+              await retryWithBackoff(
+                () => streamToDisk(relativePath),
                 { signal },
-              ));
+              );
             } else {
               throw err;
             }
           }
-          await ensureDir(dirname(localPath));
-          await Deno.writeFile(localPath, data);
         } catch (err) {
           span.setStatus({
             code: SpanStatusCode.ERROR,
@@ -2323,14 +2361,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
                 const mtimeMatch = entry.localMtime && stat.mtime &&
                   entry.localMtime === stat.mtime.toISOString();
                 if (!mtimeMatch && entry.sha256) {
-                  const data = await Deno.readFile(localPath);
-                  const hashBuffer = await crypto.subtle.digest(
-                    "SHA-256",
-                    data,
-                  );
-                  const localHash = Array.from(new Uint8Array(hashBuffer))
-                    .map((b) => b.toString(16).padStart(2, "0"))
-                    .join("");
+                  const localHash = await streamingSha256(localPath);
                   if (localHash !== entry.sha256) {
                     toPull.push(rel);
                     continue;
@@ -3708,11 +3739,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
         existing.sha256 &&
         Date.now() - stat.mtime.getTime() < 1000
       ) {
-        const data = await Deno.readFile(absPath);
-        const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-        const localHash = Array.from(new Uint8Array(hashBuffer))
-          .map((b) => b.toString(16).padStart(2, "0"))
-          .join("");
+        const localHash = await streamingSha256(absPath);
         return localHash !== existing.sha256;
       }
       return false;
@@ -3723,11 +3750,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     }
 
     if (existing.sha256) {
-      const data = await Deno.readFile(absPath);
-      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-      const localHash = Array.from(new Uint8Array(hashBuffer))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
+      const localHash = await streamingSha256(absPath);
       return localHash !== existing.sha256;
     }
 

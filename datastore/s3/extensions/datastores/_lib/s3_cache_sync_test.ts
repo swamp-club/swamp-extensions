@@ -157,6 +157,21 @@ function createMockS3Client(): S3Client & {
       return Promise.resolve({ data, etag: etagFor(key, data) });
     },
 
+    getObjectStream(
+      key: string,
+    ): Promise<{ body: ReadableStream<Uint8Array>; etag?: string }> {
+      gets.push(key);
+      const data = storage.get(key);
+      if (!data) return Promise.reject(makeNoSuchKeyError(key));
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(data);
+          controller.close();
+        },
+      });
+      return Promise.resolve({ body, etag: etagFor(key, data) });
+    },
+
     headObject(
       key: string,
     ): Promise<
@@ -4878,9 +4893,9 @@ Deno.test("pullChanged: still throws on non-NotFound errors", async () => {
     });
     mock.storage.set(".datastore-index.json", indexBody);
     mock.storage.set("data/file/v1/raw", new TextEncoder().encode("hello"));
-    // Override getObject to return an auth error instead of NotFound.
-    const origGet = mock.getObject.bind(mock);
-    (mock as unknown as Record<string, unknown>).getObject = (
+    // Override getObjectStream to return an auth error instead of NotFound.
+    const origGetStream = mock.getObjectStream.bind(mock);
+    (mock as unknown as Record<string, unknown>).getObjectStream = (
       key: string,
     ) => {
       if (key === "data/file/v1/raw") {
@@ -4894,7 +4909,7 @@ Deno.test("pullChanged: still throws on non-NotFound errors", async () => {
         });
         return Promise.reject(err);
       }
-      return origGet(key);
+      return origGetStream(key);
     };
 
     const service = new S3CacheSyncService(mock, cachePath);

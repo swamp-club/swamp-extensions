@@ -1100,6 +1100,45 @@ export class GcsClient {
     };
   }
 
+  /**
+   * Downloads an object from GCS as a stream. Unlike `getObject`, the body
+   * is returned as a `ReadableStream` so callers can pipe directly to disk
+   * without buffering the entire file in the JS heap.
+   */
+  async getObjectStream(
+    key: string,
+    signal?: AbortSignal,
+  ): Promise<{ body: ReadableStream<Uint8Array>; generation?: string }> {
+    const objectName = this.fullKey(key);
+    const url = this.storageUrl(
+      `/b/${encodeURIComponent(this.bucket)}/o/${
+        encodeURIComponent(objectName)
+      }?alt=media`,
+    );
+    const resp = await this.send(
+      "getObject",
+      url,
+      { method: "GET", headers: await this.headers() },
+      signal,
+      key,
+    );
+    const generation = resp.headers.get("x-goog-generation") ?? undefined;
+    if (!resp.body) {
+      throw new GcsOperationError(
+        `GCS getObject returned empty body for key: ${key}`,
+        {
+          name: "EmptyBody",
+          httpStatusCode: 200,
+          code: undefined,
+          bodyPreview: undefined,
+          uploadId: undefined,
+          cause: undefined,
+        },
+      );
+    }
+    return { body: resp.body, generation };
+  }
+
   /** Deletes an object from GCS. Optionally conditional on generation. */
   async deleteObject(
     key: string,
