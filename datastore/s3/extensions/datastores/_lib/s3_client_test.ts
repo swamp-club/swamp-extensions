@@ -17,15 +17,28 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
+import {
+  assert,
+  assertEquals,
+  assertInstanceOf,
+  assertRejects,
+} from "jsr:@std/assert@1.0.19";
 import {
   classifyAwsCredentialError,
   deriveAwsErrorCode,
   formatAwsCredentialHint,
+  IfMatchUnsupportedError,
+  isIfMatchUnsupported,
   PREFLIGHT_TIMEOUT_MS,
+  PROBE_PREFIX,
   S3Client,
   S3OperationError,
+  unquoteETag,
 } from "./s3_client.ts";
+import {
+  type S3EmulatorState,
+  withS3Emulator,
+} from "./s3_emulator_test_util.ts";
 
 /**
  * Run `fn` with `AWS_PROFILE` set to `value` (or unset when `value` is
@@ -223,11 +236,15 @@ Deno.test({
   name: "putObjectIfMatch returns null on 412 with a malformed non-XML body",
   fn: () =>
     withMockServer(
-      () =>
-        new Response("precondition failed", {
-          status: 412,
-          headers: { "Content-Type": "text/plain" },
-        }),
+      // A 412 is checked against a HEAD (swamp-club #2337); the object being
+      // gone makes it a plain lost race.
+      (req) =>
+        req.method === "HEAD"
+          ? new Response(null, { status: 404 })
+          : new Response("precondition failed", {
+            status: 412,
+            headers: { "Content-Type": "text/plain" },
+          }),
       async (client) => {
         assertEquals(
           await client.putObjectIfMatch("k", new Uint8Array([1]), '"x"'),
@@ -239,7 +256,7 @@ Deno.test({
 
 Deno.test({
   sanitizeResources: false,
-  name: "putObjectIfMatch propagates NotImplemented",
+  name: "putObjectIfMatch surfaces NotImplemented as IfMatchUnsupportedError",
   fn: () =>
     withMockServer(
       () =>
@@ -248,14 +265,13 @@ Deno.test({
           { status: 501, headers: { "Content-Type": "application/xml" } },
         ),
       async (client) => {
-        let caught: unknown;
-        try {
-          await client.putObjectIfMatch("k", new Uint8Array([1]), '"x"');
-        } catch (e) {
-          caught = e;
-        }
-        assert(caught instanceof S3OperationError);
-        assertEquals((caught as S3OperationError).name, "NotImplemented");
+        const caught = await assertRejects(() =>
+          client.putObjectIfMatch("k", new Uint8Array([1]), '"x"')
+        );
+        assertInstanceOf(caught, IfMatchUnsupportedError);
+        assert(isIfMatchUnsupported(caught));
+        assertInstanceOf(caught.cause, S3OperationError);
+        assertEquals(caught.cause.name, "NotImplemented");
       },
     ),
 });
@@ -1044,4 +1060,337 @@ Deno.test("env var override: absent env var uses config value", () => {
   } finally {
     if (prior) Deno.env.set("SWAMP_S3_REQUEST_TIMEOUT_MS", prior);
   }
+});
+
+// --- Adaptive If-Match (swamp-club #2337) ---------------------------------
+//
+// Every case drives the real AWS SDK against a local emulator, so the
+// If-Match header asserted on is the one actually put on the wire.
+// sanitizeResources: false throughout — the AWS SDK's pooled connections
+// outlive the test body but are reclaimed by GC.
+
+const BODY = new TextEncoder().encode("payload");
+
+/** Seeds `key` and returns the ETag GetObject reports for it. */
+async function seed(s3: S3Client, key: string): Promise<string> {
+  await s3.putObject(key, BODY);
+  const { etag } = await s3.getObject(key);
+  assert(etag !== undefined && etag.startsWith('"'), "expected a quoted ETag");
+  return etag;
+}
+
+/** Distinct probe objects created (an aborted PUT can arrive twice). */
+const probeCreates = (state: S3EmulatorState) =>
+  new Set(
+    state.requests.filter((r) =>
+      r.method === "PUT" && r.key?.startsWith(PROBE_PREFIX) &&
+      r.ifMatch === null
+    ).map((r) => r.key),
+  ).size;
+
+Deno.test("unquoteETag strips one pair of surrounding quotes only", () => {
+  assertEquals(unquoteETag('"abc"'), "abc");
+  assertEquals(unquoteETag("abc"), "abc");
+  assertEquals(unquoteETag('"'), '"');
+  assertEquals(unquoteETag('""x""'), '"x"');
+});
+
+Deno.test({
+  name:
+    "putObjectIfMatch: an endpoint honouring quoted ETags gets one quoted PUT",
+  sanitizeResources: false,
+  fn: () =>
+    withS3Emulator({}, async (s3, state) => {
+      const etag = await seed(s3, "k");
+      state.requests.length = 0;
+
+      assert(await s3.putObjectIfMatch("k", BODY, etag) !== null);
+      assertEquals(
+        state.requests.map((r) => [r.method, r.key, r.ifMatch]),
+        [["PUT", "k", etag]],
+      );
+    }),
+});
+
+Deno.test({
+  name:
+    "putObjectIfMatch: a genuine lost race returns null after one HEAD, no probe",
+  sanitizeResources: false,
+  fn: () =>
+    withS3Emulator({}, async (s3, state) => {
+      const etag = await seed(s3, "k");
+      state.requests.length = 0;
+
+      assertEquals(await s3.putObjectIfMatch("k", BODY, '"stale"'), null);
+      assertEquals(
+        state.requests.map((r) => [r.method, r.key, r.status]),
+        [["PUT", "k", 412], ["HEAD", "k", 200]],
+      );
+
+      // Still quoted: the next CAS is a single quoted PUT.
+      state.requests.length = 0;
+      assert(await s3.putObjectIfMatch("k", BODY, etag) !== null);
+      assertEquals(state.requests.length, 1);
+      assertEquals(state.requests[0].ifMatch, etag);
+    }),
+});
+
+Deno.test({
+  name:
+    "putObjectIfMatch: quoted ETag rejected (RGW 19.2.5) → probe, then unquoted",
+  sanitizeResources: false,
+  fn: () =>
+    withS3Emulator({ quotedIfMatch: "reject" }, async (s3, state) => {
+      const etag = await seed(s3, "k");
+      state.requests.length = 0;
+
+      const result = await s3.putObjectIfMatch("k", BODY, etag);
+      assert(result !== null, "CAS with the current ETag must succeed");
+
+      const onKey = state.requests.filter((r) => r.key === "k");
+      assertEquals(
+        onKey.map((r) => [r.method, r.ifMatch, r.status]),
+        [
+          ["PUT", etag, 412],
+          ["HEAD", null, 200],
+          ["PUT", unquoteETag(etag), 200],
+        ],
+      );
+      assertEquals(probeCreates(state), 1);
+      assert(
+        state.requests.some((r) =>
+          r.method === "DELETE" && r.key?.startsWith(PROBE_PREFIX)
+        ),
+        "probe object must be cleaned up",
+      );
+      assert(
+        ![...state.objects.keys()].some((k) => k.startsWith(PROBE_PREFIX)),
+      );
+
+      // Now unquoted from the start: one PUT, no HEAD, no probe.
+      const { etag: next } = await s3.getObject("k");
+      state.requests.length = 0;
+      assert(await s3.putObjectIfMatch("k", BODY, next!) !== null);
+      assertEquals(
+        state.requests.map((r) => [r.method, r.ifMatch]),
+        [["PUT", unquoteETag(next!)]],
+      );
+
+      // A genuine race in unquoted mode is still a lost race.
+      state.requests.length = 0;
+      assertEquals(await s3.putObjectIfMatch("k", BODY, '"stale"'), null);
+      assertEquals(state.requests.length, 1);
+    }),
+});
+
+Deno.test({
+  name:
+    "putObjectIfMatch: RGW-style rejection with non-XML 412 bodies still adapts",
+  sanitizeResources: false,
+  fn: () =>
+    withS3Emulator(
+      { quotedIfMatch: "reject", nonXmlPreconditionBody: true },
+      async (s3, state) => {
+        const etag = await seed(s3, "k");
+        assert(await s3.putObjectIfMatch("k", BODY, etag) !== null);
+
+        const { etag: next } = await s3.getObject("k");
+        state.requests.length = 0;
+        assert(await s3.putObjectIfMatch("k", BODY, next!) !== null);
+        assertEquals(state.requests[0].ifMatch, unquoteETag(next!));
+      },
+    ),
+});
+
+Deno.test({
+  name:
+    "putObjectIfMatch: current ETag rejected in both forms → IfMatchUnsupportedError",
+  sanitizeResources: false,
+  fn: () =>
+    withS3Emulator(
+      { quotedIfMatch: "reject", unquotedIfMatch: "reject" },
+      async (s3, state) => {
+        const etag = await seed(s3, "k");
+
+        const err = await assertRejects(() =>
+          s3.putObjectIfMatch("k", BODY, etag)
+        );
+        assertInstanceOf(err, IfMatchUnsupportedError);
+        assert(isIfMatchUnsupported(err));
+
+        // Sticky: the next call fails without touching the network.
+        state.requests.length = 0;
+        await assertRejects(
+          () => s3.putObjectIfMatch("k", BODY, etag),
+          IfMatchUnsupportedError,
+        );
+        assertEquals(state.requests.length, 0);
+
+        // If-None-Match creates are unaffected.
+        assert(await s3.putObjectIfMatch("new", BODY, null) !== null);
+      },
+    ),
+});
+
+Deno.test({
+  name:
+    "putObjectIfMatch: an endpoint ignoring unquoted If-Match is never trusted with it",
+  sanitizeResources: false,
+  fn: () =>
+    withS3Emulator(
+      { quotedIfMatch: "reject", unquotedIfMatch: "ignore" },
+      async (s3, state) => {
+        const etag = await seed(s3, "k");
+        const before = state.objects.get("k")!.etag;
+
+        await assertRejects(
+          () => s3.putObjectIfMatch("k", BODY, etag),
+          IfMatchUnsupportedError,
+        );
+        // The real object was never written blind.
+        assertEquals(state.objects.get("k")!.etag, before);
+      },
+    ),
+});
+
+Deno.test({
+  name: "putObjectIfMatch: concurrent calls share one probe",
+  sanitizeResources: false,
+  fn: () =>
+    withS3Emulator({ quotedIfMatch: "reject" }, async (s3, state) => {
+      const e1 = await seed(s3, "k1");
+      const e2 = await seed(s3, "k2");
+      const e3 = await seed(s3, "k3");
+
+      const results = await Promise.all([
+        s3.putObjectIfMatch("k1", BODY, e1),
+        s3.putObjectIfMatch("k2", BODY, e2),
+        s3.putObjectIfMatch("k3", BODY, e3),
+      ]);
+      assert(results.every((r) => r !== null));
+      assertEquals(probeCreates(state), 1);
+    }),
+});
+
+Deno.test({
+  name:
+    "putObjectIfMatch: a failed probe propagates its error and is retried next call",
+  sanitizeResources: false,
+  fn: () =>
+    withS3Emulator(
+      {
+        quotedIfMatch: "reject",
+        denyPut: (key) => key.startsWith(PROBE_PREFIX),
+      },
+      async (s3, state) => {
+        const etag = await seed(s3, "k");
+
+        const err = await assertRejects(() =>
+          s3.putObjectIfMatch("k", BODY, etag)
+        );
+        assertInstanceOf(err, S3OperationError);
+        assertEquals(err.httpStatusCode, 403);
+        assert(!isIfMatchUnsupported(err));
+
+        state.options.denyPut = undefined;
+        assert(await s3.putObjectIfMatch("k", BODY, etag) !== null);
+        assertEquals(probeCreates(state), 2);
+      },
+    ),
+});
+
+Deno.test({
+  name:
+    "putObjectIfMatch: a 412 with no ETag on HEAD is a lost race, not a probe",
+  sanitizeResources: false,
+  fn: () =>
+    withS3Emulator(
+      { quotedIfMatch: "reject", omitHeadETag: true },
+      async (s3, state) => {
+        const etag = await seed(s3, "k");
+
+        assertEquals(await s3.putObjectIfMatch("k", BODY, etag), null);
+        assertEquals(probeCreates(state), 0);
+
+        // Mode unchanged: still sends the quoted form.
+        state.requests.length = 0;
+        await s3.putObjectIfMatch("k", BODY, etag);
+        assertEquals(state.requests[0].ifMatch, etag);
+      },
+    ),
+});
+
+Deno.test({
+  name: "putObjectIfMatch: an abort during the probe is not memoized",
+  sanitizeResources: false,
+  fn: async () => {
+    const controller = new AbortController();
+    await withS3Emulator(
+      {
+        quotedIfMatch: "reject",
+        onRequest: (method, key) => {
+          if (method === "PUT" && key.startsWith(PROBE_PREFIX)) {
+            controller.abort();
+          }
+        },
+      },
+      async (s3, state) => {
+        const etag = await seed(s3, "k");
+
+        const err = await assertRejects(() =>
+          s3.putObjectIfMatch("k", BODY, etag, controller.signal)
+        );
+        assert(!isIfMatchUnsupported(err));
+
+        state.options.onRequest = undefined;
+        assert(await s3.putObjectIfMatch("k", BODY, etag) !== null);
+        assertEquals(probeCreates(state), 2);
+      },
+    );
+  },
+});
+
+Deno.test({
+  name:
+    "classifyIfMatch: reports each form without re-entering the adaptive path",
+  sanitizeResources: false,
+  fn: async () => {
+    const cases: Array<
+      [
+        Parameters<typeof withS3Emulator>[0],
+        { quoted: boolean; unquoted: boolean } | null,
+      ]
+    > = [
+      [{}, { quoted: true, unquoted: true }],
+      [{ quotedIfMatch: "reject" }, { quoted: false, unquoted: true }],
+      [
+        { quotedIfMatch: "reject", unquotedIfMatch: "reject" },
+        { quoted: false, unquoted: false },
+      ],
+      [
+        { quotedIfMatch: "reject", unquotedIfMatch: "ignore" },
+        { quoted: false, unquoted: false },
+      ],
+      [{ omitHeadETag: true }, null],
+    ];
+    for (const [options, expected] of cases) {
+      await withS3Emulator(options, async (s3, state) => {
+        await seed(s3, "probe");
+        // A deadlock here would hang forever; bound it.
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const timeout = new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error("classify hung")), 5000);
+        });
+        try {
+          assertEquals(
+            await Promise.race([s3.classifyIfMatch("probe", BODY), timeout]),
+            expected,
+          );
+        } finally {
+          clearTimeout(timer);
+        }
+        assertEquals(probeCreates(state), 0);
+      });
+    }
+  },
 });

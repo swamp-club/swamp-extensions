@@ -25,33 +25,28 @@
  * `If-None-Match: *`, so an S3-compatible endpoint that silently ignores the
  * header (200 instead of 412) hands the lock to every writer at once. The
  * probe turns that into a failed verification instead of silent corruption.
+ * It also checks that If-Match accepts the object's current ETag, and in
+ * which form, since the index and lock writes compare-and-swap on it.
  */
 
 import type { DatastoreHealthResult, DatastoreVerifier } from "./interfaces.ts";
 import {
+  isIfMatchUnsupported,
+  PROBE_PREFIX,
   S3Client,
   type S3ClientConfig,
   S3OperationError,
+  STALE_ETAG,
 } from "./s3_client.ts";
-
-/**
- * Probe objects live under `_control/`, which `isInternalCacheFile` already
- * filters out of cache hydration — an object left behind by a rejected
- * DeleteObject can't surface as a phantom data file.
- */
-const PROBE_PREFIX = "_control/conditional-write-probe-";
-
-/** An ETag that cannot match any live object, for the stale If-Match step. */
-const STALE_ETAG = '"00000000000000000000000000000000"';
 
 /**
  * ponytail: per-process memo with a 5-minute TTL. Conditional-write support is
  * a static property of an endpoint, so caching the verdict is correct rather
  * than a shortcut; the TTL exists only so a repaired endpoint recovers.
  * Without it, `/api/v1/health/stream` re-collects on a 1s-floored interval and
- * reaches verify(), so one connected admin client would drive 3 PutObject +
- * 1 DeleteObject per second, forever. Raise the TTL if that still costs too
- * much; lower it if slow recovery bites.
+ * reaches verify(), so one connected admin client would drive 6 PutObject,
+ * 2 HeadObject and 1 DeleteObject per second, forever. Raise the TTL if that
+ * still costs too much; lower it if slow recovery bites.
  */
 const PROBE_TTL_MS = 5 * 60 * 1000;
 
@@ -59,6 +54,7 @@ type ConditionalWriteVerdict =
   | "supported"
   | "ignored"
   | "if-match-unsupported"
+  | "if-match-unquoted"
   | "write-denied"
   | "inconclusive";
 
@@ -79,12 +75,6 @@ interface ProbeResult {
  * re-probed within 5 minutes.
  */
 const probeMemo = new Map<string, { at: number; result: ProbeResult }>();
-
-function isNotImplemented(error: unknown): boolean {
-  return error instanceof Error &&
-    (error.name === "NotImplemented" ||
-      (error instanceof S3OperationError && error.httpStatusCode === 501));
-}
 
 function isWriteDenied(error: unknown): boolean {
   return error instanceof Error &&
@@ -123,7 +113,9 @@ export class S3DatastoreVerifier implements DatastoreVerifier {
       };
 
       if (
-        probe.detail !== undefined && probe.verdict !== "if-match-unsupported"
+        probe.detail !== undefined &&
+        probe.verdict !== "if-match-unsupported" &&
+        probe.verdict !== "if-match-unquoted"
       ) {
         return {
           healthy: false,
@@ -260,7 +252,7 @@ export class S3DatastoreVerifier implements DatastoreVerifier {
         };
       }
     } catch (error) {
-      if (isNotImplemented(error)) {
+      if (isIfMatchUnsupported(error)) {
         // Documented fallback: the cache sync warns once and drops to
         // merge-on-write. Locking only needs If-None-Match, which passed.
         return {
@@ -278,6 +270,38 @@ export class S3DatastoreVerifier implements DatastoreVerifier {
       };
     }
 
-    return { created, verdict: "supported" };
+    // Rejecting a stale ETag is not enough: the current one must also be
+    // accepted, or every compare-and-swap reads as a lost race
+    // (swamp-club #2337).
+    let forms: { quoted: boolean; unquoted: boolean } | null;
+    try {
+      forms = await this.s3.classifyIfMatch(key, body);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        created,
+        verdict: "inconclusive",
+        detail: `the conditional-write probe could not run: ${message}.`,
+      };
+    }
+    // No ETag on HEAD leaves nothing to test with; keep the verdict the
+    // stale step earned rather than failing an endpoint that verified before.
+    if (forms === null || forms.quoted) {
+      return { created, verdict: "supported" };
+    }
+    if (forms.unquoted) {
+      return {
+        created,
+        verdict: "if-match-unquoted",
+        detail:
+          "this endpoint rejects If-Match when the ETag is quoted (seen on Ceph RGW Squid 19.2.x), so index and lock writes send it unquoted.",
+      };
+    }
+    return {
+      created,
+      verdict: "if-match-unsupported",
+      detail:
+        "this endpoint rejects If-Match with the object's current ETag (quoted and unquoted) or ignores the unquoted form, so index writes fall back to merge-on-write without compare-and-swap.",
+    };
   }
 }

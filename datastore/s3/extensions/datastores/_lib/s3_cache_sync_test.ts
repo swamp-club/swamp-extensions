@@ -39,7 +39,12 @@ import {
   retryWithBackoff,
   S3CacheSyncService,
 } from "./s3_cache_sync.ts";
-import { S3Client, S3OperationError } from "./s3_client.ts";
+import {
+  IfMatchUnsupportedError,
+  S3Client,
+  S3OperationError,
+} from "./s3_client.ts";
+import { withS3Emulator } from "./s3_emulator_test_util.ts";
 
 /** Creates an error that matches the SDK's "object not found" shape. */
 function makeNoSuchKeyError(key: string): Error {
@@ -9217,6 +9222,140 @@ Deno.test("swamp-club#2245: a store without If-Match support falls back to merge
     console.warn = originalWarn;
     await Deno.remove(cachePath, { recursive: true });
   }
+});
+
+Deno.test("swamp-club#2337: IfMatchUnsupportedError takes the same merge-on-write fallback", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2337-a-" });
+  const originalWarn = console.warn;
+  const warnings: string[] = [];
+  console.warn = (msg: string) => warnings.push(msg);
+  try {
+    const mock = createMockS3Client();
+    mock.putObjectIfMatch = () =>
+      Promise.reject(
+        new IfMatchUnsupportedError("rejected the current ETag in both forms"),
+      );
+    seedV2Repo(mock, {
+      "config/models/a.yaml": indexEntry("config/models/a.yaml"),
+    }, 5);
+    addRemoteShardEntry(mock, "config", "config/models/t1.yaml");
+    mock.storage.set("config/models/a.yaml", new TextEncoder().encode("aaa\n"));
+    await seedFile(cachePath, "config/models/a.yaml", "aaa\n");
+
+    const service = new S3CacheSyncService(mock, cachePath);
+    await seedFile(cachePath, "config/models/b.yaml", "bbb\n");
+    await service.markDirty({ relPath: "config/models/b.yaml" });
+    await service.pushChanged();
+
+    assertEquals(storedShardKeys(mock, "config"), [
+      "config/models/a.yaml",
+      "config/models/b.yaml",
+      "config/models/t1.yaml",
+    ]);
+    assertEquals(warnings.filter((w) => w.includes("If-Match")).length, 1);
+  } finally {
+    console.warn = originalWarn;
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+/**
+ * Pushes `rel` with `text` through the real `S3Client`, one sync service per
+ * push the way each CLI command gets its own.
+ */
+async function pushThrough(
+  s3: S3Client,
+  cachePath: string,
+  rel: string,
+  text: string,
+  service = new S3CacheSyncService(s3, cachePath),
+): Promise<void> {
+  await seedFile(cachePath, rel, text);
+  await service.markDirty({ relPath: rel });
+  await service.pushChanged();
+}
+
+function readJson(
+  objects: Map<string, { body: Uint8Array }>,
+  key: string,
+): Record<string, unknown> {
+  const stored = objects.get(key);
+  assertExists(stored, `${key} was never written`);
+  return JSON.parse(new TextDecoder().decode(stored.body));
+}
+
+// sanitizeResources: false — the AWS SDK's pooled connections outlive the
+// test body but are reclaimed by GC.
+Deno.test({
+  name:
+    "swamp-club#2337: a single writer's pushes commit on an endpoint that rejects quoted If-Match (Ceph RGW 19.2.5)",
+  sanitizeResources: false,
+  fn: () =>
+    withS3Emulator({ quotedIfMatch: "reject" }, async (s3, state) => {
+      const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2337-b-" });
+      try {
+        await pushThrough(s3, cachePath, "data/@m/one/1/raw", "one\n");
+        // _meta.json exists now, so this commit needs If-Match on it — the
+        // write that used to exhaust its compare-and-swap attempts.
+        await pushThrough(s3, cachePath, "data/@m/two/1/raw", "two\n");
+        // An existing shard too, not just _meta.json.
+        await pushThrough(s3, cachePath, "data/@m/one/1/raw", "one, again\n");
+
+        const meta = readJson(state.objects, "_index/_meta.json");
+        assertEquals(meta.partitions, ["data--@m--one--1", "data--@m--two--1"]);
+        assertEquals(meta.commitSeq, 3);
+        const shard = readJson(state.objects, "_index/data--@m--one--1.json");
+        const entries = shard.entries as Record<string, { size: number }>;
+        assertEquals(entries["data/@m/one/1/raw"].size, "one, again\n".length);
+        assert(
+          state.requests.some((r) =>
+            r.key === "_index/_meta.json" && r.status === 200 &&
+            r.ifMatch !== null && !r.ifMatch.startsWith('"')
+          ),
+          "_meta.json must be committed with an unquoted If-Match",
+        );
+      } finally {
+        await Deno.remove(cachePath, { recursive: true });
+      }
+    }),
+});
+
+Deno.test({
+  name:
+    "swamp-club#2337: an endpoint that rejects the current ETag in both forms falls back and warns once",
+  sanitizeResources: false,
+  fn: () =>
+    withS3Emulator(
+      { quotedIfMatch: "reject", unquotedIfMatch: "reject" },
+      async (s3, state) => {
+        const cachePath = await Deno.makeTempDir({
+          prefix: "s3sync-2337-c-",
+        });
+        const originalWarn = console.warn;
+        const warnings: string[] = [];
+        console.warn = (msg: string) => warnings.push(msg);
+        try {
+          const service = new S3CacheSyncService(s3, cachePath);
+          await pushThrough(s3, cachePath, "data/@m/one/1/raw", "1\n", service);
+          await pushThrough(s3, cachePath, "data/@m/two/1/raw", "2\n", service);
+          await pushThrough(s3, cachePath, "data/@m/one/1/raw", "3\n", service);
+
+          const meta = readJson(state.objects, "_index/_meta.json");
+          assertEquals(meta.partitions, [
+            "data--@m--one--1",
+            "data--@m--two--1",
+          ]);
+          assertEquals(
+            warnings.filter((w) => w.includes("If-Match")).length,
+            1,
+            "the fallback warning must be emitted once",
+          );
+        } finally {
+          console.warn = originalWarn;
+          await Deno.remove(cachePath, { recursive: true });
+        }
+      },
+    ),
 });
 
 Deno.test("swamp-club#2245: an unrecognized _meta.json fails the push instead of unlisting every partition", async () => {

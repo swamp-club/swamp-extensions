@@ -41,7 +41,11 @@ import type {
   RepairNamespaceContaminationOptions,
   SyncCapabilities,
 } from "./interfaces.ts";
-import { type S3Client, S3OperationError } from "./s3_client.ts";
+import {
+  isIfMatchUnsupported,
+  type S3Client,
+  S3OperationError,
+} from "./s3_client.ts";
 import { atomicWriteTextFile } from "./atomic_write.ts";
 import { Attr, getTracer } from "./tracing.ts";
 
@@ -1070,13 +1074,9 @@ export class S3CacheSyncService implements DatastoreSyncService {
           { signal },
         );
       } catch (err) {
-        // Match on status too, for the same reason `putObjectIfMatch`
-        // does: a non-XML 501 body leaves the SDK unable to parse the
-        // error code, so the name alone isn't reliable.
-        const unsupported = err instanceof Error &&
-          (err.name === "NotImplemented" ||
-            (err instanceof S3OperationError && err.httpStatusCode === 501));
-        if (!unsupported) throw err;
+        // NotImplemented/501, or an endpoint that rejects If-Match with
+        // the object's own current ETag in either form (swamp-club #2337).
+        if (!isIfMatchUnsupported(err)) throw err;
         // Shards commit in parallel, so several callers can land here
         // before the flag is set; warn for the first one only.
         if (!this.casUnsupported) {

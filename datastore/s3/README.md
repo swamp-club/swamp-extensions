@@ -59,16 +59,27 @@ The datastore speaks the S3 API, so any S3-compatible object store works. Set
 DigitalOcean Spaces, Cloudflare R2, or other providers.
 
 Correctness rests on conditional writes. Lock acquisition is a PutObject with
-`If-None-Match: *`, and the shard-first index merges with `If-Match`. Setup,
-`swamp datastore status` and `swamp doctor datastores` all probe both under a
-throwaway `_control/conditional-write-probe-<uuid>` key, and an endpoint can
-answer in three ways:
+`If-None-Match: *`, and the shard-first index merges and lock heartbeat
+compare-and-swap with `If-Match`. Setup, `swamp datastore status` and
+`swamp doctor datastores` all probe both under a throwaway
+`_control/conditional-write-probe-<uuid>` key — `If-Match` with a stale ETag
+(which must be rejected) and with the object's current ETag (which must be
+accepted) — and an endpoint can answer in four ways:
 
 - **Both honoured** — healthy, `details.conditionalWrites: "supported"`.
-- **`If-Match` answers `NotImplemented`** — still healthy,
-  `details.conditionalWrites: "if-match-unsupported"`. Acquiring a lock only
-  needs `If-None-Match`, so locks stay exclusive; the extension warns once
-  and falls back to unconditional writes. Index merges drop to
+- **`If-Match` rejected when the ETag is quoted** — still healthy,
+  `details.conditionalWrites: "if-match-unquoted"`. S3 returns ETags quoted
+  and the extension sends them back that way, but some endpoints (Ceph RGW
+  Squid — verified on 19.2.5 and 19.2.6; Tentacle 20.2 is fixed) answer 412
+  to a quoted `If-Match` on PutObject even when it matches. The extension notices when a write is rejected although the
+  object still carries the ETag it sent, confirms on a throwaway key that the
+  unquoted form is enforced, and sends ETags unquoted from then on, with
+  compare-and-swap intact.
+- **`If-Match` unusable** — the endpoint answers `NotImplemented`, rejects
+  the current ETag in both forms, or ignores the unquoted form. Still
+  healthy, `details.conditionalWrites: "if-match-unsupported"`. Acquiring a
+  lock only needs `If-None-Match`, so locks stay exclusive; the extension
+  warns once and falls back to unconditional writes. Index merges drop to
   merge-on-write without compare-and-swap, so concurrent writers can still
   lose index entries, and the lock heartbeat loses its fence — a lock stolen
   between the heartbeat's ownership check and its write can be overwritten
@@ -99,7 +110,9 @@ not become sustained write traffic. A repaired endpoint therefore takes up to
 If the endpoint honours both headers but rejects `DeleteObject`, verification
 still reports healthy with `details.probeCleanup: "failed"` and names the key
 it could not remove. Probe objects then accumulate under `_control/` (at most
-one per process per 5 minutes) and need occasional manual cleanup.
+one per process per 5 minutes from verification, plus one per command on
+endpoints that need the unquoted-ETag check at write time) and need
+occasional manual cleanup.
 
 ## Sync configuration
 

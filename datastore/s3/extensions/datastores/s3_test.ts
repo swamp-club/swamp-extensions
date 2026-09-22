@@ -28,6 +28,7 @@ import {
   assertVerifierConformance,
 } from "@systeminit/swamp-testing";
 import type { DatastoreHealthResult } from "./_lib/interfaces.ts";
+import { createS3EmulatorHandler } from "./_lib/s3_emulator_test_util.ts";
 import { datastore } from "./s3.ts";
 
 Deno.test("datastore export conforms to DatastoreProvider contract", () => {
@@ -380,6 +381,106 @@ Deno.test({
         assertEquals(result.details?.conditionalWrites, "supported");
         assertEquals(result.details?.probeCleanup, "failed");
         assert(result.message.includes("_control/conditional-write-probe-"));
+      },
+    ),
+});
+
+// --- swamp-club #2337: If-Match must accept the object's current ETag ---
+//
+// The stale-ETag step alone passed on Ceph RGW Squid, which rejects every
+// quoted If-Match on PutObject, so setup reported "supported" on a backend
+// where every compare-and-swap failed. No conformance helper covers the
+// conditionalWrites detail, hence the direct assertions.
+
+Deno.test({
+  name:
+    "s3 verifier: quoted If-Match rejected, unquoted honoured → healthy if-match-unquoted",
+  sanitizeResources: false,
+  fn: () =>
+    withProbeVerifier(
+      createS3EmulatorHandler({ quotedIfMatch: "reject" }).handler,
+      (result) => {
+        assertEquals(result.healthy, true);
+        assertEquals(result.details?.conditionalWrites, "if-match-unquoted");
+        assertEquals(result.details?.probeCleanup, "ok");
+        assert(result.message.includes("quoted"));
+      },
+    ),
+});
+
+Deno.test({
+  name:
+    "s3 verifier: RGW-style rejection with a non-XML 412 still reads if-match-unquoted",
+  sanitizeResources: false,
+  fn: () =>
+    withProbeVerifier(
+      createS3EmulatorHandler({
+        quotedIfMatch: "reject",
+        nonXmlPreconditionBody: true,
+      }).handler,
+      (result) => {
+        assertEquals(result.healthy, true);
+        assertEquals(result.details?.conditionalWrites, "if-match-unquoted");
+      },
+    ),
+});
+
+Deno.test({
+  name:
+    "s3 verifier: current ETag rejected in both forms → healthy if-match-unsupported",
+  sanitizeResources: false,
+  fn: () =>
+    withProbeVerifier(
+      createS3EmulatorHandler({
+        quotedIfMatch: "reject",
+        unquotedIfMatch: "reject",
+      }).handler,
+      (result) => {
+        assertEquals(result.healthy, true);
+        assertEquals(result.details?.conditionalWrites, "if-match-unsupported");
+        assert(result.message.includes("merge-on-write"));
+      },
+    ),
+});
+
+Deno.test({
+  name:
+    "s3 verifier: unquoted If-Match ignored is never trusted → if-match-unsupported",
+  sanitizeResources: false,
+  fn: () =>
+    withProbeVerifier(
+      createS3EmulatorHandler({
+        quotedIfMatch: "reject",
+        unquotedIfMatch: "ignore",
+      }).handler,
+      (result) => {
+        assertEquals(result.healthy, true);
+        assertEquals(result.details?.conditionalWrites, "if-match-unsupported");
+      },
+    ),
+});
+
+Deno.test({
+  name: "s3 verifier: a stateful endpoint honouring quoted ETags is supported",
+  sanitizeResources: false,
+  fn: () =>
+    withProbeVerifier(createS3EmulatorHandler().handler, (result) => {
+      assertEquals(result.healthy, true);
+      assertEquals(result.details?.conditionalWrites, "supported");
+      assertEquals(result.details?.probeCleanup, "ok");
+    }),
+});
+
+Deno.test({
+  name:
+    "s3 verifier: no ETag on HEAD skips the current-ETag check and stays supported",
+  sanitizeResources: false,
+  fn: () =>
+    withProbeVerifier(
+      createS3EmulatorHandler({ omitHeadETag: true }).handler,
+      (result) => {
+        assertEquals(result.healthy, true);
+        assertEquals(result.details?.conditionalWrites, "supported");
       },
     ),
 });

@@ -28,7 +28,7 @@
 import { hostname } from "node:os";
 import { SpanStatusCode } from "npm:@opentelemetry/api@1.9.0";
 import type { DistributedLock, LockInfo, LockOptions } from "./interfaces.ts";
-import { S3OperationError } from "./s3_client.ts";
+import { isIfMatchUnsupported, S3OperationError } from "./s3_client.ts";
 import type { S3Client } from "./s3_client.ts";
 import { Attr, getTracer } from "./tracing.ts";
 
@@ -547,13 +547,9 @@ export class S3Lock implements DistributedLock {
         return await this.s3.putObjectIfMatch(this.lockKey, body, etag) !==
           null;
       } catch (error) {
-        // Match on status too, for the same reason putObjectIfMatch does: a
-        // non-XML 501 body leaves the SDK unable to parse the error code.
-        const unsupported = error instanceof Error &&
-          (error.name === "NotImplemented" ||
-            (error instanceof S3OperationError &&
-              error.httpStatusCode === 501));
-        if (!unsupported) throw error;
+        // NotImplemented/501, or an endpoint that rejects If-Match with
+        // the object's own current ETag in either form (swamp-club #2337).
+        if (!isIfMatchUnsupported(error)) throw error;
         this.casUnsupported = true;
         console.warn(
           `Lock ${this.lockKey}: the S3 endpoint does not support ` +

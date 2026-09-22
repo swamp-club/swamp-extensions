@@ -20,8 +20,9 @@
 import { assertEquals, assertRejects } from "jsr:@std/assert@1.0.19";
 import { assertLockConformance } from "@systeminit/swamp-testing";
 import { LockTimeoutError, S3Lock } from "./s3_lock.ts";
-import { S3OperationError } from "./s3_client.ts";
+import { IfMatchUnsupportedError, S3OperationError } from "./s3_client.ts";
 import type { S3Client } from "./s3_client.ts";
+import { withS3Emulator } from "./s3_emulator_test_util.ts";
 import type { LockInfo } from "./interfaces.ts";
 
 /**
@@ -869,6 +870,63 @@ Deno.test("S3Lock: falls back to unconditional puts when If-Match is unsupported
       JSON.stringify(unsupported)
     }`,
   );
+});
+
+Deno.test("S3Lock: IfMatchUnsupportedError takes the same unconditional fallback", async () => {
+  const mock = createMockS3Client();
+  const lock = new S3Lock(mock, { ttlMs: 300 });
+
+  const warnings = await captureWarnings(async () => {
+    await lock.acquire();
+    mock.failPutIfMatchWith = () =>
+      new IfMatchUnsupportedError("rejected the current ETag in both forms");
+    await sleep(350);
+
+    assertEquals(
+      mock.writes > 0,
+      true,
+      "heartbeat wrote nothing against an endpoint that can't CAS",
+    );
+    await lock.release();
+  });
+
+  assertEquals(warnings.filter((w) => w.includes("If-Match")).length, 1);
+  assertEquals(warnings.filter((w) => w.includes("was lost")), []);
+});
+
+// sanitizeResources: false — the AWS SDK's pooled connections outlive the
+// test body but are reclaimed by GC.
+Deno.test({
+  name:
+    "S3Lock: heartbeat holds past the TTL on an endpoint that rejects quoted If-Match (swamp-club #2337)",
+  sanitizeResources: false,
+  fn: () =>
+    withS3Emulator({ quotedIfMatch: "reject" }, async (s3, state) => {
+      const ttlMs = 600;
+      const lock = new S3Lock(s3, { ttlMs });
+      let held = false;
+      const warnings = await captureWarnings(async () => {
+        await lock.acquire();
+        try {
+          // Three TTLs: before the fix the hold was given up after one.
+          await sleep(ttlMs * 3);
+          held = (lock as unknown as { held: boolean }).held;
+        } finally {
+          await lock.release();
+        }
+      });
+
+      assertEquals(held, true, "the lock gave itself up while held");
+      assertEquals(warnings.filter((w) => w.includes("was lost")), []);
+      assertEquals(
+        state.requests.some((r) =>
+          r.key === ".datastore.lock" && r.method === "PUT" &&
+          r.status === 200 && r.ifMatch !== null && !r.ifMatch.startsWith('"')
+        ),
+        true,
+        "heartbeat writes must land with an unquoted If-Match",
+      );
+    }),
 });
 
 // --- #2298: ticks must not overlap ----------------------------------------

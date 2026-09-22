@@ -124,6 +124,52 @@ export class S3OperationError extends Error {
   }
 }
 
+/**
+ * Thrown by `putObjectIfMatch` when the endpoint cannot do an If-Match
+ * compare-and-swap in either ETag form. Callers treat it like
+ * NotImplemented and fall back to unconditional writes. Not an
+ * `S3OperationError`, so `isRetryableError` never retries it.
+ */
+export class IfMatchUnsupportedError extends Error {
+  override readonly name = "IfMatchUnsupportedError";
+}
+
+/** True when `error` means If-Match compare-and-swap is unavailable. */
+export function isIfMatchUnsupported(error: unknown): boolean {
+  return error instanceof IfMatchUnsupportedError ||
+    (error instanceof Error &&
+      (error.name === "NotImplemented" ||
+        (error instanceof S3OperationError && error.httpStatusCode === 501)));
+}
+
+/** Strips one pair of surrounding double quotes from an ETag. */
+export function unquoteETag(etag: string): string {
+  return etag.length >= 2 && etag.startsWith('"') && etag.endsWith('"')
+    ? etag.slice(1, -1)
+    : etag;
+}
+
+/**
+ * Conditional-write probe objects live under `_control/`, which
+ * `isInternalCacheFile` already filters out of cache hydration — an object
+ * left behind by a rejected DeleteObject can't surface as a phantom data
+ * file.
+ */
+export const PROBE_PREFIX = "_control/conditional-write-probe-";
+
+/** An ETag that cannot match any live object, for stale If-Match probes. */
+export const STALE_ETAG = '"00000000000000000000000000000000"';
+
+const PROBE_BODY = new TextEncoder().encode("swamp conditional-write probe");
+
+type ConditionalPutResult =
+  | { outcome: "accepted"; etag?: string }
+  /** 412: the precondition did not hold. */
+  | { outcome: "rejected" }
+  /** 409: a concurrent conditional write to the same key. */
+  | { outcome: "conflict" }
+  | { outcome: "unsupported"; error: unknown };
+
 import {
   classifyAwsCredentialError,
   deriveAwsErrorCode,
@@ -249,6 +295,9 @@ export class S3Client {
   private readonly bucket: string;
   private readonly prefix: string;
   private readonly defaultRequestTimeoutMs: number;
+  /** How `putObjectIfMatch` sends ETags; see its doc comment. */
+  private ifMatchForm: "quoted" | "unquoted" | "unsupported" = "quoted";
+  private ifMatchProbe: Promise<"unquoted" | "unsupported"> | undefined;
 
   constructor(config: S3ClientConfig) {
     const envTimeout = S3Client.parseEnvTimeout();
@@ -732,8 +781,17 @@ export class S3Client {
    * Compare-and-swap upload. Writes only if the object's current ETag equals
    * `etag` (If-Match), or only if the object is absent when `etag` is null
    * (If-None-Match: *). Returns the new ETag on success and null when the
-   * precondition failed. Other errors, including NotImplemented from stores
-   * without conditional-write support, propagate.
+   * precondition failed. Throws `IfMatchUnsupportedError` when the endpoint
+   * cannot do an If-Match compare-and-swap at all; other errors propagate.
+   *
+   * The ETag goes out exactly as S3 returned it — quoted. Some endpoints
+   * (Ceph RGW Squid 19.2.x, swamp-club #2337) answer 412 to a quoted If-Match on
+   * PutObject even when it matches, which would make every compare-and-swap
+   * look like a lost race. So a 412 is checked against a HEAD: if the object
+   * still carries the ETag we sent, the precondition was wrongly rejected,
+   * and a one-time probe decides whether the unquoted form is safe to use
+   * instead. The success path on endpoints that honour the quoted form is
+   * unchanged.
    */
   async putObjectIfMatch(
     key: string,
@@ -741,6 +799,183 @@ export class S3Client {
     etag: string | null,
     signal?: AbortSignal,
   ): Promise<{ etag?: string } | null> {
+    if (etag === null) {
+      const result = await this.conditionalPut(
+        key,
+        body,
+        { IfNoneMatch: "*" },
+        signal,
+      );
+      if (result.outcome === "unsupported") throw result.error;
+      return result.outcome === "accepted" ? { etag: result.etag } : null;
+    }
+
+    if (this.ifMatchForm === "unsupported") {
+      throw new IfMatchUnsupportedError(
+        "the S3 endpoint cannot do an If-Match compare-and-swap",
+      );
+    }
+    const form = this.ifMatchForm;
+    const result = await this.conditionalPut(
+      key,
+      body,
+      { IfMatch: form === "unquoted" ? unquoteETag(etag) : etag },
+      signal,
+    );
+    if (result.outcome === "accepted") return { etag: result.etag };
+    if (result.outcome === "unsupported") {
+      this.ifMatchForm = "unsupported";
+      throw new IfMatchUnsupportedError(
+        "the S3 endpoint does not implement If-Match on PutObject",
+        { cause: result.error },
+      );
+    }
+    if (result.outcome === "conflict" || form === "unquoted") return null;
+
+    // A 412 on the quoted form: a lost race, unless the object still
+    // carries the ETag we sent.
+    const head = await this.headObject(key, signal);
+    if (
+      !head.exists || head.etag === undefined ||
+      unquoteETag(head.etag) !== unquoteETag(etag)
+    ) {
+      return null;
+    }
+
+    if (await this.resolveIfMatchFallback(signal) === "unsupported") {
+      throw new IfMatchUnsupportedError(
+        "the S3 endpoint rejected If-Match with the object's current ETag, " +
+          "quoted or unquoted",
+      );
+    }
+    const retry = await this.conditionalPut(
+      key,
+      body,
+      { IfMatch: unquoteETag(etag) },
+      signal,
+    );
+    if (retry.outcome === "accepted") return { etag: retry.etag };
+    if (retry.outcome === "unsupported") {
+      this.ifMatchForm = "unsupported";
+      throw new IfMatchUnsupportedError(
+        "the S3 endpoint does not implement If-Match on PutObject",
+        { cause: retry.error },
+      );
+    }
+    return null;
+  }
+
+  /**
+   * Reports which If-Match ETag forms the endpoint honours on PutObject,
+   * using `key` — an existing throwaway object, which gets overwritten with
+   * `body`. `unquoted` is true only when the current ETag is accepted
+   * unquoted AND a stale one is still rejected: an endpoint that ignores the
+   * unquoted form would otherwise turn every compare-and-swap into a blind
+   * overwrite. Returns null when HEAD gives no ETag to test with.
+   *
+   * Issues raw conditional PUTs only, never `putObjectIfMatch` — the probe
+   * runs inside that method's 412 handling and must not re-enter it.
+   */
+  async classifyIfMatch(
+    key: string,
+    body: Uint8Array,
+    signal?: AbortSignal,
+  ): Promise<{ quoted: boolean; unquoted: boolean } | null> {
+    let etag = (await this.headObject(key, signal)).etag;
+    if (etag === undefined) return null;
+
+    const quotedResult = await this.conditionalPut(
+      key,
+      body,
+      { IfMatch: etag },
+      signal,
+    );
+    const quoted = quotedResult.outcome === "accepted";
+    if (quotedResult.outcome === "accepted") {
+      etag = quotedResult.etag ?? (await this.headObject(key, signal)).etag;
+      if (etag === undefined) return { quoted, unquoted: false };
+    }
+
+    const unquotedResult = await this.conditionalPut(
+      key,
+      body,
+      { IfMatch: unquoteETag(etag) },
+      signal,
+    );
+    if (unquotedResult.outcome !== "accepted") {
+      return { quoted, unquoted: false };
+    }
+    const staleResult = await this.conditionalPut(
+      key,
+      body,
+      { IfMatch: unquoteETag(STALE_ETAG) },
+      signal,
+    );
+    return {
+      quoted,
+      unquoted: staleResult.outcome === "rejected" ||
+        staleResult.outcome === "conflict",
+    };
+  }
+
+  /**
+   * Picks the If-Match form to fall back to once the quoted form has been
+   * wrongly rejected. Memoized as a promise so parallel shard commits share
+   * one probe; a probe that fails is forgotten so the next call retries it.
+   */
+  private resolveIfMatchFallback(
+    signal?: AbortSignal,
+  ): Promise<"unquoted" | "unsupported"> {
+    this.ifMatchProbe ??= this.probeIfMatchFallback(signal).then(
+      (form) => {
+        this.ifMatchForm = form;
+        return form;
+      },
+      (error) => {
+        this.ifMatchProbe = undefined;
+        throw error;
+      },
+    );
+    return this.ifMatchProbe;
+  }
+
+  private async probeIfMatchFallback(
+    signal?: AbortSignal,
+  ): Promise<"unquoted" | "unsupported"> {
+    const key = `${PROBE_PREFIX}${crypto.randomUUID()}`;
+    try {
+      await this.putObject(key, PROBE_BODY, signal);
+      const forms = await this.classifyIfMatch(key, PROBE_BODY, signal);
+      if (forms === null) {
+        throw new Error(
+          `Could not test If-Match support: S3 returned no ETag for probe object '${key}'.`,
+        );
+      }
+      // The quoted verdict is ignored on purpose: the real object has just
+      // shown the quoted form can't be relied on.
+      return forms.unquoted ? "unquoted" : "unsupported";
+    } finally {
+      // Best-effort, and deliberately without `signal` so an aborted caller
+      // still cleans up. `_control/` is filtered from cache hydration, so a
+      // leftover can't surface as a data file.
+      try {
+        await this.deleteObject(key);
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  /**
+   * One conditional PutObject, with no adaptation: the building block for
+   * `putObjectIfMatch` and `classifyIfMatch`.
+   */
+  private async conditionalPut(
+    key: string,
+    body: Uint8Array,
+    condition: { IfMatch: string } | { IfNoneMatch: "*" },
+    signal?: AbortSignal,
+  ): Promise<ConditionalPutResult> {
     try {
       const response = await this.run(
         "putObjectIfMatch",
@@ -748,21 +983,29 @@ export class S3Client {
           Bucket: this.bucket,
           Key: this.fullKey(key),
           Body: body,
-          ...(etag === null ? { IfNoneMatch: "*" } : { IfMatch: etag }),
+          ...condition,
         }),
         signal,
       );
-      return { etag: response.ETag };
+      return { outcome: "accepted", etag: response.ETag };
     } catch (error) {
       // Match on status too: a non-XML 412 body leaves the SDK unable to
       // parse the error code, so the name alone isn't reliable.
-      if (
-        error instanceof S3OperationError &&
-        (error.name === "PreconditionFailed" ||
+      if (error instanceof S3OperationError) {
+        if (
           error.name === "ConditionalRequestConflict" ||
-          error.httpStatusCode === 412 || error.httpStatusCode === 409)
-      ) {
-        return null;
+          error.httpStatusCode === 409
+        ) {
+          return { outcome: "conflict" };
+        }
+        if (
+          error.name === "PreconditionFailed" || error.httpStatusCode === 412
+        ) {
+          return { outcome: "rejected" };
+        }
+      }
+      if (isIfMatchUnsupported(error)) {
+        return { outcome: "unsupported", error };
       }
       throw error;
     }
