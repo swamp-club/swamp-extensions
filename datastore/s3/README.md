@@ -66,15 +66,29 @@ answer in three ways:
 
 - **Both honoured** — healthy, `details.conditionalWrites: "supported"`.
 - **`If-Match` answers `NotImplemented`** — still healthy,
-  `details.conditionalWrites: "if-match-unsupported"`. Locking only needs
-  `If-None-Match`; the extension warns once and falls back to merge-on-write
-  without compare-and-swap, so concurrent writers can still lose index
-  entries.
+  `details.conditionalWrites: "if-match-unsupported"`. Acquiring a lock only
+  needs `If-None-Match`, so locks stay exclusive; the extension warns once
+  and falls back to unconditional writes. Index merges drop to
+  merge-on-write without compare-and-swap, so concurrent writers can still
+  lose index entries, and the lock heartbeat loses its fence — a lock stolen
+  between the heartbeat's ownership check and its write can be overwritten
+  by the previous holder.
 - **Either header silently ignored** (200 where a 412 is required) — setup
   fails and status reports unhealthy, with
   `details.conditionalWrites: "ignored"`. This is the dangerous case: every
   writer would "acquire" the lock at once and index merges would lose
   updates, with nothing reporting it.
+
+Losing a lock is never silent. The heartbeat re-checks ownership before
+every extension, and two answers end the hold outright: the lock object is
+gone, or it carries another holder's nonce. Anything else — an unreachable
+endpoint, a 403, a write that threw or could not be confirmed — leaves the
+lock held and retries on the next tick, because none of those establish that
+the lock changed hands. That grace is bounded by the TTL: once `ttlMs` has
+passed with no confirmed write, the object is stealable by any other process
+on the same rule this extension applies to everyone else, so the hold ends
+too. A lock lost while its operation is still running is logged as a warning
+naming the key, as is the first failed heartbeat of an outage.
 
 The verdict is memoized per process for 5 minutes, keyed on endpoint, bucket
 and prefix — `swamp serve` streams health once a second, and the probe must

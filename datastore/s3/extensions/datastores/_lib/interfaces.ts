@@ -68,9 +68,20 @@ export interface DistributedLock {
   release(): Promise<void>;
   /** Acquires the lock, runs `fn`, and releases regardless of the outcome. */
   withLock<T>(fn: () => Promise<T>): Promise<T>;
-  /** Returns metadata about the current holder, or `null` if unlocked. */
+  /**
+   * Returns metadata about the current holder, or `null` if unlocked.
+   *
+   * `null` means the lock is genuinely unheld. A backend that cannot answer
+   * throws instead: reporting an unreachable store as "nobody holds it" reads
+   * as an invitation to proceed, which is how swamp-club#2298 let two hosts
+   * run the same model at once.
+   */
   inspect(): Promise<LockInfo | null>;
-  /** Force-releases the lock when the caller presents the holder's nonce. */
+  /**
+   * Force-releases the lock when the caller presents the holder's nonce.
+   * Returns false when the lock is absent or held by someone else; throws if
+   * the backend cannot be reached, for the reason given on `inspect`.
+   */
   forceRelease(expectedNonce: string): Promise<boolean>;
 }
 
