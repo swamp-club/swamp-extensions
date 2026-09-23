@@ -182,9 +182,6 @@ const LIST_CONFIG = {
       "location": "path",
       "required": true,
     },
-    "returnPartialSuccess": {
-      "location": "query",
-    },
     "zone": {
       "location": "path",
       "required": true,
@@ -1015,7 +1012,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine InstanceGroupManagers. Registered at `@swamp/gcp/compute/instancegroupmanagers`. */
 export const model = {
   type: "@swamp/gcp/compute/instancegroupmanagers",
-  version: "2026.09.17.1",
+  version: "2026.09.23.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1253,6 +1250,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1636,9 +1638,6 @@ export const model = {
         orderBy: z.string().describe(
           "Sorts list results by a certain order. By default, results",
         ).optional(),
-        returnPartialSuccess: z.boolean().describe(
-          "Opt-in for partial success behavior which provides partial results in case",
-        ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
         ).optional(),
@@ -1659,9 +1658,6 @@ export const model = {
         }
         if (args["orderBy"] !== undefined) {
           params["orderBy"] = String(args["orderBy"]);
-        }
-        if (args["returnPartialSuccess"] !== undefined) {
-          params["returnPartialSuccess"] = String(args["returnPartialSuccess"]);
         }
         const { items, nextPageToken } = await listResources(
           baseUrl,
@@ -1883,7 +1879,6 @@ export const model = {
         maxResults: z.any().optional(),
         orderBy: z.any().optional(),
         pageToken: z.any().optional(),
-        returnPartialSuccess: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
@@ -1919,9 +1914,6 @@ export const model = {
         if (args["pageToken"] !== undefined) {
           params["pageToken"] = String(args["pageToken"]);
         }
-        if (args["returnPartialSuccess"] !== undefined) {
-          params["returnPartialSuccess"] = String(args["returnPartialSuccess"]);
-        }
         const result = await createResource(
           baseUrl,
           {
@@ -1937,7 +1929,6 @@ export const model = {
               "orderBy": { "location": "query" },
               "pageToken": { "location": "query" },
               "project": { "location": "path", "required": true },
-              "returnPartialSuccess": { "location": "query" },
               "zone": { "location": "path", "required": true },
             },
           },
@@ -1958,7 +1949,6 @@ export const model = {
         maxResults: z.any().optional(),
         orderBy: z.any().optional(),
         pageToken: z.any().optional(),
-        returnPartialSuccess: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
@@ -1994,9 +1984,6 @@ export const model = {
         if (args["pageToken"] !== undefined) {
           params["pageToken"] = String(args["pageToken"]);
         }
-        if (args["returnPartialSuccess"] !== undefined) {
-          params["returnPartialSuccess"] = String(args["returnPartialSuccess"]);
-        }
         const result = await createResource(
           baseUrl,
           {
@@ -2012,7 +1999,6 @@ export const model = {
               "orderBy": { "location": "query" },
               "pageToken": { "location": "query" },
               "project": { "location": "path", "required": true },
-              "returnPartialSuccess": { "location": "query" },
               "zone": { "location": "path", "required": true },
             },
           },
@@ -2033,7 +2019,6 @@ export const model = {
         maxResults: z.any().optional(),
         orderBy: z.any().optional(),
         pageToken: z.any().optional(),
-        returnPartialSuccess: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
@@ -2069,9 +2054,6 @@ export const model = {
         if (args["pageToken"] !== undefined) {
           params["pageToken"] = String(args["pageToken"]);
         }
-        if (args["returnPartialSuccess"] !== undefined) {
-          params["returnPartialSuccess"] = String(args["returnPartialSuccess"]);
-        }
         const result = await createResource(
           baseUrl,
           {
@@ -2087,7 +2069,6 @@ export const model = {
               "orderBy": { "location": "query" },
               "pageToken": { "location": "query" },
               "project": { "location": "path", "required": true },
-              "returnPartialSuccess": { "location": "query" },
               "zone": { "location": "path", "required": true },
             },
           },

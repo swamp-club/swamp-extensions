@@ -59,7 +59,7 @@ const GlobalArgsSchema = z.object({
       max_wait_time_ms: z.number().optional(),
       retry_delay: z.number().optional(),
     }).optional(),
-    type: z.enum(["worker", "http_pull"]).optional(),
+    type: z.enum(["worker", "http_pull", "notification"]).optional(),
   })).optional(),
   consumers_total_count: z.number().optional(),
   created_on: z.string().optional(),
@@ -143,7 +143,7 @@ const InputsSchema = z.object({
       max_wait_time_ms: z.number().optional(),
       retry_delay: z.number().optional(),
     }).optional(),
-    type: z.enum(["worker", "http_pull"]).optional(),
+    type: z.enum(["worker", "http_pull", "notification"]).optional(),
   })).optional(),
   consumers_total_count: z.number().optional(),
   created_on: z.string().optional(),
@@ -170,7 +170,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Queues. Registered at `@swamp/cloudflare/queues/queues`. */
 export const model = {
   type: "@swamp/cloudflare/queues/queues",
-  version: "2026.09.11.1",
+  version: "2026.09.23.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -200,6 +200,11 @@ export const model = {
     {
       toVersion: "2026.09.11.1",
       description: "Added: jurisdiction",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.23.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

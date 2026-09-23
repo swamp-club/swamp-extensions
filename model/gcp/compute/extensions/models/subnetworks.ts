@@ -186,9 +186,6 @@ const LIST_CONFIG = {
       "location": "path",
       "required": true,
     },
-    "returnPartialSuccess": {
-      "location": "query",
-    },
     "views": {
       "location": "query",
     },
@@ -612,7 +609,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Subnetworks. Registered at `@swamp/gcp/compute/subnetworks`. */
 export const model = {
   type: "@swamp/gcp/compute/subnetworks",
-  version: "2026.09.07.1",
+  version: "2026.09.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -765,6 +762,11 @@ export const model = {
     {
       toVersion: "2026.09.07.1",
       description: "Added: drainTimeoutSeconds",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.23.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1148,9 +1150,6 @@ export const model = {
         orderBy: z.string().describe(
           "Sorts list results by a certain order. By default, results",
         ).optional(),
-        returnPartialSuccess: z.boolean().describe(
-          "Opt-in for partial success behavior which provides partial results in case",
-        ).optional(),
         views: z.string().describe(
           "Defines the extra views returned back in the subnetwork resource.",
         ).optional(),
@@ -1174,9 +1173,6 @@ export const model = {
         }
         if (args["orderBy"] !== undefined) {
           params["orderBy"] = String(args["orderBy"]);
-        }
-        if (args["returnPartialSuccess"] !== undefined) {
-          params["returnPartialSuccess"] = String(args["returnPartialSuccess"]);
         }
         if (args["views"] !== undefined) {
           params["views"] = String(args["views"]);
@@ -1330,7 +1326,6 @@ export const model = {
         maxResults: z.any().optional(),
         orderBy: z.any().optional(),
         pageToken: z.any().optional(),
-        returnPartialSuccess: z.any().optional(),
         serviceProject: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
@@ -1352,9 +1347,6 @@ export const model = {
         if (args["pageToken"] !== undefined) {
           params["pageToken"] = String(args["pageToken"]);
         }
-        if (args["returnPartialSuccess"] !== undefined) {
-          params["returnPartialSuccess"] = String(args["returnPartialSuccess"]);
-        }
         if (args["serviceProject"] !== undefined) {
           params["serviceProject"] = String(args["serviceProject"]);
         }
@@ -1371,7 +1363,6 @@ export const model = {
               "orderBy": { "location": "query" },
               "pageToken": { "location": "query" },
               "project": { "location": "path", "required": true },
-              "returnPartialSuccess": { "location": "query" },
               "serviceProject": { "location": "query" },
             },
           },

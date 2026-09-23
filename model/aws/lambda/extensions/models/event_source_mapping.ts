@@ -81,6 +81,7 @@ const SchemaRegistryAccessConfigSchema = z.object({
     "BASIC_AUTH",
     "CLIENT_CERTIFICATE_TLS_AUTH",
     "SERVER_ROOT_CA_CERTIFICATE",
+    "OAUTHBEARER_AUTH",
   ]).describe(
     "The type of authentication Lambda uses to access your schema registry.",
   ).optional(),
@@ -120,6 +121,13 @@ const SourceAccessConfigurationSchema = z.object({
     "VIRTUAL_HOST",
     "CLIENT_CERTIFICATE_TLS_AUTH",
     "SERVER_ROOT_CA_CERTIFICATE",
+    "OAUTHBEARER_AUTH",
+    "OAUTHBEARER_SCOPE",
+    "OAUTHBEARER_AUDIENCE",
+    "OAUTHBEARER_LOGICAL_CLUSTER",
+    "OAUTHBEARER_IDENTITY_POOL",
+    "IAM_AUTH",
+    "IAM_OAUTHBEARER_AUTH",
   ]).describe(
     'The type of authentication protocol, VPC components, or virtual host for your event source. For example: "Type":"SASL_SCRAM_512_AUTH". BASIC_AUTH – (Amazon MQ) The ASMlong secret that stores your broker credentials. BASIC_AUTH – (Self-managed Apache Kafka) The Secrets Manager ARN of your secret key used for SASL/PLAIN authentication of your Apache Kafka brokers. VPC_SUBNET – (Self-managed Apache Kafka) The subnets associated with your VPC. Lambda connects to these subnets to fetch data from your self-managed Apache Kafka cluster. VPC_SECURITY_GROUP – (Self-managed Apache Kafka) The VPC security group used to manage access to your self-managed Apache Kafka brokers. SASL_SCRAM_256_AUTH – (Self-managed Apache Kafka) The Secrets Manager ARN of your secret key used for SASL SCRAM-256 authentication of your self-managed Apache Kafka brokers. SASL_SCRAM_512_AUTH – (Amazon MSK, Self-managed Apache Kafka) The Secrets Manager ARN of your secret key used for SASL SCRAM-512 authentication of your self-managed Apache Kafka brokers. VIRTUAL_HOST –- (RabbitMQ) The name of the virtual host in your RabbitMQ broker. Lambda uses this RabbitMQ host as the event source. This property cannot be specified in an UpdateEventSourceMapping API call. CLIENT_CERTIFICATE_TLS_AUTH – (Amazon MSK, self-managed Apache Kafka) The Secrets Manager ARN of your secret key containing the certificate chain (X.509 PEM), private key (PKCS#8 PEM), and private key password (optional) used for mutual TLS authentication of your MSK/Apache Kafka brokers. SERVER_ROOT_CA_CERTIFICATE – (Self-managed Apache Kafka) The Secrets Manager ARN of your secret key containing the root CA certificate (X.509 PEM) used for TLS encryption of your Apache Kafka brokers.',
   ).optional(),
@@ -178,7 +186,7 @@ const GlobalArgsSchema = z.object({
       "The minimum number of event pollers this event source can scale down to. For Amazon SQS events source mappings, default is 2, and minimum 2 required. For Amazon MSK and self-managed Apache Kafka event source mappings, default is 1.",
     ).optional(),
     MaximumPollers: z.number().int().min(1).max(10000).describe(
-      "The maximum number of event pollers this event source can scale up to. For Amazon SQS events source mappings, default is 200, and minimum value allowed is 2. For Amazon MSK and self-managed Apache Kafka event source mappings, default is 200, and minimum value allowed is 1.",
+      "The maximum number of event pollers this event source can scale up to. For Amazon SQS event source mappings, the accepted range is between 2 and 10,000, with a default of 200. For Amazon MSK and self-managed Apache Kafka event source mappings, the accepted range is between 1 and 2,000, with a default of 200.",
     ).optional(),
   }).describe(
     "(Amazon SQS, Amazon MSK, and self-managed Apache Kafka only) The provisioned mode configuration for the event source. For more information, see [provisioned mode](https://docs.aws.amazon.com/lambda/latest/dg/invocation-eventsourcemapping.html#invocation-eventsourcemapping-provisioned-mode).",
@@ -404,7 +412,7 @@ const InputsSchema = z.object({
       "The minimum number of event pollers this event source can scale down to. For Amazon SQS events source mappings, default is 2, and minimum 2 required. For Amazon MSK and self-managed Apache Kafka event source mappings, default is 1.",
     ).optional(),
     MaximumPollers: z.number().int().min(1).max(10000).describe(
-      "The maximum number of event pollers this event source can scale up to. For Amazon SQS events source mappings, default is 200, and minimum value allowed is 2. For Amazon MSK and self-managed Apache Kafka event source mappings, default is 200, and minimum value allowed is 1.",
+      "The maximum number of event pollers this event source can scale up to. For Amazon SQS event source mappings, the accepted range is between 2 and 10,000, with a default of 200. For Amazon MSK and self-managed Apache Kafka event source mappings, the accepted range is between 1 and 2,000, with a default of 200.",
     ).optional(),
   }).describe(
     "(Amazon SQS, Amazon MSK, and self-managed Apache Kafka only) The provisioned mode configuration for the event source. For more information, see [provisioned mode](https://docs.aws.amazon.com/lambda/latest/dg/invocation-eventsourcemapping.html#invocation-eventsourcemapping-provisioned-mode).",
@@ -554,7 +562,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda EventSourceMapping. Registered at `@swamp/aws/lambda/event-source-mapping`. */
 export const model = {
   type: "@swamp/aws/lambda/event-source-mapping",
-  version: "2026.08.17.2",
+  version: "2026.09.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -608,6 +616,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

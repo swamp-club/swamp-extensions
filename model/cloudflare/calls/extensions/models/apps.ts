@@ -44,7 +44,7 @@ import {
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   name: z.string().describe(
-    "A short description of Calls app, not shown to end users.",
+    "A short description of a Realtime SFU app, not shown to end users.",
   ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -78,7 +78,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Apps. Registered at `@swamp/cloudflare/calls/apps`. */
 export const model = {
   type: "@swamp/cloudflare/calls/apps",
-  version: "2026.07.21.1",
+  version: "2026.09.23.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -97,6 +97,11 @@ export const model = {
     },
     {
       toVersion: "2026.07.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -415,6 +415,10 @@ const StateSchema = z.object({
     version: z.string(),
   }).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
+  lakehouseProxyConfig: z.object({
+    catalog: z.string(),
+    namespaces: z.array(z.string()),
+  }).optional(),
   maintenanceWindow: z.object({
     dayOfWeek: z.string(),
     hourOfDay: z.number(),
@@ -743,7 +747,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc Metastore Services. Registered at `@swamp/gcp/metastore/services`. */
 export const model = {
   type: "@swamp/gcp/metastore/services",
-  version: "2026.09.07.2",
+  version: "2026.09.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -942,6 +946,11 @@ export const model = {
         } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.09.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

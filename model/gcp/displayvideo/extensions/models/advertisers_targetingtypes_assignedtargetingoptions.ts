@@ -626,7 +626,7 @@ const GlobalArgsSchema = z.object({
       "DEVICE_TYPE_CONNECTED_DEVICE",
     ]).describe("Required. The display name of the device type.").optional(),
     youtubeAndPartnersBidMultiplier: z.number().describe(
-      "Output only. Bid multiplier allows you to show your ads more or less frequently based on the device type. It will apply a multiplier on the original bid price. When this field is 0, it indicates this field is not applicable instead of multiplying 0 on the original bid price. For example, if the bid price without multiplier is $10.0 and the multiplier is 1.5 for Tablet, the resulting bid price for Tablet will be $15.0. Only applicable to YouTube and Partners line items.",
+      "Optional. Bid multiplier allows you to show your ads more or less frequently based on the device type. It will apply a multiplier on the original bid price. When this field is 0, it indicates this field is not applicable instead of multiplying 0 on the original bid price. For example, if the bid price without multiplier is $10.0 and the multiplier is 1.5 for Tablet, the resulting bid price for Tablet will be $15.0. Only applicable to YouTube and Partners line items.",
     ).optional(),
   }).describe(
     "Device Type details. This field will be populated when the targeting_type is `TARGETING_TYPE_DEVICE_TYPE`.",
@@ -2339,7 +2339,7 @@ const InputsSchema = z.object({
       "DEVICE_TYPE_CONNECTED_DEVICE",
     ]).describe("Required. The display name of the device type.").optional(),
     youtubeAndPartnersBidMultiplier: z.number().describe(
-      "Output only. Bid multiplier allows you to show your ads more or less frequently based on the device type. It will apply a multiplier on the original bid price. When this field is 0, it indicates this field is not applicable instead of multiplying 0 on the original bid price. For example, if the bid price without multiplier is $10.0 and the multiplier is 1.5 for Tablet, the resulting bid price for Tablet will be $15.0. Only applicable to YouTube and Partners line items.",
+      "Optional. Bid multiplier allows you to show your ads more or less frequently based on the device type. It will apply a multiplier on the original bid price. When this field is 0, it indicates this field is not applicable instead of multiplying 0 on the original bid price. For example, if the bid price without multiplier is $10.0 and the multiplier is 1.5 for Tablet, the resulting bid price for Tablet will be $15.0. Only applicable to YouTube and Partners line items.",
     ).optional(),
   }).describe(
     "Device Type details. This field will be populated when the targeting_type is `TARGETING_TYPE_DEVICE_TYPE`.",
@@ -3323,7 +3323,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/displayvideo/advertisers-targetingtypes-assignedtargetingoptions",
-  version: "2026.09.03.1",
+  version: "2026.09.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3482,6 +3482,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

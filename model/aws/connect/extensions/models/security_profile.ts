@@ -74,17 +74,6 @@ const FlowModuleSchema = z.object({
   ).optional(),
 });
 
-const AIAgentSchema = z.object({
-  Arn: z.string().regex(
-    new RegExp(
-      "^arn:aws[-a-z0-9]*:app-integrations:[-a-z0-9]*:[0-9]{12}:application/[-a-zA-Z0-9]*$",
-    ),
-  ).describe(
-    "The ARN of the AI agent application (App Integrations application ARN).",
-  ),
-  Type: z.enum(["THIRD_PARTY"]).describe("The type of the AI agent."),
-});
-
 const PrimaryAttributeValueSchema = z.object({
   AccessType: z.enum(["ALLOW"]).describe(
     'Specifies the type of access granted. Currently, only "ALLOW" is supported',
@@ -164,9 +153,6 @@ const GlobalArgsSchema = z.object({
   AllowedFlowModules: z.array(FlowModuleSchema).describe(
     "The list of flow-module resources to be linked to a security profile in Amazon Connect.",
   ).optional(),
-  AllowedAIAgents: z.array(AIAgentSchema).describe(
-    "The list of AI agents that a security profile grants access to.",
-  ).optional(),
   Tags: z.array(TagSchema).describe(
     "The tags used to organize, track, or control access for this resource.",
   ).optional(),
@@ -190,7 +176,6 @@ const StateSchema = z.object({
   AllowedAccessControlHierarchyGroupId: z.string().optional(),
   Applications: z.array(ApplicationSchema).optional(),
   AllowedFlowModules: z.array(FlowModuleSchema).optional(),
-  AllowedAIAgents: z.array(AIAgentSchema).optional(),
   Tags: z.array(TagSchema).optional(),
   LastModifiedRegion: z.string().optional(),
   LastModifiedTime: z.number().optional(),
@@ -242,9 +227,6 @@ const InputsSchema = z.object({
   AllowedFlowModules: z.array(FlowModuleSchema).describe(
     "The list of flow-module resources to be linked to a security profile in Amazon Connect.",
   ).optional(),
-  AllowedAIAgents: z.array(AIAgentSchema).describe(
-    "The list of AI agents that a security profile grants access to.",
-  ).optional(),
   Tags: z.array(TagSchema).describe(
     "The tags used to organize, track, or control access for this resource.",
   ).optional(),
@@ -275,7 +257,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect SecurityProfile. Registered at `@swamp/aws/connect/security-profile`. */
 export const model = {
   type: "@swamp/aws/connect/security-profile",
-  version: "2026.09.22.1",
+  version: "2026.09.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -336,6 +318,14 @@ export const model = {
       toVersion: "2026.09.22.1",
       description: "Added: AllowedAIAgents",
       upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.23.1",
+      description: "Removed: AllowedAIAgents",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { AllowedAIAgents: _AllowedAIAgents, ...rest } = old;
+        return rest;
+      },
     },
   ],
   globalArguments: GlobalArgsSchema,

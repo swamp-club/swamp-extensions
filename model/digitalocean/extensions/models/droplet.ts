@@ -117,6 +117,9 @@ const GlobalArgsSchema = z.object({
   vpc_uuid: z.string().describe(
     "A string specifying the UUID of the VPC to which the Droplet will be assigned. If excluded, the Droplet will be assigned to your account's default VPC for the region.<br>Requires `vpc:read` scope.",
   ).optional(),
+  subnet_uuid: z.string().describe(
+    "An optional string specifying the UUID of the VPC subnet to which the Droplet will be assigned. If excluded, the Droplet will be assigned to a default subnet of the VPC.<br>Requires `vpc:read` scope.",
+  ).optional(),
   with_droplet_agent: z.boolean().describe(
     "A boolean indicating whether to install the DigitalOcean agent used for providing access to the Droplet web console in the control panel. By default, the agent is installed on new Droplets but installation errors (i.e. OS not supported) are ignored. To prevent it from being installed, set to `false`. To make installation errors fatal, explicitly set it to `true`.",
   ).optional(),
@@ -224,6 +227,7 @@ const ResourceSchema = z.object({
   }).optional(),
   tags: z.array(z.string()).optional(),
   vpc_uuid: z.string().optional(),
+  subnet_uuid: z.string().optional(),
   gpu_info: z.object({
     count: z.number().optional(),
     model: z.string().optional(),
@@ -283,6 +287,7 @@ const InputsSchema = z.object({
   private_networking: z.boolean().optional(),
   volumes: z.array(z.string()).optional(),
   vpc_uuid: z.string().optional(),
+  subnet_uuid: z.string().optional(),
   with_droplet_agent: z.boolean().optional(),
   public_networking: z.boolean().optional(),
   token: z.string().meta({ sensitive: true }).optional(),
@@ -291,7 +296,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean droplet. Registered at `@swamp/digitalocean/droplet`. */
 export const model = {
   type: "@swamp/digitalocean/droplet",
-  version: "2026.06.08.1",
+  version: "2026.09.23.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -351,6 +356,11 @@ export const model = {
     {
       toVersion: "2026.06.08.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.23.1",
+      description: "Added: subnet_uuid",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -418,6 +428,7 @@ export const model = {
         }
         if (g.volumes !== undefined) body.volumes = g.volumes;
         if (g.vpc_uuid !== undefined) body.vpc_uuid = g.vpc_uuid;
+        if (g.subnet_uuid !== undefined) body.subnet_uuid = g.subnet_uuid;
         if (g.with_droplet_agent !== undefined) {
           body.with_droplet_agent = g.with_droplet_agent;
         }

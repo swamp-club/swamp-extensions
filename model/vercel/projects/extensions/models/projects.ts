@@ -405,7 +405,7 @@ const GlobalArgsSchema = z.object({
     "Specify a list of paths that should not be protected by Deployment Protection to enable Cors preflight requests",
   ).optional(),
   connectConfigurations: z.array(z.record(z.string(), z.unknown())).describe(
-    "The list of connections from project environment to Secure Compute network",
+    "The list of connections from project environments to dedicated Secure Compute networks. Shared networks must be managed through the shared-connect-links endpoint.",
   ).optional(),
   dismissedToasts: z.array(z.object({
     key: z.string(),
@@ -1747,7 +1747,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.09.22.1",
+  version: "2026.09.23.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1881,6 +1881,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.22.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

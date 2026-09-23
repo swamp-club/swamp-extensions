@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/bcmpricingcalculator"
-version: "2026.09.22.1"
+version: "2026.09.23.1"
 description: "AWS BCMPRICINGCALCULATOR infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,8 +9,6 @@ labels:
   - bcmpricingcalculator
   - cloud
   - infrastructure
-releaseNotes: |
-  - Added: workload_estimate
 models:
   - bill_scenario.ts
   - workload_estimate.ts

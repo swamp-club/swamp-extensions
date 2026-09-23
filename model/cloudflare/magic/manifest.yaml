@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/cloudflare/magic"
-version: "2026.08.25.2"
+version: "2026.09.23.1"
 description: "Cloudflare magic infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -10,11 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: rules
-  - Added: filter_profiles
   - Updated: connectors
-  - Updated: gre_tunnels
-  - Updated: ipsec_tunnels
 models:
   - allowlist.ts
   - catalog-syncs.ts

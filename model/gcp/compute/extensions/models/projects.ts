@@ -154,7 +154,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Projects. Registered at `@swamp/gcp/compute/projects`. */
 export const model = {
   type: "@swamp/gcp/compute/projects",
-  version: "2026.09.07.1",
+  version: "2026.09.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -268,6 +268,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -554,7 +559,6 @@ export const model = {
         maxResults: z.any().optional(),
         orderBy: z.any().optional(),
         pageToken: z.any().optional(),
-        returnPartialSuccess: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
@@ -575,9 +579,6 @@ export const model = {
         if (args["pageToken"] !== undefined) {
           params["pageToken"] = String(args["pageToken"]);
         }
-        if (args["returnPartialSuccess"] !== undefined) {
-          params["returnPartialSuccess"] = String(args["returnPartialSuccess"]);
-        }
         const result = await createResource(
           baseUrl,
           {
@@ -591,7 +592,6 @@ export const model = {
               "orderBy": { "location": "query" },
               "pageToken": { "location": "query" },
               "project": { "location": "path", "required": true },
-              "returnPartialSuccess": { "location": "query" },
             },
           },
           params,
@@ -612,7 +612,6 @@ export const model = {
         maxResults: z.any().optional(),
         orderBy: z.any().optional(),
         pageToken: z.any().optional(),
-        returnPartialSuccess: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
@@ -633,9 +632,6 @@ export const model = {
         if (args["pageToken"] !== undefined) {
           params["pageToken"] = String(args["pageToken"]);
         }
-        if (args["returnPartialSuccess"] !== undefined) {
-          params["returnPartialSuccess"] = String(args["returnPartialSuccess"]);
-        }
         const body: Record<string, unknown> = {};
         if (args["organization"] !== undefined) {
           body["organization"] = args["organization"];
@@ -653,7 +649,6 @@ export const model = {
               "orderBy": { "location": "query" },
               "pageToken": { "location": "query" },
               "project": { "location": "path", "required": true },
-              "returnPartialSuccess": { "location": "query" },
             },
           },
           params,

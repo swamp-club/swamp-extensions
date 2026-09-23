@@ -42,7 +42,9 @@ import {
 import type { AwsCredentials } from "./_lib/aws.ts";
 
 const CatalogResourceSchema = z.object({
-  Id: z.string().min(12).max(255).optional(),
+  Id: z.string().min(12).max(255).describe(
+    "An identifier for the catalog resource.",
+  ).optional(),
 });
 
 const DatabaseResourceSchema = z.object({
@@ -350,7 +352,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for LakeFormation PrincipalPermissions. Registered at `@swamp/aws/lakeformation/principal-permissions`. */
 export const model = {
   type: "@swamp/aws/lakeformation/principal-permissions",
-  version: "2026.09.03.1",
+  version: "2026.09.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -404,6 +406,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.23.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

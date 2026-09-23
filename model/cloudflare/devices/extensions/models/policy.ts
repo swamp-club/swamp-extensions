@@ -55,8 +55,17 @@ const GlobalArgsSchema = z.object({
   auto_connect: z.number().describe(
     "The amount of time in seconds to reconnect after having been disabled.",
   ).optional(),
+  browser_extension_config: z.object({
+    proxy_control: z.enum(["unlocked", "locked"]),
+    proxy_enabled: z.boolean(),
+  }).describe(
+    "Browser extension proxy settings. Required when profile_type is browser_extension and invalid for WARP profiles.",
+  ).optional(),
   captive_portal: z.number().describe(
     "Turn on the captive portal after the specified amount of time.",
+  ).optional(),
+  default: z.boolean().describe(
+    "Whether the policy is the account default. WARP group profiles cannot set this field.",
   ).optional(),
   description: z.string().describe("A description of the policy.").optional(),
   disable_auto_fallback: z.boolean().describe(
@@ -83,6 +92,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   global_acceleration: z.object({
     api_endpoints: z.array(z.string()),
+    autoswitch: z.boolean().optional(),
     enabled: z.boolean(),
     masque_endpoints: z.array(z.string()),
     wireguard_endpoints: z.array(z.string()),
@@ -104,13 +114,16 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   match: z.string().max(500).describe(
     'The wirefilter expression to match devices. Available values: "identity.email", "identity.groups.id", "identity.groups.name", "identity.groups.email", "identity.service_token_uuid", "identity.saml_attributes", "network", "os.name", "os.version".',
-  ),
+  ).optional(),
   name: z.string().max(100).describe(
     "The name of the device settings profile.",
   ),
   precedence: z.number().describe(
     "The precedence of the policy. Lower values indicate higher precedence. Policies will be evaluated in ascending order of this field.",
-  ),
+  ).optional(),
+  profile_type: z.enum(["warp", "browser_extension"]).describe(
+    "The client type to which the device settings profile applies.",
+  ).optional(),
   register_interface_ip_with_dns: z.boolean().describe(
     "Determines if the operating system will register WARP's local interface IP with your on-premises DNS server.",
   ).optional(),
@@ -153,6 +166,10 @@ const ResourceSchema = z.object({
   allow_updates: z.boolean().optional(),
   allowed_to_leave: z.boolean().optional(),
   auto_connect: z.number().optional(),
+  browser_extension_config: z.object({
+    proxy_control: z.string().optional(),
+    proxy_enabled: z.boolean().optional(),
+  }).optional(),
   captive_portal: z.number().optional(),
   default: z.boolean().optional(),
   description: z.string().optional(),
@@ -176,6 +193,7 @@ const ResourceSchema = z.object({
   gateway_unique_id: z.string().optional(),
   global_acceleration: z.object({
     api_endpoints: z.array(z.string()).optional(),
+    autoswitch: z.boolean().optional(),
     enabled: z.boolean().optional(),
     masque_endpoints: z.array(z.string()).optional(),
     wireguard_endpoints: z.array(z.string()).optional(),
@@ -191,6 +209,7 @@ const ResourceSchema = z.object({
   name: z.string().optional(),
   policy_id: z.string().optional(),
   precedence: z.number().optional(),
+  profile_type: z.string().optional(),
   register_interface_ip_with_dns: z.boolean().optional(),
   sccm_vpn_boundary_support: z.boolean().optional(),
   service_mode_v2: z.object({
@@ -220,7 +239,12 @@ const InputsSchema = z.object({
   allow_updates: z.boolean().optional(),
   allowed_to_leave: z.boolean().optional(),
   auto_connect: z.number().optional(),
+  browser_extension_config: z.object({
+    proxy_control: z.enum(["unlocked", "locked"]),
+    proxy_enabled: z.boolean(),
+  }).optional(),
   captive_portal: z.number().optional(),
+  default: z.boolean().optional(),
   description: z.string().optional(),
   disable_auto_fallback: z.boolean().optional(),
   dns_search_suffixes: z.array(z.object({
@@ -236,6 +260,7 @@ const InputsSchema = z.object({
   exclude_office_ips: z.boolean().optional(),
   global_acceleration: z.object({
     api_endpoints: z.array(z.string()),
+    autoswitch: z.boolean().optional(),
     enabled: z.boolean(),
     masque_endpoints: z.array(z.string()),
     wireguard_endpoints: z.array(z.string()),
@@ -250,6 +275,7 @@ const InputsSchema = z.object({
   match: z.string().max(500).optional(),
   name: z.string().max(100).optional(),
   precedence: z.number().optional(),
+  profile_type: z.enum(["warp", "browser_extension"]).optional(),
   register_interface_ip_with_dns: z.boolean().optional(),
   sccm_vpn_boundary_support: z.boolean().optional(),
   service_mode_v2: z.object({
@@ -272,7 +298,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Policy. Registered at `@swamp/cloudflare/devices/policy`. */
 export const model = {
   type: "@swamp/cloudflare/devices/policy",
-  version: "2026.09.08.1",
+  version: "2026.09.23.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -314,6 +340,11 @@ export const model = {
       description: "Added: uninstall_protection",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.23.1",
+      description: "Added: browser_extension_config, default, profile_type",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -341,9 +372,13 @@ export const model = {
           body.allowed_to_leave = g.allowed_to_leave;
         }
         if (g.auto_connect !== undefined) body.auto_connect = g.auto_connect;
+        if (g.browser_extension_config !== undefined) {
+          body.browser_extension_config = g.browser_extension_config;
+        }
         if (g.captive_portal !== undefined) {
           body.captive_portal = g.captive_portal;
         }
+        if (g.default !== undefined) body.default = g.default;
         if (g.description !== undefined) body.description = g.description;
         if (g.disable_auto_fallback !== undefined) {
           body.disable_auto_fallback = g.disable_auto_fallback;
@@ -369,6 +404,7 @@ export const model = {
         if (g.match !== undefined) body.match = g.match;
         if (g.name !== undefined) body.name = g.name;
         if (g.precedence !== undefined) body.precedence = g.precedence;
+        if (g.profile_type !== undefined) body.profile_type = g.profile_type;
         if (g.register_interface_ip_with_dns !== undefined) {
           body.register_interface_ip_with_dns =
             g.register_interface_ip_with_dns;
@@ -453,6 +489,9 @@ export const model = {
         if (g.captive_portal !== undefined) {
           filters.push(["captive_portal", String(g.captive_portal)]);
         }
+        if (g.default !== undefined) {
+          filters.push(["default", String(g.default)]);
+        }
         if (g.description !== undefined) {
           filters.push(["description", String(g.description)]);
         }
@@ -481,6 +520,9 @@ export const model = {
         if (g.name !== undefined) filters.push(["name", String(g.name)]);
         if (g.precedence !== undefined) {
           filters.push(["precedence", String(g.precedence)]);
+        }
+        if (g.profile_type !== undefined) {
+          filters.push(["profile_type", String(g.profile_type)]);
         }
         if (g.register_interface_ip_with_dns !== undefined) {
           filters.push([
@@ -614,9 +656,13 @@ export const model = {
           body.allowed_to_leave = g.allowed_to_leave;
         }
         if (g.auto_connect !== undefined) body.auto_connect = g.auto_connect;
+        if (g.browser_extension_config !== undefined) {
+          body.browser_extension_config = g.browser_extension_config;
+        }
         if (g.captive_portal !== undefined) {
           body.captive_portal = g.captive_portal;
         }
+        if (g.default !== undefined) body.default = g.default;
         if (g.description !== undefined) body.description = g.description;
         if (g.disable_auto_fallback !== undefined) {
           body.disable_auto_fallback = g.disable_auto_fallback;
@@ -642,6 +688,7 @@ export const model = {
         if (g.match !== undefined) body.match = g.match;
         if (g.name !== undefined) body.name = g.name;
         if (g.precedence !== undefined) body.precedence = g.precedence;
+        if (g.profile_type !== undefined) body.profile_type = g.profile_type;
         if (g.register_interface_ip_with_dns !== undefined) {
           body.register_interface_ip_with_dns =
             g.register_interface_ip_with_dns;

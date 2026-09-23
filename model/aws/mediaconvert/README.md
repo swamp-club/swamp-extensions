@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/mediaconvert/preset` to see the full
-list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/mediaconvert/job_template` to see the
+full list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -47,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new preset model
-swamp model create @swamp/aws/mediaconvert/preset my-preset
+# Create a new job_template model
+swamp model create @swamp/aws/mediaconvert/job_template my-job_template
 
 # Edit the model to configure its properties
-swamp model edit my-preset
+swamp model edit my-job_template
 
 # Create the resource in AWS
-swamp model method run my-preset create
+swamp model method run my-job_template create
 
 # Sync current state from AWS
-swamp model method run my-preset sync
+swamp model method run my-job_template sync
 ```
 
 ## License

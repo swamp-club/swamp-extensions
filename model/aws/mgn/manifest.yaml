@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/mgn"
-version: "2026.09.22.1"
+version: "2026.09.23.1"
 description: "AWS MGN infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,8 +9,6 @@ labels:
   - mgn
   - cloud
   - infrastructure
-releaseNotes: |
-  - Added: connector
 models:
   - connector.ts
   - network_migration_definition.ts

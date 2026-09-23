@@ -182,13 +182,13 @@ const GlobalArgsSchema = z.object({
     .optional(),
   externalIds: z.array(z.object({
     id: z.string().describe(
-      "Required. The unique identifier assigned by the external identity provider. The API does not enforce uniqueness of IDs across entities, but clients should ensure IDs are unique within their namespace.",
+      "Required. The unique identifier assigned by the external identity provider. The API does not enforce unique IDs across entities, but clients **must** ensure IDs are unique within their namespace.",
     ).optional(),
     namespace: z.string().describe(
-      'Required. The namespace in which the entity exists. Cannot be empty. Currently, the only allowable namespace is `"system/external"`.',
+      "Required. The namespace in which the entity exists. The only supported namespace is `system/external`.",
     ).optional(),
   })).describe(
-    'Optional. External identifiers associated with the `Group`. Enables external identity providers and directory sync tools to link their native unique identifiers with this group. Currently, the only allowable namespace is `"system/external"`.',
+    "Optional. External identifiers associated with the `Group`. Allows external identity providers and directory sync tools link their native unique identifiers with this group. The only supported namespace is `system/external`.",
   ).optional(),
   groupKey: z.object({
     id: z.string().describe(
@@ -282,13 +282,13 @@ const InputsSchema = z.object({
     .optional(),
   externalIds: z.array(z.object({
     id: z.string().describe(
-      "Required. The unique identifier assigned by the external identity provider. The API does not enforce uniqueness of IDs across entities, but clients should ensure IDs are unique within their namespace.",
+      "Required. The unique identifier assigned by the external identity provider. The API does not enforce unique IDs across entities, but clients **must** ensure IDs are unique within their namespace.",
     ).optional(),
     namespace: z.string().describe(
-      'Required. The namespace in which the entity exists. Cannot be empty. Currently, the only allowable namespace is `"system/external"`.',
+      "Required. The namespace in which the entity exists. The only supported namespace is `system/external`.",
     ).optional(),
   })).describe(
-    'Optional. External identifiers associated with the `Group`. Enables external identity providers and directory sync tools to link their native unique identifiers with this group. Currently, the only allowable namespace is `"system/external"`.',
+    "Optional. External identifiers associated with the `Group`. Allows external identity providers and directory sync tools link their native unique identifiers with this group. The only supported namespace is `system/external`.",
   ).optional(),
   groupKey: z.object({
     id: z.string().describe(
@@ -335,7 +335,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Identity Groups. Registered at `@swamp/gcp/cloudidentity/groups`. */
 export const model = {
   type: "@swamp/gcp/cloudidentity/groups",
-  version: "2026.09.16.1",
+  version: "2026.09.23.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -498,6 +498,11 @@ export const model = {
     {
       toVersion: "2026.09.16.1",
       description: "Added: externalIds",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.23.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
