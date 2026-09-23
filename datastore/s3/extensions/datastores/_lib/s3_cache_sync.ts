@@ -1442,10 +1442,17 @@ export class S3CacheSyncService implements DatastoreSyncService {
   }
 
   /**
-   * Like assembleIndexFromShards but only reads shards whose partition
-   * key matches a path in `dirtyPaths`. Returns the partial index
-   * (only entries from dirty shards) and the commitSeq. Falls back to
-   * full assembly when no partition keys can be derived.
+   * Like assembleIndexFromShards but only reads the shards that can hold
+   * files under a path in `dirtyPaths`. Returns the partial index (only
+   * entries from those shards) and the commitSeq.
+   *
+   * A dirty path's own partition key is not enough: core marks
+   * directories dirty, and a directory's key can differ from its files'
+   * keys. A version directory `data/<a>/<b>/<model>/<name>/<N>` maps to
+   * the type shard `data--a--b`, but its `raw` and `metadata.yaml` live
+   * in the model shard `data--a--b--<model>` (swamp-club #2353). So a
+   * partition is read when its `--` segments are a prefix of the dirty
+   * path's segments, or the dirty path's segments are a prefix of its.
    */
   private async assembleDirtyShardsOnly(
     dirtyPaths: ReadonlySet<string>,
@@ -1459,7 +1466,12 @@ export class S3CacheSyncService implements DatastoreSyncService {
 
     const v2Meta = meta as PartitionMetaV2;
     const neededKeys = new Set<string>();
-    const prefixes: string[] = [];
+    // "--"-joined leading segments of each dirty path. A partition equal
+    // to one of these is an ancestor of the dirty path.
+    const ancestorKeys = new Set<string>();
+    // "--"-joined segments of each whole dirty path. A partition that
+    // extends one of these at a "--" boundary lies under the dirty path.
+    const dirtyKeys = new Set<string>();
     const nsPrefix = this.namespace ? `${this.namespace}/` : "";
     for (const p of dirtyPaths) {
       // Strip the namespace prefix — partitionKeyFromPath expects bare
@@ -1468,27 +1480,32 @@ export class S3CacheSyncService implements DatastoreSyncService {
       const bare = nsPrefix && p.startsWith(nsPrefix)
         ? p.substring(nsPrefix.length)
         : p;
+      // Keeps keys that are not a "--" join of path segments (`_root`).
       const key = S3CacheSyncService.partitionKeyFromPath(bare);
-      if (key) {
-        neededKeys.add(key);
-      } else {
-        // Dirty path is a directory prefix (e.g. "data/t1") that doesn't
-        // resolve to a single partition key. Derive a "--"-joined prefix
-        // and match all partition keys that start with it.
-        const segments = bare.split("/").filter((s) => s !== "");
-        if (segments.length > 0) {
-          prefixes.push(segments.join("--"));
-        }
+      if (key) neededKeys.add(key);
+      let joined = "";
+      for (const segment of bare.split("/")) {
+        if (segment === "") continue;
+        joined = joined ? `${joined}--${segment}` : segment;
+        ancestorKeys.add(joined);
       }
+      if (joined) dirtyKeys.add(joined);
     }
 
-    // Expand prefixes against the partition list
-    if (prefixes.length > 0) {
-      for (const partition of v2Meta.partitions) {
-        for (const prefix of prefixes) {
-          if (partition === prefix || partition.startsWith(prefix + "--")) {
-            neededKeys.add(partition);
-          }
+    // Match on whole segments, so data/a/b never selects data--a--bc.
+    for (const partition of v2Meta.partitions) {
+      if (ancestorKeys.has(partition)) {
+        neededKeys.add(partition);
+        continue;
+      }
+      for (
+        let i = partition.indexOf("--");
+        i !== -1;
+        i = partition.indexOf("--", i + 2)
+      ) {
+        if (dirtyKeys.has(partition.substring(0, i))) {
+          neededKeys.add(partition);
+          break;
         }
       }
     }

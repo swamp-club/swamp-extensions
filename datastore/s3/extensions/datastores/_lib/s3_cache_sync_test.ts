@@ -9998,3 +9998,306 @@ Deno.test("swamp-club#2242: a bulk-invalidated push must not re-arm over missing
     await Deno.remove(cachePath, { recursive: true });
   }
 });
+
+// ==========================================================================
+// swamp-club#2353: scoped push must read every shard a dirty directory's
+// files live in. Core marks version directories dirty on gc, prune and
+// data delete; a version directory maps to the type shard, but its files
+// live in the model shard.
+// ==========================================================================
+
+/** Type segment layouts the #2353 tests run against. */
+const TYPE_DEPTHS: string[][] = [
+  ["echo"],
+  ["swamp", "echo"],
+  ["@swamp", "aws", "ec2"],
+];
+
+/**
+ * Seeds data name `d1` of each model with `versions` versions (raw +
+ * metadata.yaml each) plus `latest`, both remotely (objects and shards)
+ * and in the local cache. Returns each model's data name directory and
+ * every seeded file.
+ */
+async function seedDataName2353(
+  mock: ReturnType<typeof createMockS3Client>,
+  cachePath: string,
+  type: string[],
+  models: string[],
+  versions: number,
+): Promise<{ dirs: Map<string, string>; files: string[] }> {
+  const ts = new Date().toISOString();
+  const entries: Record<
+    string,
+    { key: string; size: number; lastModified: string }
+  > = {};
+  const dirs = new Map<string, string>();
+  const add = (rel: string) => {
+    entries[rel] = { key: rel, size: 4, lastModified: ts };
+  };
+  for (const model of models) {
+    const dir = ["data", ...type, model, "d1"].join("/");
+    dirs.set(model, dir);
+    for (let v = 1; v <= versions; v++) {
+      add(`${dir}/${v}/raw`);
+      add(`${dir}/${v}/metadata.yaml`);
+    }
+    add(`${dir}/latest`);
+  }
+  seedV2Repo(mock, entries, 5);
+  for (const rel of Object.keys(entries)) {
+    mock.storage.set(rel, new TextEncoder().encode("aaa\n"));
+    await seedFile(cachePath, rel, "aaa\n");
+  }
+  return { dirs, files: Object.keys(entries) };
+}
+
+/** Entries of a remote shard, or an empty object if it does not exist. */
+function shardEntries2353(
+  mock: ReturnType<typeof createMockS3Client>,
+  key: string,
+): Record<string, unknown> {
+  const body = mock.storage.get(`_index/${key}.json`);
+  return body ? decodeShard(body).entries : {};
+}
+
+/** Distinct shard keys read from the remote, excluding `_meta.json`. */
+function shardsRead2353(
+  mock: ReturnType<typeof createMockS3Client>,
+): Set<string> {
+  return new Set(
+    mock.gets
+      .filter((k) => k.startsWith("_index/") && k !== "_index/_meta.json")
+      .map((k) => k.slice("_index/".length, -".json".length)),
+  );
+}
+
+/** Pulls into a fresh cache and returns which of `rels` came back. */
+async function pullFresh2353(
+  mock: ReturnType<typeof createMockS3Client>,
+  rels: string[],
+): Promise<string[]> {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2353-pull-" });
+  try {
+    await new S3CacheSyncService(mock, cachePath).pullChanged();
+    const present: string[] = [];
+    for (const rel of rels) {
+      try {
+        await Deno.stat(join(cachePath, rel));
+        present.push(rel);
+      } catch (err) {
+        if (!(err instanceof Deno.errors.NotFound)) throw err;
+      }
+    }
+    return present;
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+}
+
+for (const type of TYPE_DEPTHS) {
+  const typeName = type.join("/");
+
+  Deno.test(`swamp-club#2353: gc of version directories deletes their objects and shard entries (type ${typeName})`, async () => {
+    const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2353-gc-" });
+    try {
+      const mock = createMockS3Client();
+      const { dirs, files } = await seedDataName2353(
+        mock,
+        cachePath,
+        type,
+        ["m1"],
+        3,
+      );
+      const dir = dirs.get("m1")!;
+      const modelShard = S3CacheSyncService.partitionKeyFromPath(
+        `${dir}/1/raw`,
+      )!;
+
+      // What `swamp data gc` does: remove each excess version directory
+      // and mark the directory (not its files) dirty.
+      const svc = new S3CacheSyncService(mock, cachePath);
+      for (const v of [1, 2]) {
+        await Deno.remove(join(cachePath, `${dir}/${v}`), { recursive: true });
+        await svc.markDirty({ relPath: `${dir}/${v}` });
+      }
+      await svc.pushChanged();
+
+      const gone = [
+        `${dir}/1/raw`,
+        `${dir}/1/metadata.yaml`,
+        `${dir}/2/raw`,
+        `${dir}/2/metadata.yaml`,
+      ];
+      for (const rel of gone) {
+        assert(!mock.storage.has(rel), `${rel} must be deleted remotely`);
+        assert(
+          !(rel in shardEntries2353(mock, modelShard)),
+          `${rel} must be removed from shard ${modelShard}`,
+        );
+      }
+      const kept = files.filter((rel) => !gone.includes(rel));
+      for (const rel of kept) {
+        assert(mock.storage.has(rel), `${rel} must survive gc`);
+      }
+      assertEquals(await pullFresh2353(mock, files), kept);
+    } finally {
+      await Deno.remove(cachePath, { recursive: true });
+    }
+  });
+
+  Deno.test(`swamp-club#2353: data delete of a whole data name removes every object (type ${typeName})`, async () => {
+    const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2353-del-" });
+    try {
+      const mock = createMockS3Client();
+      const { dirs, files } = await seedDataName2353(
+        mock,
+        cachePath,
+        type,
+        ["m1"],
+        5,
+      );
+      const dir = dirs.get("m1")!;
+
+      // What `swamp data delete` does: mark each version directory and
+      // `latest` dirty, then remove the data name.
+      const svc = new S3CacheSyncService(mock, cachePath);
+      for (let v = 1; v <= 5; v++) {
+        await svc.markDirty({ relPath: `${dir}/${v}` });
+      }
+      await svc.markDirty({ relPath: `${dir}/latest` });
+      await Deno.remove(join(cachePath, dir), { recursive: true });
+      await svc.pushChanged();
+
+      assertEquals(files.length, 11);
+      for (const rel of files) {
+        assert(!mock.storage.has(rel), `${rel} must be deleted remotely`);
+      }
+      const meta = decodeMeta(mock.storage.get("_index/_meta.json")!);
+      for (const key of meta.partitions) {
+        for (const rel of Object.keys(shardEntries2353(mock, key))) {
+          assert(!files.includes(rel), `${rel} still indexed in ${key}`);
+        }
+      }
+      assertEquals(await pullFresh2353(mock, files), []);
+    } finally {
+      await Deno.remove(cachePath, { recursive: true });
+    }
+  });
+}
+
+Deno.test("swamp-club#2353: a model id that extends another at a segment boundary is not read", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2353-bound-" });
+  try {
+    const mock = createMockS3Client();
+    const { dirs, files } = await seedDataName2353(
+      mock,
+      cachePath,
+      ["swamp", "echo"],
+      ["m1", "m10"],
+      2,
+    );
+    const dir = dirs.get("m1")!;
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await Deno.remove(join(cachePath, `${dir}/1`), { recursive: true });
+    await svc.markDirty({ relPath: `${dir}/1` });
+    mock.gets.length = 0;
+    await svc.pushChanged();
+
+    assert(!mock.storage.has(`${dir}/1/raw`));
+    assert(!mock.storage.has(`${dir}/1/metadata.yaml`));
+    assert(
+      !shardsRead2353(mock).has("data--swamp--echo--m10"),
+      "data--swamp--echo--m1 must not select data--swamp--echo--m10",
+    );
+    for (const rel of files.filter((r) => r.includes("/m10/"))) {
+      assert(mock.storage.has(rel), `${rel} must be untouched`);
+    }
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2353: a dirty type directory does not read a type that extends its name", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2353-type-" });
+  try {
+    const mock = createMockS3Client();
+    const echo = await seedDataName2353(
+      mock,
+      cachePath,
+      ["swamp", "echo"],
+      ["m1"],
+      1,
+    );
+    // Each seed writes its own _meta.json, so merge both partition lists.
+    const echoMeta = decodeMeta(mock.storage.get("_index/_meta.json")!);
+    const echoes = await seedDataName2353(
+      mock,
+      cachePath,
+      ["swamp", "echoes"],
+      ["m1"],
+      1,
+    );
+    const echoesMeta = decodeMeta(mock.storage.get("_index/_meta.json")!);
+    mock.storage.set(
+      "_index/_meta.json",
+      new TextEncoder().encode(JSON.stringify({
+        version: 2,
+        partitions: [...echoMeta.partitions, ...echoesMeta.partitions].sort(),
+        commitSeq: 5,
+      })),
+    );
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await Deno.remove(join(cachePath, "data/swamp/echo"), { recursive: true });
+    await svc.markDirty({ relPath: "data/swamp/echo" });
+    mock.gets.length = 0;
+    await svc.pushChanged();
+
+    for (const rel of echo.files) {
+      assert(!mock.storage.has(rel), `${rel} must be deleted remotely`);
+    }
+    for (const rel of echoes.files) {
+      assert(mock.storage.has(rel), `${rel} must be untouched`);
+    }
+    for (const key of shardsRead2353(mock)) {
+      assert(
+        !key.startsWith("data--swamp--echoes"),
+        `data/swamp/echo must not select ${key}`,
+      );
+    }
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2353: deleting one version reads only its type and model shards (#1913)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2353-reads-" });
+  try {
+    const mock = createMockS3Client();
+    const models = Array.from({ length: 50 }, (_, i) => `m${i}`);
+    const { dirs } = await seedDataName2353(
+      mock,
+      cachePath,
+      ["swamp", "echo"],
+      models,
+      2,
+    );
+    const dir = dirs.get("m7")!;
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await Deno.remove(join(cachePath, `${dir}/1`), { recursive: true });
+    await svc.markDirty({ relPath: `${dir}/1` });
+    mock.gets.length = 0;
+    await svc.pushChanged();
+
+    assert(!mock.storage.has(`${dir}/1/raw`));
+    assertEquals(
+      [...shardsRead2353(mock)].sort(),
+      ["data--swamp--echo", "data--swamp--echo--m7"],
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});

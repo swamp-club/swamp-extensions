@@ -255,9 +255,10 @@ The cache sync service maintains a local cache directory and syncs with GCS:
   argument and tracks per-path dirty sets (capped at 200 paths). When
   pushing, only dirty directories/files are walked instead of the entire
   cache. Overflows (> 200 paths) or path-escape trigger a full walk
-  fallback. Such a push assembles only the dirty partition shards, so it
-  merges its delta into the on-disk `.datastore-index.json` rather than
-  replacing it, and it re-arms the pull fast path when the sidecar was
+  fallback. Such a push assembles only the partition shards that can hold
+  files under a dirty path (a data name's `latest` sits in the type shard
+  and its version files in the model shard), so it merges its delta into
+  the on-disk `.datastore-index.json` rather than replacing it, and it re-arms the pull fast path when the sidecar was
   already at the `commitSeq` the push read — a process that writes often
   keeps its own fast path armed instead of disarming it on every write.
 - **Scoped sync** — advertises `capabilities().scopedSync = true`. When

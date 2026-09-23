@@ -227,9 +227,10 @@ compares the full index against local files and deletes remote-only
 entries. Deletions are suppressed when lazy hydration is active to avoid
 removing un-hydrated content.
 
-A per-path push assembles only the dirty partition shards, so it merges
-its delta into the on-disk `.datastore-index.json` rather than replacing
-it — the shards it did not walk stay in the index. When the sidecar was
+A per-path push assembles only the partition shards that can hold files
+under a dirty path (a data name's `latest` sits in the type shard and its
+version files in the model shard), so it merges its delta into the on-disk
+`.datastore-index.json` rather than replacing it — the shards it did not walk stay in the index. When the sidecar was
 already at the `commitSeq` the push read, the push also re-arms the pull
 fast path: nobody else committed in between, so this process wrote the
 only delta and the cache is still complete. A process that writes often
