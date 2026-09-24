@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/issue-lifecycle"
-version: "2026.08.28.1"
+version: "2026.09.24.1"
 description: |
   Interactive triage and implementation planning for swamp-club lab issues.
   Drives the triage/plan/iterate/approve/implement loop as a local

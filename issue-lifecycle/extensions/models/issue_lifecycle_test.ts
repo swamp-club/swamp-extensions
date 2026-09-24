@@ -320,7 +320,7 @@ Deno.test("model: exposes the new link_pr method definition", () => {
 });
 
 Deno.test("model: version bumped to 2026.08.28.1", () => {
-  assertEquals(model.version, "2026.08.28.1");
+  assertEquals(model.version, "2026.09.24.1");
 });
 
 // ---------------------------------------------------------------------------
@@ -946,7 +946,7 @@ Deno.test("start: succeeds even when PATCH fails", async () => {
 // notify
 // ---------------------------------------------------------------------------
 
-Deno.test("notify: transitions state to summarizing and reads author from context", async () => {
+Deno.test("notify: transitions state to summarizing when offline", async () => {
   const { context, writes, restore } = await buildTestContext(42, {
     resources: {
       "context-main": {
@@ -972,7 +972,7 @@ Deno.test("notify: transitions state to summarizing and reads author from contex
   }
 });
 
-Deno.test("notify: transitions to summarizing even when author is missing from context", async () => {
+Deno.test("notify: transitions to summarizing offline when context has no author", async () => {
   const { context, writes, restore } = await buildTestContext(42, {
     resources: {
       "context-main": {
@@ -1022,6 +1022,195 @@ Deno.test("notify: accepts custom message", async () => {
   } finally {
     await restore();
   }
+});
+
+// ---------------------------------------------------------------------------
+// notify — team-roster check against swamp-club
+// ---------------------------------------------------------------------------
+
+interface NotifyCall {
+  url: string;
+  method: string;
+  body?: Record<string, unknown>;
+}
+
+/**
+ * Drive notify against a scripted swamp-club: an issue authored by
+ * `author`/`authorId` and an eligible-assignees roster. Pass `roster: null`
+ * or `issueStatus` to make those lookups fail. Records every call.
+ */
+async function runNotify(opts: {
+  author: string;
+  authorId?: string;
+  roster: { userId: string; username: string }[] | null;
+  issueStatus?: number;
+  args?: { message?: string; force?: boolean };
+}): Promise<{
+  calls: NotifyCall[];
+  writes: RecordedWrite[];
+  error?: Error;
+}> {
+  const calls: NotifyCall[] = [];
+  const { context, writes, restore } = await buildStartTestContext(42, {
+    authApiKey: "swamp_fake_key",
+    routes: [
+      { urlIncludes: "/healthz", response: { status: 200, body: {} } },
+      {
+        urlIncludes: "/api/v1/lab/assignees",
+        response: opts.roster
+          ? { status: 200, body: { assignees: opts.roster } }
+          : { status: 403, body: { error: "forbidden" } },
+      },
+      {
+        urlIncludes: "/api/v1/lab/issues/42",
+        method: "GET",
+        response: opts.issueStatus
+          ? { status: opts.issueStatus, body: { error: "boom" } }
+          : {
+            status: 200,
+            body: {
+              issue: {
+                number: 42,
+                authorUsername: opts.author,
+                authorId: opts.authorId,
+              },
+            },
+          },
+      },
+      {
+        urlIncludes: "/api/v1/lab/issues/42",
+        method: "POST",
+        response: { status: 201, body: { id: "c1" } },
+      },
+    ],
+  });
+  // Wrap the stub so request bodies are captured alongside URL and method.
+  const scripted = globalThis.fetch;
+  globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+    calls.push({
+      url: String(input),
+      method: init?.method ?? "GET",
+      body: init?.body ? JSON.parse(init.body as string) : undefined,
+    });
+    return scripted(input, init);
+  }) as typeof fetch;
+  try {
+    await model.methods.notify.execute(opts.args ?? {}, context);
+    return { calls, writes };
+  } catch (error) {
+    return { calls, writes, error: error as Error };
+  } finally {
+    await restore();
+  }
+}
+
+const ripples = (calls: NotifyCall[]) =>
+  calls.filter((c) => c.method === "POST" && c.url.endsWith("/comments"));
+
+const lifecycleSteps = (calls: NotifyCall[]) =>
+  calls
+    .filter((c) => c.method === "POST" && c.url.endsWith("/lifecycle"))
+    .map((c) => c.body?.step);
+
+Deno.test("notify: skips the thank-you when the author's id is on the team roster", async () => {
+  const { calls, writes, error } = await runNotify({
+    author: "skunk-ape",
+    authorId: "user-1",
+    roster: [{ userId: "user-1", username: "skunk-ape" }],
+  });
+  assertEquals(error, undefined);
+  assertEquals(ripples(calls).length, 0);
+  assertEquals(lifecycleSteps(calls), ["notification_skipped"]);
+  assertEquals(
+    writes.find((w) => w.specName === "state")!.data.phase,
+    "summarizing",
+  );
+});
+
+Deno.test("notify: matches by user id, not handle, when the id is present", async () => {
+  const { calls } = await runNotify({
+    author: "renamed",
+    authorId: "user-1",
+    roster: [{ userId: "user-1", username: "old-handle" }],
+  });
+  assertEquals(ripples(calls).length, 0);
+});
+
+Deno.test("notify: falls back to the handle when the issue carries no author id", async () => {
+  const { calls } = await runNotify({
+    author: "skunk-ape",
+    roster: [{ userId: "user-1", username: "skunk-ape" }],
+  });
+  assertEquals(ripples(calls).length, 0);
+  assertEquals(lifecycleSteps(calls), ["notification_skipped"]);
+});
+
+Deno.test("notify: thanks an author who is not on the team roster, once", async () => {
+  const { calls, writes, error } = await runNotify({
+    author: "outsider",
+    authorId: "user-9",
+    roster: [{ userId: "user-1", username: "skunk-ape" }],
+  });
+  assertEquals(error, undefined);
+  const posted = ripples(calls);
+  assertEquals(posted.length, 1);
+  assertStringIncludes(String(posted[0].body?.body), "@outsider");
+  assertEquals(lifecycleSteps(calls), ["contributor_notified"]);
+  assertEquals(
+    writes.find((w) => w.specName === "state")!.data.phase,
+    "summarizing",
+  );
+});
+
+Deno.test("notify: posts nothing and keeps the phase when the roster lookup fails", async () => {
+  const { calls, writes, error } = await runNotify({
+    author: "outsider",
+    authorId: "user-9",
+    roster: null,
+  });
+  assertStringIncludes(error!.message, "@outsider");
+  assertStringIncludes(error!.message, "force=true");
+  assertStringIncludes(error!.message, "skip_notify");
+  assertEquals(ripples(calls).length, 0);
+  assertEquals(lifecycleSteps(calls), []);
+  assertEquals(writes.length, 0);
+});
+
+Deno.test("notify: posts nothing and keeps the phase when the issue fetch fails", async () => {
+  const { calls, writes, error } = await runNotify({
+    author: "outsider",
+    roster: [],
+    issueStatus: 500,
+  });
+  assertStringIncludes(error!.message, "issue #42");
+  assertEquals(ripples(calls).length, 0);
+  assertEquals(writes.length, 0);
+});
+
+Deno.test("notify: force thanks a team member without consulting the roster", async () => {
+  const { calls, error } = await runNotify({
+    author: "skunk-ape",
+    authorId: "user-1",
+    roster: [{ userId: "user-1", username: "skunk-ape" }],
+    args: { force: true },
+  });
+  assertEquals(error, undefined);
+  assertEquals(ripples(calls).length, 1);
+  assertEquals(
+    calls.some((c) => c.url.endsWith("/api/v1/lab/assignees")),
+    false,
+  );
+});
+
+Deno.test("notify: maps a non-string author id to the handle fallback", async () => {
+  const { calls } = await runNotify({
+    author: "skunk-ape",
+    // The server contract says string; simulate it sending a number.
+    authorId: 1234 as unknown as string,
+    roster: [{ userId: "1234", username: "skunk-ape" }],
+  });
+  assertEquals(ripples(calls).length, 0);
+  assertEquals(lifecycleSteps(calls), ["notification_skipped"]);
 });
 
 // ---------------------------------------------------------------------------

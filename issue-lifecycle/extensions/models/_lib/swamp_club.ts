@@ -43,6 +43,8 @@ export interface FetchedIssue {
   title: string;
   body: string;
   author: string;
+  /** swamp-club user id of the author; absent if the server omits it. */
+  authorId?: string;
   comments: { author: string; body: string; createdAt: string }[];
   assignees: { userId: string; username: string }[];
 }
@@ -107,6 +109,7 @@ export class SwampClubClient {
           title?: string;
           body?: string;
           authorUsername?: string;
+          authorId?: unknown;
           comments?: {
             authorUsername?: string;
             author?: string;
@@ -128,6 +131,11 @@ export class SwampClubClient {
         title: issue.title ?? "",
         body: issue.body ?? "",
         author: issue.authorUsername ?? "unknown",
+        // A non-string id would never match the roster, so a team member
+        // would read as external; fall back to the handle instead.
+        authorId: typeof issue.authorId === "string"
+          ? issue.authorId
+          : undefined,
         comments: (issue.comments ?? []).map((c) => ({
           author: c.authorUsername ?? c.author ?? "unknown",
           body: c.body ?? "",
