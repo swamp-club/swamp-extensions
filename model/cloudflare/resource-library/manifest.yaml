@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/cloudflare/resource-library"
-version: "2026.08.15.1"
+version: "2026.09.24.1"
 description: "Cloudflare resource-library infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -10,7 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: applications
+  - Updated: applications
 models:
   - applications.ts
 additionalFiles:

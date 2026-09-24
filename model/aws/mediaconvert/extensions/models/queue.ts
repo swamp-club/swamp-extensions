@@ -72,6 +72,9 @@ const GlobalArgsSchema = z.object({
   ConcurrentJobs: z.number().int().describe(
     "Specify the maximum number of jobs your queue can process concurrently. For on-demand queues, the value you enter is constrained by your service quotas for Maximum concurrent jobs, per on-demand queue and Maximum concurrent jobs, per account. For reserved queues, specify the number of jobs you can process concurrently in your reservation plan instead.",
   ).optional(),
+  MaximumConcurrentFeeds: z.number().int().min(0).describe(
+    "Specify the maximum number of Elemental Inference feeds MediaConvert can process concurrently.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -82,6 +85,7 @@ const StateSchema = z.object({
   Tags: z.record(z.string(), z.unknown()).optional(),
   Name: z.string(),
   ConcurrentJobs: z.number().optional(),
+  MaximumConcurrentFeeds: z.number().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -108,6 +112,9 @@ const InputsSchema = z.object({
   ConcurrentJobs: z.number().int().describe(
     "Specify the maximum number of jobs your queue can process concurrently. For on-demand queues, the value you enter is constrained by your service quotas for Maximum concurrent jobs, per on-demand queue and Maximum concurrent jobs, per account. For reserved queues, specify the number of jobs you can process concurrently in your reservation plan instead.",
   ).optional(),
+  MaximumConcurrentFeeds: z.number().int().min(0).describe(
+    "Specify the maximum number of Elemental Inference feeds MediaConvert can process concurrently.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -129,7 +136,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaConvert Queue. Registered at `@swamp/aws/mediaconvert/queue`. */
 export const model = {
   type: "@swamp/aws/mediaconvert/queue",
-  version: "2026.09.18.1",
+  version: "2026.09.24.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.24.1",
+      description: "Added: MaximumConcurrentFeeds",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

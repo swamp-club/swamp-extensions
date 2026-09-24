@@ -47,7 +47,7 @@ const GlobalArgsSchema = z.object({
     "Hostnames matched by the application.",
   ).optional(),
   ip_subnets: z.array(z.string()).describe(
-    "IP subnets matched by the application.",
+    "IP subnets for this application. Custom application create and update requests accept IPv4 prefix lengths /8 through /32 and IPv6 prefix lengths /32 through /128.",
   ).optional(),
   port_protocols: z.array(z.string()).describe(
     "Port and protocol pairs matched by the application.",
@@ -111,7 +111,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Applications. Registered at `@swamp/cloudflare/resource-library/applications`. */
 export const model = {
   type: "@swamp/cloudflare/resource-library/applications",
-  version: "2026.08.15.1",
+  version: "2026.09.24.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

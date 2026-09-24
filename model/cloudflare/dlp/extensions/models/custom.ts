@@ -185,6 +185,7 @@ const ResourceSchema = z.object({
     updated_at: z.string().optional(),
     type: z.string().optional(),
     open_access: z.boolean().optional(),
+    integration_id: z.string().optional(),
   }).optional(),
   id: z.string(),
 }).passthrough();
@@ -233,7 +234,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Custom. Registered at `@swamp/cloudflare/dlp/custom`. */
 export const model = {
   type: "@swamp/cloudflare/dlp/custom",
-  version: "2026.08.25.2",
+  version: "2026.09.24.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -267,6 +268,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.25.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

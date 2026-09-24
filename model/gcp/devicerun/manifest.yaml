@@ -1,0 +1,23 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/gcp/devicerun"
+version: "2026.09.24.1"
+description: "Google Cloud devicerun infrastructure models"
+repository: "https://github.com/swamp-club/swamp-extensions"
+labels:
+  - gcp
+  - google-cloud
+  - devicerun
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: locations, devices, sessions, softwareversions
+models:
+  - devices.ts
+  - locations.ts
+  - sessions.ts
+  - softwareversions.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

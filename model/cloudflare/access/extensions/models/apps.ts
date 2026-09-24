@@ -98,6 +98,10 @@ const GlobalArgsSchema = z.object({
     "The custom pages that will be displayed when applicable for this application",
   ).optional(),
   destinations: z.array(z.object({
+    overrides: z.array(z.object({
+      behavior: z.enum(["public"]),
+      path_pattern: z.string().max(512).regex(new RegExp("^/")),
+    })).optional(),
     type: z.enum([
       "public",
       "private",
@@ -661,6 +665,10 @@ const ResourceSchema = z.object({
     custom_non_identity_deny_url: z.string().optional(),
     custom_pages: z.array(z.string()).optional(),
     destinations: z.array(z.object({
+      overrides: z.array(z.object({
+        behavior: z.string().optional(),
+        path_pattern: z.string().optional(),
+      })).optional(),
       type: z.string().optional(),
       uri: z.string().optional(),
       cidr: z.string().optional(),
@@ -1136,6 +1144,10 @@ const InputsSchema = z.object({
   custom_non_identity_deny_url: z.string().optional(),
   custom_pages: z.array(z.string()).optional(),
   destinations: z.array(z.object({
+    overrides: z.array(z.object({
+      behavior: z.enum(["public"]),
+      path_pattern: z.string().max(512).regex(new RegExp("^/")),
+    })).optional(),
     type: z.enum([
       "public",
       "private",
@@ -1604,7 +1616,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Apps. Registered at `@swamp/cloudflare/access/apps`. */
 export const model = {
   type: "@swamp/cloudflare/access/apps",
-  version: "2026.09.15.1",
+  version: "2026.09.24.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -1658,6 +1670,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

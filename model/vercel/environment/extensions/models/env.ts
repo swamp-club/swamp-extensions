@@ -74,6 +74,13 @@ const ResourceSchema = z.object({
   id: z.string(),
   key: z.string().nullable().optional(),
   lastEditedByDisplayName: z.string().nullable().optional(),
+  lastEditedByPrincipal: z.object({
+    avatar: z.string().optional(),
+    id: z.string().optional(),
+    name: z.string().optional(),
+    type: z.string().optional(),
+    username: z.string().optional(),
+  }).nullable().optional(),
   ownerId: z.string().nullable().optional(),
   projectId: z.array(z.string()).nullable().optional(),
   target: z.array(z.string()).nullable().optional(),
@@ -103,7 +110,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Env. Registered at `@swamp/vercel/environment/env`. */
 export const model = {
   type: "@swamp/vercel/environment/env",
-  version: "2026.09.16.1",
+  version: "2026.09.24.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -142,6 +149,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.16.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

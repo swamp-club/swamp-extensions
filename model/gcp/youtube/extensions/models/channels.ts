@@ -542,7 +542,7 @@ const GlobalArgsSchema = z.object({
     "The *part* parameter specifies a comma-separated list of one or more channel resource properties that the API response will include. If the parameter identifies a property that contains child properties, the child properties will be included in the response. For example, in a channel resource, the contentDetails property contains other properties, such as the uploads properties. As such, if you set *part=contentDetails*, the API response will also contain all of those nested properties.",
   ),
   onBehalfOfContentOwner: z.string().describe(
-    "The *onBehalfOfContentOwner* parameter indicates that the authenticated user is acting on behalf of the content owner specified in the parameter value. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and get access to all their video and channel data, without having to provide authentication credentials for each individual channel. The actual CMS account that the user authenticates with needs to be linked to the specified YouTube content owner.",
+    "The *onBehalfOfContentOwner* parameter indicates that the authenticated user is acting on behalf of the content owner specified in the parameter value. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and get access to all their video and channel data, without having to provide authentication credentials for each individual channel. The actual CMS account that the user authenticates with needs to be linked to the specified YouTube content owner. This parameter must be provided if the request is authenticated with credentials for a CMS content owner user acting on a managed channel. If omitted, the request executes under the authenticated user's direct context and returns an HTTP 403 Forbidden error.",
   ).optional(),
 });
 
@@ -1155,7 +1155,7 @@ const InputsSchema = z.object({
     "The *part* parameter specifies a comma-separated list of one or more channel resource properties that the API response will include. If the parameter identifies a property that contains child properties, the child properties will be included in the response. For example, in a channel resource, the contentDetails property contains other properties, such as the uploads properties. As such, if you set *part=contentDetails*, the API response will also contain all of those nested properties.",
   ).optional(),
   onBehalfOfContentOwner: z.string().describe(
-    "The *onBehalfOfContentOwner* parameter indicates that the authenticated user is acting on behalf of the content owner specified in the parameter value. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and get access to all their video and channel data, without having to provide authentication credentials for each individual channel. The actual CMS account that the user authenticates with needs to be linked to the specified YouTube content owner.",
+    "The *onBehalfOfContentOwner* parameter indicates that the authenticated user is acting on behalf of the content owner specified in the parameter value. This parameter is intended for YouTube content partners that own and manage many different YouTube channels. It allows content owners to authenticate once and get access to all their video and channel data, without having to provide authentication credentials for each individual channel. The actual CMS account that the user authenticates with needs to be linked to the specified YouTube content owner. This parameter must be provided if the request is authenticated with credentials for a CMS content owner user acting on a managed channel. If omitted, the request executes under the authenticated user's direct context and returns an HTTP 403 Forbidden error.",
   ).optional(),
 });
 
@@ -1185,7 +1185,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data Channels. Registered at `@swamp/gcp/youtube/channels`. */
 export const model = {
   type: "@swamp/gcp/youtube/channels",
-  version: "2026.09.07.1",
+  version: "2026.09.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1320,6 +1320,11 @@ export const model = {
     {
       toVersion: "2026.09.07.1",
       description: "Added: onBehalfOfContentOwner",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.24.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

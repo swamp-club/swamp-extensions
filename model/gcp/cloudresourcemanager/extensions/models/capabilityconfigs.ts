@@ -162,7 +162,7 @@ const GlobalArgsSchema = z.object({
     "Optional. The list of Boundaries associated with this CapabilityConfig. Format: `organizations/{organization}/boundaries/{boundary}` or, `folders/{folder}/boundaries/{boundary}` or, `projects/{project}/boundaries/{boundary}`",
   ).optional(),
   displayName: z.string().describe(
-    "Optional. Human-readable non-unique display name of the CapabilityConfig. When present it must be between 4 to 30 characters. Allowed characters are: lowercase and uppercase letters, numbers, hyphen, single-quote, double-quote, space, and exclamation point. Example: `My Capability Config`",
+    "Optional. Human-readable non-unique display name of the CapabilityConfig. When present it must be between 4 to 30 characters. Allowed characters are: lowercase and uppercase letters, numbers, hyphen, single-quote, double-quote, space, and exclamation point. Example: `My CapabilityConfig`",
   ).optional(),
   managementProject: z.string().describe(
     "Optional. Immutable. The Management Project associated with this CapabilityConfig. If not provided during creation, a management project will be automatically created. Cannot be modified after creation. Format: `projects/{project_number}` Example: `projects/123456789012`",
@@ -206,7 +206,7 @@ const InputsSchema = z.object({
     "Optional. The list of Boundaries associated with this CapabilityConfig. Format: `organizations/{organization}/boundaries/{boundary}` or, `folders/{folder}/boundaries/{boundary}` or, `projects/{project}/boundaries/{boundary}`",
   ).optional(),
   displayName: z.string().describe(
-    "Optional. Human-readable non-unique display name of the CapabilityConfig. When present it must be between 4 to 30 characters. Allowed characters are: lowercase and uppercase letters, numbers, hyphen, single-quote, double-quote, space, and exclamation point. Example: `My Capability Config`",
+    "Optional. Human-readable non-unique display name of the CapabilityConfig. When present it must be between 4 to 30 characters. Allowed characters are: lowercase and uppercase letters, numbers, hyphen, single-quote, double-quote, space, and exclamation point. Example: `My CapabilityConfig`",
   ).optional(),
   managementProject: z.string().describe(
     "Optional. Immutable. The Management Project associated with this CapabilityConfig. If not provided during creation, a management project will be automatically created. Cannot be modified after creation. Format: `projects/{project_number}` Example: `projects/123456789012`",
@@ -251,7 +251,14 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Resource Manager CapabilityConfigs. Registered at `@swamp/gcp/cloudresourcemanager/capabilityconfigs`. */
 export const model = {
   type: "@swamp/gcp/cloudresourcemanager/capabilityconfigs",
-  version: "2026.09.17.1",
+  version: "2026.09.24.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

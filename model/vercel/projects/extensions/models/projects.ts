@@ -540,6 +540,7 @@ const ResourceSchema = z.object({
       oidcTokenClaims: z.object({
         aud: z.string().optional(),
         custom_environment_id: z.string().optional(),
+        deployment_id: z.string().optional(),
         environment: z.string().optional(),
         iss: z.string().optional(),
         mfe_group_ids: z.array(z.string()).optional(),
@@ -870,6 +871,7 @@ const ResourceSchema = z.object({
     oidcTokenClaims: z.object({
       aud: z.string().optional(),
       custom_environment_id: z.string().optional(),
+      deployment_id: z.string().optional(),
       environment: z.string().optional(),
       iss: z.string().optional(),
       mfe_group_ids: z.array(z.string()).optional(),
@@ -1747,7 +1749,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.09.23.1",
+  version: "2026.09.24.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1886,6 +1888,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

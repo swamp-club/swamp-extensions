@@ -278,6 +278,45 @@ const MediaExtractionConfigurationSchema = z.object({
   ).optional(),
 });
 
+const WeeklyScheduleSchema = z.object({
+  DayOfWeek: z.enum([
+    "SUNDAY",
+    "MONDAY",
+    "TUESDAY",
+    "WEDNESDAY",
+    "THURSDAY",
+    "FRIDAY",
+    "SATURDAY",
+  ]).describe("Day of the week."),
+});
+
+const DayOfMonthSchema = z.object({
+  DayNumber: z.number().int().min(1).max(28).describe(
+    "Specific day of the month, 1 through 28 (capped at 28 to avoid month-length ambiguity).",
+  ).optional(),
+  LastDayOfMonth: z.record(z.string(), z.unknown()).describe(
+    "Run on the last calendar day of each month.",
+  ).optional(),
+});
+
+const MonthlyScheduleSchema = z.object({
+  DayOfMonth: DayOfMonthSchema.describe(
+    "Day of the month on which a monthly refresh runs. Exactly one variant is set: an explicit day number, or the last calendar day of the month.",
+  ),
+});
+
+const SyncScheduleSchema = z.object({
+  Daily: z.record(z.string(), z.unknown()).describe(
+    "A daily refresh. The run time is system-chosen (off-peak) and not customer-configurable.",
+  ).optional(),
+  Weekly: WeeklyScheduleSchema.describe(
+    "A weekly refresh on a specified day of the week.",
+  ).optional(),
+  Monthly: MonthlyScheduleSchema.describe(
+    "A monthly refresh on a specified day of the month.",
+  ).optional(),
+});
+
 const ManagedKnowledgeBaseConnectorConfigurationSchema = z.object({
   DeletionProtectionConfiguration: DeletionProtectionConfigurationSchema
     .describe("Configuration for deletion protection.").optional(),
@@ -286,6 +325,9 @@ const ManagedKnowledgeBaseConnectorConfigurationSchema = z.object({
   ).optional(),
   ConnectorParameters: z.record(z.string(), z.unknown()).describe(
     "Connector-specific parameters.",
+  ).optional(),
+  SyncSchedule: SyncScheduleSchema.describe(
+    "Recurring schedule on which the connector automatically refreshes ingested content. Exactly one frequency variant is set.",
   ).optional(),
 });
 
@@ -670,7 +712,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock DataSource. Registered at `@swamp/aws/bedrock/data-source`. */
 export const model = {
   type: "@swamp/aws/bedrock/data-source",
-  version: "2026.09.12.1",
+  version: "2026.09.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -729,6 +771,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.12.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

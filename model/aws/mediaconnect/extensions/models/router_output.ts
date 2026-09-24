@@ -112,6 +112,33 @@ const SrtCallerRouterOutputConfigurationSchema = z.object({
   ).optional(),
 });
 
+const TlsEncryptionSchema = z.object({
+  EncryptionType: z.enum(["PUBLIC"]).optional(),
+  EncryptionConfiguration: z.object({
+    Public: z.record(z.string(), z.unknown()).describe(
+      "The TLS encryption configuration for destinations that present a certificate from a publicly trusted certificate authority. This type does not require any additional settings.",
+    ).optional(),
+  }).describe("The configuration settings for TLS encryption."),
+});
+
+const RtmpPushRouterOutputConfigurationSchema = z.object({
+  DestinationAddress: z.string().describe(
+    "The IP address or hostname of the destination RTMP server that the router output pushes the stream to. Provide only the server address; specify the application and stream names separately.",
+  ),
+  DestinationPort: z.number().int().min(443).max(65535).describe(
+    "The TCP port on the destination RTMP server. For RTMP, valid values range from 1024 to 65535. For RTMPS (RTMP over TLS), valid values are 443 or 1024 to 65535. RTMP typically uses port 1935, and RTMPS typically uses port 443.",
+  ),
+  ApplicationName: z.string().describe(
+    "The name of the RTMP application on the destination server. Together with the stream name, the application name forms the RTMP URL path, in the pattern rtmp://destinationAddress/applicationName/streamName.",
+  ),
+  StreamName: z.string().describe(
+    "The name of the RTMP stream that the output publishes to the destination application. The stream name forms the final segment of the RTMP URL path.",
+  ),
+  TlsEncryption: TlsEncryptionSchema.describe(
+    "The Transport Layer Security (TLS) encryption settings used to establish a secure connection to a destination.",
+  ).optional(),
+});
+
 const StandardRouterOutputConfigurationSchema = z.object({
   NetworkInterfaceArn: z.string().regex(
     new RegExp(
@@ -133,8 +160,12 @@ const StandardRouterOutputConfigurationSchema = z.object({
     SrtCaller: SrtCallerRouterOutputConfigurationSchema.describe(
       "The configuration settings for a router output using the SRT (Secure Reliable Transport) protocol in caller mode, including the destination address and port, minimum latency, stream ID, and encryption key configuration.",
     ).optional(),
+    RtmpPush: RtmpPushRouterOutputConfigurationSchema.describe(
+      "The configuration settings for a router output that pushes a stream to a destination using the RTMP (Real-Time Messaging Protocol) protocol, or RTMPS (RTMP over TLS) when TLS encryption is specified. These settings include the destination address and port, the application and stream names, and optional TLS encryption configuration.",
+    ).optional(),
   }).describe("The protocol configuration settings for a router output."),
-  Protocol: z.enum(["RTP", "RIST", "SRT_CALLER", "SRT_LISTENER"]).optional(),
+  Protocol: z.enum(["RTP", "RIST", "SRT_CALLER", "SRT_LISTENER", "RTMP_PUSH"])
+    .optional(),
 });
 
 const FlowTransitEncryptionSchema = z.object({
@@ -371,7 +402,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaConnect RouterOutput. Registered at `@swamp/aws/mediaconnect/router-output`. */
 export const model = {
   type: "@swamp/aws/mediaconnect/router-output",
-  version: "2026.09.04.1",
+  version: "2026.09.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -436,6 +467,11 @@ export const model = {
     {
       toVersion: "2026.09.04.1",
       description: "Added: FabricConfiguration",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.24.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -14,7 +14,7 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/emr/security_configuration` to see the
+Use `swamp model type describe @swamp/aws/emr/instance_group_config` to see the
 full list of configurable properties and available methods for this model.
 
 ## Authentication
@@ -47,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new security_configuration model
-swamp model create @swamp/aws/emr/security_configuration my-security_configuration
+# Create a new instance_group_config model
+swamp model create @swamp/aws/emr/instance_group_config my-instance_group_config
 
 # Edit the model to configure its properties
-swamp model edit my-security_configuration
+swamp model edit my-instance_group_config
 
 # Create the resource in AWS
-swamp model method run my-security_configuration create
+swamp model method run my-instance_group_config create
 
 # Sync current state from AWS
-swamp model method run my-security_configuration sync
+swamp model method run my-instance_group_config sync
 ```
 
 ## License

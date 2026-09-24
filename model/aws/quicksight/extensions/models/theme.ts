@@ -107,15 +107,26 @@ const UIColorPaletteSchema = z.object({
 });
 
 const BorderStyleSchema = z.object({
+  Color: z.string().describe(
+    "String to encapsulate the most generic way Color can be formatted (words, hexStrings etc)",
+  ).optional(),
   Show: z.boolean().describe(
     "The option to enable display of borders for visuals.",
+  ).optional(),
+  Width: z.string().min(0).max(50).describe(
+    "String to encapsulate the most generic way Width can be formatted with whatever units (px, em etc)",
   ).optional(),
 });
 
 const TileStyleSchema = z.object({
+  BackgroundColor: z.string().describe(
+    "String to encapsulate the most generic way Color can be formatted (words, hexStrings etc)",
+  ).optional(),
   Border: BorderStyleSchema.describe(
     "The display options for tile borders for visuals.",
   ).optional(),
+  BorderRadius: z.string().min(0).max(50).optional(),
+  Padding: z.string().min(0).max(200).optional(),
 });
 
 const GutterStyleSchema = z.object({
@@ -139,25 +150,72 @@ const TileLayoutStyleSchema = z.object({
   ).optional(),
 });
 
+const SheetBackgroundStyleSchema = z.object({
+  Color: z.string().describe(
+    "String to encapsulate the most generic way Color can be formatted (words, hexStrings etc)",
+  ).optional(),
+  Gradient: z.string().optional(),
+});
+
 const SheetStyleSchema = z.object({
   Tile: TileStyleSchema.describe("Display options related to tiles on a sheet.")
     .optional(),
   TileLayout: TileLayoutStyleSchema.describe(
     "The display options for the layout of tiles on a sheet.",
   ).optional(),
+  Background: SheetBackgroundStyleSchema.optional(),
 });
 
 const FontSchema = z.object({
   FontFamily: z.string().optional(),
 });
 
+const FontSizeSchema = z.object({
+  Absolute: z.string().describe("The font size that you want to use in px.")
+    .optional(),
+});
+
+const FontWeightSchema = z.object({
+  Name: z.enum(["NORMAL", "BOLD"]).optional(),
+});
+
+const FontConfigurationSchema = z.object({
+  FontSize: FontSizeSchema.optional(),
+  FontDecoration: z.enum(["UNDERLINE", "NONE"]).optional(),
+  FontColor: z.string().regex(new RegExp("^#[A-F0-9]{6}$")).optional(),
+  FontWeight: FontWeightSchema.optional(),
+  FontStyle: z.enum(["NORMAL", "ITALIC"]).optional(),
+  FontFamily: z.string().describe("The font family that you want to use.")
+    .optional(),
+});
+
+const VisualTitleFontConfigurationSchema = z.object({
+  FontConfiguration: FontConfigurationSchema.optional(),
+  TextAlignment: z.enum(["LEFT", "CENTER", "RIGHT", "AUTO"]).optional(),
+  TextTransform: z.enum(["CAPITALIZE"]).optional(),
+});
+
+const VisualSubtitleFontConfigurationSchema = z.object({
+  FontConfiguration: FontConfigurationSchema.optional(),
+  TextAlignment: z.enum(["LEFT", "CENTER", "RIGHT", "AUTO"]).optional(),
+  TextTransform: z.enum(["CAPITALIZE"]).optional(),
+});
+
 const TypographySchema = z.object({
   FontFamilies: z.array(FontSchema).optional(),
+  AxisTitleFontConfiguration: FontConfigurationSchema.optional(),
+  AxisLabelFontConfiguration: FontConfigurationSchema.optional(),
+  LegendTitleFontConfiguration: FontConfigurationSchema.optional(),
+  LegendValueFontConfiguration: FontConfigurationSchema.optional(),
+  DataLabelFontConfiguration: FontConfigurationSchema.optional(),
+  VisualTitleFontConfiguration: VisualTitleFontConfigurationSchema.optional(),
+  VisualSubtitleFontConfiguration: VisualSubtitleFontConfigurationSchema
+    .optional(),
 });
 
 const ResourcePermissionSchema = z.object({
   Principal: z.string().min(1).max(256).describe(
-    "The Amazon Resource Name (ARN) of the principal. This can be one of the following:   The ARN of an Amazon QuickSight user or group associated with a data source or dataset. (This is common.)   The ARN of an Amazon QuickSight user, group, or namespace associated with an analysis, dashboard, template, or theme. (This is common.)   The ARN of an Amazon Web Services account root: This is an IAM ARN rather than a QuickSight ARN. Use this option only to share resources (templates) across Amazon Web Services accounts. (This is less common.)",
+    "The Amazon Resource Name (ARN) of the principal. This can be one of the following:   The ARN of an Amazon Quick user or group associated with a data source or dataset. (This is common.)   The ARN of an Amazon Quick user, group, or namespace associated with an analysis, dashboard, template, or theme. (This is common.)   The ARN of an Amazon Web Services account root: This is an IAM ARN rather than a QuickSight ARN. Use this option only to share resources (templates) across Amazon Web Services accounts. (This is less common.)",
   ),
   Actions: z.array(z.string()).describe(
     "The IAM action to grant or revoke permissions on.",
@@ -174,7 +232,7 @@ const ThemeConfigurationSchema = z.object({
     "The theme colors that are used for data colors in charts. The colors description is a hexadecimal color code that consists of six alphanumerical characters, prefixed with #, for example #37BFF5.",
   ).optional(),
   UIColorPalette: UIColorPaletteSchema.describe(
-    "The theme colors that apply to UI and to charts, excluding data colors. The colors description is a hexadecimal color code that consists of six alphanumerical characters, prefixed with #, for example #37BFF5. For more information, see Using Themes in Amazon QuickSight in the Amazon QuickSight User Guide.",
+    "The theme colors that apply to UI and to charts, excluding data colors. The colors description is a hexadecimal color code that consists of six alphanumerical characters, prefixed with #, for example #37BFF5. For more information, see Using Themes in Amazon Quick in the Amazon Quick User Guide.",
   ).optional(),
   Sheet: SheetStyleSchema.describe("The theme display options for sheets.")
     .optional(),
@@ -210,7 +268,7 @@ const GlobalArgsSchema = z.object({
       "The theme colors that are used for data colors in charts. The colors description is a hexadecimal color code that consists of six alphanumerical characters, prefixed with #, for example #37BFF5.",
     ).optional(),
     UIColorPalette: UIColorPaletteSchema.describe(
-      "The theme colors that apply to UI and to charts, excluding data colors. The colors description is a hexadecimal color code that consists of six alphanumerical characters, prefixed with #, for example #37BFF5. For more information, see Using Themes in Amazon QuickSight in the Amazon QuickSight User Guide.",
+      "The theme colors that apply to UI and to charts, excluding data colors. The colors description is a hexadecimal color code that consists of six alphanumerical characters, prefixed with #, for example #37BFF5. For more information, see Using Themes in Amazon Quick in the Amazon Quick User Guide.",
     ).optional(),
     Sheet: SheetStyleSchema.describe("The theme display options for sheets.")
       .optional(),
@@ -231,7 +289,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     BaseThemeId: z.string().min(1).max(512).regex(new RegExp("^[\\w\\-]+$"))
       .describe(
-        "The Amazon QuickSight-defined ID of the theme that a custom theme inherits from. All themes initially inherit from a default Amazon QuickSight theme.",
+        "The Amazon Quick-defined ID of the theme that a custom theme inherits from. All themes initially inherit from a default Quick theme.",
       ).optional(),
     Configuration: ThemeConfigurationSchema.describe(
       "The theme configuration. This configuration contains all of the display properties for a theme.",
@@ -295,7 +353,7 @@ const InputsSchema = z.object({
       "The theme colors that are used for data colors in charts. The colors description is a hexadecimal color code that consists of six alphanumerical characters, prefixed with #, for example #37BFF5.",
     ).optional(),
     UIColorPalette: UIColorPaletteSchema.describe(
-      "The theme colors that apply to UI and to charts, excluding data colors. The colors description is a hexadecimal color code that consists of six alphanumerical characters, prefixed with #, for example #37BFF5. For more information, see Using Themes in Amazon QuickSight in the Amazon QuickSight User Guide.",
+      "The theme colors that apply to UI and to charts, excluding data colors. The colors description is a hexadecimal color code that consists of six alphanumerical characters, prefixed with #, for example #37BFF5. For more information, see Using Themes in Amazon Quick in the Amazon Quick User Guide.",
     ).optional(),
     Sheet: SheetStyleSchema.describe("The theme display options for sheets.")
       .optional(),
@@ -317,7 +375,7 @@ const InputsSchema = z.object({
     ).optional(),
     BaseThemeId: z.string().min(1).max(512).regex(new RegExp("^[\\w\\-]+$"))
       .describe(
-        "The Amazon QuickSight-defined ID of the theme that a custom theme inherits from. All themes initially inherit from a default Amazon QuickSight theme.",
+        "The Amazon Quick-defined ID of the theme that a custom theme inherits from. All themes initially inherit from a default Quick theme.",
       ).optional(),
     Configuration: ThemeConfigurationSchema.describe(
       "The theme configuration. This configuration contains all of the display properties for a theme.",
@@ -358,7 +416,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight Theme. Registered at `@swamp/aws/quicksight/theme`. */
 export const model = {
   type: "@swamp/aws/quicksight/theme",
-  version: "2026.08.17.2",
+  version: "2026.09.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -407,6 +465,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

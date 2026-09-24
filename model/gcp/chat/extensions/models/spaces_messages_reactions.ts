@@ -216,8 +216,10 @@ const StateSchema = z.object({
   }).optional(),
   name: z.string(),
   user: z.object({
+    avatarUrl: z.string(),
     displayName: z.string(),
     domainId: z.string(),
+    email: z.string(),
     isAnonymous: z.boolean(),
     name: z.string(),
     type: z.string(),
@@ -296,7 +298,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Chat Spaces.Messages.Reactions. Registered at `@swamp/gcp/chat/spaces-messages-reactions`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces-messages-reactions",
-  version: "2026.08.25.1",
+  version: "2026.09.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -428,6 +430,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

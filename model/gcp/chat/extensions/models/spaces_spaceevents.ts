@@ -172,8 +172,10 @@ const StateSchema = z.object({
           name: z.unknown(),
         }),
         member: z.object({
+          avatarUrl: z.unknown(),
           displayName: z.unknown(),
           domainId: z.unknown(),
+          email: z.unknown(),
           isAnonymous: z.unknown(),
           name: z.unknown(),
           type: z.unknown(),
@@ -194,8 +196,10 @@ const StateSchema = z.object({
           name: z.unknown(),
         }),
         member: z.object({
+          avatarUrl: z.unknown(),
           displayName: z.unknown(),
           domainId: z.unknown(),
+          email: z.unknown(),
           isAnonymous: z.unknown(),
           name: z.unknown(),
           type: z.unknown(),
@@ -216,8 +220,10 @@ const StateSchema = z.object({
           name: z.unknown(),
         }),
         member: z.object({
+          avatarUrl: z.unknown(),
           displayName: z.unknown(),
           domainId: z.unknown(),
+          email: z.unknown(),
           isAnonymous: z.unknown(),
           name: z.unknown(),
           type: z.unknown(),
@@ -237,8 +243,10 @@ const StateSchema = z.object({
         name: z.string(),
       }),
       member: z.object({
+        avatarUrl: z.string(),
         displayName: z.string(),
         domainId: z.string(),
+        email: z.string(),
         isAnonymous: z.boolean(),
         name: z.string(),
         type: z.string(),
@@ -257,8 +265,10 @@ const StateSchema = z.object({
         name: z.string(),
       }),
       member: z.object({
+        avatarUrl: z.string(),
         displayName: z.string(),
         domainId: z.string(),
+        email: z.string(),
         isAnonymous: z.boolean(),
         name: z.string(),
         type: z.string(),
@@ -277,8 +287,10 @@ const StateSchema = z.object({
         name: z.string(),
       }),
       member: z.object({
+        avatarUrl: z.string(),
         displayName: z.string(),
         domainId: z.string(),
+        email: z.string(),
         isAnonymous: z.boolean(),
         name: z.string(),
         type: z.string(),
@@ -320,8 +332,10 @@ const StateSchema = z.object({
         }),
         name: z.string(),
         privateMessageViewer: z.object({
+          avatarUrl: z.unknown(),
           displayName: z.unknown(),
           domainId: z.unknown(),
+          email: z.unknown(),
           isAnonymous: z.unknown(),
           name: z.unknown(),
           type: z.unknown(),
@@ -334,8 +348,10 @@ const StateSchema = z.object({
           quotedMessageSnapshot: z.unknown(),
         }),
         sender: z.object({
+          avatarUrl: z.unknown(),
           displayName: z.unknown(),
           domainId: z.unknown(),
+          email: z.unknown(),
           isAnonymous: z.unknown(),
           name: z.unknown(),
           type: z.unknown(),
@@ -408,8 +424,10 @@ const StateSchema = z.object({
         }),
         name: z.string(),
         privateMessageViewer: z.object({
+          avatarUrl: z.unknown(),
           displayName: z.unknown(),
           domainId: z.unknown(),
+          email: z.unknown(),
           isAnonymous: z.unknown(),
           name: z.unknown(),
           type: z.unknown(),
@@ -422,8 +440,10 @@ const StateSchema = z.object({
           quotedMessageSnapshot: z.unknown(),
         }),
         sender: z.object({
+          avatarUrl: z.unknown(),
           displayName: z.unknown(),
           domainId: z.unknown(),
+          email: z.unknown(),
           isAnonymous: z.unknown(),
           name: z.unknown(),
           type: z.unknown(),
@@ -496,8 +516,10 @@ const StateSchema = z.object({
         }),
         name: z.string(),
         privateMessageViewer: z.object({
+          avatarUrl: z.unknown(),
           displayName: z.unknown(),
           domainId: z.unknown(),
+          email: z.unknown(),
           isAnonymous: z.unknown(),
           name: z.unknown(),
           type: z.unknown(),
@@ -510,8 +532,10 @@ const StateSchema = z.object({
           quotedMessageSnapshot: z.unknown(),
         }),
         sender: z.object({
+          avatarUrl: z.unknown(),
           displayName: z.unknown(),
           domainId: z.unknown(),
+          email: z.unknown(),
           isAnonymous: z.unknown(),
           name: z.unknown(),
           type: z.unknown(),
@@ -671,8 +695,10 @@ const StateSchema = z.object({
       }),
       name: z.string(),
       privateMessageViewer: z.object({
+        avatarUrl: z.string(),
         displayName: z.string(),
         domainId: z.string(),
+        email: z.string(),
         isAnonymous: z.boolean(),
         name: z.string(),
         type: z.string(),
@@ -694,8 +720,10 @@ const StateSchema = z.object({
         }),
       }),
       sender: z.object({
+        avatarUrl: z.string(),
         displayName: z.string(),
         domainId: z.string(),
+        email: z.string(),
         isAnonymous: z.boolean(),
         name: z.string(),
         type: z.string(),
@@ -914,8 +942,10 @@ const StateSchema = z.object({
       }),
       name: z.string(),
       privateMessageViewer: z.object({
+        avatarUrl: z.string(),
         displayName: z.string(),
         domainId: z.string(),
+        email: z.string(),
         isAnonymous: z.boolean(),
         name: z.string(),
         type: z.string(),
@@ -937,8 +967,10 @@ const StateSchema = z.object({
         }),
       }),
       sender: z.object({
+        avatarUrl: z.string(),
         displayName: z.string(),
         domainId: z.string(),
+        email: z.string(),
         isAnonymous: z.boolean(),
         name: z.string(),
         type: z.string(),
@@ -1157,8 +1189,10 @@ const StateSchema = z.object({
       }),
       name: z.string(),
       privateMessageViewer: z.object({
+        avatarUrl: z.string(),
         displayName: z.string(),
         domainId: z.string(),
+        email: z.string(),
         isAnonymous: z.boolean(),
         name: z.string(),
         type: z.string(),
@@ -1180,8 +1214,10 @@ const StateSchema = z.object({
         }),
       }),
       sender: z.object({
+        avatarUrl: z.string(),
         displayName: z.string(),
         domainId: z.string(),
+        email: z.string(),
         isAnonymous: z.boolean(),
         name: z.string(),
         type: z.string(),
@@ -1291,8 +1327,10 @@ const StateSchema = z.object({
         }),
         name: z.string(),
         user: z.object({
+          avatarUrl: z.unknown(),
           displayName: z.unknown(),
           domainId: z.unknown(),
+          email: z.unknown(),
           isAnonymous: z.unknown(),
           name: z.unknown(),
           type: z.unknown(),
@@ -1309,8 +1347,10 @@ const StateSchema = z.object({
         }),
         name: z.string(),
         user: z.object({
+          avatarUrl: z.unknown(),
           displayName: z.unknown(),
           domainId: z.unknown(),
+          email: z.unknown(),
           isAnonymous: z.unknown(),
           name: z.unknown(),
           type: z.unknown(),
@@ -1335,8 +1375,10 @@ const StateSchema = z.object({
       }),
       name: z.string(),
       user: z.object({
+        avatarUrl: z.string(),
         displayName: z.string(),
         domainId: z.string(),
+        email: z.string(),
         isAnonymous: z.boolean(),
         name: z.string(),
         type: z.string(),
@@ -1360,8 +1402,10 @@ const StateSchema = z.object({
       }),
       name: z.string(),
       user: z.object({
+        avatarUrl: z.string(),
         displayName: z.string(),
         domainId: z.string(),
+        email: z.string(),
         isAnonymous: z.boolean(),
         name: z.string(),
         type: z.string(),
@@ -1549,7 +1593,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Chat Spaces.SpaceEvents. Registered at `@swamp/gcp/chat/spaces-spaceevents`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces-spaceevents",
-  version: "2026.09.17.1",
+  version: "2026.09.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -1718,6 +1762,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

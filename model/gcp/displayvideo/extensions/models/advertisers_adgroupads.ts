@@ -187,6 +187,61 @@ const GlobalArgsSchema = z.object({
   advertiserId: z.string().describe(
     "Output only. The unique ID of the advertiser the ad belongs to.",
   ).optional(),
+  bumperAd: z.object({
+    commonInStreamAttribute: z.object({
+      actionButtonLabel: z.string().describe(
+        "Optional. The text on the call-to-action button.",
+      ).optional(),
+      actionHeadline: z.string().describe(
+        "Optional. The headline of the call-to-action banner.",
+      ).optional(),
+      companionBanner: z.object({
+        assetId: z.string().describe("Required. The unique ID of the asset.")
+          .optional(),
+        fileSize: z.string().describe(
+          "Output only. File size of the image asset in bytes.",
+        ).optional(),
+        fullSize: z.object({
+          heightPixels: z.number().int().describe("The height in pixels.")
+            .optional(),
+          widthPixels: z.number().int().describe("The width in pixels.")
+            .optional(),
+        }).describe(
+          "Output only. Metadata for this image at its original size.",
+        ).optional(),
+        mimeType: z.string().describe(
+          "Output only. MIME type of the image asset.",
+        ).optional(),
+      }).describe("Optional. The image which shows next to the video ad.")
+        .optional(),
+      displayUrl: z.string().describe(
+        "Required. The webpage address that appears with the ad.",
+      ).optional(),
+      finalUrl: z.string().describe(
+        "Required. The URL address of the webpage that people reach after they click the ad.",
+      ).optional(),
+      trackingUrl: z.string().describe(
+        "Output only. The URL address loaded in the background for tracking purposes.",
+      ).optional(),
+      video: z.object({
+        id: z.string().describe(
+          "Output only. The YouTube video ID which can be searched on YouTube webpage.",
+        ).optional(),
+        unavailableReason: z.enum([
+          "VIDEO_UNAVAILABLE_REASON_UNSPECIFIED",
+          "VIDEO_UNAVAILABLE_REASON_PRIVATE",
+          "VIDEO_UNAVAILABLE_REASON_DELETED",
+        ]).describe(
+          "Output only. The reason why the video data is not available.",
+        ).optional(),
+        videoAssetId: z.string().describe(
+          "Required. The YouTube video asset id. This is the adAssetId of an AdAsset resource.",
+        ).optional(),
+      }).describe("Required. The YouTube video of the ad.").optional(),
+    }).describe("Required. Common ad attributes.").optional(),
+  }).describe(
+    "Optional. Details of a [non-skippable short video ad](//support.google.com/displayvideo/answer/6274216), equal to or less than 6 seconds, used for reach.",
+  ).optional(),
   dcmTrackingInfo: z.object({
     creativeId: z.string().describe("Required. The DCM creative id.")
       .optional(),
@@ -307,7 +362,7 @@ const GlobalArgsSchema = z.object({
       "Optional. The tracking URL specified by the user manually.",
     ).optional(),
   }).describe(
-    "Details of a [Demand Gen carousel ad](//support.google.com/displayvideo/answer/15598924?&sjid=11207068802760924844-NC#CarouselAd).",
+    "Optional. Details of a [Demand Gen carousel ad](//support.google.com/displayvideo/answer/15598924?&sjid=11207068802760924844-NC#CarouselAd).",
   ).optional(),
   demandGenImageAd: z.object({
     businessName: z.string().describe(
@@ -413,7 +468,7 @@ const GlobalArgsSchema = z.object({
       "Optional. The tracking URL specified by the user manually.",
     ).optional(),
   }).describe(
-    "Details of a [Demand Gen image ad](//support.google.com/displayvideo/answer/15598924?&sjid=11207068802760924844-NC#ImageAd).",
+    "Optional. Details of a [Demand Gen image ad](//support.google.com/displayvideo/answer/15598924?&sjid=11207068802760924844-NC#ImageAd).",
   ).optional(),
   demandGenProductAd: z.object({
     businessName: z.string().describe(
@@ -487,7 +542,7 @@ const GlobalArgsSchema = z.object({
       "Optional. The tracking URL specified by the user manually.",
     ).optional(),
   }).describe(
-    "Details of a [Demand Gen product ad](//support.google.com/displayvideo/answer/15598924?&sjid=11207068802760924844-NC#Product-onlyAd).",
+    "Optional. Details of a [Demand Gen product ad](//support.google.com/displayvideo/answer/15598924?&sjid=11207068802760924844-NC#Product-onlyAd).",
   ).optional(),
   demandGenVideoAd: z.object({
     businessName: z.string().describe(
@@ -593,14 +648,16 @@ const GlobalArgsSchema = z.object({
         "VIDEO_UNAVAILABLE_REASON_UNSPECIFIED",
         "VIDEO_UNAVAILABLE_REASON_PRIVATE",
         "VIDEO_UNAVAILABLE_REASON_DELETED",
-      ]).describe("The reason why the video data is not available.").optional(),
+      ]).describe(
+        "Output only. The reason why the video data is not available.",
+      ).optional(),
       videoAssetId: z.string().describe(
         "Required. The YouTube video asset id. This is the adAssetId of an AdAsset resource.",
       ).optional(),
     })).describe("Required. The list of YouTube video assets used by this ad.")
       .optional(),
   }).describe(
-    "Details of a [Demand Gen video ad](//support.google.com/displayvideo/answer/15598924?&sjid=11207068802760924844-NC#VideoAd).",
+    "Optional. Details of a [Demand Gen video ad](//support.google.com/displayvideo/answer/15598924?&sjid=11207068802760924844-NC#VideoAd).",
   ).optional(),
   displayName: z.string().describe(
     "Required. The display name of the ad. Must be UTF-8 encoded with a maximum size of 255 bytes.",
@@ -613,6 +670,189 @@ const GlobalArgsSchema = z.object({
     "ENTITY_STATUS_PAUSED",
     "ENTITY_STATUS_SCHEDULED_FOR_DELETION",
   ]).describe("Required. The entity status of the ad.").optional(),
+  inStreamAd: z.object({
+    commonInStreamAttribute: z.object({
+      actionButtonLabel: z.string().describe(
+        "Optional. The text on the call-to-action button.",
+      ).optional(),
+      actionHeadline: z.string().describe(
+        "Optional. The headline of the call-to-action banner.",
+      ).optional(),
+      companionBanner: z.object({
+        assetId: z.string().describe("Required. The unique ID of the asset.")
+          .optional(),
+        fileSize: z.string().describe(
+          "Output only. File size of the image asset in bytes.",
+        ).optional(),
+        fullSize: z.object({
+          heightPixels: z.number().int().describe("The height in pixels.")
+            .optional(),
+          widthPixels: z.number().int().describe("The width in pixels.")
+            .optional(),
+        }).describe(
+          "Output only. Metadata for this image at its original size.",
+        ).optional(),
+        mimeType: z.string().describe(
+          "Output only. MIME type of the image asset.",
+        ).optional(),
+      }).describe("Optional. The image which shows next to the video ad.")
+        .optional(),
+      displayUrl: z.string().describe(
+        "Required. The webpage address that appears with the ad.",
+      ).optional(),
+      finalUrl: z.string().describe(
+        "Required. The URL address of the webpage that people reach after they click the ad.",
+      ).optional(),
+      trackingUrl: z.string().describe(
+        "Output only. The URL address loaded in the background for tracking purposes.",
+      ).optional(),
+      video: z.object({
+        id: z.string().describe(
+          "Output only. The YouTube video ID which can be searched on YouTube webpage.",
+        ).optional(),
+        unavailableReason: z.enum([
+          "VIDEO_UNAVAILABLE_REASON_UNSPECIFIED",
+          "VIDEO_UNAVAILABLE_REASON_PRIVATE",
+          "VIDEO_UNAVAILABLE_REASON_DELETED",
+        ]).describe(
+          "Output only. The reason why the video data is not available.",
+        ).optional(),
+        videoAssetId: z.string().describe(
+          "Required. The YouTube video asset id. This is the adAssetId of an AdAsset resource.",
+        ).optional(),
+      }).describe("Required. The YouTube video of the ad.").optional(),
+    }).describe("Required. Common ad attributes.").optional(),
+    customParameters: z.record(z.string(), z.string()).describe(
+      "Optional. The custom parameters and accompanying values to add to the tracking URL.",
+    ).optional(),
+  }).describe(
+    "Optional. Details of an [in-stream ad skippable after 5 seconds](//support.google.com/displayvideo/answer/6274216), used for brand awareness or reach marketing objectives.",
+  ).optional(),
+  nonSkippableAd: z.object({
+    commonInStreamAttribute: z.object({
+      actionButtonLabel: z.string().describe(
+        "Optional. The text on the call-to-action button.",
+      ).optional(),
+      actionHeadline: z.string().describe(
+        "Optional. The headline of the call-to-action banner.",
+      ).optional(),
+      companionBanner: z.object({
+        assetId: z.string().describe("Required. The unique ID of the asset.")
+          .optional(),
+        fileSize: z.string().describe(
+          "Output only. File size of the image asset in bytes.",
+        ).optional(),
+        fullSize: z.object({
+          heightPixels: z.number().int().describe("The height in pixels.")
+            .optional(),
+          widthPixels: z.number().int().describe("The width in pixels.")
+            .optional(),
+        }).describe(
+          "Output only. Metadata for this image at its original size.",
+        ).optional(),
+        mimeType: z.string().describe(
+          "Output only. MIME type of the image asset.",
+        ).optional(),
+      }).describe("Optional. The image which shows next to the video ad.")
+        .optional(),
+      displayUrl: z.string().describe(
+        "Required. The webpage address that appears with the ad.",
+      ).optional(),
+      finalUrl: z.string().describe(
+        "Required. The URL address of the webpage that people reach after they click the ad.",
+      ).optional(),
+      trackingUrl: z.string().describe(
+        "Output only. The URL address loaded in the background for tracking purposes.",
+      ).optional(),
+      video: z.object({
+        id: z.string().describe(
+          "Output only. The YouTube video ID which can be searched on YouTube webpage.",
+        ).optional(),
+        unavailableReason: z.enum([
+          "VIDEO_UNAVAILABLE_REASON_UNSPECIFIED",
+          "VIDEO_UNAVAILABLE_REASON_PRIVATE",
+          "VIDEO_UNAVAILABLE_REASON_DELETED",
+        ]).describe(
+          "Output only. The reason why the video data is not available.",
+        ).optional(),
+        videoAssetId: z.string().describe(
+          "Required. The YouTube video asset id. This is the adAssetId of an AdAsset resource.",
+        ).optional(),
+      }).describe("Required. The YouTube video of the ad.").optional(),
+    }).describe("Required. Common ad attributes.").optional(),
+    customParameters: z.record(z.string(), z.string()).describe(
+      "Optional. The custom parameters and accompanying values to add to the tracking URL.",
+    ).optional(),
+  }).describe(
+    "Optional. Details of a [non-skippable short in-stream video ad](//support.google.com/displayvideo/answer/6274216), between 6 and 15 seconds, used for reach marketing objectives.",
+  ).optional(),
+  videoPerformanceAd: z.object({
+    actionButtonLabels: z.array(z.string()).describe(
+      "Optional. The list of text assets shown on the call-to-action button.",
+    ).optional(),
+    companionBanners: z.array(z.object({
+      assetId: z.string().describe("Required. The unique ID of the asset.")
+        .optional(),
+      fileSize: z.string().describe(
+        "Output only. File size of the image asset in bytes.",
+      ).optional(),
+      fullSize: z.object({
+        heightPixels: z.number().int().describe("The height in pixels.")
+          .optional(),
+        widthPixels: z.number().int().describe("The width in pixels.")
+          .optional(),
+      }).describe("Output only. Metadata for this image at its original size.")
+        .optional(),
+      mimeType: z.string().describe(
+        "Output only. MIME type of the image asset.",
+      ).optional(),
+    })).describe("Optional. The list of companion banners used by this ad.")
+      .optional(),
+    customParameters: z.record(z.string(), z.string()).describe(
+      "Optional. The custom parameters and accompanying values to add to the tracking URL.",
+    ).optional(),
+    descriptions: z.array(z.string()).describe(
+      "Optional. The list of descriptions shown on the call-to-action banner.",
+    ).optional(),
+    displayUrlBreadcrumb1: z.string().describe(
+      "Optional. The first piece after the domain in the display URL.",
+    ).optional(),
+    displayUrlBreadcrumb2: z.string().describe(
+      "Optional. The second piece after the domain in the display URL.",
+    ).optional(),
+    domain: z.string().describe("Output only. The domain of the display URL.")
+      .optional(),
+    finalUrl: z.string().describe(
+      "Required. The URL address of the webpage that people reach after they click the ad.",
+    ).optional(),
+    headlines: z.array(z.string()).describe(
+      "Optional. The list of headlines shown on the call-to-action banner.",
+    ).optional(),
+    longHeadlines: z.array(z.string()).describe(
+      "Optional. The list of long headlines shown on the call-to-action banner.",
+    ).optional(),
+    trackingUrl: z.string().describe(
+      "Output only. The URL address loaded in the background for tracking purposes.",
+    ).optional(),
+    videos: z.array(z.object({
+      id: z.string().describe(
+        "Output only. The YouTube video ID which can be searched on YouTube webpage.",
+      ).optional(),
+      unavailableReason: z.enum([
+        "VIDEO_UNAVAILABLE_REASON_UNSPECIFIED",
+        "VIDEO_UNAVAILABLE_REASON_PRIVATE",
+        "VIDEO_UNAVAILABLE_REASON_DELETED",
+      ]).describe(
+        "Output only. The reason why the video data is not available.",
+      ).optional(),
+      videoAssetId: z.string().describe(
+        "Required. The YouTube video asset id. This is the adAssetId of an AdAsset resource.",
+      ).optional(),
+    })).describe("Required. The list of YouTube video assets used by this ad.")
+      .optional(),
+  }).describe(
+    "Optional. Details of an [ad used in a video action campaign](//support.google.com/google-ads/answer/10147229) to drive actions to the business, service or product.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -990,6 +1230,61 @@ const InputsSchema = z.object({
   advertiserId: z.string().describe(
     "Output only. The unique ID of the advertiser the ad belongs to.",
   ).optional(),
+  bumperAd: z.object({
+    commonInStreamAttribute: z.object({
+      actionButtonLabel: z.string().describe(
+        "Optional. The text on the call-to-action button.",
+      ).optional(),
+      actionHeadline: z.string().describe(
+        "Optional. The headline of the call-to-action banner.",
+      ).optional(),
+      companionBanner: z.object({
+        assetId: z.string().describe("Required. The unique ID of the asset.")
+          .optional(),
+        fileSize: z.string().describe(
+          "Output only. File size of the image asset in bytes.",
+        ).optional(),
+        fullSize: z.object({
+          heightPixels: z.number().int().describe("The height in pixels.")
+            .optional(),
+          widthPixels: z.number().int().describe("The width in pixels.")
+            .optional(),
+        }).describe(
+          "Output only. Metadata for this image at its original size.",
+        ).optional(),
+        mimeType: z.string().describe(
+          "Output only. MIME type of the image asset.",
+        ).optional(),
+      }).describe("Optional. The image which shows next to the video ad.")
+        .optional(),
+      displayUrl: z.string().describe(
+        "Required. The webpage address that appears with the ad.",
+      ).optional(),
+      finalUrl: z.string().describe(
+        "Required. The URL address of the webpage that people reach after they click the ad.",
+      ).optional(),
+      trackingUrl: z.string().describe(
+        "Output only. The URL address loaded in the background for tracking purposes.",
+      ).optional(),
+      video: z.object({
+        id: z.string().describe(
+          "Output only. The YouTube video ID which can be searched on YouTube webpage.",
+        ).optional(),
+        unavailableReason: z.enum([
+          "VIDEO_UNAVAILABLE_REASON_UNSPECIFIED",
+          "VIDEO_UNAVAILABLE_REASON_PRIVATE",
+          "VIDEO_UNAVAILABLE_REASON_DELETED",
+        ]).describe(
+          "Output only. The reason why the video data is not available.",
+        ).optional(),
+        videoAssetId: z.string().describe(
+          "Required. The YouTube video asset id. This is the adAssetId of an AdAsset resource.",
+        ).optional(),
+      }).describe("Required. The YouTube video of the ad.").optional(),
+    }).describe("Required. Common ad attributes.").optional(),
+  }).describe(
+    "Optional. Details of a [non-skippable short video ad](//support.google.com/displayvideo/answer/6274216), equal to or less than 6 seconds, used for reach.",
+  ).optional(),
   dcmTrackingInfo: z.object({
     creativeId: z.string().describe("Required. The DCM creative id.")
       .optional(),
@@ -1110,7 +1405,7 @@ const InputsSchema = z.object({
       "Optional. The tracking URL specified by the user manually.",
     ).optional(),
   }).describe(
-    "Details of a [Demand Gen carousel ad](//support.google.com/displayvideo/answer/15598924?&sjid=11207068802760924844-NC#CarouselAd).",
+    "Optional. Details of a [Demand Gen carousel ad](//support.google.com/displayvideo/answer/15598924?&sjid=11207068802760924844-NC#CarouselAd).",
   ).optional(),
   demandGenImageAd: z.object({
     businessName: z.string().describe(
@@ -1216,7 +1511,7 @@ const InputsSchema = z.object({
       "Optional. The tracking URL specified by the user manually.",
     ).optional(),
   }).describe(
-    "Details of a [Demand Gen image ad](//support.google.com/displayvideo/answer/15598924?&sjid=11207068802760924844-NC#ImageAd).",
+    "Optional. Details of a [Demand Gen image ad](//support.google.com/displayvideo/answer/15598924?&sjid=11207068802760924844-NC#ImageAd).",
   ).optional(),
   demandGenProductAd: z.object({
     businessName: z.string().describe(
@@ -1290,7 +1585,7 @@ const InputsSchema = z.object({
       "Optional. The tracking URL specified by the user manually.",
     ).optional(),
   }).describe(
-    "Details of a [Demand Gen product ad](//support.google.com/displayvideo/answer/15598924?&sjid=11207068802760924844-NC#Product-onlyAd).",
+    "Optional. Details of a [Demand Gen product ad](//support.google.com/displayvideo/answer/15598924?&sjid=11207068802760924844-NC#Product-onlyAd).",
   ).optional(),
   demandGenVideoAd: z.object({
     businessName: z.string().describe(
@@ -1396,14 +1691,16 @@ const InputsSchema = z.object({
         "VIDEO_UNAVAILABLE_REASON_UNSPECIFIED",
         "VIDEO_UNAVAILABLE_REASON_PRIVATE",
         "VIDEO_UNAVAILABLE_REASON_DELETED",
-      ]).describe("The reason why the video data is not available.").optional(),
+      ]).describe(
+        "Output only. The reason why the video data is not available.",
+      ).optional(),
       videoAssetId: z.string().describe(
         "Required. The YouTube video asset id. This is the adAssetId of an AdAsset resource.",
       ).optional(),
     })).describe("Required. The list of YouTube video assets used by this ad.")
       .optional(),
   }).describe(
-    "Details of a [Demand Gen video ad](//support.google.com/displayvideo/answer/15598924?&sjid=11207068802760924844-NC#VideoAd).",
+    "Optional. Details of a [Demand Gen video ad](//support.google.com/displayvideo/answer/15598924?&sjid=11207068802760924844-NC#VideoAd).",
   ).optional(),
   displayName: z.string().describe(
     "Required. The display name of the ad. Must be UTF-8 encoded with a maximum size of 255 bytes.",
@@ -1416,6 +1713,189 @@ const InputsSchema = z.object({
     "ENTITY_STATUS_PAUSED",
     "ENTITY_STATUS_SCHEDULED_FOR_DELETION",
   ]).describe("Required. The entity status of the ad.").optional(),
+  inStreamAd: z.object({
+    commonInStreamAttribute: z.object({
+      actionButtonLabel: z.string().describe(
+        "Optional. The text on the call-to-action button.",
+      ).optional(),
+      actionHeadline: z.string().describe(
+        "Optional. The headline of the call-to-action banner.",
+      ).optional(),
+      companionBanner: z.object({
+        assetId: z.string().describe("Required. The unique ID of the asset.")
+          .optional(),
+        fileSize: z.string().describe(
+          "Output only. File size of the image asset in bytes.",
+        ).optional(),
+        fullSize: z.object({
+          heightPixels: z.number().int().describe("The height in pixels.")
+            .optional(),
+          widthPixels: z.number().int().describe("The width in pixels.")
+            .optional(),
+        }).describe(
+          "Output only. Metadata for this image at its original size.",
+        ).optional(),
+        mimeType: z.string().describe(
+          "Output only. MIME type of the image asset.",
+        ).optional(),
+      }).describe("Optional. The image which shows next to the video ad.")
+        .optional(),
+      displayUrl: z.string().describe(
+        "Required. The webpage address that appears with the ad.",
+      ).optional(),
+      finalUrl: z.string().describe(
+        "Required. The URL address of the webpage that people reach after they click the ad.",
+      ).optional(),
+      trackingUrl: z.string().describe(
+        "Output only. The URL address loaded in the background for tracking purposes.",
+      ).optional(),
+      video: z.object({
+        id: z.string().describe(
+          "Output only. The YouTube video ID which can be searched on YouTube webpage.",
+        ).optional(),
+        unavailableReason: z.enum([
+          "VIDEO_UNAVAILABLE_REASON_UNSPECIFIED",
+          "VIDEO_UNAVAILABLE_REASON_PRIVATE",
+          "VIDEO_UNAVAILABLE_REASON_DELETED",
+        ]).describe(
+          "Output only. The reason why the video data is not available.",
+        ).optional(),
+        videoAssetId: z.string().describe(
+          "Required. The YouTube video asset id. This is the adAssetId of an AdAsset resource.",
+        ).optional(),
+      }).describe("Required. The YouTube video of the ad.").optional(),
+    }).describe("Required. Common ad attributes.").optional(),
+    customParameters: z.record(z.string(), z.string()).describe(
+      "Optional. The custom parameters and accompanying values to add to the tracking URL.",
+    ).optional(),
+  }).describe(
+    "Optional. Details of an [in-stream ad skippable after 5 seconds](//support.google.com/displayvideo/answer/6274216), used for brand awareness or reach marketing objectives.",
+  ).optional(),
+  nonSkippableAd: z.object({
+    commonInStreamAttribute: z.object({
+      actionButtonLabel: z.string().describe(
+        "Optional. The text on the call-to-action button.",
+      ).optional(),
+      actionHeadline: z.string().describe(
+        "Optional. The headline of the call-to-action banner.",
+      ).optional(),
+      companionBanner: z.object({
+        assetId: z.string().describe("Required. The unique ID of the asset.")
+          .optional(),
+        fileSize: z.string().describe(
+          "Output only. File size of the image asset in bytes.",
+        ).optional(),
+        fullSize: z.object({
+          heightPixels: z.number().int().describe("The height in pixels.")
+            .optional(),
+          widthPixels: z.number().int().describe("The width in pixels.")
+            .optional(),
+        }).describe(
+          "Output only. Metadata for this image at its original size.",
+        ).optional(),
+        mimeType: z.string().describe(
+          "Output only. MIME type of the image asset.",
+        ).optional(),
+      }).describe("Optional. The image which shows next to the video ad.")
+        .optional(),
+      displayUrl: z.string().describe(
+        "Required. The webpage address that appears with the ad.",
+      ).optional(),
+      finalUrl: z.string().describe(
+        "Required. The URL address of the webpage that people reach after they click the ad.",
+      ).optional(),
+      trackingUrl: z.string().describe(
+        "Output only. The URL address loaded in the background for tracking purposes.",
+      ).optional(),
+      video: z.object({
+        id: z.string().describe(
+          "Output only. The YouTube video ID which can be searched on YouTube webpage.",
+        ).optional(),
+        unavailableReason: z.enum([
+          "VIDEO_UNAVAILABLE_REASON_UNSPECIFIED",
+          "VIDEO_UNAVAILABLE_REASON_PRIVATE",
+          "VIDEO_UNAVAILABLE_REASON_DELETED",
+        ]).describe(
+          "Output only. The reason why the video data is not available.",
+        ).optional(),
+        videoAssetId: z.string().describe(
+          "Required. The YouTube video asset id. This is the adAssetId of an AdAsset resource.",
+        ).optional(),
+      }).describe("Required. The YouTube video of the ad.").optional(),
+    }).describe("Required. Common ad attributes.").optional(),
+    customParameters: z.record(z.string(), z.string()).describe(
+      "Optional. The custom parameters and accompanying values to add to the tracking URL.",
+    ).optional(),
+  }).describe(
+    "Optional. Details of a [non-skippable short in-stream video ad](//support.google.com/displayvideo/answer/6274216), between 6 and 15 seconds, used for reach marketing objectives.",
+  ).optional(),
+  videoPerformanceAd: z.object({
+    actionButtonLabels: z.array(z.string()).describe(
+      "Optional. The list of text assets shown on the call-to-action button.",
+    ).optional(),
+    companionBanners: z.array(z.object({
+      assetId: z.string().describe("Required. The unique ID of the asset.")
+        .optional(),
+      fileSize: z.string().describe(
+        "Output only. File size of the image asset in bytes.",
+      ).optional(),
+      fullSize: z.object({
+        heightPixels: z.number().int().describe("The height in pixels.")
+          .optional(),
+        widthPixels: z.number().int().describe("The width in pixels.")
+          .optional(),
+      }).describe("Output only. Metadata for this image at its original size.")
+        .optional(),
+      mimeType: z.string().describe(
+        "Output only. MIME type of the image asset.",
+      ).optional(),
+    })).describe("Optional. The list of companion banners used by this ad.")
+      .optional(),
+    customParameters: z.record(z.string(), z.string()).describe(
+      "Optional. The custom parameters and accompanying values to add to the tracking URL.",
+    ).optional(),
+    descriptions: z.array(z.string()).describe(
+      "Optional. The list of descriptions shown on the call-to-action banner.",
+    ).optional(),
+    displayUrlBreadcrumb1: z.string().describe(
+      "Optional. The first piece after the domain in the display URL.",
+    ).optional(),
+    displayUrlBreadcrumb2: z.string().describe(
+      "Optional. The second piece after the domain in the display URL.",
+    ).optional(),
+    domain: z.string().describe("Output only. The domain of the display URL.")
+      .optional(),
+    finalUrl: z.string().describe(
+      "Required. The URL address of the webpage that people reach after they click the ad.",
+    ).optional(),
+    headlines: z.array(z.string()).describe(
+      "Optional. The list of headlines shown on the call-to-action banner.",
+    ).optional(),
+    longHeadlines: z.array(z.string()).describe(
+      "Optional. The list of long headlines shown on the call-to-action banner.",
+    ).optional(),
+    trackingUrl: z.string().describe(
+      "Output only. The URL address loaded in the background for tracking purposes.",
+    ).optional(),
+    videos: z.array(z.object({
+      id: z.string().describe(
+        "Output only. The YouTube video ID which can be searched on YouTube webpage.",
+      ).optional(),
+      unavailableReason: z.enum([
+        "VIDEO_UNAVAILABLE_REASON_UNSPECIFIED",
+        "VIDEO_UNAVAILABLE_REASON_PRIVATE",
+        "VIDEO_UNAVAILABLE_REASON_DELETED",
+      ]).describe(
+        "Output only. The reason why the video data is not available.",
+      ).optional(),
+      videoAssetId: z.string().describe(
+        "Required. The YouTube video asset id. This is the adAssetId of an AdAsset resource.",
+      ).optional(),
+    })).describe("Required. The list of YouTube video assets used by this ad.")
+      .optional(),
+  }).describe(
+    "Optional. Details of an [ad used in a video action campaign](//support.google.com/google-ads/answer/10147229) to drive actions to the business, service or product.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -1444,7 +1924,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Display & Video 360 Advertisers.AdGroupAds. Registered at `@swamp/gcp/displayvideo/advertisers-adgroupads`. */
 export const model = {
   type: "@swamp/gcp/displayvideo/advertisers-adgroupads",
-  version: "2026.09.03.1",
+  version: "2026.09.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1611,6 +2091,12 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.24.1",
+      description:
+        "Added: bumperAd, inStreamAd, nonSkippableAd, videoPerformanceAd",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1639,6 +2125,7 @@ export const model = {
         }
         const body: Record<string, unknown> = {};
         if (g["adGroupId"] !== undefined) body["adGroupId"] = g["adGroupId"];
+        if (g["bumperAd"] !== undefined) body["bumperAd"] = g["bumperAd"];
         if (g["dcmTrackingInfo"] !== undefined) {
           body["dcmTrackingInfo"] = g["dcmTrackingInfo"];
         }
@@ -1659,6 +2146,13 @@ export const model = {
         }
         if (g["entityStatus"] !== undefined) {
           body["entityStatus"] = g["entityStatus"];
+        }
+        if (g["inStreamAd"] !== undefined) body["inStreamAd"] = g["inStreamAd"];
+        if (g["nonSkippableAd"] !== undefined) {
+          body["nonSkippableAd"] = g["nonSkippableAd"];
+        }
+        if (g["videoPerformanceAd"] !== undefined) {
+          body["videoPerformanceAd"] = g["videoPerformanceAd"];
         }
         if (g["name"] !== undefined) params["adGroupAdId"] = String(g["name"]);
         const result = await createResource(
@@ -1759,6 +2253,7 @@ export const model = {
         }
         params["adGroupAdId"] = existing["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
+        if (g["bumperAd"] !== undefined) body["bumperAd"] = g["bumperAd"];
         if (g["dcmTrackingInfo"] !== undefined) {
           body["dcmTrackingInfo"] = g["dcmTrackingInfo"];
         }
@@ -1779,6 +2274,13 @@ export const model = {
         }
         if (g["entityStatus"] !== undefined) {
           body["entityStatus"] = g["entityStatus"];
+        }
+        if (g["inStreamAd"] !== undefined) body["inStreamAd"] = g["inStreamAd"];
+        if (g["nonSkippableAd"] !== undefined) {
+          body["nonSkippableAd"] = g["nonSkippableAd"];
+        }
+        if (g["videoPerformanceAd"] !== undefined) {
+          body["videoPerformanceAd"] = g["videoPerformanceAd"];
         }
         const updateMaskKeys = Object.keys(body);
         if (updateMaskKeys.length > 0) {

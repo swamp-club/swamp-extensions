@@ -173,6 +173,16 @@ const WAFLoggingParametersSchema = z.object({
   ).optional(),
 });
 
+const MskMonitoringParametersSchema = z.object({
+  EnhancedMonitoring: z.enum([
+    "DEFAULT",
+    "PER_BROKER",
+    "PER_TOPIC_PER_BROKER",
+    "PER_TOPIC_PER_PARTITION",
+  ]).describe("The level of enhanced monitoring for the MSK cluster.")
+    .optional(),
+});
+
 const TelemetryDestinationConfigurationSchema = z.object({
   DestinationType: z.enum(["cloud-watch-logs"]).describe(
     "Type of telemetry destination",
@@ -201,10 +211,16 @@ const TelemetryDestinationConfigurationSchema = z.object({
   WAFLoggingParameters: WAFLoggingParametersSchema.describe(
     "Telemetry parameters for WAF v2 Web ACL",
   ).optional(),
+  MskMonitoringParameters: MskMonitoringParametersSchema.describe(
+    "Configuration parameters for Amazon MSK cluster monitoring.",
+  ).optional(),
   LogDeliveryParameters: z.object({
     LogTypes: z.array(
       z.enum([
         "SECURITY_FINDING_LOGS",
+        "S3_SERVER_ACCESS_LOGS",
+        "ACCESS_LOGS",
+        "CONNECTION_LOGS",
         "ALB_ACCESS_LOGS",
         "ALB_CONNECTION_LOGS",
         "ALB_HEALTH_CHECK_LOGS",
@@ -249,6 +265,11 @@ const GlobalArgsSchema = z.object({
       "AWS::ElasticLoadBalancingV2::LoadBalancer",
       "AWS::EC2::Instance",
       "AWS::SecurityHub::Hub",
+      "AWS::SecurityHub::HubV2",
+      "AWS::S3::Bucket",
+      "AWS::MSK::Cluster",
+      "AWS::CloudFront::Distribution",
+      "AWS::CloudWatch::OTelEnrichment",
     ]).describe(
       "Resource Type associated with the Organization Telemetry Rule",
     ),
@@ -331,6 +352,11 @@ const InputsSchema = z.object({
       "AWS::ElasticLoadBalancingV2::LoadBalancer",
       "AWS::EC2::Instance",
       "AWS::SecurityHub::Hub",
+      "AWS::SecurityHub::HubV2",
+      "AWS::S3::Bucket",
+      "AWS::MSK::Cluster",
+      "AWS::CloudFront::Distribution",
+      "AWS::CloudWatch::OTelEnrichment",
     ]).describe("Resource Type associated with the Organization Telemetry Rule")
       .optional(),
     TelemetryType: z.enum(["Logs", "Metrics"]).describe(
@@ -390,10 +416,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ObservabilityAdmin OrganizationTelemetryRule. Registered at `@swamp/aws/observabilityadmin/organization-telemetry-rule`. */
 export const model = {
   type: "@swamp/aws/observabilityadmin/organization-telemetry-rule",
-  version: "2026.09.11.1",
+  version: "2026.09.24.1",
   upgrades: [
     {
       toVersion: "2026.09.11.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

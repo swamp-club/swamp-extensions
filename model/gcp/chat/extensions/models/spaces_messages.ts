@@ -881,8 +881,10 @@ const StateSchema = z.object({
     }),
     slashCommand: z.object({
       bot: z.object({
+        avatarUrl: z.string(),
         displayName: z.string(),
         domainId: z.string(),
+        email: z.string(),
         isAnonymous: z.boolean(),
         name: z.string(),
         type: z.string(),
@@ -897,8 +899,10 @@ const StateSchema = z.object({
     userMention: z.object({
       type: z.string(),
       user: z.object({
+        avatarUrl: z.string(),
         displayName: z.string(),
         domainId: z.string(),
+        email: z.string(),
         isAnonymous: z.boolean(),
         name: z.string(),
         type: z.string(),
@@ -1035,8 +1039,10 @@ const StateSchema = z.object({
   }).optional(),
   name: z.string(),
   privateMessageViewer: z.object({
+    avatarUrl: z.string(),
     displayName: z.string(),
     domainId: z.string(),
+    email: z.string(),
     isAnonymous: z.boolean(),
     name: z.string(),
     type: z.string(),
@@ -1098,8 +1104,10 @@ const StateSchema = z.object({
     }),
   }).optional(),
   sender: z.object({
+    avatarUrl: z.string(),
     displayName: z.string(),
     domainId: z.string(),
+    email: z.string(),
     isAnonymous: z.boolean(),
     name: z.string(),
     type: z.string(),
@@ -1782,7 +1790,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Chat Spaces.Messages. Registered at `@swamp/gcp/chat/spaces-messages`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces-messages",
-  version: "2026.09.17.1",
+  version: "2026.09.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1973,6 +1981,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

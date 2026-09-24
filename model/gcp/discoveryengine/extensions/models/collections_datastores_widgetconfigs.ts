@@ -258,6 +258,9 @@ const GlobalArgsSchema = z.object({
     name: z.string().describe(
       "The name of the collection. It should be collection resource name. Format: `projects/{project}/locations/{location}/collections/{collection_id}`. For APIs under WidgetService, such as WidgetService.LookupWidgetConfig, the project number and location part is erased in this field. For synthetic placeholder entries (see message-level comment) this carries a synthetic placeholder collection id that does not correspond to a real collection. Callers must not attempt to resolve / GET this resource until the user authorizes the connector.",
     ).optional(),
+    tag: z.string().describe(
+      "Output only. The version-independent label of the connector backing this collection, mirroring `DataConnector.tag`. Unlike the version-pinned data store id it survives a connector version upgrade, so an upgraded connector keeps the same tag. Not a unique key. As `DataConnector.tag` documents, several connectors may share a tag under the same (project, location, collection, data_source), and tag-based lookup resolves to the one with the greatest create_time. Clients must not treat this as a connector identifier. Empty when the connector was created before the tag-write launch, and for synthetic placeholder entries, which have no underlying `DataConnector`. Populated only when `ConnectorsFeature.enable_connector_tag` is on.",
+    ).optional(),
   })).describe(
     "Output only. Collection components that lists all collections and child data stores associated with the widget config, those data sources can be used for filtering in widget service APIs, users can return results that from selected data sources. For SaaS / Business engines, when `LookupWidgetConfig` is called with `view = WITH_AVAILABLE_CONNECTORS`, this list is additionally augmented with synthetic placeholder entries for connectors the caller may attach but has not yet attached (see `CollectionComponent` for the placeholder contract). The frontend can therefore render a unified list of already-attached and available-to-attach sources by iterating this single field. For Enterprise engines and for the default `view`, only already-attached connectors are returned (today's behavior).",
   ).optional(),
@@ -724,6 +727,7 @@ const StateSchema = z.object({
       title: z.string(),
     }),
     name: z.string(),
+    tag: z.string(),
   })).optional(),
   configId: z.string().optional(),
   contentSearchSpec: z.object({
@@ -1044,6 +1048,9 @@ const InputsSchema = z.object({
     ).optional(),
     name: z.string().describe(
       "The name of the collection. It should be collection resource name. Format: `projects/{project}/locations/{location}/collections/{collection_id}`. For APIs under WidgetService, such as WidgetService.LookupWidgetConfig, the project number and location part is erased in this field. For synthetic placeholder entries (see message-level comment) this carries a synthetic placeholder collection id that does not correspond to a real collection. Callers must not attempt to resolve / GET this resource until the user authorizes the connector.",
+    ).optional(),
+    tag: z.string().describe(
+      "Output only. The version-independent label of the connector backing this collection, mirroring `DataConnector.tag`. Unlike the version-pinned data store id it survives a connector version upgrade, so an upgraded connector keeps the same tag. Not a unique key. As `DataConnector.tag` documents, several connectors may share a tag under the same (project, location, collection, data_source), and tag-based lookup resolves to the one with the greatest create_time. Clients must not treat this as a connector identifier. Empty when the connector was created before the tag-write launch, and for synthetic placeholder entries, which have no underlying `DataConnector`. Populated only when `ConnectorsFeature.enable_connector_tag` is on.",
     ).optional(),
   })).describe(
     "Output only. Collection components that lists all collections and child data stores associated with the widget config, those data sources can be used for filtering in widget service APIs, users can return results that from selected data sources. For SaaS / Business engines, when `LookupWidgetConfig` is called with `view = WITH_AVAILABLE_CONNECTORS`, this list is additionally augmented with synthetic placeholder entries for connectors the caller may attach but has not yet attached (see `CollectionComponent` for the placeholder contract). The frontend can therefore render a unified list of already-attached and available-to-attach sources by iterating this single field. For Enterprise engines and for the default `view`, only already-attached connectors are returned (today's behavior).",
@@ -1483,7 +1490,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine Collections.DataStores.WidgetConfigs. Registered at `@swamp/gcp/discoveryengine/collections-datastores-widgetconfigs`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-datastores-widgetconfigs",
-  version: "2026.09.22.1",
+  version: "2026.09.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1732,6 +1739,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.22.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

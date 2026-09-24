@@ -74,6 +74,9 @@ const GlobalArgsSchema = z.object({
   }).describe("The name and type of DNS record for the Spectrum application.")
     .optional(),
   origin_port: z.number().int().optional(),
+  origin_worker_id: z.string().regex(new RegExp("^[0-9a-f]{32}$")).describe(
+    'Optional Worker script tag (worker ID) to use as the application\'s origin. Only supported for TCP applications with traffic_type "worker"; mutually exclusive with origin_direct, origin_dns, origin_port, proxy_protocol, and argo_smart_routing. tls may only be "off" or "flexible".',
+  ).optional(),
   protocol: z.string().describe(
     'The port configuration at Cloudflare\'s edge. May specify a single port, for example `"tcp/1000"`, or a range of ports, for example `"tcp/1000-2000"`.',
   ),
@@ -83,8 +86,8 @@ const GlobalArgsSchema = z.object({
   tls: z.enum(["off", "flexible", "full", "strict"]).describe(
     "The type of TLS termination associated with the application.",
   ).optional(),
-  traffic_type: z.enum(["direct", "http", "https"]).describe(
-    'Determines how data travels from the edge to your origin. When set to "direct", Spectrum will send traffic directly to your origin, and the application\'s type is derived from the `protocol`. When set to "http" or "https", Spectrum will apply Cloudflare\'s HTTP/HTTPS features as it sends traffic to your origin, and the application type matches this property exactly.',
+  traffic_type: z.enum(["direct", "http", "https", "worker"]).describe(
+    'Determines how data travels from the edge to your origin. When set to "direct", Spectrum will send traffic directly to your origin, and the application\'s type is derived from the `protocol`. When set to "http" or "https", Spectrum will apply Cloudflare\'s HTTP/HTTPS features as it sends traffic to your origin, and the application type matches this property exactly. When set to "worker", traffic is sent to the Worker specified by `origin_worker_id`.',
   ).optional(),
   virtual_network_id: z.string().describe(
     "Optional UUID of a virtual network for routing origin traffic through tunnel virtual networks.",
@@ -140,6 +143,7 @@ const ResourceSchema = z.object({
       type: z.string().optional(),
     }).optional(),
     origin_port: z.number().optional(),
+    origin_worker_id: z.string().optional(),
     protocol: z.string().optional(),
     proxy_protocol: z.string().optional(),
     tls: z.string().optional(),
@@ -175,10 +179,11 @@ const InputsSchema = z.object({
     type: z.enum(["", "A", "AAAA", "SRV"]).optional(),
   }).optional(),
   origin_port: z.number().int().optional(),
+  origin_worker_id: z.string().regex(new RegExp("^[0-9a-f]{32}$")).optional(),
   protocol: z.string().optional(),
   proxy_protocol: z.enum(["off", "v1", "v2", "simple"]).optional(),
   tls: z.enum(["off", "flexible", "full", "strict"]).optional(),
-  traffic_type: z.enum(["direct", "http", "https"]).optional(),
+  traffic_type: z.enum(["direct", "http", "https", "worker"]).optional(),
   virtual_network_id: z.string().optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
@@ -188,7 +193,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Apps. Registered at `@swamp/cloudflare/spectrum/apps`. */
 export const model = {
   type: "@swamp/cloudflare/spectrum/apps",
-  version: "2026.09.11.1",
+  version: "2026.09.24.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -235,6 +240,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.24.1",
+      description: "Added: origin_worker_id",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -266,6 +276,9 @@ export const model = {
         if (g.origin_direct !== undefined) body.origin_direct = g.origin_direct;
         if (g.origin_dns !== undefined) body.origin_dns = g.origin_dns;
         if (g.origin_port !== undefined) body.origin_port = g.origin_port;
+        if (g.origin_worker_id !== undefined) {
+          body.origin_worker_id = g.origin_worker_id;
+        }
         if (g.protocol !== undefined) body.protocol = g.protocol;
         if (g.proxy_protocol !== undefined) {
           body.proxy_protocol = g.proxy_protocol;
@@ -338,6 +351,9 @@ export const model = {
         }
         if (g.origin_port !== undefined) {
           filters.push(["origin_port", String(g.origin_port)]);
+        }
+        if (g.origin_worker_id !== undefined) {
+          filters.push(["origin_worker_id", String(g.origin_worker_id)]);
         }
         if (g.protocol !== undefined) {
           filters.push(["protocol", String(g.protocol)]);
@@ -461,6 +477,9 @@ export const model = {
         if (g.origin_direct !== undefined) body.origin_direct = g.origin_direct;
         if (g.origin_dns !== undefined) body.origin_dns = g.origin_dns;
         if (g.origin_port !== undefined) body.origin_port = g.origin_port;
+        if (g.origin_worker_id !== undefined) {
+          body.origin_worker_id = g.origin_worker_id;
+        }
         if (g.protocol !== undefined) body.protocol = g.protocol;
         if (g.proxy_protocol !== undefined) {
           body.proxy_protocol = g.proxy_protocol;

@@ -49,10 +49,16 @@ const DataSetReferenceSchema = z.object({
   ),
 });
 
+const TopicReferenceSchema = z.object({
+  TopicArn: z.string(),
+  TopicPlaceholder: z.string().min(1).max(2048),
+});
+
 const TemplateSourceAnalysisSchema = z.object({
   DataSetReferences: z.array(DataSetReferenceSchema).describe(
     "A structure containing information about the dataset references used as placeholders in the template.",
   ),
+  TopicReferences: z.array(TopicReferenceSchema).optional(),
 });
 
 const AssetOptionsSchema = z.object({
@@ -70,7 +76,8 @@ const AssetOptionsSchema = z.object({
 
 const ColumnIdentifierSchema = z.object({
   ColumnName: z.string().min(1).max(127),
-  DataSetIdentifier: z.string().min(1).max(2048),
+  DataSetIdentifier: z.string().min(0).max(2048).optional(),
+  TopicIdentifier: z.string().min(1).max(2048).optional(),
 });
 
 const CustomFilterListConfigurationSchema = z.object({
@@ -126,9 +133,8 @@ const CategoryFilterConfigurationSchema = z.object({
 const FontSizeSchema = z.object({
   Relative: z.enum(["EXTRA_SMALL", "SMALL", "MEDIUM", "LARGE", "EXTRA_LARGE"])
     .optional(),
-  Absolute: z.string().describe(
-    "String based length that is composed of value and unit in px",
-  ).optional(),
+  Absolute: z.string().describe("The font size that you want to use in px.")
+    .optional(),
 });
 
 const FontWeightSchema = z.object({
@@ -136,7 +142,8 @@ const FontWeightSchema = z.object({
 });
 
 const FontConfigurationSchema = z.object({
-  FontFamily: z.string().optional(),
+  FontFamily: z.string().describe("The font family that you want to use.")
+    .optional(),
   FontStyle: z.enum(["NORMAL", "ITALIC"]).optional(),
   FontSize: FontSizeSchema.optional(),
   FontDecoration: z.enum(["UNDERLINE", "NONE"]).optional(),
@@ -362,7 +369,7 @@ const NumericRangeFilterSchema = z.object({
 
 const RollingDateConfigurationSchema = z.object({
   Expression: z.string().min(1).max(4096),
-  DataSetIdentifier: z.string().min(1).max(2048).optional(),
+  DataSetIdentifier: z.string().min(0).max(2048).optional(),
 });
 
 const TimeRangeFilterValueSchema = z.object({
@@ -554,10 +561,34 @@ const QueryExecutionOptionsSchema = z.object({
   QueryExecutionMode: z.enum(["AUTO", "MANUAL"]).optional(),
 });
 
-const CalculatedFieldSchema = z.object({
-  Expression: z.string().min(1).max(32000),
-  DataSetIdentifier: z.string().min(1).max(2048),
-  Name: z.string().min(1).max(127),
+const StaticFileUrlSourceOptionsSchema = z.object({
+  Url: z.string(),
+});
+
+const StaticFileS3SourceOptionsSchema = z.object({
+  BucketName: z.string(),
+  ObjectKey: z.string(),
+  Region: z.string(),
+});
+
+const StaticFileSourceSchema = z.object({
+  UrlOptions: StaticFileUrlSourceOptionsSchema.optional(),
+  S3Options: StaticFileS3SourceOptionsSchema.optional(),
+});
+
+const ImageStaticFileSchema = z.object({
+  StaticFileId: z.string().min(1).max(512).regex(new RegExp("^[\\w\\-]+$")),
+  Source: StaticFileSourceSchema.optional(),
+});
+
+const SpatialStaticFileSchema = z.object({
+  StaticFileId: z.string().min(1).max(512).regex(new RegExp("^[\\w\\-]+$")),
+  Source: StaticFileSourceSchema.optional(),
+});
+
+const StaticFileSchema = z.object({
+  ImageStaticFile: ImageStaticFileSchema.optional(),
+  SpatialStaticFile: SpatialStaticFileSchema.optional(),
 });
 
 const ColumnSchemaSchema = z.object({
@@ -585,6 +616,19 @@ const ColumnGroupSchemaSchema = z.object({
     "A structure containing the list of schemas for column group columns.",
   ).optional(),
   Name: z.string().describe("The name of the column group schema.").optional(),
+});
+
+const TopicConfigurationSchema = z.object({
+  Placeholder: z.string().optional(),
+  DataSetSchema: DataSetSchemaSchema.describe("Dataset schema.").optional(),
+  ColumnGroupSchemaList: z.array(ColumnGroupSchemaSchema).optional(),
+});
+
+const CalculatedFieldSchema = z.object({
+  Expression: z.string().min(1).max(32000),
+  DataSetIdentifier: z.string().min(0).max(2048).optional(),
+  TopicIdentifier: z.string().min(1).max(2048).optional(),
+  Name: z.string().min(1).max(127),
 });
 
 const DataSetConfigurationSchema = z.object({
@@ -696,6 +740,42 @@ const FormatConfigurationSchema = z.object({
   StringFormatConfiguration: StringFormatConfigurationSchema.optional(),
 });
 
+const DecalSettingsSchema = z.object({
+  DecalStyleType: z.enum(["Manual", "Auto"]).optional(),
+  DecalColor: z.string().regex(new RegExp("^#[A-F0-9]{6}(?:[A-F0-9]{2})?$"))
+    .optional(),
+  DecalVisibility: z.enum(["HIDDEN", "VISIBLE"]).optional(),
+  DecalPatternType: z.enum([
+    "SOLID",
+    "DIAGONAL_MEDIUM",
+    "CIRCLE_MEDIUM",
+    "DIAMOND_GRID_MEDIUM",
+    "CHECKERBOARD_MEDIUM",
+    "TRIANGLE_MEDIUM",
+    "DIAGONAL_OPPOSITE_MEDIUM",
+    "DIAMOND_MEDIUM",
+    "DIAGONAL_LARGE",
+    "CIRCLE_LARGE",
+    "DIAMOND_GRID_LARGE",
+    "CHECKERBOARD_LARGE",
+    "TRIANGLE_LARGE",
+    "DIAGONAL_OPPOSITE_LARGE",
+    "DIAMOND_LARGE",
+    "DIAGONAL_SMALL",
+    "CIRCLE_SMALL",
+    "DIAMOND_GRID_SMALL",
+    "CHECKERBOARD_SMALL",
+    "TRIANGLE_SMALL",
+    "DIAGONAL_OPPOSITE_SMALL",
+    "DIAMOND_SMALL",
+  ]).optional(),
+  ElementValue: z.string().min(0).max(1024).optional(),
+});
+
+const DecalSettingsConfigurationSchema = z.object({
+  CustomDecalSettings: z.array(DecalSettingsSchema).optional(),
+});
+
 const CustomColorSchema = z.object({
   Color: z.string().regex(new RegExp("^#[A-F0-9]{6}$")),
   FieldValue: z.string().min(0).max(2048).optional(),
@@ -710,6 +790,7 @@ const ColumnConfigurationSchema = z.object({
   Role: z.enum(["DIMENSION", "MEASURE"]).optional(),
   FormatConfiguration: FormatConfigurationSchema.optional(),
   Column: ColumnIdentifierSchema,
+  DecalSettingsConfiguration: DecalSettingsConfigurationSchema.optional(),
   ColorsConfiguration: ColorsConfigurationSchema.optional(),
 });
 
@@ -1008,6 +1089,25 @@ const SheetImageSchema = z.object({
   ImageContentAltText: z.string().min(1).max(1024).optional(),
 });
 
+const GridLayoutElementBorderStyleSchema = z.object({
+  Color: z.string().regex(new RegExp("^#[A-F0-9]{6}(?:[A-F0-9]{2})?$"))
+    .optional(),
+  Visibility: z.enum(["HIDDEN", "VISIBLE"]).optional(),
+  Width: z.string().min(0).max(50).describe(
+    "String to encapsulate the most generic way Width can be formatted with whatever units (px, em etc)",
+  ).optional(),
+});
+
+const LoadingAnimationSchema = z.object({
+  Visibility: z.enum(["HIDDEN", "VISIBLE"]).optional(),
+});
+
+const GridLayoutElementBackgroundStyleSchema = z.object({
+  Color: z.string().regex(new RegExp("^#[A-F0-9]{6}(?:[A-F0-9]{2})?$"))
+    .optional(),
+  Visibility: z.enum(["HIDDEN", "VISIBLE"]).optional(),
+});
+
 const GridLayoutElementSchema = z.object({
   ElementType: z.enum([
     "VISUAL",
@@ -1019,8 +1119,14 @@ const GridLayoutElementSchema = z.object({
   ColumnSpan: z.number().min(1).max(36),
   ColumnIndex: z.number().min(0).max(35).optional(),
   RowIndex: z.number().min(0).max(9009).optional(),
+  BorderStyle: GridLayoutElementBorderStyleSchema.optional(),
+  BorderRadius: z.string().min(0).max(50).optional(),
   RowSpan: z.number().min(1).max(21),
+  Padding: z.string().min(0).max(200).optional(),
+  LoadingAnimation: LoadingAnimationSchema.optional(),
+  BackgroundStyle: GridLayoutElementBackgroundStyleSchema.optional(),
   ElementId: z.string().min(1).max(512).regex(new RegExp("^[\\w\\-]+$")),
+  SelectedBorderStyle: GridLayoutElementBorderStyleSchema.optional(),
 });
 
 const GridLayoutConfigurationSchema = z.object({
@@ -1041,6 +1147,16 @@ const SheetTextBoxSchema = z.object({
   Content: z.string().min(0).max(150000).optional(),
 });
 
+const SheetLayoutGroupMemberSchema = z.object({
+  Type: z.unknown(),
+  Id: z.string().min(1).max(512).regex(new RegExp("^[\\w\\-]+$")),
+});
+
+const SheetLayoutGroupSchema = z.object({
+  Id: z.string().min(1).max(512).regex(new RegExp("^[\\w\\-]+$")),
+  Members: z.array(SheetLayoutGroupMemberSchema),
+});
+
 const FreeFormLayoutElementBorderStyleSchema = z.object({
   Color: z.string().regex(new RegExp("^#[A-F0-9]{6}(?:[A-F0-9]{2})?$"))
     .optional(),
@@ -1054,10 +1170,6 @@ const SheetElementConfigurationOverridesSchema = z.object({
 const SheetElementRenderingRuleSchema = z.object({
   Expression: z.string().min(1).max(4096),
   ConfigurationOverrides: SheetElementConfigurationOverridesSchema,
-});
-
-const LoadingAnimationSchema = z.object({
-  Visibility: z.enum(["HIDDEN", "VISIBLE"]).optional(),
 });
 
 const FreeFormLayoutElementBackgroundStyleSchema = z.object({
@@ -1075,28 +1187,29 @@ const FreeFormLayoutElementSchema = z.object({
     "IMAGE",
   ]),
   BorderStyle: FreeFormLayoutElementBorderStyleSchema.optional(),
-  Height: z.string().describe(
-    "String based length that is composed of value and unit in px",
-  ),
-  Visibility: z.enum(["HIDDEN", "VISIBLE"]).optional(),
   RenderingRules: z.array(SheetElementRenderingRuleSchema).optional(),
   YAxisLocation: z.string().describe(
     "String based length that is composed of value and unit in px with Integer.MAX_VALUE as maximum value",
   ),
+  BackgroundStyle: FreeFormLayoutElementBackgroundStyleSchema.optional(),
+  XAxisLocation: z.string().describe(
+    "String based length that is composed of value and unit in px",
+  ),
+  Height: z.string().describe(
+    "String based length that is composed of value and unit in px",
+  ),
+  Visibility: z.enum(["HIDDEN", "VISIBLE"]).optional(),
   LoadingAnimation: LoadingAnimationSchema.optional(),
   Width: z.string().describe(
     "String based length that is composed of value and unit in px",
   ),
-  BackgroundStyle: FreeFormLayoutElementBackgroundStyleSchema.optional(),
   ElementId: z.string().min(1).max(512).regex(new RegExp("^[\\w\\-]+$")),
-  XAxisLocation: z.string().describe(
-    "String based length that is composed of value and unit in px",
-  ),
   SelectedBorderStyle: FreeFormLayoutElementBorderStyleSchema.optional(),
 });
 
 const FreeFormLayoutConfigurationSchema = z.object({
   CanvasSizeOptions: FreeFormLayoutCanvasSizeOptionsSchema.optional(),
+  Groups: z.array(SheetLayoutGroupSchema).optional(),
   Elements: z.array(FreeFormLayoutElementSchema),
 });
 
@@ -1452,7 +1565,7 @@ const FieldBasedTooltipSchema = z.object({
 });
 
 const TooltipOptionsSchema = z.object({
-  SelectedTooltipType: z.enum(["BASIC", "DETAILED"]).optional(),
+  SelectedTooltipType: z.enum(["BASIC", "DETAILED", "SHEET"]).optional(),
   TooltipVisibility: z.enum(["HIDDEN", "VISIBLE"]).optional(),
   FieldBasedTooltip: FieldBasedTooltipSchema.optional(),
 });
@@ -1818,6 +1931,204 @@ const BoxPlotVisualSchema = z.object({
   ColumnHierarchies: z.array(ColumnHierarchySchema).optional(),
 });
 
+const GeospatialCoordinateBoundsSchema = z.object({
+  West: z.number().min(-1800).max(1800),
+  South: z.number().min(-90).max(90),
+  North: z.number().min(-90).max(90),
+  East: z.number().min(-1800).max(1800),
+});
+
+const GeospatialMapStateSchema = z.object({
+  Bounds: GeospatialCoordinateBoundsSchema.optional(),
+  MapNavigation: z.enum(["ENABLED", "DISABLED"]).optional(),
+});
+
+const GeospatialMapStyleSchema = z.object({
+  BaseMapStyle: z.enum(["LIGHT_GRAY", "DARK_GRAY", "STREET", "IMAGERY"])
+    .optional(),
+  BaseMapVisibility: z.enum(["HIDDEN", "VISIBLE"]).optional(),
+  BackgroundColor: z.string().regex(
+    new RegExp("^#[A-F0-9]{6}(?:[A-F0-9]{2})?$"),
+  ).optional(),
+});
+
+const GeospatialLayerColorFieldSchema = z.object({
+  ColorValuesFields: z.array(MeasureFieldSchema).optional(),
+  ColorDimensionsFields: z.array(DimensionFieldSchema).optional(),
+});
+
+const UnaggregatedFieldSchema = z.object({
+  FormatConfiguration: FormatConfigurationSchema.optional(),
+  Column: ColumnIdentifierSchema,
+  FieldId: z.string().min(1).max(512),
+});
+
+const GeospatialLayerJoinDefinitionSchema = z.object({
+  ColorField: GeospatialLayerColorFieldSchema.optional(),
+  ShapeKeyField: z.string().optional(),
+  DatasetKeyField: UnaggregatedFieldSchema.optional(),
+});
+
+const LayerCustomActionOperationSchema = z.object({
+  NavigationOperation: CustomActionNavigationOperationSchema.optional(),
+  SetParametersOperation: CustomActionSetParametersOperationSchema.optional(),
+  FilterOperation: CustomActionFilterOperationSchema.optional(),
+  URLOperation: CustomActionURLOperationSchema.optional(),
+});
+
+const LayerCustomActionSchema = z.object({
+  Status: z.enum(["ENABLED", "DISABLED"]).optional(),
+  Trigger: z.enum(["DATA_POINT_CLICK", "DATA_POINT_MENU"]),
+  CustomActionId: z.string().min(1).max(512).regex(new RegExp("^[\\w\\-]+$")),
+  Name: z.string().min(1).max(256),
+  ActionOperations: z.array(LayerCustomActionOperationSchema),
+});
+
+const GeospatialGradientStepColorSchema = z.object({
+  DataValue: z.number(),
+  Color: z.string().regex(new RegExp("^#[A-F0-9]{6}(?:[A-F0-9]{2})?$")),
+});
+
+const GeospatialNullSymbolStyleSchema = z.object({
+  FillColor: z.string().regex(new RegExp("^#[A-F0-9]{6}(?:[A-F0-9]{2})?$"))
+    .optional(),
+  StrokeWidth: z.number().min(0).optional(),
+  StrokeColor: z.string().regex(new RegExp("^#[A-F0-9]{6}(?:[A-F0-9]{2})?$"))
+    .optional(),
+});
+
+const GeospatialNullDataSettingsSchema = z.object({
+  SymbolStyle: GeospatialNullSymbolStyleSchema,
+});
+
+const GeospatialGradientColorSchema = z.object({
+  DefaultOpacity: z.number().min(0).max(1).optional(),
+  StepColors: z.array(GeospatialGradientStepColorSchema),
+  NullDataVisibility: z.enum(["HIDDEN", "VISIBLE"]).optional(),
+  NullDataSettings: GeospatialNullDataSettingsSchema.optional(),
+});
+
+const GeospatialCategoricalDataColorSchema = z.object({
+  DataValue: z.string(),
+  Color: z.string().regex(new RegExp("^#[A-F0-9]{6}(?:[A-F0-9]{2})?$")),
+});
+
+const GeospatialCategoricalColorSchema = z.object({
+  CategoryDataColors: z.array(GeospatialCategoricalDataColorSchema),
+  DefaultOpacity: z.number().min(0).max(1).optional(),
+  NullDataVisibility: z.enum(["HIDDEN", "VISIBLE"]).optional(),
+  NullDataSettings: GeospatialNullDataSettingsSchema.optional(),
+});
+
+const GeospatialSolidColorSchema = z.object({
+  State: z.enum(["ENABLED", "DISABLED"]).describe(
+    "Defines view state of the color",
+  ).optional(),
+  Color: z.string().regex(new RegExp("^#[A-F0-9]{6}(?:[A-F0-9]{2})?$")),
+});
+
+const GeospatialColorSchema = z.object({
+  Gradient: GeospatialGradientColorSchema.optional(),
+  Categorical: GeospatialCategoricalColorSchema.optional(),
+  Solid: GeospatialSolidColorSchema.describe(
+    "Describes the properties for a solid color",
+  ).optional(),
+});
+
+const GeospatialLineWidthSchema = z.object({
+  LineWidth: z.number().min(0).optional(),
+});
+
+const GeospatialCircleRadiusSchema = z.object({
+  Radius: z.number().min(0).optional(),
+});
+
+const GeospatialCircleSymbolStyleSchema = z.object({
+  FillColor: GeospatialColorSchema.optional(),
+  StrokeWidth: GeospatialLineWidthSchema.optional(),
+  StrokeColor: GeospatialColorSchema.optional(),
+  CircleRadius: GeospatialCircleRadiusSchema.optional(),
+});
+
+const GeospatialPointStyleSchema = z.object({
+  CircleSymbolStyle: GeospatialCircleSymbolStyleSchema.optional(),
+});
+
+const GeospatialPointLayerSchema = z.object({
+  Style: GeospatialPointStyleSchema,
+});
+
+const GeospatialPolygonSymbolStyleSchema = z.object({
+  FillColor: GeospatialColorSchema.optional(),
+  StrokeWidth: GeospatialLineWidthSchema.optional(),
+  StrokeColor: GeospatialColorSchema.optional(),
+});
+
+const GeospatialPolygonStyleSchema = z.object({
+  PolygonSymbolStyle: GeospatialPolygonSymbolStyleSchema.optional(),
+});
+
+const GeospatialPolygonLayerSchema = z.object({
+  Style: GeospatialPolygonStyleSchema,
+});
+
+const GeospatialLineSymbolStyleSchema = z.object({
+  FillColor: GeospatialColorSchema.optional(),
+  LineWidth: GeospatialLineWidthSchema.optional(),
+});
+
+const GeospatialLineStyleSchema = z.object({
+  LineSymbolStyle: GeospatialLineSymbolStyleSchema.optional(),
+});
+
+const GeospatialLineLayerSchema = z.object({
+  Style: GeospatialLineStyleSchema,
+});
+
+const GeospatialLayerDefinitionSchema = z.object({
+  PointLayer: GeospatialPointLayerSchema.optional(),
+  PolygonLayer: GeospatialPolygonLayerSchema.optional(),
+  LineLayer: GeospatialLineLayerSchema.optional(),
+});
+
+const GeospatialStaticFileSourceSchema = z.object({
+  StaticFileId: z.string().min(1).max(512).regex(new RegExp("^[\\w\\-]+$")),
+});
+
+const GeospatialDataSourceItemSchema = z.object({
+  StaticFileDataSource: GeospatialStaticFileSourceSchema.optional(),
+});
+
+const GeospatialLayerItemSchema = z.object({
+  LayerId: z.string(),
+  JoinDefinition: GeospatialLayerJoinDefinitionSchema.optional(),
+  Actions: z.array(LayerCustomActionSchema).optional(),
+  LayerType: z.enum(["POINT", "LINE", "POLYGON"]).optional(),
+  LayerDefinition: GeospatialLayerDefinitionSchema.optional(),
+  Tooltip: TooltipOptionsSchema.optional(),
+  Label: z.string().optional(),
+  Visibility: z.enum(["HIDDEN", "VISIBLE"]).optional(),
+  DataSource: GeospatialDataSourceItemSchema.optional(),
+});
+
+const GeospatialLayerMapConfigurationSchema = z.object({
+  Legend: LegendOptionsSchema.optional(),
+  MapState: GeospatialMapStateSchema.optional(),
+  MapStyle: GeospatialMapStyleSchema.optional(),
+  Interactions: VisualInteractionOptionsSchema.optional(),
+  MapLayers: z.array(GeospatialLayerItemSchema).optional(),
+});
+
+const LayerMapVisualSchema = z.object({
+  Subtitle: VisualSubtitleLabelOptionsSchema.optional(),
+  VisualId: z.string().min(1).max(512).regex(new RegExp("^[\\w\\-]+$")),
+  ChartConfiguration: GeospatialLayerMapConfigurationSchema.optional(),
+  DataSetIdentifier: z.string().min(0).max(2048).optional(),
+  Title: VisualTitleLabelOptionsSchema.optional(),
+  VisualContentAltText: z.string().min(1).max(1024).optional(),
+  TopicIdentifier: z.string().min(1).max(2048).optional(),
+});
+
 const GeospatialMapStyleOptionsSchema = z.object({
   BaseMapStyle: z.enum(["LIGHT_GRAY", "DARK_GRAY", "STREET", "IMAGERY"])
     .optional(),
@@ -1832,13 +2143,6 @@ const GeospatialMapAggregatedFieldWellsSchema = z.object({
 const GeospatialMapFieldWellsSchema = z.object({
   GeospatialMapAggregatedFieldWells: GeospatialMapAggregatedFieldWellsSchema
     .optional(),
-});
-
-const GeospatialCoordinateBoundsSchema = z.object({
-  West: z.number().min(-1800).max(1800),
-  South: z.number().min(-90).max(90),
-  North: z.number().min(-90).max(90),
-  East: z.number().min(-1800).max(1800),
 });
 
 const GeospatialWindowOptionsSchema = z.object({
@@ -1881,6 +2185,7 @@ const GeospatialMapConfigurationSchema = z.object({
   MapStyleOptions: GeospatialMapStyleOptionsSchema.optional(),
   FieldWells: GeospatialMapFieldWellsSchema.optional(),
   Tooltip: TooltipOptionsSchema.optional(),
+  Interactions: VisualInteractionOptionsSchema.optional(),
   WindowOptions: GeospatialWindowOptionsSchema.optional(),
   PointStyleOptions: GeospatialPointStyleOptionsSchema.optional(),
   VisualPalette: VisualPaletteSchema.optional(),
@@ -2064,6 +2369,48 @@ const SingleAxisOptionsSchema = z.object({
   YAxisOptions: YAxisOptionsSchema.optional(),
 });
 
+const BorderSettingsSchema = z.object({
+  BorderVisibility: z.enum(["HIDDEN", "VISIBLE"]).optional(),
+  BorderColor: z.string().regex(new RegExp("^#[A-F0-9]{6}(?:[A-F0-9]{2})?$"))
+    .optional(),
+  BorderWidth: z.string().describe(
+    "String based length that is composed of value and unit in px",
+  ).optional(),
+});
+
+const LineChartLineStyleSettingsSchema = z.object({
+  LineInterpolation: z.enum(["LINEAR", "SMOOTH", "STEPPED"]).optional(),
+  LineStyle: z.enum(["SOLID", "DOTTED", "DASHED"]).optional(),
+  LineVisibility: z.enum(["HIDDEN", "VISIBLE"]).optional(),
+  LineWidth: z.string().describe(
+    "String based length that is composed of value and unit in px",
+  ).optional(),
+});
+
+const LineChartMarkerStyleSettingsSchema = z.object({
+  MarkerShape: z.enum([
+    "CIRCLE",
+    "TRIANGLE",
+    "SQUARE",
+    "DIAMOND",
+    "ROUNDED_SQUARE",
+  ]).optional(),
+  MarkerSize: z.string().describe(
+    "String based length that is composed of value and unit in px",
+  ).optional(),
+  MarkerVisibility: z.enum(["HIDDEN", "VISIBLE"]).optional(),
+  MarkerColor: z.string().regex(new RegExp("^#[A-F0-9]{6}$")).optional(),
+});
+
+const ComboChartDefaultSeriesSettingsSchema = z.object({
+  BorderSettings: BorderSettingsSchema.optional(),
+  DecalSettings: DecalSettingsSchema.optional(),
+  LineStyleSettings: LineChartLineStyleSettingsSchema.optional(),
+  MarkerStyleSettings: LineChartMarkerStyleSettingsSchema.optional(),
+});
+
+const ComboSeriesItemSchema = z.object({});
+
 const ComboChartAggregatedFieldWellsSchema = z.object({
   BarValues: z.array(MeasureFieldSchema).optional(),
   Category: z.array(DimensionFieldSchema).optional(),
@@ -2089,7 +2436,9 @@ const ComboChartConfigurationSchema = z.object({
   VisualPalette: VisualPaletteSchema.optional(),
   BarsArrangement: z.enum(["CLUSTERED", "STACKED", "STACKED_PERCENT"])
     .optional(),
+  DefaultSeriesSettings: ComboChartDefaultSeriesSettingsSchema.optional(),
   SecondaryYAxisLabelOptions: ChartAxisLabelOptionsSchema.optional(),
+  Series: z.array(ComboSeriesItemSchema).optional(),
   LineDataLabels: DataLabelOptionsSchema.optional(),
   CategoryAxis: AxisDisplayOptionsSchema.optional(),
   PrimaryYAxisLabelOptions: ChartAxisLabelOptionsSchema.optional(),
@@ -2486,9 +2835,10 @@ const CustomContentVisualSchema = z.object({
   VisualId: z.string().min(1).max(512).regex(new RegExp("^[\\w\\-]+$")),
   ChartConfiguration: CustomContentConfigurationSchema.optional(),
   Actions: z.array(VisualCustomActionSchema).optional(),
-  DataSetIdentifier: z.string().min(1).max(2048),
+  DataSetIdentifier: z.string().min(0).max(2048).optional(),
   Title: VisualTitleLabelOptionsSchema.optional(),
   VisualContentAltText: z.string().min(1).max(1024).optional(),
+  TopicIdentifier: z.string().min(1).max(2048).optional(),
 });
 
 const PieChartSortConfigurationSchema = z.object({
@@ -2757,12 +3107,6 @@ const PluginVisualOptionsSchema = z.object({
   VisualProperties: z.array(PluginVisualPropertySchema).optional(),
 });
 
-const UnaggregatedFieldSchema = z.object({
-  FormatConfiguration: FormatConfigurationSchema.optional(),
-  Column: ColumnIdentifierSchema,
-  FieldId: z.string().min(1).max(512),
-});
-
 const PluginVisualFieldWellSchema = z.object({
   Unaggregated: z.array(UnaggregatedFieldSchema).optional(),
   AxisName: z.enum(["GROUP_BY", "VALUE"]).optional(),
@@ -2867,6 +3211,18 @@ const TableOptionsSchema = z.object({
   RowAlternateColorOptions: RowAlternateColorOptionsSchema.optional(),
 });
 
+const SparklinesOptionsSchema = z.object({
+  LineInterpolation: z.enum(["LINEAR", "SMOOTH", "STEPPED"]).optional(),
+  MaxValueMarker: LineChartMarkerStyleSettingsSchema.optional(),
+  XAxisField: DimensionFieldSchema,
+  AllPointsMarker: LineChartMarkerStyleSettingsSchema.optional(),
+  MinValueMarker: LineChartMarkerStyleSettingsSchema.optional(),
+  FieldId: z.string().min(1).max(512),
+  VisualType: z.enum(["LINE", "AREA_LINE"]).optional(),
+  LineColor: z.string().regex(new RegExp("^#[A-F0-9]{6}$")).optional(),
+  YAxisBehavior: z.enum(["SHARED", "INDEPENDENT"]).optional(),
+});
+
 const DataBarsOptionsSchema = z.object({
   PositiveColor: z.string().regex(new RegExp("^#[A-F0-9]{6}$")).optional(),
   FieldId: z.string().min(1).max(512),
@@ -2874,6 +3230,7 @@ const DataBarsOptionsSchema = z.object({
 });
 
 const TableInlineVisualizationSchema = z.object({
+  Sparklines: SparklinesOptionsSchema.optional(),
   DataBars: DataBarsOptionsSchema.optional(),
 });
 
@@ -3178,6 +3535,13 @@ const BarChartSortConfigurationSchema = z.object({
   SmallMultiplesLimitConfiguration: ItemsLimitConfigurationSchema.optional(),
 });
 
+const BarChartDefaultSeriesSettingsSchema = z.object({
+  BorderSettings: BorderSettingsSchema.optional(),
+  DecalSettings: DecalSettingsSchema.optional(),
+});
+
+const BarSeriesItemSchema = z.object({});
+
 const BarChartAggregatedFieldWellsSchema = z.object({
   Category: z.array(DimensionFieldSchema).optional(),
   Colors: z.array(DimensionFieldSchema).optional(),
@@ -3203,6 +3567,8 @@ const BarChartConfigurationSchema = z.object({
   ValueLabelOptions: ChartAxisLabelOptionsSchema.optional(),
   BarsArrangement: z.enum(["CLUSTERED", "STACKED", "STACKED_PERCENT"])
     .optional(),
+  DefaultSeriesSettings: BarChartDefaultSeriesSettingsSchema.optional(),
+  Series: z.array(BarSeriesItemSchema).optional(),
   CategoryAxis: AxisDisplayOptionsSchema.optional(),
   ContributionAnalysisDefaults: z.array(ContributionAnalysisDefaultSchema)
     .optional(),
@@ -3432,10 +3798,11 @@ const InsightVisualSchema = z.object({
   Subtitle: VisualSubtitleLabelOptionsSchema.optional(),
   VisualId: z.string().min(1).max(512).regex(new RegExp("^[\\w\\-]+$")),
   Actions: z.array(VisualCustomActionSchema).optional(),
-  DataSetIdentifier: z.string().min(1).max(2048),
+  DataSetIdentifier: z.string().min(0).max(2048).optional(),
   InsightConfiguration: InsightConfigurationSchema.optional(),
   Title: VisualTitleLabelOptionsSchema.optional(),
   VisualContentAltText: z.string().min(1).max(1024).optional(),
+  TopicIdentifier: z.string().min(1).max(2048).optional(),
 });
 
 const LineChartSortConfigurationSchema = z.object({
@@ -3456,31 +3823,8 @@ const LineSeriesAxisDisplayOptionsSchema = z.object({
   AxisOptions: AxisDisplayOptionsSchema.optional(),
 });
 
-const LineChartLineStyleSettingsSchema = z.object({
-  LineInterpolation: z.enum(["LINEAR", "SMOOTH", "STEPPED"]).optional(),
-  LineStyle: z.enum(["SOLID", "DOTTED", "DASHED"]).optional(),
-  LineVisibility: z.enum(["HIDDEN", "VISIBLE"]).optional(),
-  LineWidth: z.string().describe(
-    "String based length that is composed of value and unit in px",
-  ).optional(),
-});
-
-const LineChartMarkerStyleSettingsSchema = z.object({
-  MarkerShape: z.enum([
-    "CIRCLE",
-    "TRIANGLE",
-    "SQUARE",
-    "DIAMOND",
-    "ROUNDED_SQUARE",
-  ]).optional(),
-  MarkerSize: z.string().describe(
-    "String based length that is composed of value and unit in px",
-  ).optional(),
-  MarkerVisibility: z.enum(["HIDDEN", "VISIBLE"]).optional(),
-  MarkerColor: z.string().regex(new RegExp("^#[A-F0-9]{6}$")).optional(),
-});
-
 const LineChartDefaultSeriesSettingsSchema = z.object({
+  DecalSettings: DecalSettingsSchema.optional(),
   LineStyleSettings: LineChartLineStyleSettingsSchema.optional(),
   AxisBinding: z.enum(["PRIMARY_YAXIS", "SECONDARY_YAXIS"]).optional(),
   MarkerStyleSettings: LineChartMarkerStyleSettingsSchema.optional(),
@@ -3517,6 +3861,7 @@ const ForecastConfigurationSchema = z.object({
 });
 
 const LineChartSeriesSettingsSchema = z.object({
+  DecalSettings: DecalSettingsSchema.optional(),
   LineStyleSettings: LineChartLineStyleSettingsSchema.optional(),
   MarkerStyleSettings: LineChartMarkerStyleSettingsSchema.optional(),
 });
@@ -3588,12 +3933,14 @@ const LineChartVisualSchema = z.object({
 const EmptyVisualSchema = z.object({
   VisualId: z.string().min(1).max(512).regex(new RegExp("^[\\w\\-]+$")),
   Actions: z.array(VisualCustomActionSchema).optional(),
-  DataSetIdentifier: z.string().min(1).max(2048),
+  DataSetIdentifier: z.string().min(0).max(2048).optional(),
+  TopicIdentifier: z.string().min(1).max(2048).optional(),
 });
 
 const VisualSchema = z.object({
   FunnelChartVisual: FunnelChartVisualSchema.optional(),
   BoxPlotVisual: BoxPlotVisualSchema.optional(),
+  LayerMapVisual: LayerMapVisualSchema.optional(),
   GeospatialMapVisual: GeospatialMapVisualSchema.optional(),
   ScatterPlotVisual: ScatterPlotVisualSchema.optional(),
   RadarChartVisual: RadarChartVisualSchema.optional(),
@@ -3637,7 +3984,7 @@ const MappedDataSetParameterSchema = z.object({
   DataSetParameterName: z.string().min(1).max(2048).regex(
     new RegExp("^[a-zA-Z0-9]+$"),
   ),
-  DataSetIdentifier: z.string().min(1).max(2048),
+  DataSetIdentifier: z.string().min(0).max(2048),
 });
 
 const DynamicDefaultValueSchema = z.object({
@@ -3760,7 +4107,7 @@ const SheetSchema = z.object({
     "The unique identifier associated with a sheet.",
   ).optional(),
   Name: z.string().min(1).max(2048).describe(
-    "The name of a sheet. This name is displayed on the sheet's tab in the Amazon QuickSight console.",
+    "The name of a sheet. This name is displayed on the sheet's tab in the Quick console.",
   ).optional(),
 });
 
@@ -3769,7 +4116,7 @@ const ResourcePermissionSchema = z.object({
     "The IAM action to grant or revoke permissions on.",
   ),
   Principal: z.string().min(1).max(256).describe(
-    "The Amazon Resource Name (ARN) of the principal. This can be one of the following:   The ARN of an Amazon QuickSight user or group associated with a data source or dataset. (This is common.)   The ARN of an Amazon QuickSight user, group, or namespace associated with an analysis, dashboard, template, or theme. (This is common.)   The ARN of an Amazon Web Services account root: This is an IAM ARN rather than a QuickSight ARN. Use this option only to share resources (templates) across Amazon Web Services accounts. (This is less common.)",
+    "The Amazon Resource Name (ARN) of the principal. This can be one of the following:   The ARN of an Amazon Quick user or group associated with a data source or dataset. (This is common.)   The ARN of an Amazon Quick user, group, or namespace associated with an analysis, dashboard, template, or theme. (This is common.)   The ARN of an Amazon Web Services account root: This is an IAM ARN rather than a QuickSight ARN. Use this option only to share resources (templates) across Amazon Web Services accounts. (This is less common.)",
   ),
 });
 
@@ -3804,6 +4151,10 @@ const GlobalArgsSchema = z.object({
     Options: AssetOptionsSchema.optional(),
     FilterGroups: z.array(FilterGroupSchema).optional(),
     QueryExecutionOptions: QueryExecutionOptionsSchema.optional(),
+    StaticFiles: z.array(StaticFileSchema).describe(
+      "The static files for the definition.",
+    ).optional(),
+    TopicConfigurations: z.array(TopicConfigurationSchema).optional(),
     CalculatedFields: z.array(CalculatedFieldSchema).optional(),
     DataSetConfigurations: z.array(DataSetConfigurationSchema),
     ColumnConfigurations: z.array(ColumnConfigurationSchema).optional(),
@@ -3869,6 +4220,8 @@ const StateSchema = z.object({
     Options: AssetOptionsSchema,
     FilterGroups: z.array(FilterGroupSchema),
     QueryExecutionOptions: QueryExecutionOptionsSchema,
+    StaticFiles: z.array(StaticFileSchema),
+    TopicConfigurations: z.array(TopicConfigurationSchema),
     CalculatedFields: z.array(CalculatedFieldSchema),
     DataSetConfigurations: z.array(DataSetConfigurationSchema),
     ColumnConfigurations: z.array(ColumnConfigurationSchema),
@@ -3917,6 +4270,10 @@ const InputsSchema = z.object({
     Options: AssetOptionsSchema.optional(),
     FilterGroups: z.array(FilterGroupSchema).optional(),
     QueryExecutionOptions: QueryExecutionOptionsSchema.optional(),
+    StaticFiles: z.array(StaticFileSchema).describe(
+      "The static files for the definition.",
+    ).optional(),
+    TopicConfigurations: z.array(TopicConfigurationSchema).optional(),
     CalculatedFields: z.array(CalculatedFieldSchema).optional(),
     DataSetConfigurations: z.array(DataSetConfigurationSchema).optional(),
     ColumnConfigurations: z.array(ColumnConfigurationSchema).optional(),
@@ -3990,7 +4347,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight Template. Registered at `@swamp/aws/quicksight/template`. */
 export const model = {
   type: "@swamp/aws/quicksight/template",
-  version: "2026.08.17.2",
+  version: "2026.09.24.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -4044,6 +4401,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

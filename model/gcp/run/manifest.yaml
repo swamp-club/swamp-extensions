@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/run"
-version: "2026.09.10.1"
+version: "2026.09.24.1"
 description: "Google Cloud run infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: instances, jobs, jobs_executions, jobs_executions_tasks, services, services_revisions, workerpools_revisions, namespaces_domainmappings, namespaces_instances, namespaces_jobs, namespaces_services, namespaces_workerpools, domainmappings
+  - Updated: namespaces_domainmappings, namespaces_instances, namespaces_jobs, namespaces_services, namespaces_workerpools, domainmappings
 models:
   - authorizeddomains.ts
   - configurations.ts
