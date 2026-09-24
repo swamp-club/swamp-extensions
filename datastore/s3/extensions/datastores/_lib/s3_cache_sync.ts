@@ -142,6 +142,51 @@ export function isLazySkippable(rel: string): boolean {
 }
 
 /**
+ * Datastore subdirectory names from swamp core: `DEFAULT_DATASTORE_SUBDIRS`
+ * plus `ALWAYS_LOCAL_SUBDIRS` in `src/domain/datastore/datastore_config.ts`.
+ * Every real file under a namespace starts with one of these, so a
+ * namespace that shares a name with one of them can legitimately hold
+ * `<namespace>/data/...` paths. Keep in sync with core until namespace
+ * names are reserved (swamp-club#2478).
+ */
+const LAYOUT_SUBDIRS: ReadonlySet<string> = new Set([
+  "auto-definitions",
+  "definitions-evaluated",
+  "workflows-evaluated",
+  "config",
+  "data",
+  "outputs",
+  "workflow-runs",
+  "secrets",
+  "bundles",
+  "vault-bundles",
+  "report-bundles",
+  "webhook-bundles",
+  "audit",
+  "audit-wal",
+  "telemetry",
+  "logs",
+  "files",
+]);
+
+/**
+ * Returns true for a namespace-relative path under the doubled
+ * `<namespace>/<namespace>/data/` tree that `hydrateFile` wrote before
+ * swamp-club#2404 was fixed. Such files are copies of objects stored at the
+ * un-doubled path and must never be synced. Always false when the
+ * namespace is a layout subdirectory name, where the path is ambiguous.
+ *
+ * Exported for unit tests; not part of the public extension API.
+ */
+export function isStrayNamespacePath(
+  rel: string,
+  namespace: string | undefined,
+): boolean {
+  if (!namespace || LAYOUT_SUBDIRS.has(namespace)) return false;
+  return rel.startsWith(`${namespace}/data/`);
+}
+
+/**
  * Whether a bare index-relative path falls under one of the `subdirs`
  * requested by a scoped `pullChanged`. Matches on a `/` boundary so
  * `data/swamp/grant` does not match `data/swamp/grants/...`.
@@ -675,6 +720,47 @@ export class S3CacheSyncService implements DatastoreSyncService {
 
   private localRelPath(rel: string): string {
     return this.namespace ? `${this.namespace}/${rel}` : rel;
+  }
+
+  /**
+   * Deletes a stray local file (see {@link isStrayNamespacePath}) only when
+   * the loaded index proves the same content is stored at the un-doubled
+   * path: sha256 when the entry has one, size otherwise. Returns false and
+   * leaves the file in place when that cannot be shown.
+   */
+  private async removeVerifiedStray(
+    absPath: string,
+    strayRel: string,
+  ): Promise<boolean> {
+    const entry = this.index?.entries[
+      strayRel.substring(`${this.namespace}/`.length)
+    ];
+    if (!entry) return false;
+    try {
+      const stat = await Deno.stat(absPath);
+      if (stat.size !== entry.size) return false;
+      if (entry.sha256 && await streamingSha256(absPath) !== entry.sha256) {
+        return false;
+      }
+      await Deno.remove(absPath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private warnStrays(removed: number, kept: number): void {
+    if (removed + kept === 0) return;
+    const ns = this.namespace;
+    console.warn(
+      `[s3-sync] Found ${
+        removed + kept
+      } file(s) under the doubled path "${ns}/${ns}/" left by an ` +
+        `earlier hydrateFile bug (swamp-club#2404); they are never synced. ` +
+        `Removed ${removed} whose content the index confirms at the real ` +
+        `path. Kept ${kept} that could not be verified — compare each with ` +
+        `the matching file under "${ns}/" and delete it by hand.`,
+    );
   }
 
   private controlKey(key: string): string {
@@ -2455,6 +2541,10 @@ export class S3CacheSyncService implements DatastoreSyncService {
             if (isInternalCacheFile(rel)) {
               continue;
             }
+            // Doubled-path entry pushed by the swamp-club#2404 bug: neither
+            // pulled nor pruned. Silent, because the remote entry stays and a
+            // warning here would repeat on every pull.
+            if (isStrayNamespacePath(rel, this.namespace)) continue;
             // Out of scope: not listed, so must not be pruned or pulled.
             if (scoped && !isInSubdirs(rel, subdirs)) {
               continue;
@@ -2916,6 +3006,19 @@ export class S3CacheSyncService implements DatastoreSyncService {
           const toDelete: string[] = [];
           const useScopedWalk = !this.bulkInvalidated &&
             this.dirtyPaths.size > 0;
+          // Doubled-path strays (swamp-club#2404) are never pushed; the ones
+          // the index can vouch for are removed from disk.
+          let straysRemoved = 0;
+          let straysKept = 0;
+          const skipStray = async (bareRel: string, absPath: string) => {
+            if (!isStrayNamespacePath(bareRel, this.namespace)) return false;
+            if (await this.removeVerifiedStray(absPath, bareRel)) {
+              straysRemoved++;
+            } else {
+              straysKept++;
+            }
+            return true;
+          };
 
           if (useScopedWalk) {
             for (const dirtyPath of this.dirtyPaths) {
@@ -2928,6 +3031,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
                 if (stat.isFile) {
                   if (
                     !isInternalCacheFile(dirtyPath) &&
+                    !(await skipStray(bareDirtyPath, absPath)) &&
                     await this.fileNeedsPush(absPath, bareDirtyPath)
                   ) {
                     toPush.push({ rel: bareDirtyPath, path: absPath });
@@ -2942,6 +3046,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
                     const bareRel = nsPrefix && rel.startsWith(nsPrefix)
                       ? rel.substring(nsPrefix.length)
                       : rel;
+                    if (await skipStray(bareRel, entry.path)) continue;
                     localFilesInDir.add(bareRel);
                     if (await this.fileNeedsPush(entry.path, bareRel)) {
                       toPush.push({ rel: bareRel, path: entry.path });
@@ -2955,6 +3060,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
                       : bareDirtyPath + "/";
                     for (const rel of Object.keys(this.index.entries)) {
                       if (isInternalCacheFile(rel)) continue;
+                      if (isStrayNamespacePath(rel, this.namespace)) continue;
                       if (rel.startsWith(prefix) && !localFilesInDir.has(rel)) {
                         toDelete.push(rel);
                       }
@@ -2978,6 +3084,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
                     : bareDirtyPath + "/";
                   for (const rel of Object.keys(this.index.entries)) {
                     if (isInternalCacheFile(rel)) continue;
+                    if (isStrayNamespacePath(rel, this.namespace)) continue;
                     if (rel === bareDirtyPath || rel.startsWith(prefix)) {
                       toDelete.push(rel);
                     }
@@ -3013,6 +3120,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
                 const bareRel = nsPrefix && rel.startsWith(nsPrefix)
                   ? rel.substring(nsPrefix.length)
                   : rel;
+                if (await skipStray(bareRel, entry.path)) continue;
                 localFiles.add(bareRel);
                 if (await this.fileNeedsPush(entry.path, bareRel)) {
                   toPush.push({ rel: bareRel, path: entry.path });
@@ -3048,12 +3156,14 @@ export class S3CacheSyncService implements DatastoreSyncService {
               for (const rel of Object.keys(this.index.entries)) {
                 if (isInternalCacheFile(rel)) continue;
                 if (isInsideNamespaceDir(rel, namespaceDirs)) continue;
+                if (isStrayNamespacePath(rel, this.namespace)) continue;
                 if (!localFiles.has(rel)) {
                   toDelete.push(rel);
                 }
               }
             }
           }
+          this.warnStrays(straysRemoved, straysKept);
           tracePhase(
             "pushChanged.walk",
             walkStart,
@@ -3405,6 +3515,18 @@ export class S3CacheSyncService implements DatastoreSyncService {
           const toDelete: string[] = [];
           const useScopedWalk = !this.bulkInvalidated &&
             this.dirtyPaths.size > 0;
+          // Doubled-path strays (swamp-club#2404): see pushChanged.
+          let straysRemoved = 0;
+          let straysKept = 0;
+          const skipStray = async (bareRel: string, absPath: string) => {
+            if (!isStrayNamespacePath(bareRel, this.namespace)) return false;
+            if (await this.removeVerifiedStray(absPath, bareRel)) {
+              straysRemoved++;
+            } else {
+              straysKept++;
+            }
+            return true;
+          };
 
           if (useScopedWalk) {
             for (const dirtyPath of this.dirtyPaths) {
@@ -3417,6 +3539,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
                 if (stat.isFile) {
                   if (
                     !isInternalCacheFile(dirtyPath) &&
+                    !(await skipStray(bareDirtyPath, absPath)) &&
                     await this.fileNeedsPush(absPath, bareDirtyPath)
                   ) {
                     toPush.push({ rel: bareDirtyPath, path: absPath });
@@ -3431,6 +3554,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
                     const bareRel = nsPrefix && rel.startsWith(nsPrefix)
                       ? rel.substring(nsPrefix.length)
                       : rel;
+                    if (await skipStray(bareRel, entry.path)) continue;
                     localFilesInDir.add(bareRel);
                     if (await this.fileNeedsPush(entry.path, bareRel)) {
                       toPush.push({ rel: bareRel, path: entry.path });
@@ -3442,6 +3566,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
                       : bareDirtyPath + "/";
                     for (const rel of Object.keys(this.index.entries)) {
                       if (isInternalCacheFile(rel)) continue;
+                      if (isStrayNamespacePath(rel, this.namespace)) continue;
                       if (rel.startsWith(prefix) && !localFilesInDir.has(rel)) {
                         toDelete.push(rel);
                       }
@@ -3458,6 +3583,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
                     : bareDirtyPath + "/";
                   for (const rel of Object.keys(this.index.entries)) {
                     if (isInternalCacheFile(rel)) continue;
+                    if (isStrayNamespacePath(rel, this.namespace)) continue;
                     if (rel === bareDirtyPath || rel.startsWith(prefix)) {
                       toDelete.push(rel);
                     }
@@ -3481,6 +3607,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
                 const bareRel = nsPrefix && rel.startsWith(nsPrefix)
                   ? rel.substring(nsPrefix.length)
                   : rel;
+                if (await skipStray(bareRel, entry.path)) continue;
                 localFiles.add(bareRel);
                 if (await this.fileNeedsPush(entry.path, bareRel)) {
                   toPush.push({ rel: bareRel, path: entry.path });
@@ -3495,12 +3622,14 @@ export class S3CacheSyncService implements DatastoreSyncService {
               for (const rel of Object.keys(this.index.entries)) {
                 if (isInternalCacheFile(rel)) continue;
                 if (isInsideNamespaceDir(rel, namespaceDirs)) continue;
+                if (isStrayNamespacePath(rel, this.namespace)) continue;
                 if (!localFiles.has(rel)) {
                   toDelete.push(rel);
                 }
               }
             }
           }
+          this.warnStrays(straysRemoved, straysKept);
           tracePhase(
             "preparePush.walk",
             prepareStart,
@@ -3885,6 +4014,8 @@ export class S3CacheSyncService implements DatastoreSyncService {
     if (this.lazyPullActive) return false;
     for (const [rel, entry] of Object.entries(this.index.entries)) {
       if (isInternalCacheFile(rel)) continue;
+      // Never pulled, so never local; must not keep the fast path unarmed.
+      if (isStrayNamespacePath(rel, this.namespace)) continue;
       try {
         const localPath = assertSafePath(
           this.cachePath,
@@ -4239,8 +4370,15 @@ export class S3CacheSyncService implements DatastoreSyncService {
       async (span) => {
         try {
           span.setAttribute(Attr.DATASTORE_FILE, relPath);
+          // Core passes a cache-relative path, which starts with the
+          // namespace; pullFile expects a namespace-relative one and adds
+          // the namespace itself (swamp-club#2404).
+          const nsPrefix = this.namespace ? `${this.namespace}/` : "";
+          const nsRelPath = nsPrefix && relPath.startsWith(nsPrefix)
+            ? relPath.substring(nsPrefix.length)
+            : relPath;
           try {
-            await this.pullFile(relPath, options?.signal);
+            await this.pullFile(nsRelPath, options?.signal);
             return true;
           } catch (error) {
             if (

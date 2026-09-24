@@ -36,6 +36,7 @@ import {
   isInternalCacheFile,
   isLazySkippable,
   isRetryableError,
+  isStrayNamespacePath,
   retryWithBackoff,
   S3CacheSyncService,
 } from "./s3_cache_sync.ts";
@@ -10296,6 +10297,253 @@ Deno.test("swamp-club#2353: deleting one version reads only its type and model s
     assertEquals(
       [...shardsRead2353(mock)].sort(),
       ["data--swamp--echo", "data--swamp--echo--m7"],
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// -- Doubled namespace path (swamp-club#2404) ------------------------------
+//
+// assertDatastoreExportConformance covers the export shape only; these
+// assertions pin the cache-relative vs namespace-relative path conventions
+// between core's hydrateFile hook and the sync walks.
+
+Deno.test("isStrayNamespacePath: matches only doubled data paths for ordinary namespaces", () => {
+  assertEquals(isStrayNamespacePath("my-ns/data/m/1/raw", "my-ns"), true);
+  assertEquals(isStrayNamespacePath("data/m/1/raw", "my-ns"), false);
+  assertEquals(isStrayNamespacePath("my-ns/outputs/x", "my-ns"), false);
+  assertEquals(isStrayNamespacePath("my-ns/data/m/1/raw", undefined), false);
+  assertEquals(isStrayNamespacePath("other/data/m/1/raw", "my-ns"), false);
+  // Layout subdirectory names are ambiguous and never treated as stray.
+  assertEquals(isStrayNamespacePath("data/data/m/1/raw", "data"), false);
+  assertEquals(isStrayNamespacePath("files/data/report.csv", "files"), false);
+  assertEquals(isStrayNamespacePath("outputs/data/x", "outputs"), false);
+});
+
+Deno.test("hydrateFile with namespace: writes where core reads, one GET (swamp-club#2404)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-hydrate-ns-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(
+      "my-ns/data/m/1/raw",
+      new TextEncoder().encode("file-content"),
+    );
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.pullChanged({ namespace: "my-ns" });
+    mock.gets.length = 0;
+
+    // Core passes the cache-relative path, which includes the namespace.
+    const result = await service.hydrateFile("my-ns/data/m/1/raw");
+    assertEquals(result, true);
+
+    assertEquals(
+      await Deno.readTextFile(join(cachePath, "my-ns/data/m/1/raw")),
+      "file-content",
+    );
+    assertEquals(await exists(join(cachePath, "my-ns/my-ns")), false);
+    assertEquals(mock.gets, ["my-ns/data/m/1/raw"]);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("hydrateFile with a namespace named data: writes where core reads (swamp-club#2404)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-hydrate-dns-" });
+  try {
+    const mock = createMockS3Client();
+    mock.storage.set(
+      "data/data/m/1/raw",
+      new TextEncoder().encode("file-content"),
+    );
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.pullChanged({ namespace: "data" });
+    mock.gets.length = 0;
+
+    const result = await service.hydrateFile("data/data/m/1/raw");
+    assertEquals(result, true);
+    assertEquals(
+      await Deno.readTextFile(join(cachePath, "data/data/m/1/raw")),
+      "file-content",
+    );
+    assertEquals(mock.gets, ["data/data/m/1/raw"]);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+/**
+ * Pulls a namespace whose index holds `data/m/1/raw` ("hello"), then seeds a
+ * stray copy under the doubled `<ns>/<ns>/` tree.
+ */
+async function setupStray(opts: {
+  withSha: boolean;
+  strayRel: string;
+  strayContent: string;
+}): Promise<{
+  mock: ReturnType<typeof createMockS3Client>;
+  cachePath: string;
+  service: S3CacheSyncService;
+  strayPath: string;
+}> {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-stray-" });
+  const mock = createMockS3Client();
+  mock.storage.set(
+    "my-ns/.datastore-index.json",
+    encodeIndex({
+      "data/m/1/raw": {
+        key: "data/m/1/raw",
+        size: 5,
+        lastModified: new Date().toISOString(),
+        ...(opts.withSha ? { sha256: await sha256Hex("hello") } : {}),
+      },
+    }),
+  );
+  mock.storage.set("my-ns/data/m/1/raw", new TextEncoder().encode("hello"));
+  await seedFile(
+    cachePath,
+    "my-ns/.namespace.json",
+    JSON.stringify({
+      namespace: "my-ns",
+      repoId: "test",
+      registeredAt: "2026-01-01T00:00:00Z",
+    }),
+  );
+  const service = new S3CacheSyncService(mock, cachePath);
+  await service.pullChanged({ namespace: "my-ns" });
+  await seedFile(cachePath, `my-ns/${opts.strayRel}`, opts.strayContent);
+  mock.puts.length = 0;
+  return {
+    mock,
+    cachePath,
+    service,
+    strayPath: join(cachePath, "my-ns", opts.strayRel),
+  };
+}
+
+const strayCases = [
+  {
+    name: "removes a stray whose sha256 matches the real entry",
+    withSha: true,
+    strayRel: "my-ns/data/m/1/raw",
+    strayContent: "hello",
+    removed: true,
+  },
+  {
+    name: "removes a stray whose size matches when the entry has no sha256",
+    withSha: false,
+    strayRel: "my-ns/data/m/1/raw",
+    strayContent: "hello",
+    removed: true,
+  },
+  {
+    name: "keeps a stray whose sha256 differs from the real entry",
+    withSha: true,
+    strayRel: "my-ns/data/m/1/raw",
+    strayContent: "HELLO",
+    removed: false,
+  },
+  {
+    name: "keeps a stray with no real index entry",
+    withSha: true,
+    strayRel: "my-ns/data/other/1/raw",
+    strayContent: "hello",
+    removed: false,
+  },
+];
+
+for (const mode of ["pushChanged", "preparePush"] as const) {
+  for (const c of strayCases) {
+    Deno.test(`${mode} stray (swamp-club#2404): ${c.name}, never uploads it`, async () => {
+      const { mock, cachePath, service, strayPath } = await setupStray(c);
+      try {
+        if (mode === "pushChanged") {
+          await service.pushChanged({ namespace: "my-ns" });
+        } else {
+          await service.preparePush({ namespace: "my-ns" });
+        }
+        const strayPuts = mock.puts.filter((p) =>
+          p.key.startsWith("my-ns/my-ns/")
+        );
+        assertEquals(strayPuts, []);
+        assertEquals(await exists(strayPath), !c.removed);
+        // The real file is untouched either way.
+        assertEquals(
+          await Deno.readTextFile(join(cachePath, "my-ns/data/m/1/raw")),
+          "hello",
+        );
+      } finally {
+        await Deno.remove(cachePath, { recursive: true });
+      }
+    });
+  }
+}
+
+for (const ns of ["files", "data"]) {
+  Deno.test(`pushChanged with a namespace named ${ns}: real ${ns}/data/... paths still push (swamp-club#2404)`, async () => {
+    const cachePath = await Deno.makeTempDir({ prefix: "s3sync-layout-ns-" });
+    try {
+      const mock = createMockS3Client();
+      await seedFile(
+        cachePath,
+        `${ns}/.namespace.json`,
+        JSON.stringify({
+          namespace: ns,
+          repoId: "test",
+          registeredAt: "2026-01-01T00:00:00Z",
+        }),
+      );
+      // Real layout: <cachePath>/<ns>/<subdir>/data/..., where the subdir
+      // shares the namespace's name.
+      const rel = `${ns}/${ns}/data/m/1/raw`;
+      await seedFile(cachePath, rel, "hello");
+      const service = new S3CacheSyncService(mock, cachePath);
+      await service.pushChanged({ namespace: ns });
+
+      assert(
+        mock.puts.some((p) => p.key === rel),
+        "real file under a layout-named namespace must be pushed",
+      );
+      assertEquals(await exists(join(cachePath, rel)), true);
+    } finally {
+      await Deno.remove(cachePath, { recursive: true });
+    }
+  });
+}
+
+Deno.test("pullChanged ignores stray index entries pushed by the bug (swamp-club#2404)", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-stray-pull-" });
+  try {
+    const mock = createMockS3Client();
+    const now = new Date().toISOString();
+    mock.storage.set(
+      "my-ns/.datastore-index.json",
+      encodeIndex({
+        "data/m/1/raw": { key: "data/m/1/raw", size: 5, lastModified: now },
+        "my-ns/data/m/1/raw": {
+          key: "my-ns/data/m/1/raw",
+          size: 5,
+          lastModified: now,
+        },
+      }),
+    );
+    mock.storage.set("my-ns/data/m/1/raw", new TextEncoder().encode("hello"));
+    mock.storage.set(
+      "my-ns/my-ns/data/m/1/raw",
+      new TextEncoder().encode("hello"),
+    );
+    const service = new S3CacheSyncService(mock, cachePath);
+    const pulled = await service.pullChanged({ namespace: "my-ns" });
+
+    assertEquals(pulled, 1);
+    assertEquals(
+      mock.gets.filter((k) => k.startsWith("my-ns/my-ns/")),
+      [],
+    );
+    assertEquals(await exists(join(cachePath, "my-ns/my-ns")), false);
+    assertEquals(
+      await Deno.readTextFile(join(cachePath, "my-ns/data/m/1/raw")),
+      "hello",
     );
   } finally {
     await Deno.remove(cachePath, { recursive: true });
