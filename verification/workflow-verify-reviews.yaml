@@ -138,7 +138,8 @@ jobs:
             workingDir: "/tmp/swamp-verify-reviews-${{ run.id }}"
 
       - name: ci-security-review
-        guard: "${{ data.latest('repo', 'diff').attributes.files.filter(f, f.startsWith('.forgejo/') || f.startsWith('.github/') || f.startsWith('scripts/') || f.startsWith('verification/')).size() > 0 }}"
+        # A guard skips its step when true: skip unless CI paths changed.
+        guard: "${{ data.latest('repo', 'diff').attributes.files.filter(f, f.startsWith('.forgejo/') || f.startsWith('.github/') || f.startsWith('scripts/') || f.startsWith('verification/')).size() == 0 }}"
         task:
           type: model_method
           modelType: "command/shell"

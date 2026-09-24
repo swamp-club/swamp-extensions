@@ -58,7 +58,7 @@ SWAMP_WORKFLOWS_DIR=verification swamp workflow run verify-reviews \
 | --- | --- | --- |
 | code-review | always (any source change) | claude-opus-4-6 |
 | adversarial-review | always (any source change) | claude-opus-4-6 |
-| ci-security-review | `.forgejo/`, `.github/`, `scripts/` | claude-opus-4-6 |
+| ci-security-review | `.forgejo/`, `.github/`, `scripts/`, `verification/` | claude-opus-4-6 |
 
 ### Authentication
 

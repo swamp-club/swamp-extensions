@@ -309,7 +309,8 @@ jobs:
           type: succeeded
     steps:
       - name: codegen-check
-        guard: "${{ data.latest('build-detect-' + run.id, 'log').attributes.stdout.contains('CHANGED_CODEGEN: true') }}"
+        # A guard skips its step when true: skip unless codegen changed.
+        guard: "${{ !data.latest('build-detect-' + run.id, 'result').attributes.stdout.contains('CHANGED_CODEGEN: true') }}"
         task:
           type: model_method
           modelType: "command/shell"
@@ -334,7 +335,8 @@ jobs:
             workingDir: "/tmp/swamp-verify-build-${{ run.id }}"
 
       - name: idempotency
-        guard: "${{ data.latest('build-detect-' + run.id, 'log').attributes.stdout.contains('CHANGED_CODEGEN: true') }}"
+        # A guard skips its step when true: skip unless codegen changed.
+        guard: "${{ !data.latest('build-detect-' + run.id, 'result').attributes.stdout.contains('CHANGED_CODEGEN: true') }}"
         dependsOn:
           - step: codegen-check
             condition:
@@ -348,6 +350,10 @@ jobs:
             run: |
               set -e
               cd codegen
+
+              echo "=== Fetching schemas (Hetzner + DigitalOcean) ==="
+              deno task fetch-schema:hetzner
+              deno task fetch-schema:digitalocean
 
               echo "=== First generation (Hetzner + DigitalOcean) ==="
               deno task generate:hetzner
