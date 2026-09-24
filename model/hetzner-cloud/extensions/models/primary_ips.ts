@@ -58,7 +58,7 @@ const GlobalArgsSchema = z.object({
   location: z.string().describe(
     "[Location](#tag/locations) ID or name the [Primary IP](#tag/primary-ips) will be bound to.\n\nOmit if `assignee_id`/`assignee_type` or `datacenter` are provided.\n",
   ).optional(),
-  assignee_type: z.enum(["server"]).describe(
+  assignee_type: z.enum(["server", "unassigned"]).describe(
     "Type of resource to assign the [Primary IP](#tag/primary-ips) to.\n\nOmitted if the [Primary IP](#tag/primary-ips) should not get assigned.\n",
   ).optional(),
   assignee_id: z.unknown().describe(
@@ -107,7 +107,7 @@ const InputsSchema = z.object({
   auto_delete: z.boolean().optional(),
   type: z.enum(["ipv4", "ipv6"]).optional(),
   location: z.string().optional(),
-  assignee_type: z.enum(["server"]).optional(),
+  assignee_type: z.enum(["server", "unassigned"]).optional(),
   assignee_id: z.unknown().optional(),
   token: z.string().meta({ sensitive: true }).optional(),
 });
@@ -115,7 +115,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud primary ip. Registered at `@swamp/hetzner-cloud/primary-ips`. */
 export const model = {
   type: "@swamp/hetzner-cloud/primary-ips",
-  version: "2026.09.09.1",
+  version: "2026.09.24.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -187,6 +187,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.09.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.24.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
