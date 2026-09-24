@@ -81,7 +81,8 @@ next. The shipped `software-factory` skill teaches Claude the drive loop;
   evidence are cycle-scoped, so rework automatically invalidates stale
   sign-offs and stale test runs. Every stage has `maxCycles` (default 5);
   entries past the limit park the run for an explicit human
-  `cycle-override` approval.
+  `cycle-override` approval. Each grant adds one entry (grants accumulate;
+  they do not reset the counter).
 - **Bindings** — stage config references run data in platform CEL syntax:
   `${{ data.latest(self.name, "evidence-change-request").payload.headSha }}`,
   resolved by the engine at stage execution time.

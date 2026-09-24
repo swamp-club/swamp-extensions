@@ -651,6 +651,7 @@ function workflowMocks(opts?: {
   };
   const dataRepository = {
     findAllForModel: () => Promise.resolve([]),
+    listVersions: () => Promise.resolve([]),
     getContent: (_t: unknown, _id: string, dataName: string) =>
       Promise.resolve(
         dataName === "report-swamp-workflow-summary-json"
@@ -784,6 +785,7 @@ Deno.test("workflow-succeeded: inline catalog content is used when present", asy
   };
   const noContentRepo = {
     findAllForModel: () => Promise.resolve([]),
+    listVersions: () => Promise.resolve([]),
     getContent: () => Promise.resolve(null),
   };
   const ok = await run(

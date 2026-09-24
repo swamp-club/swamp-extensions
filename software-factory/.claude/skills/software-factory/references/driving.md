@@ -297,8 +297,11 @@ queries together.
 - Multiple transitions satisfied → ask the human which to take.
 - `cycleLimitBlocked: true` → the run is parked. Present the cycle history
   from the journal query (see "Resuming and recovery") — not from memory —
-  and let the human grant `approve gateId=cycle-override:<stage>` (one grant
-  = one entry) or abort/escalate.
+  and let the human grant `approve gateId=cycle-override:<stage>` or
+  abort/escalate. Each grant adds one entry, not a reset: grants accumulate
+  (allowed entries = `maxCycles` + grants), so a run that will loop again
+  needs another grant each time it re-enters past the limit. Tell the human
+  this when presenting the choice.
 
 ## Presenting for human approval
 

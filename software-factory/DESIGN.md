@@ -499,8 +499,12 @@ overridable per stage, never unlimited-by-omission). Advancing into a stage at
 its limit is rejected like any gate failure. The limit is a circuit breaker,
 not a dead end: it converts the loop from auto-propelled to human-propelled.
 A human grants one additional entry at a time via
-`approve {gateId: cycle-override:<stage>}` (scoped to that entry, like any
-approval), or takes an escalation/abort transition instead. The trip is
+`approve {gateId: cycle-override:<stage>}`, or takes an escalation/abort
+transition instead. Grants accumulate and never reset the counter: a stage
+allows `maxCycles` + (approved overrides this era) entries, so each re-entry
+past the limit needs its own grant. Repeat grants are successive versions of
+one approval instance; the engine counts every version (via
+`listVersions`), not just the latest. The trip is
 journaled, and `status` always shows per-stage cycle counts against limits.
 
 **Dispatch limits are the within-entry counterpart.** `maxCycles` caps

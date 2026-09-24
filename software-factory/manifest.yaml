@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/software-factory"
-version: "2026.06.24.1"
+version: "2026.09.24.1"
 description: |
   A fully generic, model-driven state machine for guiding agents through a
   software development lifecycle. The entire machine — stages, transitions,
@@ -59,7 +59,8 @@ description: |
   records, not driver attestation).
 
   Every stage carries maxCycles (default 5): entries past the limit park the
-  run for an explicit human cycle-override approval.
+  run for an explicit human cycle-override approval. Each grant adds one
+  entry; grants accumulate and do not reset the counter.
 
   ## Run data
 

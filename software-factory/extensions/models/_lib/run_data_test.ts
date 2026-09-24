@@ -14,7 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { assert, assertEquals, assertNotEquals } from "@std/assert";
+import {
+  assert,
+  assertEquals,
+  assertNotEquals,
+  assertRejects,
+} from "@std/assert";
 import type { DataRepositoryLike } from "./run_data.ts";
 import {
   currentCycle,
@@ -37,10 +42,9 @@ export function memoryRepository(
     store,
     findAllForModel: (_type, _modelId) => {
       const out: { name: string; version: number }[] = [];
+      // Like swamp's repository: only the latest version per name.
       for (const [name, versions] of store) {
-        for (let i = 0; i < versions.length; i++) {
-          out.push({ name, version: i + 1 });
-        }
+        if (versions.length > 0) out.push({ name, version: versions.length });
       }
       return Promise.resolve(out);
     },
@@ -57,6 +61,8 @@ export function memoryRepository(
           : new TextEncoder().encode(JSON.stringify(data)),
       );
     },
+    listVersions: (_type, _modelId, dataName) =>
+      Promise.resolve((store.get(dataName) ?? []).map((_, i) => i + 1)),
   };
 }
 
@@ -217,6 +223,26 @@ Deno.test("loadRunView: empty store yields empty view", async () => {
   assertEquals(view.artifacts.size, 0);
   assertEquals(view.evidence.size, 0);
   assertEquals(view.approvals.size, 0);
+});
+
+Deno.test("loadRunView: fails fast without listVersions", async () => {
+  // A host repository without version history would silently drop every
+  // repeat approval, so loadRunView refuses it up front — even before any
+  // approval exists.
+  const { listVersions: _omitted, ...latestOnly } = memoryRepository({
+    "state-ISSUE-1": [state("ISSUE-1")],
+  });
+  const error = await assertRejects(
+    () =>
+      loadRunView(
+        latestOnly as unknown as DataRepositoryLike,
+        "type",
+        "id",
+        "ISSUE-1",
+      ),
+    Error,
+  );
+  assert(error.message.includes("listVersions"));
 });
 
 Deno.test("loadAllRunStates: overview across all work items", async () => {

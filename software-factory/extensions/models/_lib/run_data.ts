@@ -191,10 +191,12 @@ export interface DataRepositoryLike {
   ): Promise<Uint8Array | null>;
   /**
    * Every stored version of a data name, ascending. Present on swamp's
-   * UnifiedDataRepository; the summary's repository-backed reader needs it
-   * because `findAllForModel` only surfaces the latest version per name.
+   * UnifiedDataRepository. `findAllForModel` only surfaces the latest version
+   * per name, so loadRunView needs this to read approval history (repeat
+   * grants are versions of one instance) and the summary's repository-backed
+   * reader needs it for the journal.
    */
-  listVersions?(
+  listVersions(
     type: unknown,
     modelId: string,
     dataName: string,
@@ -253,6 +255,15 @@ export async function loadRunView(
   const evidencePrefix = `${EVIDENCE_PREFIX}${slug}-`;
   const validationPrefix = `${VALIDATION_PREFIX}${slug}-`;
   const approvalPrefix = `${APPROVAL_PREFIX}${slug}-`;
+
+  // Fail fast: without version history every repeat approval is silently
+  // dropped. Checked up front so a misconfigured host fails on the first
+  // command, not at the first human approval.
+  if (typeof repo.listVersions !== "function") {
+    throw new Error(
+      "data repository does not support listVersions; the software factory needs it to read approval history",
+    );
+  }
 
   const entries = await repo.findAllForModel(modelType, modelId);
 
@@ -333,8 +344,16 @@ export async function loadRunView(
     }
 
     if (name.startsWith(approvalPrefix)) {
+      // Approvals accumulate as versions of one instance (repeat grants of a
+      // cycle override, minApprovals > 1), so every version counts. Production
+      // findAllForModel only surfaces the latest version per name — enumerate
+      // history through listVersions (called as a method: swamp's repository
+      // relies on `this`).
+      const allVersions = [
+        ...await repo.listVersions(modelType, modelId, name),
+      ].sort((a, b) => a - b);
       const records: ApprovalRecord[] = [];
-      for (const version of versions) {
+      for (const version of allVersions) {
         const content = await repo.getContent(
           modelType,
           modelId,

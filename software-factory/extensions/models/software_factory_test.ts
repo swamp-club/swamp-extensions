@@ -174,10 +174,9 @@ function buildHarness(definition?: Record<string, unknown>) {
     dataRepository: {
       findAllForModel: (_type: unknown, _modelId: string) => {
         const out: { name: string; version: number }[] = [];
+        // Like swamp's repository: only the latest version per name.
         for (const [name, versions] of store) {
-          for (let i = 0; i < versions.length; i++) {
-            out.push({ name, version: i + 1 });
-          }
+          if (versions.length > 0) out.push({ name, version: versions.length });
         }
         return Promise.resolve(out);
       },
@@ -1286,6 +1285,43 @@ Deno.test("cycle limits: entry past maxCycles parks for human override", async (
   // A fourth entry needs a fresh grant.
   await advance(harness, "rework");
   await assertRejects(() => advance(harness, "submit"), Error);
+});
+
+Deno.test("cycle limits: repeat overrides accumulate, one entry per grant", async () => {
+  const harness = buildHarness();
+  await startRun(harness);
+  await recordPlan(harness);
+  await advance(harness, "submit"); // review cycle 1
+  await advance(harness, "rework");
+  await advance(harness, "submit"); // review cycle 2 (maxCycles: 2)
+
+  const grant = () =>
+    model.methods.approve.execute(
+      { workItem: WI, gateId: "cycle-override:review", actor: "adam" },
+      harness.context,
+    );
+
+  for (let entry = 3; entry <= 4; entry++) {
+    await advance(harness, "rework");
+    await assertRejects(() => advance(harness, "submit"), Error);
+    await grant();
+    await advance(harness, "submit");
+    assertEquals(
+      (latest(harness, "state-TEST-1").cycles as Record<string, number>)
+        .review,
+      entry,
+    );
+  }
+
+  // Two grants bought exactly two extra entries; the fifth is refused
+  // and the message counts every grant.
+  await advance(harness, "rework");
+  const refused = await assertRejects(
+    () => advance(harness, "submit"),
+    Error,
+  );
+  assertStringIncludes(refused.message, "entered 4 time(s)");
+  assertStringIncludes(refused.message, "limit 2 + 2 override(s)");
 });
 
 // ---------------------------------------------------------------------------
