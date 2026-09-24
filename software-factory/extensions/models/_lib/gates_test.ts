@@ -105,6 +105,7 @@ function evidenceView(
 }
 
 function makeContext(opts?: {
+  args?: FactoryArguments;
   state?: Partial<RunState>;
   artifacts?: [string, { latest: ArtifactEnvelope; version: number }][];
   evidence?: [string, { latest: EvidenceEnvelope; version: number }][];
@@ -121,7 +122,7 @@ function makeContext(opts?: {
     approvals: new Map(opts?.approvals ?? []),
   };
   return {
-    args: ARGS,
+    args: opts?.args ?? ARGS,
     state: state(opts?.state),
     view,
     workItem: "TEST-1",
@@ -812,6 +813,322 @@ Deno.test("workflow-succeeded: unavailable query machinery fails gracefully", as
   );
   assert(!result.pass);
   assertStringIncludes(result.reasons[0], "unavailable");
+});
+
+// ---------------------------------------------------------------------------
+// workflow-succeeded: binding to the work item's own run (swamp-club #2342)
+// ---------------------------------------------------------------------------
+
+/** A workflow-mode stage that runs the gated workflow itself. */
+function workflowStageArgs(resultEvidence?: string): FactoryArguments {
+  return FactoryArgumentsSchema.parse({
+    stages: [
+      {
+        id: "review",
+        initial: true,
+        work: {
+          mode: "workflow",
+          workflow: { name: "@acme/run-tests" },
+          ...(resultEvidence !== undefined ? { resultEvidence } : {}),
+        },
+        transitions: [{ name: "pass", to: "done" }],
+      },
+      { id: "done", terminal: true },
+    ],
+  });
+}
+
+interface RunFixture {
+  runId: string;
+  version: number;
+  createdAt: string;
+  status?: string;
+  workflowName?: string;
+  /** Drop the catalog row's version, as a malformed record would. */
+  omitVersion?: boolean;
+}
+
+/**
+ * Several stored versions of the workflow's run summary, one per run. Like
+ * swamp's query service, a predicate that doesn't mention version/isLatest
+ * sees only the latest version.
+ */
+function runHistory(
+  runs: RunFixture[],
+  stepOutputs: { name: string; modelName: string; workflowRunId: string }[] =
+    [],
+) {
+  const summaries = new Map(runs.map((r) => [r.version, {
+    ...SUMMARY,
+    workflowName: r.workflowName ?? SUMMARY.workflowName,
+    workflowRunId: r.runId,
+    status: r.status ?? "succeeded",
+  }]));
+  const records = runs.map((r) => ({
+    ownerRef: "wf-id-1",
+    name: "report-swamp-workflow-summary-json",
+    ...(r.omitVersion === true ? {} : { version: r.version }),
+    createdAt: r.createdAt,
+    content: "",
+  }));
+  const latestVersion = Math.max(...runs.map((r) => r.version));
+  const latest = records[runs.findIndex((r) => r.version === latestVersion)];
+  let reads = 0;
+  const queryData = (predicate: string) => {
+    if (predicate.includes("report-swamp-workflow-summary-json")) {
+      return Promise.resolve(
+        predicate.includes("version >") ? records : [latest],
+      );
+    }
+    if (predicate.includes("workflowRunId")) {
+      const requiredModel = predicate.match(/modelName == "([^"]+)"/)?.[1];
+      return Promise.resolve(
+        stepOutputs.filter((output) =>
+          predicate.includes(`workflowRunId == "${output.workflowRunId}"`) &&
+          predicate.includes(`"${output.name}"`) &&
+          (requiredModel === undefined || output.modelName === requiredModel)
+        ),
+      );
+    }
+    return Promise.resolve([]);
+  };
+  const dataRepository = {
+    findAllForModel: () => Promise.resolve([]),
+    getContent: (
+      _t: unknown,
+      _id: string,
+      _name: string,
+      version?: number,
+    ) => {
+      reads++;
+      const summary = summaries.get(version ?? latestVersion);
+      return Promise.resolve(
+        summary === undefined
+          ? null
+          : new TextEncoder().encode(JSON.stringify(summary)),
+      );
+    },
+  };
+  return { queryData, dataRepository, reads: () => reads };
+}
+
+// PROBE-A's run (run-A) finished first; a sibling's run-B is the latest.
+const RUN_A = {
+  runId: "run-A",
+  version: 1,
+  createdAt: "2026-06-11T11:40:00.000Z",
+};
+const RUN_B = {
+  runId: "run-B",
+  version: 2,
+  createdAt: "2026-06-11T11:50:00.000Z",
+};
+
+const RUN_TESTS_GATE: GateSpec = {
+  type: "workflow-succeeded",
+  config: { workflow: "@acme/run-tests" },
+};
+
+function outcome(runId: string, cycle = 1) {
+  return evidenceView({
+    name: "test-run",
+    cycle,
+    payload: { status: "succeeded", runId },
+  });
+}
+
+Deno.test("workflow-succeeded: a sibling's newer run does not satisfy an unbound work item", async () => {
+  const result = await run(
+    RUN_TESTS_GATE,
+    makeContext({
+      args: workflowStageArgs("test-run"),
+      ...runHistory([RUN_B]),
+    }),
+  );
+  assert(!result.pass);
+  assertStringIncludes(result.reasons[0], "no run of workflow");
+  assertStringIncludes(result.reasons[0], "record_evidence name=test-run");
+});
+
+Deno.test("workflow-succeeded: resultEvidence binds the work item's own run", async () => {
+  const result = await run(
+    RUN_TESTS_GATE,
+    makeContext({
+      args: workflowStageArgs("test-run"),
+      evidence: [["test-run", outcome("run-A")]],
+      ...runHistory([RUN_A, { ...RUN_B, status: "failed" }]),
+    }),
+  );
+  assert(result.pass, result.reasons.join("; "));
+});
+
+Deno.test("workflow-succeeded: a bound failed run fails despite a newer successful sibling", async () => {
+  const result = await run(
+    RUN_TESTS_GATE,
+    makeContext({
+      args: workflowStageArgs("test-run"),
+      evidence: [["test-run", outcome("run-A")]],
+      ...runHistory([{ ...RUN_A, status: "failed" }, RUN_B]),
+    }),
+  );
+  assert(!result.pass);
+  assertStringIncludes(result.reasons[0], "run run-A of workflow");
+  assertStringIncludes(result.reasons[0], "'failed'");
+});
+
+Deno.test("workflow-succeeded: a bound run with no summary fails naming the run", async () => {
+  const result = await run(
+    RUN_TESTS_GATE,
+    makeContext({
+      args: workflowStageArgs("test-run"),
+      evidence: [["test-run", outcome("run-cancelled")]],
+      ...runHistory([RUN_A, RUN_B]),
+    }),
+  );
+  assert(!result.pass);
+  assertStringIncludes(result.reasons[0], "run-cancelled");
+  assertStringIncludes(result.reasons[0], "resultEvidence 'test-run'");
+  assertStringIncludes(result.reasons[0], "cancelled");
+});
+
+Deno.test("workflow-succeeded: a bound run of another workflow is rejected", async () => {
+  const result = await run(
+    RUN_TESTS_GATE,
+    makeContext({
+      args: workflowStageArgs("test-run"),
+      evidence: [["test-run", outcome("run-A")]],
+      ...runHistory([{ ...RUN_A, workflowName: "@acme/lint" }]),
+    }),
+  );
+  assert(!result.pass);
+  assertStringIncludes(result.reasons[0], "'@acme/lint'");
+});
+
+Deno.test("workflow-succeeded: resultEvidence from an earlier entry does not bind", async () => {
+  const result = await run(
+    RUN_TESTS_GATE,
+    makeContext({
+      args: workflowStageArgs("test-run"),
+      state: { cycles: { review: 2 } },
+      evidence: [["test-run", outcome("run-A", 1)]],
+      ...runHistory([RUN_A, RUN_B]),
+    }),
+  );
+  assert(!result.pass);
+  assertStringIncludes(result.reasons[0], "no run of workflow");
+});
+
+Deno.test("workflow-succeeded: record_dispatch runId binds when no outcome is recorded", async () => {
+  const bound = await run(
+    RUN_TESTS_GATE,
+    makeContext({
+      args: workflowStageArgs(),
+      state: { dispatches: { review: { cycle: 1, count: 1, runId: "run-A" } } },
+      ...runHistory([RUN_A, { ...RUN_B, status: "failed" }]),
+    }),
+  );
+  assert(bound.pass, bound.reasons.join("; "));
+
+  // A runId from an earlier entry is ignored; with no resultEvidence the
+  // gate falls back to the latest run.
+  const stale = await run(
+    RUN_TESTS_GATE,
+    makeContext({
+      args: workflowStageArgs(),
+      state: {
+        cycles: { review: 2 },
+        dispatches: { review: { cycle: 1, count: 1, runId: "run-A" } },
+      },
+      ...runHistory([RUN_A, { ...RUN_B, status: "failed" }]),
+    }),
+  );
+  assert(!stale.pass);
+  assertStringIncludes(stale.reasons[0], "latest run");
+});
+
+Deno.test("workflow-succeeded: resultEvidence's runId wins over record_dispatch's", async () => {
+  const result = await run(
+    RUN_TESTS_GATE,
+    makeContext({
+      args: workflowStageArgs("test-run"),
+      state: { dispatches: { review: { cycle: 1, count: 1, runId: "run-B" } } },
+      evidence: [["test-run", outcome("run-A")]],
+      ...runHistory([RUN_A, { ...RUN_B, status: "failed" }]),
+    }),
+  );
+  assert(result.pass, result.reasons.join("; "));
+});
+
+Deno.test("workflow-succeeded: requireStepOutputs checks the bound run, not the latest", async () => {
+  const gate: GateSpec = {
+    type: "workflow-succeeded",
+    config: {
+      workflow: "@acme/run-tests",
+      requireStepOutputs: ["evidence-test-run"],
+    },
+  };
+  const result = await run(
+    gate,
+    makeContext({
+      args: workflowStageArgs("test-run"),
+      evidence: [["test-run", outcome("run-A")]],
+      selfName: "issue-1",
+      ...runHistory([RUN_A, RUN_B], [{
+        name: "evidence-TEST-1-test-run",
+        modelName: "issue-1",
+        workflowRunId: "run-A",
+      }]),
+    }),
+  );
+  assert(result.pass, result.reasons.join("; "));
+});
+
+Deno.test("workflow-succeeded: the bound-run scan stops at the first match", async () => {
+  const history = runHistory([RUN_A, RUN_B]);
+  const result = await run(
+    RUN_TESTS_GATE,
+    makeContext({
+      args: workflowStageArgs("test-run"),
+      evidence: [["test-run", outcome("run-A")]],
+      ...history,
+    }),
+  );
+  assert(result.pass, result.reasons.join("; "));
+  assertEquals(history.reads(), 1);
+});
+
+Deno.test("workflow-succeeded: the bound-run scan skips records without a version", async () => {
+  // The first row belongs to a stale run but carries no version; an
+  // unversioned read would return the latest summary (run-B) and pair it
+  // with this row's stale timestamp.
+  const result = await run(
+    RUN_TESTS_GATE,
+    makeContext({
+      args: workflowStageArgs("test-run"),
+      evidence: [["test-run", outcome("run-B")]],
+      ...runHistory([
+        {
+          runId: "run-old",
+          version: 1,
+          createdAt: "2026-06-11T09:00:00.000Z",
+          omitVersion: true,
+        },
+        RUN_B,
+      ]),
+    }),
+  );
+  assert(result.pass, result.reasons.join("; "));
+});
+
+Deno.test("workflow-succeeded: a workflow the stage doesn't run uses the latest run", async () => {
+  const result = await run(
+    { type: "workflow-succeeded", config: { workflow: "@acme/ci" } },
+    makeContext({
+      args: workflowStageArgs("test-run"),
+      ...runHistory([{ ...RUN_B, workflowName: "@acme/ci" }]),
+    }),
+  );
+  assert(result.pass, result.reasons.join("; "));
 });
 
 // ---------------------------------------------------------------------------

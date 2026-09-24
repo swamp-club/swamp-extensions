@@ -56,7 +56,8 @@ description: |
   findings-clear, human-approval, evidence-recorded (cycle-scoped, field
   matching), cooldown, max-cycles (routing), cel (CEL predicates over run
   data), workflow-succeeded (verified against swamp's own workflow run
-  records, not driver attestation).
+  records, not driver attestation, and bound to the work item's own run via
+  its resultEvidence runId).
 
   Every stage carries maxCycles (default 5): entries past the limit park the
   run for an explicit human cycle-override approval. Each grant adds one

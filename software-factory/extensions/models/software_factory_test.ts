@@ -801,6 +801,37 @@ Deno.test("record_dispatch: counts per entry and resets on re-entry", async () =
   );
 });
 
+Deno.test("record_dispatch: runId is kept for the entry and dropped on re-entry", async () => {
+  const harness = buildHarness();
+  await startRun(harness);
+  await model.methods.record_dispatch.execute(
+    { workItem: WI, mode: "workflow", runId: "run-1" },
+    harness.context,
+  );
+  let state = latest(harness, "state-TEST-1");
+  assertEquals(state.dispatches, {
+    planning: { cycle: 1, count: 1, runId: "run-1" },
+  });
+
+  // A repeat dispatch without a runId keeps the one bound this entry.
+  await dispatch(harness);
+  state = latest(harness, "state-TEST-1");
+  assertEquals(state.dispatches, {
+    planning: { cycle: 1, count: 2, runId: "run-1" },
+  });
+
+  // Re-entering planning starts a fresh entry: the old runId must not bind.
+  await recordPlan(harness);
+  await advance(harness, "submit");
+  await advance(harness, "rework");
+  await dispatch(harness);
+  state = latest(harness, "state-TEST-1");
+  assertEquals(
+    (state.dispatches as Record<string, unknown>).planning,
+    { cycle: 2, count: 1 },
+  );
+});
+
 Deno.test("record_dispatch: third dispatch trips the runaway-loop guard", async () => {
   const harness = buildHarness();
   await startRun(harness);

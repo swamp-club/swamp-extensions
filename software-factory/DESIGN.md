@@ -324,7 +324,7 @@ UX).
 | `evidence-recorded` | `name`, `requireField?` | Evidence `name` exists for the current stage cycle; optional field-value match (e.g. `{status: succeeded}`). |
 | `cooldown` | `afterEvidence` \| `afterArtifact`, `seconds` | Enough wall-clock time has elapsed since the referenced record (generalizes the PR/CI cooldown). |
 | `max-cycles` | `stage`, `limit`, `invert?` | Routing only — e.g. with `invert`, an `escalate` transition becomes live after N cycles. The safety net itself is not a gate: every stage has an engine-enforced `maxCycles` (default 5, see cycle limits below) regardless of what gates a definition declares. |
-| `workflow-succeeded` | `workflow`, `requireStepOutputs?` | The platform's own run summary (`report-swamp-workflow-summary-json`, owned by the workflow) shows the latest run of the declared workflow succeeded, created within the current `(stage, cycle)` window — verified via `queryData`, not driver attestation. With `requireStepOutputs`, additionally verifies the named run data was written by that run (step outputs carry `workflowRunId` provenance tags). **Spike-confirmed.** Note: run summaries are GC'd (30d/5 versions) — this gate verifies fresh outcomes; the journal remains the durable audit. |
+| `workflow-succeeded` | `workflow`, `requireStepOutputs?` | The platform's own run summary (`report-swamp-workflow-summary-json`, owned by the workflow) shows the work item's run of the declared workflow succeeded, created within the current `(stage, cycle)` window — verified via `queryData`, not driver attestation. When the current stage itself runs the workflow (`work.mode: workflow`), the run is **bound to the work item**: the `runId` of the stage's `resultEvidence` recorded this entry, else a `runId` passed to `record_dispatch` this entry; the gate verifies that run's summary (any stored version), so parallel work items sharing a workflow can't satisfy each other's gates. Such a stage that declares `resultEvidence` but has no bound run fails the gate. Otherwise (a workflow the stage doesn't run, or nothing to bind) the gate falls back to the latest run. With `requireStepOutputs`, additionally verifies the named run data was written by that run (step outputs carry `workflowRunId` provenance tags). **Spike-confirmed.** Note: run summaries are GC'd (30d/5 versions) — this gate verifies fresh outcomes, and a bound run whose summary was pruned (or never written, e.g. a cancelled run) fails; the journal remains the durable audit. |
 | `cel` | `expr`, `message?` | The CEL predicate evaluates to `true` over materialized run data: `artifacts.<name>`, `evidence.<name>`, `state`, `approvals`, `workItem` (snake-cased names). Full CEL incl. macros — e.g. `size(artifacts.plan_review.findings.filter(f, !f.resolved && f.severity in ["critical","high"])) == 0`. `message` is the human/agent-facing reason on failure. **Spike-confirmed** on the real platform. |
 
 User-supplied gate *code* (arbitrary TS in the definition) remains out of
@@ -421,6 +421,9 @@ a reset run really does start fresh, with no stale-artifact leakage.
   per-entry dispatch counter, journals a `dispatched` event, and drives the
   runaway-loop guard: the second dispatch of an entry returns a loud
   repeat-dispatch warning, the third is rejected as `runaway-loop-suspected`.
+  A `runId` known at dispatch time is kept for the entry and binds the
+  `workflow-succeeded` gate (the stage's `resultEvidence` runId takes
+  precedence).
 - `record_artifact {name, payload, note?}` — validate against the configured
   schema; auto-capture subject version if `reviews:` is set; bump version.
 - `record_evidence {name, payload}` — validated write (declared schema, or the

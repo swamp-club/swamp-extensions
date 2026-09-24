@@ -1190,7 +1190,7 @@ export const model = {
           "Work mode being executed (interactive|dispatch|workflow|method)",
         ),
         runId: z.string().optional().describe(
-          "Workflow/method run id, for the audit trail",
+          "Workflow/method run id, when known at dispatch time. Journaled, and binds the workflow-succeeded gate to this run for the current entry (resultEvidence's runId takes precedence). Do not re-call record_dispatch from inside the workflow to supply it — that counts as another attempt.",
         ),
         note: z.string().optional(),
       }),
@@ -1246,11 +1246,19 @@ export const model = {
           );
         }
 
+        // A repeat dispatch without a runId keeps the one bound earlier in
+        // this entry; a stale entry's runId never carries over.
+        const runId = methodArgs.runId ??
+          (attempt > 1 ? state.dispatches?.[stage.id]?.runId : undefined);
         const newState: RunState = {
           ...state,
           dispatches: {
             ...(state.dispatches ?? {}),
-            [stage.id]: { cycle, count: attempt },
+            [stage.id]: {
+              cycle,
+              count: attempt,
+              ...(runId !== undefined ? { runId } : {}),
+            },
           },
         };
         const handles = [];

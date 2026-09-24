@@ -34,13 +34,16 @@ export const RunStateSchema = z.object({
    * `record_dispatch` increments `count` while `cycle` matches the stage's
    * current cycle, and resets to the new cycle on re-entry. The deterministic
    * input to the runaway-loop guard: re-dispatching the same (stage, cycle)
-   * is counted from recorded state, not agent memory.
+   * is counted from recorded state, not agent memory. `runId`, when the
+   * dispatcher knew it, binds the workflow-succeeded gate to this work
+   * item's own run for the entry.
    */
   dispatches: z.record(
     z.string(),
     z.object({
       cycle: z.number().int().positive(),
       count: z.number().int().positive(),
+      runId: z.string().optional(),
     }),
   ).optional(),
   enteredAt: z.string(),

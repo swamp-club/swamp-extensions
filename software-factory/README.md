@@ -76,7 +76,9 @@ next. The shipped `software-factory` skill teaches Claude the drive loop;
   `artifact-fresh`, `findings-clear`, `human-approval`, `evidence-recorded`,
   `cooldown`, `max-cycles`, `cel` (CEL predicates over run data), and
   `workflow-succeeded` (verified against swamp's own workflow run records,
-  not driver attestation).
+  not driver attestation — and against the work item's own run, bound via its
+  `resultEvidence` runId, so parallel work items can't satisfy each other's
+  gates).
 - **Cycles** — re-entering a stage increments its cycle; approvals and
   evidence are cycle-scoped, so rework automatically invalidates stale
   sign-offs and stale test runs. Every stage has `maxCycles` (default 5);

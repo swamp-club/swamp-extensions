@@ -19,7 +19,7 @@ import type {
   GateSpec,
   TransitionSpec,
 } from "./definition_schema.ts";
-import { celName, findArtifactSpec } from "./definition_schema.ts";
+import { celName, findArtifactSpec, findStage } from "./definition_schema.ts";
 import type { FindingsPayload } from "./artifact_schema.ts";
 import type { DataRepositoryLike, RunState, RunView } from "./run_data.ts";
 import { currentCycle, entriesInto } from "./run_data.ts";
@@ -412,16 +412,41 @@ interface WorkflowSummary {
   failures?: unknown[];
 }
 
+/** A gate context whose run-record machinery is known to be present. */
+type RunRecordContext = GateContext & {
+  queryData: NonNullable<GateContext["queryData"]>;
+  dataRepository: NonNullable<GateContext["dataRepository"]>;
+};
+
+function hasRunRecords(ctx: GateContext): ctx is RunRecordContext {
+  return ctx.queryData !== undefined && ctx.dataRepository !== undefined;
+}
+
 async function workflowSucceeded(
   gate: GateOf<"workflow-succeeded">,
   ctx: GateContext,
 ): Promise<GateResult> {
-  if (ctx.queryData === undefined || ctx.dataRepository === undefined) {
+  if (!hasRunRecords(ctx)) {
     return fail(
       gate,
       "workflow run records unavailable in this execution context",
     );
   }
+
+  // Parallel work items share the stage workflow, so the latest run may
+  // belong to a sibling. When the work item's own run is known, verify that
+  // run; the latest-run fallback below only applies when it can't be.
+  const binding = boundRun(gate, ctx);
+  if (binding !== undefined && "missing" in binding) {
+    return fail(
+      gate,
+      `no run of workflow '${gate.config.workflow}' is bound to '${ctx.workItem}' for this entry into stage '${ctx.state.stageId}' — record_evidence name=${binding.missing} with this work item's runId (or pass runId to record_dispatch) so the gate verifies this work item's own run`,
+    );
+  }
+  if (binding !== undefined) {
+    return await verifyBoundRun(gate, ctx, binding);
+  }
+
   let records: unknown[];
   try {
     records = await ctx.queryData(
@@ -438,96 +463,214 @@ async function workflowSucceeded(
 
   for (const record of records) {
     const rec = record as Record<string, unknown>;
-    const ownerRef = rec.ownerRef;
-    if (typeof ownerRef !== "string") continue;
-    let summary: WorkflowSummary | null = null;
-    const inline = rec.content;
-    if (typeof inline === "string" && inline.length > 0) {
-      try {
-        summary = JSON.parse(inline) as WorkflowSummary;
-      } catch {
-        summary = null;
-      }
-    }
-    if (summary === null) {
-      const content = await ctx.dataRepository.getContent(
-        "workflow",
-        ownerRef,
-        WORKFLOW_SUMMARY_NAME,
-      );
-      if (content === null) continue;
-      try {
-        summary = JSON.parse(
-          new TextDecoder().decode(content),
-        ) as WorkflowSummary;
-      } catch {
-        continue;
-      }
-    }
+    const summary = await readSummary(rec, ctx);
+    if (summary === null) continue;
     if (summary.workflowName !== gate.config.workflow) continue;
-
-    if (summary.status !== "succeeded") {
-      return fail(
-        gate,
-        `latest run of workflow '${gate.config.workflow}' (${summary.workflowRunId}) has status '${summary.status}'${
-          summary.failed !== undefined && summary.failed > 0
-            ? ` with ${summary.failed} failed step(s)`
-            : ""
-        }`,
-      );
-    }
-
-    const createdAt = rec.createdAt;
-    if (typeof createdAt === "string") {
-      const ranAt = new Date(createdAt).getTime();
-      const enteredAt = new Date(ctx.state.enteredAt).getTime();
-      if (ranAt < enteredAt) {
-        return fail(
-          gate,
-          `latest run of workflow '${gate.config.workflow}' predates the current entry into stage '${ctx.state.stageId}' — run it again for this cycle`,
-        );
-      }
-    }
-
-    for (const required of gate.config.requireStepOutputs ?? []) {
-      // Scope to this run's own data: in parallel use, sibling runs share
-      // the workflow, and an unscoped match would accept their outputs.
-      // Required names are logical ("evidence-test-run"); translate to the
-      // work item's physical instance name.
-      const physical = physicalStepOutput(required, ctx.workItemSlug);
-      const selfClause = ctx.selfName !== undefined
-        ? ` && modelName == "${ctx.selfName}"`
-        : "";
-      let outputs: unknown[];
-      try {
-        outputs = await ctx.queryData(
-          `workflowRunId == "${summary.workflowRunId}" && name == "${physical}"${selfClause}`,
-        );
-      } catch (error) {
-        return fail(
-          gate,
-          `step-output query failed: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-      }
-      if (outputs.length === 0) {
-        return fail(
-          gate,
-          `verified run ${summary.workflowRunId} did not write required output '${required}'${
-            ctx.selfName !== undefined ? ` into run '${ctx.selfName}'` : ""
-          }`,
-        );
-      }
-    }
-
-    return pass(gate);
+    return await verifyRun(gate, ctx, rec, summary, {
+      status:
+        `latest run of workflow '${gate.config.workflow}' (${summary.workflowRunId})`,
+      stale: `latest run of workflow '${gate.config.workflow}'`,
+    });
   }
 
   return fail(
     gate,
     `no run record found for workflow '${gate.config.workflow}' — trigger the workflow first`,
   );
+}
+
+type RunBinding =
+  | { runId: string; source: string }
+  | { missing: string };
+
+/**
+ * The work item's own run of the gate's workflow for the current entry:
+ * the stage's resultEvidence runId (recorded after the run) wins, then a
+ * runId passed to record_dispatch. Binding applies only when the stage
+ * itself runs the gate's workflow. Returns `{missing}` when the stage
+ * declares resultEvidence but nothing is bound yet, and undefined when the
+ * gate can't be bound (it verifies a workflow the stage doesn't run).
+ */
+function boundRun(
+  gate: GateOf<"workflow-succeeded">,
+  ctx: GateContext,
+): RunBinding | undefined {
+  const work = findStage(ctx.args, ctx.state.stageId)?.work;
+  if (
+    work?.mode !== "workflow" || work.workflow?.name !== gate.config.workflow
+  ) {
+    return undefined;
+  }
+  const cycle = currentCycle(ctx.state);
+  if (work.resultEvidence !== undefined) {
+    const outcome = ctx.view.evidence.get(work.resultEvidence)?.latest;
+    const runId = outcome?.payload.runId;
+    if (
+      outcome !== undefined &&
+      outcome.stageId === ctx.state.stageId &&
+      outcome.cycle === cycle &&
+      typeof runId === "string" && runId.length > 0
+    ) {
+      return { runId, source: `resultEvidence '${work.resultEvidence}'` };
+    }
+  }
+  const dispatch = ctx.state.dispatches?.[ctx.state.stageId];
+  if (dispatch?.cycle === cycle && dispatch.runId !== undefined) {
+    return { runId: dispatch.runId, source: "record_dispatch" };
+  }
+  // A declared resultEvidence means the driver is expected to record the
+  // run, so its absence is a missing binding. Without one there is nothing
+  // the work item is obliged to record, so fall back to the latest run.
+  return work.resultEvidence !== undefined
+    ? { missing: work.resultEvidence }
+    : undefined;
+}
+
+async function verifyBoundRun(
+  gate: GateOf<"workflow-succeeded">,
+  ctx: RunRecordContext,
+  binding: { runId: string; source: string },
+): Promise<GateResult> {
+  let records: unknown[];
+  try {
+    // Mentioning `version` opts out of the implicit isLatest filter: the
+    // bound run's summary may have been superseded by a sibling's run.
+    records = await ctx.queryData(
+      `name == "${WORKFLOW_SUMMARY_NAME}" && modelType == "workflow" && version > 0`,
+    );
+  } catch (error) {
+    return fail(
+      gate,
+      `workflow run query failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+
+  const label = `run ${binding.runId} of workflow '${gate.config.workflow}'`;
+  for (const record of records) {
+    const rec = record as Record<string, unknown>;
+    // Without a version the repository read would return the latest
+    // summary, not this record's — which may be a different run.
+    if (typeof rec.version !== "number") continue;
+    // workflowRunId is a per-run UUID, so the first match is the run.
+    const summary = await readSummary(rec, ctx, rec.version);
+    if (summary === null || summary.workflowRunId !== binding.runId) continue;
+    if (summary.workflowName !== gate.config.workflow) {
+      return fail(
+        gate,
+        `run ${binding.runId} (bound via ${binding.source}) is a run of workflow '${summary.workflowName}', not '${gate.config.workflow}' — record this work item's run of '${gate.config.workflow}'`,
+      );
+    }
+    return await verifyRun(gate, ctx, rec, summary, {
+      status: label,
+      stale: label,
+    });
+  }
+
+  return fail(
+    gate,
+    `no run summary found for ${label} (bound via ${binding.source}) — the run may have been cancelled, its summary garbage-collected, or the recorded runId is not a swamp workflow run id; re-run the workflow and record its runId`,
+  );
+}
+
+/**
+ * Parse a summary record: its inline catalog content when present, else the
+ * repository copy at `version` (the latest when omitted).
+ */
+async function readSummary(
+  rec: Record<string, unknown>,
+  ctx: RunRecordContext,
+  version?: number,
+): Promise<WorkflowSummary | null> {
+  const ownerRef = rec.ownerRef;
+  if (typeof ownerRef !== "string") return null;
+  const inline = rec.content;
+  if (typeof inline === "string" && inline.length > 0) {
+    try {
+      return JSON.parse(inline) as WorkflowSummary;
+    } catch {
+      // fall through to the repository copy
+    }
+  }
+  const content = await ctx.dataRepository.getContent(
+    "workflow",
+    ownerRef,
+    WORKFLOW_SUMMARY_NAME,
+    version,
+  );
+  if (content === null) return null;
+  try {
+    return JSON.parse(new TextDecoder().decode(content)) as WorkflowSummary;
+  } catch {
+    return null;
+  }
+}
+
+/** Status, freshness, and step-output checks against one selected run. */
+async function verifyRun(
+  gate: GateOf<"workflow-succeeded">,
+  ctx: RunRecordContext,
+  rec: Record<string, unknown>,
+  summary: WorkflowSummary,
+  describe: { status: string; stale: string },
+): Promise<GateResult> {
+  if (summary.status !== "succeeded") {
+    return fail(
+      gate,
+      `${describe.status} has status '${summary.status}'${
+        summary.failed !== undefined && summary.failed > 0
+          ? ` with ${summary.failed} failed step(s)`
+          : ""
+      }`,
+    );
+  }
+
+  const createdAt = rec.createdAt;
+  if (typeof createdAt === "string") {
+    const ranAt = new Date(createdAt).getTime();
+    const enteredAt = new Date(ctx.state.enteredAt).getTime();
+    if (ranAt < enteredAt) {
+      return fail(
+        gate,
+        `${describe.stale} predates the current entry into stage '${ctx.state.stageId}' — run it again for this cycle`,
+      );
+    }
+  }
+
+  for (const required of gate.config.requireStepOutputs ?? []) {
+    // Scope to this run's own data: in parallel use, sibling runs share
+    // the workflow, and an unscoped match would accept their outputs.
+    // Required names are logical ("evidence-test-run"); translate to the
+    // work item's physical instance name.
+    const physical = physicalStepOutput(required, ctx.workItemSlug);
+    const selfClause = ctx.selfName !== undefined
+      ? ` && modelName == "${ctx.selfName}"`
+      : "";
+    let outputs: unknown[];
+    try {
+      outputs = await ctx.queryData(
+        `workflowRunId == "${summary.workflowRunId}" && name == "${physical}"${selfClause}`,
+      );
+    } catch (error) {
+      return fail(
+        gate,
+        `step-output query failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+    if (outputs.length === 0) {
+      return fail(
+        gate,
+        `verified run ${summary.workflowRunId} did not write required output '${required}'${
+          ctx.selfName !== undefined ? ` into run '${ctx.selfName}'` : ""
+        }`,
+      );
+    }
+  }
+
+  return pass(gate);
 }
 
 /**
