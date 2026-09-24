@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/software-factory"
-version: "2026.09.24.1"
+version: "2026.09.24.2"
 description: |
   A fully generic, model-driven state machine for guiding agents through a
   software development lifecycle. The entire machine — stages, transitions,

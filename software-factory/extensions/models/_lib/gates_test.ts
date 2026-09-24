@@ -894,6 +894,7 @@ function runHistory(
   };
   const dataRepository = {
     findAllForModel: () => Promise.resolve([]),
+    listVersions: () => Promise.resolve([]),
     getContent: (
       _t: unknown,
       _id: string,
