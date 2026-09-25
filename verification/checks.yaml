@@ -193,4 +193,5 @@ groups:
             scripts/run_checks.ts scripts/run_checks_test.ts
             scripts/check_upgrades.ts scripts/check_upgrades_test.ts
             scripts/validate_attestation.ts scripts/validate_attestation_test.ts
+            scripts/post_pr_comment.ts scripts/post_pr_comment_test.ts
             scripts/verification_harness_test.ts

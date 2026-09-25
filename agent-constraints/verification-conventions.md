@@ -243,6 +243,20 @@ commit and only read as data.
   trust-root files fails this job until a maintainer pushes the branch to this
   repository.
 
+Each job posts its result as its own PR comment, because Forgejo does not
+render step summaries: the attestation check (commit, gate, freshness, each
+pinned file, the steps table, or the reason it failed), and the integrity
+review when it ran (or why it did not complete). The comments are posted by
+`scripts/post_pr_comment.ts`. Each starts with a hidden marker naming its job
+and the commit it judged. A later push updates the same comment instead of
+adding one. Nothing is posted for a run that a newer push superseded, or for a
+fork, which has no token; a fork's result stays in the job log. The integrity
+review is also printed, redacted, in its job's log. The comments only report:
+failing to post one is a warning, and neither verdict depends on it. Text from
+the attestation is escaped before it reaches the comment, because the PR
+author controls it. The poster and the validator run from the base commit, so
+a change to either reaches PRs opened after it merges.
+
 Because the workflow is the PR's own, a PR can change what CI does to it.
 Changes under `.forgejo/` are trust-root changes: review-integrity audits them,
 and the reviewer of the PR should read them with that in mind.

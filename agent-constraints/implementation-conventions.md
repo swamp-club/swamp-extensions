@@ -264,5 +264,10 @@ verification. It runs two jobs:
 Both jobs run on `pull_request`, so a PR's own `ci.yml` is what runs;
 the scripts they call are taken from the base commit.
 
+Each job posts its result as its own PR comment, updated in place on
+every push and naming the commit it judged. Read those comments to see
+why a check passed or failed. Forks get no comment; their result is in
+the job log. A failure to post never changes a verdict.
+
 A red CI blocks merge. Fix locally and push a new commit — do not
 force-push to `main`, do not merge around failures.

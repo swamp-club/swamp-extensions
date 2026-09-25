@@ -10,6 +10,14 @@ name: CI
 # - validate-attestation: the attestation for the PR head exists, passed, and
 #   pins the same harness the PR contains.
 #
+# Each job posts its result to the pull request as its own comment, updated in
+# place on every push and naming the commit it judged (Forgejo does not render
+# step summaries). scripts/post_pr_comment.ts, taken from the base like the
+# other scripts, edits only a comment the bot wrote with that job's marker,
+# and posts nothing for a run a newer push has superseded. A comment only
+# reports: failing to post is a warning, and never changes either verdict.
+# Forks get no token, so they get no comment; their result stays in the log.
+#
 # pull_request, like swamp's own CI: this workflow runs as the pull request
 # has it. The scripts it runs (the validator, the review prompt, the verdict
 # rule) are still taken from the base commit, so a pull request that edits one
@@ -154,7 +162,9 @@ jobs:
           # a partial audit; it needs a human.
           SIZE=$(wc -c < "$CHANGE")
           if [ "$SIZE" -gt 1500000 ]; then
-            echo "::error::The trust-root change is ${SIZE} bytes, too large for the automated integrity audit. A maintainer must review it by hand."
+            MESSAGE="The trust-root change is ${SIZE} bytes, too large for the automated integrity audit. A maintainer must review it by hand."
+            echo "::error::${MESSAGE}"
+            printf '%s\n' "## Review Integrity" "" "❌ ${MESSAGE}" > "${WORK}/review-body.md"
             exit 1
           fi
 
@@ -208,6 +218,13 @@ jobs:
           open(path, "w").write(text)
           PY
 
+          # The redacted review, readable here when no comment can be posted.
+          # Every line is prefixed: the text is the agent's, shaped by the
+          # change, and a line starting with :: would be a workflow command.
+          echo "----- review -----"
+          sed 's/^/| /' "$BODY"
+          echo "----- end of review -----"
+
           if [ "$CLAUDE_EXIT" -ne 0 ]; then
             echo "::error::claude exited with status $CLAUDE_EXIT"
             exit 1
@@ -217,32 +234,38 @@ jobs:
 
       - name: Post review comment
         if: always() && steps.changed.outputs.has_files == 'true' && env.SAME_REPO == 'true'
+        # The comment reports; it never decides. The verdict is the Audit
+        # step's, and the poster exits 0 on any failure to post.
+        continue-on-error: true
         env:
           FORGEJO_TOKEN: ${{ secrets.BOT_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
           BODY="${RUNNER_TEMP}/integrity/review-body.md"
-          if [ ! -s "$BODY" ]; then
-            echo "::warning::No review body found at ${BODY}"
+          POSTER="${GITHUB_WORKSPACE}/scripts/post_pr_comment.ts"
+          if [ ! -f "$POSTER" ]; then
+            echo "The base commit has no scripts/post_pr_comment.ts; not commenting. The review, if there is one, is in the Audit step's log."
             exit 0
           fi
-          python3 -c "import json,sys; print(json.dumps({'body': open(sys.argv[1]).read()}))" "$BODY" > "${RUNNER_TEMP}/integrity/payload.json"
-          HTTP_CODE=$(curl -s -o "${RUNNER_TEMP}/integrity/curl-response.txt" -w "%{http_code}" -X POST \
-            -H "Authorization: token $FORGEJO_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d @"${RUNNER_TEMP}/integrity/payload.json" \
-            "https://git.swamp-club.com/api/v1/repos/$REPO/issues/$PR_NUMBER/comments")
-          if [ "$HTTP_CODE" -ge 400 ]; then
-            echo "::error::Failed to post review comment (HTTP $HTTP_CODE)"
-            cat "${RUNNER_TEMP}/integrity/curl-response.txt"
-            exit 1
+          if [ ! -s "$BODY" ]; then
+            # Fixed text only: nothing from the runner reaches the comment.
+            printf '%s\n' "## Review Integrity" "" \
+              "❌ The integrity audit did not complete, so there is no review. See this job's log." \
+              > "$BODY"
           fi
-          echo "Review comment posted (HTTP $HTTP_CODE)"
+          deno run --config "${GITHUB_WORKSPACE}/deno.json" \
+            --allow-read="$BODY" \
+            --allow-net=git.swamp-club.com \
+            --allow-env=FORGEJO_TOKEN \
+            "$POSTER" --file "$BODY" --marker review-integrity \
+            --repo "$REPO" --pr "$PR_NUMBER" --commit "$HEAD_SHA"
 
   validate-attestation:
     name: Validate Attestation
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    # The comment is posted with BOT_TOKEN, not the job's own token, so the
+    # job token keeps the workflow's read-only default.
     steps:
       - uses: actions/checkout@v6
         with:
@@ -272,10 +295,48 @@ jobs:
         run: |
           # The validator and its list of pinned files come from the base
           # checkout; it hashes the head's files, read-only.
+          SUMMARY="${RUNNER_TEMP}/attestation-summary.md"
+          # Only name the step summary when the runner provides one: an empty
+          # entry in the list must not widen what the validator may write.
+          WRITABLE="$SUMMARY"
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            WRITABLE="${GITHUB_STEP_SUMMARY},${SUMMARY}"
+          fi
           cd head
           deno run --config "${GITHUB_WORKSPACE}/deno.json" \
             --allow-read="${GITHUB_WORKSPACE}" \
-            --allow-write="$GITHUB_STEP_SUMMARY" \
+            --allow-write="$WRITABLE" \
             --allow-env=GITHUB_STEP_SUMMARY \
             --allow-net=swamp-club.com --allow-run=git \
-            "${GITHUB_WORKSPACE}/scripts/validate_attestation.ts" --commit "$HEAD_SHA"
+            "${GITHUB_WORKSPACE}/scripts/validate_attestation.ts" --commit "$HEAD_SHA" \
+            --summary-file "$SUMMARY"
+
+      - name: Post the result as a pull request comment
+        if: always()
+        # The comment reports; it never decides. The verdict is the step
+        # above's, and the poster exits 0 on any failure to post.
+        continue-on-error: true
+        env:
+          FORGEJO_TOKEN: ${{ secrets.BOT_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          SUMMARY="${RUNNER_TEMP}/attestation-summary.md"
+          POSTER="${GITHUB_WORKSPACE}/scripts/post_pr_comment.ts"
+          if [ "$SAME_REPO" != "true" ]; then
+            echo "Pull request from a fork: there is no token to comment with. The result is in this job's log."
+            exit 0
+          fi
+          if [ ! -f "$POSTER" ]; then
+            echo "The base commit has no scripts/post_pr_comment.ts; not commenting."
+            exit 0
+          fi
+          if [ ! -s "$SUMMARY" ]; then
+            echo "No validation result was written (a newer push superseded this run, or the validator did not finish); not commenting."
+            exit 0
+          fi
+          deno run --config "${GITHUB_WORKSPACE}/deno.json" \
+            --allow-read="$SUMMARY" \
+            --allow-net=git.swamp-club.com \
+            --allow-env=FORGEJO_TOKEN \
+            "$POSTER" --file "$SUMMARY" --marker validate-attestation \
+            --repo "$REPO" --pr "$PR_NUMBER" --commit "$HEAD_SHA"

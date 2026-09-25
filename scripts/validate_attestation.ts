@@ -31,9 +31,12 @@
  *   deno run --allow-read --allow-write --allow-env=GITHUB_STEP_SUMMARY \
  *     --allow-net=swamp-club.com scripts/validate_attestation.ts \
  *       --commit <head-sha> [--url https://swamp-club.com] [--file <path>] \
- *       [--config <attestation.yaml>]
+ *       [--config <attestation.yaml>] [--summary-file <path>]
  *
  * `--file` reads the attestation from disk instead of swamp-club.
+ * `--summary-file` also writes the result's markdown to that path, for CI to
+ * post where the forge does not render step summaries; the script itself
+ * knows no forge's comment API.
  */
 
 import { parseArgs } from "@std/cli/parse-args";
@@ -54,6 +57,89 @@ export interface ValidationResult {
   warnings: string[];
   /** Markdown for the job summary. */
   summary: string[];
+}
+
+/**
+ * An untrusted string as one inline code span, so nothing in it renders as
+ * markdown or HTML: no links, images, mentions, or HTML comments. Line breaks
+ * become spaces and backticks become quotes, so it cannot end the span early.
+ */
+export function code(value: string, max = 200): string {
+  const text = value.replace(/[\r\n]+/g, " ").replaceAll("`", "'").trim();
+  if (text === "") return "—";
+  // Counted in code points, so a cut never splits a character in two.
+  const chars = Array.from(text);
+  const shown = chars.length > max
+    ? `${chars.slice(0, max - 1).join("")}…`
+    : text;
+  return `\`${shown}\``;
+}
+
+/**
+ * {@link code} for a table cell. A pipe would end the cell, and escaping it
+ * is not enough — text already holding `\|` would become `\\|`, whose pipe
+ * splits the row — so pipes are replaced outright.
+ */
+export function cell(value: string): string {
+  return code(value.replaceAll("|", "¦"));
+}
+
+/**
+ * A workflow command (`::error::` and the like) whose message cannot break
+ * onto a new line: messages quote the attestation, which the pull request's
+ * author controls, and a line of theirs starting with :: would be a command
+ * the runner obeys, in a job whose later step holds a token.
+ */
+export function workflowCommand(
+  name: "error" | "warning",
+  message: string,
+): string {
+  const escaped = message.replaceAll("%", "%25").replaceAll("\r", "%0D")
+    .replaceAll("\n", "%0A");
+  return `::${name}::${escaped}`;
+}
+
+function verdictLine(errors: number, warnings: number): string {
+  return errors > 0
+    ? `### ❌ Validation Failed — ${errors} error(s), ${warnings} warning(s)`
+    : warnings > 0
+    ? `### ⚠️ Validation Passed with ${warnings} warning(s)`
+    : "### ✅ Validation Passed";
+}
+
+/** The summary for a run that failed before it had an attestation to judge. */
+export function failureSummary(commit: string, reason: string): string[] {
+  return [
+    "## Attestation Validation",
+    "",
+    `Commit ${code(commit)}`,
+    "",
+    `❌ ${code(reason, 500)}`,
+    "",
+    verdictLine(1, 0),
+  ];
+}
+
+/** Where the summary markdown goes. */
+export interface SummaryTargets {
+  /** Written in full: the file CI posts as a pull request comment. */
+  summaryFile?: string;
+  /** Appended to: GITHUB_STEP_SUMMARY, on runners that render it. */
+  stepSummary?: string;
+}
+
+/** Writes the summary to every target given, or to stdout when none is. */
+export async function writeSummary(
+  markdown: string,
+  targets: SummaryTargets,
+): Promise<void> {
+  if (targets.stepSummary) {
+    await Deno.writeTextFile(targets.stepSummary, markdown, { append: true });
+  }
+  if (targets.summaryFile) {
+    await Deno.writeTextFile(targets.summaryFile, markdown);
+  }
+  if (!targets.stepSummary && !targets.summaryFile) console.log(markdown);
 }
 
 function lookup(doc: unknown, path: readonly string[]): unknown {
@@ -92,6 +178,12 @@ export function validateAttestation(
       );
     }
     summary.push("❌ Attestation does not match the schema", "");
+    for (const issue of parsed.error.issues) {
+      summary.push(
+        `- ${code(issue.path.join(".") || "(root)")}: ${code(issue.message)}`,
+      );
+    }
+    summary.push("", verdictLine(errors.length, warnings.length));
     return { errors, warnings, summary };
   }
   const attestation = parsed.data;
@@ -102,9 +194,9 @@ export function validateAttestation(
         `the pull request head is ${headSha}`,
     );
     summary.push(
-      `❌ Commit mismatch: attestation \`${
-        attestation.subject.commit.slice(0, 8)
-      }\` ≠ PR \`${headSha.slice(0, 8)}\``,
+      `❌ Commit mismatch: attestation ${
+        code(attestation.subject.commit.slice(0, 8))
+      } ≠ PR \`${headSha.slice(0, 8)}\``,
     );
   } else {
     summary.push("✅ Commit matches PR head");
@@ -194,22 +286,16 @@ export function validateAttestation(
       ? "✅ passed"
       : step.status === "skipped"
       ? "⏭️ skipped"
-      : `❌ ${step.status}`;
+      : `❌ ${cell(step.status)}`;
+    const detail = step.verdict ?? step.reason;
     summary.push(
-      `| ${step.job} | ${step.step} | ${status} | ${
-        step.verdict ?? step.reason ?? "—"
+      `| ${cell(step.job)} | ${cell(step.step)} | ${status} | ${
+        detail === undefined ? "—" : cell(detail)
       } |`,
     );
   }
 
-  summary.push(
-    "",
-    errors.length > 0
-      ? `### ❌ Validation Failed — ${errors.length} error(s), ${warnings.length} warning(s)`
-      : warnings.length > 0
-      ? `### ⚠️ Validation Passed with ${warnings.length} warning(s)`
-      : "### ✅ Validation Passed",
-  );
+  summary.push("", verdictLine(errors.length, warnings.length));
   return { errors, warnings, summary };
 }
 
@@ -259,7 +345,7 @@ async function readAttestation(
 
 async function main(): Promise<number> {
   const args = parseArgs(Deno.args, {
-    string: ["commit", "url", "file", "config"],
+    string: ["commit", "url", "file", "config", "summary-file"],
     default: {
       url: "https://swamp-club.com",
       config: new URL(`../${DEFAULT_CONFIG}`, import.meta.url).pathname,
@@ -267,17 +353,31 @@ async function main(): Promise<number> {
   });
   if (!args.commit) {
     console.error(
-      "usage: validate_attestation.ts --commit <sha> [--url <url>] [--file <path>]",
+      "usage: validate_attestation.ts --commit <sha> [--url <url>] [--file <path>] [--summary-file <path>]",
     );
     return 2;
   }
+  const commit = args.commit;
+  const targets: SummaryTargets = {
+    summaryFile: args["summary-file"],
+    stepSummary: Deno.env.get("GITHUB_STEP_SUMMARY"),
+  };
+  // A run that fails before judging an attestation still says why, so the
+  // missing-attestation case is as visible as any other failure.
+  const fail = async (reason: string): Promise<number> => {
+    console.error(workflowCommand("error", reason));
+    await writeSummary(
+      failureSummary(commit, reason).join("\n") + "\n",
+      targets,
+    );
+    return 1;
+  };
 
   let doc: unknown;
   try {
-    doc = await readAttestation(args.url, args.commit, args.file);
+    doc = await readAttestation(args.url, commit, args.file);
   } catch (err) {
-    console.error(`::error::${err instanceof Error ? err.message : err}`);
-    return 1;
+    return await fail(err instanceof Error ? err.message : String(err));
   }
 
   let pinned: ConfigFile[];
@@ -289,8 +389,7 @@ async function main(): Promise<number> {
     pinned = pinnedFiles(config);
     requiredRuns = config.workflows.map((w) => w.key);
   } catch (err) {
-    console.error(`::error::cannot read ${args.config}: ${err}`);
-    return 1;
+    return await fail(`cannot read ${args.config}: ${err}`);
   }
 
   // Hashed from the commit's own blobs, not the checked-out files: a path
@@ -298,27 +397,25 @@ async function main(): Promise<number> {
   // nothing a checkout does to the working tree changes what is compared.
   const actualHashes = new Map<string, string | null>();
   for (const file of pinned) {
-    actualHashes.set(file.path, await blobChecksum(args.commit, file.path));
+    actualHashes.set(file.path, await blobChecksum(commit, file.path));
   }
 
   const result = validateAttestation(
     doc,
-    args.commit,
+    commit,
     pinned,
     actualHashes,
     new Date(),
     requiredRuns,
   );
-  for (const warning of result.warnings) console.log(`::warning::${warning}`);
-  for (const error of result.errors) console.log(`::error::${error}`);
-
-  const markdown = result.summary.join("\n") + "\n";
-  const summaryPath = Deno.env.get("GITHUB_STEP_SUMMARY");
-  if (summaryPath) {
-    await Deno.writeTextFile(summaryPath, markdown, { append: true });
-  } else {
-    console.log(markdown);
+  for (const warning of result.warnings) {
+    console.log(workflowCommand("warning", warning));
   }
+  for (const error of result.errors) {
+    console.log(workflowCommand("error", error));
+  }
+
+  await writeSummary(result.summary.join("\n") + "\n", targets);
   return result.errors.length > 0 ? 1 : 0;
 }
 

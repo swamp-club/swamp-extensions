@@ -14,13 +14,20 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { assertEquals, assertStringIncludes } from "@std/assert";
+import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
   computeChecksum,
   parseAttestationConfig,
   pinnedFiles,
 } from "./build_attestation.ts";
-import { blobChecksum, validateAttestation } from "./validate_attestation.ts";
+import {
+  blobChecksum,
+  code,
+  failureSummary,
+  validateAttestation,
+  workflowCommand,
+  writeSummary,
+} from "./validate_attestation.ts";
 
 const HEAD = "a".repeat(40);
 const NOW = new Date("2026-09-25T12:00:00.000Z");
@@ -254,4 +261,105 @@ Deno.test("validateAttestation: a document that is not an attestation is an erro
   );
   assertEquals(result.errors.length > 0, true);
   assertStringIncludes(result.errors[0], "AttestationSchema");
+});
+
+Deno.test("validateAttestation: hostile step text stays inside one table row", () => {
+  const hostile = "a | b \\| c\n<!-- validate-attestation --> " +
+    "[x](https://e.test) ![i](https://e.test/i.png) @someone `tick` 🦆";
+  const result = validateAttestation(
+    attestation({
+      steps: [
+        { job: hostile, step: hostile, status: hostile, reason: hostile },
+      ],
+    }),
+    HEAD,
+    PINNED,
+    hashes(),
+    NOW,
+  );
+  const rows = result.summary.filter((l) => l.startsWith("| `"));
+  assertEquals(rows.length, 1);
+  // The only pipes are the row's two edges and three separators: none come
+  // from the author's text, escaped or not.
+  assertEquals(rows[0].split("|").length, 6);
+  // Everything the author wrote sits inside code spans: outside them, the row
+  // is only table structure and the status icon.
+  const outside = rows[0].replace(/`[^`]*`/g, "");
+  assertEquals(outside.replace(/[\s|]/g, ""), "❌");
+  assert(!result.summary.join("\n").includes("\n<!--"));
+});
+
+Deno.test("validateAttestation: a schema mismatch lists what failed", () => {
+  const result = validateAttestation(
+    attestation({ gate: "not a gate" }),
+    HEAD,
+    PINNED,
+    hashes(),
+    NOW,
+  );
+  const summary = result.summary.join("\n");
+  assertStringIncludes(summary, "- `gate`:");
+  assertStringIncludes(summary, "### ❌ Validation Failed");
+});
+
+Deno.test("code: renders untrusted text as one inline code span", () => {
+  assertEquals(code("plain"), "`plain`");
+  assertEquals(code("a\r\nb`c"), "`a b'c`");
+  assertEquals(code(""), "—");
+  assertEquals(code("x".repeat(10), 5), "`xxxx…`");
+  // Cut on characters, not UTF-16 units: the duck survives whole.
+  assertEquals(code("🦆🦆🦆", 3), "`🦆🦆🦆`");
+  assertEquals(code("🦆🦆🦆🦆", 3), "`🦆🦆…`");
+});
+
+Deno.test("failureSummary: names the commit and the reason, and fails", () => {
+  const summary = failureSummary(HEAD, "no attestation found (HTTP 404)")
+    .join("\n");
+  assertStringIncludes(summary, `Commit \`${HEAD}\``);
+  assertStringIncludes(summary, "no attestation found (HTTP 404)");
+  assert(
+    summary.endsWith("### ❌ Validation Failed — 1 error(s), 0 warning(s)"),
+  );
+});
+
+Deno.test("writeSummary: writes the summary file and appends the step summary", async () => {
+  const dir = await Deno.makeTempDir({ prefix: "write_summary_" });
+  const file = `${dir}/summary.md`;
+  const step = `${dir}/step.md`;
+  try {
+    await Deno.writeTextFile(file, "stale\n");
+    await Deno.writeTextFile(step, "earlier\n");
+    await writeSummary("result\n", { summaryFile: file, stepSummary: step });
+    assertEquals(await Deno.readTextFile(file), "result\n");
+    assertEquals(await Deno.readTextFile(step), "earlier\nresult\n");
+
+    await writeSummary("only\n", { summaryFile: file });
+    assertEquals(await Deno.readTextFile(file), "only\n");
+    assertEquals(await Deno.readTextFile(step), "earlier\nresult\n");
+
+    await writeSummary("again\n", { stepSummary: step });
+    assertEquals(await Deno.readTextFile(file), "only\n");
+    assertEquals(await Deno.readTextFile(step), "earlier\nresult\nagain\n");
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("writeSummary: prints the summary when there is nowhere to write it", async () => {
+  const printed: unknown[] = [];
+  const log = console.log;
+  console.log = (...args: unknown[]) => printed.push(...args);
+  try {
+    await writeSummary("result\n", {});
+  } finally {
+    console.log = log;
+  }
+  assertEquals(printed, ["result\n"]);
+});
+
+Deno.test("workflowCommand: a message cannot start a new command", () => {
+  assertEquals(
+    workflowCommand("error", "names x\r\n::warning::injected 100%"),
+    "::error::names x%0D%0A::warning::injected 100%25",
+  );
 });
