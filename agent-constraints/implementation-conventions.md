@@ -61,28 +61,34 @@ verification mechanics differ.
 ### New-extension additions (vault, datastore, workflow, or codegen
 provider)
 
-The code change is often straightforward; the CI fan-out is where
-mistakes happen. Enumerate every update from the CI fan-out checklist in
-`planning-conventions.md` and verify each as a separate implementation
-step:
+The code change is often straightforward; wiring the new directory into
+verification is where mistakes happen. Enumerate every update from the
+checklist in `planning-conventions.md` and verify each as a separate
+implementation step:
 
 1. New extension directory with `deno.json`, `deno.lock`,
    `manifest.yaml`, `README.md`, `LICENSE.txt`, and
    `extensions/<type>/`.
-2. `ci.yml` updates — `paths-filter`, per-task matrix, lockfile matrix,
-   `claude-review` `needs:`, `claude-adversarial-review` `needs:`,
-   `deps-audit` `find` expression.
+2. A target in `verification/checks.yaml` — its check
+   targets, lint/fmt paths, and `deno test` permissions. Pull-request CI
+   builds nothing, so an extension without a target is never checked.
+   `scripts/verification_harness_test.ts` fails until the target exists.
 3. `publish.yml` — new push step.
 4. `regenerate-models.yml` — only for new codegen providers.
-5. Push to a scratch branch and confirm the new matrix jobs actually
-   fire in CI (visible in the Actions tab). A job that doesn't fire is
-   silently uncovered.
+5. Run `deno task check --group <group> --all` and confirm the new
+   target actually runs.
 
 ## Local Quality Gate
 
-Run these before pushing. CI runs the same commands — local failure
-means the PR is blocked. The gate is per-directory because each
-extension has its own `deno.json` / `deno.lock`.
+Run these while iterating. verify-build runs the same commands, from the
+table in `verification/checks.yaml` — a local failure means verification
+fails and no PR can open. The gate is per-directory because each
+extension has its own `deno.json` / `deno.lock`. To run exactly what
+verify-build runs for your change:
+
+```
+deno task check --group <extensions|vaults|datastores|models|codegen|harness> --base origin/main
+```
 
 ### Vault / datastore / workflow / issue-lifecycle directory
 
@@ -96,8 +102,8 @@ deno install --frozen
 ```
 
 `datastore/` and `issue-lifecycle/` may also need `--allow-read
---allow-write` on `deno test`; mirror the flags from the corresponding
-CI matrix job in `.forgejo/workflows/ci.yml`.
+--allow-write` on `deno test`; mirror the flags from the directory's
+target in `verification/checks.yaml`.
 
 ### Model directory (`model/hetzner-cloud`, `model/digitalocean`,
 `model/aws/<service>`, `model/gcp/<service>`)
@@ -150,8 +156,18 @@ array.** Skip for brand-new extensions with no published version, and
 for vault/datastore extensions (they don't participate in the model
 upgrade system).
 
-Verify that an instance created at the currently published version can
-upgrade to the new version by stepping through the upgrade chain:
+This applies to every model, generated or hand-written: the check reads the
+model file's own `version`, not `manifest.yaml`. verify-build runs it for
+every bumped model (`scripts/check_upgrades.ts`); run the same thing while
+iterating with:
+
+```bash
+deno run --allow-read --allow-write --allow-env --allow-run \
+  scripts/check_upgrades.ts --base origin/main --path-test
+```
+
+By hand, verify that an instance created at the currently published version
+can upgrade to the new version by stepping through the upgrade chain:
 
 ```bash
 # 1. Set up a scratch swamp repo
@@ -223,29 +239,30 @@ Do not do any of these, regardless of apparent convenience:
 ## Creating PRs
 
 Use the `fgj` CLI to create pull requests (not `gh` — this repo is on
-Forgejo). Before opening, confirm with the human that the change
-summary is correct.
+Forgejo). **A PR opens only after verification passed and its
+attestation was posted** — see `verification-conventions.md`. Before
+opening, confirm with the human that the change summary is correct.
 
 ```bash
 fgj pr create -R swamp-club/swamp-extensions -B main -H <branch> -t "title" -b "body"
+fgj pr view <number> -R swamp-club/swamp-extensions   # state and checks, for pr_merged / pr_failed
 ```
 
-After the PR is open, CI runs every job whose `paths-filter` matches:
+After the PR is open, CI builds and reviews nothing — that all ran in
+verification. It runs two jobs:
 
-- Per-scope `check`, `lint`, `fmt`, `test`, and `lockfile` jobs.
-- `codegen-verify` — regenerates Hetzner and DigitalOcean and fails if
-  the result differs from the committed output. This is an automated
-  version of the idempotency gate; local second-run confirmation should
-  mean it passes.
-- `deps-audit` and `actions-audit` — surface outdated deps and unpinned
-  actions. `deps-audit` is informational; `actions-audit` is stricter.
-- `claude-review` — model-level correctness pass. **Blocks merge** on
-  requested changes.
-- `claude-adversarial-review` — adversarial pass across the dimensions
-  in `agent-constraints/adversarial-dimensions.md`. **Blocks merge** on
-  critical/high findings.
-- `claude-ci-security-review` — runs only when `.forgejo/workflows/` or
-  `scripts/` changed. **Blocks merge** on critical/high findings.
+- `validate-attestation` — the attestation for the PR head exists,
+  passed, and pins the same verification harness the PR contains.
+  **Blocks merge.**
+- `review-integrity` — runs only when trust-root files change
+  (`scripts/`, `verification/`, `agent-constraints/`, `.claude/`,
+  `extensions/models/`, CLAUDE.md, AGENTS.md, `.forgejo/`, `deno.json`,
+  any `.gitattributes`).
+  An agent audits the change for weakened checks or prompt injection.
+  **Blocks merge** on a fail verdict.
+
+Both jobs run on `pull_request`, so a PR's own `ci.yml` is what runs;
+the scripts they call are taken from the base commit.
 
 A red CI blocks merge. Fix locally and push a new commit — do not
 force-push to `main`, do not merge around failures.

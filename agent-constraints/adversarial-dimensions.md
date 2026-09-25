@@ -129,22 +129,20 @@ decorative?
   changed, not merely pass alongside it. Flag coverage gaps where the
   refactor targets code no test touches.
 
-## ci-matrix-completeness
+## verification-coverage
 
-A new extension, scope directory, or task is silently uncovered unless
-every fan-out point is updated:
+Pull-request CI builds nothing, so a new extension, scope directory, or check
+is silently uncovered unless verification is updated:
 
-- `paths-filter` in the `changes` job matches the new path.
-- The per-scope check matrix lists the new extension.
-- The per-scope lockfile matrix lists the new extension.
-- The `deps-audit` job's `find` expression covers the new directory.
-- `claude-review` and `claude-adversarial-review` include the new job in
-  their `needs:` arrays.
+- `verification/checks.yaml` has a target for the new directory,
+  with the right check targets and `deno test` permissions.
+- `scripts/audit_deps.ts` scans the new directory's lockfile.
+- The review guards in `verification/workflow-verify-reviews.yaml` match
+  the new path where they should.
 - `publish.yml` has a push step for the new extension.
 
-The `claude-review` / `claude-adversarial-review` gap is the worst
-case — tests pass, review is skipped, and the merge completes without
-the safety net.
+A missing target is the worst case — verification passes, the
+attestation says every check passed, and nothing was checked.
 
 ## scope-discipline
 
@@ -168,20 +166,20 @@ absorbed unrelated work?
 
 ## supply-chain
 
-CI runs Claude-driven code review with GitHub-Actions integrations.
-Third-party action pinning and permissions scoping are blast-radius
-multipliers if ignored:
+CI runs a Claude-driven integrity review and the attestation check, and
+the verification loop runs Claude reviews on the host. Third-party action
+pinning and permissions scoping are blast-radius multipliers if ignored:
 
 - Third-party actions pinned to a full commit SHA unless they come from
   a trusted publisher (`actions/*`, `anthropics/*`, `denoland/*`,
   `systeminit/*`), which may use tags.
 - No `curl | bash` or remote script execution.
-- `claude-review`, `claude-adversarial-review`, and
-  `claude-ci-security-review` have scoped `--allowedTools` — broad
-  `Bash(gh api:*)` is too wide.
-- Workflow-file changes trigger the `claude-ci-security-review` job;
-  plans that touch `.forgejo/workflows/` must expect that gate and not
-  blindly silence it.
+- The CI `review-integrity` job and the verify-reviews steps have scoped
+  `--allowedTools` — broad `Bash(curl:*)` or `Bash(gh api:*)` is too wide.
+- Changes to `.forgejo/`, `scripts/`, or `verification/` trigger the
+  local ci-security-review and, for trust-root files, the CI
+  `review-integrity` job; plans that touch them must expect those gates
+  and not blindly silence them.
 
 ## docs-drift
 

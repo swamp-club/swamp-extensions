@@ -1,10 +1,12 @@
 id: a1b2c3d4-5e6f-7a8b-9c0d-1e2f3a4b5c6d
 name: verify-build
 description: |
-  Build verification for swamp-extensions: per-directory quality gate
-  (check, lint, fmt, test, lockfile), codegen idempotency check, and model
-  version/upgrade gate. Runs on the host in a fresh git worktree checked out
-  at the verified commit.
+  Build verification for swamp-extensions. Pull-request CI does not build
+  anything, so this is the build gate: the per-directory checks in
+  scripts/run_checks.ts for every directory the change touches, the
+  dependency and Actions audits, codegen idempotency, and the model
+  upgrade-path gate. Runs on the host in a fresh git worktree checked out at
+  the verified commit.
 version: 1
 
 tags:
@@ -22,6 +24,10 @@ inputs:
     - commit
     - branch
 
+reports:
+  require:
+    - "@swamp/verification-summary"
+
 concurrency: 8
 
 jobs:
@@ -38,15 +44,20 @@ jobs:
           inputs:
             run: |
               set -e
-              git fetch origin main
+              # Concurrent verifications share refs/remotes/origin/main; the
+              # loser of the ref update fails with "incorrect old value".
+              # The retry finds the ref current, so it has nothing to write.
+              git fetch origin main || { sleep 1; git fetch origin main; }
               CHECKOUT_DIR="/tmp/swamp-verify-build-${{ run.id }}"
               rm -rf "$CHECKOUT_DIR"
               git worktree prune
               git worktree add --detach "$CHECKOUT_DIR" "${{ inputs.commit }}"
 
-  # ── Detect Changed Directories ──────────────────────────────
+  # ── Detect Changes ──────────────────────────────────────────
+  # Only for the codegen idempotency guard. scripts/run_checks.ts does its own
+  # per-directory change detection.
   - name: detect-changes
-    description: Determine which extension directories have changes.
+    description: Determine whether codegen changed.
     dependsOn:
       - job: setup
         condition:
@@ -61,58 +72,27 @@ jobs:
           inputs:
             run: |
               set -e
-              MERGE_BASE=$(git merge-base origin/main HEAD)
-              CHANGED=$(git diff --name-only "$MERGE_BASE")
-
-              # Extension directories with their own deno.json
-              EXTENSION_DIRS="agent-runner deno-runner issue-lifecycle ssh kubernetes workflows cve software-factory container-image git"
-              VAULT_DIRS=$(find vault -maxdepth 1 -mindepth 1 -type d 2>/dev/null | sort)
-              DATASTORE_DIRS=$(find datastore -maxdepth 1 -mindepth 1 -type d 2>/dev/null | grep -v benchmarks | sort)
-
-              echo "=== Changed extension directories ==="
-              for dir in $EXTENSION_DIRS; do
-                if echo "$CHANGED" | grep -q "^${dir}/"; then
-                  echo "CHANGED_DIR: $dir"
-                fi
-              done
-
-              for dir in $VAULT_DIRS; do
-                if echo "$CHANGED" | grep -q "^${dir}/"; then
-                  echo "CHANGED_DIR: $dir"
-                fi
-              done
-
-              for dir in $DATASTORE_DIRS; do
-                if echo "$CHANGED" | grep -q "^${dir}/"; then
-                  echo "CHANGED_DIR: $dir"
-                fi
-              done
-
-              # Codegen directory
-              if echo "$CHANGED" | grep -q "^codegen/"; then
+              # Captured first so a failed diff fails the step instead of
+              # vanishing into the pipe and skipping the idempotency check.
+              CHANGED=$(git -c core.quotePath=false diff --name-only --no-renames origin/main...HEAD)
+              if printf '%s\n' "$CHANGED" | grep -q "^codegen/"; then
                 echo "CHANGED_CODEGEN: true"
               fi
-
-              # Model directories (for version/upgrade check)
-              echo "=== Changed model directories ==="
-              echo "$CHANGED" | grep "^model/" | cut -d/ -f1-3 | sort -u | while read -r mdir; do
-                if [ -f "$mdir/manifest.yaml" ]; then
-                  echo "CHANGED_MODEL: $mdir"
-                fi
-              done
-
               echo "=== Detection complete ==="
             workingDir: "/tmp/swamp-verify-build-${{ run.id }}"
 
-  # ── Per-Directory Build Checks ──────────────────────────────
-  - name: extension-checks
-    description: Run quality gate for each changed extension directory.
+  # ── Checks ──────────────────────────────────────────────────
+  # One step per group so the checklist and attestation show which failed.
+  # A group the change does not touch passes with nothing to check.
+  - name: checks
+    description: Run the per-directory checks for every changed directory.
     dependsOn:
-      - job: detect-changes
+      - job: setup
         condition:
           type: succeeded
     steps:
-      - name: check-extensions
+      - name: extensions
+        # Hand-written extensions: check, lint, fmt, test, lockfile.
         task:
           type: model_method
           modelType: "command/shell"
@@ -120,118 +100,39 @@ jobs:
           methodName: execute
           inputs:
             run: |
-              set -e
-              MERGE_BASE=$(git merge-base origin/main HEAD)
-              CHANGED=$(git diff --name-only "$MERGE_BASE")
-              FAILED=""
-
-              run_quality_gate() {
-                local dir="$1"
-                local type="$2"
-                echo "::group::Quality gate: $dir"
-
-                if [ ! -f "$dir/deno.json" ]; then
-                  echo "Skipping $dir (no deno.json)"
-                  echo "::endgroup::"
-                  return 0
-                fi
-
-                cd "$dir"
-
-                # Determine the extension type path
-                local ext_path="extensions/${type}/"
-                if [ ! -d "$ext_path" ]; then
-                  # Try common alternatives
-                  for candidate in extensions/models/ extensions/vaults/ extensions/datastores/ extensions/workflows/; do
-                    if [ -d "$candidate" ]; then
-                      ext_path="$candidate"
-                      break
-                    fi
-                  done
-                fi
-
-                local failed_step=""
-
-                echo "--- deno check ---"
-                if ! deno check ${ext_path}*.ts 2>&1; then
-                  failed_step="check"
-                fi
-
-                echo "--- deno lint ---"
-                if ! deno lint ${ext_path} 2>&1; then
-                  failed_step="${failed_step:+$failed_step, }lint"
-                fi
-
-                echo "--- deno fmt --check ---"
-                if ! deno fmt --check ${ext_path} 2>&1; then
-                  failed_step="${failed_step:+$failed_step, }fmt"
-                fi
-
-                echo "--- deno test ---"
-                if ! deno test --allow-env --allow-net --allow-sys --allow-read --allow-write --allow-run ${ext_path} 2>&1; then
-                  failed_step="${failed_step:+$failed_step, }test"
-                fi
-
-                echo "--- deno install --frozen ---"
-                if ! deno install --frozen 2>&1; then
-                  failed_step="${failed_step:+$failed_step, }lockfile"
-                fi
-
-                cd - > /dev/null
-                echo "::endgroup::"
-
-                if [ -n "$failed_step" ]; then
-                  echo "::error::$dir failed: $failed_step"
-                  return 1
-                fi
-                return 0
-              }
-
-              # Extension directories
-              EXTENSION_DIRS="agent-runner deno-runner issue-lifecycle ssh kubernetes workflows cve software-factory container-image git"
-              for dir in $EXTENSION_DIRS; do
-                if echo "$CHANGED" | grep -q "^${dir}/"; then
-                  if ! run_quality_gate "$dir" "models"; then
-                    FAILED="${FAILED:+$FAILED, }$dir"
-                  fi
-                fi
-              done
-
-              # Vault directories
-              for dir in $(find vault -maxdepth 1 -mindepth 1 -type d 2>/dev/null | sort); do
-                if echo "$CHANGED" | grep -q "^${dir}/"; then
-                  if ! run_quality_gate "$dir" "vaults"; then
-                    FAILED="${FAILED:+$FAILED, }$dir"
-                  fi
-                fi
-              done
-
-              # Datastore directories
-              for dir in $(find datastore -maxdepth 1 -mindepth 1 -type d 2>/dev/null | grep -v benchmarks | sort); do
-                if echo "$CHANGED" | grep -q "^${dir}/"; then
-                  if ! run_quality_gate "$dir" "datastores"; then
-                    FAILED="${FAILED:+$FAILED, }$dir"
-                  fi
-                fi
-              done
-
-              if [ -n "$FAILED" ]; then
-                echo "::error::Build checks failed for: $FAILED"
-                exit 1
-              fi
-
-              echo "All extension checks passed"
+              deno run --allow-read --allow-write --allow-env --allow-run --allow-net \
+                scripts/run_checks.ts --group extensions --base origin/main --concurrency 2
             workingDir: "/tmp/swamp-verify-build-${{ run.id }}"
 
-  # ── Model Directory Checks ─────────────────────────────────
-  - name: model-checks
-    description: Run check and lockfile verification for changed model directories.
-    dependsOn:
-      - job: detect-changes
-        condition:
-          type: succeeded
-    steps:
-      - name: check-models
+      - name: vaults
+        # Vault extensions.
+        task:
+          type: model_method
+          modelType: "command/shell"
+          modelName: build-vaults-${{ run.id }}
+          methodName: execute
+          inputs:
+            run: |
+              deno run --allow-read --allow-write --allow-env --allow-run --allow-net \
+                scripts/run_checks.ts --group vaults --base origin/main --concurrency 2
+            workingDir: "/tmp/swamp-verify-build-${{ run.id }}"
+
+      - name: datastores
+        # Datastore extensions.
+        task:
+          type: model_method
+          modelType: "command/shell"
+          modelName: build-datastores-${{ run.id }}
+          methodName: execute
+          inputs:
+            run: |
+              deno run --allow-read --allow-write --allow-env --allow-run --allow-net \
+                scripts/run_checks.ts --group datastores --base origin/main --concurrency 2
+            workingDir: "/tmp/swamp-verify-build-${{ run.id }}"
+
+      - name: models
+        # Changed generated models in full, plus the sample services and
+        # single-directory providers whenever model/ or codegen/ changes.
         task:
           type: model_method
           modelType: "command/shell"
@@ -239,108 +140,93 @@ jobs:
           methodName: execute
           inputs:
             run: |
-              set -e
-              MERGE_BASE=$(git merge-base origin/main HEAD)
-              CHANGED=$(git diff --name-only "$MERGE_BASE")
-              FAILED=""
+              deno run --allow-read --allow-write --allow-env --allow-run --allow-net \
+                scripts/run_checks.ts --group models --base origin/main --concurrency 2
+            workingDir: "/tmp/swamp-verify-build-${{ run.id }}"
 
-              # Find changed model directories
-              MODEL_DIRS=$(echo "$CHANGED" | grep "^model/" | while read -r f; do
-                # For aws/gcp: model/<provider>/<service>
-                # For hetzner/digitalocean: model/<provider>
-                dir=$(echo "$f" | cut -d/ -f1-2)
-                if [ -f "$dir/deno.json" ]; then
-                  echo "$dir"
-                else
-                  dir=$(echo "$f" | cut -d/ -f1-3)
-                  if [ -f "$dir/deno.json" ]; then
-                    echo "$dir"
-                  fi
-                fi
-              done | sort -u)
+      - name: codegen
+        # The codegen pipeline: check, lint, fmt, lockfile.
+        task:
+          type: model_method
+          modelType: "command/shell"
+          modelName: build-codegen-${{ run.id }}
+          methodName: execute
+          inputs:
+            run: |
+              deno run --allow-read --allow-write --allow-env --allow-run --allow-net \
+                scripts/run_checks.ts --group codegen --base origin/main --concurrency 2
+            workingDir: "/tmp/swamp-verify-build-${{ run.id }}"
 
-              if [ -z "$MODEL_DIRS" ]; then
-                echo "No model directories changed"
-                exit 0
-              fi
+      - name: harness
+        # The root issue-lifecycle working copy and the verification scripts.
+        task:
+          type: model_method
+          modelType: "command/shell"
+          modelName: build-harness-${{ run.id }}
+          methodName: execute
+          inputs:
+            run: |
+              deno run --allow-read --allow-write --allow-env --allow-run --allow-net \
+                scripts/run_checks.ts --group harness --base origin/main --concurrency 2
+            workingDir: "/tmp/swamp-verify-build-${{ run.id }}"
 
-              for dir in $MODEL_DIRS; do
-                echo "::group::Model check: $dir"
-                cd "$dir"
+  # ── Audits ──────────────────────────────────────────────────
+  - name: audit
+    description: Dependency vulnerability and Actions pinning audits.
+    dependsOn:
+      - job: setup
+        condition:
+          type: succeeded
+    steps:
+      - name: deps-audit
+        task:
+          type: model_method
+          modelType: "command/shell"
+          modelName: build-deps-audit-${{ run.id }}
+          methodName: execute
+          inputs:
+            run: |
+              deno run --allow-read --allow-net=api.osv.dev \
+                --allow-env=GITHUB_STEP_SUMMARY --allow-write scripts/audit_deps.ts
+            workingDir: "/tmp/swamp-verify-build-${{ run.id }}"
 
-                echo "--- deno check ---"
-                if ! deno check extensions/models/*.ts 2>&1; then
-                  FAILED="${FAILED:+$FAILED, }$dir(check)"
-                fi
-
-                echo "--- deno lint --no-config ---"
-                if ! deno lint --no-config extensions/models/ 2>&1; then
-                  FAILED="${FAILED:+$FAILED, }$dir(lint)"
-                fi
-
-                echo "--- deno fmt --no-config --check ---"
-                if ! deno fmt --no-config --check extensions/models/ 2>&1; then
-                  FAILED="${FAILED:+$FAILED, }$dir(fmt)"
-                fi
-
-                echo "--- deno install --frozen ---"
-                if ! deno install --frozen 2>&1; then
-                  FAILED="${FAILED:+$FAILED, }$dir(lockfile)"
-                fi
-
-                cd - > /dev/null
-                echo "::endgroup::"
-              done
-
-              if [ -n "$FAILED" ]; then
-                echo "::error::Model checks failed: $FAILED"
-                exit 1
-              fi
-
-              echo "All model checks passed"
+      - name: actions-audit
+        # Unauthenticated GitHub API calls unless GITHUB_TOKEN is set.
+        task:
+          type: model_method
+          modelType: "command/shell"
+          modelName: build-actions-audit-${{ run.id }}
+          methodName: execute
+          inputs:
+            run: |
+              deno run --allow-read --allow-net=api.github.com \
+                --allow-env=GITHUB_STEP_SUMMARY,GITHUB_TOKEN --allow-write \
+                scripts/audit_actions.ts
             workingDir: "/tmp/swamp-verify-build-${{ run.id }}"
 
   # ── Codegen Idempotency ─────────────────────────────────────
   - name: codegen-verify
     description: Verify codegen is idempotent (second run produces zero diff).
+    # Regeneration rewrites model/ in the shared worktree, so it waits for
+    # every job that reads it — otherwise checks could fail at random, or
+    # check freshly generated code instead of the commit.
     dependsOn:
       - job: detect-changes
         condition:
           type: succeeded
+      - job: checks
+        condition:
+          type: always
+      - job: audit
+        condition:
+          type: always
+      - job: upgrade-verify
+        condition:
+          type: always
     steps:
-      - name: codegen-check
-        # A guard skips its step when true: skip unless codegen changed.
-        guard: "${{ !data.latest('build-detect-' + run.id, 'result').attributes.stdout.contains('CHANGED_CODEGEN: true') }}"
-        task:
-          type: model_method
-          modelType: "command/shell"
-          modelName: build-codegen-check-${{ run.id }}
-          methodName: execute
-          inputs:
-            run: |
-              set -e
-              cd codegen
-
-              echo "--- deno check ---"
-              deno check main.ts
-
-              echo "--- deno lint ---"
-              deno lint
-
-              echo "--- deno fmt --check ---"
-              deno fmt --check
-
-              echo "--- deno install --frozen ---"
-              deno install --frozen
-            workingDir: "/tmp/swamp-verify-build-${{ run.id }}"
-
       - name: idempotency
         # A guard skips its step when true: skip unless codegen changed.
         guard: "${{ !data.latest('build-detect-' + run.id, 'result').attributes.stdout.contains('CHANGED_CODEGEN: true') }}"
-        dependsOn:
-          - step: codegen-check
-            condition:
-              type: succeeded
         task:
           type: model_method
           modelType: "command/shell"
@@ -381,11 +267,15 @@ jobs:
               echo "Codegen idempotency verified"
             workingDir: "/tmp/swamp-verify-build-${{ run.id }}"
 
-  # ── Model Version/Upgrade Gate ──────────────────────────────
+  # ── Model Upgrade Gate ──────────────────────────────────────
+  # Every model whose own `version` this change bumps — generated or
+  # hand-written, wherever it lives — must end its upgrades list with that
+  # version, and an instance of the published extension must upgrade to it
+  # from the local source. Both steps list every model they examined.
   - name: upgrade-verify
-    description: Verify model version changes have matching upgrade entries.
+    description: Check upgrade entries and the upgrade path for bumped models.
     dependsOn:
-      - job: detect-changes
+      - job: setup
         condition:
           type: succeeded
     steps:
@@ -397,63 +287,8 @@ jobs:
           methodName: execute
           inputs:
             run: |
-              set -e
-              MERGE_BASE=$(git merge-base origin/main HEAD)
-              FAILED=""
-
-              # Find model directories with version changes in manifest.yaml
-              MANIFESTS=$(git diff "$MERGE_BASE" --name-only | grep "manifest.yaml" | grep "^model/" || true)
-
-              if [ -z "$MANIFESTS" ]; then
-                echo "No model manifest changes detected"
-                exit 0
-              fi
-
-              for manifest in $MANIFESTS; do
-                dir=$(dirname "$manifest")
-
-                # Skip if this is a brand-new extension (no version in base)
-                OLD_VERSION=$(git show "$MERGE_BASE:$manifest" 2>/dev/null | grep "^version:" | head -1 | awk '{print $2}' || true)
-                NEW_VERSION=$(grep "^version:" "$manifest" | head -1 | awk '{print $2}')
-
-                if [ -z "$OLD_VERSION" ]; then
-                  echo "Skipping $dir — new extension (no published version)"
-                  continue
-                fi
-
-                if [ "$OLD_VERSION" = "$NEW_VERSION" ]; then
-                  echo "Skipping $dir — version unchanged ($NEW_VERSION)"
-                  continue
-                fi
-
-                echo "::group::Upgrade check: $dir ($OLD_VERSION -> $NEW_VERSION)"
-
-                # Check that the model file has an upgrades entry with toVersion matching new version
-                MODEL_FILES=$(find "$dir/extensions/models/" -name "*.ts" ! -name "*_test.ts" ! -name "*_lib*" 2>/dev/null | head -5)
-                FOUND_UPGRADE=false
-
-                for model_file in $MODEL_FILES; do
-                  if grep -q "toVersion.*${NEW_VERSION}" "$model_file" 2>/dev/null; then
-                    FOUND_UPGRADE=true
-                    echo "Found upgrade entry in $model_file"
-                    break
-                  fi
-                done
-
-                if [ "$FOUND_UPGRADE" = "false" ]; then
-                  echo "::error::$dir: version bumped to $NEW_VERSION but no upgrade entry with toVersion: $NEW_VERSION found"
-                  FAILED="${FAILED:+$FAILED, }$dir"
-                fi
-
-                echo "::endgroup::"
-              done
-
-              if [ -n "$FAILED" ]; then
-                echo "::error::Upgrade entry check failed for: $FAILED"
-                exit 1
-              fi
-
-              echo "All upgrade entries verified"
+              deno run --allow-read --allow-run=git \
+                scripts/check_upgrades.ts --base origin/main
             workingDir: "/tmp/swamp-verify-build-${{ run.id }}"
 
       - name: upgrade-path-test
@@ -468,105 +303,18 @@ jobs:
           methodName: execute
           inputs:
             run: |
-              set -e
-              MERGE_BASE=$(git merge-base origin/main HEAD)
-              CHECKOUT_DIR="/tmp/swamp-verify-build-${{ run.id }}"
-              FAILED=""
-
-              # Find model directories with version changes
-              MANIFESTS=$(git diff "$MERGE_BASE" --name-only | grep "manifest.yaml" | grep "^model/" || true)
-
-              if [ -z "$MANIFESTS" ]; then
-                echo "No model manifest changes — skipping upgrade path test"
-                exit 0
-              fi
-
-              for manifest in $MANIFESTS; do
-                dir=$(dirname "$manifest")
-
-                OLD_VERSION=$(git show "$MERGE_BASE:$manifest" 2>/dev/null | grep "^version:" | head -1 | awk '{print $2}' || true)
-                NEW_VERSION=$(grep "^version:" "$manifest" | head -1 | awk '{print $2}')
-
-                # Skip new extensions or unchanged versions
-                if [ -z "$OLD_VERSION" ] || [ "$OLD_VERSION" = "$NEW_VERSION" ]; then
-                  continue
-                fi
-
-                # Skip vault/datastore extensions (they don't use the upgrade system)
-                if echo "$dir" | grep -qE "^(vault|datastore)/"; then
-                  echo "Skipping $dir — vault/datastore extensions don't participate in upgrades"
-                  continue
-                fi
-
-                # Extract extension name from manifest
-                EXT_NAME=$(grep "^name:" "$manifest" | head -1 | awk '{print $2}' | tr -d '"' | tr -d "'")
-                if [ -z "$EXT_NAME" ]; then
-                  echo "Warning: could not extract extension name from $manifest"
-                  continue
-                fi
-
-                # Extract a model type from the manifest
-                MODEL_TYPE=$(grep "^\s*type:" "$dir/extensions/models/"*.ts 2>/dev/null | grep -v "import\|z\.\|Schema\|schema" | grep -o '"[^"]*"' | head -1 | tr -d '"' || true)
-                if [ -z "$MODEL_TYPE" ]; then
-                  echo "Warning: could not extract model type from $dir"
-                  continue
-                fi
-
-                echo "::group::Upgrade path test: $EXT_NAME ($OLD_VERSION -> $NEW_VERSION)"
-
-                UPGRADE_DIR="/tmp/swamp-upgrade-test-${{ run.id }}-$(echo $dir | tr / -)"
-                rm -rf "$UPGRADE_DIR"
-
-                # Run the 7-step upgrade path verification
-                if swamp init "$UPGRADE_DIR" --tool none --force 2>&1 && \
-                   cd "$UPGRADE_DIR" && \
-                   swamp extension pull "$EXT_NAME" 2>&1 && \
-                   swamp model create "$EXT_NAME/$MODEL_TYPE" upgrade-test 2>&1 && \
-                   swamp extension rm "$EXT_NAME" --force 2>&1 && \
-                   swamp extension source add "$CHECKOUT_DIR/$dir" --only models 2>&1; then
-
-                  # Run a method — the upgrade validation happens before the method body
-                  # The method may fail for unrelated reasons (no credentials etc.) — that's OK
-                  # We only care about whether the upgrade validation itself passes
-                  METHOD=$(grep "methodName:" "$CHECKOUT_DIR/$dir/extensions/models/"*.ts 2>/dev/null | head -1 | grep -o '"[^"]*"' | tr -d '"' || echo "get")
-                  swamp model method run upgrade-test "$METHOD" 2>&1 || true
-
-                  # Check that typeVersion stepped to new version
-                  ACTUAL_VERSION=$(swamp model get upgrade-test --json 2>/dev/null | grep -o '"typeVersion":"[^"]*"' | cut -d'"' -f4 || true)
-                  if [ "$ACTUAL_VERSION" != "$NEW_VERSION" ]; then
-                    echo "::error::Upgrade path failed: typeVersion is $ACTUAL_VERSION, expected $NEW_VERSION"
-                    FAILED="${FAILED:+$FAILED, }$dir"
-                  else
-                    echo "Upgrade path verified: typeVersion stepped to $NEW_VERSION"
-                  fi
-                else
-                  echo "::error::Upgrade path setup failed for $dir"
-                  FAILED="${FAILED:+$FAILED, }$dir"
-                fi
-
-                # Cleanup
-                rm -rf "$UPGRADE_DIR"
-                cd "$CHECKOUT_DIR"
-
-                echo "::endgroup::"
-              done
-
-              if [ -n "$FAILED" ]; then
-                echo "::error::Upgrade path verification failed for: $FAILED"
-                exit 1
-              fi
-
-              echo "All upgrade paths verified"
+              deno run --allow-read --allow-write --allow-env --allow-run \
+                scripts/check_upgrades.ts --base origin/main --path-test
             workingDir: "/tmp/swamp-verify-build-${{ run.id }}"
 
   # ── Cleanup ─────────────────────────────────────────────────
   - name: cleanup
     description: Remove the temporary worktree.
     dependsOn:
-      - job: extension-checks
+      - job: checks
         condition:
           type: always
-      - job: model-checks
+      - job: audit
         condition:
           type: always
       - job: codegen-verify
@@ -590,6 +338,4 @@ jobs:
               # Remove ephemeral auto-definitions created for this run
               REPO_ROOT="$(git rev-parse --git-common-dir)/.."
               find "$REPO_ROOT/.swamp/auto-definitions" -name "*-${{ run.id }}.yaml" -delete 2>/dev/null || true
-              # Remove upgrade test directories
-              rm -rf /tmp/swamp-upgrade-test-${{ run.id }}-* 2>/dev/null || true
             ignoreExitCode: true

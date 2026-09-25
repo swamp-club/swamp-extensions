@@ -19,6 +19,7 @@ import {
   AdversarialFindingSchema,
   type AdversarialReviewData,
   AdversarialReviewSchema,
+  AttestationSchema,
   ClassificationSchema,
   type CodeConformanceReviewData,
   CodeConformanceReviewSchema,
@@ -37,8 +38,21 @@ import {
   StepVerificationSchema,
   SummarySchema,
   TRANSITIONS,
+  type VerificationResultData,
+  VerificationResultSchema,
 } from "./_lib/schemas.ts";
-import { createSwampClubClient, loadAuthFile } from "./_lib/swamp_club.ts";
+import {
+  createSwampClubClient,
+  type EligibleAssignee,
+  type FetchedIssue,
+  loadAuthFile,
+} from "./_lib/swamp_club.ts";
+import {
+  recordLifecycle,
+  recordLifecycleBestEffort,
+  recordRipple,
+  recordUpstreamChange,
+} from "./_lib/lifecycle_recorder.ts";
 
 /** Global args type for the issue-lifecycle model. */
 type GlobalArgs = {
@@ -68,13 +82,123 @@ async function readState(
   return JSON.parse(new TextDecoder().decode(content)) as StateData;
 }
 
+export function buildNotifyMessage(
+  author: string,
+  prData: PullRequestData | null,
+  planData: PlanData | null,
+): string {
+  const mergedText = prData?.url ? `[merged](${prData.url})` : "merged";
+
+  const summaryText = planData?.summary
+    ? ` We shipped: ${planData.summary}.`
+    : "";
+
+  return (
+    `Thanks @${author} for reporting this!${summaryText} ` +
+    `The fix has been ${mergedText} and a release is on its way. ` +
+    `We appreciate your contribution to swamp.`
+  );
+}
+
+/**
+ * Whether the issue author is on swamp-club's team roster. Both sides are
+ * swamp-club identities, so the handle is a sound fallback when the server
+ * omits the user id — unlike a GitHub login, which is a different namespace.
+ */
+function isTeamMember(
+  issue: Pick<FetchedIssue, "author" | "authorId">,
+  roster: EligibleAssignee[],
+): boolean {
+  return roster.some((member) =>
+    issue.authorId
+      ? member.userId === issue.authorId
+      : member.username === issue.author
+  );
+}
+
+/**
+ * Store a verification result that has not passed, replacing any earlier one.
+ * link_pr reads only the latest result, so this is what retires a stale pass.
+ */
+function writeUnverifiedResult(
+  context: {
+    writeResource: (
+      specName: string,
+      instanceName: string,
+      data: Record<string, unknown>,
+    ) => Promise<{ name: string }>;
+  },
+  result: {
+    workflowRunId: string;
+    commit: string;
+    branch: string;
+    failureReason: string;
+  },
+): Promise<{ name: string }> {
+  return context.writeResource(
+    "verificationResult",
+    "verificationResult-main",
+    {
+      ...result,
+      allPassed: false,
+      stepsCompleted: 0,
+      stepsTotal: 0,
+      stepsSkipped: 0,
+      stepsFailed: 0,
+      steps: [],
+      verifiedAt: new Date().toISOString(),
+    },
+  );
+}
+
+/** Whether two git object ids name the same commit (either may be abbreviated). */
+function sameCommit(a: string, b: string): boolean {
+  const [short, long] = [a.toLowerCase(), b.toLowerCase()].sort((x, y) =>
+    x.length - y.length
+  );
+  return short.length >= 7 && long.startsWith(short);
+}
+
+/**
+ * Why a pull request for `commit` may not be linked, or null when the stored
+ * verification result passed for exactly that commit.
+ */
+export function verificationMismatch(
+  result: Pick<VerificationResultData, "commit" | "allPassed"> | null,
+  commit: string,
+): string | null {
+  if (!result) {
+    return "No verification result exists. Run 'verify' and then " +
+      "'verification_passed' before linking a PR.";
+  }
+  if (!result.allPassed) {
+    return "The stored verification result did not pass. Fix the failures " +
+      "and re-verify before linking a PR.";
+  }
+  if (!sameCommit(result.commit, commit)) {
+    return `Verification passed for ${result.commit}, but the pull request ` +
+      `head is ${commit}. Re-run 'verify' on the new commit and record its ` +
+      "result before linking.";
+  }
+  return null;
+}
+
+/** Explain why notify posted nothing and how the operator can proceed. */
+function notifyUndecided(reason: string): Error {
+  return new Error(
+    `${reason}, so no thank-you was posted and the phase is still notify. ` +
+      "Re-run notify, pass --input force=true to thank the author anyway, " +
+      "or run skip_notify.",
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Model Definition
 // ---------------------------------------------------------------------------
 
 export const model = {
   type: "@swamp/issue-lifecycle",
-  version: "2026.08.16.1",
+  version: "2026.09.25.3",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -147,6 +271,13 @@ export const model = {
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
+      toVersion: "2026.06.18.1",
+      description: "Add regressionIntroducedIn to triage classification — " +
+        "captures the version that introduced a regression for time-to-detection metrics. " +
+        "No globalArguments changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
       toVersion: "2026.06.29.1",
       description:
         "Add code conformance review — adversarial comparison of implemented code " +
@@ -176,7 +307,129 @@ export const model = {
     },
     {
       toVersion: "2026.08.16.1",
-      description: "Updating Swamp Club API Endpoint",
+      description: "Change Swamp Club API Health Endpoint",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.08.21.1",
+      description:
+        "Pre-PR verification loop — new verifying phase between implementing " +
+        "and pr_open. Three new methods: verify (start verification), " +
+        "verification_passed (record results as checklist), " +
+        "verification_failed (return to implementing). " +
+        "New verificationResult resource stores the checklist data. " +
+        "No globalArguments changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.08.25.1",
+      description:
+        "Add post_attestation method — posts verification attestation to " +
+        "swamp-club before opening a PR. New TRANSITIONS entry for " +
+        "post_attestation from verifying phase. No globalArguments changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.08.31.1",
+      description:
+        "Add fast_forward method for ad-hoc work that has no linked issue. " +
+        "Atomically writes classification, plan, adversarial review, and " +
+        "code conformance review, then transitions to implementing. " +
+        "Allows retroactive lifecycle creation for work already done. " +
+        "No globalArguments changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.18.1",
+      description:
+        "Stop swallowing dropped swamp-club writes. postLifecycleEntry, " +
+        "patchIssue and submitComment now report an outcome, and a " +
+        "lifecycle_recorder policy module raises when a mandatory audit " +
+        "record is not written, so a method no longer reports success over a " +
+        "lost entry. transitionStatus confirms an already-applied transition " +
+        "by re-reading the issue status rather than matching server prose. " +
+        "Methods declare rollbackOnFailure so a raised failure leaves the " +
+        "phase unchanged; notify and post_attestation are excluded because " +
+        "their upstream side effects are not idempotent. No globalArguments " +
+        "changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.21.1",
+      description:
+        "Fix two ordering deadlocks. fast_forward now allowed from " +
+        "classified (not just triaging) and transitions upstream through " +
+        "triaged before in_progress. verify now requires a code conformance " +
+        "review to exist (conformance-review-required check) so the ordering " +
+        "mistake is caught early instead of discovered at link_pr. " +
+        "resolve_findings now also allowed from approved. " +
+        "No globalArguments changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.22.1",
+      description:
+        "post_attestation validates its input against AttestationSchema " +
+        "instead of posting whatever parsed as JSON. The document's shape " +
+        "was previously enforced only by jq in CI, after the PR was public, " +
+        "so an attestation missing `subject` posted cleanly and logged " +
+        "commit=undefined. It is rejected at the boundary now; build the " +
+        "document with `deno run build-attestation` rather than by hand. " +
+        "No resources and no globalArguments changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.23.1",
+      description:
+        "verify's description no longer mentions a container sandbox; " +
+        "verification runs as host workflows. Description-only change. " +
+        "No resources and no globalArguments changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.23.2",
+      description:
+        "notify decides for itself whether to thank the author. It checks " +
+        "the author's swamp-club user id against the eligible-assignees " +
+        "roster and skips team members, instead of relying on the skill's " +
+        "comparison of swamp-club handles with GitHub logins, which read " +
+        "every team member as external. When the issue or roster lookup " +
+        "fails it posts nothing and leaves the phase at notify. New force " +
+        "argument bypasses the roster check. No resources and no " +
+        "globalArguments changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
+      description:
+        "A refused status transition is a no-op when the issue is already " +
+        "further along the lifecycle, not only when it holds exactly the " +
+        "requested status, so restarting the lifecycle on an in-progress " +
+        "issue no longer strands at triage. No resources and no " +
+        "globalArguments changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.2",
+      description:
+        "link_pr takes the pull request's head commit and refuses unless the " +
+        "stored verification result passed for that commit, so a result " +
+        "from before a later fix no longer clears an unverified commit. " +
+        "start resumes from verifying and summarizing again. No resources " +
+        "and no globalArguments changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.3",
+      description:
+        "verify and verification_failed replace the stored verification " +
+        "result with one that has not passed, so an earlier pass for the " +
+        "same commit no longer clears link_pr after a later failure or " +
+        "during a re-verification. approve, ship and complete step the " +
+        "swamp-club status forward one transition at a time, so an issue " +
+        "left at open by an offline triage no longer rejects every later " +
+        "transition. verificationResult gains an optional failureReason; no " +
+        "globalArguments changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -226,6 +479,15 @@ export const model = {
       schema: CodeConformanceReviewSchema,
       lifetime: "infinite" as const,
       garbageCollection: 10,
+    },
+    "verificationResult": {
+      description:
+        "Verification workflow result — the full checklist of steps, " +
+        "their statuses, and the gate outcome. Written by verification_passed " +
+        "and used as a gate on link_pr.",
+      schema: VerificationResultSchema,
+      lifetime: "infinite" as const,
+      garbageCollection: 5,
     },
     "pullRequest": {
       description:
@@ -477,6 +739,58 @@ export const model = {
       },
     },
 
+    "verification-clear": {
+      description: "Ensures verification passed before a PR can be linked",
+      labels: ["policy"],
+      appliesTo: ["link_pr"],
+      execute: async (context: {
+        dataRepository: {
+          getContent: (
+            type: string,
+            modelId: string,
+            dataName: string,
+          ) => Promise<Uint8Array | null>;
+        };
+        modelType: string;
+        modelId: string;
+      }) => {
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          "verificationResult-main",
+        );
+        if (!content) {
+          return {
+            pass: false,
+            errors: [
+              "No verification result exists. Run 'verify' and then 'verification_passed' before linking a PR.",
+            ],
+          };
+        }
+
+        const result = JSON.parse(
+          new TextDecoder().decode(content),
+        ) as {
+          allPassed: boolean;
+          stepsFailed: number;
+          failureReason?: string;
+        };
+
+        if (!result.allPassed) {
+          const why = result.failureReason ??
+            `${result.stepsFailed} step(s) failed`;
+          return {
+            pass: false,
+            errors: [
+              `Verification has not passed (${why}). Fix the issues and re-verify.`,
+            ],
+          };
+        }
+
+        return { pass: true };
+      },
+    },
+
     "adversarial-review-clear": {
       description:
         "Ensures all critical/high adversarial findings are resolved before approval",
@@ -550,10 +864,47 @@ export const model = {
         return { pass: true };
       },
     },
+
+    "conformance-review-required": {
+      description:
+        "Ensures a code conformance review exists before verification can start, " +
+        "preventing a deadlock where verify moves to verifying but link_pr " +
+        "demands a conformance review that can no longer be created",
+      labels: ["policy"],
+      appliesTo: ["verify"],
+      execute: async (context: {
+        dataRepository: {
+          getContent: (
+            type: string,
+            modelId: string,
+            dataName: string,
+          ) => Promise<Uint8Array | null>;
+        };
+        modelType: string;
+        modelId: string;
+      }) => {
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          "codeConformanceReview-main",
+        );
+        if (!content) {
+          return {
+            pass: false,
+            errors: [
+              "No code conformance review exists. Run 'code_conformance_review' before 'verify' — " +
+              "once in the verifying phase, the conformance review can no longer be created.",
+            ],
+          };
+        }
+        return { pass: true };
+      },
+    },
   },
 
   methods: {
     start: {
+      rollbackOnFailure: true,
       description: "Ensure the swamp-club issue exists and begin the lifecycle",
       arguments: z.object({}),
       execute: async (
@@ -621,7 +972,7 @@ export const model = {
           },
         );
 
-        await sc.postLifecycleEntry({
+        await recordLifecycle(sc, {
           step: "triage_started",
           targetStatus: "open",
           summary: "Triage started",
@@ -656,7 +1007,10 @@ export const model = {
               );
             } else {
               await sc.updateAssignees([...existingIds, resolvedUserId]);
-              await sc.postLifecycleEntry({
+              // Best-effort: this entry reports on the assignment above,
+              // which is itself best-effort. Raising here would break the
+              // triage flow this block promises never to break.
+              await recordLifecycleBestEffort(sc, context.logger, {
                 step: "assigned",
                 targetStatus: "open",
                 summary: `Assigned to ${authUsername}`,
@@ -677,6 +1031,7 @@ export const model = {
     },
 
     triage: {
+      rollbackOnFailure: true,
       description: "Classify the issue based on context",
       arguments: z.object({
         type: IssueType,
@@ -684,6 +1039,9 @@ export const model = {
         reasoning: z.string(),
         isRegression: z.boolean().optional().describe(
           "True if this is a regression (something that previously worked). Implies type=bug.",
+        ),
+        regressionIntroducedIn: z.string().optional().describe(
+          "Version that introduced the regression (e.g. '2026.06.12.1'). Only set when isRegression is true.",
         ),
         regressionEvidence: z.string().optional().describe(
           "Concrete evidence that this previously worked (commit hash, version, test output). " +
@@ -710,6 +1068,7 @@ export const model = {
           confidence: "high" | "medium" | "low";
           reasoning: string;
           isRegression?: boolean;
+          regressionIntroducedIn?: string;
           regressionEvidence?: string;
           regressionCounterEvidence?: string;
           regressionVerdict?: "confirmed" | "downgraded";
@@ -732,8 +1091,9 @@ export const model = {
         const { issueNumber } = context.globalArgs;
         const handles = [];
 
-        // Adversarial regression verification
         let effectiveIsRegression = args.isRegression;
+        let effectiveRegressionIntroducedIn = args.regressionIntroducedIn;
+
         if (args.isRegression) {
           if (
             !args.regressionEvidence ||
@@ -747,10 +1107,12 @@ export const model = {
                 "and regressionVerdictReasoning are all required when isRegression is true.",
             );
           }
+
           if (args.regressionVerdict === "downgraded") {
             effectiveIsRegression = false;
+            effectiveRegressionIntroducedIn = undefined;
             context.logger.info(
-              "Regression downgraded to plain bug: {reasoning}",
+              "Regression downgraded to plain bug after adversarial review: {reasoning}",
               { reasoning: args.regressionVerdictReasoning },
             );
           }
@@ -765,6 +1127,7 @@ export const model = {
               confidence: args.confidence,
               reasoning: args.reasoning,
               isRegression: effectiveIsRegression,
+              regressionIntroducedIn: effectiveRegressionIntroducedIn,
               regressionEvidence: args.regressionEvidence,
               regressionCounterEvidence: args.regressionCounterEvidence,
               regressionVerdict: args.regressionVerdict,
@@ -799,8 +1162,21 @@ export const model = {
           context.logger,
         );
         if (sc) {
-          await sc.updateType(args.type);
-          await sc.postLifecycleEntry({
+          // The entry post is the last fatal upstream action in this method:
+          // rollback reverts the local write but cannot unsend an entry, so
+          // anything that can raise must run before it or a re-run would post
+          // the entry twice.
+          recordUpstreamChange(
+            context.logger,
+            "issue type update",
+            await sc.updateType(args.type),
+          );
+          recordUpstreamChange(
+            context.logger,
+            "status transition to triaged",
+            await sc.transitionStatus("triaged"),
+          );
+          await recordLifecycle(sc, {
             step: "classified",
             targetStatus: "triaged",
             summary:
@@ -811,6 +1187,7 @@ export const model = {
               confidence: args.confidence,
               reasoning: args.reasoning,
               isRegression: effectiveIsRegression ?? false,
+              regressionIntroducedIn: effectiveRegressionIntroducedIn,
               regressionEvidence: args.regressionEvidence,
               regressionCounterEvidence: args.regressionCounterEvidence,
               regressionVerdict: args.regressionVerdict,
@@ -819,7 +1196,6 @@ export const model = {
             },
             isVerbose: false,
           });
-          await sc.transitionStatus("triaged");
         }
 
         return { dataHandles: handles };
@@ -827,6 +1203,7 @@ export const model = {
     },
 
     plan: {
+      rollbackOnFailure: true,
       description: "Generate an initial implementation plan",
       arguments: z.object({
         summary: z.string(),
@@ -893,7 +1270,7 @@ export const model = {
           context.globalArgs,
           context.logger,
         );
-        await sc?.postLifecycleEntry({
+        await recordLifecycle(sc, {
           step: "plan_generated",
           targetStatus: "triaged",
           summary: `Implementation plan generated (v1) \u2014 ${args.summary}`,
@@ -955,6 +1332,7 @@ export const model = {
     },
 
     iterate: {
+      rollbackOnFailure: true,
       description:
         "Submit feedback and a revised plan incorporating all prior feedback",
       arguments: z.object({
@@ -1082,7 +1460,7 @@ export const model = {
           context.globalArgs,
           context.logger,
         );
-        await sc?.postLifecycleEntry({
+        await recordLifecycle(sc, {
           step: "plan_revised",
           targetStatus: "triaged",
           summary:
@@ -1105,6 +1483,7 @@ export const model = {
     },
 
     adversarial_review: {
+      rollbackOnFailure: true,
       description:
         "Record adversarial review findings for the current plan version",
       arguments: z.object({
@@ -1177,7 +1556,7 @@ export const model = {
           context.globalArgs,
           context.logger,
         );
-        await sc?.postLifecycleEntry({
+        await recordLifecycle(sc, {
           step: "adversarial_review",
           targetStatus: "triaged",
           summary:
@@ -1200,6 +1579,7 @@ export const model = {
     },
 
     resolve_findings: {
+      rollbackOnFailure: true,
       description:
         "Mark adversarial review findings as resolved after plan revision",
       arguments: z.object({
@@ -1282,7 +1662,7 @@ export const model = {
           context.globalArgs,
           context.logger,
         );
-        await sc?.postLifecycleEntry({
+        await recordLifecycle(sc, {
           step: "findings_resolved",
           targetStatus: "triaged",
           summary:
@@ -1301,6 +1681,7 @@ export const model = {
     },
 
     code_conformance_review: {
+      rollbackOnFailure: true,
       description:
         "Record an adversarial comparison of implemented code against the approved plan. " +
         "Each plan step is verified as implemented, deviated, partially implemented, or missing. " +
@@ -1385,7 +1766,7 @@ export const model = {
           context.globalArgs,
           context.logger,
         );
-        await sc?.postLifecycleEntry({
+        await recordLifecycle(sc, {
           step: "code_conformance_review",
           targetStatus: "in_progress",
           summary:
@@ -1406,6 +1787,7 @@ export const model = {
     },
 
     justify_deviations: {
+      rollbackOnFailure: true,
       description:
         "Add justifications to code conformance review steps that deviate from the plan. " +
         "Deviations are expected — this method records why the code differs.",
@@ -1489,7 +1871,7 @@ export const model = {
           context.globalArgs,
           context.logger,
         );
-        await sc?.postLifecycleEntry({
+        await recordLifecycle(sc, {
           step: "deviations_justified",
           targetStatus: "in_progress",
           summary:
@@ -1508,6 +1890,7 @@ export const model = {
     },
 
     approve: {
+      rollbackOnFailure: true,
       description: "Approve the current plan",
       arguments: z.object({}),
       execute: async (
@@ -1551,7 +1934,13 @@ export const model = {
           context.logger,
         );
         if (sc && plan) {
-          await sc.postLifecycleEntry({
+          // Transition before the entry post — see the note in `triage`.
+          recordUpstreamChange(
+            context.logger,
+            "status transition to in_progress",
+            await sc.advanceStatus("in_progress"),
+          );
+          await recordLifecycle(sc, {
             step: "plan_approved",
             targetStatus: "in_progress",
             summary:
@@ -1564,7 +1953,6 @@ export const model = {
             },
             isVerbose: true,
           });
-          await sc.transitionStatus("in_progress");
         }
 
         return { dataHandles: handles };
@@ -1572,6 +1960,7 @@ export const model = {
     },
 
     implement: {
+      rollbackOnFailure: true,
       description: "Signal that implementation has started",
       arguments: z.object({}),
       execute: async (
@@ -1603,7 +1992,7 @@ export const model = {
           context.globalArgs,
           context.logger,
         );
-        await sc?.postLifecycleEntry({
+        await recordLifecycle(sc, {
           step: "implementation_started",
           targetStatus: "in_progress",
           summary: "Implementation started",
@@ -1616,7 +2005,511 @@ export const model = {
       },
     },
 
+    fast_forward: {
+      rollbackOnFailure: true,
+      description:
+        "Fast-forward lifecycle for ad-hoc work. Atomically writes " +
+        "classification, plan, adversarial review, and code conformance " +
+        "review, then transitions to implementing. Used when a tracking " +
+        "issue was created retroactively for work already done.",
+      arguments: z.object({
+        summary: z.string().describe(
+          "Brief description of the work done",
+        ),
+        steps: z.array(PlanStepSchema).describe(
+          "Retroactive plan steps describing the work already completed",
+        ),
+        testingStrategy: z.string().describe(
+          "How the changes were or will be tested",
+        ),
+      }),
+      execute: async (
+        args: {
+          summary: string;
+          steps: Array<{
+            order: number;
+            description: string;
+            files: string[];
+            risks?: string;
+          }>;
+          testingStrategy: string;
+        },
+        context: {
+          globalArgs: GlobalArgs;
+          logger: {
+            info: (msg: string, props: Record<string, unknown>) => void;
+            warning: (msg: string, props: Record<string, unknown>) => void;
+          };
+          writeResource: (
+            specName: string,
+            instanceName: string,
+            data: Record<string, unknown>,
+          ) => Promise<{ name: string }>;
+        },
+      ) => {
+        const { issueNumber } = context.globalArgs;
+        const now = new Date().toISOString();
+        const handles = [];
+
+        handles.push(
+          await context.writeResource(
+            "classification",
+            "classification-main",
+            {
+              type: "platform",
+              confidence: "high",
+              reasoning: "Ad-hoc work — retroactive tracking issue created",
+              classifiedAt: now,
+            },
+          ),
+        );
+
+        handles.push(
+          await context.writeResource("plan", "plan-main", {
+            version: 1,
+            summary: args.summary,
+            dddAnalysis: "Retroactive — work already completed",
+            steps: args.steps,
+            testingStrategy: args.testingStrategy,
+            potentialChallenges: [],
+            feedbackIncorporated: [],
+            generatedAt: now,
+          }),
+        );
+
+        handles.push(
+          await context.writeResource(
+            "adversarialReview",
+            "adversarialReview-main",
+            {
+              planVersion: 1,
+              findings: [],
+              reviewedAt: now,
+            },
+          ),
+        );
+
+        handles.push(
+          await context.writeResource(
+            "codeConformanceReview",
+            "codeConformanceReview-main",
+            {
+              planVersion: 1,
+              steps: args.steps.map((s) => ({
+                order: s.order,
+                status: "implemented",
+                description: s.description,
+              })),
+              reviewedAt: now,
+            },
+          ),
+        );
+
+        handles.push(
+          await context.writeResource("state", "state-main", {
+            phase: "implementing",
+            issueNumber,
+            updatedAt: now,
+          }),
+        );
+
+        context.logger.info(
+          "Fast-forwarded lifecycle to implementing: {summary}",
+          { summary: args.summary },
+        );
+
+        const sc = await createSwampClubClient(
+          context.globalArgs,
+          context.logger,
+        );
+        if (sc) {
+          recordUpstreamChange(
+            context.logger,
+            "issue type update",
+            await sc.updateType("platform"),
+          );
+          // Walk through triaged first — a freshly filed issue is in status
+          // open, and swamp-club rejects a direct jump to in_progress.
+          recordUpstreamChange(
+            context.logger,
+            "status transition to triaged",
+            await sc.transitionStatus("triaged"),
+          );
+          recordUpstreamChange(
+            context.logger,
+            "status transition to in_progress",
+            await sc.transitionStatus("in_progress"),
+          );
+          await recordLifecycle(sc, {
+            step: "fast_forwarded",
+            targetStatus: "in_progress",
+            summary:
+              `Lifecycle fast-forwarded for ad-hoc work — ${args.summary}`,
+            emoji: "\u{23E9}",
+            payload: {
+              summary: args.summary,
+              stepsCount: args.steps.length,
+              testingStrategy: args.testingStrategy,
+            },
+            isVerbose: true,
+          });
+        }
+
+        return { dataHandles: handles };
+      },
+    },
+
+    verify: {
+      rollbackOnFailure: true,
+      description:
+        "Start verification — transitions to verifying phase. The agent " +
+        "runs the verification workflows on the host.",
+      arguments: z.object({
+        commit: z.string().describe("Commit SHA being verified"),
+        branch: z.string().describe("Branch being verified"),
+      }),
+      execute: async (
+        args: { commit: string; branch: string },
+        context: {
+          globalArgs: GlobalArgs;
+          logger: {
+            info: (msg: string, props: Record<string, unknown>) => void;
+            warning: (msg: string, props: Record<string, unknown>) => void;
+          };
+          writeResource: (
+            specName: string,
+            instanceName: string,
+            data: Record<string, unknown>,
+          ) => Promise<{ name: string }>;
+        },
+      ) => {
+        const { issueNumber } = context.globalArgs;
+
+        // A new verification supersedes whatever result is stored, so a pass
+        // from before it cannot clear link_pr while it is still running or
+        // after it was abandoned.
+        const resultHandle = await writeUnverifiedResult(context, {
+          workflowRunId: "",
+          commit: args.commit,
+          branch: args.branch,
+          failureReason: "verification in progress",
+        });
+
+        const stateHandle = await context.writeResource("state", "state-main", {
+          phase: "verifying",
+          issueNumber,
+          updatedAt: new Date().toISOString(),
+        });
+
+        context.logger.info(
+          "Verification started for commit {commit} on {branch}",
+          { commit: args.commit, branch: args.branch },
+        );
+
+        const sc = await createSwampClubClient(
+          context.globalArgs,
+          context.logger,
+        );
+        await recordLifecycle(sc, {
+          step: "verification_started",
+          targetStatus: "in_progress",
+          summary: `Verification started for ${args.commit} on ${args.branch}`,
+          emoji: "\u{1F50D}",
+          payload: { commit: args.commit, branch: args.branch },
+          isVerbose: false,
+        });
+
+        return { dataHandles: [resultHandle, stateHandle] };
+      },
+    },
+
+    verification_passed: {
+      rollbackOnFailure: true,
+      description:
+        "Record that verification passed. Carries the full verification " +
+        "checklist — every step, status, and gate result. This data gates " +
+        "the transition to link_pr.",
+      arguments: z.object({
+        workflowRunId: z.string(),
+        commit: z.string(),
+        branch: z.string(),
+        steps: z.array(z.object({
+          job: z.string(),
+          step: z.string(),
+          model: z.string(),
+          method: z.string().default("execute"),
+          status: z.enum(["succeeded", "failed", "skipped"]),
+        })),
+      }),
+      execute: async (
+        args: {
+          workflowRunId: string;
+          commit: string;
+          branch: string;
+          steps: Array<{
+            job: string;
+            step: string;
+            model: string;
+            method: string;
+            status: "succeeded" | "failed" | "skipped";
+          }>;
+        },
+        context: {
+          globalArgs: GlobalArgs;
+          logger: {
+            info: (msg: string, props: Record<string, unknown>) => void;
+            warning: (msg: string, props: Record<string, unknown>) => void;
+          };
+          writeResource: (
+            specName: string,
+            instanceName: string,
+            data: Record<string, unknown>,
+          ) => Promise<{ name: string }>;
+        },
+      ) => {
+        const { issueNumber } = context.globalArgs;
+        const now = new Date().toISOString();
+
+        const succeeded = args.steps.filter((s) => s.status === "succeeded")
+          .length;
+        const skipped = args.steps.filter((s) => s.status === "skipped").length;
+        const failed = args.steps.filter((s) => s.status === "failed").length;
+
+        const verificationHandle = await context.writeResource(
+          "verificationResult",
+          "verificationResult-main",
+          {
+            workflowRunId: args.workflowRunId,
+            commit: args.commit,
+            branch: args.branch,
+            allPassed: failed === 0,
+            stepsCompleted: succeeded,
+            stepsTotal: args.steps.length,
+            stepsSkipped: skipped,
+            stepsFailed: failed,
+            steps: args.steps,
+            verifiedAt: now,
+          },
+        );
+
+        const stateHandle = await context.writeResource("state", "state-main", {
+          phase: "verifying",
+          issueNumber,
+          updatedAt: now,
+        });
+
+        context.logger.info(
+          "Verification passed: {succeeded}/{total} steps, {skipped} skipped",
+          { succeeded, total: args.steps.length, skipped },
+        );
+
+        const sc = await createSwampClubClient(
+          context.globalArgs,
+          context.logger,
+        );
+        await recordLifecycle(sc, {
+          step: "verification_passed",
+          targetStatus: "in_progress",
+          summary:
+            `Verification passed: ${succeeded}/${args.steps.length} steps`,
+          emoji: "✅",
+          payload: {
+            workflowRunId: args.workflowRunId,
+            commit: args.commit,
+            stepsCompleted: succeeded,
+            stepsTotal: args.steps.length,
+          },
+          isVerbose: false,
+        });
+
+        return { dataHandles: [verificationHandle, stateHandle] };
+      },
+    },
+
+    verification_failed: {
+      rollbackOnFailure: true,
+      description:
+        "Record that verification failed. Transitions back to implementing " +
+        "so the agent can fix issues and re-verify.",
+      arguments: z.object({
+        workflowRunId: z.string(),
+        commit: z.string(),
+        branch: z.string(),
+        failureReason: z.string().describe(
+          "Summary of what failed in the verification workflow",
+        ),
+      }),
+      execute: async (
+        args: {
+          workflowRunId: string;
+          commit: string;
+          branch: string;
+          failureReason: string;
+        },
+        context: {
+          globalArgs: GlobalArgs;
+          logger: {
+            info: (msg: string, props: Record<string, unknown>) => void;
+            warning: (msg: string, props: Record<string, unknown>) => void;
+          };
+          writeResource: (
+            specName: string,
+            instanceName: string,
+            data: Record<string, unknown>,
+          ) => Promise<{ name: string }>;
+        },
+      ) => {
+        const { issueNumber } = context.globalArgs;
+
+        // Replace any earlier passing result: link_pr checks the stored
+        // result, and a pass recorded before this failure — for the same
+        // commit — would otherwise still clear it.
+        const resultHandle = await writeUnverifiedResult(context, {
+          workflowRunId: args.workflowRunId,
+          commit: args.commit,
+          branch: args.branch,
+          failureReason: args.failureReason,
+        });
+
+        const stateHandle = await context.writeResource("state", "state-main", {
+          phase: "implementing",
+          issueNumber,
+          updatedAt: new Date().toISOString(),
+        });
+
+        context.logger.info("Verification failed: {reason}", {
+          reason: args.failureReason,
+        });
+
+        const sc = await createSwampClubClient(
+          context.globalArgs,
+          context.logger,
+        );
+        await recordLifecycle(sc, {
+          step: "verification_failed",
+          targetStatus: "in_progress",
+          summary: `Verification failed: ${args.failureReason}`,
+          emoji: "❌",
+          payload: {
+            workflowRunId: args.workflowRunId,
+            commit: args.commit,
+            failureReason: args.failureReason,
+          },
+          isVerbose: false,
+        });
+
+        return { dataHandles: [resultHandle, stateHandle] };
+      },
+    },
+
+    post_attestation: {
+      description:
+        "Post the verification attestation to swamp-club. Must be called " +
+        "after verification passes and the user confirms the checklist, " +
+        "before opening a PR. The PR must not open without a stored " +
+        "attestation — this is a hard gate.",
+      arguments: z.object({
+        attestation: z.string().min(1).describe(
+          "The verification attestation JSON as a string, as " +
+            "`deno run build-attestation` writes it. Validated against " +
+            "AttestationSchema before it is posted — build it with the " +
+            "generator rather than by hand.",
+        ),
+      }),
+      execute: async (
+        args: { attestation: string },
+        context: {
+          globalArgs: GlobalArgs;
+          logger: {
+            info: (msg: string, props: Record<string, unknown>) => void;
+            warning: (msg: string, props: Record<string, unknown>) => void;
+          };
+        },
+      ) => {
+        // Validated before the client is built, so a malformed document
+        // fails without dialing out. Unchecked, a document missing `subject`
+        // posts cleanly and is only rejected by CI once the PR is already
+        // public. Checking here moves that contract to the moment
+        // before the document leaves the machine, where the failure is still
+        // cheap and the operator is still standing in front of it.
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(args.attestation);
+        } catch {
+          throw new Error("attestation input is not valid JSON");
+        }
+
+        const validated = AttestationSchema.safeParse(parsed);
+        if (!validated.success) {
+          const issues = validated.error.issues
+            .map((issue) =>
+              `  ${issue.path.join(".") || "(root)"}: ${issue.message}`
+            )
+            .join("\n");
+          throw new Error(
+            "attestation does not match AttestationSchema:\n" + issues +
+              "\n\nBuild it with `deno run build-attestation` rather than by " +
+              "hand — the generator projects every field from the " +
+              "verification run records.",
+          );
+        }
+        const attestation = validated.data;
+
+        const sc = await createSwampClubClient(
+          context.globalArgs,
+          context.logger,
+        );
+        if (!sc) {
+          throw new Error(
+            "swamp-club is not reachable or credentials are missing. " +
+              "Set SWAMP_API_KEY or run `swamp auth login`.",
+          );
+        }
+
+        const result = await sc.postAttestation(attestation);
+
+        context.logger.info(
+          "Attestation posted to swamp-club: id={id} postedBy={postedBy}",
+          { id: result.id, postedBy: result.postedBy },
+        );
+
+        // The one deliberate downgrade in this model. Unlike every other
+        // method, the attestation POST above has already written a durable
+        // upstream record that rollback cannot reach, and this entry cannot
+        // run first because its payload carries the id that POST returned.
+        // Failing here would send the operator into a re-run that files a
+        // second attestation for the same commit — worse than a missing
+        // entry, since the attestation row is itself the audit record and
+        // `postAttestation` already raises when it fails. The id is named in
+        // the warning so the entry can be reconstructed by hand.
+        try {
+          await recordLifecycle(sc, {
+            step: "attestation_posted",
+            targetStatus: "in_progress",
+            summary: "Verification attestation posted to swamp-club",
+            emoji: "\u{1F4DC}",
+            payload: {
+              attestationId: result.id,
+              commit: attestation.subject.commit,
+              gatePassed: attestation.gate.allPassed,
+            },
+            isVerbose: false,
+          });
+        } catch (err) {
+          context.logger.warning(
+            "Attestation {id} was posted, but its lifecycle entry was not " +
+              "recorded: {error}. The attestation itself is the durable " +
+              "record; re-running this method would file a duplicate.",
+            { id: result.id, error: String(err) },
+          );
+        }
+
+        return { dataHandles: [] };
+      },
+    },
+
     link_pr: {
+      rollbackOnFailure: true,
       description:
         "Link a pull request to the implementation. Idempotent — calling " +
         "again overwrites the recorded URL with the latest link. " +
@@ -1626,9 +2519,13 @@ export const model = {
           "Canonical pull request URL. Opaque to the model — pass whatever " +
             "URL your git host produced.",
         ),
+        commit: z.string().regex(/^[0-9a-f]{7,64}$/i).describe(
+          "SHA of the pull request's head commit. Must be the commit the " +
+            "stored verification result passed for.",
+        ),
       }),
       execute: async (
-        args: { url: string },
+        args: { url: string; commit: string },
         context: {
           globalArgs: GlobalArgs;
           logger: {
@@ -1648,6 +2545,18 @@ export const model = {
       ) => {
         const { issueNumber } = context.globalArgs;
         const now = new Date().toISOString();
+
+        // The verification-clear check proves some verification passed; this
+        // proves it passed for the commit being linked. A result from before
+        // a later fix commit would otherwise let the new commit through
+        // unverified.
+        const mismatch = verificationMismatch(
+          await context.readResource("verificationResult-main") as
+            | VerificationResultData
+            | null,
+          args.commit,
+        );
+        if (mismatch) throw new Error(mismatch);
 
         const existing = await context.readResource("pullRequest-main") as
           | PullRequestData
@@ -1679,12 +2588,12 @@ export const model = {
           context.globalArgs,
           context.logger,
         );
-        await sc?.postLifecycleEntry({
+        await recordLifecycle(sc, {
           step: "pr_linked",
           targetStatus: "in_progress",
           summary: `PR linked (attempt ${attempt}): ${args.url}`,
           emoji: "\u{1F517}",
-          payload: { url: args.url, attempt },
+          payload: { url: args.url, attempt, commit: args.commit },
           isVerbose: false,
         });
 
@@ -1693,6 +2602,7 @@ export const model = {
     },
 
     pr_merged: {
+      rollbackOnFailure: true,
       description:
         "Record that the linked PR has been merged. Transitions to releasing.",
       arguments: z.object({
@@ -1758,7 +2668,7 @@ export const model = {
           context.globalArgs,
           context.logger,
         );
-        await sc?.postLifecycleEntry({
+        await recordLifecycle(sc, {
           step: "pr_merged",
           targetStatus: "in_progress",
           summary:
@@ -1777,6 +2687,7 @@ export const model = {
     },
 
     pr_failed: {
+      rollbackOnFailure: true,
       description:
         "Record that the linked PR has failed (CI failure, review rejection, etc.). " +
         "Transitions to pr_failed so the agent knows to fix and re-link.",
@@ -1844,7 +2755,7 @@ export const model = {
           context.globalArgs,
           context.logger,
         );
-        await sc?.postLifecycleEntry({
+        await recordLifecycle(sc, {
           step: "pr_failed",
           targetStatus: "in_progress",
           summary: `PR failed (attempt ${attempt}): ${args.reason}`,
@@ -1858,6 +2769,7 @@ export const model = {
     },
 
     ship: {
+      rollbackOnFailure: true,
       description:
         "Mark the release as shipped after the release build completes. " +
         "Transitions to done and sets swamp-club status to shipped.",
@@ -1900,7 +2812,13 @@ export const model = {
           context.logger,
         );
         if (sc) {
-          await sc.postLifecycleEntry({
+          // Transition before the entry post — see the note in `triage`.
+          recordUpstreamChange(
+            context.logger,
+            "status transition to shipped",
+            await sc.advanceStatus("shipped"),
+          );
+          await recordLifecycle(sc, {
             step: "shipped",
             targetStatus: "shipped",
             summary: args.releaseUrl
@@ -1913,7 +2831,6 @@ export const model = {
             },
             isVerbose: false,
           });
-          await sc.transitionStatus("shipped");
         }
 
         return { dataHandles: [stateHandle] };
@@ -1921,6 +2838,7 @@ export const model = {
     },
 
     complete: {
+      rollbackOnFailure: true,
       description: "Mark the issue lifecycle as done",
       arguments: z.object({}),
       execute: async (
@@ -1956,7 +2874,13 @@ export const model = {
           context.logger,
         );
         if (sc) {
-          await sc.postLifecycleEntry({
+          // Transition before the entry post — see the note in `triage`.
+          recordUpstreamChange(
+            context.logger,
+            "status transition to shipped",
+            await sc.advanceStatus("shipped"),
+          );
+          await recordLifecycle(sc, {
             step: "complete",
             targetStatus: "shipped",
             summary: "Complete",
@@ -1964,7 +2888,6 @@ export const model = {
             payload: {},
             isVerbose: false,
           });
-          await sc.transitionStatus("shipped");
         }
 
         return { dataHandles: [stateHandle] };
@@ -1973,15 +2896,21 @@ export const model = {
 
     notify: {
       description:
-        "Thank an external contributor by posting a ripple on the issue " +
-        "mentioning them by handle. Transitions to summarizing.",
+        "Thank the issue author with a ripple on the issue, unless they are " +
+        "on swamp-club's team roster (eligible assignees). Fails without " +
+        "posting when membership cannot be confirmed. Transitions to " +
+        "summarizing.",
       arguments: z.object({
         message: z.string().optional().describe(
           "Custom thank-you message. If omitted, a default message is generated.",
         ),
+        force: z.boolean().optional().describe(
+          "Post the thank-you without checking the team roster, e.g. to " +
+            "thank a team member deliberately.",
+        ),
       }),
       execute: async (
-        args: { message?: string },
+        args: { message?: string; force?: boolean },
         context: {
           globalArgs: GlobalArgs;
           logger: {
@@ -2001,27 +2930,55 @@ export const model = {
       ) => {
         const { issueNumber } = context.globalArgs;
 
-        // Read the author from context, falling back to a re-fetch if missing.
-        let author: string | undefined;
-        const contextData = await context.readResource("context-main");
-        if (contextData && typeof contextData.author === "string") {
-          author = contextData.author;
-        }
+        const prData = await context.readResource("pullRequest-main") as
+          | PullRequestData
+          | null;
+        const planData = await context.readResource("plan-main") as
+          | PlanData
+          | null;
 
         const sc = await createSwampClubClient(
           context.globalArgs,
           context.logger,
         );
 
-        if (!author && sc) {
+        // The ripple cannot be taken back, so every lookup that decides it
+        // runs first and fails closed. The handle mentioned and the id
+        // checked come from the same fetch.
+        let author: string | undefined;
+        let teamMember = false;
+        if (sc) {
           const issue = await sc.fetchIssue();
-          author = issue?.author;
+          if (!issue) {
+            throw notifyUndecided(
+              `Could not fetch issue #${issueNumber} to identify its author`,
+            );
+          }
+          if (issue.author !== "unknown") author = issue.author;
+          if (author && !args.force) {
+            const roster = await sc.fetchEligibleAssignees();
+            if (!roster) {
+              throw notifyUndecided(
+                `Could not confirm whether @${author} is a swamp-club team ` +
+                  "member (the eligible-assignees lookup failed)",
+              );
+            }
+            teamMember = isTeamMember(issue, roster);
+          }
         }
 
-        if (author && author !== "unknown" && sc) {
+        if (author && teamMember) {
+          context.logger.info(
+            "@{author} is a swamp-club team member — no thank-you posted",
+            { author },
+          );
+        } else if (author && sc) {
           const body = args.message ??
-            `Thanks @${author} for reporting this! The fix has been merged and a release is on its way. We appreciate your contribution to swamp.`;
-          await sc.submitComment(body);
+            buildNotifyMessage(author, prData, planData);
+          // The ripple is this method's deliverable, not a courtesy, so a
+          // failure raises. It runs before the state write, so the phase is
+          // still `notify` and the re-run retries it with no duplicate.
+          await recordRipple(sc, body);
           context.logger.info(
             "Posted thank-you ripple for @{author} on issue #{issueNumber}",
             { author, issueNumber },
@@ -2040,16 +2997,27 @@ export const model = {
         });
 
         if (sc) {
-          await sc.postLifecycleEntry({
-            step: "contributor_notified",
-            targetStatus: "shipped",
-            summary: author && author !== "unknown"
-              ? `Thanked @${author}`
-              : "Notification skipped (unknown author)",
-            emoji: "\u{1F64F}",
-            payload: { author: author ?? "unknown" },
-            isVerbose: false,
-          });
+          if (author && teamMember) {
+            await recordLifecycle(sc, {
+              step: "notification_skipped",
+              targetStatus: "shipped",
+              summary: `Skipped thanks: @${author} is a swamp-club team member`,
+              emoji: "\u{23ED}\u{FE0F}",
+              payload: { author, reason: "team_member" },
+              isVerbose: false,
+            });
+          } else {
+            await recordLifecycle(sc, {
+              step: "contributor_notified",
+              targetStatus: "shipped",
+              summary: author
+                ? `Thanked @${author}`
+                : "Notification skipped (unknown author)",
+              emoji: "\u{1F64F}",
+              payload: { author: author ?? "unknown" },
+              isVerbose: false,
+            });
+          }
         }
 
         return { dataHandles: [stateHandle] };
@@ -2057,9 +3025,10 @@ export const model = {
     },
 
     skip_notify: {
+      rollbackOnFailure: true,
       description:
-        "Skip contributor notification and transition directly to summarizing. " +
-        "Use when the issue author is a collaborator or notification is not needed.",
+        "Skip contributor notification and transition to summarizing. " +
+        "Use when no notification is wanted; notify already skips team members.",
       arguments: z.object({}),
       execute: async (
         _args: Record<string, never>,
@@ -2091,7 +3060,7 @@ export const model = {
           context.logger,
         );
         if (sc) {
-          await sc.postLifecycleEntry({
+          await recordLifecycle(sc, {
             step: "notification_skipped",
             targetStatus: "shipped",
             summary: "Contributor notification skipped",
@@ -2106,6 +3075,7 @@ export const model = {
     },
 
     summarize: {
+      rollbackOnFailure: true,
       description:
         "Record a session summary restating the original problem and delivered outcome. " +
         "Transitions to done. Must be called after notify/skip_notify.",
@@ -2171,7 +3141,7 @@ export const model = {
           context.globalArgs,
           context.logger,
         );
-        await sc?.postLifecycleEntry({
+        await recordLifecycle(sc, {
           step: "session_summarized",
           targetStatus: "shipped",
           summary: args.outcomeMet

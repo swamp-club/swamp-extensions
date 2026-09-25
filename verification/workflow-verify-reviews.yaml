@@ -1,10 +1,11 @@
 id: 94c0688e-1bf0-4f4b-b1b2-cb349e4abe36
 name: verify-reviews
 description: |
-  Agent code reviews using claude CLI directly. Detects changed files,
-  constructs review prompts with the diff inlined, and runs claude -p
-  for each review type in parallel. Runs on the host in a fresh git
-  worktree so CLAUDE.md, skills, and file reads reflect the verified commit.
+  Agent code reviews using the claude CLI. Detects changed files, hands each
+  reviewer the merge-base diff as a file, and runs the reviews in parallel.
+  A review passes only on an explicit VERDICT: pass (scripts/check_review_verdict.ts).
+  Runs on the host in a fresh git worktree so CLAUDE.md, skills, and file
+  reads reflect the verified commit.
 version: 1
 
 tags:
@@ -22,6 +23,10 @@ inputs:
     - commit
     - branch
 
+reports:
+  require:
+    - "@swamp/verification-summary"
+
 concurrency: 4
 
 jobs:
@@ -38,11 +43,18 @@ jobs:
           inputs:
             run: |
               set -e
-              git fetch origin main
+              # Concurrent verifications share refs/remotes/origin/main; the
+              # loser of the ref update fails with "incorrect old value".
+              # The retry finds the ref current, so it has nothing to write.
+              git fetch origin main || { sleep 1; git fetch origin main; }
               CHECKOUT_DIR="/tmp/swamp-verify-reviews-${{ run.id }}"
               rm -rf "$CHECKOUT_DIR"
               git worktree prune
               git worktree add --detach "$CHECKOUT_DIR" "${{ inputs.commit }}"
+              swamp repo init "$CHECKOUT_DIR"
+              # init prepends a managed section to CLAUDE.md and .gitignore;
+              # restore them so only the branch's own changes reach the diff.
+              git -C "$CHECKOUT_DIR" checkout -- .
 
   # ── Detect Changed Files ──────────────────────────────────────
   - name: detect-changes
@@ -52,30 +64,31 @@ jobs:
         condition:
           type: succeeded
     steps:
-      - name: diff
-        task:
-          type: model_method
-          modelType: "@swamp/git"
-          modelName: repo
-          methodName: diff
-          inputs:
-            base: "origin/main"
-
+      # Plain git, no extension: the guards below read the markers this
+      # prints, the same way verify-build's codegen guard does. It runs in the
+      # verified worktree against the merge base, the diff the reviews read.
       - name: changed-files
-        dependsOn:
-          - step: diff
-            condition:
-              type: succeeded
         task:
           type: model_method
-          modelType: "@swamp/git"
-          modelName: repo
-          methodName: diff
+          modelType: "command/shell"
+          modelName: review-detect-${{ run.id }}
+          methodName: execute
           inputs:
-            base: "origin/main"
-            nameOnly: true
+            run: |
+              set -e
+              CHANGED=$(git -c core.quotePath=false diff --name-only --no-renames origin/main...HEAD)
+              echo "$CHANGED" | sed 's/^/CHANGED: /'
+              if echo "$CHANGED" | grep -qE '^(agent-runner/|deno-runner/|vault/|datastore/|codegen/|model/|issue-lifecycle/|ssh/|kubernetes/|workflows/|cve/|software-factory/|container-image/|git/|typesafe-ai/|extensions/)'; then
+                echo "REVIEW_ADVERSARIAL: true"
+              fi
+              if echo "$CHANGED" | grep -qE '^(\.forgejo/|\.github/|scripts/|verification/)'; then
+                echo "REVIEW_CI_SECURITY: true"
+              fi
+            workingDir: "/tmp/swamp-verify-reviews-${{ run.id }}"
 
   # ── Agent Reviews ────────────────────────────────────────────
+  # A guard skips its step when it evaluates true, so each guard is written
+  # as "the marker is absent".
   - name: reviews
     description: Run all agent reviews in parallel using claude CLI.
     dependsOn:
@@ -84,6 +97,7 @@ jobs:
           type: succeeded
     steps:
       - name: code-review
+        # Always runs.
         task:
           type: model_method
           modelType: "command/shell"
@@ -92,25 +106,33 @@ jobs:
           inputs:
             run: |
               set -o pipefail
-              MERGE_BASE=$(git merge-base origin/main HEAD)
-              DIFF_FILE=$(mktemp)
-              PROMPT_FILE=$(mktemp)
-              RESULT_FILE=$(mktemp)
+              fail() { echo "::error::$1"; exit 1; }
+              DIFF_FILE=$(mktemp) && PROMPT_FILE=$(mktemp) && RESULT_FILE=$(mktemp) ||
+                fail "could not create temporary files"
               trap 'rm -f "$DIFF_FILE" "$PROMPT_FILE" "$RESULT_FILE"' EXIT
-              git diff "$MERGE_BASE" > "$DIFF_FILE"
-              cat verification/review-prompts/code-review.md > "$PROMPT_FILE"
-              printf '\n\nThe diff to review is at: %s\nRead that file to see the changes.\n\nOutput your review. Start with a single line: VERDICT: pass or VERDICT: fail\nThen provide your full review.\n' "$DIFF_FILE" >> "$PROMPT_FILE"
+              MERGE_BASE=$(git merge-base origin/main HEAD) ||
+                fail "no merge base with origin/main"
+              # --text and --no-textconv: a .gitattributes in the change could
+              # otherwise turn its files into "Binary files differ" for the
+              # reviewer.
+              git diff --text --no-textconv --no-ext-diff "$MERGE_BASE" > "$DIFF_FILE" || fail "git diff failed"
+              # Without its prompt the reviewer would review with no
+              # instructions and could still answer VERDICT: pass.
+              cat verification/review-prompts/code-review.md > "$PROMPT_FILE" ||
+                fail "review prompt verification/review-prompts/code-review.md is missing"
+              printf '\n\nThe diff to review is at: %s\nRead that file to see the changes.\n\nIMPORTANT: You MUST begin your response with exactly one of these two lines:\nVERDICT: pass\nVERDICT: fail\n\nThen provide your full review below the verdict line.\n' "$DIFF_FILE" >> "$PROMPT_FILE"
               claude -p - \
-                --model claude-opus-4-6 \
+                --model claude-opus-5-5 \
                 --allowedTools "Read,Glob,Grep" < "$PROMPT_FILE" | tee "$RESULT_FILE"
-              VERDICT=$(head -5 "$RESULT_FILE" | grep -o 'VERDICT: [a-z]*' | head -1 | cut -d' ' -f2)
-              if [ "$VERDICT" != "pass" ]; then
-                echo "::error::Code review did not pass (verdict: ${VERDICT:-missing})"
-                exit 1
-              fi
+              CLAUDE_EXIT=$?
+              [ $CLAUDE_EXIT -eq 0 ] || fail "claude exited with status $CLAUDE_EXIT"
+              deno run --allow-read="$RESULT_FILE" \
+                scripts/check_review_verdict.ts "$RESULT_FILE" "Code review"
             workingDir: "/tmp/swamp-verify-reviews-${{ run.id }}"
 
       - name: adversarial-review
+        # Skips unless extension, model, codegen or harness model code changed.
+        guard: "${{ !data.latest('review-detect-' + run.id, 'result').attributes.stdout.contains('REVIEW_ADVERSARIAL: true') }}"
         task:
           type: model_method
           modelType: "command/shell"
@@ -119,27 +141,33 @@ jobs:
           inputs:
             run: |
               set -o pipefail
-              MERGE_BASE=$(git merge-base origin/main HEAD)
-              DIFF_FILE=$(mktemp)
-              PROMPT_FILE=$(mktemp)
-              RESULT_FILE=$(mktemp)
+              fail() { echo "::error::$1"; exit 1; }
+              DIFF_FILE=$(mktemp) && PROMPT_FILE=$(mktemp) && RESULT_FILE=$(mktemp) ||
+                fail "could not create temporary files"
               trap 'rm -f "$DIFF_FILE" "$PROMPT_FILE" "$RESULT_FILE"' EXIT
-              git diff "$MERGE_BASE" > "$DIFF_FILE"
-              cat verification/review-prompts/adversarial-review.md > "$PROMPT_FILE"
-              printf '\n\nThe diff to review is at: %s\nRead that file to see the changes.\n\nOutput your review. Start with a single line: VERDICT: pass or VERDICT: fail\nThen provide your full review.\n' "$DIFF_FILE" >> "$PROMPT_FILE"
+              MERGE_BASE=$(git merge-base origin/main HEAD) ||
+                fail "no merge base with origin/main"
+              # --text and --no-textconv: a .gitattributes in the change could
+              # otherwise turn its files into "Binary files differ" for the
+              # reviewer.
+              git diff --text --no-textconv --no-ext-diff "$MERGE_BASE" > "$DIFF_FILE" || fail "git diff failed"
+              # Without its prompt the reviewer would review with no
+              # instructions and could still answer VERDICT: pass.
+              cat verification/review-prompts/adversarial-review.md > "$PROMPT_FILE" ||
+                fail "review prompt verification/review-prompts/adversarial-review.md is missing"
+              printf '\n\nThe diff to review is at: %s\nRead that file to see the changes.\n\nIMPORTANT: You MUST begin your response with exactly one of these two lines:\nVERDICT: pass\nVERDICT: fail\n\nThen provide your full review below the verdict line.\n' "$DIFF_FILE" >> "$PROMPT_FILE"
               claude -p - \
-                --model claude-opus-4-6 \
+                --model claude-opus-5-5 \
                 --allowedTools "Read,Glob,Grep" < "$PROMPT_FILE" | tee "$RESULT_FILE"
-              VERDICT=$(head -5 "$RESULT_FILE" | grep -o 'VERDICT: [a-z]*' | head -1 | cut -d' ' -f2)
-              if [ "$VERDICT" != "pass" ]; then
-                echo "::error::Adversarial review did not pass (verdict: ${VERDICT:-missing})"
-                exit 1
-              fi
+              CLAUDE_EXIT=$?
+              [ $CLAUDE_EXIT -eq 0 ] || fail "claude exited with status $CLAUDE_EXIT"
+              deno run --allow-read="$RESULT_FILE" \
+                scripts/check_review_verdict.ts "$RESULT_FILE" "Adversarial review"
             workingDir: "/tmp/swamp-verify-reviews-${{ run.id }}"
 
       - name: ci-security-review
-        # A guard skips its step when true: skip unless CI paths changed.
-        guard: "${{ data.latest('repo', 'diff').attributes.files.filter(f, f.startsWith('.forgejo/') || f.startsWith('.github/') || f.startsWith('scripts/') || f.startsWith('verification/')).size() == 0 }}"
+        # Skips unless CI, scripts or this harness changed.
+        guard: "${{ !data.latest('review-detect-' + run.id, 'result').attributes.stdout.contains('REVIEW_CI_SECURITY: true') }}"
         task:
           type: model_method
           modelType: "command/shell"
@@ -148,22 +176,28 @@ jobs:
           inputs:
             run: |
               set -o pipefail
-              MERGE_BASE=$(git merge-base origin/main HEAD)
-              DIFF_FILE=$(mktemp)
-              PROMPT_FILE=$(mktemp)
-              RESULT_FILE=$(mktemp)
+              fail() { echo "::error::$1"; exit 1; }
+              DIFF_FILE=$(mktemp) && PROMPT_FILE=$(mktemp) && RESULT_FILE=$(mktemp) ||
+                fail "could not create temporary files"
               trap 'rm -f "$DIFF_FILE" "$PROMPT_FILE" "$RESULT_FILE"' EXIT
-              git diff "$MERGE_BASE" > "$DIFF_FILE"
-              cat verification/review-prompts/ci-security-review.md > "$PROMPT_FILE"
-              printf '\n\nThe diff to review is at: %s\nRead that file to see the changes.\n\nOutput your review. Start with a single line: VERDICT: pass or VERDICT: fail\nThen provide your full review.\n' "$DIFF_FILE" >> "$PROMPT_FILE"
+              MERGE_BASE=$(git merge-base origin/main HEAD) ||
+                fail "no merge base with origin/main"
+              # --text and --no-textconv: a .gitattributes in the change could
+              # otherwise turn its files into "Binary files differ" for the
+              # reviewer.
+              git diff --text --no-textconv --no-ext-diff "$MERGE_BASE" > "$DIFF_FILE" || fail "git diff failed"
+              # Without its prompt the reviewer would review with no
+              # instructions and could still answer VERDICT: pass.
+              cat verification/review-prompts/ci-security-review.md > "$PROMPT_FILE" ||
+                fail "review prompt verification/review-prompts/ci-security-review.md is missing"
+              printf '\n\nThe diff to review is at: %s\nRead that file to see the changes.\n\nIMPORTANT: You MUST begin your response with exactly one of these two lines:\nVERDICT: pass\nVERDICT: fail\n\nThen provide your full review below the verdict line.\n' "$DIFF_FILE" >> "$PROMPT_FILE"
               claude -p - \
-                --model claude-opus-4-6 \
+                --model claude-opus-5-5 \
                 --allowedTools "Read,Glob,Grep" < "$PROMPT_FILE" | tee "$RESULT_FILE"
-              VERDICT=$(head -5 "$RESULT_FILE" | grep -o 'VERDICT: [a-z]*' | head -1 | cut -d' ' -f2)
-              if [ "$VERDICT" != "pass" ]; then
-                echo "::error::CI security review did not pass (verdict: ${VERDICT:-missing})"
-                exit 1
-              fi
+              CLAUDE_EXIT=$?
+              [ $CLAUDE_EXIT -eq 0 ] || fail "claude exited with status $CLAUDE_EXIT"
+              deno run --allow-read="$RESULT_FILE" \
+                scripts/check_review_verdict.ts "$RESULT_FILE" "CI security review"
             workingDir: "/tmp/swamp-verify-reviews-${{ run.id }}"
 
   # ── Cleanup ──────────────────────────────────────────────────

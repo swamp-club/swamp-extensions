@@ -15,7 +15,27 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
-import { model } from "./issue_lifecycle.ts";
+import {
+  buildNotifyMessage,
+  model,
+  verificationMismatch,
+} from "./issue_lifecycle.ts";
+
+const VERIFIED_COMMIT = "a".repeat(40);
+
+/** A passing verification result for VERIFIED_COMMIT. */
+const VERIFIED = {
+  workflowRunId: "run-1",
+  commit: VERIFIED_COMMIT,
+  branch: "some-branch",
+  allPassed: true,
+  stepsCompleted: 1,
+  stepsTotal: 1,
+  stepsSkipped: 0,
+  stepsFailed: 0,
+  steps: [],
+  verifiedAt: "2026-09-25T12:00:00.000Z",
+};
 import { PR_COOLDOWN_MS } from "./_lib/schemas.ts";
 
 // ---------------------------------------------------------------------------
@@ -45,6 +65,7 @@ async function buildTestContext(
 }> {
   const writes: RecordedWrite[] = [];
   const resources: Record<string, Record<string, unknown>> = {
+    "verificationResult-main": VERIFIED,
     ...opts?.resources,
   };
   const tempDir = await Deno.makeTempDir({ prefix: "issue_lifecycle_test_" });
@@ -102,11 +123,122 @@ async function buildTestContext(
 // link_pr
 // ---------------------------------------------------------------------------
 
+Deno.test("link_pr: refuses a commit other than the one verification passed for", async () => {
+  const { context, writes, restore } = await buildTestContext(42);
+  try {
+    await assertRejects(
+      () =>
+        model.methods.link_pr.execute(
+          { url: "https://example.test/pr/1", commit: "b".repeat(40) },
+          context,
+        ),
+      Error,
+      "Re-run 'verify' on the new commit",
+    );
+    assertEquals(writes.length, 0, "nothing is written for a refused link");
+  } finally {
+    await restore();
+  }
+});
+
+Deno.test("link_pr: a pass is retired by a later failure of the same commit", async () => {
+  const { context, restore } = await buildTestContext(42);
+  try {
+    await model.methods.verification_failed.execute(
+      {
+        workflowRunId: "run-2",
+        commit: VERIFIED_COMMIT,
+        branch: "some-branch",
+        failureReason: "code-review failed",
+      },
+      context,
+    );
+    await assertRejects(
+      () =>
+        model.methods.link_pr.execute(
+          { url: "https://example.test/pr/1", commit: VERIFIED_COMMIT },
+          context,
+        ),
+      Error,
+      "did not pass",
+    );
+  } finally {
+    await restore();
+  }
+});
+
+Deno.test("link_pr: a pass is retired while a re-verification runs", async () => {
+  const { context, restore } = await buildTestContext(42);
+  try {
+    await model.methods.verify.execute(
+      { commit: VERIFIED_COMMIT, branch: "some-branch" },
+      context,
+    );
+    await assertRejects(() =>
+      model.methods.link_pr.execute(
+        { url: "https://example.test/pr/1", commit: VERIFIED_COMMIT },
+        context,
+      )
+    );
+  } finally {
+    await restore();
+  }
+});
+
+Deno.test("link_pr: refuses when the stored result failed or is missing", async () => {
+  for (const result of [{ ...VERIFIED, allPassed: false }, null]) {
+    const { context, restore } = await buildTestContext(42, {
+      resources: result ? { "verificationResult-main": result } : {},
+    });
+    try {
+      if (!result) {
+        // buildTestContext seeds a passing result; take it away.
+        context.readResource = () => Promise.resolve(null);
+      }
+      await assertRejects(() =>
+        model.methods.link_pr.execute(
+          { url: "https://example.test/pr/1", commit: VERIFIED_COMMIT },
+          context,
+        )
+      );
+    } finally {
+      await restore();
+    }
+  }
+});
+
+Deno.test("verificationMismatch: an abbreviation matches its full SHA", () => {
+  assertEquals(
+    verificationMismatch(VERIFIED, VERIFIED_COMMIT.slice(0, 9)),
+    null,
+  );
+  assertEquals(
+    verificationMismatch(
+      { ...VERIFIED, commit: VERIFIED_COMMIT.slice(0, 7) },
+      VERIFIED_COMMIT,
+    ),
+    null,
+  );
+});
+
+Deno.test("link_pr: rejects a commit that is not a SHA", async () => {
+  await assertRejects(
+    () =>
+      model.methods.link_pr.arguments.parseAsync({
+        url: "https://example.test/pr/1",
+        commit: "HEAD",
+      }),
+  );
+});
+
 Deno.test("link_pr: writes pullRequest-main resource with url, attempt, and linkedAt", async () => {
   const { context, writes, restore } = await buildTestContext(42);
   try {
     await model.methods.link_pr.execute(
-      { url: "https://github.com/swamp-club/swamp/pull/1141" },
+      {
+        url: "https://github.com/swamp-club/swamp/pull/1141",
+        commit: VERIFIED_COMMIT,
+      },
       context,
     );
 
@@ -132,7 +264,10 @@ Deno.test("link_pr: transitions state to pr_open", async () => {
   const { context, writes, restore } = await buildTestContext(42);
   try {
     await model.methods.link_pr.execute(
-      { url: "https://github.com/swamp-club/swamp/pull/1141" },
+      {
+        url: "https://github.com/swamp-club/swamp/pull/1141",
+        commit: VERIFIED_COMMIT,
+      },
       context,
     );
 
@@ -150,11 +285,17 @@ Deno.test("link_pr: is idempotent — second call increments attempt", async () 
   const { context, writes, restore } = await buildTestContext(42);
   try {
     await model.methods.link_pr.execute(
-      { url: "https://github.com/swamp-club/swamp/pull/1141" },
+      {
+        url: "https://github.com/swamp-club/swamp/pull/1141",
+        commit: VERIFIED_COMMIT,
+      },
       context,
     );
     await model.methods.link_pr.execute(
-      { url: "https://github.com/swamp-club/swamp/pull/1142" },
+      {
+        url: "https://github.com/swamp-club/swamp/pull/1142",
+        commit: VERIFIED_COMMIT,
+      },
       context,
     );
 
@@ -178,7 +319,11 @@ Deno.test("link_pr: is idempotent — second call increments attempt", async () 
 
 Deno.test("link_pr: rejects empty url via zod schema", async () => {
   await assertRejects(
-    () => model.methods.link_pr.arguments.parseAsync({ url: "" }),
+    () =>
+      model.methods.link_pr.arguments.parseAsync({
+        url: "",
+        commit: VERIFIED_COMMIT,
+      }),
   );
 });
 
@@ -196,7 +341,10 @@ Deno.test("link_pr: from pr_failed clears failure fields and increments attempt"
   });
   try {
     await model.methods.link_pr.execute(
-      { url: "https://github.com/swamp-club/swamp/pull/1142" },
+      {
+        url: "https://github.com/swamp-club/swamp/pull/1142",
+        commit: VERIFIED_COMMIT,
+      },
       context,
     );
 
@@ -319,8 +467,153 @@ Deno.test("model: exposes the new link_pr method definition", () => {
   );
 });
 
-Deno.test("model: version bumped to 2026.08.16.1", () => {
-  assertEquals(model.version, "2026.08.16.1");
+Deno.test("model: exposes the new post_attestation method definition", () => {
+  assertEquals(
+    "post_attestation" in model.methods,
+    true,
+    "post_attestation method must be registered in model.methods",
+  );
+});
+
+Deno.test("model: version is 2026.09.25.3", () => {
+  assertEquals(model.version, "2026.09.25.3");
+});
+
+// ---------------------------------------------------------------------------
+// post_attestation — schema validation
+// ---------------------------------------------------------------------------
+
+/** A document that satisfies AttestationSchema, as the generator writes one. */
+function validAttestation(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    version: "1",
+    type: "verification-attestation",
+    generatedBy: "script",
+    subject: { commit: "a".repeat(40), branch: "some-branch" },
+    environment: { denoVersion: "2.9.7", os: "linux" },
+    configIntegrity: { claudeMd: "hash" },
+    steps: [{ job: "static-analysis", step: "lint", status: "succeeded" }],
+    gate: {
+      allPassed: true,
+      stepsCompleted: 1,
+      stepsTotal: 1,
+      stepsSkipped: 0,
+    },
+    timing: { completedAt: "2026-09-22T12:00:00.000Z" },
+    ...overrides,
+  };
+}
+
+Deno.test("post_attestation: rejects a document with no subject", async () => {
+  const { context, restore } = await buildTestContext(42);
+  try {
+    const { subject: _dropped, ...noSubject } = validAttestation();
+
+    const error = await assertRejects(
+      () =>
+        model.methods.post_attestation.execute(
+          { attestation: JSON.stringify(noSubject) },
+          context,
+        ),
+      Error,
+    );
+
+    // This is the case that used to post cleanly and log commit=undefined,
+    // leaving CI to notice the mismatch after the PR was public.
+    assertStringIncludes(error.message, "AttestationSchema");
+    assertStringIncludes(error.message, "subject");
+  } finally {
+    await restore();
+  }
+});
+
+Deno.test("post_attestation: rejects a gate verdict that is not a boolean", async () => {
+  const { context, restore } = await buildTestContext(42);
+  try {
+    const error = await assertRejects(
+      () =>
+        model.methods.post_attestation.execute(
+          {
+            attestation: JSON.stringify(
+              validAttestation({
+                gate: {
+                  allPassed: "true",
+                  stepsCompleted: 1,
+                  stepsTotal: 1,
+                  stepsSkipped: 0,
+                },
+              }),
+            ),
+          },
+          context,
+        ),
+      Error,
+    );
+
+    assertStringIncludes(error.message, "gate.allPassed");
+  } finally {
+    await restore();
+  }
+});
+
+Deno.test("post_attestation: rejects an unknown attestation version", async () => {
+  const { context, restore } = await buildTestContext(42);
+  try {
+    const error = await assertRejects(
+      () =>
+        model.methods.post_attestation.execute(
+          { attestation: JSON.stringify(validAttestation({ version: "2" })) },
+          context,
+        ),
+      Error,
+    );
+
+    assertStringIncludes(error.message, "version");
+  } finally {
+    await restore();
+  }
+});
+
+Deno.test("post_attestation: rejects input that is not JSON", async () => {
+  const { context, restore } = await buildTestContext(42);
+  try {
+    const error = await assertRejects(
+      () =>
+        model.methods.post_attestation.execute(
+          { attestation: "not json at all" },
+          context,
+        ),
+      Error,
+    );
+
+    assertStringIncludes(error.message, "not valid JSON");
+  } finally {
+    await restore();
+  }
+});
+
+Deno.test("post_attestation: a valid document gets as far as needing swamp-club", async () => {
+  const { context, restore } = await buildTestContext(42);
+  try {
+    const error = await assertRejects(
+      () =>
+        model.methods.post_attestation.execute(
+          { attestation: JSON.stringify(validAttestation()) },
+          context,
+        ),
+      Error,
+    );
+
+    // buildTestContext leaves no credentials, so reaching the client is how a
+    // schema-valid document announces itself. The point of the assertion is
+    // the absence of a schema complaint: validation happens before any
+    // network call, so a rejected document never gets this far.
+    assertStringIncludes(error.message, "swamp-club is not reachable");
+  } finally {
+    await restore();
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -645,7 +938,7 @@ function happyRoutes(opts: {
   return [
     {
       urlIncludes: "/healthz",
-      response: { status: 200, body: { ok: true } },
+      response: { status: 200, body: "" },
     },
     {
       urlIncludes: `/api/v1/lab/issues/${opts.issueNumber}`,
@@ -857,7 +1150,7 @@ Deno.test("start: persists author in context-main", async () => {
     routes: [
       {
         urlIncludes: "/healthz",
-        response: { status: 200, body: { ok: true } },
+        response: { status: 200, body: "" },
       },
       {
         urlIncludes: "/api/v1/lab/issues/99",
@@ -946,7 +1239,7 @@ Deno.test("start: succeeds even when PATCH fails", async () => {
 // notify
 // ---------------------------------------------------------------------------
 
-Deno.test("notify: transitions state to summarizing and reads author from context", async () => {
+Deno.test("notify: transitions state to summarizing when offline", async () => {
   const { context, writes, restore } = await buildTestContext(42, {
     resources: {
       "context-main": {
@@ -972,7 +1265,7 @@ Deno.test("notify: transitions state to summarizing and reads author from contex
   }
 });
 
-Deno.test("notify: transitions to summarizing even when author is missing from context", async () => {
+Deno.test("notify: transitions to summarizing offline when context has no author", async () => {
   const { context, writes, restore } = await buildTestContext(42, {
     resources: {
       "context-main": {
@@ -1024,6 +1317,53 @@ Deno.test("notify: accepts custom message", async () => {
   }
 });
 
+Deno.test("buildNotifyMessage: includes PR link and plan summary", () => {
+  const pr = {
+    url: "https://github.com/swamp-club/swamp/pull/999",
+    attempt: 1,
+    linkedAt: "2026-05-21T00:00:00.000Z",
+  };
+  const plan = {
+    version: 1,
+    summary: "Fix the widget alignment",
+    dddAnalysis: "",
+    steps: [],
+    testingStrategy: "",
+    potentialChallenges: [],
+    feedbackIncorporated: [],
+    generatedAt: "2026-05-21T00:00:00.000Z",
+  };
+  const msg = buildNotifyMessage("external-user", pr, plan);
+  assertStringIncludes(
+    msg,
+    "[merged](https://github.com/swamp-club/swamp/pull/999)",
+  );
+  assertStringIncludes(msg, "Fix the widget alignment");
+  assertStringIncludes(msg, "@external-user");
+});
+
+Deno.test("buildNotifyMessage: includes PR link without plan summary when plan is missing", () => {
+  const pr = {
+    url: "https://github.com/swamp-club/swamp/pull/999",
+    attempt: 1,
+    linkedAt: "2026-05-21T00:00:00.000Z",
+  };
+  const msg = buildNotifyMessage("external-user", pr, null);
+  assertStringIncludes(
+    msg,
+    "[merged](https://github.com/swamp-club/swamp/pull/999)",
+  );
+  assertStringIncludes(msg, "@external-user");
+  assertEquals(msg.includes("We shipped:"), false);
+});
+
+Deno.test("buildNotifyMessage: falls back to plain text when no PR is available", () => {
+  const msg = buildNotifyMessage("external-user", null, null);
+  assertStringIncludes(msg, "merged");
+  assertEquals(msg.includes("[merged]"), false);
+  assertStringIncludes(msg, "@external-user");
+});
+
 // ---------------------------------------------------------------------------
 // skip_notify
 // ---------------------------------------------------------------------------
@@ -1052,6 +1392,175 @@ Deno.test("model: exposes notify method definition", () => {
 
 Deno.test("model: exposes skip_notify method definition", () => {
   assertEquals("skip_notify" in model.methods, true);
+});
+
+// ---------------------------------------------------------------------------
+// notify — team-roster check against swamp-club
+// ---------------------------------------------------------------------------
+
+interface NotifyCall {
+  url: string;
+  method: string;
+  body?: Record<string, unknown>;
+}
+
+/**
+ * Drive notify against a scripted swamp-club: an issue authored by
+ * `author`/`authorId` and an eligible-assignees roster. Pass `roster: null`
+ * or `issueStatus` to make those lookups fail. Records every call.
+ */
+async function runNotify(opts: {
+  author: string;
+  authorId?: string;
+  roster: { userId: string; username: string }[] | null;
+  issueStatus?: number;
+  args?: { message?: string; force?: boolean };
+}): Promise<{
+  calls: NotifyCall[];
+  writes: RecordedWrite[];
+  error?: Error;
+}> {
+  const calls: NotifyCall[] = [];
+  const { context, writes, restore } = await buildOnlineTestContext(
+    42,
+    (url, method) => {
+      if (url.endsWith("/healthz")) return new Response("ok", { status: 200 });
+      if (url.endsWith("/api/v1/lab/assignees")) {
+        return opts.roster
+          ? Response.json({ assignees: opts.roster })
+          : new Response("forbidden", { status: 403 });
+      }
+      if (url.endsWith("/api/v1/lab/issues/42") && method === "GET") {
+        return opts.issueStatus
+          ? new Response("boom", { status: opts.issueStatus })
+          : Response.json({
+            issue: {
+              number: 42,
+              authorUsername: opts.author,
+              authorId: opts.authorId,
+            },
+          });
+      }
+      return new Response("{}", { status: 201 });
+    },
+  );
+  // Wrap the stub so request bodies are captured alongside URL and method.
+  const scripted = globalThis.fetch;
+  globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+    calls.push({
+      url: String(input),
+      method: init?.method ?? "GET",
+      body: init?.body ? JSON.parse(init.body as string) : undefined,
+    });
+    return scripted(input, init);
+  }) as typeof fetch;
+  try {
+    await model.methods.notify.execute(opts.args ?? {}, context);
+    return { calls, writes };
+  } catch (error) {
+    return { calls, writes, error: error as Error };
+  } finally {
+    globalThis.fetch = scripted;
+    await restore();
+  }
+}
+
+const ripples = (calls: NotifyCall[]) =>
+  calls.filter((c) => c.method === "POST" && c.url.endsWith("/comments"));
+
+const lifecycleSteps = (calls: NotifyCall[]) =>
+  calls
+    .filter((c) => c.method === "POST" && c.url.endsWith("/lifecycle"))
+    .map((c) => c.body?.step);
+
+Deno.test("notify: skips the thank-you when the author's id is on the team roster", async () => {
+  const { calls, writes, error } = await runNotify({
+    author: "skunk-ape",
+    authorId: "user-1",
+    roster: [{ userId: "user-1", username: "skunk-ape" }],
+  });
+  assertEquals(error, undefined);
+  assertEquals(ripples(calls).length, 0);
+  assertEquals(lifecycleSteps(calls), ["notification_skipped"]);
+  assertEquals(
+    writes.find((w) => w.specName === "state")!.data.phase,
+    "summarizing",
+  );
+});
+
+Deno.test("notify: matches by user id, not handle, when the id is present", async () => {
+  const { calls } = await runNotify({
+    author: "renamed",
+    authorId: "user-1",
+    roster: [{ userId: "user-1", username: "old-handle" }],
+  });
+  assertEquals(ripples(calls).length, 0);
+});
+
+Deno.test("notify: falls back to the handle when the issue carries no author id", async () => {
+  const { calls } = await runNotify({
+    author: "skunk-ape",
+    roster: [{ userId: "user-1", username: "skunk-ape" }],
+  });
+  assertEquals(ripples(calls).length, 0);
+  assertEquals(lifecycleSteps(calls), ["notification_skipped"]);
+});
+
+Deno.test("notify: thanks an author who is not on the team roster, once", async () => {
+  const { calls, writes, error } = await runNotify({
+    author: "outsider",
+    authorId: "user-9",
+    roster: [{ userId: "user-1", username: "skunk-ape" }],
+  });
+  assertEquals(error, undefined);
+  const posted = ripples(calls);
+  assertEquals(posted.length, 1);
+  assertStringIncludes(String(posted[0].body?.body), "@outsider");
+  assertEquals(lifecycleSteps(calls), ["contributor_notified"]);
+  assertEquals(
+    writes.find((w) => w.specName === "state")!.data.phase,
+    "summarizing",
+  );
+});
+
+Deno.test("notify: posts nothing and keeps the phase when the roster lookup fails", async () => {
+  const { calls, writes, error } = await runNotify({
+    author: "outsider",
+    authorId: "user-9",
+    roster: null,
+  });
+  assertStringIncludes(error!.message, "@outsider");
+  assertStringIncludes(error!.message, "force=true");
+  assertStringIncludes(error!.message, "skip_notify");
+  assertEquals(ripples(calls).length, 0);
+  assertEquals(lifecycleSteps(calls), []);
+  assertEquals(writes.length, 0);
+});
+
+Deno.test("notify: posts nothing and keeps the phase when the issue fetch fails", async () => {
+  const { calls, writes, error } = await runNotify({
+    author: "outsider",
+    roster: [],
+    issueStatus: 500,
+  });
+  assertStringIncludes(error!.message, "issue #42");
+  assertEquals(ripples(calls).length, 0);
+  assertEquals(writes.length, 0);
+});
+
+Deno.test("notify: force thanks a team member without consulting the roster", async () => {
+  const { calls, error } = await runNotify({
+    author: "skunk-ape",
+    authorId: "user-1",
+    roster: [{ userId: "user-1", username: "skunk-ape" }],
+    args: { force: true },
+  });
+  assertEquals(error, undefined);
+  assertEquals(ripples(calls).length, 1);
+  assertEquals(
+    calls.some((c) => c.url.endsWith("/api/v1/lab/assignees")),
+    false,
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -1384,16 +1893,203 @@ Deno.test("model: exposes code-conformance-clear check definition", () => {
 });
 
 // ---------------------------------------------------------------------------
+// conformance-review-required (verify pre-flight)
+// ---------------------------------------------------------------------------
+
+Deno.test("conformance-review-required: rejects when no conformance review exists", async () => {
+  const checkContext = {
+    methodName: "verify",
+    dataRepository: {
+      getContent: (
+        _type: string,
+        _modelId: string,
+        _dataName: string,
+      ) => {
+        return Promise.resolve(null);
+      },
+    },
+    modelType: "@swamp/issue-lifecycle",
+    modelId: "issue-42",
+  };
+
+  const result = await model.checks["conformance-review-required"].execute(
+    checkContext,
+  );
+  assertEquals(result.pass, false);
+  assertStringIncludes(
+    result.errors![0],
+    "No code conformance review exists",
+  );
+  assertStringIncludes(
+    result.errors![0],
+    "code_conformance_review",
+  );
+});
+
+Deno.test("conformance-review-required: passes when conformance review exists", async () => {
+  const checkContext = {
+    methodName: "verify",
+    dataRepository: {
+      getContent: (
+        _type: string,
+        _modelId: string,
+        dataName: string,
+      ) => {
+        if (dataName === "codeConformanceReview-main") {
+          return Promise.resolve(
+            new TextEncoder().encode(
+              JSON.stringify({
+                planVersion: 1,
+                steps: [
+                  { order: 1, status: "implemented", description: "Done" },
+                ],
+              }),
+            ),
+          );
+        }
+        return Promise.resolve(null);
+      },
+    },
+    modelType: "@swamp/issue-lifecycle",
+    modelId: "issue-42",
+  };
+
+  const result = await model.checks["conformance-review-required"].execute(
+    checkContext,
+  );
+  assertEquals(result.pass, true);
+});
+
+Deno.test("model: exposes conformance-review-required check definition", () => {
+  assertEquals("conformance-review-required" in model.checks, true);
+  assertEquals(
+    model.checks["conformance-review-required"].appliesTo,
+    ["verify"],
+  );
+});
+
+// ---------------------------------------------------------------------------
+// triage: regression verification
+// ---------------------------------------------------------------------------
+
+Deno.test("triage: rejects isRegression=true without adversarial evidence fields", async () => {
+  const { context, restore } = await buildTestContext(42);
+  try {
+    await assertRejects(
+      () =>
+        model.methods.triage.execute(
+          {
+            type: "bug",
+            confidence: "high",
+            reasoning: "It broke",
+            isRegression: true,
+          },
+          context,
+        ),
+      Error,
+      "Regression classification requires adversarial verification",
+    );
+  } finally {
+    await restore();
+  }
+});
+
+Deno.test("triage: accepts isRegression=true with all adversarial evidence fields (confirmed)", async () => {
+  const { context, writes, restore } = await buildTestContext(42);
+  try {
+    await model.methods.triage.execute(
+      {
+        type: "bug",
+        confidence: "high",
+        reasoning: "It broke",
+        isRegression: true,
+        regressionIntroducedIn: "2026.07.01.1",
+        regressionEvidence: "Commit abc123 shows it worked before",
+        regressionCounterEvidence: "Could be a test gap, not a regression",
+        regressionVerdict: "confirmed",
+        regressionVerdictReasoning:
+          "The feature demonstrably worked in the prior release",
+      },
+      context,
+    );
+
+    const classWrite = writes.find((w) => w.specName === "classification");
+    assertEquals(classWrite !== undefined, true);
+    assertEquals(classWrite!.data.isRegression, true);
+    assertEquals(classWrite!.data.regressionVerdict, "confirmed");
+    assertEquals(classWrite!.data.regressionIntroducedIn, "2026.07.01.1");
+  } finally {
+    await restore();
+  }
+});
+
+Deno.test("triage: downgrades regression to plain bug when verdict is downgraded", async () => {
+  const { context, writes, restore } = await buildTestContext(42);
+  try {
+    await model.methods.triage.execute(
+      {
+        type: "bug",
+        confidence: "high",
+        reasoning: "Reported as regression but never actually worked",
+        isRegression: true,
+        regressionIntroducedIn: "2026.07.01.1",
+        regressionEvidence: "User says it used to work",
+        regressionCounterEvidence:
+          "Git history shows this code path was never tested and the behavior was always incorrect",
+        regressionVerdict: "downgraded",
+        regressionVerdictReasoning:
+          "No evidence it ever worked — user was likely misremembering a different feature",
+      },
+      context,
+    );
+
+    const classWrite = writes.find((w) => w.specName === "classification");
+    assertEquals(classWrite !== undefined, true);
+    assertEquals(classWrite!.data.isRegression, false);
+    assertEquals(classWrite!.data.regressionVerdict, "downgraded");
+    assertEquals(
+      classWrite!.data.regressionIntroducedIn,
+      undefined,
+      "regressionIntroducedIn must be cleared on downgrade",
+    );
+  } finally {
+    await restore();
+  }
+});
+
+Deno.test("triage: non-regression classification does not require evidence fields", async () => {
+  const { context, writes, restore } = await buildTestContext(42);
+  try {
+    await model.methods.triage.execute(
+      {
+        type: "feature",
+        confidence: "high",
+        reasoning: "New feature request",
+      },
+      context,
+    );
+
+    const classWrite = writes.find((w) => w.specName === "classification");
+    assertEquals(classWrite !== undefined, true);
+    assertEquals(classWrite!.data.isRegression, undefined);
+  } finally {
+    await restore();
+  }
+});
+
+// ---------------------------------------------------------------------------
 // summarize
 // ---------------------------------------------------------------------------
 
-Deno.test("summarize: writes summary-main and transitions state to done", async () => {
+Deno.test("summarize: writes summary-main and transitions to done", async () => {
   const { context, writes, restore } = await buildTestContext(42);
   try {
     await model.methods.summarize.execute(
       {
-        originalProblem: "Widget crashed on startup",
-        deliveredOutcome: "Fixed null check in widget init",
+        originalProblem:
+          "The CLI crashed when running `swamp model list` with no models defined",
+        deliveredOutcome:
+          "Added an empty-state check that returns a helpful message instead of crashing",
         outcomeMet: true,
       },
       context,
@@ -1404,11 +2100,11 @@ Deno.test("summarize: writes summary-main and transitions state to done", async 
     assertEquals(summaryWrite!.instanceName, "summary-main");
     assertEquals(
       summaryWrite!.data.originalProblem,
-      "Widget crashed on startup",
+      "The CLI crashed when running `swamp model list` with no models defined",
     );
     assertEquals(
       summaryWrite!.data.deliveredOutcome,
-      "Fixed null check in widget init",
+      "Added an empty-state check that returns a helpful message instead of crashing",
     );
     assertEquals(summaryWrite!.data.outcomeMet, true);
     assertEquals(typeof summaryWrite!.data.summarizedAt, "string");
@@ -1422,10 +2118,314 @@ Deno.test("summarize: writes summary-main and transitions state to done", async 
   }
 });
 
+Deno.test("summarize: records outcomeMet=false when outcome does not match", async () => {
+  const { context, writes, restore } = await buildTestContext(42);
+  try {
+    await model.methods.summarize.execute(
+      {
+        originalProblem: "Need OAuth support for SSO login",
+        deliveredOutcome:
+          "Added basic API key auth but OAuth was deferred to a follow-up",
+        outcomeMet: false,
+      },
+      context,
+    );
+
+    const summaryWrite = writes.find((w) => w.specName === "summary");
+    assertEquals(summaryWrite !== undefined, true);
+    assertEquals(summaryWrite!.data.outcomeMet, false);
+  } finally {
+    await restore();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Model registration smoke tests (new features)
+// ---------------------------------------------------------------------------
+
+Deno.test("model: exposes summary resource definition", () => {
+  assertEquals("summary" in model.resources, true);
+});
+
 Deno.test("model: exposes summarize method definition", () => {
   assertEquals("summarize" in model.methods, true);
 });
 
-Deno.test("model: exposes summary resource definition", () => {
-  assertEquals("summary" in model.resources, true);
+// ---------------------------------------------------------------------------
+// fast_forward
+// ---------------------------------------------------------------------------
+
+Deno.test("fast_forward: writes classification, plan, adversarialReview, codeConformanceReview, and state", async () => {
+  const { context, writes, restore } = await buildTestContext(99);
+  try {
+    await model.methods.fast_forward.execute(
+      {
+        summary: "Add retry logic to HTTP client",
+        steps: [
+          {
+            order: 1,
+            description: "Add retry wrapper",
+            files: ["src/http/client.ts"],
+          },
+          {
+            order: 2,
+            description: "Add retry tests",
+            files: ["src/http/client_test.ts"],
+          },
+        ],
+        testingStrategy: "Unit tests for retry logic",
+      },
+      context,
+    );
+
+    const classificationWrite = writes.find((w) =>
+      w.specName === "classification"
+    );
+    assertEquals(classificationWrite !== undefined, true);
+    assertEquals(classificationWrite!.data.type, "platform");
+    assertEquals(classificationWrite!.data.confidence, "high");
+
+    const planWrite = writes.find((w) => w.specName === "plan");
+    assertEquals(planWrite !== undefined, true);
+    assertEquals(planWrite!.data.version, 1);
+    assertEquals(planWrite!.data.summary, "Add retry logic to HTTP client");
+    assertEquals(
+      (planWrite!.data.steps as Array<unknown>).length,
+      2,
+    );
+
+    const advReviewWrite = writes.find((w) =>
+      w.specName === "adversarialReview"
+    );
+    assertEquals(advReviewWrite !== undefined, true);
+    assertEquals(advReviewWrite!.data.planVersion, 1);
+    assertEquals(
+      (advReviewWrite!.data.findings as Array<unknown>).length,
+      0,
+    );
+
+    const conformanceWrite = writes.find((w) =>
+      w.specName === "codeConformanceReview"
+    );
+    assertEquals(conformanceWrite !== undefined, true);
+    assertEquals(conformanceWrite!.data.planVersion, 1);
+    const conformanceSteps = conformanceWrite!.data.steps as Array<
+      Record<string, unknown>
+    >;
+    assertEquals(conformanceSteps.length, 2);
+    assertEquals(conformanceSteps[0].status, "implemented");
+    assertEquals(conformanceSteps[1].status, "implemented");
+
+    const stateWrite = writes.find((w) => w.specName === "state");
+    assertEquals(stateWrite !== undefined, true);
+    assertEquals(stateWrite!.data.phase, "implementing");
+    assertEquals(stateWrite!.data.issueNumber, 99);
+  } finally {
+    await restore();
+  }
+});
+
+Deno.test("model: exposes fast_forward method definition", () => {
+  assertEquals("fast_forward" in model.methods, true);
+});
+
+// ---------------------------------------------------------------------------
+// Pinned invariants
+// ---------------------------------------------------------------------------
+
+/**
+ * Every upstream write must go through the policy module in
+ * `_lib/lifecycle_recorder.ts`. A direct client call would reintroduce the
+ * swallow this model was changed to remove — including in `post_attestation`,
+ * whose deliberate downgrade wraps the policy call in a try/catch rather than
+ * bypassing it, which is why this assertion needs no exceptions.
+ */
+Deno.test("issue_lifecycle: no upstream write bypasses the policy module", async () => {
+  const source = await Deno.readTextFile(
+    new URL("./issue_lifecycle.ts", import.meta.url),
+  );
+
+  const bypasses = [".postLifecycleEntry(", ".submitComment("];
+  for (const call of bypasses) {
+    assertEquals(
+      source.includes(call),
+      false,
+      `${call} must be reached through _lib/lifecycle_recorder.ts, not called ` +
+        `directly — a direct call swallows the failure it should surface`,
+    );
+  }
+});
+
+/**
+ * Pinned ratchet over the rollback flag. A method that writes local state
+ * before its lifecycle post must roll that write back when the post raises,
+ * or the phase advances past a step the audit trail never recorded.
+ *
+ * The two exclusions are deliberate and not interchangeable with an omission:
+ * `notify` sends a contributor ripple and `post_attestation` files an
+ * attestation, neither of which rollback can reach, so re-running them would
+ * duplicate an external side effect. `review` neither writes nor posts.
+ *
+ * Adding a method forces an edit here and a decision about the flag.
+ */
+Deno.test("issue_lifecycle: rollbackOnFailure matches the pinned method set", () => {
+  const rollsBack = [
+    "start",
+    "triage",
+    "plan",
+    "iterate",
+    "adversarial_review",
+    "resolve_findings",
+    "code_conformance_review",
+    "justify_deviations",
+    "approve",
+    "implement",
+    "fast_forward",
+    "verify",
+    "verification_passed",
+    "verification_failed",
+    "link_pr",
+    "pr_merged",
+    "pr_failed",
+    "ship",
+    "complete",
+    "skip_notify",
+    "summarize",
+  ];
+  const doesNotRollBack = ["review", "post_attestation", "notify"];
+
+  const methods = model.methods as Record<string, { rollbackOnFailure?: true }>;
+  assertEquals(
+    Object.keys(methods).sort(),
+    [...rollsBack, ...doesNotRollBack].sort(),
+    "a method was added or removed — decide whether it needs rollbackOnFailure",
+  );
+
+  for (const name of rollsBack) {
+    assertEquals(
+      methods[name].rollbackOnFailure,
+      true,
+      `${name} writes state before its lifecycle post, so it must roll that ` +
+        `write back when the post raises`,
+    );
+  }
+  for (const name of doesNotRollBack) {
+    assertEquals(
+      methods[name].rollbackOnFailure,
+      undefined,
+      `${name} is deliberately excluded from rollback`,
+    );
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Model wiring — a dropped audit record fails the step
+// ---------------------------------------------------------------------------
+
+/**
+ * Like `buildTestContext`, but with credentials present and fetch stubbed, so
+ * the method builds a real client and the upstream responses are scripted.
+ */
+async function buildOnlineTestContext(
+  issueNumber: number,
+  respond: (url: string, method: string) => Response,
+): Promise<{
+  context: Parameters<typeof model.methods.pr_merged.execute>[1];
+  writes: RecordedWrite[];
+  restore: () => Promise<void>;
+}> {
+  const { context, writes, restore: restoreBase } = await buildTestContext(
+    issueNumber,
+  );
+  const originalFetch = globalThis.fetch;
+
+  Deno.env.set("SWAMP_API_KEY", "fake-key");
+  Deno.env.set("SWAMP_CLUB_URL", "https://fake.swamp-club.com");
+
+  globalThis.fetch = ((
+    input: string | URL | Request,
+    init?: RequestInit,
+  ): Promise<Response> => {
+    const url = typeof input === "string" ? input : String(input);
+    return Promise.resolve(respond(url, init?.method ?? "GET"));
+  }) as typeof fetch;
+
+  return {
+    context,
+    writes,
+    restore: async () => {
+      globalThis.fetch = originalFetch;
+      await restoreBase();
+    },
+  };
+}
+
+Deno.test("plan: fails the step when the lifecycle entry is rejected", async () => {
+  const { context, restore } = await buildOnlineTestContext(
+    42,
+    (url) =>
+      url.endsWith("/healthz")
+        ? new Response("ok", { status: 200 })
+        : new Response(
+          JSON.stringify({ error: "payload keys must not start with $" }),
+          { status: 400 },
+        ),
+  );
+  try {
+    const error = await assertRejects(
+      () =>
+        model.methods.plan.execute({
+          summary: "s",
+          dddAnalysis: "d",
+          steps: [{ order: 1, description: "x", files: ["a.ts"] }],
+          testingStrategy: "t",
+          potentialChallenges: [],
+        }, context),
+      Error,
+    );
+    assertStringIncludes(error.message, "plan_generated lifecycle entry");
+    assertStringIncludes(error.message, "HTTP 400");
+  } finally {
+    await restore();
+  }
+});
+
+Deno.test("plan: succeeds unchanged when no credentials are configured", async () => {
+  const { context, writes, restore } = await buildTestContext(42);
+  try {
+    await model.methods.plan.execute({
+      summary: "s",
+      dddAnalysis: "d",
+      steps: [{ order: 1, description: "x", files: ["a.ts"] }],
+      testingStrategy: "t",
+      potentialChallenges: [],
+    }, context);
+
+    const stateWrite = writes.find((w) => w.specName === "state");
+    assertEquals(stateWrite!.data.phase, "plan_generated");
+  } finally {
+    await restore();
+  }
+});
+
+/**
+ * The auto-assign block promises in its own comment that assignment never
+ * breaks the triage flow, so the entry reporting on it must use the
+ * best-effort variant. Asserted at the source, since driving `start` to that
+ * branch would need the whole assignee lookup stubbed.
+ */
+Deno.test("start: the assignment entry is recorded best-effort", async () => {
+  const source = await Deno.readTextFile(
+    new URL("./issue_lifecycle.ts", import.meta.url),
+  );
+  const assignedEntry = source.indexOf('step: "assigned"');
+  assertEquals(assignedEntry > -1, true, "the assigned entry must still exist");
+
+  const preceding = source.slice(0, assignedEntry);
+  const recorder = preceding.lastIndexOf("recordLifecycle");
+  assertStringIncludes(
+    source.slice(recorder, assignedEntry),
+    "recordLifecycleBestEffort",
+    "the assigned entry reports on a best-effort action and must not raise",
+  );
 });

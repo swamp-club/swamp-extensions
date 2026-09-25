@@ -4,8 +4,10 @@ description: >
   Drive the @swamp/issue-lifecycle model for interactive issue triage and
   plan iteration against swamp-club lab issues. Use when the user wants to
   triage a swamp-club issue, generate an implementation plan, or iterate on
-  a plan with feedback. Triggers on "triage issue", "triage #", "issue plan",
-  "review plan", "iterate plan", "approve plan", "issue lifecycle".
+  a plan with feedback. Also handles retroactive lifecycle creation for
+  ad-hoc work via "prepare to ship". Triggers on "triage issue", "triage #",
+  "issue plan", "review plan", "iterate plan", "approve plan",
+  "issue lifecycle", "prepare to ship", "ready to ship".
 ---
 
 # Issue Lifecycle Skill
@@ -37,6 +39,112 @@ before continuing." Do not fall back to `deno run dev`.
 **Never auto-approve.** Always stop and show the plan to the human. Always ask
 for feedback. Only call `approve` when the human explicitly says to proceed.
 
+**A failed method means the upstream record was not written.** Lifecycle entries
+are the audit trail, so a method fails rather than reporting success over a
+dropped entry. The error names the step, the HTTP status, and swamp-club's own
+reason.
+
+- **Most methods roll back.** The local phase is unchanged, so fix the cause and
+  re-run the same method. Re-running is safe: a status transition that already
+  landed is recognised as a no-op.
+- **`notify` does not roll back.** If it fails after the ripple posted, the
+  phase has already advanced — do not re-run it, or the contributor is thanked
+  twice. Continue with `summarize`.
+- **`post_attestation` warns instead of failing.** The attestation itself is the
+  durable record, and re-running would file a duplicate for the same commit. The
+  warning names the attestation id.
+
+The most common cause is payload text the server refuses: until swamp-club#2284
+is fixed, it rejects any string value that begins with a dollar sign, and any
+prose containing a double-quote immediately followed by one — a quoted shell
+variable in a code snippet, for example. Rephrase the text (name the variable in
+words) and re-run.
+
+## Prepare to Ship (Ad-Hoc Work)
+
+When the user says **"prepare to ship"** (or "ready to ship", "prepare to ship
+this work"), they have completed ad-hoc work that is not linked to an existing
+issue. The lifecycle still needs a tracking issue for verification and
+attestation to flow through.
+
+**This flow is fully automatic — do not ask for confirmation at each step.**
+
+### Steps
+
+1. **Summarize the work.** Inspect the current branch: `git log main..HEAD`,
+   `git diff --stat main..HEAD`. Build a title and summary from the commits and
+   changed files.
+
+2. **Create a tracking issue in swamp-club.** There is no `swamp issue create` —
+   pick the type-specific subcommand (`feature`, `bug`, or `security`). The CLI
+   cannot file `platform` issues, so classify ad-hoc work as `feature` or `bug`:
+
+   ```
+   swamp issue feature --title "<title>" --body "<summary of work done>" --json
+   ```
+
+   Read `number` from the JSON output — that is `<N>` in every command below.
+   `--body` requires `--title`; without both, the command opens an editor.
+
+3. **Start the lifecycle:**
+
+   ```
+   swamp model @swamp/issue-lifecycle method run start issue-<N> --input issueNumber=<N>
+   ```
+
+4. **Fast-forward to implementing:**
+
+   ```
+   swamp model @swamp/issue-lifecycle method run fast_forward issue-<N> \
+     --input summary="<summary>" \
+     --input steps='<JSON array of plan steps>' \
+     --input testingStrategy="<testing approach>"
+   ```
+
+   Build the plan steps retroactively from the actual work — each step should
+   describe a logical unit of change with its files. The testing strategy should
+   reflect how the changes were validated.
+
+5. **Transition to `verifying`.** `fast_forward` leaves the lifecycle at
+   `implementing`, and `post_attestation` is only accepted from `verifying` — so
+   this transition is required, not optional:
+
+   ```
+   swamp model @swamp/issue-lifecycle method run verify issue-<N> \
+     --input commit=$(git rev-parse HEAD) \
+     --input branch=$(git branch --show-current)
+   ```
+
+6. **Proceed with normal verification.** Read
+   [references/verification.md](references/verification.md) and continue from
+   its step 2 (Run Verification) through verification_passed → post_attestation
+   → link_pr. Step 1 there is the `verify` call just made — do not repeat it.
+
+7. **Drive the lifecycle to `done`.** `link_pr` only reaches `pr_open` — it is
+   not the end of the flow, and stopping there leaves the issue parked. Walk the
+   rest: `pr_merged` (→ `releasing`), `ship` or `complete` (→ `notify`),
+   `notify` or `skip_notify` (→ `summarizing`), then `summarize` (→ `done`). See
+   "Closing Out a Shipped Issue" below for the exact commands.
+
+### Example
+
+```
+User: prepare to ship this work
+
+Agent:
+1. git log main..HEAD → "Add retry logic to HTTP client"
+2. swamp issue feature --title "Add retry logic to HTTP client" --body "..." --json
+   → {"number": 247, ...}
+3. swamp model @swamp/issue-lifecycle method run start issue-247 --input issueNumber=247
+4. swamp model @swamp/issue-lifecycle method run fast_forward issue-247 \
+     --input summary="Add exponential backoff retry to HTTP client" \
+     --input steps='[{"order":1,"description":"Add retry wrapper","files":["src/http/client.ts"]}]' \
+     --input testingStrategy="Unit tests for retry logic added in client_test.ts"
+5. swamp model @swamp/issue-lifecycle method run verify issue-247 \
+     --input commit=$(git rev-parse HEAD) --input branch=$(git branch --show-current)
+6. Proceed to verification (references/verification.md, from step 2)...
+```
+
 ## Repository Configuration
 
 This skill reads repo-specific conventions from `agent-constraints/` at the
@@ -51,6 +159,8 @@ repository root. If these files exist, they customize how each phase works:
   criteria
 - `agent-constraints/implementation-conventions.md` — build, verify, and PR
   conventions
+- `agent-constraints/verification-conventions.md` — verification workflow
+  configuration
 
 If these files do not exist, the skill uses generic defaults documented in each
 reference file.
@@ -106,10 +216,18 @@ approval. Covers: signalling implementation start and doing the work.
 
 After the code is written, read
 [references/code-conformance-review.md](references/code-conformance-review.md)
-**before creating a PR.** This adversarially compares the implemented code
+**before verification.** This adversarially compares the implemented code
 against the approved plan. Deviations are expected — they just need a documented
-justification. The `link_pr` method will fail until all deviations are
-justified.
+justification.
+
+### Phase 4a: Verification Loop
+
+Read [references/verification.md](references/verification.md) **after code
+conformance review is complete.** This runs the repository's build checks and
+agent reviews as host workflows before the PR opens — what they are is
+defined in `agent-constraints/verification-conventions.md`. The agent
+iterates — fixing failures and re-verifying — until all steps pass. Only then
+can a PR be created.
 
 ### Phase 5: Contributor Notification
 
@@ -129,15 +247,19 @@ run `skip_notify`.
 ### Phase 6: Session Summary
 
 After `notify` or `skip_notify`, the lifecycle enters the `summarizing` phase.
-Call `summarize` with a plain-language restatement of the original problem and a
-description of what was actually delivered. This records a session summary that
-verifies the work addressed the issue before transitioning to `done`.
+Read [references/implementation.md](references/implementation.md) — section 7
+covers the summary step.
+
+Restate the original problem and the delivered outcome in plain language, then
+close out the lifecycle. This final check ensures the work actually addressed
+the issue. All three inputs are required — `summarize` fails validation without
+them:
 
 ```
 swamp model @swamp/issue-lifecycle method run summarize issue-<N> \
-  --input originalProblem="<restatement of the bug or feature request>" \
-  --input deliveredOutcome="<what was actually built or fixed>" \
-  --input outcomeMet=<true|false>
+  --input originalProblem="<problem>" \
+  --input deliveredOutcome="<outcome>" \
+  --input outcomeMet=true
 ```
 
 ## Classification Types
@@ -149,6 +271,11 @@ swamp-club):
 - `feature` — a request for new functionality or enhancement
 - `platform` — admin-only platform infrastructure work
 - `security` — security vulnerability or hardening work
+
+`platform` is accepted by the `triage` method, but the CLI can neither file nor
+switch an issue to it — `swamp issue bug|feature|security` and
+`swamp issue edit --type` accept only the other three. Classify an existing
+issue as `platform` if it fits; never try to create one.
 
 Two additional classification details are captured in the classification record
 but do NOT map to separate swamp-club types:
@@ -193,12 +320,13 @@ Use this table to determine what to do next:
 | `classified`     | Read [references/planning.md](references/planning.md)                      |
 | `plan_generated` | Read [references/adversarial-review.md](references/adversarial-review.md)  |
 | `approved`       | Read [references/implementation.md](references/implementation.md)          |
-| `implementing`   | Run code conformance review, then link a PR with `link_pr`                 |
+| `implementing`   | Run code conformance review, then verify                                   |
+| `verifying`      | Read [references/verification.md](references/verification.md)              |
 | `pr_open`        | Wait 3 min, then check PR: `pr_merged` if merged, `pr_failed` if failed    |
 | `pr_failed`      | Fix the issue, then `link_pr` (new PR) or `implement` (major rework)       |
 | `releasing`      | Check release build: `ship` when done, or `complete` as fallback           |
 | `notify`         | Run `notify` — it thanks external authors and skips team members by itself |
-| `summarizing`    | Call summarize with the problem restatement and delivered outcome          |
+| `summarizing`    | Call `summarize` — needs originalProblem, deliveredOutcome, outcomeMet     |
 | `done`           | Nothing to do — lifecycle is complete                                      |
 
 The canonical phase list lives in the `TRANSITIONS` constant in
@@ -214,7 +342,7 @@ When a PR has already merged and the lifecycle just needs to be marked done:
    ```
 2. If the phase is `implementing`, link the PR first:
    ```
-   swamp model @swamp/issue-lifecycle method run link_pr issue-<N> --input url=<PR URL>
+   swamp model @swamp/issue-lifecycle method run link_pr issue-<N> --input url=<PR URL> --input commit=$(git rev-parse HEAD)
    ```
 3. If the phase is `pr_open`, record the merge:
    ```
@@ -225,7 +353,7 @@ When a PR has already merged and the lifecycle just needs to be marked done:
    swamp model @swamp/issue-lifecycle method run ship issue-<N>
    ```
 5. If the phase is `notify`, run `notify` (see Phase 5).
-6. If the phase is `summarizing`, record the session summary:
+6. If the phase is `summarizing`, record the summary:
    ```
    swamp model @swamp/issue-lifecycle method run summarize issue-<N> \
      --input originalProblem="<problem>" --input deliveredOutcome="<outcome>" --input outcomeMet=true

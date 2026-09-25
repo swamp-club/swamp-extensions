@@ -281,20 +281,43 @@ async function writeGitHubSummary(
   await Deno.writeTextFile(summaryFile, lines.join("\n"));
 }
 
-async function auditLockfile(
-  lockfilePath: string,
-): Promise<{ direct: VulnFinding[]; transitive: VulnFinding[] }> {
-  const lockContent = await Deno.readTextFile(lockfilePath);
-  const lockData = JSON.parse(lockContent) as DenoLock;
-  const { packages, directNames } = parseNpmPackages(lockData);
-
-  if (packages.length === 0) {
-    return { direct: [], transitive: [] };
+/**
+ * Queries OSV once per distinct package version across every lockfile.
+ *
+ * The generated model directories pin the same few packages hundreds of times
+ * over, so querying per lockfile made one sequential round trip per lockfile
+ * for what is almost entirely the same answer.
+ */
+async function queryDistinct(
+  packages: PackageInfo[],
+): Promise<Map<string, OsvVulnerability[]>> {
+  const distinct = new Map<string, PackageInfo>();
+  for (const pkg of packages) {
+    distinct.set(`${pkg.name}@${pkg.version}`, pkg);
   }
+  const unique = [...distinct.values()];
 
-  console.log(
-    `  ${lockfilePath}: scanning ${packages.length} npm packages…`,
-  );
+  const vulnsByKey = new Map<string, OsvVulnerability[]>();
+  const batchSize = 1000;
+  for (let i = 0; i < unique.length; i += batchSize) {
+    const batch = unique.slice(i, i + batchSize);
+    const response = await queryOsv(batch);
+    for (let j = 0; j < response.results.length; j++) {
+      const vulns = response.results[j].vulns;
+      if (vulns && vulns.length > 0) {
+        vulnsByKey.set(`${batch[j].name}@${batch[j].version}`, vulns);
+      }
+    }
+  }
+  return vulnsByKey;
+}
+
+function auditLockfile(
+  lockfilePath: string,
+  lockData: DenoLock,
+  vulnsByKey: ReadonlyMap<string, OsvVulnerability[]>,
+): { direct: VulnFinding[]; transitive: VulnFinding[] } {
+  const { packages, directNames } = parseNpmPackages(lockData);
 
   const npm = lockData.npm ?? {};
   const nameToKeys = buildNameToKeyMap(npm);
@@ -303,32 +326,18 @@ async function auditLockfile(
   const direct: VulnFinding[] = [];
   const transitive: VulnFinding[] = [];
 
-  const batchSize = 1000;
-  for (let i = 0; i < packages.length; i += batchSize) {
-    const batch = packages.slice(i, i + batchSize);
-    const response = await queryOsv(batch);
-
-    for (let j = 0; j < response.results.length; j++) {
-      const result = response.results[j];
-      if (result.vulns && result.vulns.length > 0) {
-        const pkg = batch[j];
-        const targetKey = `${pkg.name}@${pkg.version}`;
-        const chain = pkg.isDirect
-          ? [targetKey]
-          : traceDependencyChain(targetKey, reverseDeps, directNames);
-        const finding = {
-          lockfile: lockfilePath,
-          pkg,
-          vulns: result.vulns,
-          chain,
-        };
-
-        if (pkg.isDirect) {
-          direct.push(finding);
-        } else {
-          transitive.push(finding);
-        }
-      }
+  for (const pkg of packages) {
+    const targetKey = `${pkg.name}@${pkg.version}`;
+    const vulns = vulnsByKey.get(targetKey);
+    if (!vulns) continue;
+    const chain = pkg.isDirect
+      ? [targetKey]
+      : traceDependencyChain(targetKey, reverseDeps, directNames);
+    const finding = { lockfile: lockfilePath, pkg, vulns, chain };
+    if (pkg.isDirect) {
+      direct.push(finding);
+    } else {
+      transitive.push(finding);
     }
   }
 
@@ -349,11 +358,29 @@ async function main(): Promise<void> {
   }
   console.log("");
 
+  const lockData = new Map<string, DenoLock>();
+  const allPackages: PackageInfo[] = [];
+  for (const lockfile of lockfiles) {
+    const data = JSON.parse(await Deno.readTextFile(lockfile)) as DenoLock;
+    lockData.set(lockfile, data);
+    allPackages.push(...parseNpmPackages(data).packages);
+  }
+  const vulnsByKey = await queryDistinct(allPackages);
+  console.log(
+    `Queried ${
+      new Set(allPackages.map((p) => `${p.name}@${p.version}`)).size
+    } distinct npm package versions across ${lockfiles.length} lockfiles.`,
+  );
+
   const allDirect: VulnFinding[] = [];
   const allTransitive: VulnFinding[] = [];
 
   for (const lockfile of lockfiles) {
-    const { direct, transitive } = await auditLockfile(lockfile);
+    const { direct, transitive } = auditLockfile(
+      lockfile,
+      lockData.get(lockfile)!,
+      vulnsByKey,
+    );
     allDirect.push(...direct);
     allTransitive.push(...transitive);
   }

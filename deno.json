@@ -1,10 +1,18 @@
 {
+  "tasks": {
+    "check": "deno run --allow-read --allow-write --allow-env --allow-run --allow-net scripts/run_checks.ts",
+    "build-attestation": "deno run --allow-read --allow-env --allow-run=git,swamp scripts/build_attestation.ts",
+    "validate-attestation": "deno run --allow-read --allow-write --allow-env=GITHUB_STEP_SUMMARY --allow-net=swamp-club.com --allow-run=git scripts/validate_attestation.ts"
+  },
   "lint": {
     "rules": {
       "exclude": ["no-import-prefix"]
     }
   },
   "imports": {
+    "@std/assert": "jsr:@std/assert@1.0.19",
+    "@std/cli": "jsr:@std/cli@1.0.24",
+    "@std/yaml": "jsr:@std/yaml@1.0.10",
     "zod": "npm:zod@4.3.6",
     "@std/path": "jsr:@std/path@1",
     "@std/fs": "jsr:@std/fs@1",

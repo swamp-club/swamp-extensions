@@ -81,27 +81,48 @@ swamp model @swamp/issue-lifecycle method run triage issue-<N> \
 - `platform` — admin-only platform infrastructure work
 - `security` — security vulnerability, hardening, or compliance work
 
-**Regression classification requires adversarial verification.** When you
-suspect a regression (`isRegression=true`), you must supply all four evidence
-fields:
+**Regression classification requires adversarial verification.** If you believe
+the issue is a regression, you MUST complete the following before calling
+`triage`:
 
-1. `regressionEvidence` — concrete proof it previously worked (commit hash,
-   version number, passing test output, changelog entry).
-2. `regressionCounterEvidence` — the strongest argument that this is NOT a
-   regression (e.g. it never actually worked, the docs were stale, the old
-   behavior was undefined).
-3. `regressionVerdict` — `confirmed` if the evidence wins, `downgraded` if the
-   counter-evidence is stronger and this is really a plain bug.
-4. `regressionVerdictReasoning` — why the verdict holds despite the opposing
-   argument.
+1. **Gather evidence FOR regression**: Find concrete proof it previously worked
+   — a commit where the behavior was correct, a version where it passed, test
+   output, or a git bisect result. Vague signals like "this used to work" from
+   the issue author are not sufficient on their own — corroborate with code
+   history.
 
-The model enforces this: calling `triage` with `isRegression=true` without all
-four fields throws an error. If the verdict is `downgraded`, the model
-automatically clears `isRegression` to `false` and logs the downgrade.
+2. **Argue AGAINST regression**: Construct the strongest case that this is NOT a
+   regression. Ask yourself: "Did this ever actually work correctly, or was it
+   always broken and just unnoticed?" Consider: the feature was never shipped,
+   docs were stale, the behavior was never tested, the reporter may be
+   misremembering, or the expected behavior changed intentionally.
 
-Look for regression signals: "this used to work", "stopped working after",
-"worked in version X", references to recent changes that broke existing
-behavior, or git history showing the affected code was recently modified.
+3. **Reach a verdict**: Weigh both sides. If the evidence survives the
+   challenge, the verdict is `confirmed`. If the counter-argument is stronger,
+   the verdict is `downgraded` — it's a plain bug, not a regression. Present
+   both sides and your verdict to the human before calling `triage`.
+
+4. **Pass all four regression fields** to the `triage` command:
+   ```
+   --input isRegression=true \
+   --input regressionEvidence="<concrete proof it previously worked>" \
+   --input regressionCounterEvidence="<strongest case it is NOT a regression>" \
+   --input regressionVerdict=<confirmed|downgraded> \
+   --input regressionVerdictReasoning="<why the verdict holds>"
+   ```
+   The `triage` method will reject the call if any of these four fields are
+   missing when `isRegression=true`. If the verdict is `downgraded`, the method
+   automatically sets `isRegression=false` in the classification record and the
+   swamp-club lifecycle entry — no regression data is sent upstream.
+
+When `regressionVerdict=confirmed`, also provide
+`--input regressionIntroducedIn=<version>`. Check `git log` on the affected
+files and cross-reference with recent releases to identify which version
+introduced the breakage. If the introducing version cannot be determined, omit
+the field.
+
+Marking a regression means our pipeline failed to catch a breakage — we must be
+very sure before sending that signal.
 
 **If you cannot classify confidently**, do NOT guess. Ask the human first, or
 call `triage` with `confidence=low` and `clarifyingQuestions` populated, then

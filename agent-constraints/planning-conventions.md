@@ -38,27 +38,25 @@ the `bump-versions` script: only `version`, `upgrades`, and
 hand-editing generated code. The CI reviewer enforces this — mirror the
 check in planning.
 
-## CI Fan-Out Checklist
+## Verification Coverage Checklist
 
-CI is a matrix fan-out keyed by `(extension × task)`. When a change adds a
-new extension or a new scope directory, every one of the following must be
-updated, or the change will be silently uncovered:
+Pull-request CI builds nothing — verify-build runs every check locally from
+the table in `verification/checks.yaml`, and CI validates the attestation. When
+a change adds a new extension or scope directory, every one of the following
+must be updated, or the change will be silently uncovered:
 
-- `.forgejo/workflows/ci.yml`:
-  - `changes` job's `paths-filter` filters (must include the new path).
-  - The matching matrix job's `matrix.<extension>` list (e.g.
-    `vault: [1password, aws-sm, azure-kv, <new>]`).
-  - The matching `*-lockfile` job's matrix.
-  - The `claude-review` job's `needs:` list — missing here means the
-    extension check passes but review is skipped.
-  - The `claude-adversarial-review` job's `needs:` list — same risk.
+- `verification/checks.yaml` — a target with the directory's check
+  targets, lint/fmt paths, and `deno test` permissions.
+  `scripts/verification_harness_test.ts` fails until it exists.
+- `scripts/audit_deps.ts` — `SCAN_ROOTS`, if the new directory is outside
+  the roots it already walks.
 - `.forgejo/workflows/publish.yml` — add the push step for the new
   extension.
 - `.forgejo/workflows/regenerate-models.yml` — only for new codegen
   providers.
-- `deps-audit` job's `find` expression in `ci.yml` (around line 508) —
-  uses a space-separated directory list. Missing here means `deno
-  outdated` skips the new directory.
+- The adversarial-review guard in
+  `verification/workflow-verify-reviews.yaml` — only for a new top-level
+  directory.
 
 Plans that add new extensions must enumerate these updates as explicit
 steps, not implicit cleanup.
@@ -127,8 +125,8 @@ generic "tests will be added":
   collateral damage; second run proves idempotency.
 - **Registry-publish bug**: a codegen validation step that would catch
   the bad output locally (e.g. file-size check, manifest-name validator).
-- **CI matrix change**: push to a scratch branch and confirm the new
-  matrix job fires.
+- **Verification coverage change**: run
+  `deno task check --group <group> --all` and confirm the new target runs.
 - **Pure refactor covered by existing tests**: state that explicitly and
   name the tests that cover the changed code path.
 

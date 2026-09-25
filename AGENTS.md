@@ -145,6 +145,12 @@ fgj pr create -R swamp-club/swamp-extensions -B main -H <branch> -t "title" -b "
 
 Do not use `gh` — it targets GitHub, which is not the upstream for this repo.
 
+Pull-request CI does not build or review code. Before a PR opens, run the
+pre-PR verification loop — the `verify-build` and `verify-reviews` swamp
+workflows in `verification/` — and post its attestation; CI only validates
+that attestation. Build checks for every directory live in
+`verification/checks.yaml`. See `agent-constraints/verification-conventions.md`.
+
 ## Publishing
 
 CI auto-publishes when `manifest.yaml` changes on main and the version is newer

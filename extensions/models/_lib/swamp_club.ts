@@ -21,6 +21,36 @@
 import { join } from "@std/path";
 import type { IssueType } from "./schemas.ts";
 
+export const LIFECYCLE_SUMMARY_MAX_CHARS = 2000;
+
+/** The forward order of the lab issue statuses the lifecycle moves through. */
+const STATUS_ORDER = ["open", "triaged", "in_progress", "shipped"];
+
+/**
+ * Whether `current` is `target` or further along the lifecycle. A status
+ * outside the known order (closed, or one swamp-club adds later) never
+ * counts, so a transition into or out of it still surfaces as a failure.
+ */
+export function statusAtOrBeyond(current: string, target: string): boolean {
+  if (current === target) return true;
+  const c = STATUS_ORDER.indexOf(current);
+  const t = STATUS_ORDER.indexOf(target);
+  return c >= 0 && t >= 0 && c > t;
+}
+
+/**
+ * Result of an upstream write the caller must be able to inspect.
+ *
+ * `rejected` means the server answered and refused — deterministic, so a
+ * retry of the same payload fails the same way. `unavailable` means the
+ * request never produced an answer. `noop` marks a write the server had
+ * already applied.
+ */
+export type UpstreamOutcome =
+  | { ok: true; noop?: boolean }
+  | { ok: false; reason: "rejected"; status: number; body: string }
+  | { ok: false; reason: "unavailable"; detail: string };
+
 export interface LifecycleEntryParams {
   step: string;
   targetStatus: string;
@@ -43,6 +73,8 @@ export interface FetchedIssue {
   title: string;
   body: string;
   author: string;
+  /** swamp-club user id of the author; absent if the server omits it. */
+  authorId?: string;
   comments: { author: string; body: string; createdAt: string }[];
   assignees: { userId: string; username: string }[];
 }
@@ -56,6 +88,7 @@ export class SwampClubClient {
   readonly #apiKey: string;
   private issueNumber: number;
   private log: (msg: string, props: Record<string, unknown>) => void;
+  private logInfo: (msg: string, props: Record<string, unknown>) => void;
 
   constructor(
     baseUrl: string,
@@ -70,6 +103,7 @@ export class SwampClubClient {
     this.#apiKey = apiKey;
     this.issueNumber = issueNumber;
     this.log = logger?.warning.bind(logger) ?? (() => {});
+    this.logInfo = logger?.info.bind(logger) ?? (() => {});
   }
 
   /** Build the public lab URL for this issue. */
@@ -107,6 +141,7 @@ export class SwampClubClient {
           title?: string;
           body?: string;
           authorUsername?: string;
+          authorId?: unknown;
           comments?: {
             authorUsername?: string;
             author?: string;
@@ -128,6 +163,11 @@ export class SwampClubClient {
         title: issue.title ?? "",
         body: issue.body ?? "",
         author: issue.authorUsername ?? "unknown",
+        // A non-string id would never match the roster, so a team member
+        // would read as external; fall back to the handle instead.
+        authorId: typeof issue.authorId === "string"
+          ? issue.authorId
+          : undefined,
         comments: (issue.comments ?? []).map((c) => ({
           author: c.authorUsername ?? c.author ?? "unknown",
           body: c.body ?? "",
@@ -146,11 +186,24 @@ export class SwampClubClient {
     }
   }
 
-  /** Post a structured lifecycle entry. Best-effort. */
-  async postLifecycleEntry(params: LifecycleEntryParams): Promise<void> {
+  /**
+   * Post a structured lifecycle entry.
+   *
+   * Reports the outcome rather than swallowing it: a lifecycle entry is the
+   * durable audit record of a step, so a caller must be able to tell a
+   * recorded entry from a dropped one. The failure policy lives in
+   * `lifecycle_recorder.ts`, not here.
+   */
+  async postLifecycleEntry(
+    params: LifecycleEntryParams,
+  ): Promise<UpstreamOutcome> {
     try {
       const url =
         `${this.baseUrl}/api/v1/lab/issues/${this.issueNumber}/lifecycle`;
+      let summary = params.summary;
+      if (summary.length > LIFECYCLE_SUMMARY_MAX_CHARS) {
+        summary = summary.slice(0, LIFECYCLE_SUMMARY_MAX_CHARS - 3) + "...";
+      }
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -160,7 +213,7 @@ export class SwampClubClient {
         body: JSON.stringify({
           step: params.step,
           targetStatus: params.targetStatus,
-          summary: params.summary,
+          summary,
           emoji: params.emoji,
           payload: params.payload,
           body: params.body,
@@ -174,22 +227,113 @@ export class SwampClubClient {
           status: res.status,
           text,
         });
+        return {
+          ok: false,
+          reason: "rejected",
+          status: res.status,
+          body: text,
+        };
       }
+      return { ok: true };
     } catch (err) {
       this.log("swamp-club lifecycle post error: {error}", {
         error: String(err),
       });
+      return { ok: false, reason: "unavailable", detail: String(err) };
     }
   }
 
-  /** Transition the issue status. Best-effort. */
-  async transitionStatus(status: string): Promise<void> {
-    await this.patchIssue({ status });
+  async postAttestation(
+    attestation: Record<string, unknown>,
+  ): Promise<{ id: string; postedBy: string; postedAt: string }> {
+    const url = `${this.baseUrl}/api/v1/admin/attestations`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${this.#apiKey}`,
+      },
+      body: JSON.stringify(attestation),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(
+        `Attestation POST failed: HTTP ${res.status} — ${text}`,
+      );
+    }
+    return await res.json() as {
+      id: string;
+      postedBy: string;
+      postedAt: string;
+    };
   }
 
-  /** Update the issue type. Best-effort. */
-  async updateType(type: IssueType): Promise<void> {
-    await this.patchIssue({ type });
+  /**
+   * Transition the issue status.
+   *
+   * A 422 means the lab aggregate refused the transition, which is benign
+   * exactly when the issue already carries the status we asked for, or one
+   * further along the lifecycle — the ordinary shape of a re-run. Restarting
+   * the lifecycle on an issue that is already in progress asks for `triaged`
+   * again, and swamp-club will not move an issue backwards; failing there
+   * stranded the lifecycle until the status was reset by hand. That is
+   * confirmed by re-reading the issue and comparing the status field, not by
+   * matching the server's error prose, which swamp-club is free to reword.
+   *
+   * One read, never a retry loop. The read itself is retried once because it
+   * is a read and a flaky GET would otherwise strand every re-run; the patch
+   * is never retried. A status that does not match — including one moved by a
+   * concurrent editor — is a real failure and surfaces, because a benign
+   * no-op misreported as a failure still re-runs clean, while a real failure
+   * misread as benign is the defect this client exists to avoid.
+   */
+  async transitionStatus(status: string): Promise<UpstreamOutcome> {
+    const outcome = await this.patchIssue({ status });
+    if (outcome.ok || outcome.reason !== "rejected" || outcome.status !== 422) {
+      return outcome;
+    }
+
+    const issue = await this.fetchIssue() ?? await this.fetchIssue();
+    if (issue && statusAtOrBeyond(issue.status, status)) {
+      this.logInfo(
+        "swamp-club issue is already {current} (asked for {status}) — " +
+          "transition was a no-op",
+        { current: issue.status, status },
+      );
+      return { ok: true, noop: true };
+    }
+    return outcome;
+  }
+
+  /**
+   * Move the issue forward to `status` one lifecycle step at a time.
+   *
+   * swamp-club only accepts a transition to the next status, so a jump —
+   * `open` straight to `in_progress` after a triage that ran without a
+   * connection — is refused, and every later attempt refused the same way.
+   * Each step is `transitionStatus`, which is already a no-op when the issue
+   * is at or beyond it, so a re-run costs one refused PATCH per step and
+   * changes nothing. A status outside the lifecycle order is transitioned to
+   * directly. Stops at the first step that fails, and returns its outcome.
+   */
+  async advanceStatus(status: string): Promise<UpstreamOutcome> {
+    const target = STATUS_ORDER.indexOf(status);
+    if (target < 0) return await this.transitionStatus(status);
+    let outcome: UpstreamOutcome = { ok: true, noop: true };
+    for (const step of STATUS_ORDER.slice(1, target + 1)) {
+      outcome = await this.transitionStatus(step);
+      if (!outcome.ok) return outcome;
+    }
+    return outcome;
+  }
+
+  /**
+   * Update the issue type. No benign case: patching a type to its current
+   * value already succeeds, so a rejection here is always a real failure.
+   */
+  async updateType(type: IssueType): Promise<UpstreamOutcome> {
+    return await this.patchIssue({ type });
   }
 
   /**
@@ -241,10 +385,13 @@ export class SwampClubClient {
   }
 
   /**
-   * Post a comment (ripple) on the issue. Returns the comment ID on success,
-   * or null if the request fails. Best-effort — callers should not gate on this.
+   * Post a comment (ripple) on the issue.
+   *
+   * Reports the outcome: for `notify` the ripple is the deliverable, not a
+   * courtesy, so a caller must be able to tell a posted thank-you from a
+   * dropped one.
    */
-  async submitComment(body: string): Promise<string | null> {
+  async submitComment(body: string): Promise<UpstreamOutcome> {
     try {
       const url =
         `${this.baseUrl}/api/v1/lab/issues/${this.issueNumber}/comments`;
@@ -263,27 +410,43 @@ export class SwampClubClient {
           status: res.status,
           text,
         });
-        return null;
+        return {
+          ok: false,
+          reason: "rejected",
+          status: res.status,
+          body: text,
+        };
       }
-      const data = await res.json() as { comment?: { id?: string } };
-      return data?.comment?.id ?? null;
+      await res.body?.cancel();
+      return { ok: true };
     } catch (err) {
       this.log("swamp-club submit comment error: {error}", {
         error: String(err),
       });
-      return null;
+      return { ok: false, reason: "unavailable", detail: String(err) };
     }
   }
 
-  /** Update the issue's assignees. Best-effort (same as other PATCH helpers). */
+  /**
+   * Update the issue's assignees. Deliberately best-effort: assignment is a
+   * courtesy action, not an audit record, and must never break the triage
+   * flow. `patchIssue` already logs the failure.
+   */
   async updateAssignees(userIds: string[]): Promise<void> {
     await this.patchIssue({ assignees: userIds });
   }
 
-  /** PATCH the issue with a partial set of fields. Best-effort. */
+  /**
+   * PATCH the issue with a partial set of fields.
+   *
+   * Deliberately free of any benign-failure classification: this helper
+   * carries status, type and assignees patches alike, so it cannot reason
+   * about a target status it may not have been given. Callers that know what
+   * they asked for interpret the outcome.
+   */
   private async patchIssue(
     patch: Record<string, unknown>,
-  ): Promise<void> {
+  ): Promise<UpstreamOutcome> {
     try {
       const url = `${this.baseUrl}/api/v1/lab/issues/${this.issueNumber}`;
       const res = await fetch(url, {
@@ -301,11 +464,19 @@ export class SwampClubClient {
           status: res.status,
           text,
         });
+        return {
+          ok: false,
+          reason: "rejected",
+          status: res.status,
+          body: text,
+        };
       }
+      return { ok: true };
     } catch (err) {
       this.log("swamp-club patch error: {error}", {
         error: String(err),
       });
+      return { ok: false, reason: "unavailable", detail: String(err) };
     }
   }
 }

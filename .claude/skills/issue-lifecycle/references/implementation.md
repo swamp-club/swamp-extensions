@@ -37,12 +37,34 @@ Report verification results to the human before creating the PR:
 
 ## 3a. Code Conformance Review
 
-**Before creating a PR**, read
+**Before verification**, read
 [code-conformance-review.md](code-conformance-review.md) and run the code
 conformance review. This adversarially compares the implemented code against the
-approved plan. All deviations must be justified before `link_pr` will succeed.
+approved plan. All deviations must be justified before proceeding.
+
+## 3b. Verification Loop
+
+**After code conformance review**, read [verification.md](verification.md) and
+run the verification workflows on the host. These run the repository's build
+checks and agent reviews (see `agent-constraints/verification-conventions.md`)
+before a PR is opened. The agent iterates until all steps pass.
+
+Do NOT proceed to create a PR until verification passes.
 
 ## 4. Create a PR
+
+**PREREQUISITE: The verification attestation MUST be posted to swamp-club before
+opening a PR.** If you have not yet posted the attestation via
+`POST /api/v1/admin/attestations`, STOP — go back to
+[verification.md](verification.md) step 4 and complete the attestation flow
+first. Do NOT skip this step. Do NOT open a PR without a posted attestation.
+
+**DO NOT amend, rebase, or modify the verified commit after the attestation has
+been posted.** The attestation is bound to the commit SHA — amending (even just
+to add a co-author line) changes the SHA and invalidates the attestation. The
+co-author trailer must be included in the ORIGINAL commit, not added via amend
+afterwards. If the commit has already been amended, you must re-run verification
+and post a new attestation for the new SHA.
 
 **Always ask the human before opening a PR.** Do not create the PR automatically
 — present a summary of the changes and ask if they are ready to open it. Only
@@ -58,8 +80,12 @@ After the PR is open, record its URL on the lifecycle so the swamp-club record
 points to where the fix lives:
 
 ```
-swamp model @swamp/issue-lifecycle method run link_pr issue-<N> --input url=<PR URL>
+swamp model @swamp/issue-lifecycle method run link_pr issue-<N> --input url=<PR URL> --input commit=$(git rev-parse HEAD)
 ```
+
+`commit` is the PR's head commit. `link_pr` refuses unless the stored
+verification result passed for exactly that commit — if you committed anything
+after verifying, re-run verification first.
 
 This writes a `pullRequest-main` resource, transitions the phase to `pr_open`,
 and posts a `pr_linked` lifecycle entry on the swamp-club issue. The swamp-club
@@ -86,8 +112,8 @@ After linking the PR, wait at least 3 minutes for CI to run. The model enforces
 a `pr-cooldown` check — calling `pr_merged` or `pr_failed` within 3 minutes of
 `link_pr` will be rejected.
 
-Check the PR status externally (e.g.,
-`gh pr view <url> --json state,statusCheckRollup`):
+Check the PR status with the repository's forge CLI (see "Creating PRs" in
+`agent-constraints/implementation-conventions.md`):
 
 - **PR merged**: call `pr_merged` to transition to `releasing`
   ```
@@ -106,7 +132,7 @@ When in `pr_failed`, diagnose and fix the issue. Then either:
 - Push fixes and call `link_pr` again (same or new PR URL) to return to
   `pr_open`:
   ```
-  swamp model @swamp/issue-lifecycle method run link_pr issue-<N> --input url=<PR URL>
+  swamp model @swamp/issue-lifecycle method run link_pr issue-<N> --input url=<PR URL> --input commit=$(git rev-parse HEAD)
   ```
 - Call `implement` to go back to the implementing phase for major rework:
   ```
@@ -152,17 +178,17 @@ swamp model @swamp/issue-lifecycle method run notify issue-<N>
 
 ## 7. Session Summary
 
-After `notify` or `skip_notify`, the phase is `summarizing`. Record a session
-summary that restates the original problem and describes what was delivered:
+After `notify` or `skip_notify`, the phase is `summarizing`. Restate the
+original problem and the delivered outcome in simple, plain-language terms. The
+human should be able to read these two statements and immediately judge whether
+the work was on target.
 
 ```
 swamp model @swamp/issue-lifecycle method run summarize issue-<N> \
   --input originalProblem="<plain-language restatement of the bug or feature request>" \
-  --input deliveredOutcome="<what was actually built or fixed>" \
+  --input deliveredOutcome="<plain-language description of what was built or fixed>" \
   --input outcomeMet=<true|false>
 ```
 
-This writes a `summary-main` resource, transitions the phase to `done`, and
-posts a `session_summarized` lifecycle entry. The summary verifies that the
-delivered work actually addressed the original issue before closing out the
-lifecycle.
+This transitions the phase to `done` and posts a `session_summarized` lifecycle
+entry.

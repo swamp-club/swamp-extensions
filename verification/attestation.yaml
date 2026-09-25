@@ -1,0 +1,51 @@
+# What the pre-PR verification attestation covers.
+#
+# scripts/build_attestation.ts reads this file at the verified commit;
+# scripts/validate_attestation.ts reads the copy beside it, which in CI is the
+# pull request's base commit. Neither script knows anything about this
+# repository beyond what is written here.
+
+# The verification workflows, in the order the attestation lists their steps.
+# `key` names the run under `runs` in the document; each workflow file is
+# pinned under `configIntegrity.workflows.<name>`.
+workflows:
+  - key: build
+    name: verify-build
+    path: verification/workflow-verify-build.yaml
+  - key: reviews
+    name: verify-reviews
+    path: verification/workflow-verify-reviews.yaml
+
+# The job whose steps are agent reviews. A review step's status is its verdict.
+reviewJob: reviews
+
+# Jobs that set verification up rather than verify anything; their steps are
+# left out of the attestation and its gate.
+machineryJobs: [setup, detect-changes, cleanup]
+
+# Files whose SHA-256 at the verified commit the attestation pins, under
+# `configIntegrity.<at...>`. CI re-hashes them at the pull request head and
+# fails on any mismatch. This file is pinned too, under `config.attestation`.
+pinned:
+  - path: CLAUDE.md
+    at: [claudeMd]
+  - path: AGENTS.md
+    at: [agentsMd]
+  - path: verification/review-prompts/code-review.md
+    at: [prompts, code-review]
+  - path: verification/review-prompts/adversarial-review.md
+    at: [prompts, adversarial-review]
+  - path: verification/review-prompts/ci-security-review.md
+    at: [prompts, ci-security-review]
+  - path: verification/checks.yaml
+    at: [config, checks]
+  - path: scripts/run_checks.ts
+    at: [scripts, run-checks]
+  - path: scripts/check_upgrades.ts
+    at: [scripts, check-upgrades]
+  - path: scripts/check_review_verdict.ts
+    at: [scripts, check-review-verdict]
+  - path: scripts/build_attestation.ts
+    at: [scripts, build-attestation]
+  - path: scripts/validate_attestation.ts
+    at: [scripts, validate-attestation]

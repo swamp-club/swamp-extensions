@@ -43,6 +43,7 @@ export const Phase = z.enum([
   "plan_generated",
   "approved",
   "implementing",
+  "verifying",
   "pr_open",
   "pr_failed",
   "releasing",
@@ -65,6 +66,7 @@ export const TRANSITIONS: Record<string, Phase[]> = {
     "plan_generated",
     "approved",
     "implementing",
+    "verifying",
     "pr_open",
     "pr_failed",
     "releasing",
@@ -72,15 +74,20 @@ export const TRANSITIONS: Record<string, Phase[]> = {
     "summarizing",
   ],
   triage: ["triaging"],
+  fast_forward: ["triaging", "classified"],
   plan: ["classified"],
   iterate: ["plan_generated"],
   approve: ["plan_generated"],
   implement: ["approved", "pr_failed"],
   adversarial_review: ["plan_generated"],
-  resolve_findings: ["plan_generated"],
+  resolve_findings: ["plan_generated", "approved"],
   code_conformance_review: ["implementing", "pr_failed"],
   justify_deviations: ["implementing", "pr_failed"],
-  link_pr: ["implementing", "pr_open", "pr_failed"],
+  verify: ["implementing"],
+  verification_passed: ["verifying"],
+  verification_failed: ["verifying"],
+  post_attestation: ["verifying"],
+  link_pr: ["verifying", "pr_open", "pr_failed"],
   pr_merged: ["pr_open"],
   pr_failed: ["pr_open"],
   ship: ["releasing"],
@@ -134,6 +141,9 @@ export const ClassificationSchema = z.object({
   reasoning: z.string(),
   isRegression: z.boolean().optional().describe(
     "True if this is a regression (something that previously worked). Implies type=bug.",
+  ),
+  regressionIntroducedIn: z.string().optional().describe(
+    "Version that introduced the regression (e.g. '2026.06.12.1'). Only set when isRegression is true.",
   ),
   regressionEvidence: z.string().optional().describe(
     "Concrete evidence that this previously worked (commit hash, version, test output). " +
@@ -243,6 +253,187 @@ export const CodeConformanceReviewSchema = z.object({
 export type CodeConformanceReviewData = z.infer<
   typeof CodeConformanceReviewSchema
 >;
+
+// ---------------------------------------------------------------------------
+// Verification Result Schema
+// ---------------------------------------------------------------------------
+
+export const VerificationStepResultSchema = z.object({
+  job: z.string(),
+  step: z.string(),
+  model: z.string(),
+  method: z.string(),
+  status: z.enum(["succeeded", "failed", "skipped"]),
+});
+
+export const VerificationResultSchema = z.object({
+  workflowRunId: z.string(),
+  commit: z.string(),
+  branch: z.string(),
+  allPassed: z.boolean(),
+  stepsCompleted: z.number(),
+  stepsTotal: z.number(),
+  stepsSkipped: z.number(),
+  stepsFailed: z.number(),
+  steps: z.array(VerificationStepResultSchema),
+  verifiedAt: z.string(),
+  /** Why the result did not pass, when it was recorded as failed or pending. */
+  failureReason: z.string().optional(),
+});
+
+export type VerificationResultData = z.infer<typeof VerificationResultSchema>;
+
+// ---------------------------------------------------------------------------
+// Verification Attestation Schema
+// ---------------------------------------------------------------------------
+
+/**
+ * The document swamp-club stores and CI validates before a PR may merge.
+ *
+ * Written down once so the contract is enforced where the document is
+ * produced and again where it leaves the machine, not only by CI once a PR is
+ * public: the repository's attestation generator validates what it emits
+ * against this schema, `post_attestation` validates what it is handed, and CI
+ * validates what swamp-club returns.
+ *
+ * `postedBy` and `postedAt` are deliberately absent: swamp-club stamps those
+ * on acceptance, so they appear on the stored attestation CI fetches but never
+ * on the one being posted.
+ */
+export const AttestationStepSchema = z.object({
+  job: z.string().min(1).describe("Workflow job the step belongs to."),
+  step: z.string().min(1).describe("Step name within that job."),
+  model: z.string().optional().describe(
+    "Model the step ran under, reconstructed from the workflow definition at " +
+      "the verified commit. Absent when the definition names none.",
+  ),
+  status: z.string().min(1).describe(
+    "Status the run recorded. Anything other than `succeeded` or `skipped` " +
+      "counts against the gate — a step left `unknown` by a crashed run is a " +
+      "step nobody can vouch for.",
+  ),
+  durationMs: z.number().optional().describe(
+    "Measured duration, taken from the run record. Never estimated.",
+  ),
+  verdict: z.string().optional().describe(
+    "For a review step, the gate decision. The step's status is that " +
+      "decision — check_review_verdict.ts sets both — so this is a restating " +
+      "of the status, not a second reading of the reviewer's prose.",
+  ),
+  findings: z.number().optional().describe("Findings the review reported."),
+  reason: z.string().optional().describe(
+    "Why a skipped step did not run, rendered from its recorded skip reason.",
+  ),
+  skipKind: z.enum(["dependency", "guarded", "job_skipped"]).optional()
+    .describe(
+      "Machine-readable form of the same fact, so a consumer can tell a " +
+        "path guard from a deselected group without parsing prose.",
+    ),
+  skipExpression: z.string().optional().describe(
+    "The guard expression, when the skip was a guard.",
+  ),
+  errorMessage: z.string().optional().describe("Error from a failed step."),
+}).passthrough();
+
+export type AttestationStepData = z.infer<typeof AttestationStepSchema>;
+
+export const AttestationSchema = z.object({
+  version: z.literal("1").describe(
+    "Attestation format version. CI refuses a version it does not know.",
+  ),
+  type: z.literal("verification-attestation"),
+
+  generatedBy: z.string().optional().describe(
+    "How the document was produced. `script` means " +
+      "scripts/build_attestation.ts projected it from the run records; it is " +
+      "a statement of origin, not a proof of one — the generator still runs " +
+      "wherever the caller runs it.",
+  ),
+
+  subject: z.object({
+    commit: z.string().min(1).describe(
+      "The revision the verification examined, canonical and unabbreviated. " +
+        "Deliberately unconstrained beyond non-empty: consumers compare it " +
+        "as an opaque string, and pinning a format here would encode one " +
+        "tool's spelling into a contract shared with CI and swamp-club — " +
+        "wrong even for git, whose SHA-256 repositories use 64 characters " +
+        "rather than 40. The generator resolves it; CI refuses the " +
+        "attestation when it differs from the PR head.",
+    ),
+    branch: z.string().min(1).describe("Branch the verification ran on."),
+  }),
+
+  environment: z.object({
+    denoVersion: z.string().optional(),
+    os: z.string().optional(),
+    arch: z.string().optional(),
+    swampVersion: z.string().optional(),
+  }).passthrough().describe("Where verification ran."),
+
+  configIntegrity: z.object({
+    claudeMd: z.string().optional(),
+    agentsMd: z.string().optional(),
+    prompts: z.record(z.string(), z.string()).optional(),
+    workflows: z.record(z.string(), z.string()).optional(),
+    scripts: z.record(z.string(), z.string()).optional(),
+  }).passthrough().describe(
+    "SHA-256 of each file that shaped the verification, read at the verified " +
+      "commit. CI re-hashes the same files and compares, which is what " +
+      "catches a prompt or workflow edited after the run was launched. " +
+      "Individual entries are optional because CI warns rather than fails on " +
+      "an absent one.",
+  ),
+
+  reviewConfig: z.record(
+    z.string(),
+    z.object({
+      model: z.string().optional().describe(
+        "The claude model the review was invoked with.",
+      ),
+      ran: z.boolean(),
+      reason: z.string().optional().describe(
+        "Why it did not run. Derived from the step's persisted skip reason, " +
+          "which is what separates a path guard from a deselected group.",
+      ),
+    }).passthrough(),
+  ).optional().describe("Per-review model and whether it ran."),
+
+  steps: z.array(AttestationStepSchema).describe(
+    "Every verification step across the runs this attestation covers. " +
+      "Excludes each workflow's own machinery — checkout, diff detection and " +
+      "worktree cleanup are how verification is set up, not verification.",
+  ),
+
+  gate: z.object({
+    allPassed: z.boolean().describe(
+      "The verdict CI reads. True only when no step failed and every " +
+        "workflow this attestation covers actually produced evidence.",
+    ),
+    stepsCompleted: z.number(),
+    stepsTotal: z.number(),
+    stepsSkipped: z.number(),
+    stepsFailed: z.number().optional(),
+    skippedByKind: z.record(z.string(), z.number()).optional().describe(
+      "Skip counts broken out by kind, so a reader can tell guard-excluded " +
+        "steps from ones whose dependency never ran.",
+    ),
+  }),
+
+  timing: z.object({
+    startedAt: z.string().optional(),
+    completedAt: z.string().optional().describe(
+      "When verification finished. CI measures its freshness window from it.",
+    ),
+    totalDurationMs: z.number().optional(),
+  }).passthrough(),
+
+  runs: z.record(z.string(), z.string()).optional().describe(
+    "Workflow run id per verification workflow, so a reader can go back to " +
+      "the records this document was projected from.",
+  ),
+}).passthrough();
+
+export type AttestationData = z.infer<typeof AttestationSchema>;
 
 export const PullRequestSchema = z.object({
   url: z.string().min(1).describe(

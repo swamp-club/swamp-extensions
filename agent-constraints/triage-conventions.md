@@ -147,7 +147,7 @@ reproduction.
 ### Registry-publish bugs
 
 The reproduction is the CI run itself. Open the failed `publish.yml` run
-(or the relevant `ci.yml` matrix job), capture the registry error verbatim
+(or the failing verify-build `checks` step), capture the registry error verbatim
 per extension, and map each failure to a codegen hypothesis (see issue
 #34: oversized file → emit too large; camelCase name → naming validator
 missing).

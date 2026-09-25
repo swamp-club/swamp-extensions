@@ -1,0 +1,196 @@
+# Build checks for the pre-PR verification loop.
+#
+# Pull-request CI builds nothing: verify-build runs these checks locally
+# (scripts/run_checks.ts, one step per group) and the attestation it feeds is
+# what CI validates. This file is the one definition of "the build passes".
+#
+# Each group has command templates and targets. A target is a directory the
+# commands run in; `{name}` placeholders in a template are filled from the
+# target's `vars`, and a target's own `commands` add to or replace the group's.
+# A target runs when a changed path starts with one of its `triggers`
+# (default: `<dir>/`). A `*` segment in `dir` expands to every matching
+# directory that contains `marker`, each triggered by its own changes.
+# Targets resolving to the same directory merge their commands.
+#
+# Adding an extension means adding a target here;
+# scripts/verification_harness_test.ts fails until it exists.
+
+denoVersion: "2.8"
+
+groups:
+  extensions:
+    commands:
+      check: deno check {check}
+      lint: deno lint {paths}
+      fmt: deno fmt --check {paths}
+      test: deno test {testFlags} {paths}
+      lockfile: deno install --frozen
+    targets:
+      - dir: agent-runner
+        vars:
+          check: extensions/models/agent_runner.ts
+          paths: extensions/models/
+          testFlags: --allow-read --allow-write --allow-env --allow-run --allow-sys --allow-net
+      - dir: deno-runner
+        vars:
+          check: extensions/models/deno_runner.ts
+          paths: extensions/models/
+          testFlags: --allow-read --allow-write --allow-env --allow-run --allow-sys --allow-net
+      - dir: issue-lifecycle
+        vars:
+          check: extensions/models/issue_lifecycle.ts
+          paths: extensions/models/
+          testFlags: --allow-read --allow-write --allow-env --allow-net --allow-sys
+      - dir: ssh
+        vars:
+          check: extensions/models/ssh.ts
+          paths: extensions/models/
+          testFlags: --allow-read --allow-write --allow-env --allow-run --allow-sys
+      - dir: kubernetes
+        vars:
+          check: extensions/models/*.ts
+          paths: extensions/models/
+          testFlags: --allow-env --allow-net --allow-read --allow-write --allow-run=openssl --allow-sys
+      - dir: workflows/*
+        marker: manifest.yaml
+        vars:
+          check: extensions/models/*.ts
+          paths: extensions/models/
+          testFlags: --allow-read --allow-write --allow-env --allow-net --allow-sys
+      - dir: cve/*
+        marker: manifest.yaml
+        vars:
+          check: extensions/models/*.ts extensions/reports/*.ts
+          paths: extensions/models/ extensions/reports/
+          testFlags: --allow-read --allow-write --allow-env --allow-net --allow-sys
+      - dir: software-factory
+        vars:
+          check: extensions/models/*.ts extensions/models/_lib/*.ts extensions/reports/*.ts
+          paths: extensions/models/ extensions/reports/
+          testFlags: --allow-read --allow-write --allow-env --allow-net --allow-sys
+      - dir: container-image
+        vars:
+          check: extensions/models/container_image.ts
+          paths: extensions/models/
+          testFlags: --allow-env --allow-read --allow-run --allow-sys
+      - dir: git
+        vars:
+          check: extensions/models/git.ts
+          paths: extensions/models/
+          testFlags: --allow-read --allow-write --allow-env --allow-run --allow-sys
+      - dir: typesafe-ai
+        vars:
+          check: extensions/models/typesafe_ai.ts
+          paths: extensions/models/
+          testFlags: --allow-env --allow-net
+
+  vaults:
+    commands:
+      check: deno check extensions/vaults/*.ts
+      lint: deno lint extensions/vaults/
+      fmt: deno fmt --check extensions/vaults/
+      test: deno test --allow-env --allow-net --allow-sys --allow-read --allow-write extensions/vaults/
+      lockfile: deno install --frozen
+    targets:
+      - dir: vault/*
+        marker: manifest.yaml
+
+  datastores:
+    commands:
+      check: deno check extensions/datastores/*.ts
+      lint: deno lint extensions/datastores/
+      fmt: deno fmt --check extensions/datastores/
+      test: deno test --allow-read --allow-write --allow-env --allow-net --allow-sys extensions/datastores/
+      lockfile: deno install --frozen
+    targets:
+      - dir: datastore/*
+        marker: manifest.yaml
+
+  # Generated code is never linted against the repo config. Every changed
+  # service directory is type-checked with its lockfile; whenever model/ or
+  # codegen/ changes, the single-directory providers are checked in full and a
+  # sample of services is type-checked. The nightly full-model-check covers
+  # the rest.
+  models:
+    commands:
+      check: deno check extensions/models/*.ts
+    targets:
+      - dir: model/*/*
+        marker: deno.json
+        commands:
+          lockfile: deno install --frozen
+      - dir: model/hetzner-cloud
+        triggers: [model/, codegen/]
+        commands: &single-dir
+          lint: deno lint --no-config extensions/models/
+          fmt: deno fmt --no-config --check extensions/models/
+          lockfile: deno install --frozen
+      - dir: model/digitalocean
+        triggers: [model/, codegen/]
+        commands: *single-dir
+      - dir: model/aws/healthimaging
+        triggers: &generated [model/, codegen/]
+      - dir: model/aws/quicksight
+        triggers: *generated
+      - dir: model/aws/sns
+        triggers: *generated
+      - dir: model/aws/apigateway
+        triggers: *generated
+      - dir: model/aws/ec2
+        triggers: *generated
+      - dir: model/gcp/groupssettings
+        triggers: *generated
+      - dir: model/gcp/container
+        triggers: *generated
+      - dir: model/gcp/storage
+        triggers: *generated
+      - dir: model/gcp/dataproc
+        triggers: *generated
+      - dir: model/gcp/compute
+        triggers: *generated
+      - dir: model/cloudflare/r2
+        triggers: *generated
+      - dir: model/cloudflare/load-balancing
+        triggers: *generated
+      - dir: model/cloudflare/pages
+        triggers: *generated
+      - dir: model/vercel/projects
+        triggers: *generated
+      - dir: model/vercel/deployments
+        triggers: *generated
+      - dir: model/vercel/domains
+        triggers: *generated
+      - dir: model/vercel/dns
+        triggers: *generated
+      - dir: model/vercel/edge-config
+        triggers: *generated
+
+  codegen:
+    commands:
+      check: deno check main.ts
+      lint: deno lint
+      fmt: deno fmt --check
+      lockfile: deno install --frozen
+    targets:
+      - dir: codegen
+
+  # The issue-lifecycle working copy the repo's skill drives, and the scripts
+  # the verification loop is made of.
+  harness:
+    commands:
+      check: deno check extensions/models/*.ts extensions/models/_lib/*.ts {scripts}
+      lint: deno lint extensions/models/ {scripts}
+      fmt: deno fmt --check extensions/models/ {scripts}
+      test: deno test --allow-read --allow-write --allow-env --allow-net --allow-sys --allow-run=git extensions/models/ {scripts}
+      lockfile: deno install --frozen
+    targets:
+      - dir: .
+        triggers: [extensions/, scripts/, verification/, deno.json, deno.lock]
+        vars:
+          scripts: >-
+            scripts/build_attestation.ts scripts/build_attestation_test.ts
+            scripts/check_review_verdict.ts scripts/check_review_verdict_test.ts
+            scripts/run_checks.ts scripts/run_checks_test.ts
+            scripts/check_upgrades.ts scripts/check_upgrades_test.ts
+            scripts/validate_attestation.ts scripts/validate_attestation_test.ts
+            scripts/verification_harness_test.ts
