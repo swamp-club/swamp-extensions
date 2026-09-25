@@ -486,6 +486,9 @@ const GlobalArgsSchema = z.object({
           temperature: z.unknown().describe(
             "Optional. If set, this temperature will be used for the LLM model. Temperature controls the randomness of the model's responses. Lower temperatures produce responses that are more predictable. Higher temperatures produce responses that are more creative.",
           ).optional(),
+          thinkingLevel: z.unknown().describe(
+            "Optional. The thinking level of the model.",
+          ).optional(),
         }).describe("Required. Configurations for the LLM model.").optional(),
         prompt: z.string().describe(
           "Optional. The prompt definition. If not set, default prompt will be used.",
@@ -509,6 +512,9 @@ const GlobalArgsSchema = z.object({
           ).optional(),
           temperature: z.unknown().describe(
             "Optional. If set, this temperature will be used for the LLM model. Temperature controls the randomness of the model's responses. Lower temperatures produce responses that are more predictable. Higher temperatures produce responses that are more creative.",
+          ).optional(),
+          thinkingLevel: z.unknown().describe(
+            "Optional. The thinking level of the model.",
           ).optional(),
         }).describe("Optional. Configurations for the LLM model.").optional(),
         prompt: z.string().describe(
@@ -1303,6 +1309,7 @@ const StateSchema = z.object({
         modelSettings: z.object({
           model: z.unknown(),
           temperature: z.unknown(),
+          thinkingLevel: z.unknown(),
         }),
         prompt: z.string(),
       }),
@@ -1315,6 +1322,7 @@ const StateSchema = z.object({
         modelSettings: z.object({
           model: z.unknown(),
           temperature: z.unknown(),
+          thinkingLevel: z.unknown(),
         }),
         prompt: z.string(),
       }),
@@ -1470,6 +1478,7 @@ const StateSchema = z.object({
       service: z.string(),
     }),
   }).optional(),
+  readOnly: z.boolean().optional(),
   remoteAgentTool: z.object({
     agentCard: z.object({
       description: z.string(),
@@ -1904,6 +1913,9 @@ const InputsSchema = z.object({
           temperature: z.unknown().describe(
             "Optional. If set, this temperature will be used for the LLM model. Temperature controls the randomness of the model's responses. Lower temperatures produce responses that are more predictable. Higher temperatures produce responses that are more creative.",
           ).optional(),
+          thinkingLevel: z.unknown().describe(
+            "Optional. The thinking level of the model.",
+          ).optional(),
         }).describe("Required. Configurations for the LLM model.").optional(),
         prompt: z.string().describe(
           "Optional. The prompt definition. If not set, default prompt will be used.",
@@ -1927,6 +1939,9 @@ const InputsSchema = z.object({
           ).optional(),
           temperature: z.unknown().describe(
             "Optional. If set, this temperature will be used for the LLM model. Temperature controls the randomness of the model's responses. Lower temperatures produce responses that are more predictable. Higher temperatures produce responses that are more creative.",
+          ).optional(),
+          thinkingLevel: z.unknown().describe(
+            "Optional. The thinking level of the model.",
           ).optional(),
         }).describe("Optional. Configurations for the LLM model.").optional(),
         prompt: z.string().describe(
@@ -2620,7 +2635,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Tools. Registered at `@swamp/gcp/ces/apps-tools`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-tools",
-  version: "2026.09.15.1",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -2814,6 +2829,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

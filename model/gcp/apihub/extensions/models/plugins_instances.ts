@@ -369,7 +369,7 @@ const GlobalArgsSchema = z.object({
     "Optional. The authentication information for this plugin instance.",
   ).optional(),
   displayName: z.string().describe(
-    "Required. The display name for this plugin instance. Max length is 255 characters.",
+    "Required. The display name for this plugin instance. Max length is 500 characters.",
   ).optional(),
   name: z.string().describe(
     "Identifier. The unique name of the plugin instance resource. Format: `projects/{project}/locations/{location}/plugins/{plugin}/instances/{instance}`",
@@ -688,7 +688,7 @@ const InputsSchema = z.object({
     "Optional. The authentication information for this plugin instance.",
   ).optional(),
   displayName: z.string().describe(
-    "Required. The display name for this plugin instance. Max length is 255 characters.",
+    "Required. The display name for this plugin instance. Max length is 500 characters.",
   ).optional(),
   name: z.string().describe(
     "Identifier. The unique name of the plugin instance resource. Format: `projects/{project}/locations/{location}/plugins/{plugin}/instances/{instance}`",
@@ -752,7 +752,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API hub Plugins.Instances. Registered at `@swamp/gcp/apihub/plugins-instances`. */
 export const model = {
   type: "@swamp/gcp/apihub/plugins-instances",
-  version: "2026.08.12.2",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -886,6 +886,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

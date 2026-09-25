@@ -176,7 +176,7 @@ const GlobalArgsSchema = z.object({
             "Required. The display name of the allowed value.",
           ).optional(),
           id: z.unknown().describe(
-            "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+            "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
           ).optional(),
           immutable: z.unknown().describe(
             "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -324,7 +324,7 @@ const GlobalArgsSchema = z.object({
           "Required. The display name of the allowed value.",
         ).optional(),
         id: z.string().describe(
-          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
         ).optional(),
         immutable: z.boolean().describe(
           "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -489,7 +489,7 @@ const InputsSchema = z.object({
             "Required. The display name of the allowed value.",
           ).optional(),
           id: z.unknown().describe(
-            "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+            "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
           ).optional(),
           immutable: z.unknown().describe(
             "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -637,7 +637,7 @@ const InputsSchema = z.object({
           "Required. The display name of the allowed value.",
         ).optional(),
         id: z.string().describe(
-          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
         ).optional(),
         immutable: z.boolean().describe(
           "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -709,7 +709,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API hub Apis.Versions.Specs. Registered at `@swamp/gcp/apihub/apis-versions-specs`. */
 export const model = {
   type: "@swamp/gcp/apihub/apis-versions-specs",
-  version: "2026.09.09.1",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -857,6 +857,11 @@ export const model = {
     {
       toVersion: "2026.09.09.1",
       description: "Added: deployments",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -57,7 +57,7 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Allows you to define image resizing sizes for different use cases.",
   ),
-  id: z.string().max(99).regex(new RegExp("^[a-zA-Z0-9]$")),
+  id: z.string().max(99).regex(new RegExp("^[a-zA-Z0-9]+$")),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -95,7 +95,7 @@ const InputsSchema = z.object({
     metadata: z.enum(["keep", "copyright", "none"]),
     width: z.number().min(1),
   }).optional(),
-  id: z.string().max(99).regex(new RegExp("^[a-zA-Z0-9]$")).optional(),
+  id: z.string().max(99).regex(new RegExp("^[a-zA-Z0-9]+$")).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
@@ -104,7 +104,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Variants. Registered at `@swamp/cloudflare/images/variants`. */
 export const model = {
   type: "@swamp/cloudflare/images/variants",
-  version: "2026.07.21.1",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -123,6 +123,11 @@ export const model = {
     },
     {
       toVersion: "2026.07.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

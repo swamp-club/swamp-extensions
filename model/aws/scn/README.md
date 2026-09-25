@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/scn/dataset` to see the full list of
-configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/scn/data_integration_flow` to see the
+full list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -47,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new dataset model
-swamp model create @swamp/aws/scn/dataset my-dataset
+# Create a new data_integration_flow model
+swamp model create @swamp/aws/scn/data_integration_flow my-data_integration_flow
 
 # Edit the model to configure its properties
-swamp model edit my-dataset
+swamp model edit my-data_integration_flow
 
 # Create the resource in AWS
-swamp model method run my-dataset create
+swamp model method run my-data_integration_flow create
 
 # Sync current state from AWS
-swamp model method run my-dataset sync
+swamp model method run my-data_integration_flow sync
 ```
 
 ## License

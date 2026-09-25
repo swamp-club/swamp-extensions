@@ -93,9 +93,6 @@ const LIST_CONFIG = {
       "location": "query",
       "required": true,
     },
-    "postId": {
-      "location": "query",
-    },
     "searchTerms": {
       "location": "query",
     },
@@ -187,9 +184,6 @@ const GlobalArgsSchema = z.object({
         parentId: z.string().describe(
           "The unique id of the top-level comment, only set for replies.",
         ).optional(),
-        postId: z.string().describe(
-          "The ID of the post the comment refers to, if any.",
-        ).optional(),
         publishedAt: z.string().describe(
           "The date and time when the comment was originally published.",
         ).optional(),
@@ -226,9 +220,6 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     isPublic: z.boolean().describe(
       "Whether the thread (and therefore all its comments) is visible to all YouTube users.",
-    ).optional(),
-    postId: z.string().describe(
-      "The ID of the post the comments refer to, if any.",
     ).optional(),
     topLevelComment: z.object({
       etag: z.string().describe("Etag of this resource.").optional(),
@@ -272,9 +263,6 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         parentId: z.string().describe(
           "The unique id of the top-level comment, only set for replies.",
-        ).optional(),
-        postId: z.string().describe(
-          "The ID of the post the comment refers to, if any.",
         ).optional(),
         publishedAt: z.string().describe(
           "The date and time when the comment was originally published.",
@@ -333,7 +321,6 @@ const StateSchema = z.object({
         likeCount: z.number(),
         moderationStatus: z.string(),
         parentId: z.string(),
-        postId: z.string(),
         publishedAt: z.string(),
         textDisplay: z.string(),
         textOriginal: z.string(),
@@ -347,7 +334,6 @@ const StateSchema = z.object({
     canReply: z.boolean(),
     channelId: z.string(),
     isPublic: z.boolean(),
-    postId: z.string(),
     topLevelComment: z.object({
       etag: z.string(),
       id: z.string(),
@@ -364,7 +350,6 @@ const StateSchema = z.object({
         likeCount: z.number(),
         moderationStatus: z.string(),
         parentId: z.string(),
-        postId: z.string(),
         publishedAt: z.string(),
         textDisplay: z.string(),
         textOriginal: z.string(),
@@ -435,9 +420,6 @@ const InputsSchema = z.object({
         parentId: z.string().describe(
           "The unique id of the top-level comment, only set for replies.",
         ).optional(),
-        postId: z.string().describe(
-          "The ID of the post the comment refers to, if any.",
-        ).optional(),
         publishedAt: z.string().describe(
           "The date and time when the comment was originally published.",
         ).optional(),
@@ -474,9 +456,6 @@ const InputsSchema = z.object({
     ).optional(),
     isPublic: z.boolean().describe(
       "Whether the thread (and therefore all its comments) is visible to all YouTube users.",
-    ).optional(),
-    postId: z.string().describe(
-      "The ID of the post the comments refer to, if any.",
     ).optional(),
     topLevelComment: z.object({
       etag: z.string().describe("Etag of this resource.").optional(),
@@ -520,9 +499,6 @@ const InputsSchema = z.object({
         ).optional(),
         parentId: z.string().describe(
           "The unique id of the top-level comment, only set for replies.",
-        ).optional(),
-        postId: z.string().describe(
-          "The ID of the post the comment refers to, if any.",
         ).optional(),
         publishedAt: z.string().describe(
           "The date and time when the comment was originally published.",
@@ -586,7 +562,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data CommentThreads. Registered at `@swamp/gcp/youtube/commentthreads`. */
 export const model = {
   type: "@swamp/gcp/youtube/commentthreads",
-  version: "2026.08.12.2",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -700,6 +676,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -873,9 +854,6 @@ export const model = {
         part: z.string().describe(
           "The *part* parameter specifies a comma-separated list of one or more commentThread resource properties that the API response will include.",
         ).optional(),
-        postId: z.string().describe(
-          "Returns the comment threads of the specified post.",
-        ).optional(),
         searchTerms: z.string().describe(
           "Limits the returned comment threads to those matching the specified key words. Not compatible with the 'id' filter.",
         ).optional(),
@@ -916,9 +894,6 @@ export const model = {
           params["order"] = String(args["order"]);
         }
         if (args["part"] !== undefined) params["part"] = String(args["part"]);
-        if (args["postId"] !== undefined) {
-          params["postId"] = String(args["postId"]);
-        }
         if (args["searchTerms"] !== undefined) {
           params["searchTerms"] = String(args["searchTerms"]);
         }

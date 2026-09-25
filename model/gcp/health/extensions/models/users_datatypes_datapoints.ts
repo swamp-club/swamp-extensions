@@ -215,7 +215,7 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }).describe("Required. Observed interval").optional(),
     kcal: z.number().describe(
-      "Required. Energy burned during an activity, measured in kilocalories.",
+      "Required. Energy burned during an activity, measured in kilocalories. Must be in the range `[0, 1000000]`.",
     ).optional(),
   }).describe(
     "Optional. Data for points in the `active-energy-burned` interval data type collection.",
@@ -488,7 +488,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   altitude: z.object({
     gainMillimeters: z.string().describe(
-      "Required. Altitude gain in millimeters over the observed interval.",
+      "Required. Altitude gain in millimeters over the observed interval. Must be in the range `[-1000000000, 1000000000]`.",
     ).optional(),
     interval: z.object({
       civilEndTime: z.object({
@@ -650,7 +650,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   bloodGlucose: z.object({
     bloodGlucoseMilligramsPerDeciliter: z.number().describe(
-      "Required. Blood glucose level concentration in mg/dL.",
+      "Required. Blood glucose level concentration in mg/dL. Must be in the range `[0, 900]`.",
     ).optional(),
     mealType: z.enum([
       "MEAL_TYPE_UNSPECIFIED",
@@ -733,7 +733,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   bodyFat: z.object({
     percentage: z.number().describe(
-      "Required. Body fat percentage, in range [0, 100].",
+      "Required. Body fat percentage. Must be in the range `[0, 100]`.",
     ).optional(),
     sampleTime: z.object({
       civilTime: z.object({
@@ -846,7 +846,7 @@ const GlobalArgsSchema = z.object({
       "Required. The time at which core body temperature was measured.",
     ).optional(),
     temperatureCelsius: z.number().describe(
-      "Required. The core body temperature in Celsius.",
+      "Required. The core body temperature in Celsius. Must be in the range `[0, 100]`.",
     ).optional(),
   }).describe(
     "Optional. Data for points in the `core-body-temperature` sample data type collection.",
@@ -915,7 +915,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   dailyOxygenSaturation: z.object({
     averagePercentage: z.number().describe(
-      "Required. The average value of the oxygen saturation samples during the sleep.",
+      "Required. The average value of the oxygen saturation samples during the sleep. Must be in the range `[0, 100]`.",
     ).optional(),
     date: z.object({
       day: z.number().int().describe(
@@ -931,13 +931,13 @@ const GlobalArgsSchema = z.object({
       "Required. Date (in user's timezone) of the daily oxygen saturation record.",
     ).optional(),
     lowerBoundPercentage: z.number().describe(
-      "Required. The lower bound of the confidence interval of oxygen saturation samples during sleep.",
+      "Required. The lower bound of the confidence interval of oxygen saturation samples during sleep. Must be in the range `[0, 100]`.",
     ).optional(),
     standardDeviationPercentage: z.number().describe(
       "Optional. Standard deviation of the daily oxygen saturation averages from the past 7-30 days.",
     ).optional(),
     upperBoundPercentage: z.number().describe(
-      "Required. The upper bound of the confidence interval of oxygen saturation samples during sleep.",
+      "Required. The upper bound of the confidence interval of oxygen saturation samples during sleep. Must be in the range `[0, 100]`.",
     ).optional(),
   }).describe(
     "Optional. Data for points in the `daily-oxygen-saturation` daily data type collection.",
@@ -1046,7 +1046,7 @@ const GlobalArgsSchema = z.object({
       "Optional. An estimated field is added to indicate when the confidence has decreased sufficiently to consider the value an estimation.",
     ).optional(),
     vo2Max: z.number().describe(
-      "Required. Daily VO2 max value measured as in ml consumed oxygen / kg of body weight / min.",
+      "Required. Daily VO2 max value measured as in ml consumed oxygen / kg of body weight / min. Must be in the range `[0, 100]`.",
     ).optional(),
     vo2MaxCovariance: z.number().describe(
       "Optional. The covariance of the VO2 max value.",
@@ -1188,7 +1188,7 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }).describe("Required. Observed interval.").optional(),
     millimeters: z.string().describe(
-      "Required. Distance in millimeters over the observed interval.",
+      "Required. Distance in millimeters over the observed interval. Must be in the range `[0, 1000000000]`.",
     ).optional(),
   }).describe(
     "Optional. Data for points in the `distance` interval data type collection.",
@@ -1872,7 +1872,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   floors: z.object({
     count: z.string().describe(
-      "Required. Number of floors in the recorded interval",
+      "Required. Number of floors in the recorded interval. Must be in the range `[0, 1000000]`.",
     ).optional(),
     interval: z.object({
       civilEndTime: z.object({
@@ -1981,8 +1981,9 @@ const GlobalArgsSchema = z.object({
     displayName: z.string().describe("Required. The display name of the food.")
       .optional(),
     energyAvg: z.object({
-      kcal: z.number().describe("Required. The energy value in kilocalories.")
-        .optional(),
+      kcal: z.number().describe(
+        "Required. The energy value in kilocalories. Must be in the range `[0, 100000]`.",
+      ).optional(),
       userProvidedUnit: z.enum([
         "ENERGY_UNIT_UNSPECIFIED",
         "JOULE",
@@ -1996,8 +1997,9 @@ const GlobalArgsSchema = z.object({
       "Optional. Value representing the average energy of the food for the default serving.",
     ).optional(),
     energyFromFat: z.object({
-      kcal: z.number().describe("Required. The energy value in kilocalories.")
-        .optional(),
+      kcal: z.number().describe(
+        "Required. The energy value in kilocalories. Must be in the range `[0, 100000]`.",
+      ).optional(),
       userProvidedUnit: z.enum([
         "ENERGY_UNIT_UNSPECIFIED",
         "JOULE",
@@ -2011,8 +2013,9 @@ const GlobalArgsSchema = z.object({
       "Optional. Value representing the energy from fat of the food for the default serving.",
     ).optional(),
     energyMax: z.object({
-      kcal: z.number().describe("Required. The energy value in kilocalories.")
-        .optional(),
+      kcal: z.number().describe(
+        "Required. The energy value in kilocalories. Must be in the range `[0, 100000]`.",
+      ).optional(),
       userProvidedUnit: z.enum([
         "ENERGY_UNIT_UNSPECIFIED",
         "JOULE",
@@ -2026,8 +2029,9 @@ const GlobalArgsSchema = z.object({
       "Optional. Value representing the maximum energy of the food for the default serving.",
     ).optional(),
     energyMin: z.object({
-      kcal: z.number().describe("Required. The energy value in kilocalories.")
-        .optional(),
+      kcal: z.number().describe(
+        "Required. The energy value in kilocalories. Must be in the range `[0, 100000]`.",
+      ).optional(),
       userProvidedUnit: z.enum([
         "ENERGY_UNIT_UNSPECIFIED",
         "JOULE",
@@ -2100,8 +2104,9 @@ const GlobalArgsSchema = z.object({
         "FOLATE",
       ]).describe("Required. The nutrient type.").optional(),
       quantity: z.object({
-        grams: z.number().describe("Required. The weight value in grams.")
-          .optional(),
+        grams: z.number().describe(
+          "Required. The weight value in grams. Must be in the range `[0, 100000]`.",
+        ).optional(),
         userProvidedUnit: z.enum([
           "WEIGHT_UNIT_UNSPECIFIED",
           "GRAM",
@@ -2137,8 +2142,9 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     })).describe("Optional. The serving of the food.").optional(),
     totalCarbohydrate: z.object({
-      grams: z.number().describe("Required. The weight value in grams.")
-        .optional(),
+      grams: z.number().describe(
+        "Required. The weight value in grams. Must be in the range `[0, 100000]`.",
+      ).optional(),
       userProvidedUnit: z.enum([
         "WEIGHT_UNIT_UNSPECIFIED",
         "GRAM",
@@ -2155,8 +2161,9 @@ const GlobalArgsSchema = z.object({
       "Optional. Value representing the total carbohydrate of the food for the default serving.",
     ).optional(),
     totalFat: z.object({
-      grams: z.number().describe("Required. The weight value in grams.")
-        .optional(),
+      grams: z.number().describe(
+        "Required. The weight value in grams. Must be in the range `[0, 100000]`.",
+      ).optional(),
       userProvidedUnit: z.enum([
         "WEIGHT_UNIT_UNSPECIFIED",
         "GRAM",
@@ -2183,7 +2190,7 @@ const GlobalArgsSchema = z.object({
   }).describe("Optional. The food measurement unit details.").optional(),
   heartRate: z.object({
     beatsPerMinute: z.string().describe(
-      "Required. The heart rate value in beats per minute.",
+      "Required. The heart rate value in beats per minute. Must be in the range `[1, 300]`.",
     ).optional(),
     metadata: z.object({
       motionContext: z.enum([
@@ -2257,7 +2264,7 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }).describe("Optional. Metadata used in 1P surfaces.").optional(),
     rootMeanSquareOfSuccessiveDifferencesMilliseconds: z.number().describe(
-      "Optional. The root mean square of successive differences between normal heartbeats. This is a measure of heart rate variability used by Google Health.",
+      "Optional. The root mean square of successive differences between normal heartbeats. This is a measure of heart rate variability used by Google Health. Must be in the range `[1, 200]`.",
     ).optional(),
     sampleTime: z.object({
       civilTime: z.object({
@@ -2307,7 +2314,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   height: z.object({
     heightMillimeters: z.string().describe(
-      "Required. Height of the user in millimeters.",
+      "Required. Height of the user in millimeters. Must be in the range `[0, 3000]`.",
     ).optional(),
     sampleTime: z.object({
       civilTime: z.object({
@@ -2355,7 +2362,7 @@ const GlobalArgsSchema = z.object({
   hydrationLog: z.object({
     amountConsumed: z.object({
       milliliters: z.number().describe(
-        "Required. Value representing the volume in milliliters.",
+        "Required. Value representing the volume in milliliters. Must be in the range `[0, 100000]`.",
       ).optional(),
       userProvidedUnit: z.enum([
         "VOLUME_UNIT_UNSPECIFIED",
@@ -2787,6 +2794,18 @@ const GlobalArgsSchema = z.object({
         "ACCOMPLISHED",
         "LOVING",
         "COMPASSIONATE",
+        "DEPRESSED",
+        "GOOD",
+        "LOW_ENERGY",
+        "OBSESSIVE_THOUGHTS",
+        "PANIC",
+        "PLAYFUL",
+        "PLEASED",
+        "SENSITIVE",
+        "SLEEPY",
+        "SWINGS",
+        "UNHAPPY",
+        "VERY_SELF_CRITICAL",
       ]),
     ).describe("Required. The moods logged.").optional(),
     sampleTime: z.object({
@@ -2839,8 +2858,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   nutritionLog: z.object({
     energy: z.object({
-      kcal: z.number().describe("Required. The energy value in kilocalories.")
-        .optional(),
+      kcal: z.number().describe(
+        "Required. The energy value in kilocalories. Must be in the range `[0, 100000]`.",
+      ).optional(),
       userProvidedUnit: z.enum([
         "ENERGY_UNIT_UNSPECIFIED",
         "JOULE",
@@ -2854,8 +2874,9 @@ const GlobalArgsSchema = z.object({
       "Optional. The total energy of the food, measured in kilocalories (`kcal`).",
     ).optional(),
     energyFromFat: z.object({
-      kcal: z.number().describe("Required. The energy value in kilocalories.")
-        .optional(),
+      kcal: z.number().describe(
+        "Required. The energy value in kilocalories. Must be in the range `[0, 100000]`.",
+      ).optional(),
       userProvidedUnit: z.enum([
         "ENERGY_UNIT_UNSPECIFIED",
         "JOULE",
@@ -3009,8 +3030,9 @@ const GlobalArgsSchema = z.object({
         "FOLATE",
       ]).describe("Required. The nutrient type.").optional(),
       quantity: z.object({
-        grams: z.number().describe("Required. The weight value in grams.")
-          .optional(),
+        grams: z.number().describe(
+          "Required. The weight value in grams. Must be in the range `[0, 100000]`.",
+        ).optional(),
         userProvidedUnit: z.enum([
           "WEIGHT_UNIT_UNSPECIFIED",
           "GRAM",
@@ -3040,8 +3062,9 @@ const GlobalArgsSchema = z.object({
     }).describe("Optional. The serving information for the logged food.")
       .optional(),
     totalCarbohydrate: z.object({
-      grams: z.number().describe("Required. The weight value in grams.")
-        .optional(),
+      grams: z.number().describe(
+        "Required. The weight value in grams. Must be in the range `[0, 100000]`.",
+      ).optional(),
       userProvidedUnit: z.enum([
         "WEIGHT_UNIT_UNSPECIFIED",
         "GRAM",
@@ -3057,8 +3080,9 @@ const GlobalArgsSchema = z.object({
     }).describe("Optional. The total carbohydrate content, measured in grams.")
       .optional(),
     totalFat: z.object({
-      grams: z.number().describe("Required. The weight value in grams.")
-        .optional(),
+      grams: z.number().describe(
+        "Required. The weight value in grams. Must be in the range `[0, 100000]`.",
+      ).optional(),
       userProvidedUnit: z.enum([
         "WEIGHT_UNIT_UNSPECIFIED",
         "GRAM",
@@ -3130,7 +3154,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   oxygenSaturation: z.object({
     percentage: z.number().describe(
-      "Required. The oxygen saturation percentage. Valid values are from 0 to 100.",
+      "Required. The oxygen saturation percentage. Must be in the range `[0, 100]`.",
     ).optional(),
     sampleTime: z.object({
       civilTime: z.object({
@@ -3267,8 +3291,9 @@ const GlobalArgsSchema = z.object({
     "Optional. Data for points in the `respiratory-rate-sleep-summary` sample data type collection.",
   ).optional(),
   runVo2Max: z.object({
-    runVo2Max: z.number().describe("Required. Run VO2 max value in ml/kg/min.")
-      .optional(),
+    runVo2Max: z.number().describe(
+      "Required. Run VO2 max value in ml/kg/min. Must be in the range `[0, 100]`.",
+    ).optional(),
     sampleTime: z.object({
       civilTime: z.object({
         date: z.object({
@@ -3624,7 +3649,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   steps: z.object({
     count: z.string().describe(
-      "Required. Number of steps in the recorded interval.",
+      "Required. Number of steps in the recorded interval. Must be in the range `[0, 1000000]`.",
     ).optional(),
     interval: z.object({
       civilEndTime: z.object({
@@ -4044,7 +4069,7 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }).describe("Required. The time at which VO2 max was measured.").optional(),
     vo2Max: z.number().describe(
-      "Required. VO2 max value measured as in ml consumed oxygen / kg of body weight / min.",
+      "Required. VO2 max value measured as in ml consumed oxygen / kg of body weight / min. Must be in the range `[0, 100]`.",
     ).optional(),
   }).describe(
     "Optional. Data for points in the `vo2-max` sample data type collection.",
@@ -4093,8 +4118,9 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }).describe("Required. The time at which the weight was measured")
       .optional(),
-    weightGrams: z.number().describe("Required. Weight of a user in grams.")
-      .optional(),
+    weightGrams: z.number().describe(
+      "Required. Weight of a user in grams. Must be in the range `[0, 1000000]`.",
+    ).optional(),
   }).describe(
     "Optional. Data for points in the `weight` sample data type collection.",
   ).optional(),
@@ -5565,7 +5591,7 @@ const InputsSchema = z.object({
       ).optional(),
     }).describe("Required. Observed interval").optional(),
     kcal: z.number().describe(
-      "Required. Energy burned during an activity, measured in kilocalories.",
+      "Required. Energy burned during an activity, measured in kilocalories. Must be in the range `[0, 1000000]`.",
     ).optional(),
   }).describe(
     "Optional. Data for points in the `active-energy-burned` interval data type collection.",
@@ -5838,7 +5864,7 @@ const InputsSchema = z.object({
   ).optional(),
   altitude: z.object({
     gainMillimeters: z.string().describe(
-      "Required. Altitude gain in millimeters over the observed interval.",
+      "Required. Altitude gain in millimeters over the observed interval. Must be in the range `[-1000000000, 1000000000]`.",
     ).optional(),
     interval: z.object({
       civilEndTime: z.object({
@@ -6000,7 +6026,7 @@ const InputsSchema = z.object({
   ).optional(),
   bloodGlucose: z.object({
     bloodGlucoseMilligramsPerDeciliter: z.number().describe(
-      "Required. Blood glucose level concentration in mg/dL.",
+      "Required. Blood glucose level concentration in mg/dL. Must be in the range `[0, 900]`.",
     ).optional(),
     mealType: z.enum([
       "MEAL_TYPE_UNSPECIFIED",
@@ -6083,7 +6109,7 @@ const InputsSchema = z.object({
   ).optional(),
   bodyFat: z.object({
     percentage: z.number().describe(
-      "Required. Body fat percentage, in range [0, 100].",
+      "Required. Body fat percentage. Must be in the range `[0, 100]`.",
     ).optional(),
     sampleTime: z.object({
       civilTime: z.object({
@@ -6196,7 +6222,7 @@ const InputsSchema = z.object({
       "Required. The time at which core body temperature was measured.",
     ).optional(),
     temperatureCelsius: z.number().describe(
-      "Required. The core body temperature in Celsius.",
+      "Required. The core body temperature in Celsius. Must be in the range `[0, 100]`.",
     ).optional(),
   }).describe(
     "Optional. Data for points in the `core-body-temperature` sample data type collection.",
@@ -6265,7 +6291,7 @@ const InputsSchema = z.object({
   ).optional(),
   dailyOxygenSaturation: z.object({
     averagePercentage: z.number().describe(
-      "Required. The average value of the oxygen saturation samples during the sleep.",
+      "Required. The average value of the oxygen saturation samples during the sleep. Must be in the range `[0, 100]`.",
     ).optional(),
     date: z.object({
       day: z.number().int().describe(
@@ -6281,13 +6307,13 @@ const InputsSchema = z.object({
       "Required. Date (in user's timezone) of the daily oxygen saturation record.",
     ).optional(),
     lowerBoundPercentage: z.number().describe(
-      "Required. The lower bound of the confidence interval of oxygen saturation samples during sleep.",
+      "Required. The lower bound of the confidence interval of oxygen saturation samples during sleep. Must be in the range `[0, 100]`.",
     ).optional(),
     standardDeviationPercentage: z.number().describe(
       "Optional. Standard deviation of the daily oxygen saturation averages from the past 7-30 days.",
     ).optional(),
     upperBoundPercentage: z.number().describe(
-      "Required. The upper bound of the confidence interval of oxygen saturation samples during sleep.",
+      "Required. The upper bound of the confidence interval of oxygen saturation samples during sleep. Must be in the range `[0, 100]`.",
     ).optional(),
   }).describe(
     "Optional. Data for points in the `daily-oxygen-saturation` daily data type collection.",
@@ -6396,7 +6422,7 @@ const InputsSchema = z.object({
       "Optional. An estimated field is added to indicate when the confidence has decreased sufficiently to consider the value an estimation.",
     ).optional(),
     vo2Max: z.number().describe(
-      "Required. Daily VO2 max value measured as in ml consumed oxygen / kg of body weight / min.",
+      "Required. Daily VO2 max value measured as in ml consumed oxygen / kg of body weight / min. Must be in the range `[0, 100]`.",
     ).optional(),
     vo2MaxCovariance: z.number().describe(
       "Optional. The covariance of the VO2 max value.",
@@ -6538,7 +6564,7 @@ const InputsSchema = z.object({
       ).optional(),
     }).describe("Required. Observed interval.").optional(),
     millimeters: z.string().describe(
-      "Required. Distance in millimeters over the observed interval.",
+      "Required. Distance in millimeters over the observed interval. Must be in the range `[0, 1000000000]`.",
     ).optional(),
   }).describe(
     "Optional. Data for points in the `distance` interval data type collection.",
@@ -7222,7 +7248,7 @@ const InputsSchema = z.object({
   ).optional(),
   floors: z.object({
     count: z.string().describe(
-      "Required. Number of floors in the recorded interval",
+      "Required. Number of floors in the recorded interval. Must be in the range `[0, 1000000]`.",
     ).optional(),
     interval: z.object({
       civilEndTime: z.object({
@@ -7331,8 +7357,9 @@ const InputsSchema = z.object({
     displayName: z.string().describe("Required. The display name of the food.")
       .optional(),
     energyAvg: z.object({
-      kcal: z.number().describe("Required. The energy value in kilocalories.")
-        .optional(),
+      kcal: z.number().describe(
+        "Required. The energy value in kilocalories. Must be in the range `[0, 100000]`.",
+      ).optional(),
       userProvidedUnit: z.enum([
         "ENERGY_UNIT_UNSPECIFIED",
         "JOULE",
@@ -7346,8 +7373,9 @@ const InputsSchema = z.object({
       "Optional. Value representing the average energy of the food for the default serving.",
     ).optional(),
     energyFromFat: z.object({
-      kcal: z.number().describe("Required. The energy value in kilocalories.")
-        .optional(),
+      kcal: z.number().describe(
+        "Required. The energy value in kilocalories. Must be in the range `[0, 100000]`.",
+      ).optional(),
       userProvidedUnit: z.enum([
         "ENERGY_UNIT_UNSPECIFIED",
         "JOULE",
@@ -7361,8 +7389,9 @@ const InputsSchema = z.object({
       "Optional. Value representing the energy from fat of the food for the default serving.",
     ).optional(),
     energyMax: z.object({
-      kcal: z.number().describe("Required. The energy value in kilocalories.")
-        .optional(),
+      kcal: z.number().describe(
+        "Required. The energy value in kilocalories. Must be in the range `[0, 100000]`.",
+      ).optional(),
       userProvidedUnit: z.enum([
         "ENERGY_UNIT_UNSPECIFIED",
         "JOULE",
@@ -7376,8 +7405,9 @@ const InputsSchema = z.object({
       "Optional. Value representing the maximum energy of the food for the default serving.",
     ).optional(),
     energyMin: z.object({
-      kcal: z.number().describe("Required. The energy value in kilocalories.")
-        .optional(),
+      kcal: z.number().describe(
+        "Required. The energy value in kilocalories. Must be in the range `[0, 100000]`.",
+      ).optional(),
       userProvidedUnit: z.enum([
         "ENERGY_UNIT_UNSPECIFIED",
         "JOULE",
@@ -7450,8 +7480,9 @@ const InputsSchema = z.object({
         "FOLATE",
       ]).describe("Required. The nutrient type.").optional(),
       quantity: z.object({
-        grams: z.number().describe("Required. The weight value in grams.")
-          .optional(),
+        grams: z.number().describe(
+          "Required. The weight value in grams. Must be in the range `[0, 100000]`.",
+        ).optional(),
         userProvidedUnit: z.enum([
           "WEIGHT_UNIT_UNSPECIFIED",
           "GRAM",
@@ -7487,8 +7518,9 @@ const InputsSchema = z.object({
       ).optional(),
     })).describe("Optional. The serving of the food.").optional(),
     totalCarbohydrate: z.object({
-      grams: z.number().describe("Required. The weight value in grams.")
-        .optional(),
+      grams: z.number().describe(
+        "Required. The weight value in grams. Must be in the range `[0, 100000]`.",
+      ).optional(),
       userProvidedUnit: z.enum([
         "WEIGHT_UNIT_UNSPECIFIED",
         "GRAM",
@@ -7505,8 +7537,9 @@ const InputsSchema = z.object({
       "Optional. Value representing the total carbohydrate of the food for the default serving.",
     ).optional(),
     totalFat: z.object({
-      grams: z.number().describe("Required. The weight value in grams.")
-        .optional(),
+      grams: z.number().describe(
+        "Required. The weight value in grams. Must be in the range `[0, 100000]`.",
+      ).optional(),
       userProvidedUnit: z.enum([
         "WEIGHT_UNIT_UNSPECIFIED",
         "GRAM",
@@ -7533,7 +7566,7 @@ const InputsSchema = z.object({
   }).describe("Optional. The food measurement unit details.").optional(),
   heartRate: z.object({
     beatsPerMinute: z.string().describe(
-      "Required. The heart rate value in beats per minute.",
+      "Required. The heart rate value in beats per minute. Must be in the range `[1, 300]`.",
     ).optional(),
     metadata: z.object({
       motionContext: z.enum([
@@ -7607,7 +7640,7 @@ const InputsSchema = z.object({
       ).optional(),
     }).describe("Optional. Metadata used in 1P surfaces.").optional(),
     rootMeanSquareOfSuccessiveDifferencesMilliseconds: z.number().describe(
-      "Optional. The root mean square of successive differences between normal heartbeats. This is a measure of heart rate variability used by Google Health.",
+      "Optional. The root mean square of successive differences between normal heartbeats. This is a measure of heart rate variability used by Google Health. Must be in the range `[1, 200]`.",
     ).optional(),
     sampleTime: z.object({
       civilTime: z.object({
@@ -7657,7 +7690,7 @@ const InputsSchema = z.object({
   ).optional(),
   height: z.object({
     heightMillimeters: z.string().describe(
-      "Required. Height of the user in millimeters.",
+      "Required. Height of the user in millimeters. Must be in the range `[0, 3000]`.",
     ).optional(),
     sampleTime: z.object({
       civilTime: z.object({
@@ -7705,7 +7738,7 @@ const InputsSchema = z.object({
   hydrationLog: z.object({
     amountConsumed: z.object({
       milliliters: z.number().describe(
-        "Required. Value representing the volume in milliliters.",
+        "Required. Value representing the volume in milliliters. Must be in the range `[0, 100000]`.",
       ).optional(),
       userProvidedUnit: z.enum([
         "VOLUME_UNIT_UNSPECIFIED",
@@ -8137,6 +8170,18 @@ const InputsSchema = z.object({
         "ACCOMPLISHED",
         "LOVING",
         "COMPASSIONATE",
+        "DEPRESSED",
+        "GOOD",
+        "LOW_ENERGY",
+        "OBSESSIVE_THOUGHTS",
+        "PANIC",
+        "PLAYFUL",
+        "PLEASED",
+        "SENSITIVE",
+        "SLEEPY",
+        "SWINGS",
+        "UNHAPPY",
+        "VERY_SELF_CRITICAL",
       ]),
     ).describe("Required. The moods logged.").optional(),
     sampleTime: z.object({
@@ -8189,8 +8234,9 @@ const InputsSchema = z.object({
   ).optional(),
   nutritionLog: z.object({
     energy: z.object({
-      kcal: z.number().describe("Required. The energy value in kilocalories.")
-        .optional(),
+      kcal: z.number().describe(
+        "Required. The energy value in kilocalories. Must be in the range `[0, 100000]`.",
+      ).optional(),
       userProvidedUnit: z.enum([
         "ENERGY_UNIT_UNSPECIFIED",
         "JOULE",
@@ -8204,8 +8250,9 @@ const InputsSchema = z.object({
       "Optional. The total energy of the food, measured in kilocalories (`kcal`).",
     ).optional(),
     energyFromFat: z.object({
-      kcal: z.number().describe("Required. The energy value in kilocalories.")
-        .optional(),
+      kcal: z.number().describe(
+        "Required. The energy value in kilocalories. Must be in the range `[0, 100000]`.",
+      ).optional(),
       userProvidedUnit: z.enum([
         "ENERGY_UNIT_UNSPECIFIED",
         "JOULE",
@@ -8359,8 +8406,9 @@ const InputsSchema = z.object({
         "FOLATE",
       ]).describe("Required. The nutrient type.").optional(),
       quantity: z.object({
-        grams: z.number().describe("Required. The weight value in grams.")
-          .optional(),
+        grams: z.number().describe(
+          "Required. The weight value in grams. Must be in the range `[0, 100000]`.",
+        ).optional(),
         userProvidedUnit: z.enum([
           "WEIGHT_UNIT_UNSPECIFIED",
           "GRAM",
@@ -8390,8 +8438,9 @@ const InputsSchema = z.object({
     }).describe("Optional. The serving information for the logged food.")
       .optional(),
     totalCarbohydrate: z.object({
-      grams: z.number().describe("Required. The weight value in grams.")
-        .optional(),
+      grams: z.number().describe(
+        "Required. The weight value in grams. Must be in the range `[0, 100000]`.",
+      ).optional(),
       userProvidedUnit: z.enum([
         "WEIGHT_UNIT_UNSPECIFIED",
         "GRAM",
@@ -8407,8 +8456,9 @@ const InputsSchema = z.object({
     }).describe("Optional. The total carbohydrate content, measured in grams.")
       .optional(),
     totalFat: z.object({
-      grams: z.number().describe("Required. The weight value in grams.")
-        .optional(),
+      grams: z.number().describe(
+        "Required. The weight value in grams. Must be in the range `[0, 100000]`.",
+      ).optional(),
       userProvidedUnit: z.enum([
         "WEIGHT_UNIT_UNSPECIFIED",
         "GRAM",
@@ -8480,7 +8530,7 @@ const InputsSchema = z.object({
   ).optional(),
   oxygenSaturation: z.object({
     percentage: z.number().describe(
-      "Required. The oxygen saturation percentage. Valid values are from 0 to 100.",
+      "Required. The oxygen saturation percentage. Must be in the range `[0, 100]`.",
     ).optional(),
     sampleTime: z.object({
       civilTime: z.object({
@@ -8617,8 +8667,9 @@ const InputsSchema = z.object({
     "Optional. Data for points in the `respiratory-rate-sleep-summary` sample data type collection.",
   ).optional(),
   runVo2Max: z.object({
-    runVo2Max: z.number().describe("Required. Run VO2 max value in ml/kg/min.")
-      .optional(),
+    runVo2Max: z.number().describe(
+      "Required. Run VO2 max value in ml/kg/min. Must be in the range `[0, 100]`.",
+    ).optional(),
     sampleTime: z.object({
       civilTime: z.object({
         date: z.object({
@@ -8974,7 +9025,7 @@ const InputsSchema = z.object({
   ).optional(),
   steps: z.object({
     count: z.string().describe(
-      "Required. Number of steps in the recorded interval.",
+      "Required. Number of steps in the recorded interval. Must be in the range `[0, 1000000]`.",
     ).optional(),
     interval: z.object({
       civilEndTime: z.object({
@@ -9394,7 +9445,7 @@ const InputsSchema = z.object({
       ).optional(),
     }).describe("Required. The time at which VO2 max was measured.").optional(),
     vo2Max: z.number().describe(
-      "Required. VO2 max value measured as in ml consumed oxygen / kg of body weight / min.",
+      "Required. VO2 max value measured as in ml consumed oxygen / kg of body weight / min. Must be in the range `[0, 100]`.",
     ).optional(),
   }).describe(
     "Optional. Data for points in the `vo2-max` sample data type collection.",
@@ -9443,8 +9494,9 @@ const InputsSchema = z.object({
       ).optional(),
     }).describe("Required. The time at which the weight was measured")
       .optional(),
-    weightGrams: z.number().describe("Required. Weight of a user in grams.")
-      .optional(),
+    weightGrams: z.number().describe(
+      "Required. Weight of a user in grams. Must be in the range `[0, 1000000]`.",
+    ).optional(),
   }).describe(
     "Optional. Data for points in the `weight` sample data type collection.",
   ).optional(),
@@ -9479,7 +9531,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Health Users.DataTypes.DataPoints. Registered at `@swamp/gcp/health/users-datatypes-datapoints`. */
 export const model = {
   type: "@swamp/gcp/health/users-datatypes-datapoints",
-  version: "2026.09.09.1",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -9671,6 +9723,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.09.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

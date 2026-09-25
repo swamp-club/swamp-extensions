@@ -170,6 +170,7 @@ const GlobalArgsSchema = z.object({
     target_hostname: z.array(z.string()).optional(),
     target_ip: z.array(z.string()).optional(),
     target_zone_name: z.array(z.string()).optional(),
+    token_id: z.array(z.string().min(1).regex(new RegExp("\\S"))).optional(),
     traffic_exclusions: z.array(z.enum(["security_events"])).optional(),
     tunnel_id: z.array(z.string()).optional(),
     tunnel_name: z.array(z.string()).optional(),
@@ -248,6 +249,7 @@ const ResourceSchema = z.object({
     target_hostname: z.array(z.string()).optional(),
     target_ip: z.array(z.string()).optional(),
     target_zone_name: z.array(z.string()).optional(),
+    token_id: z.array(z.string()).optional(),
     traffic_exclusions: z.array(z.string()).optional(),
     tunnel_id: z.array(z.string()).optional(),
     tunnel_name: z.array(z.string()).optional(),
@@ -394,6 +396,7 @@ const InputsSchema = z.object({
     target_hostname: z.array(z.string()).optional(),
     target_ip: z.array(z.string()).optional(),
     target_zone_name: z.array(z.string()).optional(),
+    token_id: z.array(z.string().min(1).regex(new RegExp("\\S"))).optional(),
     traffic_exclusions: z.array(z.enum(["security_events"])).optional(),
     tunnel_id: z.array(z.string()).optional(),
     tunnel_name: z.array(z.string()).optional(),
@@ -421,7 +424,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Policies. Registered at `@swamp/cloudflare/alerting/policies`. */
 export const model = {
   type: "@swamp/cloudflare/alerting/policies",
-  version: "2026.07.21.1",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -440,6 +443,11 @@ export const model = {
     },
     {
       toVersion: "2026.07.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

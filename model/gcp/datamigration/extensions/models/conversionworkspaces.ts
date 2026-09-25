@@ -244,8 +244,10 @@ const StateSchema = z.object({
   displayName: z.string().optional(),
   globalSettings: z.record(z.string(), z.unknown()).optional(),
   hasUncommittedChanges: z.boolean().optional(),
+  latestApplyTime: z.string().optional(),
   latestCommitId: z.string().optional(),
   latestCommitTime: z.string().optional(),
+  latestConvertTime: z.string().optional(),
   name: z.string(),
   source: z.object({
     engine: z.string(),
@@ -351,7 +353,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Database Migration ConversionWorkspaces. Registered at `@swamp/gcp/datamigration/conversionworkspaces`. */
 export const model = {
   type: "@swamp/gcp/datamigration/conversionworkspaces",
-  version: "2026.09.07.2",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -495,6 +497,11 @@ export const model = {
         const { engine: _engine, version: _version, ...rest } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.09.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -1125,6 +1132,146 @@ export const model = {
         return { result };
       },
     },
+    fetch_entities_status_view: {
+      description: "fetch entities status view",
+      arguments: z.object({
+        fetchView: z.any().optional(),
+        filter: z.any().optional(),
+        pageSize: z.any().optional(),
+        pageToken: z.any().optional(),
+        tree: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["conversionWorkspace"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        if (args["fetchView"] !== undefined) {
+          params["fetchView"] = String(args["fetchView"]);
+        }
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["pageToken"] !== undefined) {
+          params["pageToken"] = String(args["pageToken"]);
+        }
+        if (args["tree"] !== undefined) params["tree"] = String(args["tree"]);
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "datamigration.projects.locations.conversionWorkspaces.fetchEntitiesStatusView",
+            "path": "v1/{+conversionWorkspace}:fetchEntitiesStatusView",
+            "httpMethod": "GET",
+            "parameterOrder": ["conversionWorkspace"],
+            "parameters": {
+              "conversionWorkspace": { "location": "path", "required": true },
+              "fetchView": { "location": "query" },
+              "filter": { "location": "query" },
+              "pageSize": { "location": "query" },
+              "pageToken": { "location": "query" },
+              "tree": { "location": "query" },
+            },
+          },
+          params,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    fetch_issues: {
+      description: "fetch issues",
+      arguments: z.object({
+        allIssues: z.any().optional(),
+        filter: z.any().optional(),
+        pageSize: z.any().optional(),
+        pageToken: z.any().optional(),
+        tree: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["conversionWorkspace"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        if (args["allIssues"] !== undefined) {
+          params["allIssues"] = String(args["allIssues"]);
+        }
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["pageToken"] !== undefined) {
+          params["pageToken"] = String(args["pageToken"]);
+        }
+        if (args["tree"] !== undefined) params["tree"] = String(args["tree"]);
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "datamigration.projects.locations.conversionWorkspaces.fetchIssues",
+            "path": "v1/{+conversionWorkspace}:fetchIssues",
+            "httpMethod": "GET",
+            "parameterOrder": ["conversionWorkspace"],
+            "parameters": {
+              "allIssues": { "location": "query" },
+              "conversionWorkspace": { "location": "path", "required": true },
+              "filter": { "location": "query" },
+              "pageSize": { "location": "query" },
+              "pageToken": { "location": "query" },
+              "tree": { "location": "query" },
+            },
+          },
+          params,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
     get_iam_policy: {
       description: "get iam policy",
       arguments: z.object({
@@ -1318,6 +1465,74 @@ export const model = {
             "httpMethod": "POST",
             "parameterOrder": ["name"],
             "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    set_draft_entity_ddl: {
+      description: "set draft entity ddl",
+      arguments: z.object({
+        basedOnDdlKind: z.any().optional(),
+        ddl: z.any().optional(),
+        ddlKind: z.any().optional(),
+        entityName: z.any().optional(),
+        entityType: z.any().optional(),
+        explanation: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["conversionWorkspace"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["basedOnDdlKind"] !== undefined) {
+          body["basedOnDdlKind"] = args["basedOnDdlKind"];
+        }
+        if (args["ddl"] !== undefined) body["ddl"] = args["ddl"];
+        if (args["ddlKind"] !== undefined) body["ddlKind"] = args["ddlKind"];
+        if (args["entityName"] !== undefined) {
+          body["entityName"] = args["entityName"];
+        }
+        if (args["entityType"] !== undefined) {
+          body["entityType"] = args["entityType"];
+        }
+        if (args["explanation"] !== undefined) {
+          body["explanation"] = args["explanation"];
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "datamigration.projects.locations.conversionWorkspaces.setDraftEntityDdl",
+            "path": "v1/{+conversionWorkspace}:setDraftEntityDdl",
+            "httpMethod": "POST",
+            "parameterOrder": ["conversionWorkspace"],
+            "parameters": {
+              "conversionWorkspace": { "location": "path", "required": true },
+            },
           },
           params,
           body,

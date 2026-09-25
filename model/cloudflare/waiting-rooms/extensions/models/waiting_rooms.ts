@@ -85,6 +85,7 @@ const GlobalArgsSchema = z.object({
     "da-DK",
     "fi-FI",
     "lt-LT",
+    "lv-LV",
     "ms-MY",
     "nb-NO",
     "ro-RO",
@@ -243,6 +244,7 @@ const InputsSchema = z.object({
     "da-DK",
     "fi-FI",
     "lt-LT",
+    "lv-LV",
     "ms-MY",
     "nb-NO",
     "ro-RO",
@@ -293,7 +295,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Waiting Rooms. Registered at `@swamp/cloudflare/waiting-rooms/waiting-rooms`. */
 export const model = {
   type: "@swamp/cloudflare/waiting-rooms/waiting-rooms",
-  version: "2026.08.26.1",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -332,6 +334,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

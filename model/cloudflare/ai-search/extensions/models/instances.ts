@@ -71,7 +71,7 @@ const GlobalArgsSchema = z.object({
     keyword: z.boolean(),
     vector: z.boolean(),
   }).describe(
-    "Controls which storage backends are used during indexing. Defaults to vector-only.",
+    "Controls which storage backends are used during indexing. Defaults to vector and keyword indexing for new instances.",
   ).optional(),
   indexing_options: z.object({
     keyword_tokenizer: z.enum(["porter", "trigram"]).optional(),
@@ -158,14 +158,16 @@ const GlobalArgsSchema = z.object({
   system_prompt_rewrite_query: z.string().optional(),
   token_id: z.string().optional(),
   hybrid_search_enabled: z.boolean().describe(
-    "Deprecated — use index_method instead.",
+    "Deprecated — use index_method instead. Defaults to true for new instances; set false to create a vector-only instance.",
   ).optional(),
   id: z.string().min(1).max(64).regex(
     new RegExp("^[a-z0-9_]+(?:-[a-z0-9_]+)*$"),
   ).describe(
     "AI Search instance ID. Lowercase alphanumeric, hyphens, and underscores.",
   ),
-  type: z.enum(["r2", "web-crawler"]).optional(),
+  type: z.enum(["r2", "web-crawler"]).describe(
+    "Source type. When omitted or null with a non-blank source, HTTP(S) URLs infer web-crawler and existing R2 bucket names infer r2. A missing or blank source without a type uses managed upload-only storage.",
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -406,7 +408,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Instances. Registered at `@swamp/cloudflare/ai-search/instances`. */
 export const model = {
   type: "@swamp/cloudflare/ai-search/instances",
-  version: "2026.09.11.1",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -475,6 +477,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.11.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

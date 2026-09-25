@@ -200,6 +200,9 @@ const GlobalArgsSchema = z.object({
     "USER_TYPE_UNSPECIFIED",
     "ALLOYDB_BUILT_IN",
     "ALLOYDB_IAM_USER",
+    "ALLOYDB_IAM_GROUP",
+    "ALLOYDB_IAM_GROUP_USER",
+    "ALLOYDB_IAM_GROUP_SERVICE_ACCOUNT",
   ]).describe("Optional. Type of this user.").optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server ignores the request if it has already been completed. The server guarantees that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if the original operation with the same request ID was received, and if so, ignores the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -247,6 +250,9 @@ const InputsSchema = z.object({
     "USER_TYPE_UNSPECIFIED",
     "ALLOYDB_BUILT_IN",
     "ALLOYDB_IAM_USER",
+    "ALLOYDB_IAM_GROUP",
+    "ALLOYDB_IAM_GROUP_USER",
+    "ALLOYDB_IAM_GROUP_SERVICE_ACCOUNT",
   ]).describe("Optional. Type of this user.").optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server ignores the request if it has already been completed. The server guarantees that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if the original operation with the same request ID was received, and if so, ignores the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -290,7 +296,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud AlloyDB Clusters.Users. Registered at `@swamp/gcp/alloydb/clusters-users`. */
 export const model = {
   type: "@swamp/gcp/alloydb/clusters-users",
-  version: "2026.09.07.1",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -425,6 +431,11 @@ export const model = {
     {
       toVersion: "2026.09.07.1",
       description: "Added: allowMissing",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

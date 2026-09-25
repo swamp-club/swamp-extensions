@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/apihub"
-version: "2026.09.09.1"
+version: "2026.09.25.1"
 description: "Google Cloud apihub infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: apis_versions_specs, deployments
+  - Updated: apis, apis_versions, apis_versions_specs, attributes, dependencies, deployments, externalapis, plugins, plugins_instances
 models:
   - addons.ts
   - apihubinstances.ts

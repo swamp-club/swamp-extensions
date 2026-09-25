@@ -203,11 +203,16 @@ const StateSchema = z.object({
       })),
     }),
     metrics: z.array(z.object({
+      crashFreeSessionsPercentage: z.number(),
+      crashFreeUsersPercentage: z.number(),
       endTime: z.string(),
       eventsCount: z.string(),
+      impactedSessionsCount: z.string(),
       impactedUsersCount: z.string(),
       sessionsCount: z.string(),
       startTime: z.string(),
+      totalSessionsCount: z.string(),
+      totalUsersCount: z.string(),
     })),
     operatingSystem: z.object({
       deviceType: z.string(),
@@ -286,7 +291,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firebase Crashlytics Apps.Reports. Registered at `@swamp/gcp/firebasecrashlytics/apps-reports`. */
 export const model = {
   type: "@swamp/gcp/firebasecrashlytics/apps-reports",
-  version: "2026.08.12.2",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.07.17.1",
@@ -325,6 +330,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -177,7 +177,7 @@ const GlobalArgsSchema = z.object({
           "Required. The display name of the allowed value.",
         ).optional(),
         id: z.string().describe(
-          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
         ).optional(),
         immutable: z.boolean().describe(
           "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -225,7 +225,7 @@ const GlobalArgsSchema = z.object({
           "Required. The display name of the allowed value.",
         ).optional(),
         id: z.string().describe(
-          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
         ).optional(),
         immutable: z.boolean().describe(
           "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -273,7 +273,7 @@ const GlobalArgsSchema = z.object({
           "Required. The display name of the allowed value.",
         ).optional(),
         id: z.string().describe(
-          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
         ).optional(),
         immutable: z.boolean().describe(
           "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -321,7 +321,7 @@ const GlobalArgsSchema = z.object({
           "Required. The display name of the allowed value.",
         ).optional(),
         id: z.string().describe(
-          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
         ).optional(),
         immutable: z.boolean().describe(
           "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -371,7 +371,7 @@ const GlobalArgsSchema = z.object({
             "Required. The display name of the allowed value.",
           ).optional(),
           id: z.unknown().describe(
-            "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+            "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
           ).optional(),
           immutable: z.unknown().describe(
             "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -420,7 +420,7 @@ const GlobalArgsSchema = z.object({
           "Required. The display name of the allowed value.",
         ).optional(),
         id: z.string().describe(
-          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
         ).optional(),
         immutable: z.boolean().describe(
           "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -482,7 +482,7 @@ const GlobalArgsSchema = z.object({
           "Required. The display name of the allowed value.",
         ).optional(),
         id: z.string().describe(
-          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
         ).optional(),
         immutable: z.boolean().describe(
           "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -528,6 +528,54 @@ const GlobalArgsSchema = z.object({
   selectedVersion: z.string().describe(
     "Optional. The selected version for an API resource. This can be used when special handling is needed on client side for particular version of the API. Format is `projects/{project}/locations/{location}/apis/{api}/versions/{version}`",
   ).optional(),
+  serviceType: z.object({
+    attribute: z.string().describe(
+      "Output only. The name of the attribute. Format: projects/{project}/locations/{location}/attributes/{attribute}",
+    ).optional(),
+    enumValues: z.object({
+      values: z.array(z.object({
+        description: z.string().describe(
+          "Optional. The detailed description of the allowed value.",
+        ).optional(),
+        displayName: z.string().describe(
+          "Required. The display name of the allowed value.",
+        ).optional(),
+        id: z.string().describe(
+          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
+        ).optional(),
+        immutable: z.boolean().describe(
+          "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
+        ).optional(),
+      })).describe(
+        "Required. The attribute values in case attribute data type is enum.",
+      ).optional(),
+    }).describe(
+      "The attribute values associated with a resource in case attribute data type is enum.",
+    ).optional(),
+    jsonValues: z.object({
+      values: z.array(z.string()).describe(
+        "Required. The attribute values in case attribute data type is string or JSON.",
+      ).optional(),
+    }).describe(
+      "The attribute values associated with a resource in case attribute data type is JSON.",
+    ).optional(),
+    stringValues: z.object({
+      values: z.array(z.string()).describe(
+        "Required. The attribute values in case attribute data type is string or JSON.",
+      ).optional(),
+    }).describe(
+      "The attribute values associated with a resource in case attribute data type is string.",
+    ).optional(),
+    uriValues: z.object({
+      values: z.array(z.string()).describe(
+        "Required. The attribute values in case attribute data type is string or JSON.",
+      ).optional(),
+    }).describe(
+      "The attribute values associated with a resource in case attribute data type is URL, URI or IP, like gs://bucket-name/object-name.",
+    ).optional(),
+  }).describe(
+    "Optional. The type of the service. This maps to the following system defined attribute: `projects/{project}/locations/{location}/attributes/system-service-type` attribute. The cardinality of this attribute is 1. All values should be from the list of allowed values defined for the attribute.",
+  ).optional(),
   targetUser: z.object({
     attribute: z.string().describe(
       "Output only. The name of the attribute. Format: projects/{project}/locations/{location}/attributes/{attribute}",
@@ -541,7 +589,7 @@ const GlobalArgsSchema = z.object({
           "Required. The display name of the allowed value.",
         ).optional(),
         id: z.string().describe(
-          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
         ).optional(),
         immutable: z.boolean().describe(
           "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -589,7 +637,7 @@ const GlobalArgsSchema = z.object({
           "Required. The display name of the allowed value.",
         ).optional(),
         id: z.string().describe(
-          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
         ).optional(),
         immutable: z.boolean().describe(
           "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -767,6 +815,26 @@ const StateSchema = z.object({
     email: z.string(),
   }).optional(),
   selectedVersion: z.string().optional(),
+  serviceType: z.object({
+    attribute: z.string(),
+    enumValues: z.object({
+      values: z.array(z.object({
+        description: z.string(),
+        displayName: z.string(),
+        id: z.string(),
+        immutable: z.boolean(),
+      })),
+    }),
+    jsonValues: z.object({
+      values: z.array(z.string()),
+    }),
+    stringValues: z.object({
+      values: z.array(z.string()),
+    }),
+    uriValues: z.object({
+      values: z.array(z.string()),
+    }),
+  }).optional(),
   sourceMetadata: z.array(z.object({
     originalResourceCreateTime: z.string(),
     originalResourceId: z.string(),
@@ -843,7 +911,7 @@ const InputsSchema = z.object({
           "Required. The display name of the allowed value.",
         ).optional(),
         id: z.string().describe(
-          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
         ).optional(),
         immutable: z.boolean().describe(
           "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -891,7 +959,7 @@ const InputsSchema = z.object({
           "Required. The display name of the allowed value.",
         ).optional(),
         id: z.string().describe(
-          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
         ).optional(),
         immutable: z.boolean().describe(
           "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -939,7 +1007,7 @@ const InputsSchema = z.object({
           "Required. The display name of the allowed value.",
         ).optional(),
         id: z.string().describe(
-          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
         ).optional(),
         immutable: z.boolean().describe(
           "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -987,7 +1055,7 @@ const InputsSchema = z.object({
           "Required. The display name of the allowed value.",
         ).optional(),
         id: z.string().describe(
-          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
         ).optional(),
         immutable: z.boolean().describe(
           "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -1037,7 +1105,7 @@ const InputsSchema = z.object({
             "Required. The display name of the allowed value.",
           ).optional(),
           id: z.unknown().describe(
-            "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+            "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
           ).optional(),
           immutable: z.unknown().describe(
             "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -1086,7 +1154,7 @@ const InputsSchema = z.object({
           "Required. The display name of the allowed value.",
         ).optional(),
         id: z.string().describe(
-          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
         ).optional(),
         immutable: z.boolean().describe(
           "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -1148,7 +1216,7 @@ const InputsSchema = z.object({
           "Required. The display name of the allowed value.",
         ).optional(),
         id: z.string().describe(
-          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
         ).optional(),
         immutable: z.boolean().describe(
           "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -1194,6 +1262,54 @@ const InputsSchema = z.object({
   selectedVersion: z.string().describe(
     "Optional. The selected version for an API resource. This can be used when special handling is needed on client side for particular version of the API. Format is `projects/{project}/locations/{location}/apis/{api}/versions/{version}`",
   ).optional(),
+  serviceType: z.object({
+    attribute: z.string().describe(
+      "Output only. The name of the attribute. Format: projects/{project}/locations/{location}/attributes/{attribute}",
+    ).optional(),
+    enumValues: z.object({
+      values: z.array(z.object({
+        description: z.string().describe(
+          "Optional. The detailed description of the allowed value.",
+        ).optional(),
+        displayName: z.string().describe(
+          "Required. The display name of the allowed value.",
+        ).optional(),
+        id: z.string().describe(
+          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
+        ).optional(),
+        immutable: z.boolean().describe(
+          "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
+        ).optional(),
+      })).describe(
+        "Required. The attribute values in case attribute data type is enum.",
+      ).optional(),
+    }).describe(
+      "The attribute values associated with a resource in case attribute data type is enum.",
+    ).optional(),
+    jsonValues: z.object({
+      values: z.array(z.string()).describe(
+        "Required. The attribute values in case attribute data type is string or JSON.",
+      ).optional(),
+    }).describe(
+      "The attribute values associated with a resource in case attribute data type is JSON.",
+    ).optional(),
+    stringValues: z.object({
+      values: z.array(z.string()).describe(
+        "Required. The attribute values in case attribute data type is string or JSON.",
+      ).optional(),
+    }).describe(
+      "The attribute values associated with a resource in case attribute data type is string.",
+    ).optional(),
+    uriValues: z.object({
+      values: z.array(z.string()).describe(
+        "Required. The attribute values in case attribute data type is string or JSON.",
+      ).optional(),
+    }).describe(
+      "The attribute values associated with a resource in case attribute data type is URL, URI or IP, like gs://bucket-name/object-name.",
+    ).optional(),
+  }).describe(
+    "Optional. The type of the service. This maps to the following system defined attribute: `projects/{project}/locations/{location}/attributes/system-service-type` attribute. The cardinality of this attribute is 1. All values should be from the list of allowed values defined for the attribute.",
+  ).optional(),
   targetUser: z.object({
     attribute: z.string().describe(
       "Output only. The name of the attribute. Format: projects/{project}/locations/{location}/attributes/{attribute}",
@@ -1207,7 +1323,7 @@ const InputsSchema = z.object({
           "Required. The display name of the allowed value.",
         ).optional(),
         id: z.string().describe(
-          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
         ).optional(),
         immutable: z.boolean().describe(
           "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -1255,7 +1371,7 @@ const InputsSchema = z.object({
           "Required. The display name of the allowed value.",
         ).optional(),
         id: z.string().describe(
-          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 4-63 characters, and valid characters are /a-z-/.",
+          "Required. The ID of the allowed value. * If provided, the same will be used. The service will throw an error if the specified id is already used by another allowed value in the same attribute resource. * If not provided, a system generated id derived from the display name will be used. In this case, the service will handle conflict resolution by adding a system generated suffix in case of duplicates. This value should be 3-500 characters, and valid characters are /a-z[0-9]-_/.",
         ).optional(),
         immutable: z.boolean().describe(
           "Optional. When set to true, the allowed value cannot be updated or deleted by the user. It can only be true for System defined attributes.",
@@ -1324,7 +1440,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API hub Apis. Registered at `@swamp/gcp/apihub/apis`. */
 export const model = {
   type: "@swamp/gcp/apihub/apis",
-  version: "2026.08.22.1",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1466,6 +1582,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.25.1",
+      description: "Added: serviceType",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1525,6 +1646,9 @@ export const model = {
         if (g["owner"] !== undefined) body["owner"] = g["owner"];
         if (g["selectedVersion"] !== undefined) {
           body["selectedVersion"] = g["selectedVersion"];
+        }
+        if (g["serviceType"] !== undefined) {
+          body["serviceType"] = g["serviceType"];
         }
         if (g["targetUser"] !== undefined) body["targetUser"] = g["targetUser"];
         if (g["team"] !== undefined) body["team"] = g["team"];
@@ -1671,6 +1795,9 @@ export const model = {
         if (g["owner"] !== undefined) body["owner"] = g["owner"];
         if (g["selectedVersion"] !== undefined) {
           body["selectedVersion"] = g["selectedVersion"];
+        }
+        if (g["serviceType"] !== undefined) {
+          body["serviceType"] = g["serviceType"];
         }
         if (g["targetUser"] !== undefined) body["targetUser"] = g["targetUser"];
         if (g["team"] !== undefined) body["team"] = g["team"];

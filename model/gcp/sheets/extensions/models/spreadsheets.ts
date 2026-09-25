@@ -52,6 +52,9 @@ const GET_CONFIG = {
     "spreadsheetId",
   ],
   "parameters": {
+    "commentsViewMode": {
+      "location": "query",
+    },
     "excludeTablesInBandedRanges": {
       "location": "query",
     },
@@ -105,6 +108,115 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   apiEndpoint: z.string().describe(
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
+  ).optional(),
+  comments: z.array(z.object({
+    anchorId: z.string().describe(
+      "The ID of the CommentAnchor in the sheet that this thread is tied to.",
+    ).optional(),
+    commentId: z.string().describe("The unique ID of the comment thread.")
+      .optional(),
+    headPost: z.object({
+      assigneeEmail: z.string().describe(
+        "Optional. The email of the user who is being newly assigned to the thread as part of this post. Returns a 400 bad request error if: - The parent thread is a CommentThread whose headPost does not have an assignee. - commentAction is specified as `RESOLVE` or `REOPEN`. - `assignee_email` exceeds 2048 UTF-8 code units.",
+      ).optional(),
+      author: z.object({
+        anonymous: z.boolean().describe("Whether the user is anonymous.")
+          .optional(),
+        displayName: z.string().describe(
+          "The display name of the user. May be absent if the author is anonymous.",
+        ).optional(),
+        me: z.boolean().describe(
+          "Whether the user is the authenticated user making the request.",
+        ).optional(),
+        user: z.string().describe(
+          "The resource name of the post author user, which can also be used to identify the user in the [Google People API](https://developers.google.com/people/api/rest/v1/people). Format: `users/{user}`. Will not be populated if the anonymous field is `true` or if the post is from an imported spreadsheet.",
+        ).optional(),
+      }).describe("Output only. The user who created the post.").optional(),
+      commentAction: z.enum([
+        "COMMENT_ACTION_TYPE_UNSPECIFIED",
+        "NO_COMMENT_ACTION_CHANGE",
+        "RESOLVE",
+        "REOPEN",
+      ]).describe("Action taken as part of creating the post.").optional(),
+      content: z.string().describe(
+        "The content of the post. Required to be non-empty if comment_action is not `RESOLVE` or `REOPEN`. This text content will be handled similarly to comments created in the Sheets editor. It will have similar behaviors for formatting, notifications, etc. May not exceed 2048 UTF-8 code units.",
+      ).optional(),
+      contentHtml: z.string().describe(
+        "Output only. The content of the post as HTML.",
+      ).optional(),
+      createTime: z.string().describe(
+        "Output only. The time the post was created.",
+      ).optional(),
+      deleted: z.boolean().describe(
+        "Output only. Whether the post is deleted. If `true`, content and author fields will be empty.",
+      ).optional(),
+      fromCopiedSpreadsheet: z.boolean().describe(
+        "Output only. Whether the post is from a copied spreadsheet. This field cannot be set directly by callers.",
+      ).optional(),
+      fromImportedSpreadsheet: z.boolean().describe(
+        "Output only. Whether the post is from an imported spreadsheet. This field cannot be set directly by callers.",
+      ).optional(),
+      postId: z.string().describe("Output only. The unique ID of the post.")
+        .optional(),
+      updateTime: z.string().describe(
+        "Output only. The time the post was last updated.",
+      ).optional(),
+    }).describe("The first post in the thread.").optional(),
+    plainTextQuote: z.string().describe(
+      "The quoted text from the spreadsheet when the comment was created, formatted as plain-text.",
+    ).optional(),
+    replies: z.array(z.object({
+      assigneeEmail: z.string().describe(
+        "Optional. The email of the user who is being newly assigned to the thread as part of this post. Returns a 400 bad request error if: - The parent thread is a CommentThread whose headPost does not have an assignee. - commentAction is specified as `RESOLVE` or `REOPEN`. - `assignee_email` exceeds 2048 UTF-8 code units.",
+      ).optional(),
+      author: z.object({
+        anonymous: z.unknown().describe("Whether the user is anonymous.")
+          .optional(),
+        displayName: z.unknown().describe(
+          "The display name of the user. May be absent if the author is anonymous.",
+        ).optional(),
+        me: z.unknown().describe(
+          "Whether the user is the authenticated user making the request.",
+        ).optional(),
+        user: z.unknown().describe(
+          "The resource name of the post author user, which can also be used to identify the user in the [Google People API](https://developers.google.com/people/api/rest/v1/people). Format: `users/{user}`. Will not be populated if the anonymous field is `true` or if the post is from an imported spreadsheet.",
+        ).optional(),
+      }).describe("Output only. The user who created the post.").optional(),
+      commentAction: z.enum([
+        "COMMENT_ACTION_TYPE_UNSPECIFIED",
+        "NO_COMMENT_ACTION_CHANGE",
+        "RESOLVE",
+        "REOPEN",
+      ]).describe("Action taken as part of creating the post.").optional(),
+      content: z.string().describe(
+        "The content of the post. Required to be non-empty if comment_action is not `RESOLVE` or `REOPEN`. This text content will be handled similarly to comments created in the Sheets editor. It will have similar behaviors for formatting, notifications, etc. May not exceed 2048 UTF-8 code units.",
+      ).optional(),
+      contentHtml: z.string().describe(
+        "Output only. The content of the post as HTML.",
+      ).optional(),
+      createTime: z.string().describe(
+        "Output only. The time the post was created.",
+      ).optional(),
+      deleted: z.boolean().describe(
+        "Output only. Whether the post is deleted. If `true`, content and author fields will be empty.",
+      ).optional(),
+      fromCopiedSpreadsheet: z.boolean().describe(
+        "Output only. Whether the post is from a copied spreadsheet. This field cannot be set directly by callers.",
+      ).optional(),
+      fromImportedSpreadsheet: z.boolean().describe(
+        "Output only. Whether the post is from an imported spreadsheet. This field cannot be set directly by callers.",
+      ).optional(),
+      postId: z.string().describe("Output only. The unique ID of the post.")
+        .optional(),
+      updateTime: z.string().describe(
+        "Output only. The time the post was last updated.",
+      ).optional(),
+    })).describe("Replies to the head post.").optional(),
+    status: z.enum(["STATUS_UNSPECIFIED", "OPEN", "RESOLVED"]).describe(
+      "Whether the thread is open or resolved.",
+    ).optional(),
+  })).describe(
+    "The comment threads associated with the spreadsheet. [Developer Preview](https://developers.google.com/workspace/preview).",
   ).optional(),
   dataSources: z.array(z.object({
     calculatedColumns: z.array(z.object({
@@ -901,6 +1013,30 @@ const GlobalArgsSchema = z.object({
       }).describe("The range over which this group exists.").optional(),
     })).describe(
       "All column groups on this sheet, ordered by increasing range start index, then by group depth.",
+    ).optional(),
+    commentAnchors: z.array(z.object({
+      anchorId: z.string().describe(
+        "The unique ID of the comment anchor. Output only.",
+      ).optional(),
+      range: z.object({
+        endColumnIndex: z.unknown().describe(
+          "The end column (exclusive) of the range, or not set if unbounded.",
+        ).optional(),
+        endRowIndex: z.unknown().describe(
+          "The end row (exclusive) of the range, or not set if unbounded.",
+        ).optional(),
+        sheetId: z.unknown().describe("The sheet this range is on.").optional(),
+        startColumnIndex: z.unknown().describe(
+          "The start column (inclusive) of the range, or not set if unbounded.",
+        ).optional(),
+        startRowIndex: z.unknown().describe(
+          "The start row (inclusive) of the range, or not set if unbounded.",
+        ).optional(),
+      }).describe(
+        "The coordinate range inside the sheet where this comment is anchored.",
+      ).optional(),
+    })).describe(
+      "The comment anchors on this sheet. [Developer Preview](https://developers.google.com/workspace/preview).",
     ).optional(),
     conditionalFormats: z.array(z.object({
       booleanRule: z.object({
@@ -1312,6 +1448,49 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  comments: z.array(z.object({
+    anchorId: z.string(),
+    commentId: z.string(),
+    headPost: z.object({
+      assigneeEmail: z.string(),
+      author: z.object({
+        anonymous: z.boolean(),
+        displayName: z.string(),
+        me: z.boolean(),
+        user: z.string(),
+      }),
+      commentAction: z.string(),
+      content: z.string(),
+      contentHtml: z.string(),
+      createTime: z.string(),
+      deleted: z.boolean(),
+      fromCopiedSpreadsheet: z.boolean(),
+      fromImportedSpreadsheet: z.boolean(),
+      postId: z.string(),
+      updateTime: z.string(),
+    }),
+    plainTextQuote: z.string(),
+    replies: z.array(z.object({
+      assigneeEmail: z.string(),
+      author: z.object({
+        anonymous: z.unknown(),
+        displayName: z.unknown(),
+        me: z.unknown(),
+        user: z.unknown(),
+      }),
+      commentAction: z.string(),
+      content: z.string(),
+      contentHtml: z.string(),
+      createTime: z.string(),
+      deleted: z.boolean(),
+      fromCopiedSpreadsheet: z.boolean(),
+      fromImportedSpreadsheet: z.boolean(),
+      postId: z.string(),
+      updateTime: z.string(),
+    })),
+    status: z.string(),
+  })).optional(),
+  commentsViewMode: z.string().optional(),
   dataSourceSchedules: z.array(z.object({
     dailySchedule: z.object({
       startTime: z.object({
@@ -1653,6 +1832,16 @@ const StateSchema = z.object({
         startIndex: z.unknown(),
       }),
     })),
+    commentAnchors: z.array(z.object({
+      anchorId: z.string(),
+      range: z.object({
+        endColumnIndex: z.unknown(),
+        endRowIndex: z.unknown(),
+        sheetId: z.unknown(),
+        startColumnIndex: z.unknown(),
+        startRowIndex: z.unknown(),
+      }),
+    })),
     conditionalFormats: z.array(z.object({
       booleanRule: z.object({
         condition: z.unknown(),
@@ -1832,6 +2021,115 @@ const InputsSchema = z.object({
   scopes: z.string().optional(),
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
+  comments: z.array(z.object({
+    anchorId: z.string().describe(
+      "The ID of the CommentAnchor in the sheet that this thread is tied to.",
+    ).optional(),
+    commentId: z.string().describe("The unique ID of the comment thread.")
+      .optional(),
+    headPost: z.object({
+      assigneeEmail: z.string().describe(
+        "Optional. The email of the user who is being newly assigned to the thread as part of this post. Returns a 400 bad request error if: - The parent thread is a CommentThread whose headPost does not have an assignee. - commentAction is specified as `RESOLVE` or `REOPEN`. - `assignee_email` exceeds 2048 UTF-8 code units.",
+      ).optional(),
+      author: z.object({
+        anonymous: z.boolean().describe("Whether the user is anonymous.")
+          .optional(),
+        displayName: z.string().describe(
+          "The display name of the user. May be absent if the author is anonymous.",
+        ).optional(),
+        me: z.boolean().describe(
+          "Whether the user is the authenticated user making the request.",
+        ).optional(),
+        user: z.string().describe(
+          "The resource name of the post author user, which can also be used to identify the user in the [Google People API](https://developers.google.com/people/api/rest/v1/people). Format: `users/{user}`. Will not be populated if the anonymous field is `true` or if the post is from an imported spreadsheet.",
+        ).optional(),
+      }).describe("Output only. The user who created the post.").optional(),
+      commentAction: z.enum([
+        "COMMENT_ACTION_TYPE_UNSPECIFIED",
+        "NO_COMMENT_ACTION_CHANGE",
+        "RESOLVE",
+        "REOPEN",
+      ]).describe("Action taken as part of creating the post.").optional(),
+      content: z.string().describe(
+        "The content of the post. Required to be non-empty if comment_action is not `RESOLVE` or `REOPEN`. This text content will be handled similarly to comments created in the Sheets editor. It will have similar behaviors for formatting, notifications, etc. May not exceed 2048 UTF-8 code units.",
+      ).optional(),
+      contentHtml: z.string().describe(
+        "Output only. The content of the post as HTML.",
+      ).optional(),
+      createTime: z.string().describe(
+        "Output only. The time the post was created.",
+      ).optional(),
+      deleted: z.boolean().describe(
+        "Output only. Whether the post is deleted. If `true`, content and author fields will be empty.",
+      ).optional(),
+      fromCopiedSpreadsheet: z.boolean().describe(
+        "Output only. Whether the post is from a copied spreadsheet. This field cannot be set directly by callers.",
+      ).optional(),
+      fromImportedSpreadsheet: z.boolean().describe(
+        "Output only. Whether the post is from an imported spreadsheet. This field cannot be set directly by callers.",
+      ).optional(),
+      postId: z.string().describe("Output only. The unique ID of the post.")
+        .optional(),
+      updateTime: z.string().describe(
+        "Output only. The time the post was last updated.",
+      ).optional(),
+    }).describe("The first post in the thread.").optional(),
+    plainTextQuote: z.string().describe(
+      "The quoted text from the spreadsheet when the comment was created, formatted as plain-text.",
+    ).optional(),
+    replies: z.array(z.object({
+      assigneeEmail: z.string().describe(
+        "Optional. The email of the user who is being newly assigned to the thread as part of this post. Returns a 400 bad request error if: - The parent thread is a CommentThread whose headPost does not have an assignee. - commentAction is specified as `RESOLVE` or `REOPEN`. - `assignee_email` exceeds 2048 UTF-8 code units.",
+      ).optional(),
+      author: z.object({
+        anonymous: z.unknown().describe("Whether the user is anonymous.")
+          .optional(),
+        displayName: z.unknown().describe(
+          "The display name of the user. May be absent if the author is anonymous.",
+        ).optional(),
+        me: z.unknown().describe(
+          "Whether the user is the authenticated user making the request.",
+        ).optional(),
+        user: z.unknown().describe(
+          "The resource name of the post author user, which can also be used to identify the user in the [Google People API](https://developers.google.com/people/api/rest/v1/people). Format: `users/{user}`. Will not be populated if the anonymous field is `true` or if the post is from an imported spreadsheet.",
+        ).optional(),
+      }).describe("Output only. The user who created the post.").optional(),
+      commentAction: z.enum([
+        "COMMENT_ACTION_TYPE_UNSPECIFIED",
+        "NO_COMMENT_ACTION_CHANGE",
+        "RESOLVE",
+        "REOPEN",
+      ]).describe("Action taken as part of creating the post.").optional(),
+      content: z.string().describe(
+        "The content of the post. Required to be non-empty if comment_action is not `RESOLVE` or `REOPEN`. This text content will be handled similarly to comments created in the Sheets editor. It will have similar behaviors for formatting, notifications, etc. May not exceed 2048 UTF-8 code units.",
+      ).optional(),
+      contentHtml: z.string().describe(
+        "Output only. The content of the post as HTML.",
+      ).optional(),
+      createTime: z.string().describe(
+        "Output only. The time the post was created.",
+      ).optional(),
+      deleted: z.boolean().describe(
+        "Output only. Whether the post is deleted. If `true`, content and author fields will be empty.",
+      ).optional(),
+      fromCopiedSpreadsheet: z.boolean().describe(
+        "Output only. Whether the post is from a copied spreadsheet. This field cannot be set directly by callers.",
+      ).optional(),
+      fromImportedSpreadsheet: z.boolean().describe(
+        "Output only. Whether the post is from an imported spreadsheet. This field cannot be set directly by callers.",
+      ).optional(),
+      postId: z.string().describe("Output only. The unique ID of the post.")
+        .optional(),
+      updateTime: z.string().describe(
+        "Output only. The time the post was last updated.",
+      ).optional(),
+    })).describe("Replies to the head post.").optional(),
+    status: z.enum(["STATUS_UNSPECIFIED", "OPEN", "RESOLVED"]).describe(
+      "Whether the thread is open or resolved.",
+    ).optional(),
+  })).describe(
+    "The comment threads associated with the spreadsheet. [Developer Preview](https://developers.google.com/workspace/preview).",
+  ).optional(),
   dataSources: z.array(z.object({
     calculatedColumns: z.array(z.object({
       formula: z.string().describe("The formula of the calculated column.")
@@ -2627,6 +2925,30 @@ const InputsSchema = z.object({
       }).describe("The range over which this group exists.").optional(),
     })).describe(
       "All column groups on this sheet, ordered by increasing range start index, then by group depth.",
+    ).optional(),
+    commentAnchors: z.array(z.object({
+      anchorId: z.string().describe(
+        "The unique ID of the comment anchor. Output only.",
+      ).optional(),
+      range: z.object({
+        endColumnIndex: z.unknown().describe(
+          "The end column (exclusive) of the range, or not set if unbounded.",
+        ).optional(),
+        endRowIndex: z.unknown().describe(
+          "The end row (exclusive) of the range, or not set if unbounded.",
+        ).optional(),
+        sheetId: z.unknown().describe("The sheet this range is on.").optional(),
+        startColumnIndex: z.unknown().describe(
+          "The start column (inclusive) of the range, or not set if unbounded.",
+        ).optional(),
+        startRowIndex: z.unknown().describe(
+          "The start row (inclusive) of the range, or not set if unbounded.",
+        ).optional(),
+      }).describe(
+        "The coordinate range inside the sheet where this comment is anchored.",
+      ).optional(),
+    })).describe(
+      "The comment anchors on this sheet. [Developer Preview](https://developers.google.com/workspace/preview).",
     ).optional(),
     conditionalFormats: z.array(z.object({
       booleanRule: z.object({
@@ -3063,7 +3385,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Sheets Spreadsheets. Registered at `@swamp/gcp/sheets/spreadsheets`. */
 export const model = {
   type: "@swamp/gcp/sheets/spreadsheets",
-  version: "2026.08.12.2",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3180,6 +3502,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.25.1",
+      description: "Added: comments",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -3203,6 +3530,7 @@ export const model = {
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
         const body: Record<string, unknown> = {};
+        if (g["comments"] !== undefined) body["comments"] = g["comments"];
         if (g["dataSources"] !== undefined) {
           body["dataSources"] = g["dataSources"];
         }
@@ -3341,6 +3669,7 @@ export const model = {
     batch_update: {
       description: "batch update",
       arguments: z.object({
+        commentsViewMode: z.any().optional(),
         includeSpreadsheetInResponse: z.any().optional(),
         requests: z.any().optional(),
         responseIncludeGridData: z.any().optional(),
@@ -3357,6 +3686,9 @@ export const model = {
           params["spreadsheetId"] = String(g["spreadsheetId"]);
         }
         const body: Record<string, unknown> = {};
+        if (args["commentsViewMode"] !== undefined) {
+          body["commentsViewMode"] = args["commentsViewMode"];
+        }
         if (args["includeSpreadsheetInResponse"] !== undefined) {
           body["includeSpreadsheetInResponse"] =
             args["includeSpreadsheetInResponse"];
@@ -3392,6 +3724,7 @@ export const model = {
     get_by_data_filter: {
       description: "get by data filter",
       arguments: z.object({
+        commentsViewMode: z.any().optional(),
         dataFilters: z.any().optional(),
         excludeTablesInBandedRanges: z.any().optional(),
         includeGridData: z.any().optional(),
@@ -3407,6 +3740,9 @@ export const model = {
           params["spreadsheetId"] = String(g["spreadsheetId"]);
         }
         const body: Record<string, unknown> = {};
+        if (args["commentsViewMode"] !== undefined) {
+          body["commentsViewMode"] = args["commentsViewMode"];
+        }
         if (args["dataFilters"] !== undefined) {
           body["dataFilters"] = args["dataFilters"];
         }

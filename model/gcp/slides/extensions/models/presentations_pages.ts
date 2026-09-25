@@ -53,6 +53,9 @@ const GET_CONFIG = {
     "pageObjectId",
   ],
   "parameters": {
+    "commentsViewMode": {
+      "location": "query",
+    },
     "pageObjectId": {
       "location": "path",
       "required": true,
@@ -102,6 +105,61 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  commentAnchors: z.array(z.object({
+    anchorId: z.string(),
+    objectAnchors: z.array(z.object({
+      objectId: z.string(),
+      shapeTextAnchors: z.object({
+        ranges: z.unknown(),
+      }),
+      tableCellAnchors: z.object({
+        cellRanges: z.unknown(),
+      }),
+    })),
+  })).optional(),
+  comments: z.array(z.object({
+    anchorId: z.string(),
+    commentId: z.string(),
+    headPost: z.object({
+      assigneeEmail: z.string(),
+      author: z.object({
+        anonymous: z.boolean(),
+        displayName: z.string(),
+        me: z.boolean(),
+        user: z.string(),
+      }),
+      commentAction: z.string(),
+      content: z.string(),
+      contentHtml: z.string(),
+      createTime: z.string(),
+      deleted: z.boolean(),
+      fromCopiedPresentation: z.boolean(),
+      fromImportedPresentation: z.boolean(),
+      postId: z.string(),
+      updateTime: z.string(),
+    }),
+    plainTextQuote: z.string(),
+    replies: z.array(z.object({
+      assigneeEmail: z.string(),
+      author: z.object({
+        anonymous: z.unknown(),
+        displayName: z.unknown(),
+        me: z.unknown(),
+        user: z.unknown(),
+      }),
+      commentAction: z.string(),
+      content: z.string(),
+      contentHtml: z.string(),
+      createTime: z.string(),
+      deleted: z.boolean(),
+      fromCopiedPresentation: z.boolean(),
+      fromImportedPresentation: z.boolean(),
+      postId: z.string(),
+      updateTime: z.string(),
+    })),
+    status: z.string(),
+  })).optional(),
+  commentsViewMode: z.string().optional(),
   layoutProperties: z.object({
     displayName: z.string(),
     masterObjectId: z.string(),
@@ -385,6 +443,31 @@ const StateSchema = z.object({
     layoutObjectId: z.string(),
     masterObjectId: z.string(),
     notesPage: z.object({
+      commentAnchors: z.array(z.object({
+        anchorId: z.string(),
+        objectAnchors: z.array(z.unknown()),
+      })),
+      comments: z.array(z.object({
+        anchorId: z.string(),
+        commentId: z.string(),
+        headPost: z.object({
+          assigneeEmail: z.unknown(),
+          author: z.unknown(),
+          commentAction: z.unknown(),
+          content: z.unknown(),
+          contentHtml: z.unknown(),
+          createTime: z.unknown(),
+          deleted: z.unknown(),
+          fromCopiedPresentation: z.unknown(),
+          fromImportedPresentation: z.unknown(),
+          postId: z.unknown(),
+          updateTime: z.unknown(),
+        }),
+        plainTextQuote: z.string(),
+        replies: z.array(z.unknown()),
+        status: z.string(),
+      })),
+      commentsViewMode: z.string(),
       layoutProperties: z.object({
         displayName: z.string(),
         masterObjectId: z.string(),
@@ -524,7 +607,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Slides Presentations.Pages. Registered at `@swamp/gcp/slides/presentations-pages`. */
 export const model = {
   type: "@swamp/gcp/slides/presentations-pages",
-  version: "2026.09.07.2",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -653,6 +736,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

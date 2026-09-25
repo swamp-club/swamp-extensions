@@ -289,6 +289,13 @@ const GlobalArgsSchema = z.object({
     temperature: z.number().describe(
       "Optional. If set, this temperature will be used for the LLM model. Temperature controls the randomness of the model's responses. Lower temperatures produce responses that are more predictable. Higher temperatures produce responses that are more creative.",
     ).optional(),
+    thinkingLevel: z.enum([
+      "THINKING_LEVEL_UNSPECIFIED",
+      "DEFAULT",
+      "LOW",
+      "MEDIUM",
+      "HIGH",
+    ]).describe("Optional. The thinking level of the model.").optional(),
   }).describe("Optional. Configurations for the LLM model.").optional(),
   name: z.string().describe(
     "Identifier. The unique identifier of the agent. Format: `projects/{project}/locations/{location}/apps/{app}/agents/{agent}`",
@@ -553,6 +560,7 @@ const StateSchema = z.object({
   modelSettings: z.object({
     model: z.string(),
     temperature: z.number(),
+    thinkingLevel: z.string(),
   }).optional(),
   name: z.string(),
   remoteA2aAgent: z.object({
@@ -769,6 +777,13 @@ const InputsSchema = z.object({
     temperature: z.number().describe(
       "Optional. If set, this temperature will be used for the LLM model. Temperature controls the randomness of the model's responses. Lower temperatures produce responses that are more predictable. Higher temperatures produce responses that are more creative.",
     ).optional(),
+    thinkingLevel: z.enum([
+      "THINKING_LEVEL_UNSPECIFIED",
+      "DEFAULT",
+      "LOW",
+      "MEDIUM",
+      "HIGH",
+    ]).describe("Optional. The thinking level of the model.").optional(),
   }).describe("Optional. Configurations for the LLM model.").optional(),
   name: z.string().describe(
     "Identifier. The unique identifier of the agent. Format: `projects/{project}/locations/{location}/apps/{app}/agents/{agent}`",
@@ -1010,7 +1025,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Agents. Registered at `@swamp/gcp/ces/apps-agents`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-agents",
-  version: "2026.09.01.1",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -1200,6 +1215,11 @@ export const model = {
     {
       toVersion: "2026.09.01.1",
       description: "Added: remoteA2aAgent",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

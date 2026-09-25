@@ -1,0 +1,22 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/aws/eventsv2"
+version: "2026.09.25.1"
+description: "AWS EVENTSV2 infrastructure models"
+repository: "https://github.com/swamp-club/swamp-extensions"
+labels:
+  - aws
+  - eventsv2
+  - cloud
+  - infrastructure
+releaseNotes: |
+  - Added: event_bus, event_source, resource_policy, subscriber
+models:
+  - event_bus.ts
+  - event_source.ts
+  - resource_policy.ts
+  - subscriber.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []

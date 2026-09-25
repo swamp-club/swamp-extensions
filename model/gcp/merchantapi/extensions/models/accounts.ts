@@ -147,6 +147,9 @@ const GlobalArgsSchema = z.object({
   adultContent: z.boolean().describe(
     "Optional. Whether this account contains adult content.",
   ).optional(),
+  homePageUri: z.string().describe(
+    "Output only. URI (typically a URL) of the store's homepage.",
+  ).optional(),
   languageCode: z.string().describe(
     "Required. The account's [BCP-47 language code](https://tools.ietf.org/html/bcp47), such as `en-US` or `sr-Latn`.",
   ).optional(),
@@ -172,6 +175,7 @@ const StateSchema = z.object({
   accountId: z.string().optional(),
   accountName: z.string().optional(),
   adultContent: z.boolean().optional(),
+  homePageUri: z.string().optional(),
   languageCode: z.string().optional(),
   name: z.string(),
   testAccount: z.boolean().optional(),
@@ -197,6 +201,9 @@ const InputsSchema = z.object({
   ).optional(),
   adultContent: z.boolean().describe(
     "Optional. Whether this account contains adult content.",
+  ).optional(),
+  homePageUri: z.string().describe(
+    "Output only. URI (typically a URL) of the store's homepage.",
   ).optional(),
   languageCode: z.string().describe(
     "Required. The account's [BCP-47 language code](https://tools.ietf.org/html/bcp47), such as `en-US` or `sr-Latn`.",
@@ -245,7 +252,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts. Registered at `@swamp/gcp/merchantapi/accounts`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts",
-  version: "2026.09.07.1",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -260,6 +267,11 @@ export const model = {
     {
       toVersion: "2026.09.07.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
+      description: "Added: homePageUri",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -345,6 +357,9 @@ export const model = {
         }
         if (g["adultContent"] !== undefined) {
           body["adultContent"] = g["adultContent"];
+        }
+        if (g["homePageUri"] !== undefined) {
+          body["homePageUri"] = g["homePageUri"];
         }
         if (g["languageCode"] !== undefined) {
           body["languageCode"] = g["languageCode"];
@@ -572,6 +587,7 @@ export const model = {
         accountId: z.any().optional(),
         accountName: z.any().optional(),
         adultContent: z.any().optional(),
+        homePageUri: z.any().optional(),
         languageCode: z.any().optional(),
         name: z.any().optional(),
         testAccount: z.any().optional(),
@@ -594,6 +610,9 @@ export const model = {
         }
         if (args["adultContent"] !== undefined) {
           body["adultContent"] = args["adultContent"];
+        }
+        if (args["homePageUri"] !== undefined) {
+          body["homePageUri"] = args["homePageUri"];
         }
         if (args["languageCode"] !== undefined) {
           body["languageCode"] = args["languageCode"];

@@ -52,6 +52,9 @@ const GET_CONFIG = {
     "presentationId",
   ],
   "parameters": {
+    "commentsViewMode": {
+      "location": "query",
+    },
     "presentationId": {
       "location": "path",
       "required": true,
@@ -100,6 +103,75 @@ const GlobalArgsSchema = z.object({
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
   layouts: z.array(z.object({
+    commentAnchors: z.array(z.object({
+      anchorId: z.string().describe(
+        "Output only. The unique ID of the comment anchor.",
+      ).optional(),
+      objectAnchors: z.array(z.unknown()).describe(
+        "Output only. All object ID-based locations within a page that refer to the anchor ID.",
+      ).optional(),
+    })).describe(
+      "Output only. The comment anchors present on the page. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
+    comments: z.array(z.object({
+      anchorId: z.string().describe(
+        "The ID of the CommentAnchor in the presentation that this thread is tied to.",
+      ).optional(),
+      commentId: z.string().describe("The unique ID of the comment thread.")
+        .optional(),
+      headPost: z.object({
+        assigneeEmail: z.unknown().describe(
+          "Optional. The email of the user who is being newly assigned to the thread as part of this post. Returns a 400 bad request error if: - The parent thread is a CommentThread whose headPost does not have an assignee. - commentAction is specified as `RESOLVE` or `REOPEN`. - `assignee_email` exceeds 2048 UTF-8 code units.",
+        ).optional(),
+        author: z.unknown().describe(
+          "Output only. The user who created the post.",
+        ).optional(),
+        commentAction: z.unknown().describe(
+          "Action taken as part of creating the post.",
+        ).optional(),
+        content: z.unknown().describe(
+          "The content of the post. Required to be non-empty if comment_action is not `RESOLVE` or `REOPEN`. This text content will be handled similarly to comments created in the Slides editor. It will have similar behaviors for formatting, notifications, etc. May not exceed 2048 UTF-8 code units.",
+        ).optional(),
+        contentHtml: z.unknown().describe(
+          "Output only. The content of the post as HTML.",
+        ).optional(),
+        createTime: z.unknown().describe(
+          "Output only. The time the post was created.",
+        ).optional(),
+        deleted: z.unknown().describe(
+          "Output only. Whether the post is deleted. If `true`, content and author fields will be empty.",
+        ).optional(),
+        fromCopiedPresentation: z.unknown().describe(
+          "Output only. Whether the post is from a copied presentation. This field cannot be set directly by callers.",
+        ).optional(),
+        fromImportedPresentation: z.unknown().describe(
+          "Output only. Whether the post is from an imported presentation. This field cannot be set directly by callers.",
+        ).optional(),
+        postId: z.unknown().describe("Output only. The unique ID of the post.")
+          .optional(),
+        updateTime: z.unknown().describe(
+          "Output only. The time the post was last updated.",
+        ).optional(),
+      }).describe("The first post in the thread.").optional(),
+      plainTextQuote: z.string().describe(
+        "The quoted text from the page element when the comment was created, formatted as plain-text.",
+      ).optional(),
+      replies: z.array(z.unknown()).describe("Replies to the head post.")
+        .optional(),
+      status: z.enum(["STATUS_UNSPECIFIED", "OPEN", "RESOLVED"]).describe(
+        "Whether the thread is open or resolved.",
+      ).optional(),
+    })).describe(
+      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
+    commentsViewMode: z.enum([
+      "COMMENTS_VIEW_MODE_UNSPECIFIED",
+      "COMMENTS_VIEW_MODE_DEFAULT_FOR_CURRENT_ACCESS",
+      "COMMENTS_VIEW_MODE_OMITTED",
+      "COMMENTS_VIEW_MODE_INCLUDED",
+    ]).describe(
+      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
     layoutProperties: z.object({
       displayName: z.string().describe("The human-readable name of the layout.")
         .optional(),
@@ -304,6 +376,75 @@ const GlobalArgsSchema = z.object({
     "The locale of the presentation, as an IETF BCP 47 language tag.",
   ).optional(),
   masters: z.array(z.object({
+    commentAnchors: z.array(z.object({
+      anchorId: z.string().describe(
+        "Output only. The unique ID of the comment anchor.",
+      ).optional(),
+      objectAnchors: z.array(z.unknown()).describe(
+        "Output only. All object ID-based locations within a page that refer to the anchor ID.",
+      ).optional(),
+    })).describe(
+      "Output only. The comment anchors present on the page. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
+    comments: z.array(z.object({
+      anchorId: z.string().describe(
+        "The ID of the CommentAnchor in the presentation that this thread is tied to.",
+      ).optional(),
+      commentId: z.string().describe("The unique ID of the comment thread.")
+        .optional(),
+      headPost: z.object({
+        assigneeEmail: z.unknown().describe(
+          "Optional. The email of the user who is being newly assigned to the thread as part of this post. Returns a 400 bad request error if: - The parent thread is a CommentThread whose headPost does not have an assignee. - commentAction is specified as `RESOLVE` or `REOPEN`. - `assignee_email` exceeds 2048 UTF-8 code units.",
+        ).optional(),
+        author: z.unknown().describe(
+          "Output only. The user who created the post.",
+        ).optional(),
+        commentAction: z.unknown().describe(
+          "Action taken as part of creating the post.",
+        ).optional(),
+        content: z.unknown().describe(
+          "The content of the post. Required to be non-empty if comment_action is not `RESOLVE` or `REOPEN`. This text content will be handled similarly to comments created in the Slides editor. It will have similar behaviors for formatting, notifications, etc. May not exceed 2048 UTF-8 code units.",
+        ).optional(),
+        contentHtml: z.unknown().describe(
+          "Output only. The content of the post as HTML.",
+        ).optional(),
+        createTime: z.unknown().describe(
+          "Output only. The time the post was created.",
+        ).optional(),
+        deleted: z.unknown().describe(
+          "Output only. Whether the post is deleted. If `true`, content and author fields will be empty.",
+        ).optional(),
+        fromCopiedPresentation: z.unknown().describe(
+          "Output only. Whether the post is from a copied presentation. This field cannot be set directly by callers.",
+        ).optional(),
+        fromImportedPresentation: z.unknown().describe(
+          "Output only. Whether the post is from an imported presentation. This field cannot be set directly by callers.",
+        ).optional(),
+        postId: z.unknown().describe("Output only. The unique ID of the post.")
+          .optional(),
+        updateTime: z.unknown().describe(
+          "Output only. The time the post was last updated.",
+        ).optional(),
+      }).describe("The first post in the thread.").optional(),
+      plainTextQuote: z.string().describe(
+        "The quoted text from the page element when the comment was created, formatted as plain-text.",
+      ).optional(),
+      replies: z.array(z.unknown()).describe("Replies to the head post.")
+        .optional(),
+      status: z.enum(["STATUS_UNSPECIFIED", "OPEN", "RESOLVED"]).describe(
+        "Whether the thread is open or resolved.",
+      ).optional(),
+    })).describe(
+      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
+    commentsViewMode: z.enum([
+      "COMMENTS_VIEW_MODE_UNSPECIFIED",
+      "COMMENTS_VIEW_MODE_DEFAULT_FOR_CURRENT_ACCESS",
+      "COMMENTS_VIEW_MODE_OMITTED",
+      "COMMENTS_VIEW_MODE_INCLUDED",
+    ]).describe(
+      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
     layoutProperties: z.object({
       displayName: z.string().describe("The human-readable name of the layout.")
         .optional(),
@@ -505,6 +646,130 @@ const GlobalArgsSchema = z.object({
     "The slide masters in the presentation. A slide master contains all common page elements and the common properties for a set of layouts. They serve three purposes: - Placeholder shapes on a master contain the default text styles and shape properties of all placeholder shapes on pages that use that master. - The master page properties define the common page properties inherited by its layouts. - Any other shapes on the master slide appear on all slides using that master, regardless of their layout.",
   ).optional(),
   notesMaster: z.object({
+    commentAnchors: z.array(z.object({
+      anchorId: z.string().describe(
+        "Output only. The unique ID of the comment anchor.",
+      ).optional(),
+      objectAnchors: z.array(z.object({
+        objectId: z.unknown().describe(
+          "Output only. The page or page element that the comment thread is anchored to.",
+        ).optional(),
+        shapeTextAnchors: z.unknown().describe(
+          "Populated for Shapes that have comments anchored to ranges of text in the shape's text.",
+        ).optional(),
+        tableCellAnchors: z.unknown().describe(
+          "Populated for Tables that have comments anchored to ranges of text in one or more of the table's cells.",
+        ).optional(),
+      })).describe(
+        "Output only. All object ID-based locations within a page that refer to the anchor ID.",
+      ).optional(),
+    })).describe(
+      "Output only. The comment anchors present on the page. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
+    comments: z.array(z.object({
+      anchorId: z.string().describe(
+        "The ID of the CommentAnchor in the presentation that this thread is tied to.",
+      ).optional(),
+      commentId: z.string().describe("The unique ID of the comment thread.")
+        .optional(),
+      headPost: z.object({
+        assigneeEmail: z.string().describe(
+          "Optional. The email of the user who is being newly assigned to the thread as part of this post. Returns a 400 bad request error if: - The parent thread is a CommentThread whose headPost does not have an assignee. - commentAction is specified as `RESOLVE` or `REOPEN`. - `assignee_email` exceeds 2048 UTF-8 code units.",
+        ).optional(),
+        author: z.object({
+          anonymous: z.unknown().describe("Whether the user is anonymous.")
+            .optional(),
+          displayName: z.unknown().describe(
+            "The display name of the user. May be absent if the author is anonymous.",
+          ).optional(),
+          me: z.unknown().describe(
+            "Whether the user is the authenticated user making the request.",
+          ).optional(),
+          user: z.unknown().describe(
+            "The resource name of the post author user, which can also be used to identify the user in the [Google People API](https://developers.google.com/people/api/rest/v1/people). Format: `users/{user}`. Will not be populated if the anonymous field is `true` or if the post is from an imported presentation.",
+          ).optional(),
+        }).describe("Output only. The user who created the post.").optional(),
+        commentAction: z.enum([
+          "COMMENT_ACTION_TYPE_UNSPECIFIED",
+          "NO_COMMENT_ACTION_CHANGE",
+          "RESOLVE",
+          "REOPEN",
+        ]).describe("Action taken as part of creating the post.").optional(),
+        content: z.string().describe(
+          "The content of the post. Required to be non-empty if comment_action is not `RESOLVE` or `REOPEN`. This text content will be handled similarly to comments created in the Slides editor. It will have similar behaviors for formatting, notifications, etc. May not exceed 2048 UTF-8 code units.",
+        ).optional(),
+        contentHtml: z.string().describe(
+          "Output only. The content of the post as HTML.",
+        ).optional(),
+        createTime: z.string().describe(
+          "Output only. The time the post was created.",
+        ).optional(),
+        deleted: z.boolean().describe(
+          "Output only. Whether the post is deleted. If `true`, content and author fields will be empty.",
+        ).optional(),
+        fromCopiedPresentation: z.boolean().describe(
+          "Output only. Whether the post is from a copied presentation. This field cannot be set directly by callers.",
+        ).optional(),
+        fromImportedPresentation: z.boolean().describe(
+          "Output only. Whether the post is from an imported presentation. This field cannot be set directly by callers.",
+        ).optional(),
+        postId: z.string().describe("Output only. The unique ID of the post.")
+          .optional(),
+        updateTime: z.string().describe(
+          "Output only. The time the post was last updated.",
+        ).optional(),
+      }).describe("The first post in the thread.").optional(),
+      plainTextQuote: z.string().describe(
+        "The quoted text from the page element when the comment was created, formatted as plain-text.",
+      ).optional(),
+      replies: z.array(z.object({
+        assigneeEmail: z.unknown().describe(
+          "Optional. The email of the user who is being newly assigned to the thread as part of this post. Returns a 400 bad request error if: - The parent thread is a CommentThread whose headPost does not have an assignee. - commentAction is specified as `RESOLVE` or `REOPEN`. - `assignee_email` exceeds 2048 UTF-8 code units.",
+        ).optional(),
+        author: z.unknown().describe(
+          "Output only. The user who created the post.",
+        ).optional(),
+        commentAction: z.unknown().describe(
+          "Action taken as part of creating the post.",
+        ).optional(),
+        content: z.unknown().describe(
+          "The content of the post. Required to be non-empty if comment_action is not `RESOLVE` or `REOPEN`. This text content will be handled similarly to comments created in the Slides editor. It will have similar behaviors for formatting, notifications, etc. May not exceed 2048 UTF-8 code units.",
+        ).optional(),
+        contentHtml: z.unknown().describe(
+          "Output only. The content of the post as HTML.",
+        ).optional(),
+        createTime: z.unknown().describe(
+          "Output only. The time the post was created.",
+        ).optional(),
+        deleted: z.unknown().describe(
+          "Output only. Whether the post is deleted. If `true`, content and author fields will be empty.",
+        ).optional(),
+        fromCopiedPresentation: z.unknown().describe(
+          "Output only. Whether the post is from a copied presentation. This field cannot be set directly by callers.",
+        ).optional(),
+        fromImportedPresentation: z.unknown().describe(
+          "Output only. Whether the post is from an imported presentation. This field cannot be set directly by callers.",
+        ).optional(),
+        postId: z.unknown().describe("Output only. The unique ID of the post.")
+          .optional(),
+        updateTime: z.unknown().describe(
+          "Output only. The time the post was last updated.",
+        ).optional(),
+      })).describe("Replies to the head post.").optional(),
+      status: z.enum(["STATUS_UNSPECIFIED", "OPEN", "RESOLVED"]).describe(
+        "Whether the thread is open or resolved.",
+      ).optional(),
+    })).describe(
+      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
+    commentsViewMode: z.enum([
+      "COMMENTS_VIEW_MODE_UNSPECIFIED",
+      "COMMENTS_VIEW_MODE_DEFAULT_FOR_CURRENT_ACCESS",
+      "COMMENTS_VIEW_MODE_OMITTED",
+      "COMMENTS_VIEW_MODE_INCLUDED",
+    ]).describe(
+      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
     layoutProperties: z.object({
       displayName: z.string().describe("The human-readable name of the layout.")
         .optional(),
@@ -1011,6 +1276,75 @@ const GlobalArgsSchema = z.object({
   }).describe("The size of pages in the presentation.").optional(),
   presentationId: z.string().describe("The ID of the presentation.").optional(),
   slides: z.array(z.object({
+    commentAnchors: z.array(z.object({
+      anchorId: z.string().describe(
+        "Output only. The unique ID of the comment anchor.",
+      ).optional(),
+      objectAnchors: z.array(z.unknown()).describe(
+        "Output only. All object ID-based locations within a page that refer to the anchor ID.",
+      ).optional(),
+    })).describe(
+      "Output only. The comment anchors present on the page. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
+    comments: z.array(z.object({
+      anchorId: z.string().describe(
+        "The ID of the CommentAnchor in the presentation that this thread is tied to.",
+      ).optional(),
+      commentId: z.string().describe("The unique ID of the comment thread.")
+        .optional(),
+      headPost: z.object({
+        assigneeEmail: z.unknown().describe(
+          "Optional. The email of the user who is being newly assigned to the thread as part of this post. Returns a 400 bad request error if: - The parent thread is a CommentThread whose headPost does not have an assignee. - commentAction is specified as `RESOLVE` or `REOPEN`. - `assignee_email` exceeds 2048 UTF-8 code units.",
+        ).optional(),
+        author: z.unknown().describe(
+          "Output only. The user who created the post.",
+        ).optional(),
+        commentAction: z.unknown().describe(
+          "Action taken as part of creating the post.",
+        ).optional(),
+        content: z.unknown().describe(
+          "The content of the post. Required to be non-empty if comment_action is not `RESOLVE` or `REOPEN`. This text content will be handled similarly to comments created in the Slides editor. It will have similar behaviors for formatting, notifications, etc. May not exceed 2048 UTF-8 code units.",
+        ).optional(),
+        contentHtml: z.unknown().describe(
+          "Output only. The content of the post as HTML.",
+        ).optional(),
+        createTime: z.unknown().describe(
+          "Output only. The time the post was created.",
+        ).optional(),
+        deleted: z.unknown().describe(
+          "Output only. Whether the post is deleted. If `true`, content and author fields will be empty.",
+        ).optional(),
+        fromCopiedPresentation: z.unknown().describe(
+          "Output only. Whether the post is from a copied presentation. This field cannot be set directly by callers.",
+        ).optional(),
+        fromImportedPresentation: z.unknown().describe(
+          "Output only. Whether the post is from an imported presentation. This field cannot be set directly by callers.",
+        ).optional(),
+        postId: z.unknown().describe("Output only. The unique ID of the post.")
+          .optional(),
+        updateTime: z.unknown().describe(
+          "Output only. The time the post was last updated.",
+        ).optional(),
+      }).describe("The first post in the thread.").optional(),
+      plainTextQuote: z.string().describe(
+        "The quoted text from the page element when the comment was created, formatted as plain-text.",
+      ).optional(),
+      replies: z.array(z.unknown()).describe("Replies to the head post.")
+        .optional(),
+      status: z.enum(["STATUS_UNSPECIFIED", "OPEN", "RESOLVED"]).describe(
+        "Whether the thread is open or resolved.",
+      ).optional(),
+    })).describe(
+      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
+    commentsViewMode: z.enum([
+      "COMMENTS_VIEW_MODE_UNSPECIFIED",
+      "COMMENTS_VIEW_MODE_DEFAULT_FOR_CURRENT_ACCESS",
+      "COMMENTS_VIEW_MODE_OMITTED",
+      "COMMENTS_VIEW_MODE_INCLUDED",
+    ]).describe(
+      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
     layoutProperties: z.object({
       displayName: z.string().describe("The human-readable name of the layout.")
         .optional(),
@@ -1215,7 +1549,75 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  comments: z.array(z.object({
+    anchorId: z.string(),
+    commentId: z.string(),
+    headPost: z.object({
+      assigneeEmail: z.string(),
+      author: z.object({
+        anonymous: z.boolean(),
+        displayName: z.string(),
+        me: z.boolean(),
+        user: z.string(),
+      }),
+      commentAction: z.string(),
+      content: z.string(),
+      contentHtml: z.string(),
+      createTime: z.string(),
+      deleted: z.boolean(),
+      fromCopiedPresentation: z.boolean(),
+      fromImportedPresentation: z.boolean(),
+      postId: z.string(),
+      updateTime: z.string(),
+    }),
+    plainTextQuote: z.string(),
+    replies: z.array(z.object({
+      assigneeEmail: z.string(),
+      author: z.object({
+        anonymous: z.unknown(),
+        displayName: z.unknown(),
+        me: z.unknown(),
+        user: z.unknown(),
+      }),
+      commentAction: z.string(),
+      content: z.string(),
+      contentHtml: z.string(),
+      createTime: z.string(),
+      deleted: z.boolean(),
+      fromCopiedPresentation: z.boolean(),
+      fromImportedPresentation: z.boolean(),
+      postId: z.string(),
+      updateTime: z.string(),
+    })),
+    status: z.string(),
+  })).optional(),
+  commentsViewMode: z.string().optional(),
   layouts: z.array(z.object({
+    commentAnchors: z.array(z.object({
+      anchorId: z.string(),
+      objectAnchors: z.array(z.unknown()),
+    })),
+    comments: z.array(z.object({
+      anchorId: z.string(),
+      commentId: z.string(),
+      headPost: z.object({
+        assigneeEmail: z.unknown(),
+        author: z.unknown(),
+        commentAction: z.unknown(),
+        content: z.unknown(),
+        contentHtml: z.unknown(),
+        createTime: z.unknown(),
+        deleted: z.unknown(),
+        fromCopiedPresentation: z.unknown(),
+        fromImportedPresentation: z.unknown(),
+        postId: z.unknown(),
+        updateTime: z.unknown(),
+      }),
+      plainTextQuote: z.string(),
+      replies: z.array(z.unknown()),
+      status: z.string(),
+    })),
+    commentsViewMode: z.string(),
     layoutProperties: z.object({
       displayName: z.string(),
       masterObjectId: z.string(),
@@ -1319,6 +1721,31 @@ const StateSchema = z.object({
   })).optional(),
   locale: z.string().optional(),
   masters: z.array(z.object({
+    commentAnchors: z.array(z.object({
+      anchorId: z.string(),
+      objectAnchors: z.array(z.unknown()),
+    })),
+    comments: z.array(z.object({
+      anchorId: z.string(),
+      commentId: z.string(),
+      headPost: z.object({
+        assigneeEmail: z.unknown(),
+        author: z.unknown(),
+        commentAction: z.unknown(),
+        content: z.unknown(),
+        contentHtml: z.unknown(),
+        createTime: z.unknown(),
+        deleted: z.unknown(),
+        fromCopiedPresentation: z.unknown(),
+        fromImportedPresentation: z.unknown(),
+        postId: z.unknown(),
+        updateTime: z.unknown(),
+      }),
+      plainTextQuote: z.string(),
+      replies: z.array(z.unknown()),
+      status: z.string(),
+    })),
+    commentsViewMode: z.string(),
     layoutProperties: z.object({
       displayName: z.string(),
       masterObjectId: z.string(),
@@ -1421,6 +1848,52 @@ const StateSchema = z.object({
     }),
   })).optional(),
   notesMaster: z.object({
+    commentAnchors: z.array(z.object({
+      anchorId: z.string(),
+      objectAnchors: z.array(z.object({
+        objectId: z.unknown(),
+        shapeTextAnchors: z.unknown(),
+        tableCellAnchors: z.unknown(),
+      })),
+    })),
+    comments: z.array(z.object({
+      anchorId: z.string(),
+      commentId: z.string(),
+      headPost: z.object({
+        assigneeEmail: z.string(),
+        author: z.object({
+          anonymous: z.unknown(),
+          displayName: z.unknown(),
+          me: z.unknown(),
+          user: z.unknown(),
+        }),
+        commentAction: z.string(),
+        content: z.string(),
+        contentHtml: z.string(),
+        createTime: z.string(),
+        deleted: z.boolean(),
+        fromCopiedPresentation: z.boolean(),
+        fromImportedPresentation: z.boolean(),
+        postId: z.string(),
+        updateTime: z.string(),
+      }),
+      plainTextQuote: z.string(),
+      replies: z.array(z.object({
+        assigneeEmail: z.unknown(),
+        author: z.unknown(),
+        commentAction: z.unknown(),
+        content: z.unknown(),
+        contentHtml: z.unknown(),
+        createTime: z.unknown(),
+        deleted: z.unknown(),
+        fromCopiedPresentation: z.unknown(),
+        fromImportedPresentation: z.unknown(),
+        postId: z.unknown(),
+        updateTime: z.unknown(),
+      })),
+      status: z.string(),
+    })),
+    commentsViewMode: z.string(),
     layoutProperties: z.object({
       displayName: z.string(),
       masterObjectId: z.string(),
@@ -1597,6 +2070,31 @@ const StateSchema = z.object({
   presentationId: z.string().optional(),
   revisionId: z.string().optional(),
   slides: z.array(z.object({
+    commentAnchors: z.array(z.object({
+      anchorId: z.string(),
+      objectAnchors: z.array(z.unknown()),
+    })),
+    comments: z.array(z.object({
+      anchorId: z.string(),
+      commentId: z.string(),
+      headPost: z.object({
+        assigneeEmail: z.unknown(),
+        author: z.unknown(),
+        commentAction: z.unknown(),
+        content: z.unknown(),
+        contentHtml: z.unknown(),
+        createTime: z.unknown(),
+        deleted: z.unknown(),
+        fromCopiedPresentation: z.unknown(),
+        fromImportedPresentation: z.unknown(),
+        postId: z.unknown(),
+        updateTime: z.unknown(),
+      }),
+      plainTextQuote: z.string(),
+      replies: z.array(z.unknown()),
+      status: z.string(),
+    })),
+    commentsViewMode: z.string(),
     layoutProperties: z.object({
       displayName: z.string(),
       masterObjectId: z.string(),
@@ -1712,6 +2210,75 @@ const InputsSchema = z.object({
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
   layouts: z.array(z.object({
+    commentAnchors: z.array(z.object({
+      anchorId: z.string().describe(
+        "Output only. The unique ID of the comment anchor.",
+      ).optional(),
+      objectAnchors: z.array(z.unknown()).describe(
+        "Output only. All object ID-based locations within a page that refer to the anchor ID.",
+      ).optional(),
+    })).describe(
+      "Output only. The comment anchors present on the page. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
+    comments: z.array(z.object({
+      anchorId: z.string().describe(
+        "The ID of the CommentAnchor in the presentation that this thread is tied to.",
+      ).optional(),
+      commentId: z.string().describe("The unique ID of the comment thread.")
+        .optional(),
+      headPost: z.object({
+        assigneeEmail: z.unknown().describe(
+          "Optional. The email of the user who is being newly assigned to the thread as part of this post. Returns a 400 bad request error if: - The parent thread is a CommentThread whose headPost does not have an assignee. - commentAction is specified as `RESOLVE` or `REOPEN`. - `assignee_email` exceeds 2048 UTF-8 code units.",
+        ).optional(),
+        author: z.unknown().describe(
+          "Output only. The user who created the post.",
+        ).optional(),
+        commentAction: z.unknown().describe(
+          "Action taken as part of creating the post.",
+        ).optional(),
+        content: z.unknown().describe(
+          "The content of the post. Required to be non-empty if comment_action is not `RESOLVE` or `REOPEN`. This text content will be handled similarly to comments created in the Slides editor. It will have similar behaviors for formatting, notifications, etc. May not exceed 2048 UTF-8 code units.",
+        ).optional(),
+        contentHtml: z.unknown().describe(
+          "Output only. The content of the post as HTML.",
+        ).optional(),
+        createTime: z.unknown().describe(
+          "Output only. The time the post was created.",
+        ).optional(),
+        deleted: z.unknown().describe(
+          "Output only. Whether the post is deleted. If `true`, content and author fields will be empty.",
+        ).optional(),
+        fromCopiedPresentation: z.unknown().describe(
+          "Output only. Whether the post is from a copied presentation. This field cannot be set directly by callers.",
+        ).optional(),
+        fromImportedPresentation: z.unknown().describe(
+          "Output only. Whether the post is from an imported presentation. This field cannot be set directly by callers.",
+        ).optional(),
+        postId: z.unknown().describe("Output only. The unique ID of the post.")
+          .optional(),
+        updateTime: z.unknown().describe(
+          "Output only. The time the post was last updated.",
+        ).optional(),
+      }).describe("The first post in the thread.").optional(),
+      plainTextQuote: z.string().describe(
+        "The quoted text from the page element when the comment was created, formatted as plain-text.",
+      ).optional(),
+      replies: z.array(z.unknown()).describe("Replies to the head post.")
+        .optional(),
+      status: z.enum(["STATUS_UNSPECIFIED", "OPEN", "RESOLVED"]).describe(
+        "Whether the thread is open or resolved.",
+      ).optional(),
+    })).describe(
+      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
+    commentsViewMode: z.enum([
+      "COMMENTS_VIEW_MODE_UNSPECIFIED",
+      "COMMENTS_VIEW_MODE_DEFAULT_FOR_CURRENT_ACCESS",
+      "COMMENTS_VIEW_MODE_OMITTED",
+      "COMMENTS_VIEW_MODE_INCLUDED",
+    ]).describe(
+      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
     layoutProperties: z.object({
       displayName: z.string().describe("The human-readable name of the layout.")
         .optional(),
@@ -1916,6 +2483,75 @@ const InputsSchema = z.object({
     "The locale of the presentation, as an IETF BCP 47 language tag.",
   ).optional(),
   masters: z.array(z.object({
+    commentAnchors: z.array(z.object({
+      anchorId: z.string().describe(
+        "Output only. The unique ID of the comment anchor.",
+      ).optional(),
+      objectAnchors: z.array(z.unknown()).describe(
+        "Output only. All object ID-based locations within a page that refer to the anchor ID.",
+      ).optional(),
+    })).describe(
+      "Output only. The comment anchors present on the page. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
+    comments: z.array(z.object({
+      anchorId: z.string().describe(
+        "The ID of the CommentAnchor in the presentation that this thread is tied to.",
+      ).optional(),
+      commentId: z.string().describe("The unique ID of the comment thread.")
+        .optional(),
+      headPost: z.object({
+        assigneeEmail: z.unknown().describe(
+          "Optional. The email of the user who is being newly assigned to the thread as part of this post. Returns a 400 bad request error if: - The parent thread is a CommentThread whose headPost does not have an assignee. - commentAction is specified as `RESOLVE` or `REOPEN`. - `assignee_email` exceeds 2048 UTF-8 code units.",
+        ).optional(),
+        author: z.unknown().describe(
+          "Output only. The user who created the post.",
+        ).optional(),
+        commentAction: z.unknown().describe(
+          "Action taken as part of creating the post.",
+        ).optional(),
+        content: z.unknown().describe(
+          "The content of the post. Required to be non-empty if comment_action is not `RESOLVE` or `REOPEN`. This text content will be handled similarly to comments created in the Slides editor. It will have similar behaviors for formatting, notifications, etc. May not exceed 2048 UTF-8 code units.",
+        ).optional(),
+        contentHtml: z.unknown().describe(
+          "Output only. The content of the post as HTML.",
+        ).optional(),
+        createTime: z.unknown().describe(
+          "Output only. The time the post was created.",
+        ).optional(),
+        deleted: z.unknown().describe(
+          "Output only. Whether the post is deleted. If `true`, content and author fields will be empty.",
+        ).optional(),
+        fromCopiedPresentation: z.unknown().describe(
+          "Output only. Whether the post is from a copied presentation. This field cannot be set directly by callers.",
+        ).optional(),
+        fromImportedPresentation: z.unknown().describe(
+          "Output only. Whether the post is from an imported presentation. This field cannot be set directly by callers.",
+        ).optional(),
+        postId: z.unknown().describe("Output only. The unique ID of the post.")
+          .optional(),
+        updateTime: z.unknown().describe(
+          "Output only. The time the post was last updated.",
+        ).optional(),
+      }).describe("The first post in the thread.").optional(),
+      plainTextQuote: z.string().describe(
+        "The quoted text from the page element when the comment was created, formatted as plain-text.",
+      ).optional(),
+      replies: z.array(z.unknown()).describe("Replies to the head post.")
+        .optional(),
+      status: z.enum(["STATUS_UNSPECIFIED", "OPEN", "RESOLVED"]).describe(
+        "Whether the thread is open or resolved.",
+      ).optional(),
+    })).describe(
+      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
+    commentsViewMode: z.enum([
+      "COMMENTS_VIEW_MODE_UNSPECIFIED",
+      "COMMENTS_VIEW_MODE_DEFAULT_FOR_CURRENT_ACCESS",
+      "COMMENTS_VIEW_MODE_OMITTED",
+      "COMMENTS_VIEW_MODE_INCLUDED",
+    ]).describe(
+      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
     layoutProperties: z.object({
       displayName: z.string().describe("The human-readable name of the layout.")
         .optional(),
@@ -2117,6 +2753,130 @@ const InputsSchema = z.object({
     "The slide masters in the presentation. A slide master contains all common page elements and the common properties for a set of layouts. They serve three purposes: - Placeholder shapes on a master contain the default text styles and shape properties of all placeholder shapes on pages that use that master. - The master page properties define the common page properties inherited by its layouts. - Any other shapes on the master slide appear on all slides using that master, regardless of their layout.",
   ).optional(),
   notesMaster: z.object({
+    commentAnchors: z.array(z.object({
+      anchorId: z.string().describe(
+        "Output only. The unique ID of the comment anchor.",
+      ).optional(),
+      objectAnchors: z.array(z.object({
+        objectId: z.unknown().describe(
+          "Output only. The page or page element that the comment thread is anchored to.",
+        ).optional(),
+        shapeTextAnchors: z.unknown().describe(
+          "Populated for Shapes that have comments anchored to ranges of text in the shape's text.",
+        ).optional(),
+        tableCellAnchors: z.unknown().describe(
+          "Populated for Tables that have comments anchored to ranges of text in one or more of the table's cells.",
+        ).optional(),
+      })).describe(
+        "Output only. All object ID-based locations within a page that refer to the anchor ID.",
+      ).optional(),
+    })).describe(
+      "Output only. The comment anchors present on the page. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
+    comments: z.array(z.object({
+      anchorId: z.string().describe(
+        "The ID of the CommentAnchor in the presentation that this thread is tied to.",
+      ).optional(),
+      commentId: z.string().describe("The unique ID of the comment thread.")
+        .optional(),
+      headPost: z.object({
+        assigneeEmail: z.string().describe(
+          "Optional. The email of the user who is being newly assigned to the thread as part of this post. Returns a 400 bad request error if: - The parent thread is a CommentThread whose headPost does not have an assignee. - commentAction is specified as `RESOLVE` or `REOPEN`. - `assignee_email` exceeds 2048 UTF-8 code units.",
+        ).optional(),
+        author: z.object({
+          anonymous: z.unknown().describe("Whether the user is anonymous.")
+            .optional(),
+          displayName: z.unknown().describe(
+            "The display name of the user. May be absent if the author is anonymous.",
+          ).optional(),
+          me: z.unknown().describe(
+            "Whether the user is the authenticated user making the request.",
+          ).optional(),
+          user: z.unknown().describe(
+            "The resource name of the post author user, which can also be used to identify the user in the [Google People API](https://developers.google.com/people/api/rest/v1/people). Format: `users/{user}`. Will not be populated if the anonymous field is `true` or if the post is from an imported presentation.",
+          ).optional(),
+        }).describe("Output only. The user who created the post.").optional(),
+        commentAction: z.enum([
+          "COMMENT_ACTION_TYPE_UNSPECIFIED",
+          "NO_COMMENT_ACTION_CHANGE",
+          "RESOLVE",
+          "REOPEN",
+        ]).describe("Action taken as part of creating the post.").optional(),
+        content: z.string().describe(
+          "The content of the post. Required to be non-empty if comment_action is not `RESOLVE` or `REOPEN`. This text content will be handled similarly to comments created in the Slides editor. It will have similar behaviors for formatting, notifications, etc. May not exceed 2048 UTF-8 code units.",
+        ).optional(),
+        contentHtml: z.string().describe(
+          "Output only. The content of the post as HTML.",
+        ).optional(),
+        createTime: z.string().describe(
+          "Output only. The time the post was created.",
+        ).optional(),
+        deleted: z.boolean().describe(
+          "Output only. Whether the post is deleted. If `true`, content and author fields will be empty.",
+        ).optional(),
+        fromCopiedPresentation: z.boolean().describe(
+          "Output only. Whether the post is from a copied presentation. This field cannot be set directly by callers.",
+        ).optional(),
+        fromImportedPresentation: z.boolean().describe(
+          "Output only. Whether the post is from an imported presentation. This field cannot be set directly by callers.",
+        ).optional(),
+        postId: z.string().describe("Output only. The unique ID of the post.")
+          .optional(),
+        updateTime: z.string().describe(
+          "Output only. The time the post was last updated.",
+        ).optional(),
+      }).describe("The first post in the thread.").optional(),
+      plainTextQuote: z.string().describe(
+        "The quoted text from the page element when the comment was created, formatted as plain-text.",
+      ).optional(),
+      replies: z.array(z.object({
+        assigneeEmail: z.unknown().describe(
+          "Optional. The email of the user who is being newly assigned to the thread as part of this post. Returns a 400 bad request error if: - The parent thread is a CommentThread whose headPost does not have an assignee. - commentAction is specified as `RESOLVE` or `REOPEN`. - `assignee_email` exceeds 2048 UTF-8 code units.",
+        ).optional(),
+        author: z.unknown().describe(
+          "Output only. The user who created the post.",
+        ).optional(),
+        commentAction: z.unknown().describe(
+          "Action taken as part of creating the post.",
+        ).optional(),
+        content: z.unknown().describe(
+          "The content of the post. Required to be non-empty if comment_action is not `RESOLVE` or `REOPEN`. This text content will be handled similarly to comments created in the Slides editor. It will have similar behaviors for formatting, notifications, etc. May not exceed 2048 UTF-8 code units.",
+        ).optional(),
+        contentHtml: z.unknown().describe(
+          "Output only. The content of the post as HTML.",
+        ).optional(),
+        createTime: z.unknown().describe(
+          "Output only. The time the post was created.",
+        ).optional(),
+        deleted: z.unknown().describe(
+          "Output only. Whether the post is deleted. If `true`, content and author fields will be empty.",
+        ).optional(),
+        fromCopiedPresentation: z.unknown().describe(
+          "Output only. Whether the post is from a copied presentation. This field cannot be set directly by callers.",
+        ).optional(),
+        fromImportedPresentation: z.unknown().describe(
+          "Output only. Whether the post is from an imported presentation. This field cannot be set directly by callers.",
+        ).optional(),
+        postId: z.unknown().describe("Output only. The unique ID of the post.")
+          .optional(),
+        updateTime: z.unknown().describe(
+          "Output only. The time the post was last updated.",
+        ).optional(),
+      })).describe("Replies to the head post.").optional(),
+      status: z.enum(["STATUS_UNSPECIFIED", "OPEN", "RESOLVED"]).describe(
+        "Whether the thread is open or resolved.",
+      ).optional(),
+    })).describe(
+      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
+    commentsViewMode: z.enum([
+      "COMMENTS_VIEW_MODE_UNSPECIFIED",
+      "COMMENTS_VIEW_MODE_DEFAULT_FOR_CURRENT_ACCESS",
+      "COMMENTS_VIEW_MODE_OMITTED",
+      "COMMENTS_VIEW_MODE_INCLUDED",
+    ]).describe(
+      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
     layoutProperties: z.object({
       displayName: z.string().describe("The human-readable name of the layout.")
         .optional(),
@@ -2623,6 +3383,75 @@ const InputsSchema = z.object({
   }).describe("The size of pages in the presentation.").optional(),
   presentationId: z.string().describe("The ID of the presentation.").optional(),
   slides: z.array(z.object({
+    commentAnchors: z.array(z.object({
+      anchorId: z.string().describe(
+        "Output only. The unique ID of the comment anchor.",
+      ).optional(),
+      objectAnchors: z.array(z.unknown()).describe(
+        "Output only. All object ID-based locations within a page that refer to the anchor ID.",
+      ).optional(),
+    })).describe(
+      "Output only. The comment anchors present on the page. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
+    comments: z.array(z.object({
+      anchorId: z.string().describe(
+        "The ID of the CommentAnchor in the presentation that this thread is tied to.",
+      ).optional(),
+      commentId: z.string().describe("The unique ID of the comment thread.")
+        .optional(),
+      headPost: z.object({
+        assigneeEmail: z.unknown().describe(
+          "Optional. The email of the user who is being newly assigned to the thread as part of this post. Returns a 400 bad request error if: - The parent thread is a CommentThread whose headPost does not have an assignee. - commentAction is specified as `RESOLVE` or `REOPEN`. - `assignee_email` exceeds 2048 UTF-8 code units.",
+        ).optional(),
+        author: z.unknown().describe(
+          "Output only. The user who created the post.",
+        ).optional(),
+        commentAction: z.unknown().describe(
+          "Action taken as part of creating the post.",
+        ).optional(),
+        content: z.unknown().describe(
+          "The content of the post. Required to be non-empty if comment_action is not `RESOLVE` or `REOPEN`. This text content will be handled similarly to comments created in the Slides editor. It will have similar behaviors for formatting, notifications, etc. May not exceed 2048 UTF-8 code units.",
+        ).optional(),
+        contentHtml: z.unknown().describe(
+          "Output only. The content of the post as HTML.",
+        ).optional(),
+        createTime: z.unknown().describe(
+          "Output only. The time the post was created.",
+        ).optional(),
+        deleted: z.unknown().describe(
+          "Output only. Whether the post is deleted. If `true`, content and author fields will be empty.",
+        ).optional(),
+        fromCopiedPresentation: z.unknown().describe(
+          "Output only. Whether the post is from a copied presentation. This field cannot be set directly by callers.",
+        ).optional(),
+        fromImportedPresentation: z.unknown().describe(
+          "Output only. Whether the post is from an imported presentation. This field cannot be set directly by callers.",
+        ).optional(),
+        postId: z.unknown().describe("Output only. The unique ID of the post.")
+          .optional(),
+        updateTime: z.unknown().describe(
+          "Output only. The time the post was last updated.",
+        ).optional(),
+      }).describe("The first post in the thread.").optional(),
+      plainTextQuote: z.string().describe(
+        "The quoted text from the page element when the comment was created, formatted as plain-text.",
+      ).optional(),
+      replies: z.array(z.unknown()).describe("Replies to the head post.")
+        .optional(),
+      status: z.enum(["STATUS_UNSPECIFIED", "OPEN", "RESOLVED"]).describe(
+        "Whether the thread is open or resolved.",
+      ).optional(),
+    })).describe(
+      "Output only. The comment threads associated with the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. Otherwise, comments are returned in the Presentation via the GetPresentationRequest. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
+    commentsViewMode: z.enum([
+      "COMMENTS_VIEW_MODE_UNSPECIFIED",
+      "COMMENTS_VIEW_MODE_DEFAULT_FOR_CURRENT_ACCESS",
+      "COMMENTS_VIEW_MODE_OMITTED",
+      "COMMENTS_VIEW_MODE_INCLUDED",
+    ]).describe(
+      "Output only. The comments view mode applied to the page. Only populated if the page was fetched via a GetPageRequest with a populated comments_view_mode. [Developer Preview](https://developers.google.com/workspace/preview).",
+    ).optional(),
     layoutProperties: z.object({
       displayName: z.string().describe("The human-readable name of the layout.")
         .optional(),
@@ -2852,7 +3681,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Slides Presentations. Registered at `@swamp/gcp/slides/presentations`. */
 export const model = {
   type: "@swamp/gcp/slides/presentations",
-  version: "2026.08.12.2",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2971,6 +3800,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

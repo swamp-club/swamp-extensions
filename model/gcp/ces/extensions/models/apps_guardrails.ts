@@ -310,6 +310,13 @@ const GlobalArgsSchema = z.object({
       temperature: z.number().describe(
         "Optional. If set, this temperature will be used for the LLM model. Temperature controls the randomness of the model's responses. Lower temperatures produce responses that are more predictable. Higher temperatures produce responses that are more creative.",
       ).optional(),
+      thinkingLevel: z.enum([
+        "THINKING_LEVEL_UNSPECIFIED",
+        "DEFAULT",
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+      ]).describe("Optional. The thinking level of the model.").optional(),
     }).describe("Optional. Model settings.").optional(),
     policyScope: z.enum([
       "POLICY_SCOPE_UNSPECIFIED",
@@ -341,6 +348,13 @@ const GlobalArgsSchema = z.object({
         temperature: z.number().describe(
           "Optional. If set, this temperature will be used for the LLM model. Temperature controls the randomness of the model's responses. Lower temperatures produce responses that are more predictable. Higher temperatures produce responses that are more creative.",
         ).optional(),
+        thinkingLevel: z.enum([
+          "THINKING_LEVEL_UNSPECIFIED",
+          "DEFAULT",
+          "LOW",
+          "MEDIUM",
+          "HIGH",
+        ]).describe("Optional. The thinking level of the model.").optional(),
       }).describe("Optional. Model settings.").optional(),
       policyScope: z.enum([
         "POLICY_SCOPE_UNSPECIFIED",
@@ -408,6 +422,7 @@ const GlobalArgsSchema = z.object({
       "MISSING_TOOL_CALL",
       "CUSTOM",
       "CHOPPY_AUDIO",
+      "PROFANITY",
     ]).describe("Optional. The type of the supervisor.").optional(),
   }).describe("Optional. Guardrail that runs supervisor intervention.")
     .optional(),
@@ -482,6 +497,7 @@ const StateSchema = z.object({
     modelSettings: z.object({
       model: z.string(),
       temperature: z.number(),
+      thinkingLevel: z.string(),
     }),
     policyScope: z.string(),
     prompt: z.string(),
@@ -494,6 +510,7 @@ const StateSchema = z.object({
       modelSettings: z.object({
         model: z.string(),
         temperature: z.number(),
+        thinkingLevel: z.string(),
       }),
       policyScope: z.string(),
       prompt: z.string(),
@@ -666,6 +683,13 @@ const InputsSchema = z.object({
       temperature: z.number().describe(
         "Optional. If set, this temperature will be used for the LLM model. Temperature controls the randomness of the model's responses. Lower temperatures produce responses that are more predictable. Higher temperatures produce responses that are more creative.",
       ).optional(),
+      thinkingLevel: z.enum([
+        "THINKING_LEVEL_UNSPECIFIED",
+        "DEFAULT",
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+      ]).describe("Optional. The thinking level of the model.").optional(),
     }).describe("Optional. Model settings.").optional(),
     policyScope: z.enum([
       "POLICY_SCOPE_UNSPECIFIED",
@@ -697,6 +721,13 @@ const InputsSchema = z.object({
         temperature: z.number().describe(
           "Optional. If set, this temperature will be used for the LLM model. Temperature controls the randomness of the model's responses. Lower temperatures produce responses that are more predictable. Higher temperatures produce responses that are more creative.",
         ).optional(),
+        thinkingLevel: z.enum([
+          "THINKING_LEVEL_UNSPECIFIED",
+          "DEFAULT",
+          "LOW",
+          "MEDIUM",
+          "HIGH",
+        ]).describe("Optional. The thinking level of the model.").optional(),
       }).describe("Optional. Model settings.").optional(),
       policyScope: z.enum([
         "POLICY_SCOPE_UNSPECIFIED",
@@ -764,6 +795,7 @@ const InputsSchema = z.object({
       "MISSING_TOOL_CALL",
       "CUSTOM",
       "CHOPPY_AUDIO",
+      "PROFANITY",
     ]).describe("Optional. The type of the supervisor.").optional(),
   }).describe("Optional. Guardrail that runs supervisor intervention.")
     .optional(),
@@ -804,7 +836,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Guardrails. Registered at `@swamp/gcp/ces/apps-guardrails`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-guardrails",
-  version: "2026.09.15.1",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -944,6 +976,11 @@ export const model = {
     {
       toVersion: "2026.09.15.1",
       description: "Added: supervisor",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

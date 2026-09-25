@@ -84,6 +84,13 @@ const GlobalArgsSchema = z.object({
   ).describe(
     "The locale for the AgentSpace, which determines the language used in agent responses.",
   ).optional(),
+  Preferences: z.object({
+    ElevatedActionsEnabled: z.boolean().describe(
+      "Indicates whether elevated directed actions are permitted in this AgentSpace. Defaults to false when not set.",
+    ).optional(),
+  }).describe(
+    "Preferences that configure behavior of this AgentSpace. This container fully owns the AgentSpace preferences: the properties supplied here replace the stored preferences in their entirety, and omitting the Preferences container reverts all preferences to their service defaults.",
+  ).optional(),
   OperatorApp: z.object({
     Iam: IamAuthConfigurationSchema.optional(),
     Idc: IdcAuthConfigurationSchema.optional(),
@@ -99,6 +106,9 @@ const StateSchema = z.object({
   Description: z.string().optional(),
   KmsKeyArn: z.string().optional(),
   Locale: z.string().optional(),
+  Preferences: z.object({
+    ElevatedActionsEnabled: z.boolean(),
+  }).optional(),
   OperatorApp: z.object({
     Iam: IamAuthConfigurationSchema,
     Idc: IdcAuthConfigurationSchema,
@@ -130,6 +140,13 @@ const InputsSchema = z.object({
   ).describe(
     "The locale for the AgentSpace, which determines the language used in agent responses.",
   ).optional(),
+  Preferences: z.object({
+    ElevatedActionsEnabled: z.boolean().describe(
+      "Indicates whether elevated directed actions are permitted in this AgentSpace. Defaults to false when not set.",
+    ).optional(),
+  }).describe(
+    "Preferences that configure behavior of this AgentSpace. This container fully owns the AgentSpace preferences: the properties supplied here replace the stored preferences in their entirety, and omitting the Preferences container reverts all preferences to their service defaults.",
+  ).optional(),
   OperatorApp: z.object({
     Iam: IamAuthConfigurationSchema.optional(),
     Idc: IdcAuthConfigurationSchema.optional(),
@@ -158,7 +175,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DevOpsAgent AgentSpace. Registered at `@swamp/aws/devopsagent/agent-space`. */
 export const model = {
   type: "@swamp/aws/devopsagent/agent-space",
-  version: "2026.08.17.2",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -223,6 +240,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
+      description: "Added: Preferences",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

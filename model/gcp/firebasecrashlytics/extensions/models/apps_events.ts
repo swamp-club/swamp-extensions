@@ -95,6 +95,9 @@ const LIST_CONFIG = {
     "filter.version.displayNames": {
       "location": "query",
     },
+    "filterExpression": {
+      "location": "query",
+    },
     "pageSize": {
       "location": "query",
     },
@@ -359,7 +362,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firebase Crashlytics Apps.Events. Registered at `@swamp/gcp/firebasecrashlytics/apps-events`. */
 export const model = {
   type: "@swamp/gcp/firebasecrashlytics/apps-events",
-  version: "2026.09.07.1",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.07.17.1",
@@ -403,6 +406,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -561,6 +569,9 @@ export const model = {
         filter_version_displayNames: z.string().describe(
           'Only counts events in the given app version. This string matches Version.display_name. Format: "display_version (build_version)" e.g. "1.2.3 (456)".',
         ).optional(),
+        filterExpression: z.string().describe(
+          'Optional. Filters events by custom keys (https://firebase.google.com/docs/crashlytics/customize-crash-reports#add-keys). Supported forms: * Equality: `custom_keys.level = "vip"` or `custom_keys.level:"vip"` * Presence: `custom_keys.level:*` * OR across values of one key: `custom_keys.level = "vip" OR custom_keys.level = "enterprise"` * AND across different keys: `custom_keys.level = "vip" AND custom_keys.region = "us"` Keys are case-sensitive. Keys and values containing spaces must be double-quoted, for example `custom_keys."app state" = "background"`. OR across different keys, repeating a key within an AND, NOT, and comparators other than `=` and `:` are rejected with INVALID_ARGUMENT. Wildcards are not supported in values; use `custom_keys.:*` to match events that set a key to any value. Only supported for Android and iOS. This filter expression applies in addition to the `filter` field above. The syntax is a subset of AIP-160 (https://google.aip.dev/160).',
+        ).optional(),
         pageSize: z.number().describe(
           "Optional. The maximum number of events per page. If omitted, defaults to 10.",
         ).optional(),
@@ -635,6 +646,9 @@ export const model = {
           params["filter.version.displayNames"] = String(
             args["filter_version_displayNames"],
           );
+        }
+        if (args["filterExpression"] !== undefined) {
+          params["filterExpression"] = String(args["filterExpression"]);
         }
         if (args["pageSize"] !== undefined) {
           params["pageSize"] = String(args["pageSize"]);

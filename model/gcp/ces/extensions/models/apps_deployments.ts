@@ -323,6 +323,13 @@ const GlobalArgsSchema = z.object({
     temperature: z.number().describe(
       "Optional. If set, this temperature will be used for the LLM model. Temperature controls the randomness of the model's responses. Lower temperatures produce responses that are more predictable. Higher temperatures produce responses that are more creative.",
     ).optional(),
+    thinkingLevel: z.enum([
+      "THINKING_LEVEL_UNSPECIFIED",
+      "DEFAULT",
+      "LOW",
+      "MEDIUM",
+      "HIGH",
+    ]).describe("Optional. The thinking level of the model.").optional(),
   }).describe(
     "Optional. Model settings for the deployment. Overrides model settings configured at the app/agent levels. Note: Deployment-level model settings override is gated behind an allowlist. Contact the CXAS team to enable this field.",
   ).optional(),
@@ -422,6 +429,7 @@ const StateSchema = z.object({
   modelSettings: z.object({
     model: z.string(),
     temperature: z.number(),
+    thinkingLevel: z.string(),
   }).optional(),
   name: z.string(),
   updateTime: z.string().optional(),
@@ -603,6 +611,13 @@ const InputsSchema = z.object({
     temperature: z.number().describe(
       "Optional. If set, this temperature will be used for the LLM model. Temperature controls the randomness of the model's responses. Lower temperatures produce responses that are more predictable. Higher temperatures produce responses that are more creative.",
     ).optional(),
+    thinkingLevel: z.enum([
+      "THINKING_LEVEL_UNSPECIFIED",
+      "DEFAULT",
+      "LOW",
+      "MEDIUM",
+      "HIGH",
+    ]).describe("Optional. The thinking level of the model.").optional(),
   }).describe(
     "Optional. Model settings for the deployment. Overrides model settings configured at the app/agent levels. Note: Deployment-level model settings override is gated behind an allowlist. Contact the CXAS team to enable this field.",
   ).optional(),
@@ -667,7 +682,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Deployments. Registered at `@swamp/gcp/ces/apps-deployments`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-deployments",
-  version: "2026.09.01.1",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -814,6 +829,11 @@ export const model = {
     {
       toVersion: "2026.09.01.1",
       description: "Added: agentRegistryDeployment",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

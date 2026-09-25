@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/ses"
-version: "2026.09.24.1"
+version: "2026.09.25.1"
 description: "AWS SES infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -9,6 +9,8 @@ labels:
   - ses
   - cloud
   - infrastructure
+releaseNotes: |
+  - Added: email_identity_certificate
 models:
   - configuration_set.ts
   - configuration_set_event_destination.ts
@@ -16,6 +18,7 @@ models:
   - custom_verification_email_template.ts
   - dedicated_ip_pool.ts
   - email_identity.ts
+  - email_identity_certificate.ts
   - mail_manager_addon_instance.ts
   - mail_manager_addon_subscription.ts
   - mail_manager_address_list.ts

@@ -83,6 +83,7 @@ const AthenaParametersSchema = z.object({
   WorkGroup: z.string().min(1).max(128).describe(
     "The workgroup that Amazon Athena uses.",
   ).optional(),
+  ConsumerAccountRoleArn: z.string().min(20).max(2048).optional(),
   IdentityCenterConfiguration: IdentityCenterConfigurationSchema.describe(
     "The parameters for an IAM Identity Center configuration.",
   ).optional(),
@@ -498,6 +499,7 @@ const GlobalArgsSchema = z.object({
     "APPFLOW",
     "IMPALA",
     "GLUE",
+    "GLUE_DATA_CATALOG",
     "GOOGLE_DRIVE",
     "CONFLUENCE",
     "SHAREPOINT",
@@ -505,6 +507,7 @@ const GlobalArgsSchema = z.object({
     "WEB_CRAWLER",
     "BOX",
     "GOOGLESHEETS",
+    "ATLAN",
   ]),
   VpcConnectionProperties: z.object({
     VpcConnectionArn: z.string().describe(
@@ -715,6 +718,7 @@ const InputsSchema = z.object({
     "APPFLOW",
     "IMPALA",
     "GLUE",
+    "GLUE_DATA_CATALOG",
     "GOOGLE_DRIVE",
     "CONFLUENCE",
     "SHAREPOINT",
@@ -722,6 +726,7 @@ const InputsSchema = z.object({
     "WEB_CRAWLER",
     "BOX",
     "GOOGLESHEETS",
+    "ATLAN",
   ]).optional(),
   VpcConnectionProperties: z.object({
     VpcConnectionArn: z.string().describe(
@@ -786,7 +791,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight DataSource. Registered at `@swamp/aws/quicksight/data-source`. */
 export const model = {
   type: "@swamp/aws/quicksight/data-source",
-  version: "2026.08.17.2",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -850,6 +855,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

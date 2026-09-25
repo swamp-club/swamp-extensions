@@ -44,10 +44,14 @@ import type { AwsCredentials } from "./_lib/aws.ts";
 
 const FunctionRefSchema = z.object({
   RunCondition: z.string().describe(
-    "A conditional expression that determines whether this function should execute.",
+    "An optional expression that evaluates to a boolean. MediaTailor evaluates this expression immediately before running the child function, using the accumulated state at that point. If the expression evaluates to false, MediaTailor skips the child function. If omitted, the child function always runs.",
   ).optional(),
-  FunctionId: z.string().describe("The identifier of the function to execute.")
-    .optional(),
+  FunctionId: z.string().describe(
+    "The identifier of the child function to execute.",
+  ).optional(),
+  Alias: z.string().describe(
+    "An optional alternate name for the child function within the executor. MediaTailor uses this value as the namespace for the child function's output. If omitted, MediaTailor uses the function identifier. The resolved namespace must be unique across all child functions in the list.",
+  ).optional(),
 });
 
 const TagSchema = z.object({
@@ -69,10 +73,14 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   FunctionId: z.string().describe("The unique identifier for the function."),
-  FunctionType: z.enum(["HTTP_REQUEST", "CUSTOM_OUTPUT", "SEQUENTIAL_EXECUTOR"])
-    .describe(
-      "The type of the function. Determines which configuration object is used.",
-    ),
+  FunctionType: z.enum([
+    "HTTP_REQUEST",
+    "CUSTOM_OUTPUT",
+    "CONCURRENT_EXECUTOR",
+    "SEQUENTIAL_EXECUTOR",
+  ]).describe(
+    "The type of the function. Determines which configuration object is used.",
+  ),
   Description: z.string().describe("A description of the function.").optional(),
   HttpRequestConfiguration: z.object({
     Runtime: z.enum(["JSONATA"]).describe(
@@ -101,20 +109,41 @@ const GlobalArgsSchema = z.object({
       "A map of output key-value pairs that define the custom output.",
     ).optional(),
   }).describe("Configuration for custom output functions.").optional(),
-  SequentialExecutorConfiguration: z.object({
+  ConcurrentExecutorConfiguration: z.object({
     Runtime: z.enum(["JSONATA"]).describe(
-      "The runtime environment for the function expression language.",
+      "The expression language used to evaluate expressions in the function configuration. Set this to JSONATA.",
     ),
     Output: z.record(z.string(), z.string()).describe(
-      "A map of output key-value pairs that define the final output from sequential execution.",
+      "A map of output bindings that controls which bindings the executor commits to the session state after all child functions complete. Each key is a namespaced output path, and each value is an expression that MediaTailor evaluates against the combined results of the child functions.",
+    ),
+    FunctionList: z.array(FunctionRefSchema).describe(
+      "The list of 1 to 10 child functions that MediaTailor runs in parallel. Each entry specifies a child function to execute and an optional run condition expression that controls whether the function runs. Child functions cannot themselves be executors, and each child function's resolved namespace must be unique across the list.",
+    ),
+    TimeoutMilliseconds: z.number().int().min(100).max(2000).describe(
+      "The maximum time, in milliseconds, for all child functions to complete. This timeout covers every function in the list, including any HTTP calls the child functions make. If the executor exceeds this timeout, MediaTailor discards all output from the executor and proceeds with default behavior. Valid values are 100 to 2000.",
+    ),
+    MaxConcurrency: z.number().int().min(1).max(2).describe(
+      "The maximum number of child functions that MediaTailor runs simultaneously. When the list contains more functions than MaxConcurrency, MediaTailor starts additional functions as running ones complete, so that no more than MaxConcurrency functions run at the same time. Valid values are 1 to 2.",
+    ),
+  }).describe(
+    "The configuration for a CONCURRENT_EXECUTOR function. Required when FunctionType is CONCURRENT_EXECUTOR.",
+  ).optional(),
+  SequentialExecutorConfiguration: z.object({
+    Runtime: z.enum(["JSONATA"]).describe(
+      "The expression language used to evaluate expressions in the function configuration. Set this to JSONATA.",
+    ),
+    Output: z.record(z.string(), z.string()).describe(
+      "A map of output bindings that controls which bindings the sequence commits to the session state after all steps complete. Each key is a namespaced output path, and each value is an expression that MediaTailor evaluates against the accumulated results of the steps.",
     ).optional(),
     FunctionList: z.array(FunctionRefSchema).describe(
-      "The list of functions to execute sequentially.",
+      "An ordered list of 1 to 10 steps. Each step specifies a child function to execute and an optional run condition expression that controls whether the step runs. MediaTailor executes the steps in order, passing data between steps through temporary data. Each step's resolved namespace must be unique across the list.",
     ),
     TimeoutMilliseconds: z.number().int().describe(
-      "The timeout in milliseconds for the entire sequential execution chain.",
+      "The maximum time, in milliseconds, for the entire sequence to complete. This timeout covers all steps, including any HTTP calls made by child functions. If the sequence exceeds this timeout, MediaTailor discards all output from the sequence and proceeds with default behavior. Valid values are 100 to 2000.",
     ),
-  }).describe("Configuration for sequential executor functions.").optional(),
+  }).describe(
+    "The configuration for a SEQUENTIAL_EXECUTOR function. A SEQUENTIAL_EXECUTOR runs an ordered list of child functions one at a time, passing data between them. For more information about functions, see Working with functions (https://docs.aws.amazon.com/mediatailor/latest/ug/monetization-functions.html) in the MediaTailor User Guide.",
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "The tags to assign to the function resource.",
   ).optional(),
@@ -138,6 +167,13 @@ const StateSchema = z.object({
     Runtime: z.string(),
     Output: z.record(z.string(), z.unknown()),
   }).optional(),
+  ConcurrentExecutorConfiguration: z.object({
+    Runtime: z.string(),
+    Output: z.record(z.string(), z.unknown()),
+    FunctionList: z.array(FunctionRefSchema),
+    TimeoutMilliseconds: z.number(),
+    MaxConcurrency: z.number(),
+  }).optional(),
   SequentialExecutorConfiguration: z.object({
     Runtime: z.string(),
     Output: z.record(z.string(), z.unknown()),
@@ -156,10 +192,14 @@ const InputsSchema = z.object({
   region: z.string().optional(),
   FunctionId: z.string().describe("The unique identifier for the function.")
     .optional(),
-  FunctionType: z.enum(["HTTP_REQUEST", "CUSTOM_OUTPUT", "SEQUENTIAL_EXECUTOR"])
-    .describe(
-      "The type of the function. Determines which configuration object is used.",
-    ).optional(),
+  FunctionType: z.enum([
+    "HTTP_REQUEST",
+    "CUSTOM_OUTPUT",
+    "CONCURRENT_EXECUTOR",
+    "SEQUENTIAL_EXECUTOR",
+  ]).describe(
+    "The type of the function. Determines which configuration object is used.",
+  ).optional(),
   Description: z.string().describe("A description of the function.").optional(),
   HttpRequestConfiguration: z.object({
     Runtime: z.enum(["JSONATA"]).describe(
@@ -189,20 +229,41 @@ const InputsSchema = z.object({
       "A map of output key-value pairs that define the custom output.",
     ).optional(),
   }).describe("Configuration for custom output functions.").optional(),
-  SequentialExecutorConfiguration: z.object({
+  ConcurrentExecutorConfiguration: z.object({
     Runtime: z.enum(["JSONATA"]).describe(
-      "The runtime environment for the function expression language.",
+      "The expression language used to evaluate expressions in the function configuration. Set this to JSONATA.",
     ).optional(),
     Output: z.record(z.string(), z.string()).describe(
-      "A map of output key-value pairs that define the final output from sequential execution.",
+      "A map of output bindings that controls which bindings the executor commits to the session state after all child functions complete. Each key is a namespaced output path, and each value is an expression that MediaTailor evaluates against the combined results of the child functions.",
     ).optional(),
     FunctionList: z.array(FunctionRefSchema).describe(
-      "The list of functions to execute sequentially.",
+      "The list of 1 to 10 child functions that MediaTailor runs in parallel. Each entry specifies a child function to execute and an optional run condition expression that controls whether the function runs. Child functions cannot themselves be executors, and each child function's resolved namespace must be unique across the list.",
+    ).optional(),
+    TimeoutMilliseconds: z.number().int().min(100).max(2000).describe(
+      "The maximum time, in milliseconds, for all child functions to complete. This timeout covers every function in the list, including any HTTP calls the child functions make. If the executor exceeds this timeout, MediaTailor discards all output from the executor and proceeds with default behavior. Valid values are 100 to 2000.",
+    ).optional(),
+    MaxConcurrency: z.number().int().min(1).max(2).describe(
+      "The maximum number of child functions that MediaTailor runs simultaneously. When the list contains more functions than MaxConcurrency, MediaTailor starts additional functions as running ones complete, so that no more than MaxConcurrency functions run at the same time. Valid values are 1 to 2.",
+    ).optional(),
+  }).describe(
+    "The configuration for a CONCURRENT_EXECUTOR function. Required when FunctionType is CONCURRENT_EXECUTOR.",
+  ).optional(),
+  SequentialExecutorConfiguration: z.object({
+    Runtime: z.enum(["JSONATA"]).describe(
+      "The expression language used to evaluate expressions in the function configuration. Set this to JSONATA.",
+    ).optional(),
+    Output: z.record(z.string(), z.string()).describe(
+      "A map of output bindings that controls which bindings the sequence commits to the session state after all steps complete. Each key is a namespaced output path, and each value is an expression that MediaTailor evaluates against the accumulated results of the steps.",
+    ).optional(),
+    FunctionList: z.array(FunctionRefSchema).describe(
+      "An ordered list of 1 to 10 steps. Each step specifies a child function to execute and an optional run condition expression that controls whether the step runs. MediaTailor executes the steps in order, passing data between steps through temporary data. Each step's resolved namespace must be unique across the list.",
     ).optional(),
     TimeoutMilliseconds: z.number().int().describe(
-      "The timeout in milliseconds for the entire sequential execution chain.",
+      "The maximum time, in milliseconds, for the entire sequence to complete. This timeout covers all steps, including any HTTP calls made by child functions. If the sequence exceeds this timeout, MediaTailor discards all output from the sequence and proceeds with default behavior. Valid values are 100 to 2000.",
     ).optional(),
-  }).describe("Configuration for sequential executor functions.").optional(),
+  }).describe(
+    "The configuration for a SEQUENTIAL_EXECUTOR function. A SEQUENTIAL_EXECUTOR runs an ordered list of child functions one at a time, passing data between them. For more information about functions, see Working with functions (https://docs.aws.amazon.com/mediatailor/latest/ug/monetization-functions.html) in the MediaTailor User Guide.",
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "The tags to assign to the function resource.",
   ).optional(),
@@ -227,7 +288,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaTailor Function. Registered at `@swamp/aws/mediatailor/function`. */
 export const model = {
   type: "@swamp/aws/mediatailor/function",
-  version: "2026.08.17.2",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -237,6 +298,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
+      description: "Added: ConcurrentExecutorConfiguration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

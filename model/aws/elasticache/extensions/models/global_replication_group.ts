@@ -75,6 +75,15 @@ const RegionalConfigurationSchema = z.object({
   ).optional(),
 });
 
+const TagSchema = z.object({
+  Key: z.string().min(1).max(128).regex(
+    new RegExp("^(?!aws:)[a-zA-Z0-9 _\\.\\/=+:\\-@]*$"),
+  ).describe("The key for the tag. May not be null."),
+  Value: z.string().min(0).max(256).regex(
+    new RegExp("^[a-zA-Z0-9 _\\.\\/=+:\\-@]*$"),
+  ).describe("The tag's value. May be null.").optional(),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -118,6 +127,9 @@ const GlobalArgsSchema = z.object({
   RegionalConfigurations: z.array(RegionalConfigurationSchema).describe(
     "Describes the replication group IDs, the AWS regions where they are stored and the shard configuration for each that comprise the Global Datastore",
   ).optional(),
+  Tags: z.array(TagSchema).describe(
+    "An array of key-value pairs to apply to this Global Datastore.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -133,6 +145,8 @@ const StateSchema = z.object({
   Members: z.array(GlobalReplicationGroupMemberSchema).optional(),
   Status: z.string().optional(),
   RegionalConfigurations: z.array(RegionalConfigurationSchema).optional(),
+  Arn: z.string().optional(),
+  Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -170,6 +184,9 @@ const InputsSchema = z.object({
   RegionalConfigurations: z.array(RegionalConfigurationSchema).describe(
     "Describes the replication group IDs, the AWS regions where they are stored and the shard configuration for each that comprise the Global Datastore",
   ).optional(),
+  Tags: z.array(TagSchema).describe(
+    "An array of key-value pairs to apply to this Global Datastore.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -191,7 +208,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElastiCache GlobalReplicationGroup. Registered at `@swamp/aws/elasticache/global-replication-group`. */
 export const model = {
   type: "@swamp/aws/elasticache/global-replication-group",
-  version: "2026.08.17.2",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -241,6 +258,11 @@ export const model = {
     {
       toVersion: "2026.08.17.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
+      description: "Added: Tags",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

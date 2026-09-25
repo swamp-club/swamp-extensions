@@ -192,9 +192,6 @@ const GlobalArgsSchema = z.object({
     parentId: z.string().describe(
       "The unique id of the top-level comment, only set for replies.",
     ).optional(),
-    postId: z.string().describe(
-      "The ID of the post the comment refers to, if any.",
-    ).optional(),
     publishedAt: z.string().describe(
       "The date and time when the comment was originally published.",
     ).optional(),
@@ -236,7 +233,6 @@ const StateSchema = z.object({
     likeCount: z.number(),
     moderationStatus: z.string(),
     parentId: z.string(),
-    postId: z.string(),
     publishedAt: z.string(),
     textDisplay: z.string(),
     textOriginal: z.string(),
@@ -294,9 +290,6 @@ const InputsSchema = z.object({
     parentId: z.string().describe(
       "The unique id of the top-level comment, only set for replies.",
     ).optional(),
-    postId: z.string().describe(
-      "The ID of the post the comment refers to, if any.",
-    ).optional(),
     publishedAt: z.string().describe(
       "The date and time when the comment was originally published.",
     ).optional(),
@@ -348,7 +341,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data Comments. Registered at `@swamp/gcp/youtube/comments`. */
 export const model = {
   type: "@swamp/gcp/youtube/comments",
-  version: "2026.09.07.1",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -467,6 +460,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

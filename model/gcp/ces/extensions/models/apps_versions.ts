@@ -244,6 +244,7 @@ const StateSchema = z.object({
       modelSettings: z.object({
         model: z.string(),
         temperature: z.number(),
+        thinkingLevel: z.string(),
       }),
       name: z.string(),
       remoteA2aAgent: z.object({
@@ -298,7 +299,9 @@ const StateSchema = z.object({
           previewAudioContent: z.unknown(),
           previewText: z.unknown(),
           voiceInstruction: z.unknown(),
+          voiceInstructionMode: z.unknown(),
           voiceSampleGcsUri: z.unknown(),
+          warnings: z.unknown(),
         })),
         inactivityTimeout: z.string(),
         synthesizeSpeechConfigs: z.record(z.string(), z.unknown()),
@@ -437,6 +440,7 @@ const StateSchema = z.object({
       modelSettings: z.object({
         model: z.string(),
         temperature: z.number(),
+        thinkingLevel: z.string(),
       }),
       name: z.string(),
       pinned: z.boolean(),
@@ -573,6 +577,7 @@ const StateSchema = z.object({
         modelSettings: z.object({
           model: z.unknown(),
           temperature: z.unknown(),
+          thinkingLevel: z.unknown(),
         }),
         policyScope: z.string(),
         prompt: z.string(),
@@ -798,6 +803,7 @@ const StateSchema = z.object({
           service: z.unknown(),
         }),
       }),
+      readOnly: z.boolean(),
       remoteAgentTool: z.object({
         agentCard: z.object({
           description: z.unknown(),
@@ -990,7 +996,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps.Versions. Registered at `@swamp/gcp/ces/apps-versions`. */
 export const model = {
   type: "@swamp/gcp/ces/apps-versions",
-  version: "2026.09.15.1",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1232,6 +1238,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.15.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

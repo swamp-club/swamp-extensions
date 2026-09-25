@@ -215,8 +215,25 @@ const GlobalArgsSchema = z.object({
       voiceInstruction: z.string().describe(
         "Optional. Natural language instructions for voice style, tone, pacing, or pronunciation.",
       ).optional(),
+      voiceInstructionMode: z.enum([
+        "VOICE_INSTRUCTION_MODE_UNSPECIFIED",
+        "NO_INSTRUCTION",
+        "GENERATE_INSTRUCTION",
+        "CUSTOM_INSTRUCTION",
+      ]).describe(
+        "Optional. Instruction mode for the voice sample. If unspecified, defaults to NO_INSTRUCTION.",
+      ).optional(),
       voiceSampleGcsUri: z.string().describe(
         "Optional. The Cloud Storage URI to the audio sample for voice cloning. The audio sample should be a mono-channel, 24kHz WAV file.",
+      ).optional(),
+      warnings: z.array(z.object({
+        message: z.unknown().describe(
+          "Output only. A human-readable description of the warning.",
+        ).optional(),
+        type: z.unknown().describe("Output only. The type of the warning.")
+          .optional(),
+      })).describe(
+        "Output only. Warning messages encountered during voice clone processing (e.g. low audio level).",
       ).optional(),
     })).describe("Optional. Configures custom voice samples for voice cloning.")
       .optional(),
@@ -226,9 +243,6 @@ const GlobalArgsSchema = z.object({
     synthesizeSpeechConfigs: z.record(
       z.string(),
       z.object({
-        consentAudioGcsUri: z.string().describe(
-          "Optional. Deprecated: Use `custom_voice_samples` in AudioProcessingConfig instead. The Cloud Storage URI to the consent audio for voice cloning.",
-        ).optional(),
         instruction: z.string().describe(
           "Optional. The instruction used to synthesize speech when using a generative model.",
         ).optional(),
@@ -240,9 +254,6 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         voice: z.string().describe(
           "Optional. The name of the voice. If not set, the service will choose a voice based on the other parameters such as language_code. For the list of available voices, please refer to [Supported voices and languages](https://cloud.google.com/text-to-speech/docs/voices) from Cloud Text-to-Speech.",
-        ).optional(),
-        voiceSampleGcsUri: z.string().describe(
-          "Optional. Deprecated: Use `custom_voice_samples` in AudioProcessingConfig instead. The Cloud Storage URI to the audio sample for voice cloning. The audio sample should be a mono-channel, 24kHz WAV file. Note: Please make sure the CES service agent `service-@gcp-sa-ces.iam.gserviceaccount.com` has `storage.objects.get` permission to the Cloud Storage object.",
         ).optional(),
       }),
     ).describe(
@@ -594,6 +605,13 @@ const GlobalArgsSchema = z.object({
     temperature: z.number().describe(
       "Optional. If set, this temperature will be used for the LLM model. Temperature controls the randomness of the model's responses. Lower temperatures produce responses that are more predictable. Higher temperatures produce responses that are more creative.",
     ).optional(),
+    thinkingLevel: z.enum([
+      "THINKING_LEVEL_UNSPECIFIED",
+      "DEFAULT",
+      "LOW",
+      "MEDIUM",
+      "HIGH",
+    ]).describe("Optional. The thinking level of the model.").optional(),
   }).describe(
     "Optional. The default LLM model settings for the app. Individual resources (e.g. agents, guardrails) can override these configurations as needed.",
   ).optional(),
@@ -718,7 +736,12 @@ const StateSchema = z.object({
       previewAudioContent: z.string(),
       previewText: z.string(),
       voiceInstruction: z.string(),
+      voiceInstructionMode: z.string(),
       voiceSampleGcsUri: z.string(),
+      warnings: z.array(z.object({
+        message: z.unknown(),
+        type: z.unknown(),
+      })),
     })),
     inactivityTimeout: z.string(),
     synthesizeSpeechConfigs: z.record(z.string(), z.unknown()),
@@ -857,6 +880,7 @@ const StateSchema = z.object({
   modelSettings: z.object({
     model: z.string(),
     temperature: z.number(),
+    thinkingLevel: z.string(),
   }).optional(),
   name: z.string(),
   pinned: z.boolean().optional(),
@@ -979,8 +1003,25 @@ const InputsSchema = z.object({
       voiceInstruction: z.string().describe(
         "Optional. Natural language instructions for voice style, tone, pacing, or pronunciation.",
       ).optional(),
+      voiceInstructionMode: z.enum([
+        "VOICE_INSTRUCTION_MODE_UNSPECIFIED",
+        "NO_INSTRUCTION",
+        "GENERATE_INSTRUCTION",
+        "CUSTOM_INSTRUCTION",
+      ]).describe(
+        "Optional. Instruction mode for the voice sample. If unspecified, defaults to NO_INSTRUCTION.",
+      ).optional(),
       voiceSampleGcsUri: z.string().describe(
         "Optional. The Cloud Storage URI to the audio sample for voice cloning. The audio sample should be a mono-channel, 24kHz WAV file.",
+      ).optional(),
+      warnings: z.array(z.object({
+        message: z.unknown().describe(
+          "Output only. A human-readable description of the warning.",
+        ).optional(),
+        type: z.unknown().describe("Output only. The type of the warning.")
+          .optional(),
+      })).describe(
+        "Output only. Warning messages encountered during voice clone processing (e.g. low audio level).",
       ).optional(),
     })).describe("Optional. Configures custom voice samples for voice cloning.")
       .optional(),
@@ -990,9 +1031,6 @@ const InputsSchema = z.object({
     synthesizeSpeechConfigs: z.record(
       z.string(),
       z.object({
-        consentAudioGcsUri: z.string().describe(
-          "Optional. Deprecated: Use `custom_voice_samples` in AudioProcessingConfig instead. The Cloud Storage URI to the consent audio for voice cloning.",
-        ).optional(),
         instruction: z.string().describe(
           "Optional. The instruction used to synthesize speech when using a generative model.",
         ).optional(),
@@ -1004,9 +1042,6 @@ const InputsSchema = z.object({
         ).optional(),
         voice: z.string().describe(
           "Optional. The name of the voice. If not set, the service will choose a voice based on the other parameters such as language_code. For the list of available voices, please refer to [Supported voices and languages](https://cloud.google.com/text-to-speech/docs/voices) from Cloud Text-to-Speech.",
-        ).optional(),
-        voiceSampleGcsUri: z.string().describe(
-          "Optional. Deprecated: Use `custom_voice_samples` in AudioProcessingConfig instead. The Cloud Storage URI to the audio sample for voice cloning. The audio sample should be a mono-channel, 24kHz WAV file. Note: Please make sure the CES service agent `service-@gcp-sa-ces.iam.gserviceaccount.com` has `storage.objects.get` permission to the Cloud Storage object.",
         ).optional(),
       }),
     ).describe(
@@ -1358,6 +1393,13 @@ const InputsSchema = z.object({
     temperature: z.number().describe(
       "Optional. If set, this temperature will be used for the LLM model. Temperature controls the randomness of the model's responses. Lower temperatures produce responses that are more predictable. Higher temperatures produce responses that are more creative.",
     ).optional(),
+    thinkingLevel: z.enum([
+      "THINKING_LEVEL_UNSPECIFIED",
+      "DEFAULT",
+      "LOW",
+      "MEDIUM",
+      "HIGH",
+    ]).describe("Optional. The thinking level of the model.").optional(),
   }).describe(
     "Optional. The default LLM model settings for the app. Individual resources (e.g. agents, guardrails) can override these configurations as needed.",
   ).optional(),
@@ -1490,7 +1532,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gemini Enterprise for Customer Experience Apps. Registered at `@swamp/gcp/ces/apps`. */
 export const model = {
   type: "@swamp/gcp/ces/apps",
-  version: "2026.09.07.1",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1664,6 +1706,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2197,6 +2244,47 @@ export const model = {
           {
             "id": "ces.projects.locations.apps.exportApp",
             "path": "v1/{+name}:exportApp",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    generate_onboarding_suggestions: {
+      description: "generate onboarding suggestions",
+      arguments: z.object({
+        maxSuggestions: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (args["maxSuggestions"] !== undefined) {
+          body["maxSuggestions"] = args["maxSuggestions"];
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id": "ces.projects.locations.apps.generateOnboardingSuggestions",
+            "path": "v1/{+name}:generateOnboardingSuggestions",
             "httpMethod": "POST",
             "parameterOrder": ["name"],
             "parameters": { "name": { "location": "path", "required": true } },

@@ -121,9 +121,6 @@ const GlobalArgsSchema = z.object({
   precedence: z.number().describe(
     "The precedence of the policy. Lower values indicate higher precedence. Policies will be evaluated in ascending order of this field.",
   ).optional(),
-  profile_type: z.enum(["warp", "browser_extension"]).describe(
-    "The client type to which the device settings profile applies.",
-  ).optional(),
   register_interface_ip_with_dns: z.boolean().describe(
     "Determines if the operating system will register WARP's local interface IP with your on-premises DNS server.",
   ).optional(),
@@ -150,6 +147,9 @@ const GlobalArgsSchema = z.object({
     allowed: z.array(z.string()),
     default: z.string(),
   }).describe("Virtual network access settings for the device.").optional(),
+  profile_type: z.enum(["warp", "browser_extension"]).describe(
+    "The client type to which the device settings profile applies. This field is set when the profile is created and cannot be changed.",
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -275,7 +275,6 @@ const InputsSchema = z.object({
   match: z.string().max(500).optional(),
   name: z.string().max(100).optional(),
   precedence: z.number().optional(),
-  profile_type: z.enum(["warp", "browser_extension"]).optional(),
   register_interface_ip_with_dns: z.boolean().optional(),
   sccm_vpn_boundary_support: z.boolean().optional(),
   service_mode_v2: z.object({
@@ -290,6 +289,7 @@ const InputsSchema = z.object({
     allowed: z.array(z.string()),
     default: z.string(),
   }).optional(),
+  profile_type: z.enum(["warp", "browser_extension"]).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
@@ -298,7 +298,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Policy. Registered at `@swamp/cloudflare/devices/policy`. */
 export const model = {
   type: "@swamp/cloudflare/devices/policy",
-  version: "2026.09.23.1",
+  version: "2026.09.25.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -343,6 +343,11 @@ export const model = {
     {
       toVersion: "2026.09.23.1",
       description: "Added: browser_extension_config, default, profile_type",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -521,9 +526,6 @@ export const model = {
         if (g.precedence !== undefined) {
           filters.push(["precedence", String(g.precedence)]);
         }
-        if (g.profile_type !== undefined) {
-          filters.push(["profile_type", String(g.profile_type)]);
-        }
         if (g.register_interface_ip_with_dns !== undefined) {
           filters.push([
             "register_interface_ip_with_dns",
@@ -550,6 +552,9 @@ export const model = {
             "uninstall_protection",
             String(g.uninstall_protection),
           ]);
+        }
+        if (g.profile_type !== undefined) {
+          filters.push(["profile_type", String(g.profile_type)]);
         }
         if (filters.length === 0) {
           throw new Error(
@@ -688,7 +693,6 @@ export const model = {
         if (g.match !== undefined) body.match = g.match;
         if (g.name !== undefined) body.name = g.name;
         if (g.precedence !== undefined) body.precedence = g.precedence;
-        if (g.profile_type !== undefined) body.profile_type = g.profile_type;
         if (g.register_interface_ip_with_dns !== undefined) {
           body.register_interface_ip_with_dns =
             g.register_interface_ip_with_dns;
