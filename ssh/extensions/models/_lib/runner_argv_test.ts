@@ -24,6 +24,7 @@ import {
   buildCopyArgv,
   buildExecArgv,
   forwardedEnv,
+  posixQuote,
   rsyncQuoteArg,
   scriptRemoteCommand,
   sendEnvKeys,
@@ -157,6 +158,252 @@ Deno.test("applySudo: prefixes sudo -n --", () => {
   assertEquals(applySudo("uptime", true), "sudo -n -- uptime");
   assertEquals(applySudo("uptime", false), "uptime");
   assertEquals(applySudo("uptime", undefined), "uptime");
+});
+
+Deno.test("applySudo: plain word commands keep the bare sudo -n -- prefix", () => {
+  // Nothing in these is interpreted by the remote shell, so sudo already
+  // receives the whole command, and sudoers rules scoped to one binary
+  // keep matching.
+  for (
+    const command of [
+      "systemctl reload nginx",
+      "cat /var/run/foo.pid",
+      "sysctl -w net.ipv4.ip_forward=1",
+      "journalctl --unit=nginx.service -n 50",
+      "chown user@host:group /srv/a,b+c%d",
+    ]
+  ) {
+    assertEquals(applySudo(command, true), `sudo -n -- ${command}`);
+  }
+});
+
+Deno.test("applySudo: shell syntax is wrapped in sh -c (#2336)", () => {
+  const cases: [string, string][] = [
+    [
+      "systemctl status foo.service; cat /var/run/foo.pid",
+      "sudo -n -- sh -c 'systemctl status foo.service; cat /var/run/foo.pid'",
+    ],
+    ["a && b", "sudo -n -- sh -c 'a && b'"],
+    ["a || b", "sudo -n -- sh -c 'a || b'"],
+    ["a | b", "sudo -n -- sh -c 'a | b'"],
+    ["echo x > /root/f", "sudo -n -- sh -c 'echo x > /root/f'"],
+    ["ls /root/*", "sudo -n -- sh -c 'ls /root/*'"],
+    ["cat ~/f", "sudo -n -- sh -c 'cat ~/f'"],
+    ["echo $HOME", "sudo -n -- sh -c 'echo $HOME'"],
+    ["a\nb", "sudo -n -- sh -c 'a\nb'"],
+    ["a  b", "sudo -n -- sh -c 'a  b'"],
+    [" a", "sudo -n -- sh -c ' a'"],
+    // zsh expands a word starting with = to a command path (=ls -> /bin/ls).
+    ["echo =ls", "sudo -n -- sh -c 'echo =ls'"],
+    ["FOO=1 =cmd", "sudo -n -- sh -c 'FOO=1 =cmd'"],
+  ];
+  for (const [command, expected] of cases) {
+    assertEquals(applySudo(command, true), expected, command);
+  }
+});
+
+Deno.test("applySudo: single quotes in the command survive the wrap", () => {
+  assertEquals(
+    applySudo("echo 'hi there'; id", true),
+    "sudo -n -- sh -c 'echo '\\''hi there'\\''; id'",
+  );
+});
+
+Deno.test("applySudo: no sudo leaves shell syntax untouched", () => {
+  assertEquals(applySudo("a; b", false), "a; b");
+  assertEquals(applySudo("a; b", undefined), "a; b");
+});
+
+Deno.test("applySudo: wrapped commands re-export forwarded env keys", () => {
+  assertEquals(
+    applySudo("rm -rf /var/lib/$APP/$VERSION", true, ["APP", "VERSION"]),
+    `sudo -n -- env "APP=$APP" "VERSION=$VERSION" sh -c 'rm -rf /var/lib/$APP/$VERSION'`,
+  );
+});
+
+Deno.test("applySudo: env keys that are not shell identifiers are skipped", () => {
+  assertEquals(
+    applySudo("a; echo $OK_1", true, ["BAD-KEY", "1X", "A B", "$(id)", "OK_1"]),
+    `sudo -n -- env "OK_1=$OK_1" sh -c 'a; echo $OK_1'`,
+  );
+  assertEquals(applySudo("a; b", true, ["BAD-KEY"]), "sudo -n -- sh -c 'a; b'");
+});
+
+Deno.test("applySudo: keys sudo resets on purpose are not re-exported", () => {
+  assertEquals(
+    applySudo(
+      "a; echo $PATH $HOME $SHELL $IFS $ENV $BASH_ENV $LD_PRELOAD $DYLD_LIBRARY_PATH $APP",
+      true,
+      [
+        "PATH",
+        "HOME",
+        "SHELL",
+        "IFS",
+        "ENV",
+        "BASH_ENV",
+        "LD_PRELOAD",
+        "DYLD_LIBRARY_PATH",
+        "APP",
+      ],
+    ),
+    `sudo -n -- env "APP=$APP" sh -c 'a; echo $PATH $HOME $SHELL $IFS $ENV $BASH_ENV $LD_PRELOAD $DYLD_LIBRARY_PATH $APP'`,
+  );
+});
+
+Deno.test("applySudo: only env keys the command references are re-exported", () => {
+  // Re-exported values land in sudo's command line (its log, `ps`), so a
+  // forwarded secret the command never uses must stay out of it.
+  assertEquals(
+    applySudo("systemctl restart app && echo $APP", true, [
+      "APP",
+      "DB_PASSWORD",
+    ]),
+    `sudo -n -- env "APP=$APP" sh -c 'systemctl restart app && echo $APP'`,
+  );
+  assertEquals(
+    applySudo("a && b", true, ["DB_PASSWORD"]),
+    "sudo -n -- sh -c 'a && b'",
+  );
+  // Reference forms that count, and a longer name that does not.
+  for (const form of ["$APP", "${APP}", "${APP:-x}", "${#APP}", "x$APP/y"]) {
+    assertEquals(
+      applySudo(`a; echo ${form}`, true, ["APP"]),
+      `sudo -n -- env "APP=$APP" sh -c 'a; echo ${form}'`,
+      form,
+    );
+  }
+  assertEquals(
+    applySudo("a; echo $APPX ${APP_DIR}", true, ["APP"]),
+    "sudo -n -- sh -c 'a; echo $APPX ${APP_DIR}'",
+  );
+});
+
+Deno.test("applySudo: plain commands ignore env keys", () => {
+  assertEquals(
+    applySudo("systemctl reload nginx", true, ["APP"]),
+    "sudo -n -- systemctl reload nginx",
+  );
+});
+
+Deno.test("posixQuote: wraps in single quotes and escapes embedded ones", () => {
+  assertEquals(posixQuote(""), "''");
+  assertEquals(posixQuote("a b"), "'a b'");
+  assertEquals(posixQuote("it's"), "'it'\\''s'");
+});
+
+// Regression for #2336, exercised through a real shell. sshd and
+// `tailscale ssh` both hand the remote command string to the login shell
+// with `-c`; a local sh/bash/zsh stands in for it here. The fake `sudo` on
+// PATH models `env_reset` — the escalated command starts from an empty
+// environment plus ESCALATED=yes — so any statement that escaped the sudo
+// invocation prints an empty line instead of "yes", and a forwarded variable
+// only survives if applySudo carries it across.
+async function withFakeSudo(
+  candidates: string[],
+  fn: (
+    run: (
+      shell: string,
+      remote: string,
+      env?: Record<string, string>,
+    ) => Promise<{ stdout: string; code: number }>,
+    shells: string[],
+  ) => Promise<void>,
+): Promise<void> {
+  const dir = await Deno.makeTempDir({ prefix: "ssh-sudo-2336-" });
+  try {
+    await Deno.writeTextFile(
+      `${dir}/sudo`,
+      [
+        "#!/bin/sh",
+        'while [ "$1" = "-n" ] || [ "$1" = "--" ]; do shift; done',
+        'exec /usr/bin/env -i PATH="$PATH" ESCALATED=yes "$@"',
+        "",
+      ].join("\n"),
+    );
+    await Deno.chmod(`${dir}/sudo`, 0o755);
+
+    const shells: string[] = [];
+    for (const shell of candidates) {
+      try {
+        await Deno.stat(shell);
+        shells.push(shell);
+      } catch {
+        // Not installed on this runner.
+      }
+    }
+
+    await fn(async (shell, remote, env = {}) => {
+      const out = await new Deno.Command(shell, {
+        args: ["-c", remote],
+        env: { PATH: `${dir}:/usr/bin:/bin`, ...env },
+        clearEnv: true,
+        stdout: "piped",
+        stderr: "piped",
+      }).output();
+      return { stdout: new TextDecoder().decode(out.stdout), code: out.code };
+    }, shells);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+}
+
+const POSIX_SHELLS = [
+  "/bin/sh",
+  "/bin/bash",
+  "/bin/zsh",
+  "/bin/dash",
+  "/bin/ksh",
+];
+const CSH_SHELLS = ["/bin/csh", "/bin/tcsh"];
+
+Deno.test("applySudo: every statement runs under sudo in POSIX login shells", async () => {
+  await withFakeSudo(POSIX_SHELLS, async (run, shells) => {
+    assert(shells.includes("/bin/sh"));
+    const probe = "printenv ESCALATED";
+    const commands = [
+      `${probe}; ${probe}`,
+      `${probe} && ${probe}`,
+      `${probe} | cat; ${probe}`,
+      `${probe} > /dev/stdout; ${probe}`,
+      `${probe}\n${probe}`,
+    ];
+    for (const shell of shells) {
+      for (const command of commands) {
+        const out = await run(shell, applySudo(command, true));
+        const label = `${shell} -c ${JSON.stringify(command)}`;
+        assertEquals(out.stdout, "yes\nyes\n", label);
+        assertEquals(out.code, 0, label);
+      }
+    }
+  });
+});
+
+Deno.test("applySudo: forwarded env reaches the escalated shell despite env_reset", async () => {
+  await withFakeSudo(POSIX_SHELLS, async (run, shells) => {
+    assert(shells.includes("/bin/sh"));
+    // APP stands in for a SendEnv-forwarded variable: it exists only in the
+    // unprivileged login shell. UNSET is forwarded by name but not present,
+    // so it arrives empty — as the login shell would have expanded it.
+    const command = 'printenv ESCALATED; echo "[$APP]" "[$UNSET]"';
+    const remote = applySudo(command, true, ["APP", "UNSET"]);
+    for (const shell of shells) {
+      const out = await run(shell, remote, { APP: "my app's dir" });
+      assertEquals(out.stdout, "yes\n[my app's dir] []\n", shell);
+      assertEquals(out.code, 0, shell);
+    }
+  });
+});
+
+Deno.test("applySudo: env re-export parses in csh/tcsh login shells", async () => {
+  await withFakeSudo(CSH_SHELLS, async (run, shells) => {
+    const command = 'printenv ESCALATED; echo "[$APP]"';
+    const remote = applySudo(command, true, ["APP"]);
+    for (const shell of shells) {
+      const out = await run(shell, remote, { APP: "my app" });
+      assertEquals(out.stdout, "yes\n[my app]\n", shell);
+      assertEquals(out.code, 0, shell);
+    }
+  });
 });
 
 Deno.test("scriptRemoteCommand: sh/bash use -s --, python3 uses -", () => {

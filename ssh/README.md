@@ -319,7 +319,7 @@ event.
 arguments:
   hosts: 'cel:"prod" in host.tags'
   command: systemctl reload nginx
-  sudo: true # prefixes `sudo -n --`
+  sudo: true # escalates the whole command, see "sudo" below
   stdin: | # optional, fed to the remote process's stdin
     optional stdin
   okExitCodes: [0, 1] # optional, see "Exit codes" below
@@ -329,6 +329,40 @@ Writes one `run-exec-<host>` per matched host. Fails the method when any host
 exits non-zero, is killed by a signal, or fails to spawn — RunResult resources
 are written before the error is raised. `okExitCodes` widens which exit codes
 count as success.
+
+#### sudo
+
+`sudo: true` runs the entire command as root, non-interactively (`sudo -n`):
+
+- A plain command — words made of letters, digits, and `_ - . / : @ % + , =`
+  (no word starting with `=`) separated by single spaces — is sent as
+  `sudo -n -- <command>`, e.g. `sudo -n -- systemctl reload nginx`. Sudoers
+  rules that allow only specific binaries keep working.
+- Anything using shell syntax (`;`, `&&`, `||`, `|`, redirects, quotes, `$`,
+  globs, `~`, newlines, …) is sent as `sudo -n -- sh -c '<command>'`, so every
+  statement, redirect, and expansion runs in the escalated shell. `~` and
+  variables therefore expand as root, the command runs under POSIX `sh` rather
+  than your login shell, and a sudoers policy scoped to specific binaries must
+  also allow `sh` — otherwise sudo fails with "a password is required". Use
+  `script` with `interpreter: bash` for bash-only syntax.
+- Variables forwarded with `env` (host or per-call) would otherwise be dropped
+  by sudo's `env_reset` before the escalated shell expands them, so a wrapped
+  command re-exports the ones it references as `$APP` or `${APP…}`:
+  `sudo -n -- env "APP=$APP" sh -c '...'`. Your login shell expands `$APP`
+  exactly as it did before wrapping; a forwarded variable the server did not
+  accept arrives empty. Like any value expanded into a sudo command line,
+  re-exported values appear in sudo's log and the remote process list, so
+  forwarded variables the command does not reference are never re-exported —
+  and do not reach the escalated command. Keys that aren't shell identifiers,
+  and the main variables sudo resets for safety (`PATH`, `HOME`, `SHELL`,
+  `IFS`, `ENV`, `BASH_ENV`, `LD_*`, `DYLD_*`), are not re-exported either. A
+  sudoers policy scoped to specific binaries then also needs to allow `env`.
+- The wrapped form assumes a POSIX-compatible login shell (sh, bash, zsh, dash,
+  ksh) for the SSH user. csh/tcsh fail loudly instead of running anything
+  unprivileged: they reject a multi-line command and abort when a forwarded
+  variable is not set. fish silently alters backslashes, because it treats
+  `\\` and `\'` inside single quotes as escapes. Use `script` for multi-line
+  or backslash-containing commands on those hosts.
 
 ### `script`
 

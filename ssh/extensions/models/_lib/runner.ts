@@ -171,9 +171,88 @@ export function maybeWrapSshpass(
 // Remote command shaping
 // ---------------------------------------------------------------------------
 
-/** Prefix a command with `sudo -n --` when sudo is requested. */
-export function applySudo(command: string, sudo: boolean | undefined): string {
-  return sudo ? `sudo -n -- ${command}` : command;
+/** Single-quote a string for a POSIX shell, escaping embedded quotes. */
+export function posixQuote(s: string): string {
+  return "'" + s.replaceAll("'", "'\\''") + "'";
+}
+
+/**
+ * Space-separated words the remote login shell passes through verbatim:
+ * no operators, redirects, quoting, expansion, or globbing. `=` may appear
+ * inside a word but not start one (zsh expands `=cmd` to a command path).
+ */
+const PLAIN_WORDS_RE =
+  /^[\w./:@%+,-][\w./:@%+,=-]*( [\w./:@%+,-][\w./:@%+,=-]*)*$/;
+
+/** A name the shell can expand as `$NAME`. */
+const SHELL_IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/**
+ * The main variables sudo deliberately resets or strips (`secure_path`,
+ * `env_reset`, `env_delete`). Re-exporting the unprivileged user's value into
+ * the root shell would undo that, so these are never carried across. Not
+ * sudo's full `env_delete` list: the caller already controls the root
+ * `sh -c`, so this guards against accidental overrides, not escalation.
+ */
+const SUDO_RESET_KEYS = new Set([
+  "PATH",
+  "HOME",
+  "SHELL",
+  "IFS",
+  "ENV",
+  "BASH_ENV",
+]);
+const SUDO_RESET_PREFIX_RE = /^(LD_|DYLD_)/;
+
+/**
+ * Run `command` under `sudo -n` when sudo is requested.
+ *
+ * The remote side hands the command string to the login shell, so a bare
+ * `sudo -n -- <command>` only escalates the first simple command — anything
+ * after `;`, `&&`, `|`, a redirect, or an expansion is handled by the
+ * unprivileged shell (#2336). Commands containing shell syntax are therefore
+ * wrapped as `sudo -n -- sh -c '<command>'` so the escalated shell parses the
+ * whole line. Plain word lists keep the bare prefix: sudo already receives
+ * the full command, and sudoers rules scoped to a specific binary keep
+ * matching.
+ *
+ * Wrapping moves expansion into the escalated shell, where sudo's
+ * `env_reset` has already dropped the variables forwarded via SendEnv. Each
+ * `envKeys` entry the command references (`$K`, `${K...}`) is re-exported
+ * through `env "K=$K"`, which the unprivileged login shell expands before
+ * sudo runs — the same expansion it performed before wrapping, and a form
+ * sh, bash, zsh, fish and csh all parse. Unreferenced keys are left out:
+ * the re-exported values become part of sudo's command line (its log and
+ * the remote process list), and a host-level secret the command never uses
+ * must not land there. Keys that are not shell identifiers cannot be referenced as `$K`
+ * and are skipped, so no key reaches the command line unquoted; the main
+ * keys sudo resets on purpose (PATH, LD_*, ...) are skipped too. The login
+ * shell is assumed POSIX-compatible, as for posixQuote.
+ */
+export function applySudo(
+  command: string,
+  sudo: boolean | undefined,
+  envKeys: readonly string[] = [],
+): string {
+  if (!sudo) return command;
+  if (PLAIN_WORDS_RE.test(command)) return `sudo -n -- ${command}`;
+  const passthrough = envKeys
+    .filter((k) =>
+      SHELL_IDENTIFIER_RE.test(k) && !SUDO_RESET_KEYS.has(k) &&
+      !SUDO_RESET_PREFIX_RE.test(k) && referencesVariable(command, k)
+    )
+    .map((k) => `"${k}=$${k}" `)
+    .join("");
+  const env = passthrough === "" ? "" : `env ${passthrough}`;
+  return `sudo -n -- ${env}sh -c ${posixQuote(command)}`;
+}
+
+/**
+ * Whether `command` expands `$name` / `${name...}`. `name` is already a shell
+ * identifier, so it is safe to embed in the pattern.
+ */
+function referencesVariable(command: string, name: string): boolean {
+  return new RegExp(`\\$\\{?#?${name}(?![A-Za-z0-9_])`).test(command);
 }
 
 /**

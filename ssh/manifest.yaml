@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/ssh"
-version: "2026.07.28.1"
+version: "2026.09.25.1"
 description: |
   Run commands, copy files, and open port forwards across a declared set of
   hosts over SSH. Define the hosts once on the model, then target any subset
@@ -49,7 +49,7 @@ description: |
   | `open`   | Establish ControlMaster sockets for selected `ssh` hosts (no-op for tailscale). |
   | `check`  | Probe ControlMaster (`ssh -O check`) or run `true` over `tailscale ssh`. |
   | `close`  | Tear down ControlMaster sockets (`ssh -O exit`). |
-  | `exec`   | Run a single shell command on each selected host; optional `sudo: true` prefixes `sudo -n --`; optional `okExitCodes` widens which exits count as success. |
+  | `exec`   | Run a single shell command on each selected host; optional `sudo: true` escalates the whole command (`sudo -n --` for plain commands, `sudo -n -- sh -c '...'` when the command uses shell syntax); optional `okExitCodes` widens which exits count as success. |
   | `script` | Pipe a multi-line script over stdin to `sh -s --` (or chosen interpreter) — no remote-side shell-quoting from us. Takes `okExitCodes` too. |
   | `copy`   | `scp` (or `rsync -e ssh`) files to/from each selected host. |
   | `forward`| Local/remote port forwarding via the master, or detached `tailscale ssh -N -L` child for tailscale hosts. |

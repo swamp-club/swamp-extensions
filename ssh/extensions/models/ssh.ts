@@ -101,7 +101,7 @@ const SELECTOR_METHODS = [
  */
 export const model = {
   type: "@swamp/ssh",
-  version: "2026.07.28.1",
+  version: "2026.09.25.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -244,6 +244,26 @@ export const model = {
         "so a runModel caller can branch on `handle.tags.count` without a " +
         "read. Selection records carry addressing + metadata only, never " +
         "credentials. No globalArguments schema change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
+      description:
+        "Fix (#2336): `exec` with `sudo: true` now escalates the whole " +
+        "command line. Previously `sudo -n --` was prefixed verbatim, so " +
+        "anything after `;`, `&&`, `||`, `|`, a redirect, or an expansion " +
+        "ran as the unprivileged SSH user. Commands containing shell syntax " +
+        "are now sent as `sudo -n -- sh -c '<command>'`: they run under " +
+        "POSIX sh, their expansions (`~`, variables, globs) happen in the " +
+        "escalated shell, and sudoers rules limited to specific binaries " +
+        "must also allow `sh` for them. Variables forwarded via `env` that " +
+        'the command references are re-exported into the wrapped shell (`env "K=$K"`) ' +
+        "so sudo's env_reset does not blank them; unreferenced ones are not, " +
+        "so a forwarded secret never lands in sudo's log. PATH, HOME, SHELL, " +
+        "IFS, ENV, BASH_ENV, LD_* and DYLD_* are never re-exported. " +
+        "Restricted sudoers then also need `env`. Plain word commands (e.g. " +
+        "`systemctl reload nginx`) keep the exact `sudo -n -- <command>` " +
+        "form. `script` is unchanged. No globalArguments schema change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -62,6 +62,7 @@ import {
   type HostRunResult,
   isExitAllowed,
   maybeWrapSshpass,
+  posixQuote,
   runHosts,
   type RunnerBinaries,
   scriptRemoteCommand,
@@ -456,7 +457,7 @@ export async function runExec(
     const plans: HostPlan[] = [];
     for (const host of materialized) {
       const actx = await argvContextFor(g, host, args.env);
-      const command = applySudo(args.command, args.sudo);
+      const command = applySudo(args.command, args.sudo, actx.sendEnvKeys);
       plans.push({
         host,
         argv: buildExecArgv(host, command, actx),
@@ -1015,10 +1016,6 @@ const KNOWN_ALGORITHMS = new Set([
   "sk-ecdsa-sha2-nistp256@openssh.com",
   "ssh-dss",
 ]);
-
-function posixQuote(s: string): string {
-  return "'" + s.replaceAll("'", "'\\''") + "'";
-}
 
 async function computeFingerprint(base64Data: string): Promise<string> {
   const raw = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));

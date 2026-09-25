@@ -269,6 +269,51 @@ Deno.test("exec: sudo prefixes sudo -n -- in the remote command", async () => {
   }
 });
 
+Deno.test("exec: sudo wraps a chained command in sh -c (#2336)", async () => {
+  const h = makeHarness(FLEET, "exec");
+  const { executor, requests } = okExecutor();
+  setCommandExecutor(executor);
+  try {
+    const args = model.methods.exec.arguments.parse({
+      hosts: ["web-1"],
+      command: "systemctl status foo.service; cat /var/run/foo.pid",
+      sudo: true,
+    });
+    await model.methods.exec.execute(args, h.ctx);
+    const last = requests[0].args.at(-1);
+    assertEquals(
+      last,
+      "sudo -n -- sh -c 'systemctl status foo.service; cat /var/run/foo.pid'",
+    );
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("exec: sudo re-exports forwarded env into the wrapped shell", async () => {
+  const h = makeHarness(FLEET, "exec");
+  const { executor, requests } = okExecutor();
+  setCommandExecutor(executor);
+  try {
+    const args = model.methods.exec.arguments.parse({
+      hosts: ["web-1"],
+      command: "rm -rf /var/lib/$APP/cache",
+      env: { APP: "myapp" },
+      sudo: true,
+    });
+    await model.methods.exec.execute(args, h.ctx);
+    const argv = requests[0].args;
+    assert(argv.includes("SendEnv=APP"));
+    assertEquals(
+      argv.at(-1),
+      `sudo -n -- env "APP=$APP" sh -c 'rm -rf /var/lib/$APP/cache'`,
+    );
+    assertEquals(requests[0].env.APP, "myapp");
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
 Deno.test("exec: captureOutput=false omits stdout in the resource", async () => {
   const h = makeHarness({ ...FLEET, captureOutput: false }, "exec");
   const { executor } = okExecutor(() => "ignored");
