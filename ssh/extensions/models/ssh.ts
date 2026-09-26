@@ -101,7 +101,7 @@ const SELECTOR_METHODS = [
  */
 export const model = {
   type: "@swamp/ssh",
-  version: "2026.09.25.1",
+  version: "2026.09.26.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -264,6 +264,18 @@ export const model = {
         "Restricted sudoers then also need `env`. Plain word commands (e.g. " +
         "`systemctl reload nginx`) keep the exact `sudo -n -- <command>` " +
         "form. `script` is unchanged. No globalArguments schema change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.26.1",
+      description:
+        "Docs (#2554): forwarded `env` crosses `sudo: true` only when a " +
+        "wrapped `exec` command references the variable (re-exported as " +
+        "above) or sudoers `env_keep` lists it. Plain commands that read a " +
+        "variable from their environment and every `script` body otherwise " +
+        "start without it, because sudo's env_reset drops it. The README " +
+        "now documents the sshd `AcceptEnv` + sudoers `env_keep` setup and " +
+        "its logging caveats. No behavior or globalArguments schema change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -122,7 +122,25 @@ members.
 | `tags`      | no       | `string[]` — available to CEL selectors as `host.tags`.            |
 | `attrs`     | no       | Free-form `Record<string, unknown>` — available as `host.attrs.*`. |
 | `transport` | no       | Partial override of the fleet-default transport.                   |
-| `env`       | no       | `Record<string, string>` — sent to the remote shell via `SendEnv`. |
+| `env`       | no       | `Record<string, string>` — see "Forwarded env" below.              |
+
+#### Forwarded env
+
+Host `env` and the per-call `env` argument (which wins on key collision) are
+sent to `kind: ssh` hosts with `-o SendEnv=<key>`. sshd only accepts keys its
+`AcceptEnv` lists. Stock OpenSSH accepts none, and distributions that set it
+(Debian, Ubuntu) list only a few standard variables such as `LANG` and `LC_*`,
+so add your keys on each host:
+
+```
+# /etc/ssh/sshd_config
+AcceptEnv APP
+```
+
+A key the server does not accept is silently absent in the remote shell.
+`tailscale` hosts get no `SendEnv` options. Commands run with `sudo: true` lose
+forwarded variables to sudo's `env_reset` unless sudoers keeps them — see
+[sudo](#sudo).
 
 ## Authentication
 
@@ -352,11 +370,31 @@ count as success.
   exactly as it did before wrapping; a forwarded variable the server did not
   accept arrives empty. Like any value expanded into a sudo command line,
   re-exported values appear in sudo's log and the remote process list, so
-  forwarded variables the command does not reference are never re-exported —
-  and do not reach the escalated command. Keys that aren't shell identifiers,
-  and the main variables sudo resets for safety (`PATH`, `HOME`, `SHELL`,
-  `IFS`, `ENV`, `BASH_ENV`, `LD_*`, `DYLD_*`), are not re-exported either. A
-  sudoers policy scoped to specific binaries then also needs to allow `env`.
+  forwarded variables the command does not reference are never re-exported.
+  Keys that aren't shell identifiers, and the main variables sudo resets for
+  safety (`PATH`, `HOME`, `SHELL`, `IFS`, `ENV`, `BASH_ENV`, `LD_*`, `DYLD_*`),
+  are not re-exported either. A sudoers policy scoped to specific binaries then
+  also needs to allow `env`.
+- Nothing else carries forwarded env across sudo. A plain command that reads a
+  variable from its environment (`printenv APP`, a service binary reading
+  `APP`), a wrapped command's unreferenced variables, and every
+  [`script`](#script) body start without them. To pass a variable through,
+  keep it in sudoers for the SSH user — on top of the `AcceptEnv` line from
+  [Forwarded env](#forwarded-env):
+
+  ```
+  # visudo -f /etc/sudoers.d/swamp-env
+  Defaults:deploy env_keep += "APP"
+  ```
+
+  Kept variables follow sudoers rules: a key that is also in `env_check` is
+  dropped when its value contains `%` or `/`, and a value starting with `()`
+  is removed unless the `env_keep` entry also matches the value
+  (`env_keep += "APP=()*"`). sudo's default text log records the command line,
+  not kept variables, so a kept value stays out of it unless a wrapped command
+  also references it (it is still re-exported then) — use `script` when a
+  value must stay out of that log. sudo's JSON event log records the full
+  command environment either way.
 - The wrapped form assumes a POSIX-compatible login shell (sh, bash, zsh, dash,
   ksh) for the SSH user. csh/tcsh fail loudly instead of running anything
   unprivileged: they reject a multi-line command and abort when a forwarded
@@ -381,6 +419,11 @@ arguments:
 Pipes the script over stdin to `sh -s --` (or chosen interpreter), so the model
 never constructs a remote command line. Fails the method on non-zero exit (same
 semantics as `exec`), and takes the same `okExitCodes` argument.
+
+`sudo: true` runs `sudo -n -- <interpreter> -s --` (python3:
+`sudo -n -- python3 -`) with the body on stdin. sudo's `env_reset` applies, so a
+forwarded `env` variable reaches the script only when sudoers `env_keep` lists
+it — see [sudo](#sudo).
 
 ### `copy`
 

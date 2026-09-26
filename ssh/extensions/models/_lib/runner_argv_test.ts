@@ -283,6 +283,12 @@ Deno.test("applySudo: plain commands ignore env keys", () => {
     applySudo("systemctl reload nginx", true, ["APP"]),
     "sudo -n -- systemctl reload nginx",
   );
+  // A program that reads APP from its environment gets no re-export: only
+  // sudoers env_keep carries it across env_reset (#2554).
+  assertEquals(
+    applySudo("printenv APP", true, ["APP"]),
+    "sudo -n -- printenv APP",
+  );
 });
 
 Deno.test("posixQuote: wraps in single quotes and escapes embedded ones", () => {
@@ -297,7 +303,8 @@ Deno.test("posixQuote: wraps in single quotes and escapes embedded ones", () => 
 // PATH models `env_reset` — the escalated command starts from an empty
 // environment plus ESCALATED=yes — so any statement that escaped the sudo
 // invocation prints an empty line instead of "yes", and a forwarded variable
-// only survives if applySudo carries it across.
+// only survives if applySudo carries it across. `envKeep` models sudoers
+// `env_keep`: each listed variable is kept only when it is set, as sudo does.
 async function withFakeSudo(
   candidates: string[],
   fn: (
@@ -305,18 +312,21 @@ async function withFakeSudo(
       shell: string,
       remote: string,
       env?: Record<string, string>,
+      stdin?: string,
     ) => Promise<{ stdout: string; code: number }>,
     shells: string[],
   ) => Promise<void>,
+  envKeep: readonly string[] = [],
 ): Promise<void> {
   const dir = await Deno.makeTempDir({ prefix: "ssh-sudo-2336-" });
   try {
+    const kept = envKeep.map((k) => `\${${k}+"${k}=$${k}"} `).join("");
     await Deno.writeTextFile(
       `${dir}/sudo`,
       [
         "#!/bin/sh",
         'while [ "$1" = "-n" ] || [ "$1" = "--" ]; do shift; done',
-        'exec /usr/bin/env -i PATH="$PATH" ESCALATED=yes "$@"',
+        `exec /usr/bin/env -i PATH="$PATH" ESCALATED=yes ${kept}"$@"`,
         "",
       ].join("\n"),
     );
@@ -332,14 +342,21 @@ async function withFakeSudo(
       }
     }
 
-    await fn(async (shell, remote, env = {}) => {
-      const out = await new Deno.Command(shell, {
+    await fn(async (shell, remote, env = {}, stdin) => {
+      const child = new Deno.Command(shell, {
         args: ["-c", remote],
         env: { PATH: `${dir}:/usr/bin:/bin`, ...env },
         clearEnv: true,
+        stdin: stdin === undefined ? "null" : "piped",
         stdout: "piped",
         stderr: "piped",
-      }).output();
+      }).spawn();
+      if (stdin !== undefined) {
+        const writer = child.stdin.getWriter();
+        await writer.write(new TextEncoder().encode(stdin));
+        await writer.close();
+      }
+      const out = await child.output();
       return { stdout: new TextDecoder().decode(out.stdout), code: out.code };
     }, shells);
   } finally {
@@ -406,11 +423,66 @@ Deno.test("applySudo: env re-export parses in csh/tcsh login shells", async () =
   });
 });
 
+// A script body and a program reading its environment reference no `$APP`
+// on the command line, so nothing re-exports a forwarded variable for them:
+// it crosses sudo only when sudoers `env_keep` lists it (#2554).
+const SCRIPT_PROBE = 'printenv ESCALATED; echo "[$APP]" "[${UNSET-unset}]"\n';
+
+Deno.test("script and plain exec under sudo drop forwarded env without env_keep", async () => {
+  await withFakeSudo(POSIX_SHELLS, async (run, shells) => {
+    assert(shells.includes("/bin/sh"));
+    const env = { APP: "my app's dir" };
+    for (const shell of shells) {
+      const script = await run(
+        shell,
+        scriptRemoteCommand("sh", true),
+        env,
+        SCRIPT_PROBE,
+      );
+      assertEquals(script.stdout, "yes\n[] [unset]\n", shell);
+      const plain = await run(
+        shell,
+        applySudo("printenv APP", true, ["APP"]),
+        env,
+      );
+      assertEquals(plain.stdout, "", shell);
+      assertEquals(plain.code, 1, shell);
+    }
+  });
+});
+
+Deno.test("script and plain exec under sudo keep forwarded env listed in env_keep", async () => {
+  await withFakeSudo(POSIX_SHELLS, async (run, shells) => {
+    assert(shells.includes("/bin/sh"));
+    // UNSET is kept by name but not forwarded, so it stays unset rather
+    // than arriving empty — sudo only keeps variables that exist.
+    const env = { APP: "my app's dir" };
+    for (const shell of shells) {
+      const script = await run(
+        shell,
+        scriptRemoteCommand("sh", true),
+        env,
+        SCRIPT_PROBE,
+      );
+      assertEquals(script.stdout, "yes\n[my app's dir] [unset]\n", shell);
+      const plain = await run(
+        shell,
+        applySudo("printenv APP", true, ["APP"]),
+        env,
+      );
+      assertEquals(plain.stdout, "my app's dir\n", shell);
+      assertEquals(plain.code, 0, shell);
+    }
+  }, ["APP", "UNSET"]);
+});
+
 Deno.test("scriptRemoteCommand: sh/bash use -s --, python3 uses -", () => {
   assertEquals(scriptRemoteCommand("sh", false), "sh -s --");
   assertEquals(scriptRemoteCommand("bash", false), "bash -s --");
   assertEquals(scriptRemoteCommand("python3", false), "python3 -");
+  assertEquals(scriptRemoteCommand("sh", true), "sudo -n -- sh -s --");
   assertEquals(scriptRemoteCommand("bash", true), "sudo -n -- bash -s --");
+  assertEquals(scriptRemoteCommand("python3", true), "sudo -n -- python3 -");
 });
 
 // ---------------------------------------------------------------------------
