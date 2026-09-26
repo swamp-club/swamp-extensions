@@ -52,6 +52,10 @@ const GlobalArgsSchema = z.object({
   note: z.string().max(1000).describe(
     "Advisory note for this suppression. Not enforced or validated beyond length.",
   ).optional(),
+  scope: z.object({
+    type: z.enum(["account", "sending_domain"]),
+    value: z.string().max(1024).optional(),
+  }).optional(),
   email: z.string().describe("The email address to suppress."),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -66,6 +70,10 @@ const ResourceSchema = z.object({
   note: z.string().optional(),
   read_only: z.boolean().optional(),
   reason: z.string().optional(),
+  scope: z.object({
+    type: z.string().optional(),
+    value: z.string().optional(),
+  }).optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -75,6 +83,10 @@ const InputsSchema = z.object({
   name: z.string().optional(),
   expires_at: z.string().optional(),
   note: z.string().max(1000).optional(),
+  scope: z.object({
+    type: z.enum(["account", "sending_domain"]),
+    value: z.string().max(1024).optional(),
+  }).optional(),
   email: z.string().optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
 });
@@ -82,11 +94,16 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Suppressions. Registered at `@swamp/cloudflare/email/suppressions`. */
 export const model = {
   type: "@swamp/cloudflare/email/suppressions",
-  version: "2026.09.15.1",
+  version: "2026.09.26.1",
   upgrades: [
     {
       toVersion: "2026.09.15.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.26.1",
+      description: "Added: scope",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -112,6 +129,7 @@ export const model = {
         if (g.email !== undefined) body.email = g.email;
         if (g.expires_at !== undefined) body.expires_at = g.expires_at;
         if (g.note !== undefined) body.note = g.note;
+        if (g.scope !== undefined) body.scope = g.scope;
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
         }) as ResourceData;
@@ -265,6 +283,7 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.expires_at !== undefined) body.expires_at = g.expires_at;
         if (g.note !== undefined) body.note = g.note;
+        if (g.scope !== undefined) body.scope = g.scope;
         const result = await update(endpoint, existing.id, body, "PATCH", {
           apiToken: g.apiToken,
         }) as ResourceData;

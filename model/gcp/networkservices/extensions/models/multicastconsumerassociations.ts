@@ -180,7 +180,7 @@ const GlobalArgsSchema = z.object({
     "Optional. An optional text description of the multicast consumer association.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. Labels as key-value pairs",
+    "Optional. Labels as key-value pairs.",
   ).optional(),
   multicastDomainActivation: z.string().describe(
     "Optional. The resource name of the multicast domain activation that is in the same zone as this multicast consumer association. Use the following format: `projects/*/locations/*/multicastDomainActivations/*`.",
@@ -231,7 +231,7 @@ const InputsSchema = z.object({
     "Optional. An optional text description of the multicast consumer association.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. Labels as key-value pairs",
+    "Optional. Labels as key-value pairs.",
   ).optional(),
   multicastDomainActivation: z.string().describe(
     "Optional. The resource name of the multicast domain activation that is in the same zone as this multicast consumer association. Use the following format: `projects/*/locations/*/multicastDomainActivations/*`.",
@@ -279,7 +279,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Services MulticastConsumerAssociations. Registered at `@swamp/gcp/networkservices/multicastconsumerassociations`. */
 export const model = {
   type: "@swamp/gcp/networkservices/multicastconsumerassociations",
-  version: "2026.08.12.2",
+  version: "2026.09.26.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -288,6 +288,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

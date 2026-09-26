@@ -156,7 +156,7 @@ const GlobalArgsSchema = z.object({
   zdr: z.boolean().optional(),
   id: z.string().min(1).max(64).regex(
     new RegExp("^[a-z0-9_]+(?:-[a-z0-9_]+)*$"),
-  ).describe("gateway id"),
+  ).describe("Unique identifier of the AI Gateway within the account."),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -386,7 +386,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Gateways. Registered at `@swamp/cloudflare/ai-gateway/gateways`. */
 export const model = {
   type: "@swamp/cloudflare/ai-gateway/gateways",
-  version: "2026.09.11.1",
+  version: "2026.09.26.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -436,6 +436,11 @@ export const model = {
     {
       toVersion: "2026.09.11.1",
       description: "Added: byok_only",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.26.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

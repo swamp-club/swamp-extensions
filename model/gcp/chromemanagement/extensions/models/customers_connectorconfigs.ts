@@ -171,10 +171,10 @@ const GlobalArgsSchema = z.object({
   details: z.object({
     crowdStrikeConfig: z.object({
       apiKey: z.string().describe(
-        "Required. Input only. API key to use on the ingestion API.",
+        "Required. Input only. API key to use on the ingestion API. Must be at most 50 characters.",
       ).optional(),
       host: z.string().describe(
-        "Required. Host to identify the customer specific server to receive the events.",
+        "Required. Host to identify the customer specific server to receive the events. Must be at most 256 characters.",
       ).optional(),
       reportingSettings: z.object({
         enabledDefaultEvents: z.array(
@@ -227,10 +227,10 @@ const GlobalArgsSchema = z.object({
     }).describe("CrowdStrike connector config.").optional(),
     crowdStrikeFalconNextGenConfig: z.object({
       apiKey: z.string().describe(
-        "Required. Input only. API key to use on the ingestion API.",
+        "Required. Input only. API key to use on the ingestion API. Must be at most 50 characters.",
       ).optional(),
       host: z.string().describe(
-        "Required. Host to identify the customer specific server to receive the events.",
+        "Required. Host to identify the customer specific server to receive the events. Must be at most 256 characters.",
       ).optional(),
       reportingSettings: z.object({
         enabledDefaultEvents: z.array(
@@ -283,10 +283,10 @@ const GlobalArgsSchema = z.object({
     }).describe("CrowdStrike Falcon Next Gen connector config.").optional(),
     crowdStrikeXdrConfig: z.object({
       apiKey: z.string().describe(
-        "Required. Input only. API key to use on the ingestion API.",
+        "Required. Input only. API key to use on the ingestion API. Must be at most 256 characters.",
       ).optional(),
       host: z.string().describe(
-        "Required. Host to identify the customer specific server to receive the events.",
+        "Required. Host to identify the customer specific server to receive the events. Must be at most 256 characters.",
       ).optional(),
       xdrSettings: z.object({
         enableAllXdrEvents: z.boolean().describe(
@@ -326,10 +326,10 @@ const GlobalArgsSchema = z.object({
     }).describe("Device trust connector config.").optional(),
     googleSecOpsConfig: z.object({
       apiKey: z.string().describe(
-        "Required. Input only. API key to use on the ingestion API.",
+        "Required. Input only. API key to use on the ingestion API. Must be 39 characters.",
       ).optional(),
       host: z.string().describe(
-        "Required. Host of ingestion API endpoint. Allows customer to upload events to servers in specific geographical regions. Existing configs that don't have this setting default to US.",
+        "Required. Host of ingestion API endpoint. Allows customer to upload events to servers in specific geographical regions. Existing configs that don't have this setting default to US. Must be at most 256 characters.",
       ).optional(),
       reportingSettings: z.object({
         enabledDefaultEvents: z.array(
@@ -389,10 +389,10 @@ const GlobalArgsSchema = z.object({
     }).describe("MIP label connector config.").optional(),
     paloAltoNetworksConfig: z.object({
       apiKey: z.string().describe(
-        "Required. Input only. API key to use on the ingestion API.",
+        "Required. Input only. API key to use on the ingestion API. Must be at most 256 characters.",
       ).optional(),
       host: z.string().describe(
-        "Required. Host to identify the customer specific server to receive the events.",
+        "Required. Host to identify the customer specific server to receive the events. Must be at most 256 characters.",
       ).optional(),
       reportingSettings: z.object({
         enabledDefaultEvents: z.array(
@@ -492,12 +492,12 @@ const GlobalArgsSchema = z.object({
       }).describe("Required. The reporting settings for the Pub/Sub config.")
         .optional(),
       topicFullPath: z.string().describe(
-        "Required. The full path to the topic to send the event to.",
+        "Required. The full path to the topic to send the event to. Must be at most 1000 characters.",
       ).optional(),
     }).describe("Pub/Sub connector config.").optional(),
     pubSubXdrConfig: z.object({
       topicFullPath: z.string().describe(
-        "Required. The full path to the topic to send the event to.",
+        "Required. The full path to the topic to send the event to. Must be at most 1000 characters.",
       ).optional(),
       xdrSettings: z.object({
         enableAllXdrEvents: z.boolean().describe(
@@ -513,15 +513,15 @@ const GlobalArgsSchema = z.object({
         "Optional. The enabled platforms for the secure gateway connector config.",
       ).optional(),
       resourceId: z.string().describe(
-        "Required. The resource ID of the secure gateway connector config.",
+        "Required. The resource ID of the secure gateway connector config. Must be at most 256 characters.",
       ).optional(),
     }).describe("Secure gateway connector config.").optional(),
     splunkConfig: z.object({
       hecToken: z.string().describe(
-        "Required. Input only. The data input's HTTP Event Collector token to use as an Authorization header.",
+        "Required. Input only. The data input's HTTP Event Collector token to use as an Authorization header. Must be at most 50 characters.",
       ).optional(),
       host: z.string().describe(
-        "Required. Host to identify the customer specific server to receive the events.",
+        "Required. Host to identify the customer specific server to receive the events. Must be at most 256 characters.",
       ).optional(),
       portNumber: z.number().int().describe(
         "Optional. The port number to use. If not set, the default Splunk port is used.",
@@ -574,15 +574,16 @@ const GlobalArgsSchema = z.object({
       }).describe("Required. The reporting settings for the Splunk config.")
         .optional(),
       source: z.string().describe(
-        "Optional. Optional source name to override the default one set in the Splunk admin console.",
+        "Optional. Optional source name to override the default one set in the Splunk admin console. Must be at most 100 characters.",
       ).optional(),
       unsecureScheme: z.boolean().describe(
         "Optional. Whether to use an unsecure HTTP scheme. Defaults to false (HTTPS).",
       ).optional(),
     }).describe("Splunk connector config.").optional(),
   }).describe("Required. The details of the connector config.").optional(),
-  displayName: z.string().describe("Required. The display name of the config.")
-    .optional(),
+  displayName: z.string().describe(
+    "Required. The display name of the config. Must be at most 100 characters.",
+  ).optional(),
   name: z.string().describe(
     "Identifier. Format: customers/{customer}/connectorConfigs/{connector_config}",
   ).optional(),
@@ -713,10 +714,10 @@ const InputsSchema = z.object({
   details: z.object({
     crowdStrikeConfig: z.object({
       apiKey: z.string().describe(
-        "Required. Input only. API key to use on the ingestion API.",
+        "Required. Input only. API key to use on the ingestion API. Must be at most 50 characters.",
       ).optional(),
       host: z.string().describe(
-        "Required. Host to identify the customer specific server to receive the events.",
+        "Required. Host to identify the customer specific server to receive the events. Must be at most 256 characters.",
       ).optional(),
       reportingSettings: z.object({
         enabledDefaultEvents: z.array(
@@ -769,10 +770,10 @@ const InputsSchema = z.object({
     }).describe("CrowdStrike connector config.").optional(),
     crowdStrikeFalconNextGenConfig: z.object({
       apiKey: z.string().describe(
-        "Required. Input only. API key to use on the ingestion API.",
+        "Required. Input only. API key to use on the ingestion API. Must be at most 50 characters.",
       ).optional(),
       host: z.string().describe(
-        "Required. Host to identify the customer specific server to receive the events.",
+        "Required. Host to identify the customer specific server to receive the events. Must be at most 256 characters.",
       ).optional(),
       reportingSettings: z.object({
         enabledDefaultEvents: z.array(
@@ -825,10 +826,10 @@ const InputsSchema = z.object({
     }).describe("CrowdStrike Falcon Next Gen connector config.").optional(),
     crowdStrikeXdrConfig: z.object({
       apiKey: z.string().describe(
-        "Required. Input only. API key to use on the ingestion API.",
+        "Required. Input only. API key to use on the ingestion API. Must be at most 256 characters.",
       ).optional(),
       host: z.string().describe(
-        "Required. Host to identify the customer specific server to receive the events.",
+        "Required. Host to identify the customer specific server to receive the events. Must be at most 256 characters.",
       ).optional(),
       xdrSettings: z.object({
         enableAllXdrEvents: z.boolean().describe(
@@ -868,10 +869,10 @@ const InputsSchema = z.object({
     }).describe("Device trust connector config.").optional(),
     googleSecOpsConfig: z.object({
       apiKey: z.string().describe(
-        "Required. Input only. API key to use on the ingestion API.",
+        "Required. Input only. API key to use on the ingestion API. Must be 39 characters.",
       ).optional(),
       host: z.string().describe(
-        "Required. Host of ingestion API endpoint. Allows customer to upload events to servers in specific geographical regions. Existing configs that don't have this setting default to US.",
+        "Required. Host of ingestion API endpoint. Allows customer to upload events to servers in specific geographical regions. Existing configs that don't have this setting default to US. Must be at most 256 characters.",
       ).optional(),
       reportingSettings: z.object({
         enabledDefaultEvents: z.array(
@@ -931,10 +932,10 @@ const InputsSchema = z.object({
     }).describe("MIP label connector config.").optional(),
     paloAltoNetworksConfig: z.object({
       apiKey: z.string().describe(
-        "Required. Input only. API key to use on the ingestion API.",
+        "Required. Input only. API key to use on the ingestion API. Must be at most 256 characters.",
       ).optional(),
       host: z.string().describe(
-        "Required. Host to identify the customer specific server to receive the events.",
+        "Required. Host to identify the customer specific server to receive the events. Must be at most 256 characters.",
       ).optional(),
       reportingSettings: z.object({
         enabledDefaultEvents: z.array(
@@ -1034,12 +1035,12 @@ const InputsSchema = z.object({
       }).describe("Required. The reporting settings for the Pub/Sub config.")
         .optional(),
       topicFullPath: z.string().describe(
-        "Required. The full path to the topic to send the event to.",
+        "Required. The full path to the topic to send the event to. Must be at most 1000 characters.",
       ).optional(),
     }).describe("Pub/Sub connector config.").optional(),
     pubSubXdrConfig: z.object({
       topicFullPath: z.string().describe(
-        "Required. The full path to the topic to send the event to.",
+        "Required. The full path to the topic to send the event to. Must be at most 1000 characters.",
       ).optional(),
       xdrSettings: z.object({
         enableAllXdrEvents: z.boolean().describe(
@@ -1055,15 +1056,15 @@ const InputsSchema = z.object({
         "Optional. The enabled platforms for the secure gateway connector config.",
       ).optional(),
       resourceId: z.string().describe(
-        "Required. The resource ID of the secure gateway connector config.",
+        "Required. The resource ID of the secure gateway connector config. Must be at most 256 characters.",
       ).optional(),
     }).describe("Secure gateway connector config.").optional(),
     splunkConfig: z.object({
       hecToken: z.string().describe(
-        "Required. Input only. The data input's HTTP Event Collector token to use as an Authorization header.",
+        "Required. Input only. The data input's HTTP Event Collector token to use as an Authorization header. Must be at most 50 characters.",
       ).optional(),
       host: z.string().describe(
-        "Required. Host to identify the customer specific server to receive the events.",
+        "Required. Host to identify the customer specific server to receive the events. Must be at most 256 characters.",
       ).optional(),
       portNumber: z.number().int().describe(
         "Optional. The port number to use. If not set, the default Splunk port is used.",
@@ -1116,15 +1117,16 @@ const InputsSchema = z.object({
       }).describe("Required. The reporting settings for the Splunk config.")
         .optional(),
       source: z.string().describe(
-        "Optional. Optional source name to override the default one set in the Splunk admin console.",
+        "Optional. Optional source name to override the default one set in the Splunk admin console. Must be at most 100 characters.",
       ).optional(),
       unsecureScheme: z.boolean().describe(
         "Optional. Whether to use an unsecure HTTP scheme. Defaults to false (HTTPS).",
       ).optional(),
     }).describe("Splunk connector config.").optional(),
   }).describe("Required. The details of the connector config.").optional(),
-  displayName: z.string().describe("Required. The display name of the config.")
-    .optional(),
+  displayName: z.string().describe(
+    "Required. The display name of the config. Must be at most 100 characters.",
+  ).optional(),
   name: z.string().describe(
     "Identifier. Format: customers/{customer}/connectorConfigs/{connector_config}",
   ).optional(),
@@ -1173,7 +1175,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Chrome Management Customers.ConnectorConfigs. Registered at `@swamp/gcp/chromemanagement/customers-connectorconfigs`. */
 export const model = {
   type: "@swamp/gcp/chromemanagement/customers-connectorconfigs",
-  version: "2026.09.17.1",
+  version: "2026.09.26.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -1187,6 +1189,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.17.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

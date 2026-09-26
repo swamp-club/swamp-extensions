@@ -519,7 +519,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Interconnects. Registered at `@swamp/gcp/compute/interconnects`. */
 export const model = {
   type: "@swamp/gcp/compute/interconnects",
-  version: "2026.09.23.1",
+  version: "2026.09.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -673,6 +673,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1212,6 +1217,66 @@ export const model = {
             "parameters": {
               "project": { "location": "path", "required": true },
               "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    set_name: {
+      description: "set name",
+      arguments: z.object({
+        currentName: z.any().optional(),
+        name: z.any().optional(),
+        requestId: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["interconnect"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        if (args["requestId"] !== undefined) {
+          params["requestId"] = String(args["requestId"]);
+        }
+        const body: Record<string, unknown> = {};
+        if (args["currentName"] !== undefined) {
+          body["currentName"] = args["currentName"];
+        }
+        if (args["name"] !== undefined) body["name"] = args["name"];
+        const result = await createResource(
+          baseUrl,
+          {
+            "id": "compute.interconnects.setName",
+            "path":
+              "projects/{project}/global/interconnects/{interconnect}/setName",
+            "httpMethod": "POST",
+            "parameterOrder": ["project", "interconnect"],
+            "parameters": {
+              "interconnect": { "location": "path", "required": true },
+              "project": { "location": "path", "required": true },
+              "requestId": { "location": "query" },
             },
           },
           params,

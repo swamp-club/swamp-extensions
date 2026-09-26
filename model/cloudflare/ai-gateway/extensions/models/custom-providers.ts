@@ -48,7 +48,9 @@ const GlobalArgsSchema = z.object({
   curl_example: z.string().optional(),
   description: z.string().optional(),
   enable: z.boolean().optional(),
-  headers: z.string().max(8192).optional(),
+  headers: z.string().max(8192).describe(
+    "JSON object of extra HTTP headers that AI Gateway sends to the provider. Values can contain credentials.",
+  ).optional(),
   js_example: z.string().optional(),
   link: z.string().optional(),
   logo: z.string().optional(),
@@ -108,7 +110,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Custom-providers. Registered at `@swamp/cloudflare/ai-gateway/custom-providers`. */
 export const model = {
   type: "@swamp/cloudflare/ai-gateway/custom-providers",
-  version: "2026.08.25.2",
+  version: "2026.09.26.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -142,6 +144,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.25.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

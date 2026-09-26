@@ -66,7 +66,9 @@ const GlobalArgsSchema = z.object({
     output_tokens: z.number().optional(),
     total_tokens: z.number().optional(),
   }).optional(),
-  account_provider_id: z.string(),
+  account_provider_id: z.string().describe(
+    "ID of the custom provider that the pricing rule applies to.",
+  ),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -128,7 +130,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Costs. Registered at `@swamp/cloudflare/ai-gateway/costs`. */
 export const model = {
   type: "@swamp/cloudflare/ai-gateway/costs",
-  version: "2026.07.21.1",
+  version: "2026.09.26.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -147,6 +149,11 @@ export const model = {
     },
     {
       toVersion: "2026.07.21.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

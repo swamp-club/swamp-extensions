@@ -193,7 +193,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   egressNetworkConfig: z.object({
     dnsPeeringConfig: z.object({
-      domain: z.string().describe("Optional. The domain to peer.").optional(),
+      domain: z.string().describe(
+        "Optional. Deprecated: Use `domains` instead. The domain to peer.",
+      ).optional(),
+      domains: z.array(z.string()).describe("Optional. The domains to peer.")
+        .optional(),
       targetNetwork: z.string().describe(
         "Optional. The target network resource name for DNS peering. Format: projects/{project}/global/networks/{network_id}",
       ).optional(),
@@ -201,6 +205,17 @@ const GlobalArgsSchema = z.object({
     networkAttachment: z.string().describe(
       "Optional. The network attachment resource name. Format: projects/{project}/regions/{region}/networkAttachments/{network_attachment_id}",
     ).optional(),
+    tlsConfig: z.object({
+      additionalRoots: z.enum([
+        "ADDITIONAL_ROOTS_UNSPECIFIED",
+        "NO_ADDITIONAL_ROOTS",
+        "PUBLICLY_TRUSTED_ROOTS",
+      ]).describe("Optional. The additional roots to trust.").optional(),
+      trustConfig: z.string().describe(
+        "Optional. The trust config resource name. Format: projects/{project}/locations/{location}/trustConfigs/{trust_config}",
+      ).optional(),
+    }).describe("Optional. The TLS configuration for the egress traffic.")
+      .optional(),
     trustConfig: z.string().describe(
       "Optional. Deprecated: Use tls_config instead. The trust config resource name. Format: projects/{project}/locations/{location}/trustConfigs/{trust_config}",
     ).optional(),
@@ -234,9 +249,14 @@ const StateSchema = z.object({
   egressNetworkConfig: z.object({
     dnsPeeringConfig: z.object({
       domain: z.string(),
+      domains: z.array(z.string()),
       targetNetwork: z.string(),
     }),
     networkAttachment: z.string(),
+    tlsConfig: z.object({
+      additionalRoots: z.string(),
+      trustConfig: z.string(),
+    }),
     trustConfig: z.string(),
     vpcEgress: z.string(),
   }).optional(),
@@ -284,7 +304,11 @@ const InputsSchema = z.object({
   ).optional(),
   egressNetworkConfig: z.object({
     dnsPeeringConfig: z.object({
-      domain: z.string().describe("Optional. The domain to peer.").optional(),
+      domain: z.string().describe(
+        "Optional. Deprecated: Use `domains` instead. The domain to peer.",
+      ).optional(),
+      domains: z.array(z.string()).describe("Optional. The domains to peer.")
+        .optional(),
       targetNetwork: z.string().describe(
         "Optional. The target network resource name for DNS peering. Format: projects/{project}/global/networks/{network_id}",
       ).optional(),
@@ -292,6 +316,17 @@ const InputsSchema = z.object({
     networkAttachment: z.string().describe(
       "Optional. The network attachment resource name. Format: projects/{project}/regions/{region}/networkAttachments/{network_attachment_id}",
     ).optional(),
+    tlsConfig: z.object({
+      additionalRoots: z.enum([
+        "ADDITIONAL_ROOTS_UNSPECIFIED",
+        "NO_ADDITIONAL_ROOTS",
+        "PUBLICLY_TRUSTED_ROOTS",
+      ]).describe("Optional. The additional roots to trust.").optional(),
+      trustConfig: z.string().describe(
+        "Optional. The trust config resource name. Format: projects/{project}/locations/{location}/trustConfigs/{trust_config}",
+      ).optional(),
+    }).describe("Optional. The TLS configuration for the egress traffic.")
+      .optional(),
     trustConfig: z.string().describe(
       "Optional. Deprecated: Use tls_config instead. The trust config resource name. Format: projects/{project}/locations/{location}/trustConfigs/{trust_config}",
     ).optional(),
@@ -341,11 +376,16 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Services AgentConnectivityTemplates. Registered at `@swamp/gcp/networkservices/agentconnectivitytemplates`. */
 export const model = {
   type: "@swamp/gcp/networkservices/agentconnectivitytemplates",
-  version: "2026.08.16.1",
+  version: "2026.09.26.1",
   upgrades: [
     {
       toVersion: "2026.08.16.1",
       description: "Added: agentCompute, deploymentModel",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.26.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

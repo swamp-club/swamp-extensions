@@ -117,7 +117,6 @@ const StateSchema = z.object({
         compiledLuceneQuery: z.string(),
         documentCondition: z.string(),
         documentQuery: z.object({
-          dataModel: z.string(),
           query: z.string(),
           queryType: z.string(),
         }),
@@ -139,6 +138,7 @@ const StateSchema = z.object({
           updaterUserId: z.string(),
           version: z.number(),
         }),
+        scenarioType: z.string(),
       }),
       customerProfile: z.object({
         citations: z.array(z.object({
@@ -236,6 +236,10 @@ const StateSchema = z.object({
             value: z.unknown(),
           }),
         }),
+        technologies: z.array(z.object({
+          citationIds: z.unknown(),
+          technology: z.unknown(),
+        })),
         technologyPresence: z.string(),
         webPresences: z.array(z.object({
           citationIds: z.unknown(),
@@ -248,6 +252,11 @@ const StateSchema = z.object({
           domain: z.unknown(),
           domainMonitoringConfig: z.unknown(),
           state: z.unknown(),
+        })),
+      }),
+      domainMonitoring: z.object({
+        domains: z.array(z.object({
+          domain: z.unknown(),
         })),
       }),
       technologyWatchlist: z.object({
@@ -314,7 +323,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Threat Intelligence Configurations.Revisions. Registered at `@swamp/gcp/threatintelligence/configurations-revisions`. */
 export const model = {
   type: "@swamp/gcp/threatintelligence/configurations-revisions",
-  version: "2026.09.18.1",
+  version: "2026.09.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -473,6 +482,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.18.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

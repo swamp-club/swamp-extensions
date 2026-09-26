@@ -131,17 +131,117 @@ const StateSchema = z.object({
   configurations: z.array(z.string()).optional(),
   detail: z.object({
     dataLeak: z.object({
+      discoveryDocument: z.object({
+        communicationContext: z.object({
+          channelDescription: z.string(),
+          channelName: z.string(),
+          channelPath: z.string(),
+          channelUrl: z.string(),
+          serviceName: z.string(),
+          threadId: z.string(),
+        }),
+        documentId: z.string(),
+        documentType: z.string(),
+      }),
       documentId: z.string(),
       matchScore: z.number(),
       severity: z.string(),
     }),
     detailType: z.string(),
+    domainMonitoring: z.object({
+      dnsDetails: z.object({
+        dnsRecords: z.array(z.object({
+          asnHosting: z.unknown(),
+          asnRegionCode: z.unknown(),
+          ipRegionCode: z.unknown(),
+          recordData: z.unknown(),
+          resolvedIp: z.unknown(),
+          ttl: z.unknown(),
+          type: z.unknown(),
+        })),
+        retrievalTime: z.string(),
+      }),
+      domainDetails: z.object({
+        domain: z.string(),
+      }),
+      gtiDetails: z.object({
+        avDetections: z.object({
+          detectedVendorCount: z.number(),
+          totalVendorCount: z.number(),
+        }),
+        domainPermutation: z.string(),
+        gtiDomainUri: z.string(),
+        gtiScore: z.number(),
+        threatClassification: z.string(),
+        verdict: z.string(),
+      }),
+      infrastructure: z.object({
+        certificateDetails: z.object({
+          issuer: z.string(),
+          subjectAlternativeNames: z.array(z.unknown()),
+        }),
+        urlResponse: z.string(),
+      }),
+      matchedDomain: z.string(),
+      protectedBrand: z.string(),
+      protectedDomain: z.object({
+        domain: z.string(),
+      }),
+      registrationDetails: z.object({
+        expireTime: z.string(),
+        privateRegistration: z.boolean(),
+        registrantCountry: z.string(),
+        registrar: z.string(),
+        registrationTime: z.string(),
+      }),
+      relationships: z.object({
+        relatedUrls: z.array(z.string()),
+        siblingDomains: z.array(z.string()),
+        subdomains: z.array(z.string()),
+      }),
+      threatAttributionDetails: z.object({
+        actors: z.array(z.string()),
+        collections: z.array(z.string()),
+        malware: z.array(z.string()),
+      }),
+      urlDetails: z.object({
+        url: z.string(),
+      }),
+      whoisDetails: z.object({
+        retrievalTime: z.string(),
+        whois: z.string(),
+      }),
+    }),
     initialAccessBroker: z.object({
+      discoveryDocument: z.object({
+        communicationContext: z.object({
+          channelDescription: z.string(),
+          channelName: z.string(),
+          channelPath: z.string(),
+          channelUrl: z.string(),
+          serviceName: z.string(),
+          threadId: z.string(),
+        }),
+        documentId: z.string(),
+        documentType: z.string(),
+      }),
       documentId: z.string(),
       matchScore: z.number(),
       severity: z.string(),
     }),
     insiderThreat: z.object({
+      discoveryDocument: z.object({
+        communicationContext: z.object({
+          channelDescription: z.string(),
+          channelName: z.string(),
+          channelPath: z.string(),
+          channelUrl: z.string(),
+          serviceName: z.string(),
+          threadId: z.string(),
+        }),
+        documentId: z.string(),
+        documentType: z.string(),
+      }),
       documentId: z.string(),
       matchScore: z.number(),
       severity: z.string(),
@@ -246,7 +346,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Threat Intelligence Findings. Registered at `@swamp/gcp/threatintelligence/findings`. */
 export const model = {
   type: "@swamp/gcp/threatintelligence/findings",
-  version: "2026.09.07.1",
+  version: "2026.09.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -385,6 +485,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

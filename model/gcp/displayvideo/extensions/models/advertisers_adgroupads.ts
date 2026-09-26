@@ -2049,18 +2049,14 @@ export const model = {
     {
       toVersion: "2026.07.21.1",
       description:
-        "Removed: adPolicy, audioAd, bumperAd, displayVideoSourceAd, inStreamAd, mastheadAd, nonSkippableAd, videoDiscoverAd, videoPerformanceAd",
+        "Removed: adPolicy, audioAd, displayVideoSourceAd, mastheadAd, videoDiscoverAd",
       upgradeAttributes: (old: Record<string, unknown>) => {
         const {
           adPolicy: _adPolicy,
           audioAd: _audioAd,
-          bumperAd: _bumperAd,
           displayVideoSourceAd: _displayVideoSourceAd,
-          inStreamAd: _inStreamAd,
           mastheadAd: _mastheadAd,
-          nonSkippableAd: _nonSkippableAd,
           videoDiscoverAd: _videoDiscoverAd,
-          videoPerformanceAd: _videoPerformanceAd,
           ...rest
         } = old;
         return rest;

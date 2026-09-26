@@ -211,7 +211,7 @@ const GlobalArgsSchema = z.object({
     "Optional. CEL(https://github.com/google/cel-spec) formatted filter string against Unit. The filter will be applied to determine the eligible unit population. This filter can only reduce, but not expand the scope of the rollout.",
   ).optional(),
   unitKind: z.string().describe(
-    "Required. Immutable. UnitKind that this rollout kind corresponds to. Rollouts stemming from this rollout kind will target the units of this unit kind. In other words, this defines the population of target units to be upgraded by rollouts.",
+    "Optional. Immutable. UnitKind that this rollout kind corresponds to. Rollouts stemming from this rollout kind will target the units of this unit kind. In other words, this defines the population of target units to be upgraded by rollouts.",
   ).optional(),
   unitUpdatePacing: z.object({
     maxConcurrentOperationsCount: z.number().int().describe(
@@ -304,7 +304,7 @@ const InputsSchema = z.object({
     "Optional. CEL(https://github.com/google/cel-spec) formatted filter string against Unit. The filter will be applied to determine the eligible unit population. This filter can only reduce, but not expand the scope of the rollout.",
   ).optional(),
   unitKind: z.string().describe(
-    "Required. Immutable. UnitKind that this rollout kind corresponds to. Rollouts stemming from this rollout kind will target the units of this unit kind. In other words, this defines the population of target units to be upgraded by rollouts.",
+    "Optional. Immutable. UnitKind that this rollout kind corresponds to. Rollouts stemming from this rollout kind will target the units of this unit kind. In other words, this defines the population of target units to be upgraded by rollouts.",
   ).optional(),
   unitUpdatePacing: z.object({
     maxConcurrentOperationsCount: z.number().int().describe(
@@ -364,7 +364,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Lifecycle Manager RolloutKinds. Registered at `@swamp/gcp/saasservicemgmt/rolloutkinds`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/rolloutkinds",
-  version: "2026.08.12.2",
+  version: "2026.09.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -518,6 +518,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

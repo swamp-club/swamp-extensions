@@ -182,7 +182,7 @@ const GlobalArgsSchema = z.object({
     "Optional. An optional text description of the multicast group consumer activation.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. Labels as key-value pairs",
+    "Optional. Labels as key-value pairs.",
   ).optional(),
   logConfig: z.object({
     enabled: z.boolean().describe("Optional. Whether to enable logging or not.")
@@ -194,7 +194,7 @@ const GlobalArgsSchema = z.object({
     "Required. The resource name of the multicast consumer association that is in the same zone as this multicast group consumer activation. Use the following format: `projects/*/locations/*/multicastConsumerAssociations/*`.",
   ).optional(),
   multicastGroupRangeActivation: z.string().describe(
-    "Required. The resource name of the multicast group range activation created by the admin in the same zone as this multicast group consumer activation. Use the following format: // `projects/*/locations/*/multicastGroupRangeActivations/*`.",
+    "Required. The resource name of the multicast group range activation created by the admin in the same zone as this multicast group consumer activation. Use the following format: `projects/*/locations/*/multicastGroupRangeActivations/*`.",
   ).optional(),
   name: z.string().describe(
     "Identifier. The resource name of the multicast group consumer activation. Use the following format: `projects/*/locations/*/multicastGroupConsumerActivations/*`.",
@@ -242,7 +242,7 @@ const InputsSchema = z.object({
     "Optional. An optional text description of the multicast group consumer activation.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
-    "Optional. Labels as key-value pairs",
+    "Optional. Labels as key-value pairs.",
   ).optional(),
   logConfig: z.object({
     enabled: z.boolean().describe("Optional. Whether to enable logging or not.")
@@ -254,7 +254,7 @@ const InputsSchema = z.object({
     "Required. The resource name of the multicast consumer association that is in the same zone as this multicast group consumer activation. Use the following format: `projects/*/locations/*/multicastConsumerAssociations/*`.",
   ).optional(),
   multicastGroupRangeActivation: z.string().describe(
-    "Required. The resource name of the multicast group range activation created by the admin in the same zone as this multicast group consumer activation. Use the following format: // `projects/*/locations/*/multicastGroupRangeActivations/*`.",
+    "Required. The resource name of the multicast group range activation created by the admin in the same zone as this multicast group consumer activation. Use the following format: `projects/*/locations/*/multicastGroupRangeActivations/*`.",
   ).optional(),
   name: z.string().describe(
     "Identifier. The resource name of the multicast group consumer activation. Use the following format: `projects/*/locations/*/multicastGroupConsumerActivations/*`.",
@@ -296,7 +296,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Services MulticastGroupConsumerActivations. Registered at `@swamp/gcp/networkservices/multicastgroupconsumeractivations`. */
 export const model = {
   type: "@swamp/gcp/networkservices/multicastgroupconsumeractivations",
-  version: "2026.08.12.2",
+  version: "2026.09.26.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -305,6 +305,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

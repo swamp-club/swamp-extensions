@@ -52,6 +52,9 @@ const GET_CONFIG = {
     "documentId",
   ],
   "parameters": {
+    "commentsViewMode": {
+      "location": "query",
+    },
     "documentId": {
       "location": "path",
       "required": true,
@@ -189,6 +192,53 @@ const StateSchema = z.object({
       }),
     })),
   }).optional(),
+  comments: z.array(z.object({
+    anchorId: z.string(),
+    commentId: z.string(),
+    headPost: z.object({
+      assigneeEmail: z.string(),
+      author: z.object({
+        anonymous: z.boolean(),
+        displayName: z.string(),
+        me: z.boolean(),
+        user: z.string(),
+      }),
+      commentAction: z.string(),
+      content: z.string(),
+      contentHtml: z.string(),
+      createTime: z.string(),
+      deleted: z.boolean(),
+      fromCopiedDocument: z.boolean(),
+      fromDocumentComparison: z.boolean(),
+      fromImportedDocument: z.boolean(),
+      postId: z.string(),
+      suggestionAction: z.string(),
+      updateTime: z.string(),
+    }),
+    plainTextQuote: z.string(),
+    replies: z.array(z.object({
+      assigneeEmail: z.string(),
+      author: z.object({
+        anonymous: z.unknown(),
+        displayName: z.unknown(),
+        me: z.unknown(),
+        user: z.unknown(),
+      }),
+      commentAction: z.string(),
+      content: z.string(),
+      contentHtml: z.string(),
+      createTime: z.string(),
+      deleted: z.boolean(),
+      fromCopiedDocument: z.boolean(),
+      fromDocumentComparison: z.boolean(),
+      fromImportedDocument: z.boolean(),
+      postId: z.string(),
+      suggestionAction: z.string(),
+      updateTime: z.string(),
+    })),
+    status: z.string(),
+  })).optional(),
+  commentsViewMode: z.string().optional(),
   documentId: z.string().optional(),
   documentStyle: z.object({
     background: z.object({
@@ -362,6 +412,52 @@ const StateSchema = z.object({
   revisionId: z.string().optional(),
   suggestedDocumentStyleChanges: z.record(z.string(), z.unknown()).optional(),
   suggestedNamedStylesChanges: z.record(z.string(), z.unknown()).optional(),
+  suggestions: z.array(z.object({
+    headPost: z.object({
+      assigneeEmail: z.string(),
+      author: z.object({
+        anonymous: z.boolean(),
+        displayName: z.string(),
+        me: z.boolean(),
+        user: z.string(),
+      }),
+      commentAction: z.string(),
+      content: z.string(),
+      contentHtml: z.string(),
+      createTime: z.string(),
+      deleted: z.boolean(),
+      fromCopiedDocument: z.boolean(),
+      fromDocumentComparison: z.boolean(),
+      fromImportedDocument: z.boolean(),
+      postId: z.string(),
+      suggestionAction: z.string(),
+      updateTime: z.string(),
+    }),
+    replies: z.array(z.object({
+      assigneeEmail: z.string(),
+      author: z.object({
+        anonymous: z.unknown(),
+        displayName: z.unknown(),
+        me: z.unknown(),
+        user: z.unknown(),
+      }),
+      commentAction: z.string(),
+      content: z.string(),
+      contentHtml: z.string(),
+      createTime: z.string(),
+      deleted: z.boolean(),
+      fromCopiedDocument: z.boolean(),
+      fromDocumentComparison: z.boolean(),
+      fromImportedDocument: z.boolean(),
+      postId: z.string(),
+      suggestionAction: z.string(),
+      updateTime: z.string(),
+    })),
+    status: z.string(),
+    suggestionId: z.string(),
+    summaryHtml: z.string(),
+    summaryText: z.string(),
+  })).optional(),
   suggestionsViewMode: z.string().optional(),
   tabs: z.array(z.object({
     childTabs: z.array(z.record(z.string(), z.unknown())),
@@ -369,6 +465,7 @@ const StateSchema = z.object({
       body: z.object({
         content: z.array(z.unknown()),
       }),
+      commentAnchors: z.record(z.string(), z.unknown()),
       documentStyle: z.object({
         background: z.object({
           color: z.unknown(),
@@ -480,7 +577,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Docs Documents. Registered at `@swamp/gcp/docs/documents`. */
 export const model = {
   type: "@swamp/gcp/docs/documents",
-  version: "2026.09.09.1",
+  version: "2026.09.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -617,6 +714,11 @@ export const model = {
         const { tabs: _tabs, ...rest } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.09.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   globalArguments: GlobalArgsSchema,

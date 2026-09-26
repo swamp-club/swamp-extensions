@@ -47,7 +47,7 @@ const GlobalArgsSchema = z.object({
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
   title: z.string().max(512).describe(
-    "A human-readable string name for a Namespace.",
+    "Human-readable string name for a Workers KV namespace.",
   ),
   jurisdiction: z.enum(["eu", "fedramp", "us"]).describe(
     "Specify the jurisdiction to restrict the KV namespace to durably store data within. Can only be set at namespace creation time.",
@@ -85,7 +85,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Namespaces. Registered at `@swamp/cloudflare/workers-kv/namespaces`. */
 export const model = {
   type: "@swamp/cloudflare/workers-kv/namespaces",
-  version: "2026.08.26.1",
+  version: "2026.09.26.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -110,6 +110,11 @@ export const model = {
     {
       toVersion: "2026.08.26.1",
       description: "Added: jurisdiction",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.26.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

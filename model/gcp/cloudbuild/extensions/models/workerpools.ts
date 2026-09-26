@@ -220,6 +220,9 @@ const GlobalArgsSchema = z.object({
       machineType: z.string().describe(
         "Optional. Machine type of a worker, such as `e2-medium`. See [Worker pool config file](https://cloud.google.com/build/docs/private-pools/worker-pool-config-file-schema). If left blank, Cloud Build will use a sensible default.",
       ).optional(),
+      workerRelease: z.string().describe(
+        "Optional. Option to specify which release or release channel (rapid|regular|stable) to use to run this build.",
+      ).optional(),
     }).describe("Machine configuration for the workers in the pool.")
       .optional(),
   }).describe("Private Pool configuration.").optional(),
@@ -253,6 +256,7 @@ const StateSchema = z.object({
       diskSizeGb: z.string(),
       enableNestedVirtualization: z.boolean(),
       machineType: z.string(),
+      workerRelease: z.string(),
     }),
   }).optional(),
   state: z.string().optional(),
@@ -314,6 +318,9 @@ const InputsSchema = z.object({
       machineType: z.string().describe(
         "Optional. Machine type of a worker, such as `e2-medium`. See [Worker pool config file](https://cloud.google.com/build/docs/private-pools/worker-pool-config-file-schema). If left blank, Cloud Build will use a sensible default.",
       ).optional(),
+      workerRelease: z.string().describe(
+        "Optional. Option to specify which release or release channel (rapid|regular|stable) to use to run this build.",
+      ).optional(),
     }).describe("Machine configuration for the workers in the pool.")
       .optional(),
   }).describe("Private Pool configuration.").optional(),
@@ -351,7 +358,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Build WorkerPools. Registered at `@swamp/gcp/cloudbuild/workerpools`. */
 export const model = {
   type: "@swamp/gcp/cloudbuild/workerpools",
-  version: "2026.08.12.2",
+  version: "2026.09.26.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -360,6 +367,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

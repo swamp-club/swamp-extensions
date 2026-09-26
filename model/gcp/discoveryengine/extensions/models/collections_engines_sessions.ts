@@ -306,6 +306,9 @@ const GlobalArgsSchema = z.object({
           "CUSTOMER_POLICY_VIOLATION",
         ]),
       ).describe("Reasons for not answering the assist call.").optional(),
+      connectorDisplayNames: z.record(z.string(), z.string()).describe(
+        "Output only. Maps an internal connector agent name (the machine identifier embedded in tool names, e.g. `custom_mcp__agent`) to the connector's human-readable display name. Populated at serving time for custom MCP / agent gateway connectors so user-facing surfaces (e.g. the tool-call chip) can show the connector name instead of its internal identifier. Empty when there are no such connectors.",
+      ).optional(),
       customerPolicyEnforcementResult: z.object({
         policyResults: z.array(z.unknown()).describe(
           "Customer policy enforcement results. Populated only if the assist call was skipped due to a policy violation. It contains results from those filters that blocked the processing of the query.",
@@ -427,6 +430,7 @@ const StateSchema = z.object({
     }),
     detailedAssistAnswer: z.object({
       assistSkippedReasons: z.array(z.string()),
+      connectorDisplayNames: z.record(z.string(), z.unknown()),
       customerPolicyEnforcementResult: z.object({
         policyResults: z.array(z.unknown()),
         verdict: z.string(),
@@ -595,6 +599,9 @@ const InputsSchema = z.object({
           "CUSTOMER_POLICY_VIOLATION",
         ]),
       ).describe("Reasons for not answering the assist call.").optional(),
+      connectorDisplayNames: z.record(z.string(), z.string()).describe(
+        "Output only. Maps an internal connector agent name (the machine identifier embedded in tool names, e.g. `custom_mcp__agent`) to the connector's human-readable display name. Populated at serving time for custom MCP / agent gateway connectors so user-facing surfaces (e.g. the tool-call chip) can show the connector name instead of its internal identifier. Empty when there are no such connectors.",
+      ).optional(),
       customerPolicyEnforcementResult: z.object({
         policyResults: z.array(z.unknown()).describe(
           "Customer policy enforcement results. Populated only if the assist call was skipped due to a policy violation. It contains results from those filters that blocked the processing of the query.",
@@ -685,7 +692,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine Collections.Engines.Sessions. Registered at `@swamp/gcp/discoveryengine/collections-engines-sessions`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-engines-sessions",
-  version: "2026.08.16.1",
+  version: "2026.09.26.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -844,6 +851,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.16.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

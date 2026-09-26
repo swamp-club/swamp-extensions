@@ -592,6 +592,12 @@ const GlobalArgsSchema = z.object({
         name: z.string().describe(
           "The `WorkerPool` resource to execute the build on. You must have `cloudbuild.workerpools.use` on the project hosting the WorkerPool. Format projects/{project}/locations/{location}/workerPools/{workerPoolId}",
         ).optional(),
+        resolvedWorkerRelease: z.string().describe(
+          "Output only. OUTPUT_ONLY. Worker release resolved from the release channel.",
+        ).optional(),
+        workerRelease: z.string().describe(
+          "Output only. OUTPUT_ONLY. The release or release channel used to run the Build. This is set to the same value as `PrivatePoolV1Config.WorkerConfig.worker_release` for the UI to easily access.",
+        ).optional(),
       }).describe(
         "Optional. Specification for execution on a `WorkerPool`. See [running builds in a private pool](https://cloud.google.com/build/docs/private-pools/run-builds-in-private-pool) for more information.",
       ).optional(),
@@ -600,6 +606,9 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       requestedVerifyOption: z.enum(["NOT_VERIFIED", "VERIFIED"]).describe(
         "Requested verifiability options.",
+      ).optional(),
+      resolvedWorkerRelease: z.string().describe(
+        "Output only. Worker release resolved from the release channel.",
       ).optional(),
       secretEnv: z.array(z.string()).describe(
         "A list of global environment variables, which are encrypted using a Cloud Key Management Service crypto key. These values must be specified in the build's `Secret`. These variables will be available to all build steps in this build.",
@@ -629,6 +638,9 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       workerPool: z.string().describe(
         "This field deprecated; please use `pool.name` instead.",
+      ).optional(),
+      workerRelease: z.string().describe(
+        "Optional. Option to specify which release or release channel (rapid|regular|stable) to use to run this build.",
       ).optional(),
     }).describe("Special options for this build.").optional(),
     projectId: z.string().describe("Output only. ID of the project.")
@@ -1588,9 +1600,12 @@ const StateSchema = z.object({
       machineType: z.string(),
       pool: z.object({
         name: z.string(),
+        resolvedWorkerRelease: z.string(),
+        workerRelease: z.string(),
       }),
       pubsubTopic: z.string(),
       requestedVerifyOption: z.string(),
+      resolvedWorkerRelease: z.string(),
       secretEnv: z.array(z.string()),
       sourceProvenanceHash: z.array(z.string()),
       substitutionOption: z.string(),
@@ -1599,6 +1614,7 @@ const StateSchema = z.object({
         path: z.string(),
       })),
       workerPool: z.string(),
+      workerRelease: z.string(),
     }),
     projectId: z.string(),
     queueTtl: z.string(),
@@ -2322,6 +2338,12 @@ const InputsSchema = z.object({
         name: z.string().describe(
           "The `WorkerPool` resource to execute the build on. You must have `cloudbuild.workerpools.use` on the project hosting the WorkerPool. Format projects/{project}/locations/{location}/workerPools/{workerPoolId}",
         ).optional(),
+        resolvedWorkerRelease: z.string().describe(
+          "Output only. OUTPUT_ONLY. Worker release resolved from the release channel.",
+        ).optional(),
+        workerRelease: z.string().describe(
+          "Output only. OUTPUT_ONLY. The release or release channel used to run the Build. This is set to the same value as `PrivatePoolV1Config.WorkerConfig.worker_release` for the UI to easily access.",
+        ).optional(),
       }).describe(
         "Optional. Specification for execution on a `WorkerPool`. See [running builds in a private pool](https://cloud.google.com/build/docs/private-pools/run-builds-in-private-pool) for more information.",
       ).optional(),
@@ -2330,6 +2352,9 @@ const InputsSchema = z.object({
       ).optional(),
       requestedVerifyOption: z.enum(["NOT_VERIFIED", "VERIFIED"]).describe(
         "Requested verifiability options.",
+      ).optional(),
+      resolvedWorkerRelease: z.string().describe(
+        "Output only. Worker release resolved from the release channel.",
       ).optional(),
       secretEnv: z.array(z.string()).describe(
         "A list of global environment variables, which are encrypted using a Cloud Key Management Service crypto key. These values must be specified in the build's `Secret`. These variables will be available to all build steps in this build.",
@@ -2359,6 +2384,9 @@ const InputsSchema = z.object({
       ).optional(),
       workerPool: z.string().describe(
         "This field deprecated; please use `pool.name` instead.",
+      ).optional(),
+      workerRelease: z.string().describe(
+        "Optional. Option to specify which release or release channel (rapid|regular|stable) to use to run this build.",
       ).optional(),
     }).describe("Special options for this build.").optional(),
     projectId: z.string().describe("Output only. ID of the project.")
@@ -3188,7 +3216,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Build Triggers. Registered at `@swamp/gcp/cloudbuild/triggers`. */
 export const model = {
   type: "@swamp/gcp/cloudbuild/triggers",
-  version: "2026.09.07.1",
+  version: "2026.09.26.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -3218,6 +3246,11 @@ export const model = {
     {
       toVersion: "2026.09.07.1",
       description: "Added: triggerId",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.26.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
