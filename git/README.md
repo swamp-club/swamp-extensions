@@ -248,6 +248,87 @@ swamp model method run repo clone \
   --json
 ```
 
+`clone` fails when the destination already exists. For a workflow that runs
+more than once against the same path, use `ensure_checkout`.
+
+### Ensure a Checkout (Idempotent Clone-or-Update)
+
+`ensure_checkout` makes sure a checkout of a repository is at a path, whatever
+state the path is in, so a re-runnable workflow needs no workspace-clearing
+step:
+
+```bash
+swamp model method run repo ensure_checkout \
+  --input url=https://github.com/org/repo.git \
+  --input path=workspace/repo \
+  --input ref=main \
+  --input reset=true \
+  --input branch=automation/regen \
+  --input token=$BOT_TOKEN \
+  --json
+```
+
+| What is at `path` | What happens |
+| ----------------- | ------------ |
+| Nothing, or an empty directory | Clones (honouring `depth` and `ref`) → `cloned` |
+| A checkout of the same repository | Fetches with `--prune`. With `reset`, also `checkout --force -B <ref> <remote>/<ref>` and `clean -fd` → `updated` if HEAD moved, else `reused` |
+| A checkout of a different repository | Refuses, leaving the files untouched |
+| A non-empty directory that is not a checkout, or a directory inside another checkout | Refuses |
+| A file, or a symlink whose target does not exist | Refuses |
+
+- **Same repository** means the same host and repository path, however the URL
+  is spelled — `https://github.com/org/repo`, `git@github.com:org/repo.git`,
+  and `ssh://git@github.com/org/repo` all match. The host is part of the
+  comparison, so an SSH host alias or a mirror on another host is treated as a
+  different repository. Local-path remotes compare exactly: case matters and
+  `repo` is not `repo.git`.
+- **`ref`** must be a branch (tags and SHAs are refused before anything is
+  cloned). When omitted, the remote's default branch is used. Switching `ref`
+  in a single-branch (shallow) clone adds the branch to the remote's fetch
+  refspec so the checked-out branch tracks its upstream.
+- **`reset`** is off by default. With it off, the existing checkout is fetched
+  but HEAD and the working tree are left alone — if HEAD is not on `ref` (or on
+  the requested `branch`), a warning says so. With it on, local changes and
+  untracked files are discarded (`clean -fd`). Ignored files (build output,
+  dependency caches) are kept, and so are untracked directories that are
+  themselves git repositories.
+- **A checkout with no commits** — left by cloning a then-empty remote, or by a
+  clone killed after it configured the remote — is recovered by a run with
+  `reset: true`. Without `reset`, the run fails and says so. A clone killed
+  before it configured the remote leaves a `.git` with no remote; that is
+  refused and the directory has to be removed by hand. (An interrupted clone
+  that git exits cleanly from, such as on Ctrl-C, removes the directory
+  itself.)
+- **`depth`** applies to the clone. On an update it is only applied when the
+  checkout is already shallow, so it never truncates a full clone.
+- **`branch`** creates or moves a working branch to HEAD with `checkout -B`, so
+  re-running is a no-op instead of a "branch already exists" failure.
+- **`token`** (https URLs only) is sent as a per-run `Authorization` header
+  scoped to the URL's host. It never appears in the process arguments or in
+  `.git/config`, so a rotated token works on every run. If an existing
+  checkout's remote URL has credentials embedded, they are removed. If the
+  checkout's `.git/config` already sets an `http.<url>.extraHeader` for the
+  same host (some CI checkout tools leave one), git sends both headers —
+  remove that setting when switching to `token`.
+
+The `checkoutResult` resource carries `path` (absolute), `url` (credentials
+scrubbed), `ref`, `branch`, `sha` (HEAD after the run), and `action`
+(`cloned` / `updated` / `reused`).
+
+### Create a Branch Idempotently
+
+`branch` with `create: true` fails when the branch exists. Add `force: true`
+to use `checkout -B` instead, which resets an existing branch to the start
+point; `created` in the result is `true` only when the branch was new:
+
+```bash
+swamp model method run repo branch \
+  --input name=automation/regen \
+  --input create=true \
+  --input force=true \
+  --json
+```
+
 ## CI Replacement Examples
 
 ### Before: Inline Bash Change Detection
@@ -382,6 +463,7 @@ swamp data query repo 'tags.clean == "false"'
 | Method   | Description |
 | -------- | ----------- |
 | `clone`  | Clone a repository with configurable depth, branch, and auth token |
+| `ensure_checkout` | Idempotent clone-or-update: clone when absent, fetch and optionally force-reset a checkout of the same repository, refuse anything else |
 | `diff`   | Show changes between refs — name-only file lists, stat summaries, or full diffs |
 | `worktree_diff` | Read-only working-tree diff — staged, unstaged, and untracked changes vs a base ref |
 | `status` | Working tree status with structured entries and clean/dirty flag |
@@ -394,14 +476,17 @@ swamp data query repo 'tags.clean == "false"'
 | `pull`   | Pull changes from a remote |
 | `fetch`  | Fetch refs from a remote with optional tag and prune support |
 | `cherry_pick` | Cherry-pick commits or abort an in-progress cherry-pick |
-| `branch` | Create, switch, or list branches |
+| `branch` | Create, switch, or list branches (`force` makes create re-runnable) |
 | `config` | Get or set git configuration values |
+| `is_ancestor` | Check if one commit is an ancestor of another (read-only) |
+| `remove_worktree` | Safely remove a registered clean secondary worktree |
 
 ## Resources
 
 | Resource       | Description |
 | -------------- | ----------- |
 | `cloneResult`  | Clone path, URL, depth, branch |
+| `checkoutResult` | Checkout path, scrubbed URL, ref, working branch, HEAD SHA, action (`cloned` / `updated` / `reused`) |
 | `diffResult`   | Changed files array, raw diff, count, base/head refs |
 | `worktreeDiffResult` | Changed tracked files, untracked files, combined raw diff, count, base ref |
 | `statusResult` | Status entries with path and status code, clean flag, count |
@@ -416,13 +501,15 @@ swamp data query repo 'tags.clean == "false"'
 | `cherryPickResult` | Applied commits, conflict status, conflicting files |
 | `branchResult` | Current branch, branch list, creation status |
 | `configResult` | Config key and value |
+| `isAncestorResult` | Ancestor, descendant, isAncestor flag |
+| `removeWorktreeResult` | Worktree path, removed/alreadyAbsent flags, reason |
 
 ## Pre-flight Checks
 
 | Check              | Applies To | Description |
 | ------------------ | ---------- | ----------- |
-| `git-available`    | all 17 methods | Verifies `git` binary is on PATH |
-| `repo-initialized` | all except `clone` and `remote_ref` | Verifies `repoPath` is inside a git work tree |
+| `git-available`    | all 18 methods | Verifies `git` binary is on PATH |
+| `repo-initialized` | all except `clone`, `ensure_checkout`, and `remote_ref` | Verifies `repoPath` is inside a git work tree |
 
 ## License
 

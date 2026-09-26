@@ -75,6 +75,37 @@ export const CloneArgsSchema = z.object({
 
 export type CloneArgs = z.infer<typeof CloneArgsSchema>;
 
+export const EnsureCheckoutArgsSchema = z.object({
+  url: z.string().min(1)
+    .describe("Repository URL to check out"),
+  path: z.string().min(1)
+    .describe(
+      "Destination path; cloned when absent or empty, updated when it is already a checkout of the same repository",
+    ),
+  ref: safeRefOptional
+    .describe(
+      "Branch to check out (defaults to the remote's default branch). Tags and SHAs are not supported.",
+    ),
+  depth: z.number().int().min(0).optional()
+    .describe(
+      "Clone depth (0 = full history, omit for default). On update, only applied when the checkout is already shallow.",
+    ),
+  reset: z.boolean().default(false)
+    .describe(
+      "Force the checkout to match the remote branch: checkout --force -B <ref> and clean -fd. Discards local changes; ignored files are kept.",
+    ),
+  branch: safeRefOptional
+    .describe(
+      "Working branch to create or move to HEAD with checkout -B (re-running is a no-op)",
+    ),
+  token: z.string().optional().meta({ sensitive: true })
+    .describe(
+      "Auth token for an https:// URL, sent as a per-invocation header scoped to the URL's host and never written to .git/config",
+    ),
+});
+
+export type EnsureCheckoutArgs = z.infer<typeof EnsureCheckoutArgsSchema>;
+
 export const DiffArgsSchema = z.object({
   base: safeRef
     .describe("Base ref (SHA, branch, tag, HEAD~1, etc.)"),
@@ -198,6 +229,10 @@ export const BranchArgsSchema = z.object({
     ),
   startPoint: safeRefOptional
     .describe("Base ref for new branch creation"),
+  force: z.boolean().default(false)
+    .describe(
+      "With create: use checkout -B so an existing branch is reset to the start point instead of failing (re-runnable)",
+    ),
   list: z.boolean().default(false)
     .describe("List all local branches"),
 }).refine(
@@ -210,6 +245,17 @@ export const BranchArgsSchema = z.object({
   {
     message:
       "orphan and startPoint are mutually exclusive — orphan branches have no parent",
+  },
+).refine(
+  (v) => !v.force || v.create,
+  {
+    message: "force requires create to be true",
+  },
+).refine(
+  (v) => !(v.orphan && v.force),
+  {
+    message:
+      "orphan and force are mutually exclusive — git has no -B form of --orphan",
   },
 );
 
@@ -278,6 +324,25 @@ export const CloneResultSchema = z.object({
   url: z.string(),
   depth: z.number().int().optional(),
   branch: z.string().optional(),
+});
+
+export const CheckoutResultSchema = z.object({
+  path: z.string()
+    .describe("Absolute, symlink-resolved path of the checkout"),
+  url: z.string()
+    .describe("Repository URL with credentials scrubbed"),
+  ref: z.string()
+    .describe("Resolved target branch"),
+  branch: z.string().optional()
+    .describe("Working branch, when one was requested"),
+  sha: z.string()
+    .describe(
+      "HEAD after the operation — with reset off, wherever HEAD already was",
+    ),
+  action: z.enum(["cloned", "updated", "reused"])
+    .describe(
+      "cloned: freshly cloned; updated: reset moved HEAD; reused: existing checkout, HEAD unchanged",
+    ),
 });
 
 export const DiffResultSchema = z.object({

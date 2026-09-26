@@ -4,6 +4,7 @@ import {
   AmendResultSchema,
   BranchArgsSchema,
   BranchResultSchema,
+  CheckoutResultSchema,
   CherryPickArgsSchema,
   CherryPickResultSchema,
   CloneArgsSchema,
@@ -14,6 +15,7 @@ import {
   ConfigResultSchema,
   DiffArgsSchema,
   DiffResultSchema,
+  EnsureCheckoutArgsSchema,
   FetchArgsSchema,
   FetchResultSchema,
   GlobalArgsSchema,
@@ -44,6 +46,7 @@ import {
   runCommit,
   runConfig,
   runDiff,
+  runEnsureCheckout,
   runFetch,
   runIsAncestor,
   runLog,
@@ -64,10 +67,10 @@ import type { GitContext } from "./_lib/types.ts";
  * @module
  */
 
-/** Git model — clone, diff, worktree_diff, status, log, commit, amend, push, pull, fetch, cherry_pick, branch, config, remote_ref, upstream_state, is_ancestor, remove_worktree. */
+/** Git model — clone, ensure_checkout, diff, worktree_diff, status, log, commit, amend, push, pull, fetch, cherry_pick, branch, config, remote_ref, upstream_state, is_ancestor, remove_worktree. */
 export const model = {
   type: "@swamp/git",
-  version: "2026.09.15.1",
+  version: "2026.09.26.1",
 
   globalArguments: GlobalArgsSchema,
 
@@ -152,12 +155,27 @@ export const model = {
         old: Record<string, unknown>,
       ): Record<string, unknown> => old,
     },
+    {
+      toVersion: "2026.09.26.1",
+      description:
+        "Add ensure_checkout: an idempotent clone-or-update that clones when the path is absent or empty, fetches (and with reset, force-resets) when it is a checkout of the same repository, and refuses a different repository or a non-checkout directory. New checkoutResult resource. Add force to branch so create is re-runnable via checkout -B. No globalArguments changes.",
+      upgradeAttributes: (
+        old: Record<string, unknown>,
+      ): Record<string, unknown> => old,
+    },
   ],
 
   resources: {
     cloneResult: {
       description: "Result of a git clone operation",
       schema: CloneResultSchema,
+      lifetime: "ephemeral" as const,
+      garbageCollection: 5,
+    },
+    checkoutResult: {
+      description:
+        "Result of ensure_checkout: path, scrubbed url, ref, working branch, HEAD sha, and whether the checkout was cloned, updated, or reused",
+      schema: CheckoutResultSchema,
       lifetime: "ephemeral" as const,
       garbageCollection: 5,
     },
@@ -278,6 +296,7 @@ export const model = {
       labels: ["prerequisite"],
       appliesTo: [
         "clone",
+        "ensure_checkout",
         "diff",
         "worktree_diff",
         "status",
@@ -327,6 +346,15 @@ export const model = {
       arguments: CloneArgsSchema,
       execute: (args: z.input<typeof CloneArgsSchema>, ctx: GitContext) =>
         runClone(CloneArgsSchema.parse(args), ctx),
+    },
+    ensure_checkout: {
+      description:
+        "Idempotently make sure a checkout of a repository exists at a path: clone when absent, fetch (and optionally force-reset) when it is already a checkout of the same repository, refuse otherwise",
+      arguments: EnsureCheckoutArgsSchema,
+      execute: (
+        args: z.input<typeof EnsureCheckoutArgsSchema>,
+        ctx: GitContext,
+      ) => runEnsureCheckout(EnsureCheckoutArgsSchema.parse(args), ctx),
     },
     diff: {
       description:

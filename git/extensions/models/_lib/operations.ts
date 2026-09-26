@@ -10,6 +10,7 @@ import type {
   CommitArgs,
   ConfigArgs,
   DiffArgs,
+  EnsureCheckoutArgs,
   FetchArgs,
   GlobalArgs,
   IsAncestorArgs,
@@ -29,7 +30,17 @@ function resolveGlobalArgs(raw: Record<string, unknown>): GlobalArgs {
 }
 
 function scrubCredentials(text: string): string {
-  return text.replace(/https:\/\/[^@]*@/g, "https://***@");
+  return text.replace(/([a-z][a-z0-9+.-]*:\/\/)[^@/\s]*@/gi, "$1***@");
+}
+
+/**
+ * The error to rethrow: unchanged unless its message carries credentials — a
+ * URL parse error repeats its input — in which case a scrubbed copy.
+ */
+function scrubError(error: unknown): unknown {
+  if (!(error instanceof Error)) return error;
+  const message = scrubCredentials(error.message);
+  return message === error.message ? error : new Error(message);
 }
 
 // ---------------------------------------------------------------------------
@@ -104,11 +115,437 @@ export async function runClone(
           error instanceof Error ? error.message : String(error),
         ),
       });
-      throw error;
+      throw scrubError(error);
     } finally {
       span.end();
     }
   });
+}
+
+// ---------------------------------------------------------------------------
+// ensure_checkout
+// ---------------------------------------------------------------------------
+
+/** Where a repository lives, independent of how its URL is spelled. */
+export interface RemoteIdentity {
+  host: string;
+  path: string;
+}
+
+function absolutePath(path: string, base: string): string {
+  return path.startsWith("/") ? path : `${base}/${path}`;
+}
+
+function realPathOrSelf(path: string): string {
+  try {
+    return Deno.realPathSync(path);
+  } catch {
+    return path;
+  }
+}
+
+/** Percent-decodes a URL path, keeping it as-is when an escape is malformed. */
+function decodePath(pathname: string): string {
+  try {
+    return decodeURIComponent(pathname);
+  } catch {
+    return pathname;
+  }
+}
+
+/**
+ * Reduce a remote URL to host + repository path so the different spellings of
+ * one repository compare equal: https (with or without userinfo and port),
+ * ssh://, scp-style `user@host:owner/name`, file://, and plain local paths.
+ * Relative local paths resolve against `base`. The port is deliberately not
+ * part of the identity — `ssh://git@host:22/o/r` and `git@host:o/r` are the
+ * same repository.
+ */
+export function normaliseRemote(url: string, base: string): RemoteIdentity {
+  const trimmed = url.trim();
+  let host = "";
+  let path: string;
+
+  const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(trimmed);
+  const scp = /^(?:[^@/]+@)?([^:/]+):(.+)$/.exec(trimmed);
+  if (scheme) {
+    const parsed = new URL(trimmed);
+    if (scheme[1].toLowerCase() === "file") {
+      path = realPathOrSelf(decodePath(parsed.pathname));
+    } else {
+      host = parsed.hostname.toLowerCase();
+      path = decodePath(parsed.pathname);
+    }
+  } else if (scp) {
+    host = scp[1].toLowerCase();
+    path = scp[2];
+  } else {
+    path = realPathOrSelf(absolutePath(trimmed, base));
+  }
+
+  path = path.replace(/\/+$/, "").replace(/^\/+/, "");
+  // Hosted forges treat owner/name case-insensitively and serve name and
+  // name.git as one repository. A local filesystem does neither, so local
+  // paths compare exactly — this check is what stops reset running against
+  // the wrong checkout.
+  if (host) path = path.replace(/\.git$/, "").toLowerCase();
+  return { host, path };
+}
+
+function sameRemote(a: RemoteIdentity, b: RemoteIdentity): boolean {
+  return a.host === b.host && a.path === b.path;
+}
+
+/**
+ * Environment that hands git an Authorization header for `url`'s origin only,
+ * via GIT_CONFIG_COUNT/KEY/VALUE. The token never reaches argv (visible in the
+ * process table) or .git/config, so a rotated token works on every re-run.
+ * Entries are appended after any GIT_CONFIG_* the operator already exported.
+ */
+function tokenEnv(url: string, token: string): Record<string, string> {
+  const parsed = new URL(url);
+  const existing = Number.parseInt(Deno.env.get("GIT_CONFIG_COUNT") ?? "", 10);
+  const index = Number.isInteger(existing) && existing > 0 ? existing : 0;
+  const origin = `${parsed.protocol}//${parsed.host}/`;
+  return {
+    GIT_CONFIG_COUNT: String(index + 1),
+    [`GIT_CONFIG_KEY_${index}`]: `http.${origin}.extraHeader`,
+    [`GIT_CONFIG_VALUE_${index}`]: `Authorization: Basic ${
+      btoa(`x-access-token:${token}`)
+    }`,
+  };
+}
+
+/** Returns `url` without userinfo when it is an http(s) URL carrying any. */
+function withoutUserinfo(url: string): string | undefined {
+  if (!/^https?:\/\//i.test(url)) return undefined;
+  const parsed = new URL(url);
+  if (!parsed.username && !parsed.password) return undefined;
+  parsed.username = "";
+  parsed.password = "";
+  return parsed.toString();
+}
+
+type PathState = "absent" | "empty" | "file" | "dangling" | "populated";
+
+async function inspectPath(path: string): Promise<PathState> {
+  let info: Deno.FileInfo;
+  try {
+    // lstat so a symlink whose target is gone is not mistaken for "absent".
+    info = await Deno.lstat(path);
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return "absent";
+    throw error;
+  }
+  if (info.isSymlink) {
+    try {
+      info = await Deno.stat(path);
+    } catch (error) {
+      if (error instanceof Deno.errors.NotFound) return "dangling";
+      throw error;
+    }
+  }
+  if (!info.isDirectory) return "file";
+  for await (const _ of Deno.readDir(path)) return "populated";
+  return "empty";
+}
+
+export async function runEnsureCheckout(
+  args: EnsureCheckoutArgs,
+  ctx: GitContext,
+): Promise<{ dataHandles: DataHandle[] }> {
+  return await getTracer().startActiveSpan(
+    "git.ensure_checkout",
+    async (span) => {
+      try {
+        const globals = resolveGlobalArgs(ctx.globalArgs);
+        const remote = globals.remote;
+        const safeUrl = scrubCredentials(args.url);
+        const target = absolutePath(args.path, Deno.cwd());
+
+        if (args.token && !args.url.startsWith("https://")) {
+          throw new Error("token authentication requires an https:// URL");
+        }
+        const authEnv = args.token ? tokenEnv(args.url, args.token) : undefined;
+        const url = args.token
+          ? withoutUserinfo(args.url) ?? args.url
+          : args.url;
+
+        const git = async (
+          argv: string[],
+          opts: { cwd?: string; auth?: boolean } = {},
+        ) => {
+          const result = await execGit(argv, {
+            cwd: opts.cwd,
+            signal: ctx.signal,
+            ...(opts.auth && authEnv ? { env: authEnv } : {}),
+          });
+          if (result.exitCode !== 0) {
+            throw new Error(
+              `git ${argv[0]} failed (exit ${result.exitCode}): ${
+                scrubCredentials(result.stderr)
+              }`,
+            );
+          }
+          return result.stdout.trim();
+        };
+
+        // Fails early with a clear message for a missing branch or a tag: a
+        // tag would clone into a detached HEAD that every re-run then fails
+        // to fetch as a branch.
+        const assertBranchExists = async (
+          repository: string,
+          ref: string,
+          cwd?: string,
+        ) => {
+          const result = await execGit(
+            [
+              "ls-remote",
+              "--exit-code",
+              "--heads",
+              "--",
+              repository,
+              `refs/heads/${ref}`,
+            ],
+            { cwd, signal: ctx.signal, ...(authEnv ? { env: authEnv } : {}) },
+          );
+          if (result.exitCode === 2) {
+            throw new Error(
+              `ref ${ref} is not a branch on ${safeUrl} — ensure_checkout only supports branches`,
+            );
+          }
+          if (result.exitCode !== 0) {
+            throw new Error(
+              `git ls-remote failed (exit ${result.exitCode}): ${
+                scrubCredentials(result.stderr)
+              }`,
+            );
+          }
+        };
+
+        // Undefined when HEAD is unborn: a clone of an empty remote, or a clone
+        // killed after writing its config but before fetching.
+        const readHead = async (): Promise<string | undefined> => {
+          const result = await execGit(["rev-parse", "--verify", "HEAD"], {
+            cwd: target,
+            signal: ctx.signal,
+          });
+          return result.exitCode === 0 ? result.stdout.trim() : undefined;
+        };
+
+        const state = await inspectPath(target);
+        let ref: string;
+        let sha: string;
+        let action: "cloned" | "updated" | "reused";
+
+        if (state === "absent" || state === "empty") {
+          if (args.ref) await assertBranchExists(url, args.ref);
+
+          const argv = ["clone", "--origin", remote];
+          if (args.depth !== undefined && args.depth > 0) {
+            argv.push("--depth", String(args.depth));
+          }
+          if (args.ref) argv.push("--branch", args.ref);
+          argv.push("--", url, target);
+          await git(argv, { auth: true });
+
+          const cloned = await readHead();
+          if (!cloned) {
+            throw new Error(
+              `${target} has no commits — the remote repository is empty`,
+            );
+          }
+          sha = cloned;
+          ref = await git(["symbolic-ref", "--short", "HEAD"], { cwd: target });
+          action = "cloned";
+        } else {
+          if (state === "dangling") {
+            throw new Error(
+              `refusing to check out into ${target}: it is a symlink whose target does not exist`,
+            );
+          }
+          if (state === "file") {
+            throw new Error(
+              `refusing to check out into ${target}: it exists and is not a directory`,
+            );
+          }
+
+          const toplevel = await execGit(["rev-parse", "--show-toplevel"], {
+            cwd: target,
+            signal: ctx.signal,
+          });
+          if (toplevel.exitCode !== 0) {
+            throw new Error(
+              `refusing to check out into ${target}: it is not empty and not a git checkout`,
+            );
+          }
+          // git reports the symlink-resolved path (macOS /tmp is
+          // /private/tmp), so compare resolved paths on both sides.
+          const root = realPathOrSelf(toplevel.stdout.trim());
+          if (root !== realPathOrSelf(target)) {
+            throw new Error(
+              `refusing to check out into ${target}: it is inside the checkout at ${root}, not the root of a checkout`,
+            );
+          }
+
+          const stored = await execGit(["remote", "get-url", remote], {
+            cwd: target,
+            signal: ctx.signal,
+          });
+          if (stored.exitCode !== 0) {
+            throw new Error(
+              `refusing to update ${target}: it has no remote named ${remote}`,
+            );
+          }
+          const storedUrl = stored.stdout.trim();
+          if (
+            !sameRemote(
+              normaliseRemote(storedUrl, target),
+              normaliseRemote(args.url, Deno.cwd()),
+            )
+          ) {
+            throw new Error(
+              `refusing to update ${target}: its ${remote} remote is ${
+                scrubCredentials(storedUrl)
+              }, a different repository from ${safeUrl}`,
+            );
+          }
+
+          // A credentialed URL left by the plain clone method would make git
+          // send a stale token alongside the header; drop it from .git/config.
+          const cleaned = args.token ? withoutUserinfo(storedUrl) : undefined;
+          if (cleaned) {
+            await git(["remote", "set-url", remote, cleaned], { cwd: target });
+          }
+
+          if (args.ref) {
+            await assertBranchExists(remote, args.ref, target);
+            ref = args.ref;
+          } else {
+            const symref = await git(
+              ["ls-remote", "--symref", "--", remote, "HEAD"],
+              { cwd: target, auth: true },
+            );
+            const match = /^ref: refs\/heads\/(\S+)\s+HEAD$/m.exec(symref);
+            if (!match) {
+              throw new Error(
+                `could not determine the default branch of ${safeUrl}`,
+              );
+            }
+            ref = match[1];
+          }
+
+          // A single-branch clone (clone --depth implies it) only fetches the
+          // branch it was cloned at. Without widening its fetch refspec,
+          // checkout -B <ref> <remote>/<ref> succeeds but sets no upstream,
+          // which breaks later pull/push/upstream_state. Only the standard
+          // wildcard and exact-branch sources are recognised; hand-customised
+          // refspecs (negative, remapped destinations) are not interpreted.
+          const specs = await execGit(
+            ["config", "--get-all", `remote.${remote}.fetch`],
+            { cwd: target, signal: ctx.signal },
+          );
+          const covered = specs.stdout.split("\n").some((line) => {
+            const source = line.trim().replace(/^\+/, "").split(":")[0];
+            return source === "refs/heads/*" || source === `refs/heads/${ref}`;
+          });
+          if (!covered) {
+            await git(["remote", "set-branches", "--add", remote, ref], {
+              cwd: target,
+            });
+          }
+
+          // fetch --depth against a complete clone would truncate its history,
+          // so depth only applies to a checkout that is already shallow.
+          const shallow = await git(["rev-parse", "--is-shallow-repository"], {
+            cwd: target,
+          });
+          const fetchArgv = ["fetch", "--prune"];
+          if (
+            shallow === "true" && args.depth !== undefined && args.depth > 0
+          ) {
+            fetchArgv.push("--depth", String(args.depth));
+          }
+          fetchArgv.push(remote);
+          await git(fetchArgv, { cwd: target, auth: true });
+
+          const before = await readHead();
+          if (args.reset) {
+            await git(["checkout", "--force", "-B", ref, `${remote}/${ref}`], {
+              cwd: target,
+            });
+            await git(["clean", "-fd"], { cwd: target });
+            sha = await git(["rev-parse", "--verify", "HEAD"], { cwd: target });
+            action = sha === before ? "reused" : "updated";
+          } else {
+            if (!before) {
+              throw new Error(
+                `${target} has no commits yet (an interrupted clone, or a clone of a then-empty remote) — re-run with reset: true to check out ${ref}`,
+              );
+            }
+            sha = before;
+            action = "reused";
+
+            // reset is off, so HEAD stays wherever it is. Say so when that is
+            // not ref — unless it is the working branch this call maintains.
+            const current = await execGit(
+              ["symbolic-ref", "--quiet", "--short", "HEAD"],
+              { cwd: target, signal: ctx.signal },
+            );
+            const head = current.exitCode === 0
+              ? current.stdout.trim()
+              : "a detached HEAD";
+            if (head !== ref && head !== args.branch) {
+              ctx.logger.warn(
+                `${target} is on ${head}, not ${ref}; reset is off, so it was fetched but left there`,
+              );
+            }
+          }
+        }
+
+        if (args.branch) {
+          await git(["checkout", "-B", args.branch], { cwd: target });
+        }
+
+        span.setAttribute(Attr.METHOD, "ensure_checkout");
+        span.setAttribute(Attr.REF, ref);
+        if (args.branch) span.setAttribute(Attr.BRANCH, args.branch);
+
+        ctx.logger.info(`${action} ${safeUrl} at ${target} (${ref} ${sha})`);
+
+        // Every character outside [A-Za-z0-9_-] — dots included — becomes '-',
+        // so no '..', slash, backslash, or null byte reaches the data name.
+        const safePath = args.path.replace(/[^A-Za-z0-9_-]/g, "-");
+        const handle = await ctx.writeResource(
+          "checkoutResult",
+          `checkout-${safePath}`,
+          {
+            path: realPathOrSelf(target),
+            url: safeUrl,
+            ref,
+            ...(args.branch ? { branch: args.branch } : {}),
+            sha,
+            action,
+          },
+          {
+            tags: { method: "ensure_checkout", url: safeUrl, action },
+          },
+        );
+
+        return { dataHandles: [handle] };
+      } catch (error) {
+        span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: scrubCredentials(
+            error instanceof Error ? error.message : String(error),
+          ),
+        });
+        throw scrubError(error);
+      } finally {
+        span.end();
+      }
+    },
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -765,16 +1202,25 @@ export async function runBranch(
       }
 
       if (args.create) {
-        const argv = args.orphan
-          ? ["checkout", "--orphan", args.name]
-          : ["checkout", "-b", args.name];
+        // With force, checkout -B resets an existing branch instead of
+        // failing, so report created only when the branch was new.
+        let existed = false;
+        if (args.force) {
+          const probe = await execGit(
+            ["rev-parse", "--verify", "--quiet", `refs/heads/${args.name}`],
+            { cwd, signal: ctx.signal },
+          );
+          existed = probe.exitCode === 0;
+        }
+
+        const flag = args.orphan ? "--orphan" : args.force ? "-B" : "-b";
+        const argv = ["checkout", flag, args.name];
         if (!args.orphan && args.startPoint) {
           argv.push(args.startPoint);
         }
 
         const result = await execGit(argv, { cwd, signal: ctx.signal });
         if (result.exitCode !== 0) {
-          const flag = args.orphan ? "--orphan" : "-b";
           throw new Error(
             `git checkout ${flag} failed (exit ${result.exitCode}): ${result.stderr}`,
           );
@@ -785,13 +1231,17 @@ export async function runBranch(
         span.setAttribute(Attr.EXIT_CODE, result.exitCode);
 
         const label = args.orphan ? "orphan branch" : "branch";
-        ctx.logger.info(`created and switched to ${label} ${args.name}`);
+        ctx.logger.info(
+          `${
+            existed ? "reset" : "created"
+          } and switched to ${label} ${args.name}`,
+        );
 
         const safeName = args.name.replace(/\//g, "-");
         const handle = await ctx.writeResource(
           "branchResult",
           `branch-${safeName}`,
-          { current: args.name, created: true, orphan: args.orphan },
+          { current: args.name, created: !existed, orphan: args.orphan },
           { tags: { method: "branch", action: "create", branch: args.name } },
         );
 

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/git"
-version: "2026.09.15.1"
+version: "2026.09.26.1"
 description: |
   Git repository operations for swamp workflows. Wraps the git CLI
   and returns structured data (file lists, commit objects, status
@@ -9,13 +9,15 @@ description: |
 
   Designed for CI automation: change detection via diff, dirty-tree
   checks via status, push/sync verification via upstream_state, bot
-  commits, and branch management.
+  commits, branch management, and re-runnable checkouts via
+  ensure_checkout.
 
   ## Methods
 
   | Method   | What it does |
   | -------- | ------------ |
   | `clone`  | Clone a repository with configurable depth, branch, and auth. |
+  | `ensure_checkout` | Idempotent clone-or-update: clone when absent, fetch and optionally force-reset a checkout of the same repository, refuse anything else. |
   | `diff`   | Show changes between refs — name-only file lists, stat summaries, or full diffs. |
   | `worktree_diff` | Read-only working-tree diff — staged, unstaged, and untracked changes vs a base ref. |
   | `status` | Working tree status with structured entries and clean/dirty flag. |
@@ -29,7 +31,7 @@ description: |
   | `pull`   | Pull changes from a remote (with optional rebase and ff-only). |
   | `fetch`  | Fetch refs from a remote with optional tag and prune support. |
   | `cherry_pick` | Cherry-pick commits or abort an in-progress cherry-pick. |
-  | `branch` | Create, switch, or list branches (supports orphan branch creation). |
+  | `branch` | Create, switch, or list branches (supports orphan branch creation; `force` makes create re-runnable). |
   | `config` | Get or set git configuration values. |
   | `remove_worktree` | Safely remove a registered clean secondary worktree — refuses the primary checkout and dirty worktrees. |
 

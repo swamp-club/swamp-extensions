@@ -4,6 +4,7 @@ import {
   assertThrows,
 } from "jsr:@std/assert@1.0.19";
 import { model } from "./git.ts";
+import { normaliseRemote } from "./_lib/operations.ts";
 import { resetCommandExecutor, setCommandExecutor } from "./_lib/runner.ts";
 import type { DataHandle, ExecResult, GitContext } from "./_lib/types.ts";
 
@@ -116,12 +117,13 @@ Deno.test("globalArguments accepts full config", () => {
 // Resource declarations
 // ---------------------------------------------------------------------------
 
-Deno.test("all 17 resource specs exist", () => {
+Deno.test("all 18 resource specs exist", () => {
   const names = Object.keys(model.resources);
-  assertEquals(names.length, 17);
+  assertEquals(names.length, 18);
   for (
     const name of [
       "cloneResult",
+      "checkoutResult",
       "diffResult",
       "worktreeDiffResult",
       "statusResult",
@@ -163,12 +165,13 @@ Deno.test("resources have description and schema", () => {
 // Method declarations
 // ---------------------------------------------------------------------------
 
-Deno.test("all 17 methods exist", () => {
+Deno.test("all 18 methods exist", () => {
   const names = Object.keys(model.methods);
-  assertEquals(names.length, 17);
+  assertEquals(names.length, 18);
   for (
     const name of [
       "clone",
+      "ensure_checkout",
       "diff",
       "worktree_diff",
       "status",
@@ -252,6 +255,10 @@ Deno.test("git-available check exists and covers all methods", () => {
     model.checks["git-available"].appliesTo.includes("worktree_diff"),
     true,
   );
+  assertEquals(
+    model.checks["git-available"].appliesTo.includes("ensure_checkout"),
+    true,
+  );
 });
 
 Deno.test("repo-initialized check exists and excludes clone and remote_ref", () => {
@@ -262,6 +269,11 @@ Deno.test("repo-initialized check exists and excludes clone and remote_ref", () 
   );
   assertEquals(
     model.checks["repo-initialized"].appliesTo.includes("remote_ref"),
+    false,
+  );
+  // The destination may not exist yet, so the check cannot apply.
+  assertEquals(
+    model.checks["repo-initialized"].appliesTo.includes("ensure_checkout"),
     false,
   );
   assertEquals(
@@ -3913,5 +3925,967 @@ Deno.test("worktree_diff: signal passed to executor", async () => {
     assertEquals(receivedSignal, ac.signal);
   } finally {
     resetCommandExecutor();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// ensure_checkout — argument schema
+// ---------------------------------------------------------------------------
+
+Deno.test("EnsureCheckoutArgs requires url and path", () => {
+  const args = model.methods.ensure_checkout.arguments;
+  assertEquals(args.safeParse({}).success, false);
+  assertEquals(args.safeParse({ url: "https://x/o/r" }).success, false);
+  assertEquals(args.safeParse({ path: "r" }).success, false);
+});
+
+Deno.test("EnsureCheckoutArgs defaults reset to false", () => {
+  const result = model.methods.ensure_checkout.arguments.parse({
+    url: "https://github.com/org/repo",
+    path: "repo",
+  });
+  assertEquals(result.reset, false);
+});
+
+Deno.test("EnsureCheckoutArgs rejects ref and branch starting with dash", () => {
+  const args = model.methods.ensure_checkout.arguments;
+  assertEquals(
+    args.safeParse({ url: "u", path: "p", ref: "--upload-pack=x" }).success,
+    false,
+  );
+  assertEquals(
+    args.safeParse({ url: "u", path: "p", branch: "-x" }).success,
+    false,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// ensure_checkout — remote identity
+// ---------------------------------------------------------------------------
+
+Deno.test("normaliseRemote treats spellings of one repository as equal", () => {
+  const expected = { host: "github.com", path: "org/repo" };
+  for (
+    const url of [
+      "https://github.com/org/repo",
+      "https://github.com/org/repo.git",
+      "https://github.com/org/repo/",
+      "https://GitHub.com/Org/Repo.git",
+      "https://user:secret@github.com/org/repo.git",
+      "https://github.com:443/org/repo.git",
+      "http://github.com/org/repo",
+      "ssh://git@github.com/org/repo.git",
+      "ssh://git@github.com:22/org/repo.git",
+      "git@github.com:org/repo.git",
+      "github.com:org/repo",
+    ]
+  ) {
+    assertEquals(normaliseRemote(url, "/base"), expected, url);
+  }
+});
+
+Deno.test("normaliseRemote distinguishes different repositories", () => {
+  const base = normaliseRemote("https://github.com/org/repo", "/base");
+  for (
+    const url of [
+      "https://github.com/org/other",
+      "https://github.com/someone/repo",
+      "https://git.swamp-club.com/org/repo",
+      "git@github-work:org/repo.git",
+    ]
+  ) {
+    assertEquals(
+      JSON.stringify(normaliseRemote(url, "/base")) === JSON.stringify(base),
+      false,
+      url,
+    );
+  }
+});
+
+Deno.test("normaliseRemote keeps nested group paths whole", () => {
+  assertEquals(
+    normaliseRemote("git@gitlab.com:group/sub/name.git", "/base"),
+    { host: "gitlab.com", path: "group/sub/name" },
+  );
+  assertEquals(
+    normaliseRemote("https://gitlab.com/group/sub/name", "/base"),
+    { host: "gitlab.com", path: "group/sub/name" },
+  );
+});
+
+Deno.test("normaliseRemote resolves local paths and file URLs alike", () => {
+  const plain = normaliseRemote("/srv/repos/thing.git", "/base");
+  assertEquals(plain, { host: "", path: "srv/repos/thing.git" });
+  assertEquals(normaliseRemote("file:///srv/repos/thing.git", "/base"), plain);
+  assertEquals(normaliseRemote("repos/thing.git/", "/srv"), plain);
+});
+
+Deno.test("normaliseRemote keeps a malformed percent escape as-is", () => {
+  assertEquals(
+    normaliseRemote("https://example.com/org/100%zz", "/base"),
+    { host: "example.com", path: "org/100%zz" },
+  );
+});
+
+Deno.test("ensure_checkout scrubs credentials from a URL parse error", async () => {
+  setCommandExecutor(() => ok(""));
+  try {
+    const { ctx } = makeHarness();
+    // Port out of range: the URL parser's error message repeats its input.
+    const error = await assertRejects(() =>
+      model.methods.ensure_checkout.execute({
+        url: "https://bot:hunter2@example.com:99999/org/repo",
+        path: `swamp-git-absent-${crypto.randomUUID()}`,
+        token: "t",
+      }, ctx)
+    );
+    const message = (error as Error).message;
+    assertEquals(message.includes("hunter2"), false);
+    // The parser's own error, scrubbed — not some unrelated failure.
+    assertEquals(message.includes("https://***@example.com:99999"), true);
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("normaliseRemote compares local paths exactly", () => {
+  // A local filesystem is case-sensitive and x and x.git are different
+  // directories, so neither may be folded together — this comparison is what
+  // stops reset running against the wrong checkout.
+  const repo = normaliseRemote("/srv/repo", "/base");
+  assertEquals(
+    JSON.stringify(normaliseRemote("/srv/Repo", "/base")) ===
+      JSON.stringify(repo),
+    false,
+  );
+  assertEquals(
+    JSON.stringify(normaliseRemote("/srv/repo.git", "/base")) ===
+      JSON.stringify(repo),
+    false,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// ensure_checkout — mocked git
+// ---------------------------------------------------------------------------
+
+interface RecordedCall {
+  argv: string[];
+  cwd?: string;
+  env?: Record<string, string>;
+}
+
+/**
+ * Executor that answers by git subcommand. Unlisted subcommands succeed with
+ * empty output.
+ */
+function routeGit(
+  calls: RecordedCall[],
+  routes: Record<string, (argv: string[]) => ExecResult>,
+) {
+  return (
+    argv: string[],
+    opts?: { cwd?: string; env?: Record<string, string> },
+  ): ExecResult => {
+    calls.push({ argv, cwd: opts?.cwd, env: opts?.env });
+    const sub = argv[1];
+    const key = Object.keys(routes).find((k) =>
+      k === sub || argv.slice(1).join(" ").startsWith(k)
+    );
+    return key ? routes[key](argv) : ok("");
+  };
+}
+
+const GIT_CONFIG_ENV = /^GIT_CONFIG_(COUNT|KEY_\d+|VALUE_\d+)$/;
+
+/**
+ * Clears every GIT_CONFIG_COUNT/KEY_n/VALUE_n so the operator's environment
+ * cannot leak into assertions. The returned function removes whatever the
+ * test set and puts the originals back.
+ */
+function withoutGitConfigEnv(): () => void {
+  const saved = Object.entries(Deno.env.toObject()).filter(([name]) =>
+    GIT_CONFIG_ENV.test(name)
+  );
+  for (const [name] of saved) Deno.env.delete(name);
+  return () => {
+    for (const name of Object.keys(Deno.env.toObject())) {
+      if (GIT_CONFIG_ENV.test(name)) Deno.env.delete(name);
+    }
+    for (const [name, value] of saved) Deno.env.set(name, value);
+  };
+}
+
+Deno.test("ensure_checkout clones an absent path, token only in scoped env", async () => {
+  let restoreEnv: (() => void) | undefined;
+  let dir: string | undefined;
+  const calls: RecordedCall[] = [];
+  try {
+    restoreEnv = withoutGitConfigEnv();
+    dir = await Deno.makeTempDir({ prefix: "swamp-git-ensure-" });
+    setCommandExecutor(routeGit(calls, {
+      "rev-parse --verify": () => ok("abc123\n"),
+      "symbolic-ref": () => ok("main\n"),
+    }));
+    const { ctx, writes } = makeHarness();
+    await model.methods.ensure_checkout.execute({
+      url: "https://github.com/org/repo.git",
+      path: `${dir}/repo`,
+      token: "ghp_secret",
+    }, ctx);
+
+    for (const call of calls) {
+      assertEquals(
+        call.argv.some((a) => a.includes("ghp_secret")),
+        false,
+        `token leaked into argv: ${call.argv.join(" ")}`,
+      );
+    }
+    const clone = calls.find((c) => c.argv[1] === "clone")!;
+    assertEquals(clone.argv.includes("https://github.com/org/repo.git"), true);
+    assertEquals(clone.argv.includes("--origin"), true);
+    assertEquals(clone.env?.GIT_CONFIG_COUNT, "1");
+    assertEquals(
+      clone.env?.GIT_CONFIG_KEY_0,
+      "http.https://github.com/.extraHeader",
+    );
+    assertEquals(
+      clone.env?.GIT_CONFIG_VALUE_0,
+      `Authorization: Basic ${btoa("x-access-token:ghp_secret")}`,
+    );
+
+    assertEquals(writes[0].specName, "checkoutResult");
+    assertEquals(writes[0].data.action, "cloned");
+    assertEquals(writes[0].data.ref, "main");
+    assertEquals(writes[0].data.sha, "abc123");
+    assertEquals(JSON.stringify(writes[0]).includes("ghp_secret"), false);
+  } finally {
+    resetCommandExecutor();
+    restoreEnv?.();
+    if (dir) await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("ensure_checkout appends after an existing GIT_CONFIG_COUNT", async () => {
+  let restoreEnv: (() => void) | undefined;
+  let dir: string | undefined;
+  const calls: RecordedCall[] = [];
+  try {
+    restoreEnv = withoutGitConfigEnv();
+    Deno.env.set("GIT_CONFIG_COUNT", "2");
+    dir = await Deno.makeTempDir({ prefix: "swamp-git-ensure-" });
+    setCommandExecutor(routeGit(calls, {
+      "rev-parse --verify": () => ok("abc123\n"),
+      "symbolic-ref": () => ok("main\n"),
+    }));
+    const { ctx } = makeHarness();
+    await model.methods.ensure_checkout.execute({
+      url: "https://git.example.com:8443/org/repo.git",
+      path: `${dir}/repo`,
+      token: "t0ken",
+    }, ctx);
+
+    const clone = calls.find((c) => c.argv[1] === "clone")!;
+    assertEquals(clone.env?.GIT_CONFIG_COUNT, "3");
+    assertEquals(
+      clone.env?.GIT_CONFIG_KEY_2,
+      "http.https://git.example.com:8443/.extraHeader",
+    );
+    assertEquals(clone.env?.GIT_CONFIG_KEY_0, undefined);
+  } finally {
+    resetCommandExecutor();
+    restoreEnv?.();
+    if (dir) await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("ensure_checkout scrubs credentials from any URL scheme", async () => {
+  const dir = await Deno.makeTempDir({ prefix: "swamp-git-ensure-" });
+  const calls: RecordedCall[] = [];
+  setCommandExecutor(routeGit(calls, {
+    "rev-parse --verify": () => ok("abc\n"),
+    "symbolic-ref": () => ok("main\n"),
+  }));
+  try {
+    const { ctx, writes, logs } = makeHarness();
+    await model.methods.ensure_checkout.execute({
+      url: "http://bot:hunter2@internal.example/org/repo.git",
+      path: `${dir}/repo`,
+    }, ctx);
+
+    assertEquals(
+      writes[0].data.url,
+      "http://***@internal.example/org/repo.git",
+    );
+    assertEquals(JSON.stringify(writes[0]).includes("hunter2"), false);
+    assertEquals(logs.some((l) => l.message.includes("hunter2")), false);
+  } finally {
+    resetCommandExecutor();
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("clone scrubs http credentials too", async () => {
+  setCommandExecutor(() => ok(""));
+  try {
+    const { ctx, writes } = makeHarness();
+    await model.methods.clone.execute({
+      url: "http://user:secret@git.internal/org/repo",
+    }, ctx);
+    assertEquals(JSON.stringify(writes[0]).includes("secret"), false);
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("ensure_checkout refuses a dangling symlink", async () => {
+  const dir = await Deno.makeTempDir({ prefix: "swamp-git-ensure-" });
+  await Deno.symlink(`${dir}/gone`, `${dir}/link`);
+  const calls: RecordedCall[] = [];
+  setCommandExecutor(routeGit(calls, {}));
+  try {
+    const { ctx } = makeHarness();
+    await assertRejects(
+      () =>
+        model.methods.ensure_checkout.execute({
+          url: "https://github.com/org/repo",
+          path: `${dir}/link`,
+        }, ctx),
+      Error,
+      "symlink whose target does not exist",
+    );
+    assertEquals(calls.some((c) => c.argv[1] === "clone"), false);
+  } finally {
+    resetCommandExecutor();
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("ensure_checkout with token on non-https URL throws", async () => {
+  setCommandExecutor(() => ok(""));
+  try {
+    const { ctx } = makeHarness();
+    await assertRejects(
+      () =>
+        model.methods.ensure_checkout.execute({
+          url: "git@github.com:org/repo.git",
+          path: "unused",
+          token: "t",
+        }, ctx),
+      Error,
+      "https://",
+    );
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("ensure_checkout data name never contains '..' or slashes", async () => {
+  const calls: RecordedCall[] = [];
+  setCommandExecutor(routeGit(calls, {
+    "rev-parse --verify": () => ok("abc\n"),
+    "symbolic-ref": () => ok("main\n"),
+  }));
+  try {
+    for (
+      const path of [
+        `../swamp-git-absent-${crypto.randomUUID()}/repo.git`,
+        `/tmp/swamp-git-absent-${crypto.randomUUID()}/a/../b`,
+      ]
+    ) {
+      const { ctx, writes } = makeHarness();
+      await model.methods.ensure_checkout.execute({
+        url: "https://github.com/org/repo",
+        path,
+      }, ctx);
+      const name = writes[0].name;
+      assertEquals(name.includes(".."), false, name);
+      assertEquals(name.includes("/"), false, name);
+      assertEquals(name.startsWith("checkout-"), true, name);
+    }
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("ensure_checkout refuses a checkout of a different repository without touching it", async () => {
+  const dir = await Deno.makeTempDir({ prefix: "swamp-git-ensure-" });
+  await Deno.writeTextFile(`${dir}/keep.txt`, "local work");
+  const calls: RecordedCall[] = [];
+  setCommandExecutor(routeGit(calls, {
+    "rev-parse --show-toplevel": () => ok(`${dir}\n`),
+    "remote get-url": () => ok("git@github.com:org/other.git\n"),
+  }));
+  try {
+    const { ctx, writes } = makeHarness();
+    await assertRejects(
+      () =>
+        model.methods.ensure_checkout.execute({
+          url: "https://github.com/org/repo",
+          path: dir,
+          reset: true,
+        }, ctx),
+      Error,
+      "different repository",
+    );
+    for (const sub of ["fetch", "checkout", "clean", "clone"]) {
+      assertEquals(calls.some((c) => c.argv[1] === sub), false, sub);
+    }
+    assertEquals(writes.length, 0);
+  } finally {
+    resetCommandExecutor();
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("ensure_checkout with reset off only fetches", async () => {
+  const dir = await Deno.makeTempDir({ prefix: "swamp-git-ensure-" });
+  await Deno.writeTextFile(`${dir}/file`, "x");
+  const calls: RecordedCall[] = [];
+  setCommandExecutor(routeGit(calls, {
+    "rev-parse --show-toplevel": () => ok(`${dir}\n`),
+    "remote get-url": () => ok("https://github.com/org/repo.git\n"),
+    "ls-remote": () => ok("ref: refs/heads/main\tHEAD\nabc\tHEAD\n"),
+    "config --get-all": () => ok("+refs/heads/*:refs/remotes/origin/*\n"),
+    "rev-parse --is-shallow-repository": () => ok("false\n"),
+    "rev-parse --verify": () => ok("abc\n"),
+  }));
+  try {
+    const { ctx, writes } = makeHarness();
+    await model.methods.ensure_checkout.execute({
+      url: "https://github.com/org/repo",
+      path: dir,
+      depth: 1,
+    }, ctx);
+
+    const fetch = calls.find((c) => c.argv[1] === "fetch")!;
+    assertEquals(fetch.argv.includes("--prune"), true);
+    // Not shallow, so depth must not truncate a complete clone.
+    assertEquals(fetch.argv.includes("--depth"), false);
+    for (const sub of ["checkout", "clean", "clone"]) {
+      assertEquals(calls.some((c) => c.argv[1] === sub), false, sub);
+    }
+    assertEquals(
+      calls.some((c) => c.argv.join(" ").includes("set-branches")),
+      false,
+    );
+    assertEquals(writes[0].data.action, "reused");
+    assertEquals(writes[0].data.ref, "main");
+  } finally {
+    resetCommandExecutor();
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("ensure_checkout widens a single-branch refspec and keeps depth on a shallow checkout", async () => {
+  const dir = await Deno.makeTempDir({ prefix: "swamp-git-ensure-" });
+  await Deno.writeTextFile(`${dir}/file`, "x");
+  const calls: RecordedCall[] = [];
+  setCommandExecutor(routeGit(calls, {
+    "rev-parse --show-toplevel": () => ok(`${dir}\n`),
+    "remote get-url": () => ok("https://github.com/org/repo.git\n"),
+    "config --get-all": () => ok("+refs/heads/main:refs/remotes/origin/main\n"),
+    "rev-parse --is-shallow-repository": () => ok("true\n"),
+    "rev-parse --verify": () => ok("abc\n"),
+  }));
+  try {
+    const { ctx } = makeHarness();
+    await model.methods.ensure_checkout.execute({
+      url: "https://github.com/org/repo",
+      path: dir,
+      ref: "other",
+      depth: 1,
+      reset: true,
+    }, ctx);
+
+    const joined = calls.map((c) => c.argv.slice(1).join(" "));
+    assertEquals(
+      joined.includes("remote set-branches --add origin other"),
+      true,
+    );
+    assertEquals(joined.includes("fetch --prune --depth 1 origin"), true);
+    assertEquals(
+      joined.includes("checkout --force -B other origin/other"),
+      true,
+    );
+    assertEquals(joined.includes("clean -fd"), true);
+    assertEquals(
+      joined.indexOf("remote set-branches --add origin other") <
+        joined.indexOf("fetch --prune --depth 1 origin"),
+      true,
+    );
+  } finally {
+    resetCommandExecutor();
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("ensure_checkout strips a credentialed remote URL when a token is passed", async () => {
+  let restoreEnv: (() => void) | undefined;
+  let dir: string | undefined;
+  const calls: RecordedCall[] = [];
+  try {
+    restoreEnv = withoutGitConfigEnv();
+    const tmp = await Deno.makeTempDir({ prefix: "swamp-git-ensure-" });
+    dir = tmp;
+    await Deno.writeTextFile(`${tmp}/file`, "x");
+    setCommandExecutor(routeGit(calls, {
+      "rev-parse --show-toplevel": () => ok(`${tmp}\n`),
+      "remote get-url": () =>
+        ok("https://x-access-token:stale@github.com/org/repo.git\n"),
+      "ls-remote": () => ok("ref: refs/heads/main\tHEAD\nabc\tHEAD\n"),
+      "config --get-all": () => ok("+refs/heads/*:refs/remotes/origin/*\n"),
+      "rev-parse --is-shallow-repository": () => ok("false\n"),
+      "rev-parse --verify": () => ok("abc\n"),
+    }));
+    const { ctx } = makeHarness();
+    await model.methods.ensure_checkout.execute({
+      url: "https://github.com/org/repo",
+      path: tmp,
+      token: "fresh",
+    }, ctx);
+
+    const setUrl = calls.find((c) => c.argv.join(" ").includes("set-url"))!;
+    assertEquals(setUrl.argv.at(-1), "https://github.com/org/repo.git");
+  } finally {
+    resetCommandExecutor();
+    restoreEnv?.();
+    if (dir) await Deno.remove(dir, { recursive: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// branch force
+// ---------------------------------------------------------------------------
+
+Deno.test("BranchArgs force defaults to false and requires create", () => {
+  const args = model.methods.branch.arguments;
+  assertEquals(args.parse({}).force, false);
+  assertEquals(args.safeParse({ name: "x", force: true }).success, false);
+  assertEquals(
+    args.safeParse({ name: "x", create: true, force: true }).success,
+    true,
+  );
+});
+
+Deno.test("BranchArgs rejects force with orphan", () => {
+  const result = model.methods.branch.arguments.safeParse({
+    name: "evidence",
+    create: true,
+    orphan: true,
+    force: true,
+  });
+  assertEquals(result.success, false);
+});
+
+Deno.test("branch create with force uses -B and reports an existing branch", async () => {
+  const calls: string[][] = [];
+  setCommandExecutor((argv) => {
+    calls.push(argv);
+    return ok("");
+  });
+  try {
+    const { ctx, writes } = makeHarness();
+    await model.methods.branch.execute(
+      { name: "work", create: true, force: true, startPoint: "main" },
+      ctx,
+    );
+
+    assertEquals(calls[0].slice(1), [
+      "rev-parse",
+      "--verify",
+      "--quiet",
+      "refs/heads/work",
+    ]);
+    assertEquals(calls[1].slice(1), ["checkout", "-B", "work", "main"]);
+    assertEquals(writes[0].data.created, false);
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+Deno.test("branch create with force reports a new branch as created", async () => {
+  setCommandExecutor((argv) => argv[1] === "rev-parse" ? fail("", 1) : ok(""));
+  try {
+    const { ctx, writes } = makeHarness();
+    await model.methods.branch.execute(
+      { name: "work", create: true, force: true },
+      ctx,
+    );
+    assertEquals(writes[0].data.created, true);
+  } finally {
+    resetCommandExecutor();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// ensure_checkout — real git
+//
+// These run the real git binary against a local bare repository in a temp
+// dir — no network. They pin the git behaviours ensure_checkout depends on
+// (depth handling, refspec-driven upstream tracking, show-toplevel symlink
+// resolution), so a git that behaves differently fails here.
+// ---------------------------------------------------------------------------
+
+interface Fixture {
+  root: string;
+  remote: string;
+  seed: string;
+}
+
+async function makeRemoteFixture(): Promise<Fixture> {
+  const root = await Deno.makeTempDir({ prefix: "swamp-git-ensure-real-" });
+  const remote = `${root}/remote.git`;
+  const seed = `${root}/seed`;
+  try {
+    await rawGit(root, "init", "-q", "--bare", "-b", "main", remote);
+  } catch (error) {
+    throw new Error(
+      `real-git test needs a working git binary on PATH: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+  await rawGit(root, "init", "-q", "-b", "main", seed);
+  await rawGit(seed, "config", "user.name", "Seed");
+  await rawGit(seed, "config", "user.email", "seed@example.com");
+  // Repo-local overrides so a developer's global signing config cannot fail
+  // the fixture.
+  await rawGit(seed, "config", "commit.gpgsign", "false");
+  await rawGit(seed, "config", "tag.gpgsign", "false");
+  for (const n of [1, 2, 3]) {
+    await Deno.writeTextFile(`${seed}/file.txt`, `${n}\n`);
+    await rawGit(seed, "add", "file.txt");
+    await rawGit(seed, "commit", "-q", "-m", `c${n}`);
+  }
+  await rawGit(seed, "tag", "v1");
+  await rawGit(seed, "push", "-q", remote, "main", "main:other", "v1");
+  return { root, remote, seed };
+}
+
+async function pushNewCommit(fx: Fixture, content: string): Promise<string> {
+  await Deno.writeTextFile(`${fx.seed}/file.txt`, content);
+  await rawGit(fx.seed, "commit", "-q", "-am", content.trim());
+  await rawGit(fx.seed, "push", "-q", fx.remote, "main");
+  return await rawGit(fx.seed, "rev-parse", "HEAD");
+}
+
+async function ensure(
+  args: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const { ctx, writes } = makeHarness();
+  await model.methods.ensure_checkout.execute(
+    args as { url: string; path: string },
+    ctx,
+  );
+  return writes[0].data;
+}
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await Deno.stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+Deno.test("real git: ensure_checkout clones, reuses, updates, and resets", async () => {
+  const fx = await makeRemoteFixture();
+  try {
+    const path = `${fx.root}/work`;
+    const seedHead = await rawGit(fx.seed, "rev-parse", "HEAD");
+
+    const first = await ensure({ url: fx.remote, path });
+    assertEquals(first.action, "cloned");
+    assertEquals(first.ref, "main");
+    assertEquals(first.sha, seedHead);
+    assertEquals(first.path, await Deno.realPath(path));
+
+    // Re-running with nothing new is a no-op, and resolves the default
+    // branch from the remote because ref is omitted.
+    const second = await ensure({ url: fx.remote, path });
+    assertEquals(second.action, "reused");
+    assertEquals(second.ref, "main");
+
+    // With reset off, a new remote commit is fetched but HEAD stays put.
+    const newHead = await pushNewCommit(fx, "4\n");
+    const noReset = await ensure({ url: fx.remote, path });
+    assertEquals(noReset.action, "reused");
+    assertEquals(noReset.sha, seedHead);
+
+    // With reset, HEAD moves to the remote branch.
+    const updated = await ensure({ url: fx.remote, path, reset: true });
+    assertEquals(updated.action, "updated");
+    assertEquals(updated.sha, newHead);
+    assertEquals(
+      await rawGit(path, "rev-parse", "--abbrev-ref", "main@{upstream}"),
+      "origin/main",
+    );
+
+    // Reset discards local edits and untracked files, keeps ignored ones
+    // (clean -fd, not -fdx). The ignore rule lives in info/exclude because an
+    // untracked .gitignore would itself be cleaned.
+    await Deno.writeTextFile(`${path}/.git/info/exclude`, "ignored.txt\n");
+    await Deno.writeTextFile(`${path}/file.txt`, "local edit\n");
+    await Deno.writeTextFile(`${path}/stray.txt`, "untracked\n");
+    await Deno.writeTextFile(`${path}/ignored.txt`, "ignored\n");
+    const cleaned = await ensure({ url: fx.remote, path, reset: true });
+    assertEquals(cleaned.action, "reused");
+    assertEquals(await Deno.readTextFile(`${path}/file.txt`), "4\n");
+    assertEquals(await exists(`${path}/stray.txt`), false);
+    assertEquals(await exists(`${path}/ignored.txt`), true);
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: ensure_checkout working branch is re-runnable", async () => {
+  const fx = await makeRemoteFixture();
+  try {
+    const path = `${fx.root}/work`;
+    await ensure({ url: fx.remote, path, branch: "automation/run" });
+    assertEquals(
+      await rawGit(path, "symbolic-ref", "--short", "HEAD"),
+      "automation/run",
+    );
+    const again = await ensure({
+      url: fx.remote,
+      path,
+      branch: "automation/run",
+    });
+    assertEquals(again.branch, "automation/run");
+    assertEquals(
+      await rawGit(path, "symbolic-ref", "--short", "HEAD"),
+      "automation/run",
+    );
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: ensure_checkout refuses paths it must not touch", async () => {
+  const fx = await makeRemoteFixture();
+  try {
+    // A checkout of a different repository.
+    const otherRemote = `${fx.root}/other.git`;
+    await rawGit(fx.root, "init", "-q", "--bare", "-b", "main", otherRemote);
+    await rawGit(fx.seed, "push", "-q", otherRemote, "main");
+    const foreign = `${fx.root}/foreign`;
+    await rawGit(fx.root, "clone", "-q", otherRemote, foreign);
+    await Deno.writeTextFile(`${foreign}/local.txt`, "keep me\n");
+    await assertRejects(
+      () => ensure({ url: fx.remote, path: foreign, reset: true }),
+      Error,
+      "different repository",
+    );
+    assertEquals(await Deno.readTextFile(`${foreign}/local.txt`), "keep me\n");
+
+    // A non-empty directory that is not a checkout.
+    const plain = `${fx.root}/plain`;
+    await Deno.mkdir(plain);
+    await Deno.writeTextFile(`${plain}/notes.txt`, "hello\n");
+    await assertRejects(
+      () => ensure({ url: fx.remote, path: plain }),
+      Error,
+      "not a git checkout",
+    );
+    assertEquals(await exists(`${plain}/.git`), false);
+
+    // A directory inside another checkout — rev-parse would succeed there.
+    const nested = `${foreign}/sub`;
+    await Deno.mkdir(nested);
+    await Deno.writeTextFile(`${nested}/x.txt`, "x\n");
+    await assertRejects(
+      () => ensure({ url: fx.remote, path: nested }),
+      Error,
+      "inside the checkout",
+    );
+
+    // A file.
+    const file = `${fx.root}/a-file`;
+    await Deno.writeTextFile(file, "x");
+    await assertRejects(
+      () => ensure({ url: fx.remote, path: file }),
+      Error,
+      "not a directory",
+    );
+
+    // A tag is refused before anything is cloned.
+    const tagged = `${fx.root}/tagged`;
+    await assertRejects(
+      () => ensure({ url: fx.remote, path: tagged, ref: "v1" }),
+      Error,
+      "not a branch",
+    );
+    assertEquals(await exists(tagged), false);
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: ensure_checkout switches ref in a shallow clone and keeps upstream tracking", async () => {
+  const fx = await makeRemoteFixture();
+  try {
+    // file:// because git ignores --depth for plain local paths.
+    const url = `file://${fx.remote}`;
+    const path = `${fx.root}/shallow`;
+
+    const first = await ensure({ url, path, depth: 1 });
+    assertEquals(first.action, "cloned");
+    assertEquals(
+      await rawGit(path, "rev-parse", "--is-shallow-repository"),
+      "true",
+    );
+
+    const switched = await ensure({
+      url,
+      path,
+      ref: "other",
+      depth: 1,
+      reset: true,
+    });
+    assertEquals(switched.ref, "other");
+    assertEquals(
+      await rawGit(path, "symbolic-ref", "--short", "HEAD"),
+      "other",
+    );
+    assertEquals(
+      await rawGit(path, "rev-parse", "--abbrev-ref", "other@{upstream}"),
+      "origin/other",
+    );
+    assertEquals(
+      await rawGit(path, "rev-parse", "--abbrev-ref", "main@{upstream}"),
+      "origin/main",
+    );
+
+    const specs = await rawGit(
+      path,
+      "config",
+      "--get-all",
+      "remote.origin.fetch",
+    );
+    await ensure({ url, path, ref: "other", depth: 1, reset: true });
+    assertEquals(
+      await rawGit(path, "config", "--get-all", "remote.origin.fetch"),
+      specs,
+    );
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: ensure_checkout depth does not truncate a full clone", async () => {
+  const fx = await makeRemoteFixture();
+  try {
+    const url = `file://${fx.remote}`;
+    const path = `${fx.root}/full`;
+    await ensure({ url, path });
+    await ensure({ url, path, depth: 1 });
+    assertEquals(
+      await rawGit(path, "rev-parse", "--is-shallow-repository"),
+      "false",
+    );
+    assertEquals(await rawGit(path, "rev-list", "--count", "HEAD"), "3");
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: ensure_checkout recovers a checkout with no commits", async () => {
+  const fx = await makeRemoteFixture();
+  try {
+    const remote = `${fx.root}/empty.git`;
+    const path = `${fx.root}/work`;
+    await rawGit(fx.root, "init", "-q", "--bare", "-b", "main", remote);
+
+    // Cloning an empty remote succeeds in git but leaves an unborn HEAD —
+    // the same state a clone killed after writing its config leaves behind.
+    await assertRejects(
+      () => ensure({ url: remote, path }),
+      Error,
+      "remote repository is empty",
+    );
+    assertEquals(await exists(`${path}/.git`), true);
+
+    await rawGit(fx.seed, "push", "-q", remote, "main");
+    const seedHead = await rawGit(fx.seed, "rev-parse", "HEAD");
+
+    // Without reset there is nothing to leave HEAD on, so say how to recover.
+    await assertRejects(
+      () => ensure({ url: remote, path }),
+      Error,
+      "reset: true",
+    );
+
+    const recovered = await ensure({ url: remote, path, reset: true });
+    assertEquals(recovered.action, "updated");
+    assertEquals(recovered.sha, seedHead);
+    assertEquals(
+      await rawGit(path, "symbolic-ref", "--short", "HEAD"),
+      "main",
+    );
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: ensure_checkout warns when reset is off and HEAD is not on ref", async () => {
+  const fx = await makeRemoteFixture();
+  try {
+    const path = `${fx.root}/work`;
+    await ensure({ url: fx.remote, path });
+
+    const { ctx, writes, logs } = makeHarness();
+    await model.methods.ensure_checkout.execute(
+      { url: fx.remote, path, ref: "other" },
+      ctx,
+    );
+    assertEquals(writes[0].data.ref, "other");
+    assertEquals(
+      await rawGit(path, "symbolic-ref", "--short", "HEAD"),
+      "main",
+    );
+    assertEquals(
+      logs.some((l) =>
+        l.level === "warn" && l.message.includes("is on main, not other")
+      ),
+      true,
+    );
+
+    // No warning when HEAD is on the working branch this call maintains.
+    await ensure({ url: fx.remote, path, branch: "work" });
+    const quiet = makeHarness();
+    await model.methods.ensure_checkout.execute(
+      { url: fx.remote, path, branch: "work" },
+      quiet.ctx,
+    );
+    assertEquals(quiet.logs.some((l) => l.level === "warn"), false);
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: branch create with force is re-runnable", async () => {
+  const fx = await makeRemoteFixture();
+  try {
+    const { ctx, writes } = makeHarness({ repoPath: fx.seed });
+    await model.methods.branch.execute(
+      { name: "work", create: true, force: true },
+      ctx,
+    );
+    await rawGit(fx.seed, "checkout", "-q", "main");
+    await model.methods.branch.execute(
+      { name: "work", create: true, force: true },
+      ctx,
+    );
+    assertEquals(writes[0].data.created, true);
+    assertEquals(writes[1].data.created, false);
+    assertEquals(
+      await rawGit(fx.seed, "symbolic-ref", "--short", "HEAD"),
+      "work",
+    );
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
   }
 });
