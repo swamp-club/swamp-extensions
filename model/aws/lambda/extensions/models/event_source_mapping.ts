@@ -274,6 +274,7 @@ const GlobalArgsSchema = z.object({
     SchemaRegistryConfig: SchemaRegistryConfigSchema.describe(
       "Specific configuration settings for a Kafka schema registry.",
     ).optional(),
+    ConsumptionMode: z.enum(["Stream", "Queue"]).optional(),
   }).describe(
     "Specific configuration settings for a self-managed Apache Kafka event source.",
   ).optional(),
@@ -358,6 +359,7 @@ const StateSchema = z.object({
   SelfManagedKafkaEventSourceConfig: z.object({
     ConsumerGroupId: z.string(),
     SchemaRegistryConfig: SchemaRegistryConfigSchema,
+    ConsumptionMode: z.string(),
   }).optional(),
   DocumentDBEventSourceConfig: z.object({
     FullDocument: z.string(),
@@ -500,6 +502,7 @@ const InputsSchema = z.object({
     SchemaRegistryConfig: SchemaRegistryConfigSchema.describe(
       "Specific configuration settings for a Kafka schema registry.",
     ).optional(),
+    ConsumptionMode: z.enum(["Stream", "Queue"]).optional(),
   }).describe(
     "Specific configuration settings for a self-managed Apache Kafka event source.",
   ).optional(),
@@ -562,7 +565,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda EventSourceMapping. Registered at `@swamp/aws/lambda/event-source-mapping`. */
 export const model = {
   type: "@swamp/aws/lambda/event-source-mapping",
-  version: "2026.09.23.1",
+  version: "2026.09.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -621,6 +624,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

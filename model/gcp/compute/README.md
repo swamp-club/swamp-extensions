@@ -13,8 +13,10 @@ the live state in GCP. Available methods:
 - **delete** — remove the resource from GCP
 - **sync** — refresh all resource properties from the API
 
-Use `swamp model type describe @swamp/gcp/compute/acceleratortypes` to see the
-full list of configurable properties and available methods for this model.
+Use
+`swamp model type describe @swamp/gcp/compute/acceleratorinterconnectmemberinstances`
+to see the full list of configurable properties and available methods for this
+model.
 
 ## Authentication
 
@@ -65,17 +67,17 @@ gcloud config set project my-project
 ## Usage
 
 ```bash
-# Create a new acceleratortypes model
-swamp model create @swamp/gcp/compute/acceleratortypes my-acceleratortypes
+# Create a new acceleratorinterconnectmemberinstances model
+swamp model create @swamp/gcp/compute/acceleratorinterconnectmemberinstances my-acceleratorinterconnectmemberinstances
 
 # Edit the model to configure its properties
-swamp model edit my-acceleratortypes
+swamp model edit my-acceleratorinterconnectmemberinstances
 
 # Create the resource in GCP
-swamp model method run my-acceleratortypes create
+swamp model method run my-acceleratorinterconnectmemberinstances create
 
 # Sync current state from GCP
-swamp model method run my-acceleratortypes sync
+swamp model method run my-acceleratorinterconnectmemberinstances sync
 ```
 
 ## License
