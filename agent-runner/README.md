@@ -50,6 +50,25 @@ swamp model create @swamp/agent-runner reviewer \
   --global-arg apiKeyEnvVar=MY_CLAUDE_KEY
 ```
 
+### Using the Claude CLI's stored login
+
+By default (`auth=apiKey`) an API key is required. For interactive or
+human-gated use on a machine where you have already logged in with the `claude`
+CLI, set `auth=cli` to use that stored login instead:
+
+```bash
+swamp model create @swamp/agent-runner reviewer \
+  --global-arg provider=claude \
+  --global-arg version=2.1.222 \
+  --global-arg auth=cli
+```
+
+Under `auth=cli` no API key is resolved and `ANTHROPIC_API_KEY` is left out of
+the agent's environment entirely, since any set key takes precedence over the
+stored login. The agent must run as the same user that logged in. `auth=cli` is
+only supported by the `claude` provider, and cannot be combined with `apiKey` or
+`apiKeyEnvVar`. Use API keys for CI.
+
 ## Usage
 
 ### Create a Model Instance

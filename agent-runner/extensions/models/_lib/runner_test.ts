@@ -1,6 +1,7 @@
 import { assertEquals } from "jsr:@std/assert@1.0.19";
 import { ReviewResultSchema } from "./schemas.ts";
 import { buildReviewPrompt, extractJsonResult } from "./review.ts";
+import { buildSubprocessEnv } from "./runner.ts";
 
 // ---------------------------------------------------------------------------
 // Mock agent binary execution
@@ -257,4 +258,34 @@ Deno.test("runner: review prompt uses diff when provided", () => {
   assertEquals(prompt.includes("DIFF (review these changes"), true);
   assertEquals(prompt.includes(diff), true);
   assertEquals(prompt.includes("CHANGED FILES"), false);
+});
+
+// ---------------------------------------------------------------------------
+// Subprocess environment
+// ---------------------------------------------------------------------------
+
+Deno.test("runner: subprocess env includes the api key when given", () => {
+  const env = buildSubprocessEnv("ANTHROPIC_API_KEY", "sk-test-123", true);
+  assertEquals(env["ANTHROPIC_API_KEY"], "sk-test-123");
+});
+
+Deno.test("runner: subprocess env omits the api key variable without a key", () => {
+  const original = Deno.env.get("ANTHROPIC_API_KEY");
+  try {
+    Deno.env.set("ANTHROPIC_API_KEY", "sk-from-parent");
+    const env = buildSubprocessEnv("ANTHROPIC_API_KEY", undefined, true);
+    assertEquals("ANTHROPIC_API_KEY" in env, false);
+  } finally {
+    if (original !== undefined) {
+      Deno.env.set("ANTHROPIC_API_KEY", original);
+    } else {
+      Deno.env.delete("ANTHROPIC_API_KEY");
+    }
+  }
+});
+
+Deno.test("runner: subprocess env still forwards HOME without a key", () => {
+  const home = Deno.env.get("HOME");
+  const env = buildSubprocessEnv("ANTHROPIC_API_KEY", undefined, true);
+  assertEquals(env["HOME"], home);
 });

@@ -9,6 +9,7 @@ export type Platform =
 export interface AgentProvider {
   readonly name: string;
   readonly defaultApiKeyEnvVar: string;
+  readonly supportsCliAuth: boolean;
   readonly configSchema: z.ZodType;
 
   ensureBinary(

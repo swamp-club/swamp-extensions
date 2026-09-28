@@ -1,6 +1,6 @@
 import type { AgentRunnerLogger, AgentRunRequest } from "./types.ts";
 import { detectPlatform } from "./platform.ts";
-import { resolveApiKey } from "./auth.ts";
+import { resolveAuthKey } from "./auth.ts";
 import { Attr, getTracer } from "./tracing.ts";
 import { SpanStatusCode } from "npm:@opentelemetry/api@1.9.0";
 import type { GlobalArgs } from "./schemas.ts";
@@ -29,7 +29,7 @@ export interface AgentOutput {
 
 export async function runAgent(opts: RunAgentOptions): Promise<AgentOutput> {
   const provider = getProvider(opts.globalArgs.provider);
-  const apiKey = resolveApiKey(provider, opts.globalArgs);
+  const apiKey = resolveAuthKey(provider, opts.globalArgs);
   const platform = detectPlatform();
   const cacheDir = `${opts.workingDir}/${CACHE_DIR_NAME}`;
 
@@ -137,12 +137,16 @@ const WRITE_MODE_ENV_VARS = [
   "GIT_COMMITTER_EMAIL",
 ];
 
-function buildSubprocessEnv(
+export function buildSubprocessEnv(
   apiKeyEnvName: string,
-  apiKey: string,
+  apiKey: string | undefined,
   readOnly: boolean,
 ): Record<string, string> {
-  const env: Record<string, string> = { [apiKeyEnvName]: apiKey };
+  // With no key (auth 'cli') the variable is omitted entirely: a set key,
+  // even an empty one, takes precedence over the CLI's stored login.
+  const env: Record<string, string> = apiKey === undefined
+    ? {}
+    : { [apiKeyEnvName]: apiKey };
   for (const name of FORWARDED_ENV_VARS) {
     const value = Deno.env.get(name);
     if (value !== undefined) {

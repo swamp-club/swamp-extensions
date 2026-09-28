@@ -65,6 +65,7 @@ export async function tryVerifyChecksum(
 export const claudeProvider: AgentProvider = {
   name: "claude",
   defaultApiKeyEnvVar: "ANTHROPIC_API_KEY",
+  supportsCliAuth: true,
   configSchema: ClaudeConfigSchema,
 
   async ensureBinary(

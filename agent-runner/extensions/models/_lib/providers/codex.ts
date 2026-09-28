@@ -25,6 +25,7 @@ function npmTarballUrl(platform: Platform, version: string): string {
 export const codexProvider: AgentProvider = {
   name: "codex",
   defaultApiKeyEnvVar: "CODEX_API_KEY",
+  supportsCliAuth: false,
   configSchema: CodexConfigSchema,
 
   async ensureBinary(

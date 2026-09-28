@@ -5,6 +5,11 @@ export const GlobalArgsSchema = z.object({
     .describe("Which agent provider to use"),
   version: z.string().min(1).regex(/^[a-zA-Z0-9._-]+$/)
     .describe("CLI version to install and use (e.g. '2.1.150' for Claude)"),
+  auth: z.enum(["apiKey", "cli"]).default("apiKey")
+    .describe(
+      "How the agent authenticates: 'apiKey' (default) passes an API key; " +
+        "'cli' uses the provider CLI's own stored login (claude only)",
+    ),
   apiKey: z.string().optional().meta({ sensitive: true })
     .describe("API key for the provider (prefer apiKeyEnvVar or vault)"),
   apiKeyEnvVar: z.string().optional()

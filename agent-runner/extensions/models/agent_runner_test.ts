@@ -1,9 +1,9 @@
-import { assertEquals } from "jsr:@std/assert@1.0.19";
+import { assertEquals, assertThrows } from "jsr:@std/assert@1.0.19";
 import { model } from "./agent_runner.ts";
 import { ClaudeConfigSchema } from "./_lib/providers/claude.ts";
 import { CodexConfigSchema } from "./_lib/providers/codex.ts";
 import { getProvider, listProviders } from "./_lib/providers/registry.ts";
-import { resolveApiKey } from "./_lib/auth.ts";
+import { resolveApiKey, resolveAuthKey } from "./_lib/auth.ts";
 import { detectPlatform } from "./_lib/platform.ts";
 import { ReviewResultSchema } from "./_lib/schemas.ts";
 import type { AgentRunnerContext, DataHandle } from "./_lib/types.ts";
@@ -90,6 +90,27 @@ Deno.test("model export has globalArguments schema", () => {
 Deno.test("globalArguments defaults provider to claude", () => {
   const result = model.globalArguments.parse({ version: "2.1.150" });
   assertEquals(result.provider, "claude");
+});
+
+Deno.test("globalArguments defaults auth to apiKey", () => {
+  const result = model.globalArguments.parse({ version: "2.1.150" });
+  assertEquals(result.auth, "apiKey");
+});
+
+Deno.test("globalArguments accepts auth cli", () => {
+  const result = model.globalArguments.parse({
+    version: "2.1.150",
+    auth: "cli",
+  });
+  assertEquals(result.auth, "cli");
+});
+
+Deno.test("globalArguments rejects unknown auth mode", () => {
+  const result = model.globalArguments.safeParse({
+    version: "2.1.150",
+    auth: "oauth",
+  });
+  assertEquals(result.success, false);
 });
 
 Deno.test("globalArguments rejects missing version", () => {
@@ -411,6 +432,88 @@ Deno.test("auth throws when no key available", () => {
       Deno.env.set("ANTHROPIC_API_KEY", original);
     }
   }
+});
+
+Deno.test("auth apiKey mode resolves the key as before", () => {
+  const provider = getProvider("claude");
+  const key = resolveAuthKey(provider, {
+    auth: "apiKey",
+    apiKey: "sk-test-123",
+  });
+  assertEquals(key, "sk-test-123");
+});
+
+Deno.test("auth apiKey mode still throws when no key available", () => {
+  const original = Deno.env.get("ANTHROPIC_API_KEY");
+  try {
+    Deno.env.delete("ANTHROPIC_API_KEY");
+    const provider = getProvider("claude");
+    assertThrows(
+      () => resolveAuthKey(provider, { auth: "apiKey" }),
+      Error,
+      "No API key found",
+    );
+  } finally {
+    if (original !== undefined) {
+      Deno.env.set("ANTHROPIC_API_KEY", original);
+    }
+  }
+});
+
+Deno.test("auth cli mode returns no key for claude", () => {
+  const original = Deno.env.get("ANTHROPIC_API_KEY");
+  try {
+    Deno.env.delete("ANTHROPIC_API_KEY");
+    const provider = getProvider("claude");
+    assertEquals(resolveAuthKey(provider, { auth: "cli" }), undefined);
+  } finally {
+    if (original !== undefined) {
+      Deno.env.set("ANTHROPIC_API_KEY", original);
+    }
+  }
+});
+
+Deno.test("auth cli mode ignores a key present in the environment", () => {
+  const original = Deno.env.get("ANTHROPIC_API_KEY");
+  try {
+    Deno.env.set("ANTHROPIC_API_KEY", "sk-from-default");
+    const provider = getProvider("claude");
+    assertEquals(resolveAuthKey(provider, { auth: "cli" }), undefined);
+  } finally {
+    if (original !== undefined) {
+      Deno.env.set("ANTHROPIC_API_KEY", original);
+    } else {
+      Deno.env.delete("ANTHROPIC_API_KEY");
+    }
+  }
+});
+
+Deno.test("auth cli mode is rejected for codex", () => {
+  const provider = getProvider("codex");
+  assertThrows(
+    () => resolveAuthKey(provider, { auth: "cli" }),
+    Error,
+    "does not support auth 'cli'",
+  );
+});
+
+Deno.test("auth cli mode rejects an explicit apiKey", () => {
+  const provider = getProvider("claude");
+  assertThrows(
+    () => resolveAuthKey(provider, { auth: "cli", apiKey: "sk-test-123" }),
+    Error,
+    "cannot be combined",
+  );
+});
+
+Deno.test("auth cli mode rejects apiKeyEnvVar", () => {
+  const provider = getProvider("claude");
+  assertThrows(
+    () =>
+      resolveAuthKey(provider, { auth: "cli", apiKeyEnvVar: "MY_CLAUDE_KEY" }),
+    Error,
+    "cannot be combined",
+  );
 });
 
 // ---------------------------------------------------------------------------

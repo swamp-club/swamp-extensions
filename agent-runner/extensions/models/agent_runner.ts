@@ -24,7 +24,7 @@ import type { AgentRunnerContext } from "./_lib/types.ts";
 /** Agent runner model — providers, review profiles, and execution methods. */
 export const model = {
   type: "@swamp/agent-runner",
-  version: "2026.08.23.1",
+  version: "2026.09.28.1",
 
   globalArguments: GlobalArgsSchema,
 
@@ -33,6 +33,12 @@ export const model = {
       toVersion: "2026.08.23.1",
       description:
         "Add optional diff input to review method for inline diff review mode",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.28.1",
+      description:
+        "Add optional auth global argument (apiKey default, cli uses the Claude CLI's stored login)",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
