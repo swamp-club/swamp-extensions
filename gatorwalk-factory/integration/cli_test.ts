@@ -98,7 +98,7 @@ Deno.test("cli: both model types register from the extension source", async () =
   });
 });
 
-Deno.test("cli: holder validate reports a valid lifecycle and every error, and new_key makes a key", async () => {
+Deno.test("cli: holder validate reports a valid lifecycle, every schema error and graph errors, and new_key makes a key", async () => {
   await withRepo(async (repo) => {
     await repo.holder("team", await buildLifecycle());
     const ok = await repo.holderMethod("team", "validate");
@@ -131,6 +131,26 @@ Deno.test("cli: holder validate reports a valid lifecycle and every error, and n
       bad.output,
     );
     assert(bad.output.includes("targets unknown stage 'missing'"), bad.output);
+
+    // A design error the schema accepts: plan can never see the check
+    // stage's evidence, so graph analysis fails validate.
+    const unsound = await buildLifecycle();
+    (unsound.stages as { transitions: unknown[] }[])[0].transitions.push({
+      name: "shortcut",
+      to: "code-review",
+      gates: [{ type: "evidence-recorded", config: { name: "checks" } }],
+    });
+    await repo.holder("unsound", unsound);
+    const design = await repo.holderMethod("unsound", "validate", {
+      allowFailure: true,
+    });
+    assertNotEquals(design.code, 0);
+    assert(
+      design.output.includes(
+        "stages.0.transitions.1 (from stage 'plan'): transition 'shortcut'",
+      ),
+      design.output,
+    );
   });
 });
 

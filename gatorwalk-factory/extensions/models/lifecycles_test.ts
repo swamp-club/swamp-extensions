@@ -21,7 +21,6 @@ import {
   type Lifecycle,
   parseLifecycle,
   type StageSpec,
-  transitionsFrom,
   type TransitionSpec,
 } from "./_lib/lifecycle_schema.ts";
 import {
@@ -32,6 +31,7 @@ import {
 import type { Json } from "./_lib/canonical.ts";
 import { buildCelContext, evaluateCel } from "./_lib/cel_context.ts";
 import { makeGateEvaluator } from "./_lib/gates.ts";
+import { analyzeLifecycle, formatFinding } from "./_lib/graph.ts";
 import {
   advance,
   expectedOf,
@@ -112,55 +112,43 @@ Deno.test("build-swamp-extension: the stages, in order", async () => {
   ]);
 });
 
-Deno.test("build-swamp-extension: done is reachable from every stage", async () => {
-  const lifecycle = await load(BUILD);
-  const reachesDone = (from: string): boolean => {
-    const seen = new Set([from]);
-    const queue = [from];
-    while (queue.length > 0) {
-      const id = queue.shift() as string;
-      if (id === "done") return true;
-      for (const t of transitionsFrom(lifecycle, stage(lifecycle, id))) {
-        if (t.to !== undefined && !seen.has(t.to)) {
-          seen.add(t.to);
-          queue.push(t.to);
-        }
-      }
-    }
-    return false;
+Deno.test("every file under lifecycles/ passes graph analysis, with only the explained warnings", async () => {
+  // Graph checks live in the analyser (_lib/graph.ts), not here: it also
+  // covers reachability, dead ends and evidence gates on other stages.
+  // build-swamp-extension's rework loops set no maxCycles and rely on the
+  // default cycle limit; a person grants an override to go round again.
+  const expected: Record<string, string[]> = {
+    [BUILD]: [
+      "default-cycle-bound stages.0 (from stage 'plan')",
+      "default-cycle-bound stages.2 (from stage 'implement')",
+    ],
   };
-  for (const s of lifecycle.stages) {
-    if (s.terminal === true) continue;
-    assert(reachesDone(s.id), `done is unreachable from '${s.id}'`);
+  const files: string[] = [];
+  for await (const entry of Deno.readDir(LIFECYCLES)) {
+    if (entry.isFile && entry.name.endsWith(".yaml")) files.push(entry.name);
+  }
+  assertEquals(files.sort(), Object.keys(expected).sort());
+  for (const file of files) {
+    const report = analyzeLifecycle(await load(file));
+    assertEquals(report.errors.map(formatFinding), [], file);
+    assertEquals(
+      report.warnings.map((w) => `${w.code} ${formatFinding(w).split(":")[0]}`),
+      expected[file],
+      file,
+    );
   }
 });
 
-Deno.test("build-swamp-extension: evidence gates sit on the stage that records the evidence", async () => {
-  // evidence-recorded only accepts evidence from the current stage and cycle,
-  // so a gate on evidence declared elsewhere could never pass. A global
-  // transition leaves from any stage, so it can gate on no evidence at all.
-  const lifecycle = await load(BUILD);
-  for (const t of lifecycle.globalTransitions ?? []) {
-    assert(
-      !(t.gates ?? []).some((g) => g.type === "evidence-recorded"),
-      `global transition ${t.name} gates on evidence`,
-    );
-  }
-  for (const s of lifecycle.stages) {
-    const own = new Set([
-      ...(s.evidence ?? []).map((e) => e.name),
-      ...(s.work?.resultEvidence !== undefined ? [s.work.resultEvidence] : []),
-    ]);
-    for (const t of s.transitions ?? []) {
-      for (const gate of t.gates ?? []) {
-        if (gate.type !== "evidence-recorded") continue;
-        assert(
-          own.has(gate.config.name),
-          `${s.id}.${t.name} gates on '${gate.config.name}', which ${s.id} does not record`,
-        );
-      }
-    }
-  }
+Deno.test("build-swamp-extension: graph analysis stays small", async () => {
+  // Measured at 20 structural and 1345 count states. A jump means the
+  // lifecycle grew loops that multiply the count pass; see DESIGN.md.
+  const report = analyzeLifecycle(await load(BUILD));
+  assert(!report.truncated);
+  assert(
+    report.statesExplored.structural <= 100 &&
+      report.statesExplored.counts <= 5000,
+    JSON.stringify(report.statesExplored),
+  );
 });
 
 Deno.test("build-swamp-extension: people decide at plan, quality waiver, release and abandon", async () => {

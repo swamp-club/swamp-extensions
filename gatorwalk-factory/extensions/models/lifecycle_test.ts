@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { assert, assertMatch, assertRejects } from "@std/assert";
+import { assert, assertEquals, assertMatch, assertRejects } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
 import { HolderArgumentsSchema, model as holder } from "./lifecycle.ts";
 import { fakeSwamp } from "./_lib/fake_swamp.ts";
@@ -52,6 +52,54 @@ Deno.test("holder: validate reports a valid lifecycle", async () => {
     ),
     summary,
   );
+});
+
+Deno.test("holder: validate logs each graph warning", async () => {
+  const swamp = fakeSwamp();
+  swamp.definitions.set("team", {
+    globalArguments: await buildLifecycle(),
+    type: HOLDER_TYPE,
+  });
+  await holder.methods.validate.execute({}, swamp.context("team"));
+  const warnings = swamp.logs.filter((l) => l.message === "{warning}");
+  assertEquals(
+    warnings.map((l) => l.props?.code),
+    ["default-cycle-bound", "default-cycle-bound"],
+  );
+  assert(
+    String(warnings[0].props?.warning).startsWith(
+      "stages.0 (from stage 'plan'): the loop through 'plan', 'plan-review'",
+    ),
+  );
+  assert(String(swamp.logs.at(-1)?.props?.summary).endsWith("2 warning(s)"));
+});
+
+Deno.test("holder: validate fails on a graph error, listing it with its path", async () => {
+  const swamp = fakeSwamp();
+  const lifecycle = await buildLifecycle();
+  const stages = lifecycle.stages as { transitions: unknown[] }[];
+  // checks is recorded by the check stage, so plan can never see it.
+  stages[0].transitions.push({
+    name: "shortcut",
+    to: "code-review",
+    gates: [{ type: "evidence-recorded", config: { name: "checks" } }],
+  });
+  swamp.definitions.set("team", {
+    globalArguments: lifecycle,
+    type: HOLDER_TYPE,
+  });
+  const error = await assertRejects(() =>
+    holder.methods.validate.execute({}, swamp.context("team"))
+  );
+  const text = (error as Error).message;
+  assert(text.includes("lifecycle holder 'team' has design errors:"), text);
+  assert(
+    text.includes(
+      "stages.0.transitions.1 (from stage 'plan'): transition 'shortcut' (to 'code-review') can never pass",
+    ),
+    text,
+  );
+  assert(text.includes("warnings:\nstages.0 (from stage 'plan')"), text);
 });
 
 Deno.test("holder: validate reads the raw definition, so a platform expression gets the schema's own error", async () => {

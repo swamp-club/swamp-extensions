@@ -19,6 +19,7 @@ import { digestOf, jsonSafe } from "./canonical.ts";
 import { buildCelContext } from "./cel_context.ts";
 import { buildDispatch } from "./dispatch.ts";
 import { evaluateTransitions, makeGateEvaluator } from "./gates.ts";
+import { analyzeLifecycle, formatFinding } from "./graph.ts";
 import { type Actor, actorFrom, type ProductKind } from "./journal.ts";
 import { type Lifecycle, parseLifecycle } from "./lifecycle_schema.ts";
 import {
@@ -201,17 +202,39 @@ export async function loadHolderLifecycle(
   return parsed.value;
 }
 
-/** The holder's validate method: every error, or a summary of the lifecycle. */
+/**
+ * The holder's validate method: the schema's errors, then the graph
+ * analysis (graph.ts). Graph errors fail the method with every finding;
+ * warnings are logged one by one before the summary. Work items load the
+ * lifecycle with the schema check alone.
+ */
 export async function validateHolder(
   ctx: MethodContextLike,
 ): Promise<MethodOutput> {
   const name = selfName(ctx);
   const lifecycle = await loadHolderLifecycle(ctx, name);
+  const graph = analyzeLifecycle(lifecycle);
+  if (graph.errors.length > 0) {
+    throw new Error(
+      `lifecycle holder '${name}' has design errors:\n${
+        graph.errors.map(formatFinding).join("\n")
+      }` +
+        (graph.warnings.length > 0
+          ? `\nwarnings:\n${graph.warnings.map(formatFinding).join("\n")}`
+          : ""),
+    );
+  }
+  for (const finding of graph.warnings) {
+    ctx.logger.info("{warning}", {
+      warning: formatFinding(finding),
+      ...finding,
+    });
+  }
   ctx.logger.info("{summary}", {
     summary: `lifecycle '${lifecycle.name}' in '${name}' is valid: ` +
       `${lifecycle.stages.length} stages (${
         lifecycle.stages.map((s) => s.id).join(", ")
-      })`,
+      }), ${graph.warnings.length} warning(s)`,
     lifecycle: lifecycle.name,
     digest: await digestOf(lifecycle),
   });

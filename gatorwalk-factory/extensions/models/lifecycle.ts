@@ -29,7 +29,8 @@ import {
 // globalArguments on every run with schema.partial(), and zod refuses
 // .partial() on a schema with refinements, which the full lifecycle schema is
 // made of. So this schema only names the top-level fields; the full check is
-// the validate method, and it runs again whenever a work item starts.
+// the validate method (schema, then graph analysis), and its schema check runs
+// again whenever a work item starts.
 // ---------------------------------------------------------------------------
 
 export const HolderArgumentsSchema = z.object({
@@ -53,7 +54,7 @@ export const model = {
   methods: {
     validate: {
       description:
-        "Check the lifecycle in full and report every problem with its path",
+        "Check the lifecycle in full, analyse it as a graph, and report every problem with its path",
       kind: "read" as const,
       arguments: z.object({}),
       execute: (_args: Record<string, never>, context: MethodContextLike) =>

@@ -38,7 +38,7 @@ import { IDENTIFIER_PATTERN, undeclaredPlaceholders } from "./template.ts";
 // - Referential integrity is part of the schema, so a lifecycle with a
 //   dangling reference fails when it is saved, not when a work item reaches
 //   the broken stage. Graph analysis (reachability, dead ends, ambiguous
-//   exits) is separate.
+//   exits) is in graph.ts.
 //
 // Structure is by identity, never by name convention: a transition leaves a
 // plugin through `exit`, not a specially spelt `to`; the resultEvidence of a

@@ -231,6 +231,100 @@ caller's expected view. Every grant counts and none resets a count
 approval ids with a reserved prefix, so no id is interpolated into a path or
 shell word (#2290). A reset starts a new era, and with it fresh counts.
 
+## Graph validation
+
+**Decision.** The schema checks a lifecycle's shape and references when it is
+saved. `_lib/graph.ts` then analyses it as a graph, so an author finds a design
+problem before a work item hits it. The holder's `validate` method runs both:
+graph errors fail it, and warnings are logged one by one. Starting a work item
+runs the schema check only, so a warning, or an error the author has accepted,
+never stops a work item from loading its lifecycle.
+
+### The propulsion rule
+
+Gates are a veto: `advance` refuses a transition whose gates fail. What moves a
+work item is the driver (an agent, a runner, a person), under the rule ported
+from software-factory:
+
+- If exactly one transition is fully satisfied and has no `human-approval` gate,
+  the driver takes it.
+- `manual: true` makes a transition wait for a person's explicit go, even when
+  every gate passes.
+- If several transitions are satisfied at once, the driver asks a person.
+
+So a person choosing between exits is intended wherever a transition is manual
+or has a `human-approval` gate. Anywhere else, two exits that can pass together
+leave the driver to guess, and the analysis warns.
+
+### What the analysis assumes
+
+It explores abstract run states breadth-first, so every finding comes with the
+shortest trace of stages from the initial stage to where the problem shows.
+There are two passes:
+
+- **Structural pass.** A state is the current stage plus the set of stages
+  entered so far. Cycle limits and `max-cycles` gates are ignored, because a
+  person can always grant a cycle override. Every finding below except
+  `needs-cycle-override` comes from this pass.
+- **Count pass.** A state is the current stage plus the entries into each stage,
+  under each stage's cycle limit with no overrides. Global transitions are
+  exempt from the limit, as in `advance`. `max-cycles` gates are evaluated
+  exactly on the counts. This pass only finds transitions that nothing but an
+  override opens.
+
+In both passes a gate is judged like this:
+
+- **`evidence-recorded`** passes only in a stage that records the evidence (its
+  `evidence` or its `work.resultEvidence`), because the gate accepts only
+  evidence from the current stage and cycle.
+- **`artifact-fresh` with `recordedThisCycle`** likewise needs the current stage
+  to declare the artifact.
+- **`artifact-exists`, `findings-clear`, `artifact-fresh` and `cooldown`** pass
+  only once a stage that produces what they read has been entered on the path.
+  For `artifact-fresh` that means both the artifact and the subject it reviews.
+  In a plugin, contract inputs are present from the start.
+- **`human-approval` and `cel`** are unknowns, so they are assumed to pass.
+
+Each pass stops at 100,000 states. If the structural pass stops early, its
+errors are reported as warnings, because they rest on a partial exploration.
+
+### Findings
+
+Errors:
+
+- **`unreachable-stage`:** no path from the initial stage enters the stage.
+- **`dead-end`:** a reachable non-terminal stage from which no transition that
+  can pass leads to a terminal stage (in a plugin, a contract exit). Global
+  transitions count as a way out only if the stage they lead to can itself
+  finish.
+- **`gate-never-passes`:** a transition from a reachable stage that no path can
+  satisfy, with the gate and the reason. A global transition is judged from each
+  stage separately, and the finding names the stage.
+- **`exit-unreachable`:** a plugin contract exit that no transition that can
+  pass takes.
+
+Warnings:
+
+- **`ambiguous-exit`:** two sibling exits to different stages, neither of them
+  manual or behind a `human-approval` gate, whose gates are not provably
+  exclusive. Exclusive means `evidence-recorded` on the same evidence requiring
+  different values of a field, or `max-cycles` on the same stage and limit with
+  opposite `invert`. CEL cannot be compared. Two exits to the same stage are not
+  ambiguous, since the driver reaches the same place whichever it picks.
+- **`escape-only`:** a stage or loop whose only way to finish is a global
+  transition, such as `abandon`.
+- **`default-cycle-bound`:** a loop in which no stage sets `maxCycles` and no
+  transition has a `max-cycles` gate, so only the default limit of 5 bounds it.
+- **`product-missing-on-path`:** a stage injects, or gates on, an artifact or
+  evidence that some path to it does not produce.
+- **`needs-cycle-override`:** a transition only an override opens (for example
+  an inverted `max-cycles` above the stage's limit). Running out of cycles is a
+  designed stop for a person, never a dead end.
+- **`exploration-truncated`:** a pass hit the state cap.
+
+The analysis looks at one document at a time. Checking that a plugin's inputs
+are produced on every path into it waits for plugin composition.
+
 ## The model types: a lifecycle holder and work items
 
 **Decision.** Two model types (`extensions/models/lifecycle.ts`, `work_item.ts`,

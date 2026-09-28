@@ -43,8 +43,9 @@ testdata/
 
 ## The lifecycle format
 
-A lifecycle is **checked** by the holder's `validate` method and again whenever
-a work item starts on it, and every problem is reported with its path. Editing a
+A lifecycle is **checked** by the holder's `validate` method, and every problem
+is reported with its path. The schema check runs again whenever a work item
+starts on it; the graph analysis (below) runs only in `validate`. Editing a
 holder with `swamp model edit` does not check it: swamp only applies a lenient
 version of a model's schema, so the full check is gatorwalk's own.
 
@@ -69,8 +70,17 @@ artifacts, evidence, transitions and gates. Three things change:
   than rendering blank. See [DESIGN.md](DESIGN.md) for why.
 - **References are checked when the lifecycle is checked.** This covers
   transition targets, gate references, `reviews` links and injected context, and
-  every problem is reported with its path. Graph analysis (reachability, dead
-  ends, ambiguous exits) is separate.
+  every problem is reported with its path.
+- **The lifecycle is analysed as a graph** by `validate`. Errors are stages that
+  cannot be reached, stages with no way to a terminal stage, transitions whose
+  gates can never pass (such as `evidence-recorded` on evidence another stage
+  records), and plugin exits that nothing reaches. They fail `validate`.
+  Warnings are logged: exits that can pass together with no person choosing,
+  loops whose only way out is a global transition such as `abandon`, loops
+  bounded only by the default cycle limit, products that some path to a stage
+  does not produce, and transitions only a cycle override opens. Each finding
+  gives its path, the stage it is judged from, and a trace of stages from the
+  initial stage. See [DESIGN.md](DESIGN.md), "Graph validation".
 
 A **plugin** has the same shape plus a `contract`: `inputs` it consumes,
 `outputs` its stages produce, named `exits`, and a `parameters` schema. Its
