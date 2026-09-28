@@ -48,10 +48,10 @@ const GlobalArgsSchema = z.object({
     value: z.string().optional(),
   })).describe(
     "A list of IP addresses or CIDR ranges that will be allowed to access the URLs specified in the Zone Lockdown rule. You can include any number of `ip` or `ip_range` configurations.",
-  ),
+  ).optional(),
   urls: z.array(z.string()).describe(
     "The URLs to include in the current WAF override. You can use wildcards. Each entered URL will be escaped before use, which means you can only use simple wildcard patterns.",
-  ),
+  ).optional(),
   description: z.string().max(1024).describe(
     "An informative summary of the rule. This value is sanitized and any tags will be removed.",
   ).optional(),
@@ -105,7 +105,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Lockdowns. Registered at `@swamp/cloudflare/firewall/lockdowns`. */
 export const model = {
   type: "@swamp/cloudflare/firewall/lockdowns",
-  version: "2026.08.11.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -132,6 +132,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -149,6 +154,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["configurations", "urls"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/zones/" + g.zone_id + "/firewall/lockdowns";
         const body: Record<string, unknown> = {};
         if (g.configurations !== undefined) {
@@ -316,6 +329,25 @@ export const model = {
           body.configurations = g.configurations;
         }
         if (g.urls !== undefined) body.urls = g.urls;
+        const unset = ["configurations", "urls"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["configurations", "urls"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

@@ -43,14 +43,14 @@ import {
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  data_tags: z.array(z.string()),
+  data_tags: z.array(z.string()).optional(),
   description: z.string().optional(),
-  expression: z.string(),
-  name: z.string(),
+  expression: z.string().optional(),
+  name: z.string().optional(),
   sensitivity_levels: z.array(z.object({
     group_id: z.string(),
     level_id: z.string(),
-  })),
+  })).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -96,7 +96,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Data Classes. Registered at `@swamp/cloudflare/dlp/data-classes`. */
 export const model = {
   type: "@swamp/cloudflare/dlp/data-classes",
-  version: "2026.08.25.1",
+  version: "2026.09.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -113,6 +120,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "data_tags",
+          "expression",
+          "name",
+          "sensitivity_levels",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/dlp/data_classes";
         const body: Record<string, unknown> = {};
         if (g.data_tags !== undefined) body.data_tags = g.data_tags;
@@ -285,6 +303,27 @@ export const model = {
         if (g.name !== undefined) body.name = g.name;
         if (g.sensitivity_levels !== undefined) {
           body.sensitivity_levels = g.sensitivity_levels;
+        }
+        const unset = ["data_tags", "expression", "name", "sensitivity_levels"]
+          .filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = [
+          "data_tags",
+          "expression",
+          "name",
+          "sensitivity_levels",
+        ].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,

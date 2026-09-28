@@ -68,7 +68,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   dataset: z.string().describe(
     "Dataset type name to create (e.g. `http_requests`).",
-  ),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -119,7 +119,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Datasets. Registered at `@swamp/cloudflare/logs/datasets`. */
 export const model = {
   type: "@swamp/cloudflare/logs/datasets",
-  version: "2026.08.25.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -161,6 +161,11 @@ export const model = {
       description: "Added: deletion_protection, filter",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -178,6 +183,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["dataset"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         if ((g.account_id == null) === (g.zone_id == null)) {
           throw new Error(
             "Exactly one of account_id or zone_id must be provided",

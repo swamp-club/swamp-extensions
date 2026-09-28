@@ -46,7 +46,7 @@ const GlobalArgsSchema = z.object({
   configuration: z.object({
     target: z.enum(["ua"]).optional(),
     value: z.string().optional(),
-  }),
+  }).optional(),
   description: z.string().max(1024).describe(
     "An informative summary of the rule. This value is sanitized and any tags will be removed.",
   ).optional(),
@@ -58,7 +58,7 @@ const GlobalArgsSchema = z.object({
     "whitelist",
     "js_challenge",
     "managed_challenge",
-  ]).describe("The action to apply to a matched request."),
+  ]).describe("The action to apply to a matched request.").optional(),
   paused: z.boolean().describe(
     "When true, indicates that the rule is currently paused.",
   ).optional(),
@@ -113,7 +113,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Ua Rules. Registered at `@swamp/cloudflare/firewall/ua-rules`. */
 export const model = {
   type: "@swamp/cloudflare/firewall/ua-rules",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -135,6 +135,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -152,6 +157,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["configuration", "mode"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/zones/" + g.zone_id + "/firewall/ua_rules";
         const body: Record<string, unknown> = {};
         if (g.configuration !== undefined) body.configuration = g.configuration;
@@ -316,6 +329,25 @@ export const model = {
         if (g.id !== undefined) body.id = g.id;
         if (g.mode !== undefined) body.mode = g.mode;
         if (g.paused !== undefined) body.paused = g.paused;
+        const unset = ["configuration", "mode"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["configuration", "mode"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

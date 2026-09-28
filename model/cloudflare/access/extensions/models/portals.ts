@@ -56,8 +56,9 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9-]*[A-Za-z0-9])$",
     ),
-  ).describe("Hostname where the MCP portal is available."),
-  name: z.string().max(350).describe("Display name for the MCP portal."),
+  ).describe("Hostname where the MCP portal is available.").optional(),
+  name: z.string().max(350).describe("Display name for the MCP portal.")
+    .optional(),
   secure_web_gateway: z.boolean().describe(
     "Route outbound MCP traffic through Zero Trust Secure Web Gateway.",
   ).optional(),
@@ -88,7 +89,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   id: z.string().min(1).max(32).regex(
     new RegExp("^[a-z0-9_]+(?:-[a-z0-9_]+)*$"),
-  ).describe("Unique identifier for the MCP portal."),
+  ).describe("Unique identifier for the MCP portal.").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -226,7 +227,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Portals. Registered at `@swamp/cloudflare/access/portals`. */
 export const model = {
   type: "@swamp/cloudflare/access/portals",
-  version: "2026.08.25.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -288,6 +289,11 @@ export const model = {
       description: "Added: code_mode",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -305,6 +311,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["hostname", "id", "name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/access/ai-controls/mcp/portals";
         const body: Record<string, unknown> = {};
@@ -497,6 +511,23 @@ export const model = {
           body.secure_web_gateway = g.secure_web_gateway;
         }
         if (g.servers !== undefined) body.servers = g.servers;
+        const unset = ["hostname", "name"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["hostname", "name"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

@@ -46,15 +46,15 @@ const GlobalArgsSchema = z.object({
   action: z.object({
     action: z.enum(["Block"]),
     message: z.string().optional(),
-  }),
+  }).optional(),
   conditions: z.array(z.object({
     operator: z.enum(["InList", "NotInList", "MatchRegex", "NotMatchRegex"]),
     selector: z.enum(["Recipients", "Sender", "DLPProfiles"]),
     value: z.array(z.string()),
-  })).describe("Triggered if all conditions match."),
+  })).describe("Triggered if all conditions match.").optional(),
   description: z.string().optional(),
-  enabled: z.boolean(),
-  name: z.string(),
+  enabled: z.boolean().optional(),
+  name: z.string().optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -110,7 +110,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Rules. Registered at `@swamp/cloudflare/dlp/rules`. */
 export const model = {
   type: "@swamp/cloudflare/dlp/rules",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -132,6 +132,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -149,6 +154,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["action", "conditions", "enabled", "name"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/dlp/email/rules";
         const body: Record<string, unknown> = {};
         if (g.action !== undefined) body.action = g.action;
@@ -313,6 +326,24 @@ export const model = {
         if (g.description !== undefined) body.description = g.description;
         if (g.enabled !== undefined) body.enabled = g.enabled;
         if (g.name !== undefined) body.name = g.name;
+        const unset = ["action", "conditions", "enabled", "name"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["action", "conditions", "enabled", "name"]
+          .filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

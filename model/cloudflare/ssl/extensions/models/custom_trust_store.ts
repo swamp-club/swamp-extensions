@@ -41,7 +41,7 @@ const GlobalArgsSchema = z.object({
   ),
   certificate: z.string().describe(
     "The root CA certificate in PEM format. Only root CA certificates are accepted; intermediate and leaf certificates are not supported.",
-  ),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -78,7 +78,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Custom Trust Store. Registered at `@swamp/cloudflare/ssl/custom-trust-store`. */
 export const model = {
   type: "@swamp/cloudflare/ssl/custom-trust-store",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -100,6 +100,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -117,6 +122,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["certificate"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/zones/" + g.zone_id + "/acm/custom_trust_store";
         const body: Record<string, unknown> = {};
         if (g.certificate !== undefined) body.certificate = g.certificate;

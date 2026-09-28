@@ -43,18 +43,30 @@ import {
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  comments: z.string().optional(),
+  comments: z.string().describe("Optional note describing the entry.")
+    .optional(),
   created_at: z.string().optional(),
-  directory_id: z.number().int().optional(),
-  directory_node_id: z.number().int().optional(),
-  email: z.string().optional(),
-  external_directory_node_id: z.string().optional(),
+  directory_id: z.number().int().describe(
+    "Identifier of the directory the entry was synced from, when directory-synced.",
+  ).optional(),
+  directory_node_id: z.number().int().describe(
+    "Identifier of the directory node the entry was synced from, when directory-synced.",
+  ).optional(),
+  email: z.string().describe(
+    "Email address (or pattern) of the protected identity.",
+  ).optional(),
+  external_directory_node_id: z.string().describe(
+    "Deprecated. External identifier of the directory node.",
+  ).optional(),
   id: z.string().describe("Impersonation registry entry identifier.")
     .optional(),
-  is_email_regex: z.boolean().optional(),
+  is_email_regex: z.boolean().describe(
+    "Whether `email` is a regular expression instead of a literal address.",
+  ).optional(),
   last_modified: z.string().optional(),
   modified_at: z.string().optional(),
-  name: z.string().max(1024).optional(),
+  name: z.string().max(1024).describe("Display name of the protected identity.")
+    .optional(),
   provenance: z.string().optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -98,7 +110,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Impersonation Registry. Registered at `@swamp/cloudflare/email-security/impersonation-registry`. */
 export const model = {
   type: "@swamp/cloudflare/email-security/impersonation-registry",
-  version: "2026.09.22.1",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -137,6 +149,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.22.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

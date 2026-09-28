@@ -50,8 +50,8 @@ const GlobalArgsSchema = z.object({
     .optional(),
   network: z.string().describe(
     "The private IPv4 or IPv6 range connected by the route, in CIDR notation.",
-  ),
-  tunnel_id: z.string().max(36).describe("UUID of the tunnel."),
+  ).optional(),
+  tunnel_id: z.string().max(36).describe("UUID of the tunnel.").optional(),
   virtual_network_id: z.string().describe("UUID of the virtual network.")
     .optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
@@ -92,7 +92,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Routes. Registered at `@swamp/cloudflare/teamnet/routes`. */
 export const model = {
   type: "@swamp/cloudflare/teamnet/routes",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -114,6 +114,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -131,6 +136,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["network", "tunnel_id"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/teamnet/routes";
         const body: Record<string, unknown> = {};
         if (g.comment !== undefined) body.comment = g.comment;

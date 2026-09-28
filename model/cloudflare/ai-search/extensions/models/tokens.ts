@@ -43,10 +43,10 @@ import {
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  cf_api_id: z.string(),
-  cf_api_key: z.string(),
+  cf_api_id: z.string().optional(),
+  cf_api_key: z.string().optional(),
   legacy: z.boolean().optional(),
-  name: z.string(),
+  name: z.string().optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -86,7 +86,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Tokens. Registered at `@swamp/cloudflare/ai-search/tokens`. */
 export const model = {
   type: "@swamp/cloudflare/ai-search/tokens",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -108,6 +108,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -125,6 +130,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["cf_api_id", "cf_api_key", "name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/ai-search/tokens";
         const body: Record<string, unknown> = {};
         if (g.cf_api_id !== undefined) body.cf_api_id = g.cf_api_id;
@@ -288,6 +301,25 @@ export const model = {
         if (g.cf_api_key !== undefined) body.cf_api_key = g.cf_api_key;
         if (g.legacy !== undefined) body.legacy = g.legacy;
         if (g.name !== undefined) body.name = g.name;
+        const unset = ["cf_api_id", "cf_api_key", "name"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["cf_api_id", "cf_api_key", "name"].filter((
+          k,
+        ) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

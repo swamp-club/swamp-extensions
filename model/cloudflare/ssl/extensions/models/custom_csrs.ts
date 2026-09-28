@@ -43,22 +43,23 @@ const GlobalArgsSchema = z.object({
   ),
   common_name: z.string().max(64).describe(
     "The common name (domain) for the CSR. Must be at most 64 characters.",
-  ),
-  country: z.string().describe("Two-letter ISO 3166-1 alpha-2 country code."),
+  ).optional(),
+  country: z.string().describe("Two-letter ISO 3166-1 alpha-2 country code.")
+    .optional(),
   description: z.string().describe("Optional description for the CSR.")
     .optional(),
   key_type: z.enum(["rsa2048", "p256v1"]).describe(
     "Key algorithm to use for the CSR. Defaults to rsa2048 if not specified.",
   ).optional(),
-  locality: z.string().describe("City or locality name."),
+  locality: z.string().describe("City or locality name.").optional(),
   name: z.string().describe("Human-readable name for the CSR.").optional(),
-  organization: z.string().describe("Organization name."),
+  organization: z.string().describe("Organization name.").optional(),
   organizational_unit: z.string().describe("Organizational unit name.")
     .optional(),
   sans: z.array(z.string().max(256)).describe(
     "Subject Alternative Names for the CSR. At least one SAN is required.",
-  ),
-  state: z.string().describe("State or province name."),
+  ).optional(),
+  state: z.string().describe("State or province name.").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -110,7 +111,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Custom Csrs. Registered at `@swamp/cloudflare/ssl/custom-csrs`. */
 export const model = {
   type: "@swamp/cloudflare/ssl/custom-csrs",
-  version: "2026.07.24.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -137,6 +138,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -154,6 +160,19 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "common_name",
+          "country",
+          "locality",
+          "organization",
+          "sans",
+          "state",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         if ((g.account_id == null) === (g.zone_id == null)) {
           throw new Error(
             "Exactly one of account_id or zone_id must be provided",

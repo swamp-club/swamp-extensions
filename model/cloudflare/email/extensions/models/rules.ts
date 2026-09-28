@@ -46,13 +46,13 @@ const GlobalArgsSchema = z.object({
   actions: z.array(z.object({
     type: z.enum(["drop", "forward", "worker"]),
     value: z.array(z.string().max(90)).optional(),
-  })).describe("List actions patterns."),
+  })).describe("List actions patterns.").optional(),
   enabled: z.boolean().describe("Routing rule status.").optional(),
   matchers: z.array(z.object({
     field: z.enum(["to"]).optional(),
     type: z.enum(["all", "literal"]),
     value: z.string().max(90).optional(),
-  })).describe("Matching patterns to forward to your actions."),
+  })).describe("Matching patterns to forward to your actions.").optional(),
   name: z.string().max(256).describe("Routing rule name.").optional(),
   owner_worker_tag: z.string().max(32).describe(
     "Public tag (script_tag) of the Worker that owns this rule. Required when\n`source` is `wrangler`.\n",
@@ -117,7 +117,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Rules. Registered at `@swamp/cloudflare/email/rules`. */
 export const model = {
   type: "@swamp/cloudflare/email/rules",
-  version: "2026.08.25.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -149,6 +149,11 @@ export const model = {
       description: "Added: owner_worker_tag, source",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -166,6 +171,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["actions", "matchers"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/zones/" + g.zone_id + "/email/routing/rules";
         const body: Record<string, unknown> = {};
         if (g.actions !== undefined) body.actions = g.actions;
@@ -342,6 +355,25 @@ export const model = {
         }
         if (g.priority !== undefined) body.priority = g.priority;
         if (g.source !== undefined) body.source = g.source;
+        const unset = ["actions", "matchers"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["actions", "matchers"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

@@ -42,7 +42,7 @@ const GlobalArgsSchema = z.object({
   repo_hosts: z.record(z.string(), z.unknown()).describe(
     "Explicit hostname scopes. Every hostname must be authorized for its repository before review admission; rejected scopes return 422 and do not persist a scan request.",
   ).optional(),
-  repos: z.array(z.string()),
+  repos: z.array(z.string()).optional(),
   telemetry_window: z.object({
     end: z.string(),
     start: z.string(),
@@ -100,7 +100,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Scans. Registered at `@swamp/cloudflare/managed-defense/scans`. */
 export const model = {
   type: "@swamp/cloudflare/managed-defense/scans",
-  version: "2026.09.23.1",
+  version: "2026.09.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -117,6 +124,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["repos"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/managed-defense/vulnerability-discovery/scans";
         const body: Record<string, unknown> = {};

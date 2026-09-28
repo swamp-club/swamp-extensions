@@ -131,7 +131,7 @@ const GlobalArgsSchema = z.object({
       .optional(),
   })).describe("The conditions that the client must match to run the rule.")
     .optional(),
-  name: z.string().describe("The name of the device posture rule."),
+  name: z.string().describe("The name of the device posture rule.").optional(),
   schedule: z.string().describe(
     "Polling frequency for the WARP client posture check. Default: `5m` (poll every five minutes). Minimum: `1m`.",
   ).optional(),
@@ -159,7 +159,7 @@ const GlobalArgsSchema = z.object({
     "workspace_one",
     "sentinelone_s2s",
     "custom_s2s",
-  ]).describe("The type of device posture rule."),
+  ]).describe("The type of device posture rule.").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -354,7 +354,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Posture. Registered at `@swamp/cloudflare/devices/posture`. */
 export const model = {
   type: "@swamp/cloudflare/devices/posture",
-  version: "2026.08.25.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -396,6 +396,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -413,6 +418,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name", "type"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/devices/posture";
         const body: Record<string, unknown> = {};
         if (g.description !== undefined) body.description = g.description;
@@ -585,6 +596,23 @@ export const model = {
         if (g.name !== undefined) body.name = g.name;
         if (g.schedule !== undefined) body.schedule = g.schedule;
         if (g.type !== undefined) body.type = g.type;
+        const unset = ["name", "type"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["name", "type"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

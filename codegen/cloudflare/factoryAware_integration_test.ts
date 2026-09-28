@@ -21,8 +21,18 @@ function createMockCfServer(): {
   port: number;
   close: () => Promise<void>;
   records: Map<string, MockRecord>;
+  readonly requestCount: number;
+  readonly lastWrite: { method: string; body: Record<string, unknown> } | null;
+  readonly requests: string[];
 } {
   const records = new Map<string, MockRecord>();
+  const state = {
+    requests: [] as string[],
+    requestCount: 0,
+    lastWrite: null as
+      | { method: string; body: Record<string, unknown> }
+      | null,
+  };
 
   function cfOk(result: unknown): Response {
     return Response.json({
@@ -71,6 +81,8 @@ function createMockCfServer(): {
       const url = new URL(req.url);
       const path = url.pathname;
       const method = req.method;
+      state.requestCount++;
+      state.requests.push(`${method} ${path}`);
 
       const authHeader = req.headers.get("Authorization");
       if (!authHeader?.startsWith("Bearer ")) {
@@ -110,11 +122,15 @@ function createMockCfServer(): {
           return cfOk(record);
         }
 
-        if (method === "PATCH") {
+        if (method === "PATCH" || method === "PUT") {
           const body = await req.json() as Record<string, unknown>;
+          state.lastWrite = { method, body };
           const record = records.get(resourceId);
           if (!record) return cfError(404, 81044, "Record not found");
-          const updated: MockRecord = { ...record, ...body, id: resourceId };
+          // PUT replaces the record; PATCH merges into it.
+          const updated: MockRecord = method === "PUT"
+            ? { ...body, id: resourceId }
+            : { ...record, ...body, id: resourceId };
           records.set(resourceId, updated);
           return cfOk(updated);
         }
@@ -136,6 +152,15 @@ function createMockCfServer(): {
     port: addr.port,
     close: () => server.shutdown(),
     records,
+    get requestCount() {
+      return state.requestCount;
+    },
+    get lastWrite() {
+      return state.lastWrite;
+    },
+    get requests() {
+      return state.requests;
+    },
   };
 }
 
@@ -143,8 +168,14 @@ function createMockCfServer(): {
 // Generate and import model + lib
 // ---------------------------------------------------------------------------
 
-async function importGeneratedModel(_mockPort: number): Promise<{
+async function importGeneratedModel(
+  _mockPort: number,
+  opts: { putUpdate?: boolean } = {},
+): Promise<{
   model: {
+    globalArguments: {
+      safeParse: (input: unknown) => { success: boolean };
+    };
     methods: Record<
       string,
       {
@@ -179,7 +210,7 @@ async function importGeneratedModel(_mockPort: number): Promise<{
     syntheticName: false,
     paginationStyle: "page",
     listEndpointSuffix: "",
-    updateMethod: "PATCH",
+    updateMethod: opts.putUpdate ? "PUT" : "PATCH",
     handlers: { create: true, read: true, update: true, delete: true },
     createProperties: {
       name: { type: "string", description: "Record name" },
@@ -199,7 +230,7 @@ async function importGeneratedModel(_mockPort: number): Promise<{
       content: { type: "string" },
       ttl: { type: "number" },
     },
-    requiredProperties: ["name", "type", "content"],
+    createRequiredProperties: ["name", "type", "content"],
     createOnlyProperties: new Set(["type"]),
   };
 
@@ -458,6 +489,166 @@ Deno.test({
         precArtifact.id,
         rec1Id,
         "g.name should take precedence over args.identifier",
+      );
+    } finally {
+      restoreFetch();
+      await modelCleanup();
+      await server.close();
+      restoreToken();
+    }
+  },
+});
+
+// Create-only required fields are optional in GlobalArgsSchema (so model
+// create and get/lookup/sync work with only the scope arg) and enforced by the
+// generated create method. sanitizeResources: false for the same reason as the
+// test above.
+Deno.test({
+  name:
+    "create-required fields: optional in GlobalArgsSchema, enforced by create",
+  sanitizeResources: false,
+  async fn() {
+    const restoreToken = withTestToken();
+    const server = createMockCfServer();
+    const { restore: restoreFetch } = redirectFetchToMock(server.port);
+    const { model, cleanup: modelCleanup } = await importGeneratedModel(
+      server.port,
+    );
+
+    try {
+      assertEquals(
+        model.globalArguments.safeParse({ zone_id: "test-zone-id" }).success,
+        true,
+        "GlobalArgsSchema should accept input without create-only fields",
+      );
+      assertEquals(
+        model.globalArguments.safeParse({ name: "www.example.com" }).success,
+        false,
+        "zone_id is the scope arg and must stay required",
+      );
+
+      const recId = "aaaa1111bbbb2222cccc3333dddd4444";
+      server.records.set(recId, {
+        id: recId,
+        name: "www.example.com",
+        type: "A",
+        content: "1.2.3.4",
+      });
+      const { context: getCtx, artifacts } = createMockContext({
+        zone_id: "test-zone-id",
+      });
+      await model.methods.get.execute({ id: recId }, getCtx);
+      assertEquals(artifacts.size, 1, "get should run with only zone_id");
+
+      const { context: createCtx } = createMockContext({
+        zone_id: "test-zone-id",
+        name: "new.example.com",
+      });
+      const before = server.requestCount;
+      await assertRejects(
+        () => model.methods.create.execute({}, createCtx),
+        Error,
+        "create requires global arguments: content, type",
+      );
+      assertEquals(
+        server.requestCount,
+        before,
+        "create must fail before any API call",
+      );
+    } finally {
+      restoreFetch();
+      await modelCleanup();
+      await server.close();
+      restoreToken();
+    }
+  },
+});
+
+// A full-replacement PUT update must still send create-required fields. When
+// globalArgs leave one unset it is filled from the live resource, not stored
+// state, so changes made outside swamp since the last get/sync are kept.
+// sanitizeResources: false for the same reason as the tests above.
+Deno.test({
+  name:
+    "create-required fields: PUT update fills unset ones from the live resource",
+  sanitizeResources: false,
+  async fn() {
+    const restoreToken = withTestToken();
+    const server = createMockCfServer();
+    const { restore: restoreFetch } = redirectFetchToMock(server.port);
+    const { model, cleanup: modelCleanup } = await importGeneratedModel(
+      server.port,
+      { putUpdate: true },
+    );
+
+    const recId = "aaaa1111bbbb2222cccc3333dddd4444";
+    const itemPath = `/client/v4/zones/test-zone-id/dns_records/${recId}`;
+
+    try {
+      // Stored state is stale: the record was renamed and repointed outside
+      // swamp after the last get/sync.
+      server.records.set(recId, {
+        id: recId,
+        name: "renamed.example.com",
+        type: "A",
+        content: "9.9.9.9",
+        ttl: 300,
+      });
+      const { context, artifacts } = createMockContext({
+        zone_id: "test-zone-id",
+        ttl: 600,
+      });
+      context.writeResource("state", "www.example.com", {
+        id: recId,
+        name: "www.example.com",
+        type: "A",
+        content: "1.2.3.4",
+        ttl: 300,
+      });
+
+      await model.methods.update.execute(
+        { identifier: "www.example.com" },
+        context,
+      );
+      assertEquals(server.lastWrite?.method, "PUT");
+      assertEquals(
+        server.lastWrite?.body,
+        { name: "renamed.example.com", content: "9.9.9.9", ttl: 600 },
+        "unset create-required fields come from the live resource, not stale state",
+      );
+      assertEquals(artifacts.size, 1);
+
+      // Every create-required field set in globalArgs: no extra GET.
+      const { context: fullCtx } = createMockContext({
+        zone_id: "test-zone-id",
+        name: "www.example.com",
+        content: "1.2.3.4",
+      });
+      fullCtx.writeResource("state", "www.example.com", { id: recId });
+      const before = server.requests.length;
+      await model.methods.update.execute({}, fullCtx);
+      assertEquals(
+        server.requests.slice(before).filter((r) => r === `GET ${itemPath}`),
+        [],
+        "no live read when globalArgs supply every create-required field",
+      );
+
+      // Live resource lacks a create-required field: reject before the PUT.
+      server.records.set(recId, { id: recId, name: "renamed.example.com" });
+      const { context: gapCtx } = createMockContext({
+        zone_id: "test-zone-id",
+      });
+      gapCtx.writeResource("state", "current", { id: recId });
+      const beforeGap = server.requests.length;
+      await assertRejects(
+        () => model.methods.update.execute({}, gapCtx),
+        Error,
+        "update requires global arguments: content",
+      );
+      assertEquals(
+        server.requests.slice(beforeGap).some((r) => r.startsWith("PUT ")),
+        false,
+        "update must fail before the PUT",
       );
     } finally {
       restoreFetch();

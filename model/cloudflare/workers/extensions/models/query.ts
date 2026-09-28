@@ -150,13 +150,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   queryId: z.string().describe(
     "Identifier for the query. When parameters are omitted, this ID is used to load a previously saved query's parameters. When providing parameters inline, pass any identifier (e.g. an ad-hoc ID).",
-  ),
+  ).optional(),
   timeframe: z.object({
     from: z.number().int().min(0).max(253402300799999),
     to: z.number().int().min(0).max(253402300799999),
   }).describe(
     "Timeframe for the query using Unix timestamps in milliseconds. 'from' must be earlier than 'to'. Narrower timeframes produce faster responses and more specific results.",
-  ),
+  ).optional(),
   view: z.enum([
     "traces",
     "events",
@@ -557,7 +557,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Query. Registered at `@swamp/cloudflare/workers/query`. */
 export const model = {
   type: "@swamp/cloudflare/workers/query",
-  version: "2026.08.26.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -604,6 +604,11 @@ export const model = {
       description: "Added: distributionScale",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -621,6 +626,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["queryId", "timeframe"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/workers/observability/shared/query";
         const body: Record<string, unknown> = {};

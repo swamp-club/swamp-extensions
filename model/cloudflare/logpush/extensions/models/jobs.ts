@@ -50,7 +50,7 @@ const GlobalArgsSchema = z.object({
   ),
   destination_conf: z.string().max(4096).describe(
     "Uniquely identifies a resource (such as an s3 bucket) where data. will be pushed. Additional configuration parameters supported by the destination may be included.",
-  ),
+  ).optional(),
   enabled: z.boolean().describe("Flag that indicates if the job is enabled.")
     .optional(),
   filter: z.string().describe(
@@ -273,7 +273,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Jobs. Registered at `@swamp/cloudflare/logpush/jobs`. */
 export const model = {
   type: "@swamp/cloudflare/logpush/jobs",
-  version: "2026.09.09.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -330,6 +330,11 @@ export const model = {
       description: "Added: filter_attack_traffic",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -347,6 +352,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["destination_conf"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         if ((g.account_id == null) === (g.zone_id == null)) {
           throw new Error(
             "Exactly one of account_id or zone_id must be provided",
@@ -631,6 +642,23 @@ export const model = {
         }
         if (g.ownership_challenge !== undefined) {
           body.ownership_challenge = g.ownership_challenge;
+        }
+        const unset = ["destination_conf"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["destination_conf"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,

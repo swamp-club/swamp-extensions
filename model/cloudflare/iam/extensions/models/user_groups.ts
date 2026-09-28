@@ -43,7 +43,7 @@ import {
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  name: z.string().describe("Name of the User group."),
+  name: z.string().describe("Name of the User group.").optional(),
   policies: z.array(z.string()).describe("Policies attached to the User group")
     .optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
@@ -79,7 +79,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare User Groups. Registered at `@swamp/cloudflare/iam/user-groups`. */
 export const model = {
   type: "@swamp/cloudflare/iam/user-groups",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -101,6 +101,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -118,6 +123,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/iam/user_groups";
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
@@ -275,6 +286,21 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
         if (g.policies !== undefined) body.policies = g.policies;
+        const unset = ["name"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["name"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

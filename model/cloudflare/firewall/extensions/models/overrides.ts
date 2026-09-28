@@ -66,7 +66,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   urls: z.array(z.string()).describe(
     "The URLs to include in the current WAF override. You can use wildcards. Each entered URL will be escaped before use, which means you can only use simple wildcard patterns.",
-  ),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -110,7 +110,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Overrides. Registered at `@swamp/cloudflare/firewall/overrides`. */
 export const model = {
   type: "@swamp/cloudflare/firewall/overrides",
-  version: "2026.09.22.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -137,6 +137,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -154,6 +159,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["urls"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/zones/" + g.zone_id + "/firewall/waf/overrides";
         const body: Record<string, unknown> = {};
         if (g.urls !== undefined) body.urls = g.urls;
@@ -312,6 +323,21 @@ export const model = {
         }
         if (g.rules !== undefined) body.rules = g.rules;
         if (g.urls !== undefined) body.urls = g.urls;
+        const unset = ["urls"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["urls"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

@@ -57,9 +57,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   category_id: z.number().int().min(1).max(4294967295).describe(
     "Returns the category ID.",
-  ),
-  human_id: z.string().describe("Returns the human readable ID."),
-  name: z.string().describe("Returns the application name."),
+  ).optional(),
+  human_id: z.string().describe("Returns the human readable ID.").optional(),
+  name: z.string().describe("Returns the application name.").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -111,10 +111,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Applications. Registered at `@swamp/cloudflare/resource-library/applications`. */
 export const model = {
   type: "@swamp/cloudflare/resource-library/applications",
-  version: "2026.09.24.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.09.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -135,6 +140,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["category_id", "human_id", "name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/resource-library/applications";
         const body: Record<string, unknown> = {};

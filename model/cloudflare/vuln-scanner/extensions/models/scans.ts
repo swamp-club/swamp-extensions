@@ -44,12 +44,13 @@ const GlobalArgsSchema = z.object({
     owner: z.string(),
   }).describe(
     "Credential set references for a BOLA scan. The scanner uses the\n`owner` credentials for legitimate requests and the `attacker`\ncredentials to attempt unauthorized access.\n",
-  ),
+  ).optional(),
   open_api: z.string().describe(
     "OpenAPI schema definition for the API under test. The scanner\nuses this to discover endpoints and construct requests.\n",
-  ),
-  scan_type: z.enum(["bola"]),
-  target_environment_id: z.string().describe("The target environment to scan."),
+  ).optional(),
+  scan_type: z.enum(["bola"]).optional(),
+  target_environment_id: z.string().describe("The target environment to scan.")
+    .optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -135,7 +136,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Scans. Registered at `@swamp/cloudflare/vuln-scanner/scans`. */
 export const model = {
   type: "@swamp/cloudflare/vuln-scanner/scans",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -157,6 +158,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -174,6 +180,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "credential_sets",
+          "open_api",
+          "scan_type",
+          "target_environment_id",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/vuln_scanner/scans";
         const body: Record<string, unknown> = {};
         if (g.credential_sets !== undefined) {

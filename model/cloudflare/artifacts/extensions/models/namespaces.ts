@@ -40,7 +40,8 @@ const GlobalArgsSchema = z.object({
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
   jurisdiction: z.enum(["unrestricted", "us", "eu", "fedramp"]).optional(),
-  namespace: z.string().regex(new RegExp("^[a-zA-Z0-9][a-zA-Z0-9._-]*$")),
+  namespace: z.string().regex(new RegExp("^[a-zA-Z0-9][a-zA-Z0-9._-]*$"))
+    .optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -77,7 +78,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Namespaces. Registered at `@swamp/cloudflare/artifacts/namespaces`. */
 export const model = {
   type: "@swamp/cloudflare/artifacts/namespaces",
-  version: "2026.09.12.1",
+  version: "2026.09.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -94,6 +102,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["namespace"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/artifacts/namespaces";
         const body: Record<string, unknown> = {};
         if (g.jurisdiction !== undefined) body.jurisdiction = g.jurisdiction;

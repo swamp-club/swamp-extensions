@@ -99,7 +99,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   name: z.string().describe(
     "A short name (tag) for the pool. Only alphanumeric characters, hyphens, and underscores are allowed.",
-  ),
+  ).optional(),
   notification_email: z.string().describe(
     "This field is now deprecated. It has been moved to Cloudflare's Centralized Notification service https://developers.cloudflare.com/fundamentals/notifications/. The email address to send health status notifications to. This can be an individual mailbox or a mailing list. Multiple emails can be supplied as a comma delimited list.",
   ).optional(),
@@ -139,7 +139,7 @@ const GlobalArgsSchema = z.object({
     weight: z.number().min(0).max(1).optional(),
   })).describe(
     "The list of origins within this pool. Traffic directed at this pool is balanced across all currently healthy origins, provided the pool itself is healthy.",
-  ),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -281,7 +281,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Pools. Registered at `@swamp/cloudflare/load-balancing/pools`. */
 export const model = {
   type: "@swamp/cloudflare/load-balancing/pools",
-  version: "2026.08.26.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -318,6 +318,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -335,6 +340,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name", "origins"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/load_balancers/pools";
         const body: Record<string, unknown> = {};
         if (g.description !== undefined) body.description = g.description;

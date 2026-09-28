@@ -51,12 +51,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   match: z.string().max(10000).describe(
     'The wirefilter expression to match registrations. Available values: "identity.name", "identity.email", "identity.groups.id", "identity.groups.name", "identity.groups.email", "identity.saml_attributes".',
-  ),
-  name: z.string().describe("A user-friendly name for the Device IP profile."),
+  ).optional(),
+  name: z.string().describe("A user-friendly name for the Device IP profile.")
+    .optional(),
   precedence: z.number().int().describe(
     "The precedence of the Device IP profile. Lower values indicate higher precedence. Device IP profile will be evaluated in ascending order of this field.",
-  ),
-  subnet_id: z.string().describe("The ID of the Subnet."),
+  ).optional(),
+  subnet_id: z.string().describe("The ID of the Subnet.").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -98,7 +99,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Ip-profiles. Registered at `@swamp/cloudflare/devices/ip-profiles`. */
 export const model = {
   type: "@swamp/cloudflare/devices/ip-profiles",
-  version: "2026.08.25.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -130,6 +131,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -147,6 +153,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["match", "name", "precedence", "subnet_id"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/devices/ip-profiles";
         const body: Record<string, unknown> = {};
         if (g.description !== undefined) body.description = g.description;

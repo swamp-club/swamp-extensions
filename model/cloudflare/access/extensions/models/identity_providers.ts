@@ -57,11 +57,11 @@ const GlobalArgsSchema = z.object({
     directory_id: z.string().optional(),
     prompt: z.enum(["login", "select_account", "none"]).optional(),
     support_groups: z.boolean().optional(),
-  }),
+  }).optional(),
   id: z.string().max(36).describe("UUID.").optional(),
   name: z.string().describe(
     "The name of the identity provider, shown to users on the login page.",
-  ),
+  ).optional(),
   read_only: z.boolean().describe(
     "Indicates that the identity provider is immutable and cannot be updated or deleted via the API.\n",
   ).optional(),
@@ -111,7 +111,7 @@ const GlobalArgsSchema = z.object({
     "cloudflare",
   ]).describe(
     "The type of identity provider. To determine the value for a specific provider, refer to our [developer documentation](https://developers.cloudflare.com/cloudflare-one/identity/idp-integration/).",
-  ),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -246,7 +246,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Identity Providers. Registered at `@swamp/cloudflare/access/identity-providers`. */
 export const model = {
   type: "@swamp/cloudflare/access/identity-providers",
-  version: "2026.08.25.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -283,6 +283,11 @@ export const model = {
       description: "Added: read_only",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -300,6 +305,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["config", "name", "type"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         if ((g.account_id == null) === (g.zone_id == null)) {
           throw new Error(
             "Exactly one of account_id or zone_id must be provided",
@@ -528,6 +541,25 @@ export const model = {
         }
         if (g.scim_config !== undefined) body.scim_config = g.scim_config;
         if (g.type !== undefined) body.type = g.type;
+        const unset = ["config", "name", "type"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["config", "name", "type"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

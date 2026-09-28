@@ -164,7 +164,7 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[a-z0-9_]+(?:-[a-z0-9_]+)*$"),
   ).describe(
     "AI Search instance ID. Lowercase alphanumeric, hyphens, and underscores.",
-  ),
+  ).optional(),
   type: z.enum(["r2", "web-crawler"]).describe(
     "Source type. When omitted or null with a non-blank source, HTTP(S) URLs infer web-crawler and existing R2 bucket names infer r2. A missing or blank source without a type uses managed upload-only storage.",
   ).optional(),
@@ -408,7 +408,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Instances. Registered at `@swamp/cloudflare/ai-search/instances`. */
 export const model = {
   type: "@swamp/cloudflare/ai-search/instances",
-  version: "2026.09.25.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -485,6 +485,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -502,6 +507,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["id"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/ai-search/instances";
         const body: Record<string, unknown> = {};
         if (g.ai_gateway_id !== undefined) body.ai_gateway_id = g.ai_gateway_id;

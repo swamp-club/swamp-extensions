@@ -46,10 +46,10 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  expression: z.string().describe("The filter expression."),
+  expression: z.string().describe("The filter expression.").optional(),
   mode: z.string().describe(
     "The filter's mode. Must be one of 'enabled', 'disabled', 'monitoring'.",
-  ),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -84,7 +84,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Filters. Registered at `@swamp/cloudflare/magic/filters-tcp_flow_protection`. */
 export const model = {
   type: "@swamp/cloudflare/magic/filters-tcp_flow_protection",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -106,6 +106,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -123,6 +128,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["expression", "mode"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/magic/advanced_tcp_protection/configs/tcp_flow_protection/filters";
         const body: Record<string, unknown> = {};

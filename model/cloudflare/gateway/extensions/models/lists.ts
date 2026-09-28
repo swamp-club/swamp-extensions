@@ -55,7 +55,7 @@ const GlobalArgsSchema = z.object({
     description: z.string().optional(),
     value: z.string().optional(),
   })).describe("Add items to the list.").optional(),
-  name: z.string().describe("Specify the list name."),
+  name: z.string().describe("Specify the list name.").optional(),
   type: z.enum([
     "SERIAL",
     "URL",
@@ -66,7 +66,7 @@ const GlobalArgsSchema = z.object({
     "LOCATION",
     "DEVICE",
     "AAGUID",
-  ]).describe("Specify the list type."),
+  ]).describe("Specify the list type.").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -127,7 +127,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Lists. Registered at `@swamp/cloudflare/gateway/lists`. */
 export const model = {
   type: "@swamp/cloudflare/gateway/lists",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -149,6 +149,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -166,6 +171,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name", "type"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/gateway/lists";
         const body: Record<string, unknown> = {};
         if (g.description !== undefined) body.description = g.description;

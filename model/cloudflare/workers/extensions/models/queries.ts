@@ -43,8 +43,8 @@ import {
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  description: z.string().max(1000),
-  name: z.string().min(1).max(250).describe("Query name"),
+  description: z.string().max(1000).optional(),
+  name: z.string().min(1).max(250).describe("Query name").optional(),
   parameters: z.object({
     calculations: z.array(z.object({
       alias: z.string().optional(),
@@ -152,7 +152,7 @@ const GlobalArgsSchema = z.object({
       order: z.enum(["asc", "desc"]).optional(),
       value: z.string(),
     }).optional(),
-  }),
+  }).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -335,7 +335,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Queries. Registered at `@swamp/cloudflare/workers/queries`. */
 export const model = {
   type: "@swamp/cloudflare/workers/queries",
-  version: "2026.08.25.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -377,6 +377,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -394,6 +399,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["description", "name", "parameters"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/workers/observability/queries";
         const body: Record<string, unknown> = {};

@@ -46,7 +46,7 @@ const GlobalArgsSchema = z.object({
   commit_message: z.string().max(1000).describe(
     "Human-readable justification for this change. Required for internal-account submissions; optional for customer accounts and automated sync.",
   ).optional(),
-  content: z.string().min(1),
+  content: z.string().min(1).optional(),
   description: z.string().max(1000).describe(
     "Human-readable description of the rule. Auto-extracted from YARA meta if present.",
   ).optional(),
@@ -64,11 +64,11 @@ const GlobalArgsSchema = z.object({
   })).describe(
     "Adds YARA meta entries to the rule's meta block and stores them in rule_meta alongside content metadata. Use valid YARA identifiers for keys; exclude 'name', 'enabled', and 'description'. You may repeat keys.",
   ).optional(),
-  name: z.string().min(1).max(255),
+  name: z.string().min(1).max(255).optional(),
   namespaces: z.array(z.string().min(1).max(255)).describe(
     "Optional WfP deployment tags (customer rules only). Internal rules leave empty.",
   ).optional(),
-  path: z.string().min(1),
+  path: z.string().min(1).optional(),
   actions: z.array(z.object({
     action_config: z.record(z.string(), z.unknown()),
     action_type: z.enum([
@@ -162,7 +162,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Rules. Registered at `@swamp/cloudflare/cloudforce-one/rules`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/rules",
-  version: "2026.08.27.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -209,6 +209,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -226,6 +231,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["content", "name", "path"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/cloudforce-one/rules";
         const body: Record<string, unknown> = {};
         if (g.actions !== undefined) body.actions = g.actions;
@@ -413,6 +426,25 @@ export const model = {
         if (g.name !== undefined) body.name = g.name;
         if (g.namespaces !== undefined) body.namespaces = g.namespaces;
         if (g.path !== undefined) body.path = g.path;
+        const unset = ["content", "name", "path"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["content", "name", "path"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

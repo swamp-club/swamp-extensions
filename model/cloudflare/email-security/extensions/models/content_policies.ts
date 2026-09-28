@@ -44,13 +44,21 @@ import {
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   created_at: z.string().optional(),
-  enabled: z.boolean().optional(),
+  enabled: z.boolean().describe("Whether the policy is active.").optional(),
   id: z.string().describe("Content policy identifier.").optional(),
   modified_at: z.string().optional(),
-  name: z.string().min(1).max(256).optional(),
-  notes: z.string().max(4096).optional(),
-  pattern: z.string().min(1).max(2048).optional(),
-  targets: z.array(z.enum(["SUBJECT", "BODY"])).optional(),
+  name: z.string().min(1).max(256).describe(
+    "Human-readable name of the policy.",
+  ).optional(),
+  notes: z.string().max(4096).describe(
+    "Optional note describing the purpose of the policy.",
+  ).optional(),
+  pattern: z.string().min(1).max(2048).describe(
+    "Regular expression the policy matches against.",
+  ).optional(),
+  targets: z.array(z.enum(["SUBJECT", "BODY"])).describe(
+    "Parts of the email the pattern is matched against.",
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -93,7 +101,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Content Policies. Registered at `@swamp/cloudflare/email-security/content-policies`. */
 export const model = {
   type: "@swamp/cloudflare/email-security/content-policies",
-  version: "2026.08.26.1",
+  version: "2026.09.28.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

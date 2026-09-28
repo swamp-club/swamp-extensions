@@ -36,7 +36,7 @@ import { create, listAll, read, remove, tryRead } from "./_lib/cloudflare.ts";
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  name: z.string().describe("The name of the store."),
+  name: z.string().describe("The name of the store.").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -69,7 +69,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Stores. Registered at `@swamp/cloudflare/secrets-store/stores`. */
 export const model = {
   type: "@swamp/cloudflare/secrets-store/stores",
-  version: "2026.08.25.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -106,6 +106,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -123,6 +128,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/secrets_store/stores";
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;

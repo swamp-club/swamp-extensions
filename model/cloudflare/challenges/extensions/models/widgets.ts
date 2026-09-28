@@ -54,16 +54,16 @@ const GlobalArgsSchema = z.object({
   ]).describe(
     "If Turnstile is embedded on a Cloudflare site and the widget should grant challenge clearance,\nthis setting can determine the clearance level to be set\n",
   ).optional(),
-  domains: z.array(z.string()),
+  domains: z.array(z.string()).optional(),
   ephemeral_id: z.boolean().describe(
     "Return the Ephemeral ID in /siteverify (ENT only).\n",
   ).optional(),
   mode: z.enum(["non-interactive", "invisible", "managed"]).describe(
     "Widget Mode",
-  ),
+  ).optional(),
   name: z.string().min(1).max(254).describe(
     "Human readable widget name. Not unique. Cloudflare suggests that you\nset this to a meaningful string to make it easier to identify your\nwidget, and where it is used.\n",
-  ),
+  ).optional(),
   offlabel: z.boolean().describe(
     "Do not show any Cloudflare branding on the widget (ENT only).\n",
   ).optional(),
@@ -124,7 +124,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Widgets. Registered at `@swamp/cloudflare/challenges/widgets`. */
 export const model = {
   type: "@swamp/cloudflare/challenges/widgets",
-  version: "2026.09.09.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -171,6 +171,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -188,6 +193,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["domains", "mode", "name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/challenges/widgets";
         const body: Record<string, unknown> = {};
         if (g.bot_fight_mode !== undefined) {
@@ -374,6 +387,25 @@ export const model = {
         if (g.name !== undefined) body.name = g.name;
         if (g.offlabel !== undefined) body.offlabel = g.offlabel;
         if (g.region !== undefined) body.region = g.region;
+        const unset = ["domains", "mode", "name"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["domains", "mode", "name"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

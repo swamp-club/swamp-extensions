@@ -63,7 +63,8 @@ const GlobalArgsSchema = z.object({
   policies: z.array(z.string()).describe(
     "Array of policies associated with this member.",
   ).optional(),
-  email: z.string().max(90).describe("The contact email address of the user."),
+  email: z.string().max(90).describe("The contact email address of the user.")
+    .optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -161,7 +162,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Members. Registered at `@swamp/cloudflare/members/members`. */
 export const model = {
   type: "@swamp/cloudflare/members/members",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -183,6 +184,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -200,6 +206,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["email"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/members";
         const body: Record<string, unknown> = {};
         if (g.email !== undefined) body.email = g.email;

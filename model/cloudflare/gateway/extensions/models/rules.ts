@@ -46,7 +46,7 @@ const GlobalArgsSchema = z.object({
   description: z.string().describe("Specify the rule description.").optional(),
   enabled: z.boolean().describe("Specify whether the rule is enabled.")
     .optional(),
-  name: z.string().describe("Specify the rule name."),
+  name: z.string().describe("Specify the rule name.").optional(),
   precedence: z.number().int().describe(
     "Set the order of your rules. Lower values indicate higher precedence. At each processing phase, evaluate applicable rules in ascending order of this value. Refer to [Order of enforcement](http://developers.cloudflare.com/learning-paths/secure-internet-traffic/understand-policies/order-of-enforcement/#manage-precedence-with-terraform) to manage precedence via Terraform.",
   ).optional(),
@@ -69,7 +69,7 @@ const GlobalArgsSchema = z.object({
     "redirect",
   ]).describe(
     "Specify the action to perform when the associated traffic, identity, and device posture expressions either absent or evaluate to `true`.",
-  ),
+  ).optional(),
   device_posture: z.string().describe(
     "Specify the wirefilter expression used for device posture check. The API automatically formats and sanitizes expressions before storing them. To prevent Terraform state drift, use the formatted expression returned in the API response.",
   ).optional(),
@@ -513,7 +513,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Rules. Registered at `@swamp/cloudflare/gateway/rules`. */
 export const model = {
   type: "@swamp/cloudflare/gateway/rules",
-  version: "2026.08.25.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -550,6 +550,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -567,6 +572,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["action", "name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/gateway/rules";
         const body: Record<string, unknown> = {};
         if (g.action !== undefined) body.action = g.action;

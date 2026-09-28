@@ -43,15 +43,16 @@ import {
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  created_on: z.string().describe("When the Worker was created."),
+  created_on: z.string().describe("When the Worker was created.").optional(),
   deployed_on: z.string().describe(
     "When the Worker's most recent deployment was created. `null` if the Worker has never been deployed.",
   ).optional(),
-  id: z.string().describe("Immutable ID of the Worker."),
-  logpush: z.boolean().describe("Whether logpush is enabled for the Worker."),
+  id: z.string().describe("Immutable ID of the Worker.").optional(),
+  logpush: z.boolean().describe("Whether logpush is enabled for the Worker.")
+    .optional(),
   name: z.string().regex(new RegExp("^[a-z0-9_][a-z0-9-_]*$")).describe(
     "Name of the Worker.",
-  ),
+  ).optional(),
   observability: z.object({
     enabled: z.boolean().optional(),
     head_sampling_rate: z.number().optional(),
@@ -73,7 +74,7 @@ const GlobalArgsSchema = z.object({
       persist: z.boolean().optional(),
       propagation_policy: z.enum(["authenticated", "accept"]).optional(),
     }).optional(),
-  }).describe("Observability settings for the Worker."),
+  }).describe("Observability settings for the Worker.").optional(),
   previews_base_config: z.object({
     cache_options: z.object({
       cross_version_cache: z.boolean().optional(),
@@ -143,20 +144,22 @@ const GlobalArgsSchema = z.object({
     })),
   }).describe(
     "Other resources that reference the Worker and depend on it existing.",
-  ),
+  ).optional(),
   subdomain: z.object({
     enabled: z.boolean().optional(),
     preview_url_suffix: z.string().optional(),
     previews_enabled: z.boolean().optional(),
     url: z.string().optional(),
-  }).describe("Subdomain settings for the Worker."),
+  }).describe("Subdomain settings for the Worker.").optional(),
   tags: z.array(z.string().max(1024).regex(new RegExp("^[^,&]*$"))).describe(
     "Tags associated with the Worker.",
-  ),
+  ).optional(),
   tail_consumers: z.array(z.object({
     name: z.string(),
-  })).describe("Other Workers that should consume logs from the Worker."),
-  updated_on: z.string().describe("When the Worker was most recently updated."),
+  })).describe("Other Workers that should consume logs from the Worker.")
+    .optional(),
+  updated_on: z.string().describe("When the Worker was most recently updated.")
+    .optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -395,7 +398,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Workers. Registered at `@swamp/cloudflare/workers/workers`. */
 export const model = {
   type: "@swamp/cloudflare/workers/workers",
-  version: "2026.09.22.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -447,6 +450,11 @@ export const model = {
       description: "Added: previews_base_config",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -464,6 +472,23 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "created_on",
+          "id",
+          "logpush",
+          "name",
+          "observability",
+          "references",
+          "subdomain",
+          "tags",
+          "tail_consumers",
+          "updated_on",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/workers/workers";
         const body: Record<string, unknown> = {};
         if (g.created_on !== undefined) body.created_on = g.created_on;

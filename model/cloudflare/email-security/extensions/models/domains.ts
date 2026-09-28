@@ -48,7 +48,7 @@ const GlobalArgsSchema = z.object({
   ),
   allowed_delivery_modes: z.array(
     z.enum(["DIRECT", "BCC", "JOURNAL", "API", "RETRO_SCAN"]),
-  ),
+  ).describe("Delivery modes to onboard the domain through.").optional(),
   drop_dispositions: z.array(
     z.enum([
       "MALICIOUS",
@@ -62,16 +62,34 @@ const GlobalArgsSchema = z.object({
       "UNKNOWN",
       "NONE",
     ]),
-  ),
-  folder: z.string().optional(),
-  integration_id: z.string().optional(),
-  ip_restrictions: z.array(z.string()),
-  lookback_hops: z.number().int().min(1).max(20).optional(),
-  regions: z.array(z.enum(["GLOBAL", "AU", "DE", "IN", "US"])),
-  require_tls_inbound: z.boolean().optional(),
-  require_tls_outbound: z.boolean().optional(),
-  transport: z.string().optional(),
-  domain: z.string(),
+  ).describe(
+    'Dispositions to drop instead of delivering, e.g. `["MALICIOUS", "SPAM"]`.',
+  ).optional(),
+  folder: z.string().describe(
+    "The mailbox folder to scan, for API-scanning domains.",
+  ).optional(),
+  integration_id: z.string().describe(
+    "Identifier of the CASB integration that authorizes this domain. The integration also enables API scanning, post-delivery actions, and directory sync.",
+  ).optional(),
+  ip_restrictions: z.array(z.string()).describe(
+    "Source IP ranges mail is accepted from. Any other source is rejected.",
+  ).optional(),
+  lookback_hops: z.number().int().min(1).max(20).describe(
+    "Number of hops to trace back through received headers when reconstructing the original message (1-20).",
+  ).optional(),
+  regions: z.array(z.enum(["GLOBAL", "AU", "DE", "IN", "US"])).describe(
+    'Regions that process messages for this domain, e.g. `["GLOBAL"]` or `["US"]`.',
+  ).optional(),
+  require_tls_inbound: z.boolean().describe(
+    "Require TLS on inbound connections.",
+  ).optional(),
+  require_tls_outbound: z.boolean().describe(
+    "Require TLS on outbound connections.",
+  ).optional(),
+  transport: z.string().describe(
+    "The mail transport hostname for MX/Inline delivery — the MX record Cloudflare delivers email to (e.g. `mx.example.com`).",
+  ).optional(),
+  domain: z.string().describe("The email domain to protect.").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -155,7 +173,19 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Domains. Registered at `@swamp/cloudflare/email-security/domains`. */
 export const model = {
   type: "@swamp/cloudflare/email-security/domains",
-  version: "2026.08.25.1",
+  version: "2026.09.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -172,6 +202,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "allowed_delivery_modes",
+          "domain",
+          "drop_dispositions",
+          "ip_restrictions",
+          "regions",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/email-security/settings/domains";
         const body: Record<string, unknown> = {};

@@ -45,19 +45,18 @@ const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   name: z.string().min(1).max(128).describe(
     "A human-readable name for the source.",
-  ),
+  ).optional(),
   account: z.string().describe(
     "Account identifier for the bucket (required for R2 vendor).",
   ).optional(),
-  bucket: z.string().min(1).max(128).describe(
-    "The name of the storage bucket.",
-  ),
+  bucket: z.string().min(1).max(128).describe("The name of the storage bucket.")
+    .optional(),
   secret: z.record(z.string(), z.unknown()).describe(
     "Storage credentials for accessing the bucket. Shape depends on vendor.",
-  ),
+  ).optional(),
   vendor: z.enum(["s3", "r2"]).describe(
     "The cloud storage vendor of the source bucket.",
-  ),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -96,7 +95,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Sources. Registered at `@swamp/cloudflare/images/sources`. */
 export const model = {
   type: "@swamp/cloudflare/images/sources",
-  version: "2026.08.25.1",
+  version: "2026.09.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -113,6 +119,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["bucket", "name", "secret", "vendor"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/images/v2/sourcingkit/sources";
         const body: Record<string, unknown> = {};

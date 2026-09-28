@@ -49,13 +49,14 @@ const GlobalArgsSchema = z.object({
   allowed_cors_origins: z.array(z.string()).describe(
     "Array of allowed CORS origins.",
   ).optional(),
-  client_name: z.string().describe("Human-readable name of the OAuth client."),
+  client_name: z.string().describe("Human-readable name of the OAuth client.")
+    .optional(),
   client_uri: z.string().describe("URL of the home page of the client.")
     .optional(),
   grant_types: z.array(z.enum(["authorization_code", "refresh_token"]))
     .describe(
       "Array of OAuth grant types the client is allowed to use. `authorization_code` is required; `refresh_token` may be included optionally.",
-    ),
+    ).optional(),
   logo_uri: z.string().describe("URL of the client's logo.").optional(),
   optional_scopes: z.array(z.string()).describe(
     "Scopes that the authorizing user may decline during consent. Each value must also appear in `scopes`. The scopes `openid`, `offline`, and `offline_access` cannot be optional.",
@@ -68,20 +69,20 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   redirect_uris: z.array(z.string()).describe(
     "Array of allowed redirect URIs for the client.",
-  ),
+  ).optional(),
   response_types: z.array(z.enum(["token", "id_token", "code"])).describe(
     "Array of OAuth response types the client is allowed to use.",
-  ),
+  ).optional(),
   scopes: z.array(z.string()).describe(
     "Array of OAuth scopes the client is allowed to request. Colon-delimited scopes are not accepted. Dot-delimited scopes are validated against available OAuth API scopes; simple identity scopes are allowed. Protocol scopes `offline_access` and `openid` are added or removed automatically based on `grant_types` and `response_types`.",
-  ),
+  ).optional(),
   token_endpoint_auth_method: z.enum([
     "none",
     "client_secret_basic",
     "client_secret_post",
   ]).describe(
     "The authentication method the client uses at the token endpoint.",
-  ),
+  ).optional(),
   tos_uri: z.string().describe(
     "URL that points to a terms of service document.",
   ).optional(),
@@ -158,7 +159,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Oauth Clients. Registered at `@swamp/cloudflare/oauth-clients/oauth-clients`. */
 export const model = {
   type: "@swamp/cloudflare/oauth-clients/oauth-clients",
-  version: "2026.08.26.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.06.08.2",
@@ -180,6 +181,11 @@ export const model = {
       description: "Added: optional_scopes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -197,6 +203,19 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "client_name",
+          "grant_types",
+          "redirect_uris",
+          "response_types",
+          "scopes",
+          "token_endpoint_auth_method",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/oauth_clients";
         const body: Record<string, unknown> = {};
         if (g.allowed_cors_origins !== undefined) {

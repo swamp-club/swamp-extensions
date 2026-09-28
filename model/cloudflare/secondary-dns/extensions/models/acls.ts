@@ -46,8 +46,8 @@ const GlobalArgsSchema = z.object({
   id: z.string().optional(),
   ip_range: z.string().describe(
     "Allowed IPv4/IPv6 address range of primary or secondary nameservers. This will be applied for the entire account. The IP range is used to allow additional NOTIFY IPs for secondary zones and IPs Cloudflare allows AXFR/IXFR requests from for primary zones. CIDRs are limited to a maximum of /24 for IPv4 and /64 for IPv6 respectively.",
-  ),
-  name: z.string().describe("The name of the acl."),
+  ).optional(),
+  name: z.string().describe("The name of the acl.").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -80,7 +80,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Acls. Registered at `@swamp/cloudflare/secondary-dns/acls`. */
 export const model = {
   type: "@swamp/cloudflare/secondary-dns/acls",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -102,6 +102,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -119,6 +124,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ip_range", "name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/secondary_dns/acls";
         const body: Record<string, unknown> = {};
         if (g.ip_range !== undefined) body.ip_range = g.ip_range;
@@ -276,6 +287,23 @@ export const model = {
         if (g.id !== undefined) body.id = g.id;
         if (g.ip_range !== undefined) body.ip_range = g.ip_range;
         if (g.name !== undefined) body.name = g.name;
+        const unset = ["ip_range", "name"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["ip_range", "name"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

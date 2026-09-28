@@ -118,13 +118,13 @@ const GlobalArgsSchema = z.object({
     "zone_aop_custom_certificate_expiration_type",
   ]).describe(
     "Refers to which event will trigger a Notification dispatch. You can use the endpoint to get available alert types which then will give you a list of possible values.",
-  ),
+  ).optional(),
   description: z.string().describe(
     "Optional description for the Notification policy.",
   ).optional(),
   enabled: z.boolean().describe(
     "Whether or not the Notification policy is enabled.",
-  ),
+  ).optional(),
   filters: z.object({
     actions: z.array(z.string()).optional(),
     affected_asns: z.array(z.string()).optional(),
@@ -192,8 +192,8 @@ const GlobalArgsSchema = z.object({
     })).optional(),
   }).describe(
     "List of IDs that will be used when dispatching a notification. IDs for email type will be the email address.",
-  ),
-  name: z.string().describe("Name of the policy."),
+  ).optional(),
+  name: z.string().describe("Name of the policy.").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -424,7 +424,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Policies. Registered at `@swamp/cloudflare/alerting/policies`. */
 export const model = {
   type: "@swamp/cloudflare/alerting/policies",
-  version: "2026.09.25.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -451,6 +451,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -468,6 +473,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["alert_type", "enabled", "mechanisms", "name"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/alerting/v3/policies";
         const body: Record<string, unknown> = {};
         if (g.alert_interval !== undefined) {
@@ -649,6 +662,24 @@ export const model = {
         if (g.filters !== undefined) body.filters = g.filters;
         if (g.mechanisms !== undefined) body.mechanisms = g.mechanisms;
         if (g.name !== undefined) body.name = g.name;
+        const unset = ["alert_type", "enabled", "mechanisms", "name"].filter((
+          k,
+        ) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["alert_type", "enabled", "mechanisms", "name"]
+          .filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

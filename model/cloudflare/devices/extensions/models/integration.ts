@@ -52,11 +52,12 @@ const GlobalArgsSchema = z.object({
     client_key: z.string().optional(),
     access_client_id: z.string().optional(),
     access_client_secret: z.string().optional(),
-  }),
+  }).optional(),
   interval: z.string().describe(
     "The interval between each posture check with the third-party API. Use `m` for minutes (e.g. `5m`) and `h` for hours (e.g. `12h`).",
-  ),
-  name: z.string().describe("The name of the device posture integration."),
+  ).optional(),
+  name: z.string().describe("The name of the device posture integration.")
+    .optional(),
   type: z.enum([
     "workspace_one",
     "crowdstrike_s2s",
@@ -66,7 +67,7 @@ const GlobalArgsSchema = z.object({
     "tanium_s2s",
     "sentinelone_s2s",
     "custom_s2s",
-  ]).describe("The type of device posture integration."),
+  ]).describe("The type of device posture integration.").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -124,7 +125,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Integration. Registered at `@swamp/cloudflare/devices/integration`. */
 export const model = {
   type: "@swamp/cloudflare/devices/integration",
-  version: "2026.08.11.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -151,6 +152,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -168,6 +174,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["config", "interval", "name", "type"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/devices/posture/integration";
         const body: Record<string, unknown> = {};

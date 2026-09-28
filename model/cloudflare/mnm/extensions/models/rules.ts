@@ -45,7 +45,7 @@ const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   automatic_advertisement: z.boolean().describe(
     "Toggle on if you would like Cloudflare to automatically advertise the IP Prefixes within the rule via Magic Transit when the rule is triggered. Only available for users of Magic Transit.",
-  ),
+  ).optional(),
   bandwidth_threshold: z.number().min(1).describe(
     "The number of bits per second for the rule. When this value is exceeded for the set duration, an alert notification is sent. Minimum of 1 and no maximum.",
   ).optional(),
@@ -55,17 +55,17 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   name: z.string().describe(
     "The name of the rule. Must be unique. Supports characters A-Z, a-z, 0-9, underscore (_), dash (-), period (.), and tilde (~). You can’t have a space in the rule name. Max 256 characters.",
-  ),
+  ).optional(),
   packet_threshold: z.number().min(1).describe(
     "The number of packets per second for the rule. When this value is exceeded for the set duration, an alert notification is sent. Minimum of 1 and no maximum.",
   ).optional(),
   prefix_match: z.enum(["exact", "subnet", "supernet"]).describe(
     "Prefix match type to be applied for a prefix auto advertisement when using an advanced_ddos rule.",
   ).optional(),
-  prefixes: z.array(z.string()),
+  prefixes: z.array(z.string()).optional(),
   type: z.enum(["threshold", "zscore", "advanced_ddos"]).describe(
     "MNM rule type.",
-  ),
+  ).optional(),
   zscore_sensitivity: z.enum(["low", "medium", "high"]).describe(
     "Level of sensitivity set for zscore rules.",
   ).optional(),
@@ -120,7 +120,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Rules. Registered at `@swamp/cloudflare/mnm/rules`. */
 export const model = {
   type: "@swamp/cloudflare/mnm/rules",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -142,6 +142,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -159,6 +164,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["automatic_advertisement", "name", "prefixes", "type"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/mnm/rules";
         const body: Record<string, unknown> = {};
         if (g.automatic_advertisement !== undefined) {

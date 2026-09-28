@@ -76,7 +76,7 @@ const GlobalArgsSchema = z.object({
     serial_number: z.string().optional(),
   }).describe(
     "Exactly one of id, serial_number, or provision_license must be provided.",
-  ),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -146,7 +146,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Connectors. Registered at `@swamp/cloudflare/magic/connectors`. */
 export const model = {
   type: "@swamp/cloudflare/magic/connectors",
-  version: "2026.09.23.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -186,6 +186,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -203,6 +208,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["device"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/magic/connectors";
         const body: Record<string, unknown> = {};
         if (g.device !== undefined) body.device = g.device;

@@ -45,11 +45,12 @@ const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   credentials: z.record(z.string(), z.unknown()).describe(
     "Credentials for the integration.",
-  ),
+  ).optional(),
   dlp_profiles: z.array(z.string()).describe(
     "List of DLP profile IDs to associate.",
   ).optional(),
-  name: z.string().min(1).max(256).describe("Name of the integration."),
+  name: z.string().min(1).max(256).describe("Name of the integration.")
+    .optional(),
   permissions: z.array(z.string().min(1)).describe(
     "List of permission scopes (uses policy defaults if empty).",
   ).optional(),
@@ -74,7 +75,7 @@ const GlobalArgsSchema = z.object({
     "SLACK",
   ]).describe(
     "Vendor/application slug (e.g., GOOGLE_WORKSPACE).\n\n* `ANTHROPIC` - ANTHROPIC\n* `AWS` - AWS\n* `BITBUCKET` - BITBUCKET\n* `BOX` - BOX\n* `CONFLUENCE` - CONFLUENCE\n* `DROPBOX` - DROPBOX\n* `GITHUB` - GITHUB\n* `GOOGLE_CLOUD_PLATFORM` - GOOGLE_CLOUD_PLATFORM\n* `GOOGLE_WORKSPACE` - GOOGLE_WORKSPACE\n* `JIRA` - JIRA\n* `MICROSOFT_INTERNAL` - MICROSOFT_INTERNAL\n* `OPENAI` - OPENAI\n* `SALESFORCE` - SALESFORCE\n* `SERVICENOW` - SERVICENOW\n* `SLACK` - SLACK",
-  ),
+  ).optional(),
   auth_method: z.string().min(1).describe(
     "Authentication method slug (uses default if omitted).",
   ).optional(),
@@ -144,7 +145,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Integrations. Registered at `@swamp/cloudflare/one/integrations`. */
 export const model = {
   type: "@swamp/cloudflare/one/integrations",
-  version: "2026.08.15.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.07.16.1",
@@ -181,6 +182,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -198,6 +204,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["application", "credentials", "name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/one/integrations";
         const body: Record<string, unknown> = {};
         if (g.application !== undefined) body.application = g.application;

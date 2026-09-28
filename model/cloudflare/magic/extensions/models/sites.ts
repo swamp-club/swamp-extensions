@@ -46,16 +46,16 @@ const GlobalArgsSchema = z.object({
   connector_id: z.string().describe("Magic Connector identifier tag.")
     .optional(),
   description: z.string().optional(),
+  ha_mode: z.boolean().describe(
+    "Site high availability mode. If set to true, the site can have two connectors and runs in high availability mode.",
+  ).optional(),
   location: z.object({
     lat: z.string().optional(),
     lon: z.string().optional(),
   }).describe("Location of site in latitude and longitude.").optional(),
-  name: z.string().describe("The name of the site."),
+  name: z.string().describe("The name of the site.").optional(),
   secondary_connector_id: z.string().describe(
     "Magic Connector identifier tag. Used when high availability mode is on.",
-  ).optional(),
-  ha_mode: z.boolean().describe(
-    "Site high availability mode. If set to true, the site can have two connectors and runs in high availability mode.",
   ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -87,13 +87,13 @@ const InputsSchema = z.object({
   account_id: z.string().optional(),
   connector_id: z.string().optional(),
   description: z.string().optional(),
+  ha_mode: z.boolean().optional(),
   location: z.object({
     lat: z.string().optional(),
     lon: z.string().optional(),
   }).optional(),
   name: z.string().optional(),
   secondary_connector_id: z.string().optional(),
-  ha_mode: z.boolean().optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
@@ -102,7 +102,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Sites. Registered at `@swamp/cloudflare/magic/sites`. */
 export const model = {
   type: "@swamp/cloudflare/magic/sites",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -124,6 +124,16 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -141,6 +151,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/magic/sites";
         const body: Record<string, unknown> = {};
         if (g.connector_id !== undefined) body.connector_id = g.connector_id;
@@ -205,15 +221,15 @@ export const model = {
         if (g.description !== undefined) {
           filters.push(["description", String(g.description)]);
         }
+        if (g.ha_mode !== undefined) {
+          filters.push(["ha_mode", String(g.ha_mode)]);
+        }
         if (g.name !== undefined) filters.push(["name", String(g.name)]);
         if (g.secondary_connector_id !== undefined) {
           filters.push([
             "secondary_connector_id",
             String(g.secondary_connector_id),
           ]);
-        }
-        if (g.ha_mode !== undefined) {
-          filters.push(["ha_mode", String(g.ha_mode)]);
         }
         if (filters.length === 0) {
           throw new Error(
@@ -314,6 +330,7 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.connector_id !== undefined) body.connector_id = g.connector_id;
         if (g.description !== undefined) body.description = g.description;
+        if (g.ha_mode !== undefined) body.ha_mode = g.ha_mode;
         if (g.location !== undefined) body.location = g.location;
         if (g.name !== undefined) body.name = g.name;
         if (g.secondary_connector_id !== undefined) {

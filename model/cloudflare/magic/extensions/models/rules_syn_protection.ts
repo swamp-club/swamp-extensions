@@ -45,22 +45,22 @@ const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   burst_sensitivity: z.string().describe(
     "The burst sensitivity. Must be one of 'low', 'medium', 'high'.",
-  ),
+  ).optional(),
   mitigation_type: z.string().describe(
     "The type of mitigation. Must be one of 'challenge' or 'retransmit'. Optional. Defaults to 'challenge'.",
   ).optional(),
   mode: z.string().describe(
     "The mode for SYN Protection. Must be one of 'enabled', 'disabled', 'monitoring'.",
-  ),
+  ).optional(),
   rate_sensitivity: z.string().describe(
     "The rate sensitivity. Must be one of 'low', 'medium', 'high'.",
-  ),
+  ).optional(),
   name: z.string().describe(
     "The name of the SYN Protection rule. Value is relative to the 'scope' setting. For 'global' scope, name should be 'global'. For either the 'region' or 'datacenter' scope, name should be the actual name of the region or datacenter, e.g., 'wnam' or 'lax'.",
-  ),
+  ).optional(),
   scope: z.string().describe(
     "The scope for the SYN Protection rule. Must be one of 'global', 'region', or 'datacenter'.",
-  ),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -102,7 +102,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Rules. Registered at `@swamp/cloudflare/magic/rules-syn_protection`. */
 export const model = {
   type: "@swamp/cloudflare/magic/rules-syn_protection",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -124,6 +124,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -141,6 +146,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "burst_sensitivity",
+          "mode",
+          "name",
+          "rate_sensitivity",
+          "scope",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/magic/advanced_tcp_protection/configs/syn_protection/rules";
         const body: Record<string, unknown> = {};

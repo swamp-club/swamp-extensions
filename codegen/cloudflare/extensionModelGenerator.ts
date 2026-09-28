@@ -210,6 +210,19 @@ export function generateCloudflareExtensionModel(
     `      execute: async (_args: Record<string, never>, context: any) => {`,
   );
   lines.push(`        const g = context.globalArgs;`);
+  // Create-only required fields are optional in GlobalArgsSchema so other
+  // methods can run without them; enforce them here before any API call.
+  const createRequired = [...resource.createRequiredProperties].sort();
+  if (createRequired.length > 0) {
+    lines.push(
+      `        const missing = ${
+        JSON.stringify(createRequired)
+      }.filter((k) => g[k] === undefined);`,
+    );
+    lines.push(
+      `        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));`,
+    );
+  }
   lines.push(...buildEndpointLines(scopeType, relPath));
   lines.push(`        const body: Record<string, unknown> = {};`);
   for (const name of Object.keys(resource.createProperties)) {
@@ -421,12 +434,44 @@ export function generateCloudflareExtensionModel(
       : Object.keys(resource.createProperties).filter(
         (k) => !resource.createOnlyProperties.has(k),
       );
+    // Create-only required fields are optional in GlobalArgsSchema; a
+    // full-replacement PUT update must still send them.
+    const isFullReplacement = resource.updateMethod === "PUT";
+    const createRequiredSet = new Set(resource.createRequiredProperties);
+    const updateRequired: string[] = [];
     for (const name of updateKeys) {
       const access = VALID_JS_IDENT.test(name)
         ? `.${name}`
         : `[${JSON.stringify(name)}]`;
       lines.push(
         `        if (g${access} !== undefined) body${access} = g${access};`,
+      );
+      if (isFullReplacement && createRequiredSet.has(name)) {
+        updateRequired.push(name);
+      }
+    }
+    if (updateRequired.length > 0) {
+      // A PUT body replaces the resource, so a create-required field left
+      // unset in globalArgs would be dropped. Fill it from the live resource,
+      // not stored state: stored state can be stale, and sending it would
+      // silently revert changes made outside swamp since the last get/sync.
+      const sorted = JSON.stringify([...updateRequired].sort());
+      lines.push(
+        `        const unset = ${sorted}.filter((k) => body[k] === undefined);`,
+      );
+      lines.push(`        if (unset.length > 0) {`);
+      lines.push(
+        `          const live = await read(endpoint, existing.${resource.identifyingField}${authSuffix});`,
+      );
+      lines.push(
+        `          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];`,
+      );
+      lines.push(`        }`);
+      lines.push(
+        `        const missingForUpdate = ${sorted}.filter((k) => body[k] === undefined);`,
+      );
+      lines.push(
+        `        if (missingForUpdate.length > 0) throw new Error("update requires global arguments: " + missingForUpdate.join(", "));`,
       );
     }
     lines.push(
@@ -589,10 +634,9 @@ function buildGlobalArgsProperties(
       line += `.describe(${JSON.stringify(prop.description)})`;
     }
 
-    const isRequired = resource.requiredProperties.includes(name);
-    if (!isRequired) {
-      line += `.optional()`;
-    }
+    // Every resource field is optional: create-required ones are enforced by
+    // the generated create method (see createRequiredProperties).
+    line += `.optional()`;
 
     result.push({ line, nameOnly: qName, baseExpr });
   }

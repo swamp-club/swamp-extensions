@@ -118,7 +118,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   domain_name: z.string().describe(
     "Provides a fully qualified domain name (FQDN), including the extension\n(e.g., `example.com`, `mybrand.app`). The domain name uniquely identifies\na registration. Cloudflare permits only one registration per domain, making\nthe domain name a natural idempotency key for registration requests.\n",
-  ),
+  ).optional(),
   privacy_mode: z.enum(["off", "redaction"]).describe(
     "Sets the WHOIS privacy mode for the registration. Defaults to `redaction`.\n- `off`: Disables WHOIS privacy.\n- `redaction`: Requests WHOIS redaction where the extension supports it.\n  Some extensions exclude privacy and redaction.\n",
   ).optional(),
@@ -232,7 +232,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Registrations. Registered at `@swamp/cloudflare/registrar/registrations`. */
 export const model = {
   type: "@swamp/cloudflare/registrar/registrations",
-  version: "2026.09.01.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -274,6 +274,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -291,6 +296,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["domain_name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/registrar/registrations";
         const body: Record<string, unknown> = {};

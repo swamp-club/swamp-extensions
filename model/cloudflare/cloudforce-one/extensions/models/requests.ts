@@ -59,8 +59,8 @@ const GlobalArgsSchema = z.object({
   completed_before: z.string().optional(),
   created_after: z.string().optional(),
   created_before: z.string().optional(),
-  page: z.number().int().describe("Page number of results."),
-  per_page: z.number().int().describe("Number of results per page."),
+  page: z.number().int().describe("Page number of results.").optional(),
+  per_page: z.number().int().describe("Number of results per page.").optional(),
   sort_by: z.string().describe("Field to sort results by.").optional(),
   sort_order: z.enum(["asc", "desc"]).describe("Sort order (asc or desc).")
     .optional(),
@@ -133,7 +133,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Requests. Registered at `@swamp/cloudflare/cloudforce-one/requests`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/requests",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -155,6 +155,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -172,6 +177,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["page", "per_page"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/cloudforce-one/requests";
         const body: Record<string, unknown> = {};

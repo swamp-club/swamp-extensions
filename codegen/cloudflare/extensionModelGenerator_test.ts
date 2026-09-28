@@ -1,5 +1,5 @@
 import { assertSnapshot } from "@std/testing/snapshot";
-import { assert, assertStringIncludes } from "@std/assert";
+import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { generateCloudflareExtensionModel } from "./extensionModelGenerator.ts";
 import type { CloudflareProperty, CloudflareResource } from "./pipeline.ts";
 
@@ -23,7 +23,7 @@ function makeResource(
     createProperties: {},
     updateProperties: {},
     resourceProperties: {},
-    requiredProperties: [],
+    createRequiredProperties: [],
     handlers: { create: true, read: true, update: true, delete: true },
     updateMethod: "PATCH",
     identifyingField: "id",
@@ -71,7 +71,7 @@ Deno.test("generateCloudflareExtensionModel - account-scoped, all handlers", asy
       num_tables: numberProp,
       file_size: numberProp,
     },
-    requiredProperties: ["name"],
+    createRequiredProperties: ["name"],
     handlers: { create: true, read: true, update: false, delete: true },
   });
 
@@ -130,7 +130,7 @@ Deno.test("generateCloudflareExtensionModel - zone-scoped, PATCH update", async 
       ttl: numberProp,
       proxied: { type: "boolean" },
     },
-    requiredProperties: ["name", "type", "content"],
+    createRequiredProperties: ["name", "type", "content"],
     updateMethod: "PATCH",
   });
 
@@ -178,7 +178,7 @@ Deno.test("generateCloudflareExtensionModel - dual-scoped resource", async (t) =
       phase: stringProp,
       version: stringProp,
     },
-    requiredProperties: ["name", "kind", "phase"],
+    createRequiredProperties: ["name", "kind", "phase"],
     updateMethod: "PUT",
   });
 
@@ -224,7 +224,7 @@ Deno.test("generateCloudflareExtensionModel - synthetic name", async (t) => {
       enabled: { type: "boolean" },
       created_at: stringProp,
     },
-    requiredProperties: [],
+    createRequiredProperties: [],
     namingField: "name",
     syntheticName: true,
   });
@@ -265,7 +265,7 @@ Deno.test("generateCloudflareExtensionModel - with upgrades block", async (t) =>
       created_on: stringProp,
       modified_on: stringProp,
     },
-    requiredProperties: ["name"],
+    createRequiredProperties: ["name"],
     handlers: { create: true, read: true, update: false, delete: true },
   });
 
@@ -304,7 +304,7 @@ Deno.test("vault auth - injects all three sensitive args when no collision", () 
       content: { type: "string", description: "Record content" },
     },
     resourceProperties: { id: stringProp, name: stringProp },
-    requiredProperties: ["name"],
+    createRequiredProperties: ["name"],
     updateMethod: "PATCH",
   });
 
@@ -372,7 +372,7 @@ Deno.test("vault auth - pair-guard suppresses apiKey+email when resource owns 'e
     },
     updateProperties: {},
     resourceProperties: { id: stringProp, email: stringProp },
-    requiredProperties: ["email"],
+    createRequiredProperties: ["email"],
     handlers: { create: true, read: true, update: false, delete: true },
   });
 
@@ -443,7 +443,7 @@ Deno.test("lookup - filters by scalar GlobalArgs fields only", () => {
     },
     updateProperties: {},
     resourceProperties: { id: stringProp, name: stringProp },
-    requiredProperties: ["name", "type"],
+    createRequiredProperties: ["name", "type"],
     updateMethod: "PATCH",
   });
 
@@ -506,7 +506,7 @@ Deno.test("lookup - skips synthetic name field from filters", () => {
     },
     updateProperties: {},
     resourceProperties: { id: stringProp },
-    requiredProperties: [],
+    createRequiredProperties: [],
     namingField: "name",
     syntheticName: true,
   });
@@ -546,7 +546,7 @@ Deno.test("adopt - imports by ID with no validation", () => {
     },
     updateProperties: {},
     resourceProperties: { id: stringProp, name: stringProp },
-    requiredProperties: ["name"],
+    createRequiredProperties: ["name"],
     updateMethod: "PATCH",
   });
 
@@ -588,7 +588,7 @@ Deno.test("adopt - uses cursor pagination style in lookup for cursor-paginated r
     },
     updateProperties: {},
     resourceProperties: { id: stringProp, name: stringProp },
-    requiredProperties: ["name"],
+    createRequiredProperties: ["name"],
     paginationStyle: "cursor",
     handlers: { create: true, read: true, update: false, delete: true },
   });
@@ -600,4 +600,168 @@ Deno.test("adopt - uses cursor pagination style in lookup for cursor-paginated r
   });
 
   assertStringIncludes(out, `await listAll(endpoint, "cursor"`);
+});
+
+// ---------------------------------------------------------------------------
+// Create-required fields: optional in GlobalArgsSchema, enforced by create
+// ---------------------------------------------------------------------------
+
+function createRequiredResource(
+  overrides: Partial<CloudflareResource> = {},
+): CloudflareResource {
+  return makeResource({
+    resourcePath: "alerting/v3/policies",
+    service: "alerting",
+    modelSlug: "policies",
+    fileName: "policies.ts",
+    createProperties: {
+      name: stringProp,
+      type: stringProp,
+      enabled: { type: "boolean" },
+      comment: stringProp,
+    },
+    createRequiredProperties: ["type", "name", "enabled"],
+    resourceProperties: { id: stringProp, name: stringProp },
+    ...overrides,
+  });
+}
+
+function globalArgsBlock(code: string): string {
+  const start = code.indexOf("const GlobalArgsSchema = z.object({");
+  return code.slice(start, code.indexOf("});", start));
+}
+
+Deno.test("generateCloudflareExtensionModel - create-required fields are optional in GlobalArgsSchema", () => {
+  const code = generateCloudflareExtensionModel({
+    resource: createRequiredResource(),
+    extensionName: "@swamp/cloudflare",
+    version: "2026.01.01.1",
+  });
+  const block = globalArgsBlock(code);
+  assertStringIncludes(block, "  name: z.string().optional(),");
+  assertStringIncludes(block, "  type: z.string().optional(),");
+  assertStringIncludes(block, "  enabled: z.boolean().optional(),");
+  // Scope args are emitted separately and stay required.
+  assertStringIncludes(
+    block,
+    `  account_id: z.string().describe("Cloudflare account ID"),`,
+  );
+});
+
+Deno.test("generateCloudflareExtensionModel - synthetic name stays required", () => {
+  const code = generateCloudflareExtensionModel({
+    resource: createRequiredResource({
+      createProperties: { type: stringProp },
+      createRequiredProperties: ["type"],
+      syntheticName: true,
+    }),
+    extensionName: "@swamp/cloudflare",
+    version: "2026.01.01.1",
+  });
+  const block = globalArgsBlock(code);
+  assertStringIncludes(
+    block,
+    `  name: z.string().describe("Instance name for this resource`,
+  );
+  assertStringIncludes(block, "  type: z.string().optional(),");
+});
+
+Deno.test("generateCloudflareExtensionModel - create guards create-required fields in sorted order", () => {
+  const code = generateCloudflareExtensionModel({
+    resource: createRequiredResource(),
+    extensionName: "@swamp/cloudflare",
+    version: "2026.01.01.1",
+  });
+  assertStringIncludes(
+    code,
+    `const missing = ["enabled","name","type"].filter((k) => g[k] === undefined);`,
+  );
+  assertStringIncludes(
+    code,
+    `throw new Error("create requires global arguments: " + missing.join(", "));`,
+  );
+  // The guard runs before the endpoint is built or any API call is made.
+  const create = code.slice(code.indexOf("    create: {"));
+  assert(
+    create.indexOf("const missing") < create.indexOf("const endpoint"),
+    "create guard must precede the endpoint and the API call",
+  );
+});
+
+Deno.test("generateCloudflareExtensionModel - create emits no guard without create-required fields", () => {
+  const code = generateCloudflareExtensionModel({
+    resource: createRequiredResource({ createRequiredProperties: [] }),
+    extensionName: "@swamp/cloudflare",
+    version: "2026.01.01.1",
+  });
+  assertEquals(code.includes("create requires global arguments"), false);
+});
+
+Deno.test("generateCloudflareExtensionModel - a required email property stays guarded", () => {
+  // `email` is a real property here, so the legacy apiKey+email auth pair is
+  // not injected and `email` must be enforced like any create-required field.
+  const code = generateCloudflareExtensionModel({
+    resource: createRequiredResource({
+      createProperties: { email: stringProp, name: stringProp },
+      createRequiredProperties: ["email"],
+    }),
+    extensionName: "@swamp/cloudflare",
+    version: "2026.01.01.1",
+  });
+  assertStringIncludes(
+    code,
+    `const missing = ["email"].filter((k) => g[k] === undefined);`,
+  );
+});
+
+Deno.test("generateCloudflareExtensionModel - PUT update fills create-required fields from the live resource and guards them", () => {
+  const code = generateCloudflareExtensionModel({
+    resource: createRequiredResource({
+      updateMethod: "PUT",
+      updateProperties: { name: stringProp, enabled: { type: "boolean" } },
+    }),
+    extensionName: "@swamp/cloudflare",
+    version: "2026.01.01.1",
+  });
+  const update = code.slice(
+    code.indexOf("    update: {"),
+    code.indexOf("    delete: {"),
+  );
+  // `type` is create-only (not in the update body), so only enabled/name.
+  assertStringIncludes(
+    update,
+    `const unset = ["enabled","name"].filter((k) => body[k] === undefined);`,
+  );
+  assertStringIncludes(
+    update,
+    `const live = await read(endpoint, existing.id, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email });`,
+  );
+  assertStringIncludes(
+    update,
+    `const missingForUpdate = ["enabled","name"].filter((k) => body[k] === undefined);`,
+  );
+  assertStringIncludes(
+    update,
+    `throw new Error("update requires global arguments: " + missingForUpdate.join(", "));`,
+  );
+  // Never fill from stored state: it can be stale.
+  assertEquals(update.includes("= existing"), false);
+  assert(
+    update.indexOf("missingForUpdate.length") <
+      update.indexOf("await update("),
+    "update guard must precede the PUT",
+  );
+});
+
+Deno.test("generateCloudflareExtensionModel - PATCH update does not fill or guard create-required fields", () => {
+  const code = generateCloudflareExtensionModel({
+    resource: createRequiredResource({
+      updateMethod: "PATCH",
+      updateProperties: { name: stringProp, enabled: { type: "boolean" } },
+    }),
+    extensionName: "@swamp/cloudflare",
+    version: "2026.01.01.1",
+  });
+  assertEquals(code.includes("missingForUpdate"), false);
+  assertEquals(code.includes("const live = await read("), false);
 });

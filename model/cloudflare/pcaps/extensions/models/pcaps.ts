@@ -56,13 +56,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   system: z.enum(["magic-transit"]).describe(
     "The system used to collect packet captures.",
-  ),
+  ).optional(),
   time_limit: z.number().min(1).max(300).describe(
     "The packet capture duration in seconds.",
-  ),
+  ).optional(),
   type: z.enum(["simple", "full"]).describe(
     "The type of packet capture. `Simple` captures sampled packets, and `full` captures entire payloads and non-sampled packets.",
-  ),
+  ).optional(),
   byte_limit: z.number().min(1).max(1000000000).describe(
     "The maximum number of bytes to capture. This field only applies to `full` packet captures.",
   ).optional(),
@@ -146,7 +146,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Pcaps. Registered at `@swamp/cloudflare/pcaps/pcaps`. */
 export const model = {
   type: "@swamp/cloudflare/pcaps/pcaps",
-  version: "2026.08.11.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -173,6 +173,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -190,6 +195,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["system", "time_limit", "type"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/pcaps";
         const body: Record<string, unknown> = {};
         if (g.filter_v1 !== undefined) body.filter_v1 = g.filter_v1;

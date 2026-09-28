@@ -38,8 +38,9 @@ const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   ca: z.boolean().describe(
     "Indicates whether the certificate is a CA or leaf certificate.",
-  ),
-  certificates: z.string().describe("The uploaded root CA certificate."),
+  ).optional(),
+  certificates: z.string().describe("The uploaded root CA certificate.")
+    .optional(),
   name: z.string().describe(
     "Optional unique name for the certificate. Only used for human readability.",
   ).optional(),
@@ -86,7 +87,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Mtls Certificates. Registered at `@swamp/cloudflare/mtls-certificates/mtls-certificates`. */
 export const model = {
   type: "@swamp/cloudflare/mtls-certificates/mtls-certificates",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -108,6 +109,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -125,6 +131,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ca", "certificates"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/mtls_certificates";
         const body: Record<string, unknown> = {};
         if (g.ca !== undefined) body.ca = g.ca;

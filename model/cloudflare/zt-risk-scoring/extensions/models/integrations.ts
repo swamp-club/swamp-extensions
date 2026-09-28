@@ -54,8 +54,8 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   tenant_url: z.string().describe(
     'The base url of the tenant, e.g. "https://tenant.okta.com".',
-  ),
-  integration_type: z.enum(["Okta"]),
+  ).optional(),
+  integration_type: z.enum(["Okta"]).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -95,7 +95,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Integrations. Registered at `@swamp/cloudflare/zt-risk-scoring/integrations`. */
 export const model = {
   type: "@swamp/cloudflare/zt-risk-scoring/integrations",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -117,6 +117,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -134,6 +139,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["integration_type", "tenant_url"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/zt_risk_scoring/integrations";
         const body: Record<string, unknown> = {};
@@ -309,6 +322,23 @@ export const model = {
         if (g.active !== undefined) body.active = g.active;
         if (g.reference_id !== undefined) body.reference_id = g.reference_id;
         if (g.tenant_url !== undefined) body.tenant_url = g.tenant_url;
+        const unset = ["tenant_url"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["tenant_url"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

@@ -51,7 +51,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   name: z.string().max(256).describe(
     "A user-friendly name for the virtual network.",
-  ),
+  ).optional(),
   is_default: z.boolean().describe(
     "If `true`, this virtual network is the default for the account.",
   ).optional(),
@@ -91,7 +91,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Virtual Networks. Registered at `@swamp/cloudflare/teamnet/virtual-networks`. */
 export const model = {
   type: "@swamp/cloudflare/teamnet/virtual-networks",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -113,6 +113,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -130,6 +135,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/teamnet/virtual_networks";
         const body: Record<string, unknown> = {};

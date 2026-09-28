@@ -52,13 +52,17 @@ const GlobalArgsSchema = z.object({
   is_recent: z.boolean().describe(
     "Select to prevent recently registered domains from triggering a Suspicious or Malicious disposition.",
   ).optional(),
-  is_regex: z.boolean().optional(),
+  is_regex: z.boolean().describe(
+    "Whether `pattern` is a regular expression instead of a literal domain.",
+  ).optional(),
   is_similarity: z.boolean().describe(
     "Select for partner or other approved domains that have similar spelling to your connected domains. Prevents listed domains from triggering a Spoof disposition.",
   ).optional(),
   last_modified: z.string().optional(),
   modified_at: z.string().optional(),
-  pattern: z.string().min(1).max(1024).optional(),
+  pattern: z.string().min(1).max(1024).describe(
+    "The domain pattern to trust, e.g. `example.com`.",
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -104,7 +108,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Trusted Domains. Registered at `@swamp/cloudflare/email-security/trusted-domains`. */
 export const model = {
   type: "@swamp/cloudflare/email-security/trusted-domains",
-  version: "2026.08.25.2",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -138,6 +142,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.25.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

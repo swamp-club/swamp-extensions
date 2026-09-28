@@ -17,13 +17,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/cloudflare/workers/automations
+// Auto-generated extension model for @swamp/cloudflare/dns/nameserver-sets
 // Do not edit manually. Re-generate with: deno task generate:cloudflare
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for a Cloudflare Automations.
+ * Swamp extension model for a Cloudflare Nameserver Sets.
  *
  * Wraps the Cloudflare API as a swamp model so create, get, lookup,
  * adopt, update, delete, and sync can be driven through `swamp model`.
@@ -32,23 +32,25 @@
  */
 
 import { z } from "npm:zod@4.3.6";
-import {
-  create,
-  listAll,
-  read,
-  remove,
-  tryRead,
-  update,
-} from "./_lib/cloudflare.ts";
+import { create, listAll, read, remove, tryRead } from "./_lib/cloudflare.ts";
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  afterInactivitySeconds: z.number().int().min(3600).max(31536000).optional(),
-  afterOccurrences: z.number().int().min(1).max(9007199254740991).optional(),
-  enabled: z.boolean().optional(),
-  name: z.string().min(1).max(200).optional(),
-  policyId: z.string().min(1).max(200).optional(),
-  service: z.string().min(1).max(128).optional(),
+  name: z.string().describe(
+    "Instance name for this resource (used as the unique identifier in the factory pattern)",
+  ),
+  advanced: z.boolean().describe(
+    "Whether to allocate the nameservers from distinct Advanced anycast groups.",
+  ).optional(),
+  ip_set: z.number().int().min(1).describe(
+    "Selects the account-specific IP set that supplies the nameserver addresses. The account's entitlement determines the maximum value. Nameserver sets with the same `ip_set` and `advanced` value may reuse addresses; otherwise, they use disjoint address groups.",
+  ).optional(),
+  nameservers: z.array(z.object({
+    ip_count: z.number().int().min(1).max(3).optional(),
+    name: z.string(),
+  })).describe(
+    "Lists each nameserver and the number of addresses to allocate to it. Requires a unique name for each entry in the set.",
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -61,22 +63,33 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  automation: z.object({
-    ansPolicyId: z.string().optional(),
-    created: z.number().optional(),
-    createdByUserId: z.string().optional(),
-    enabled: z.boolean().optional(),
+  errors: z.array(z.object({
+    code: z.number().optional(),
+    documentation_url: z.string().optional(),
+    message: z.string().optional(),
+    source: z.object({
+      pointer: z.string().optional(),
+    }).optional(),
+  })).optional(),
+  messages: z.array(z.object({
+    code: z.number().optional(),
+    documentation_url: z.string().optional(),
+    message: z.string().optional(),
+    source: z.object({
+      pointer: z.string().optional(),
+    }).optional(),
+  })).optional(),
+  success: z.boolean().optional(),
+  result: z.object({
+    created_on: z.string().optional(),
     id: z.string().optional(),
-    inactivitySeconds: z.number().optional(),
-    name: z.string().optional(),
-    revision: z.number().optional(),
-    scope: z.string().optional(),
-    service: z.string().optional(),
-    serviceType: z.string().optional(),
-    threshold: z.number().optional(),
-    triggerType: z.string().optional(),
-    updated: z.number().optional(),
-    updatedByUserId: z.string().optional(),
+    ip_set: z.number().optional(),
+    advanced: z.boolean().optional(),
+    nameservers: z.array(z.object({
+      ipv4: z.array(z.string()).optional(),
+      ipv6: z.array(z.string()).optional(),
+      name: z.string().optional(),
+    })).optional(),
   }).optional(),
   id: z.string(),
 }).passthrough();
@@ -85,20 +98,21 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
   account_id: z.string().optional(),
-  afterInactivitySeconds: z.number().int().min(3600).max(31536000).optional(),
-  afterOccurrences: z.number().int().min(1).max(9007199254740991).optional(),
-  enabled: z.boolean().optional(),
-  name: z.string().min(1).max(200).optional(),
-  policyId: z.string().min(1).max(200).optional(),
-  service: z.string().min(1).max(128).optional(),
+  name: z.string().optional(),
+  advanced: z.boolean().optional(),
+  ip_set: z.number().int().min(1).optional(),
+  nameservers: z.array(z.object({
+    ip_count: z.number().int().min(1).max(3).optional(),
+    name: z.string(),
+  })).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
 });
 
-/** Swamp extension model for Cloudflare Automations. Registered at `@swamp/cloudflare/workers/automations`. */
+/** Swamp extension model for Cloudflare Nameserver Sets. Registered at `@swamp/cloudflare/dns/nameserver-sets`. */
 export const model = {
-  type: "@swamp/cloudflare/workers/automations",
+  type: "@swamp/cloudflare/dns/nameserver-sets",
   version: "2026.09.29.1",
   upgrades: [
     {
@@ -111,7 +125,7 @@ export const model = {
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Automations resource state",
+      description: "Nameserver Sets resource state",
       schema: ResourceSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -119,29 +133,22 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a Automations",
+      description: "Create a Nameserver Sets",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const missing = ["policyId"].filter((k) => g[k] === undefined);
+        const missing = ["nameservers"].filter((k) => g[k] === undefined);
         if (missing.length > 0) {
           throw new Error(
             "create requires global arguments: " + missing.join(", "),
           );
         }
         const endpoint = "/accounts/" + g.account_id +
-          "/workers/observability/issues/automations";
+          "/dns_settings/nameserver_sets";
         const body: Record<string, unknown> = {};
-        if (g.afterInactivitySeconds !== undefined) {
-          body.afterInactivitySeconds = g.afterInactivitySeconds;
-        }
-        if (g.afterOccurrences !== undefined) {
-          body.afterOccurrences = g.afterOccurrences;
-        }
-        if (g.enabled !== undefined) body.enabled = g.enabled;
-        if (g.name !== undefined) body.name = g.name;
-        if (g.policyId !== undefined) body.policyId = g.policyId;
-        if (g.service !== undefined) body.service = g.service;
+        if (g.advanced !== undefined) body.advanced = g.advanced;
+        if (g.ip_set !== undefined) body.ip_set = g.ip_set;
+        if (g.nameservers !== undefined) body.nameservers = g.nameservers;
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -160,14 +167,14 @@ export const model = {
       },
     },
     get: {
-      description: "Get a Automations",
+      description: "Get a Nameserver Sets",
       arguments: z.object({
-        id: z.string().describe("The ID of the Automations"),
+        id: z.string().describe("The ID of the Nameserver Sets"),
       }),
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id +
-          "/workers/observability/issues/automations";
+          "/dns_settings/nameserver_sets";
         const result = await read(endpoint, args.id, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -187,38 +194,23 @@ export const model = {
     },
     lookup: {
       description:
-        "Look up an existing Automations by matching global argument values and import it into state",
+        "Look up an existing Nameserver Sets by matching global argument values and import it into state",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id +
-          "/workers/observability/issues/automations";
+          "/dns_settings/nameserver_sets";
         const filters: [string, string][] = [];
-        if (g.afterInactivitySeconds !== undefined) {
-          filters.push([
-            "afterInactivitySeconds",
-            String(g.afterInactivitySeconds),
-          ]);
+        if (g.advanced !== undefined) {
+          filters.push(["advanced", String(g.advanced)]);
         }
-        if (g.afterOccurrences !== undefined) {
-          filters.push(["afterOccurrences", String(g.afterOccurrences)]);
-        }
-        if (g.enabled !== undefined) {
-          filters.push(["enabled", String(g.enabled)]);
-        }
-        if (g.name !== undefined) filters.push(["name", String(g.name)]);
-        if (g.policyId !== undefined) {
-          filters.push(["policyId", String(g.policyId)]);
-        }
-        if (g.service !== undefined) {
-          filters.push(["service", String(g.service)]);
-        }
+        if (g.ip_set !== undefined) filters.push(["ip_set", String(g.ip_set)]);
         if (filters.length === 0) {
           throw new Error(
             "At least one global argument must be set to filter by",
           );
         }
-        const items = await listAll(endpoint, "none", undefined, {
+        const items = await listAll(endpoint, "page", undefined, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
           email: g.email,
@@ -236,7 +228,7 @@ export const model = {
             `${k}=${JSON.stringify(v)}`
           ).join(", ");
           throw new Error(
-            `No automations found matching filters: ${filterDesc}`,
+            `No nameserver sets found matching filters: ${filterDesc}`,
           );
         }
         if (matches.length > 1) {
@@ -263,14 +255,14 @@ export const model = {
     },
     adopt: {
       description:
-        "Import an existing Automations by ID into state for management",
+        "Import an existing Nameserver Sets by ID into state for management",
       arguments: z.object({
-        id: z.string().describe("The ID of the Automations to import"),
+        id: z.string().describe("The ID of the Nameserver Sets to import"),
       }),
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id +
-          "/workers/observability/issues/automations";
+          "/dns_settings/nameserver_sets";
         const result = await read(endpoint, args.id, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -289,81 +281,15 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
-    update: {
-      description: "Update Automations attributes",
-      arguments: z.object({
-        identifier: z.string().describe(
-          "Target a specific Automations by id (e.g. one discovered by list)",
-        ).optional(),
-      }),
-      execute: async (args: { identifier?: string }, context: any) => {
-        const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id +
-          "/workers/observability/issues/automations";
-        const instanceName =
-          (g.name?.toString() ?? args.identifier ?? "current").replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
-        const content = await context.dataRepository.getContent(
-          context.modelType,
-          context.modelId,
-          instanceName,
-        );
-        if (!content) {
-          throw new Error("No data found - run create, get, or list first");
-        }
-        const existing = JSON.parse(new TextDecoder().decode(content));
-        const body: Record<string, unknown> = {};
-        if (g.afterInactivitySeconds !== undefined) {
-          body.afterInactivitySeconds = g.afterInactivitySeconds;
-        }
-        if (g.afterOccurrences !== undefined) {
-          body.afterOccurrences = g.afterOccurrences;
-        }
-        if (g.enabled !== undefined) body.enabled = g.enabled;
-        if (g.name !== undefined) body.name = g.name;
-        if (g.policyId !== undefined) body.policyId = g.policyId;
-        if (g.service !== undefined) body.service = g.service;
-        const unset = ["policyId"].filter((k) => body[k] === undefined);
-        if (unset.length > 0) {
-          const live = await read(endpoint, existing.id, {
-            apiToken: g.apiToken,
-            apiKey: g.apiKey,
-            email: g.email,
-          });
-          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
-        }
-        const missingForUpdate = ["policyId"].filter((k) =>
-          body[k] === undefined
-        );
-        if (missingForUpdate.length > 0) {
-          throw new Error(
-            "update requires global arguments: " + missingForUpdate.join(", "),
-          );
-        }
-        const result = await update(endpoint, existing.id, body, "PUT", {
-          apiToken: g.apiToken,
-          apiKey: g.apiKey,
-          email: g.email,
-        }) as ResourceData;
-        const handle = await context.writeResource(
-          "state",
-          instanceName,
-          result,
-        );
-        return { dataHandles: [handle] };
-      },
-    },
     delete: {
-      description: "Delete the Automations",
+      description: "Delete the Nameserver Sets",
       arguments: z.object({
-        id: z.string().describe("The ID of the Automations"),
+        id: z.string().describe("The ID of the Nameserver Sets"),
       }),
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id +
-          "/workers/observability/issues/automations";
+          "/dns_settings/nameserver_sets";
         const { existed } = await remove(endpoint, args.id, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -381,16 +307,16 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync Automations state from Cloudflare",
+      description: "Sync Nameserver Sets state from Cloudflare",
       arguments: z.object({
         identifier: z.string().describe(
-          "Target a specific Automations by id (e.g. one discovered by list)",
+          "Target a specific Nameserver Sets by id (e.g. one discovered by list)",
         ).optional(),
       }),
       execute: async (args: { identifier?: string }, context: any) => {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id +
-          "/workers/observability/issues/automations";
+          "/dns_settings/nameserver_sets";
         const instanceName =
           (g.name?.toString() ?? args.identifier ?? "current").replace(
             /[\/\\]/g,

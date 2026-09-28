@@ -49,7 +49,9 @@ const GlobalArgsSchema = z.object({
   comments: z.string().max(1024).optional(),
   created_at: z.string().optional(),
   id: z.string().describe("Blocked sender pattern identifier.").optional(),
-  is_regex: z.boolean().optional(),
+  is_regex: z.boolean().describe(
+    "Whether `pattern` is a regular expression instead of a literal value.",
+  ).optional(),
   last_modified: z.string().optional(),
   modified_at: z.string().optional(),
   pattern: z.string().min(1).max(1024).describe(
@@ -101,7 +103,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Block Senders. Registered at `@swamp/cloudflare/email-security/block-senders`. */
 export const model = {
   type: "@swamp/cloudflare/email-security/block-senders",
-  version: "2026.09.01.1",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -145,6 +147,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

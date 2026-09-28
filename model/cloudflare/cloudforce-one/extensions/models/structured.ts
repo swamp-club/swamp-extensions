@@ -78,7 +78,8 @@ const GlobalArgsSchema = z.object({
     })),
     operator: z.enum(["and", "or"]),
     type: z.enum(["group"]),
-  }).describe("Nested condition groups support up to 10 levels of depth."),
+  }).describe("Nested condition groups support up to 10 levels of depth.")
+    .optional(),
   description: z.string().max(1000).optional(),
   enabled: z.boolean().optional(),
   meta: z.array(z.object({
@@ -87,7 +88,7 @@ const GlobalArgsSchema = z.object({
     ),
     value: z.string().max(10000),
   })).optional(),
-  name: z.string().min(1).max(255),
+  name: z.string().min(1).max(255).optional(),
   status: z.enum(["silent", "blocking"]).describe(
     "Disposition for matching email. This emits status metadata with the selected value.",
   ).optional(),
@@ -208,7 +209,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Structured. Registered at `@swamp/cloudflare/cloudforce-one/structured`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/structured",
-  version: "2026.09.11.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.08.27.1",
@@ -218,6 +219,11 @@ export const model = {
     {
       toVersion: "2026.09.11.1",
       description: "Added: status",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -237,6 +243,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["condition", "name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/cloudforce-one/rules/structured";
         const body: Record<string, unknown> = {};
@@ -416,6 +428,25 @@ export const model = {
         if (g.name !== undefined) body.name = g.name;
         if (g.status !== undefined) body.status = g.status;
         if (g.strings !== undefined) body.strings = g.strings;
+        const unset = ["condition", "name"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["condition", "name"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

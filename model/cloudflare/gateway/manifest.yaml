@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/cloudflare/gateway"
-version: "2026.09.25.1"
+version: "2026.09.29.1"
 description: "Cloudflare gateway infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -10,7 +10,10 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
+  - Updated: lists
+  - Updated: locations
   - Updated: pacfiles
+  - Updated: rules
 models:
   - certificates.ts
   - lists.ts

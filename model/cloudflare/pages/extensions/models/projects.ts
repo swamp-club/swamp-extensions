@@ -109,10 +109,12 @@ const GlobalArgsSchema = z.object({
       wrangler_config_hash: z.string().optional(),
     }).optional(),
   }).describe("Configs for deployments in a project.").optional(),
-  name: z.string().describe("Name of the project."),
+  name: z.string().describe(
+    "Name for the Pages project. Must begin with a lowercase letter or digit and contain only lowercase letters, digits, and hyphens.",
+  ).optional(),
   production_branch: z.string().describe(
     "Production branch of the project. Used to identify production deployments.",
-  ),
+  ).optional(),
   source: z.object({
     config: z.object({
       deployments_enabled: z.boolean().optional(),
@@ -462,7 +464,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Projects. Registered at `@swamp/cloudflare/pages/projects`. */
 export const model = {
   type: "@swamp/cloudflare/pages/projects",
-  version: "2026.08.25.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -499,6 +501,16 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -516,6 +528,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name", "production_branch"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/pages/projects";
         const body: Record<string, unknown> = {};
         if (g.build_config !== undefined) body.build_config = g.build_config;

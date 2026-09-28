@@ -56,7 +56,7 @@ const GlobalArgsSchema = z.object({
     type: z.enum(["account", "sending_domain"]),
     value: z.string().max(1024).optional(),
   }).optional(),
-  email: z.string().describe("The email address to suppress."),
+  email: z.string().describe("The email address to suppress.").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -94,7 +94,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Suppressions. Registered at `@swamp/cloudflare/email/suppressions`. */
 export const model = {
   type: "@swamp/cloudflare/email/suppressions",
-  version: "2026.09.26.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.09.15.1",
@@ -104,6 +104,11 @@ export const model = {
     {
       toVersion: "2026.09.26.1",
       description: "Added: scope",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -123,6 +128,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["email"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/email/sending/suppressions";
         const body: Record<string, unknown> = {};

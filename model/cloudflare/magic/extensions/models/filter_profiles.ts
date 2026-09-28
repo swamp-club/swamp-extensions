@@ -48,13 +48,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   match_action: z.enum(["allow", "deny"]).describe(
     "Action to take when a route matches one of the targets in this profile",
-  ),
+  ).optional(),
   name: z.string().min(1).max(255).describe(
     "Friendly name for the filter profile",
-  ),
+  ).optional(),
   targets: z.array(z.string()).describe(
     "List of CIDR prefixes. Each entry may carry an optional suffix that specifies which prefix lengths to match relative to the prefix length N: '{X,Y}' matches prefix lengths in the inclusive range [X, Y] where N <= X <= Y <= max (max is 32 for IPv4, 128 for IPv6), '{X}' matches exactly length X (equivalent to {X,X}), '+' is shorthand for {N, max} (the prefix and all more-specific subnets, including at length N itself; valid even when N is the maximum length). Omit the suffix to match the prefix exactly at length N.",
-  ),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -92,7 +92,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Filter Profiles. Registered at `@swamp/cloudflare/magic/filter-profiles`. */
 export const model = {
   type: "@swamp/cloudflare/magic/filter-profiles",
-  version: "2026.08.25.1",
+  version: "2026.09.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -109,6 +116,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["match_action", "name", "targets"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/magic/bgp/filter_profiles";
         const body: Record<string, unknown> = {};
@@ -281,6 +296,25 @@ export const model = {
         if (g.match_action !== undefined) body.match_action = g.match_action;
         if (g.name !== undefined) body.name = g.name;
         if (g.targets !== undefined) body.targets = g.targets;
+        const unset = ["match_action", "name", "targets"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["match_action", "name", "targets"].filter((
+          k,
+        ) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

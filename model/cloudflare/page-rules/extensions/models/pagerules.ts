@@ -105,7 +105,7 @@ const GlobalArgsSchema = z.object({
     ]).optional(),
   })).describe(
     "The set of actions to perform if the targets of this rule match the\nrequest. Actions can redirect to another URL or override settings, but\nnot both.\n",
-  ),
+  ).optional(),
   priority: z.number().int().describe(
     "The priority of the rule, used to define which Page Rule is processed\nover another. A higher number indicates a higher priority. For example,\nif you have a catch-all Page Rule (rule A: `/images/*`) but want a more\nspecific Page Rule to take precedence (rule B: `/images/special/*`),\nspecify a higher priority for rule B so it overrides rule A.\n",
   ).optional(),
@@ -128,7 +128,7 @@ const GlobalArgsSchema = z.object({
       ),
     }).optional(),
     target: z.enum(["url"]).optional(),
-  })).describe("The rule targets to evaluate on each request."),
+  })).describe("The rule targets to evaluate on each request.").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -249,7 +249,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Pagerules. Registered at `@swamp/cloudflare/page-rules/pagerules`. */
 export const model = {
   type: "@swamp/cloudflare/page-rules/pagerules",
-  version: "2026.08.11.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -276,6 +276,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -293,6 +298,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["actions", "targets"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/zones/" + g.zone_id + "/pagerules";
         const body: Record<string, unknown> = {};
         if (g.actions !== undefined) body.actions = g.actions;

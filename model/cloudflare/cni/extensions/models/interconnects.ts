@@ -39,8 +39,8 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  account: z.string(),
-  type: z.string(),
+  account: z.string().optional(),
+  type: z.string().optional(),
   slot_id: z.string().optional(),
   speed: z.string().optional(),
   bandwidth: z.enum([
@@ -106,7 +106,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Interconnects. Registered at `@swamp/cloudflare/cni/interconnects`. */
 export const model = {
   type: "@swamp/cloudflare/cni/interconnects",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -128,6 +128,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -145,6 +150,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["account", "type"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/cni/interconnects";
         const body: Record<string, unknown> = {};
         if (g.account !== undefined) body.account = g.account;

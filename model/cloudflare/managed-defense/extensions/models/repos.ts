@@ -36,7 +36,8 @@ import { create, listAll, read, tryRead } from "./_lib/cloudflare.ts";
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  name: z.string().min(1).max(255).regex(new RegExp("^[A-Za-z0-9_.-]+$")),
+  name: z.string().min(1).max(255).regex(new RegExp("^[A-Za-z0-9_.-]+$"))
+    .optional(),
   worker_script_name: z.string().min(1).max(255).regex(
     new RegExp("^[A-Za-z0-9][A-Za-z0-9._-]*$"),
   ).optional(),
@@ -103,7 +104,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Repos. Registered at `@swamp/cloudflare/managed-defense/repos`. */
 export const model = {
   type: "@swamp/cloudflare/managed-defense/repos",
-  version: "2026.09.23.1",
+  version: "2026.09.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -120,6 +128,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/managed-defense/vulnerability-discovery/repos";
         const body: Record<string, unknown> = {};

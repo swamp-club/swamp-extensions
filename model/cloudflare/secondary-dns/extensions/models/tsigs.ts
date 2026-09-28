@@ -43,10 +43,10 @@ import {
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  algo: z.string().describe("TSIG algorithm."),
-  id: z.string(),
-  name: z.string().describe("TSIG key name."),
-  secret: z.string().describe("TSIG secret."),
+  algo: z.string().describe("TSIG algorithm.").optional(),
+  id: z.string().optional(),
+  name: z.string().describe("TSIG key name.").optional(),
+  secret: z.string().describe("TSIG secret.").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -81,7 +81,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Tsigs. Registered at `@swamp/cloudflare/secondary-dns/tsigs`. */
 export const model = {
   type: "@swamp/cloudflare/secondary-dns/tsigs",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -103,6 +103,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -120,6 +125,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["algo", "id", "name", "secret"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/secondary_dns/tsigs";
         const body: Record<string, unknown> = {};
         if (g.algo !== undefined) body.algo = g.algo;
@@ -279,6 +292,25 @@ export const model = {
         if (g.id !== undefined) body.id = g.id;
         if (g.name !== undefined) body.name = g.name;
         if (g.secret !== undefined) body.secret = g.secret;
+        const unset = ["algo", "id", "name", "secret"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["algo", "id", "name", "secret"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

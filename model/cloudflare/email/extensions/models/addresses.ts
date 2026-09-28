@@ -49,7 +49,8 @@ const GlobalArgsSchema = z.object({
   status: z.enum(["unverified", "verified"]).describe(
     "Destination address status. Non-admin callers may only set verified addresses back to unverified; setting to verified requires admin privileges.",
   ).optional(),
-  email: z.string().max(90).describe("The contact email address of the user."),
+  email: z.string().max(90).describe("The contact email address of the user.")
+    .optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -77,7 +78,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Addresses. Registered at `@swamp/cloudflare/email/addresses`. */
 export const model = {
   type: "@swamp/cloudflare/email/addresses",
-  version: "2026.08.25.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -109,6 +110,11 @@ export const model = {
       description: "Added: status",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -126,6 +132,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["email"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/email/routing/addresses";
         const body: Record<string, unknown> = {};

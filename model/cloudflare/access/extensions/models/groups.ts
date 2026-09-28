@@ -225,10 +225,10 @@ const GlobalArgsSchema = z.object({
     }).optional(),
   })).describe(
     "Rules evaluated with an OR logical operator. A user needs to meet only one of the Include rules.",
-  ),
+  ).optional(),
   is_default: z.boolean().describe("Whether this is the default group")
     .optional(),
-  name: z.string().describe("The name of the Access group."),
+  name: z.string().describe("The name of the Access group.").optional(),
   require: z.array(z.object({
     group: z.object({
       id: z.string(),
@@ -960,7 +960,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Groups. Registered at `@swamp/cloudflare/access/groups`. */
 export const model = {
   type: "@swamp/cloudflare/access/groups",
-  version: "2026.09.04.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -997,6 +997,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1014,6 +1019,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["include", "name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         if ((g.account_id == null) === (g.zone_id == null)) {
           throw new Error(
             "Exactly one of account_id or zone_id must be provided",
@@ -1215,6 +1226,23 @@ export const model = {
         if (g.is_default !== undefined) body.is_default = g.is_default;
         if (g.name !== undefined) body.name = g.name;
         if (g.require !== undefined) body.require = g.require;
+        const unset = ["include", "name"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["include", "name"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

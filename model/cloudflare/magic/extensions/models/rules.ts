@@ -48,22 +48,22 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   burst_sensitivity: z.string().describe(
     "The burst sensitivity. Must be one of 'low', 'medium', 'high'.",
-  ),
+  ).optional(),
   mode: z.string().describe(
     "The mode for DNS Protection. Must be one of 'enabled', 'disabled', 'monitoring'.",
-  ),
+  ).optional(),
   profile_sensitivity: z.string().describe(
     "The profile sensitivity. Recommended setting is 'low'. Must be one of 'low', 'medium', 'high', or 'very_high'.",
-  ),
+  ).optional(),
   rate_sensitivity: z.string().describe(
     "The rate sensitivity. Must be one of 'low', 'medium', 'high'.",
-  ),
+  ).optional(),
   name: z.string().describe(
     "The name of the DNS Protection rule. Value is relative to the 'scope' setting. For 'global' scope, name should be 'global'. For either the 'region' or 'datacenter' scope, name should be the actual name of the region or datacenter, e.g., 'wnam' or 'lax'.",
-  ),
+  ).optional(),
   scope: z.string().describe(
     "The scope for the DNS Protection rule. Must be one of 'global', 'region', or 'datacenter'.",
-  ),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -107,7 +107,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Rules. Registered at `@swamp/cloudflare/magic/rules`. */
 export const model = {
   type: "@swamp/cloudflare/magic/rules",
-  version: "2026.08.25.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -139,6 +139,11 @@ export const model = {
       description: "Added: block_any_queries",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -156,6 +161,19 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "burst_sensitivity",
+          "mode",
+          "name",
+          "profile_sensitivity",
+          "rate_sensitivity",
+          "scope",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/magic/advanced_dns_protection/configs/dns_protection/rules";
         const body: Record<string, unknown> = {};

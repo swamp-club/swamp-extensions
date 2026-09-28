@@ -146,7 +146,8 @@ const GlobalArgsSchema = z.object({
   setExtraHTTPHeaders: z.record(z.string(), z.unknown()).optional(),
   setJavaScriptEnabled: z.boolean().optional(),
   source: z.enum(["sitemaps"]).optional(),
-  url: z.string().describe("URL to navigate to, eg. `https://example.com`."),
+  url: z.string().describe("URL to navigate to, eg. `https://example.com`.")
+    .optional(),
   viewport: z.object({
     deviceScaleFactor: z.number().optional(),
     hasTouch: z.boolean().optional(),
@@ -302,7 +303,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Crawl. Registered at `@swamp/cloudflare/browser-rendering/crawl`. */
 export const model = {
   type: "@swamp/cloudflare/browser-rendering/crawl",
-  version: "2026.09.26.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.08.15.1",
@@ -324,6 +325,11 @@ export const model = {
       description: "Added: browser",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -341,6 +347,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["url"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/browser-rendering/crawl";
         const body: Record<string, unknown> = {};

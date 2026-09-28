@@ -39,7 +39,7 @@ import { create, listAll, read, tryRead, remove } from "./_lib/cloudflare.ts";
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  name: z.string().describe("Database name"),
+  name: z.string().describe("Database name").optional(),
   primary_location_hint: z.enum(["wnam", "enam", "weur", "eeur", "apac"]).describe("Location hint").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe("Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
   apiKey: z.string().meta({ sensitive: true }).describe("Cloudflare API key for the legacy key+email auth path; overrides the CLOUDFLARE_API_KEY environment variable. Wire with a vault.get(...) expression. Requires email.").optional(),
@@ -85,6 +85,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         const endpoint = "/accounts/" + g.account_id + "/d1/database";
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
@@ -237,11 +239,11 @@ import { create, listAll, read, tryRead, remove, update } from "./_lib/cloudflar
 
 const GlobalArgsSchema = z.object({
   zone_id: z.string().describe("Cloudflare zone ID"),
-  name: z.string().min(1).max(255).describe("Record name"),
-  content: z.string().describe("Record content"),
+  name: z.string().min(1).max(255).describe("Record name").optional(),
+  content: z.string().describe("Record content").optional(),
   ttl: z.number().int().min(30).max(86400).describe("TTL").optional(),
   proxied: z.boolean().describe("Cloudflare proxy").optional(),
-  type: z.enum(["A", "AAAA", "CNAME", "MX", "TXT"]).describe("Record type"),
+  type: z.enum(["A", "AAAA", "CNAME", "MX", "TXT"]).describe("Record type").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe("Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
   apiKey: z.string().meta({ sensitive: true }).describe("Cloudflare API key for the legacy key+email auth path; overrides the CLOUDFLARE_API_KEY environment variable. Wire with a vault.get(...) expression. Requires email.").optional(),
   email: z.string().meta({ sensitive: true }).describe("Cloudflare account email for the legacy key+email auth path; overrides the CLOUDFLARE_EMAIL environment variable. Requires apiKey.").optional(),
@@ -290,6 +292,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["content","name","type"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         const endpoint = "/zones/" + g.zone_id + "/dns_records";
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
@@ -471,9 +475,9 @@ import { create, listAll, read, tryRead, remove, update } from "./_lib/cloudflar
 const GlobalArgsSchema = z.object({
   account_id: z.string().optional().describe("Cloudflare account ID (provide account_id or zone_id)"),
   zone_id: z.string().optional().describe("Cloudflare zone ID (provide account_id or zone_id)"),
-  name: z.string().describe("Ruleset name"),
-  kind: z.enum(["root", "zone", "managed"]).describe("Kind"),
-  phase: z.string().describe("Phase"),
+  name: z.string().describe("Ruleset name").optional(),
+  kind: z.enum(["root", "zone", "managed"]).describe("Kind").optional(),
+  phase: z.string().describe("Phase").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe("Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
   apiKey: z.string().meta({ sensitive: true }).describe("Cloudflare API key for the legacy key+email auth path; overrides the CLOUDFLARE_API_KEY environment variable. Wire with a vault.get(...) expression. Requires email.").optional(),
   email: z.string().meta({ sensitive: true }).describe("Cloudflare account email for the legacy key+email auth path; overrides the CLOUDFLARE_EMAIL environment variable. Requires apiKey.").optional(),
@@ -520,6 +524,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["kind","name","phase"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         if ((g.account_id == null) === (g.zone_id == null)) throw new Error("Exactly one of account_id or zone_id must be provided");
         const scopePrefix = g.account_id ? "/accounts/" + g.account_id : "/zones/" + g.zone_id;
         const endpoint = scopePrefix + "/rulesets";
@@ -611,6 +617,13 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
+        const unset = ["name"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["name"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) throw new Error("update requires global arguments: " + missingForUpdate.join(", "));
         const result = await update(endpoint, existing.id, body, "PUT", { apiToken: g.apiToken, apiKey: g.apiKey, email: g.email }) as ResourceData;
         const handle = await context.writeResource("state", instanceName, result);
         return { dataHandles: [handle] };
@@ -920,7 +933,7 @@ import { create, listAll, read, tryRead, remove } from "./_lib/cloudflare.ts";
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  name: z.string().describe("Script name"),
+  name: z.string().describe("Script name").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe("Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.").optional(),
   apiKey: z.string().meta({ sensitive: true }).describe("Cloudflare API key for the legacy key+email auth path; overrides the CLOUDFLARE_API_KEY environment variable. Wire with a vault.get(...) expression. Requires email.").optional(),
   email: z.string().meta({ sensitive: true }).describe("Cloudflare account email for the legacy key+email auth path; overrides the CLOUDFLARE_EMAIL environment variable. Requires apiKey.").optional(),
@@ -970,6 +983,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));
         const endpoint = "/accounts/" + g.account_id + "/workers/scripts";
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;

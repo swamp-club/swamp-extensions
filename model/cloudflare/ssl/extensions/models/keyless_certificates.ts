@@ -45,11 +45,11 @@ const GlobalArgsSchema = z.object({
   zone_id: z.string().describe("Cloudflare zone ID"),
   enabled: z.boolean().describe("Whether or not the Keyless SSL is on or off.")
     .optional(),
-  host: z.string().max(253).describe("The keyless SSL name."),
+  host: z.string().max(253).describe("The keyless SSL name.").optional(),
   name: z.string().max(180).describe("The keyless SSL name.").optional(),
   port: z.number().describe(
     "The keyless SSL port used to communicate between Cloudflare and the client's Keyless SSL server.",
-  ),
+  ).optional(),
   tunnel: z.object({
     private_ip: z.string(),
     vnet_id: z.string(),
@@ -61,7 +61,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   certificate: z.string().describe(
     "The zone's SSL certificate or SSL certificate and intermediate(s).",
-  ),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -111,7 +111,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Keyless Certificates. Registered at `@swamp/cloudflare/ssl/keyless-certificates`. */
 export const model = {
   type: "@swamp/cloudflare/ssl/keyless-certificates",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -133,6 +133,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -150,6 +155,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["certificate", "host", "port"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/zones/" + g.zone_id + "/keyless_certificates";
         const body: Record<string, unknown> = {};
         if (g.bundle_method !== undefined) body.bundle_method = g.bundle_method;

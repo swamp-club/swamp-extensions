@@ -46,23 +46,23 @@ const GlobalArgsSchema = z.object({
   attached_hubs: z.array(z.string()).optional(),
   attached_vpcs: z.array(z.string()).optional(),
   description: z.string().optional(),
-  install_routes_in_cloud: z.boolean(),
-  install_routes_in_magic_wan: z.boolean(),
+  install_routes_in_cloud: z.boolean().optional(),
+  install_routes_in_magic_wan: z.boolean().optional(),
   manage_hub_to_hub_attachments: z.boolean().optional(),
   manage_vpc_to_hub_attachments: z.boolean().optional(),
-  name: z.string(),
+  name: z.string().optional(),
   vpc: z.string().optional(),
   adopted_hub_id: z.string().optional(),
   cloud_asn: z.number().int().describe(
     "Sets the cloud-side ASN. If unset or zero, the cloud's default ASN takes effect.",
   ).optional(),
-  cloud_type: z.enum(["AWS", "AZURE", "GOOGLE"]),
+  cloud_type: z.enum(["AWS", "AZURE", "GOOGLE"]).optional(),
   dynamic_routing: z.boolean().describe(
     "Enables BGP routing. When enabling this feature, set both install_routes_in_cloud and install_routes_in_magic_wan to false.",
-  ),
+  ).optional(),
   hub_provider_id: z.string().optional(),
   region: z.string().optional(),
-  type: z.enum(["OnrampTypeSingle", "OnrampTypeHub"]),
+  type: z.enum(["OnrampTypeSingle", "OnrampTypeHub"]).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -179,7 +179,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Onramps. Registered at `@swamp/cloudflare/magic/onramps`. */
 export const model = {
   type: "@swamp/cloudflare/magic/onramps",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -201,6 +201,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -218,6 +223,19 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "cloud_type",
+          "dynamic_routing",
+          "install_routes_in_cloud",
+          "install_routes_in_magic_wan",
+          "name",
+          "type",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/magic/cloud/onramps";
         const body: Record<string, unknown> = {};
         if (g.adopted_hub_id !== undefined) {

@@ -48,7 +48,7 @@ const GlobalArgsSchema = z.object({
   ),
   hostname: z.string().describe(
     "A non-unique field that refers to a target. Case insensitive, maximum\nlength of 255 characters, supports the use of special characters dash\nand period, does not support spaces, and must start and end with an\nalphanumeric character.",
-  ),
+  ).optional(),
   ip: z.object({
     ipv4: z.object({
       ip_addr: z.string().optional(),
@@ -58,7 +58,8 @@ const GlobalArgsSchema = z.object({
       ip_addr: z.string().optional(),
       virtual_network_id: z.string().optional(),
     }).optional(),
-  }).describe("The IPv4/IPv6 address that identifies where to reach a target"),
+  }).describe("The IPv4/IPv6 address that identifies where to reach a target")
+    .optional(),
   tags: z.record(z.string(), z.unknown()).describe(
     "Optional tags to associate with the target. Keys and values are\nuser-defined strings.",
   ).optional(),
@@ -116,7 +117,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Targets. Registered at `@swamp/cloudflare/infrastructure/targets`. */
 export const model = {
   type: "@swamp/cloudflare/infrastructure/targets",
-  version: "2026.09.12.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -143,6 +144,11 @@ export const model = {
       description: "Added: tags",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -160,6 +166,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["hostname", "ip"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/infrastructure/targets";
         const body: Record<string, unknown> = {};
@@ -321,6 +333,23 @@ export const model = {
         if (g.hostname !== undefined) body.hostname = g.hostname;
         if (g.ip !== undefined) body.ip = g.ip;
         if (g.tags !== undefined) body.tags = g.tags;
+        const unset = ["hostname", "ip"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["hostname", "ip"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

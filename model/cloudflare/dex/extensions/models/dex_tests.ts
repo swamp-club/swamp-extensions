@@ -51,14 +51,14 @@ const GlobalArgsSchema = z.object({
     method: z.enum(["GET"]).optional(),
   }).describe(
     "The configuration object which contains the details for the WARP client to conduct the test.",
-  ),
+  ).optional(),
   description: z.string().describe("Additional details about the test.")
     .optional(),
-  enabled: z.boolean().describe(
-    "Determines whether or not the test is active.",
-  ),
-  interval: z.string().describe("How often the test will run."),
-  name: z.string().describe("The name of the DEX test. Must be unique."),
+  enabled: z.boolean().describe("Determines whether or not the test is active.")
+    .optional(),
+  interval: z.string().describe("How often the test will run.").optional(),
+  name: z.string().describe("The name of the DEX test. Must be unique.")
+    .optional(),
   target_policies: z.array(z.unknown()).describe(
     "DEX rules targeted by this test",
   ).optional(),
@@ -123,7 +123,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Dex Tests. Registered at `@swamp/cloudflare/dex/dex-tests`. */
 export const model = {
   type: "@swamp/cloudflare/dex/dex-tests",
-  version: "2026.08.25.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -160,6 +160,11 @@ export const model = {
       description: "Added: created, updated",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -177,6 +182,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["data", "enabled", "interval", "name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/dex/devices/dex_tests";
         const body: Record<string, unknown> = {};
         if (g.created !== undefined) body.created = g.created;
@@ -373,6 +386,25 @@ export const model = {
         if (g.targeted !== undefined) body.targeted = g.targeted;
         if (g.test_id !== undefined) body.test_id = g.test_id;
         if (g.updated !== undefined) body.updated = g.updated;
+        const unset = ["data", "enabled", "interval", "name"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["data", "enabled", "interval", "name"].filter(
+          (k) => body[k] === undefined,
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

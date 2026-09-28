@@ -49,6 +49,9 @@ const GlobalArgsSchema = z.object({
       not_in: z.array(z.string()).optional(),
     }).optional(),
   }).optional(),
+  creator_email_at_creation: z.string().max(90).describe(
+    "The email address of the user who created the token at the time of\ncreation. Only present for Account Owned API Tokens when a creator email\nwas available.",
+  ).optional(),
   expires_on: z.string().describe(
     "The expiration time on or after which the JWT MUST NOT be accepted for processing.",
   ).optional(),
@@ -58,7 +61,7 @@ const GlobalArgsSchema = z.object({
   last_used_on: z.string().describe("Last time the token was used.").optional(),
   modified_on: z.string().describe("Last time the token was modified.")
     .optional(),
-  name: z.string().max(120).describe("Token name."),
+  name: z.string().max(120).describe("Token name.").optional(),
   not_before: z.string().describe(
     "The time before which the token MUST NOT be accepted for processing.",
   ).optional(),
@@ -74,7 +77,13 @@ const GlobalArgsSchema = z.object({
       name: z.string().optional(),
     })),
     resources: z.string(),
-  })).describe("List of access policies assigned to the token."),
+  })).describe("List of access policies assigned to the token.").optional(),
+  provisioner_id: z.string().describe(
+    "The identifier of the service that provisioned the token. For an\nOAuth-provisioned token, this is the OAuth client identifier. Present\nwhen `provisioner_type` is present and null when the identifier is\nunavailable.",
+  ).optional(),
+  provisioner_type: z.string().describe(
+    "The type of service that provisioned the token. Only present for\nprovisioned Account Owned API Tokens.",
+  ).optional(),
   status: z.enum(["active", "disabled", "expired"]).describe(
     "Status of the token.",
   ).optional(),
@@ -96,6 +105,7 @@ const ResourceSchema = z.object({
       not_in: z.array(z.string()).optional(),
     }).optional(),
   }).optional(),
+  creator_email_at_creation: z.string().optional(),
   expires_on: z.string().optional(),
   id: z.string(),
   issued_on: z.string().optional(),
@@ -116,6 +126,8 @@ const ResourceSchema = z.object({
     })).optional(),
     resources: z.string().optional(),
   })).optional(),
+  provisioner_id: z.string().optional(),
+  provisioner_type: z.string().optional(),
   status: z.string().optional(),
 }).passthrough();
 
@@ -129,6 +141,7 @@ const InputsSchema = z.object({
       not_in: z.array(z.string()).optional(),
     }).optional(),
   }).optional(),
+  creator_email_at_creation: z.string().max(90).optional(),
   expires_on: z.string().optional(),
   id: z.string().max(32).optional(),
   issued_on: z.string().optional(),
@@ -149,6 +162,8 @@ const InputsSchema = z.object({
     })),
     resources: z.string(),
   })).optional(),
+  provisioner_id: z.string().optional(),
+  provisioner_type: z.string().optional(),
   status: z.enum(["active", "disabled", "expired"]).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
@@ -158,7 +173,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Tokens. Registered at `@swamp/cloudflare/tokens/tokens`. */
 export const model = {
   type: "@swamp/cloudflare/tokens/tokens",
-  version: "2026.08.11.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -185,6 +200,17 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.28.1",
+      description:
+        "Added: creator_email_at_creation, provisioner_id, provisioner_type",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -202,6 +228,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name", "policies"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/tokens";
         const body: Record<string, unknown> = {};
         if (g.condition !== undefined) body.condition = g.condition;
@@ -257,6 +289,12 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/tokens";
         const filters: [string, string][] = [];
+        if (g.creator_email_at_creation !== undefined) {
+          filters.push([
+            "creator_email_at_creation",
+            String(g.creator_email_at_creation),
+          ]);
+        }
         if (g.expires_on !== undefined) {
           filters.push(["expires_on", String(g.expires_on)]);
         }
@@ -273,6 +311,12 @@ export const model = {
         if (g.name !== undefined) filters.push(["name", String(g.name)]);
         if (g.not_before !== undefined) {
           filters.push(["not_before", String(g.not_before)]);
+        }
+        if (g.provisioner_id !== undefined) {
+          filters.push(["provisioner_id", String(g.provisioner_id)]);
+        }
+        if (g.provisioner_type !== undefined) {
+          filters.push(["provisioner_type", String(g.provisioner_type)]);
         }
         if (g.status !== undefined) filters.push(["status", String(g.status)]);
         if (filters.length === 0) {
@@ -373,6 +417,9 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
         if (g.condition !== undefined) body.condition = g.condition;
+        if (g.creator_email_at_creation !== undefined) {
+          body.creator_email_at_creation = g.creator_email_at_creation;
+        }
         if (g.expires_on !== undefined) body.expires_on = g.expires_on;
         if (g.id !== undefined) body.id = g.id;
         if (g.issued_on !== undefined) body.issued_on = g.issued_on;
@@ -381,7 +428,30 @@ export const model = {
         if (g.name !== undefined) body.name = g.name;
         if (g.not_before !== undefined) body.not_before = g.not_before;
         if (g.policies !== undefined) body.policies = g.policies;
+        if (g.provisioner_id !== undefined) {
+          body.provisioner_id = g.provisioner_id;
+        }
+        if (g.provisioner_type !== undefined) {
+          body.provisioner_type = g.provisioner_type;
+        }
         if (g.status !== undefined) body.status = g.status;
+        const unset = ["name", "policies"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["name", "policies"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

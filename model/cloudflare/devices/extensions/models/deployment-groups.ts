@@ -45,14 +45,14 @@ const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   name: z.string().min(1).max(255).describe(
     "A user-friendly name for the deployment group.",
-  ),
+  ).optional(),
   policy_ids: z.array(z.string()).describe(
     "Contains an optional list of policy IDs assigned to a group.",
   ).optional(),
   version_config: z.array(z.object({
     target_environment: z.string(),
     version: z.string(),
-  })).describe("Contains at least one version configuration."),
+  })).describe("Contains at least one version configuration.").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -94,7 +94,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Deployment-groups. Registered at `@swamp/cloudflare/devices/deployment-groups`. */
 export const model = {
   type: "@swamp/cloudflare/devices/deployment-groups",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -116,6 +116,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -133,6 +138,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name", "version_config"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/devices/deployment-groups";
         const body: Record<string, unknown> = {};

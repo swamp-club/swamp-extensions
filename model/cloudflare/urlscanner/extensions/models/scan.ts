@@ -242,7 +242,7 @@ const GlobalArgsSchema = z.object({
   screenshotsResolutions: z.array(z.enum(["desktop", "mobile", "tablet"]))
     .describe("Take multiple screenshots targeting different device types.")
     .optional(),
-  url: z.string(),
+  url: z.string().optional(),
   visibility: z.enum(["Public", "Unlisted"]).describe(
     "The option `Public` means it will be included in listings like recent scans and search results. `Unlisted` means it will not be included in the aforementioned listings, users will need to have the scan's ID to access it. A a scan will be automatically marked as unlisted if it fails, if it contains potential PII or other sensitive material.",
   ).optional(),
@@ -726,7 +726,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Scan. Registered at `@swamp/cloudflare/urlscanner/scan`. */
 export const model = {
   type: "@swamp/cloudflare/urlscanner/scan",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -748,6 +748,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -765,6 +770,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["url"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/urlscanner/scan";
         const body: Record<string, unknown> = {};
         if (g.country !== undefined) body.country = g.country;

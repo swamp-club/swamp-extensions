@@ -55,7 +55,7 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   cloudflare_endpoint: z.string().describe(
     "The IP address assigned to the Cloudflare side of the IPsec tunnel.",
-  ),
+  ).optional(),
   custom_remote_identities: z.object({
     fqdn_id: z.string().optional(),
   }).optional(),
@@ -77,13 +77,13 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   interface_address: z.string().describe(
     "A 31-bit prefix (/31 in CIDR notation) supporting two hosts, one for each side of the tunnel. Select the subnet from the following private IP space: 10.0.0.0–10.255.255.255, 172.16.0.0–172.31.255.255, 192.168.0.0–192.168.255.255.",
-  ),
+  ).optional(),
   interface_address6: z.string().describe(
     "A 127 bit IPV6 prefix from within the virtual_subnet6 prefix space with the address being the first IP of the subnet and not same as the address of virtual_subnet6. Eg if virtual_subnet6 is 2606:54c1:7:0:a9fe:12d2::/127 , interface_address6 could be 2606:54c1:7:0:a9fe:12d2:1:200/127",
   ).optional(),
   name: z.string().describe(
     "The name of the IPsec tunnel. The name cannot share a name with other tunnels.",
-  ),
+  ).optional(),
   psk: z.string().describe(
     "A randomly generated or provided string for use in the IPsec tunnel.",
   ).optional(),
@@ -193,7 +193,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Ipsec Tunnels. Registered at `@swamp/cloudflare/magic/ipsec-tunnels`. */
 export const model = {
   type: "@swamp/cloudflare/magic/ipsec-tunnels",
-  version: "2026.08.25.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -230,6 +230,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -247,6 +252,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["cloudflare_endpoint", "interface_address", "name"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/magic/ipsec_tunnels";
         const body: Record<string, unknown> = {};
         if (g.automatic_return_routing !== undefined) {
@@ -476,6 +488,26 @@ export const model = {
         if (g.psk !== undefined) body.psk = g.psk;
         if (g.replay_protection !== undefined) {
           body.replay_protection = g.replay_protection;
+        }
+        const unset = ["cloudflare_endpoint", "interface_address", "name"]
+          .filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = [
+          "cloudflare_endpoint",
+          "interface_address",
+          "name",
+        ].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,

@@ -44,9 +44,9 @@ import {
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   description: z.string().optional(),
-  enabled: z.boolean(),
-  name: z.string(),
-  topic: z.string().min(2).max(50),
+  enabled: z.boolean().optional(),
+  name: z.string().optional(),
+  topic: z.string().min(2).max(50).optional(),
   profile_id: z.string().optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -87,7 +87,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Custom Prompt Topics. Registered at `@swamp/cloudflare/dlp/custom-prompt-topics`. */
 export const model = {
   type: "@swamp/cloudflare/dlp/custom-prompt-topics",
-  version: "2026.08.25.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -119,6 +119,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -136,6 +141,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["enabled", "name", "topic"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/dlp/custom_prompt_topics";
         const body: Record<string, unknown> = {};
@@ -313,6 +326,25 @@ export const model = {
         if (g.enabled !== undefined) body.enabled = g.enabled;
         if (g.name !== undefined) body.name = g.name;
         if (g.topic !== undefined) body.topic = g.topic;
+        const unset = ["enabled", "name", "topic"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["enabled", "name", "topic"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

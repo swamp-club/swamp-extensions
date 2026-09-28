@@ -50,7 +50,7 @@ const GlobalArgsSchema = z.object({
   ixfr_enable: z.boolean().describe(
     "Enable IXFR transfer protocol, default is AXFR. Only applicable to secondary zones.",
   ).optional(),
-  name: z.string().describe("The name of the peer."),
+  name: z.string().describe("The name of the peer.").optional(),
   port: z.number().describe(
     "DNS port of primary or secondary nameserver, depending on what zone this peer is linked to.",
   ).optional(),
@@ -95,7 +95,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Peers. Registered at `@swamp/cloudflare/secondary-dns/peers`. */
 export const model = {
   type: "@swamp/cloudflare/secondary-dns/peers",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -117,6 +117,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -134,6 +139,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/secondary_dns/peers";
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
@@ -298,6 +309,21 @@ export const model = {
         if (g.name !== undefined) body.name = g.name;
         if (g.port !== undefined) body.port = g.port;
         if (g.tsig_id !== undefined) body.tsig_id = g.tsig_id;
+        const unset = ["name"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["name"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

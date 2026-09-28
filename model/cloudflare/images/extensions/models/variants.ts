@@ -56,8 +56,8 @@ const GlobalArgsSchema = z.object({
     width: z.number().min(1),
   }).describe(
     "Allows you to define image resizing sizes for different use cases.",
-  ),
-  id: z.string().max(99).regex(new RegExp("^[a-zA-Z0-9]+$")),
+  ).optional(),
+  id: z.string().max(99).regex(new RegExp("^[a-zA-Z0-9]+$")).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -104,7 +104,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Variants. Registered at `@swamp/cloudflare/images/variants`. */
 export const model = {
   type: "@swamp/cloudflare/images/variants",
-  version: "2026.09.25.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -131,6 +131,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -148,6 +153,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["id", "options"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/images/v1/variants";
         const body: Record<string, unknown> = {};
         if (g.id !== undefined) body.id = g.id;

@@ -39,10 +39,15 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  action: z.enum(["MOVE", "RELEASE"]),
-  comment: z.string().optional(),
-  destination: z.string().optional(),
-  expected_disposition: z.string().optional(),
+  action: z.enum(["MOVE", "RELEASE"]).describe(
+    "The action the job performs on every message matching the search parameters.",
+  ).optional(),
+  comment: z.string().describe("Optional note describing the job.").optional(),
+  destination: z.string().describe("The mailbox folder to move messages to.")
+    .optional(),
+  expected_disposition: z.string().describe(
+    "The verdict Email Security assigns to a message.",
+  ).optional(),
   search_params: z.object({
     action_log: z.boolean().optional(),
     alert_id: z.string().optional(),
@@ -63,7 +68,7 @@ const GlobalArgsSchema = z.object({
     start: z.string().optional(),
     subject: z.string().optional(),
     submissions: z.boolean().optional(),
-  }),
+  }).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -156,7 +161,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Bulk. Registered at `@swamp/cloudflare/email-security/bulk`. */
 export const model = {
   type: "@swamp/cloudflare/email-security/bulk",
-  version: "2026.09.22.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.08.26.1",
@@ -170,6 +175,16 @@ export const model = {
     },
     {
       toVersion: "2026.09.22.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -190,6 +205,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["action", "search_params"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/email-security/investigate/bulk";
         const body: Record<string, unknown> = {};

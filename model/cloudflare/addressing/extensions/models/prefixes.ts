@@ -47,10 +47,10 @@ const GlobalArgsSchema = z.object({
     .optional(),
   asn: z.number().int().describe(
     "Autonomous System Number (ASN) the prefix will be advertised under.",
-  ),
+  ).optional(),
   cidr: z.string().describe(
     "IP Prefix in Classless Inter-Domain Routing format.",
-  ),
+  ).optional(),
   delegate_loa_creation: z.boolean().describe(
     "Whether Cloudflare is allowed to generate the LOA document on behalf of the prefix owner.",
   ).optional(),
@@ -106,7 +106,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Prefixes. Registered at `@swamp/cloudflare/addressing/prefixes`. */
 export const model = {
   type: "@swamp/cloudflare/addressing/prefixes",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -128,6 +128,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -145,6 +150,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["asn", "cidr"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/addressing/prefixes";
         const body: Record<string, unknown> = {};
         if (g.asn !== undefined) body.asn = g.asn;

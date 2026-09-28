@@ -57,7 +57,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   name: z.string().max(2048).describe(
     "The name of the Hyperdrive configuration. Used to identify the configuration in the Cloudflare dashboard and API.",
-  ),
+  ).optional(),
   origin: z.object({
     database: z.string().max(2048).optional(),
     password: z.string().max(2048).optional(),
@@ -158,7 +158,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Configs. Registered at `@swamp/cloudflare/hyperdrive/configs`. */
 export const model = {
   type: "@swamp/cloudflare/hyperdrive/configs",
-  version: "2026.09.18.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -215,6 +215,11 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -232,6 +237,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/hyperdrive/configs";
         const body: Record<string, unknown> = {};
         if (g.caching !== undefined) body.caching = g.caching;

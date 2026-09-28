@@ -65,7 +65,7 @@ const GlobalArgsSchema = z.object({
   configuration: z.object({
     target: z.enum(["ip", "ip6", "ip_range", "asn", "country"]).optional(),
     value: z.string().optional(),
-  }),
+  }).optional(),
   created_on: z.string().describe("The timestamp of when the rule was created.")
     .optional(),
   id: z.string().max(32).describe(
@@ -77,7 +77,7 @@ const GlobalArgsSchema = z.object({
     "whitelist",
     "js_challenge",
     "managed_challenge",
-  ]).describe("The action to apply to a matched request."),
+  ]).describe("The action to apply to a matched request.").optional(),
   modified_on: z.string().describe(
     "The timestamp of when the rule was last modified.",
   ).optional(),
@@ -162,7 +162,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Rules. Registered at `@swamp/cloudflare/firewall/rules`. */
 export const model = {
   type: "@swamp/cloudflare/firewall/rules",
-  version: "2026.08.11.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -194,6 +194,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -211,6 +216,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["configuration", "mode"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         if ((g.account_id == null) === (g.zone_id == null)) {
           throw new Error(
             "Exactly one of account_id or zone_id must be provided",

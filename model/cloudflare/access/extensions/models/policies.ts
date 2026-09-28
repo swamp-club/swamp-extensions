@@ -45,7 +45,7 @@ const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   decision: z.enum(["allow", "deny", "non_identity", "bypass"]).describe(
     "The action Access will take if a user matches this policy. Infrastructure application policies can only use the Allow action.",
-  ),
+  ).optional(),
   exclude: z.array(z.object({
     group: z.object({
       id: z.string(),
@@ -223,8 +223,8 @@ const GlobalArgsSchema = z.object({
     }).optional(),
   })).describe(
     "Rules evaluated with an OR logical operator. A user needs to meet only one of the Include rules.",
-  ),
-  name: z.string().describe("The name of the Access policy."),
+  ).optional(),
+  name: z.string().describe("The name of the Access policy.").optional(),
   require: z.array(z.object({
     group: z.object({
       id: z.string(),
@@ -872,7 +872,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Policies. Registered at `@swamp/cloudflare/access/policies`. */
 export const model = {
   type: "@swamp/cloudflare/access/policies",
-  version: "2026.09.04.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -904,6 +904,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -921,6 +926,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["decision", "include", "name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/access/policies";
         const body: Record<string, unknown> = {};
         if (g.decision !== undefined) body.decision = g.decision;
@@ -1085,6 +1098,25 @@ export const model = {
         if (g.include !== undefined) body.include = g.include;
         if (g.name !== undefined) body.name = g.name;
         if (g.require !== undefined) body.require = g.require;
+        const unset = ["decision", "include", "name"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["decision", "include", "name"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

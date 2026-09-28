@@ -46,7 +46,7 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  account: z.string().describe("Customer account tag"),
+  account: z.string().describe("Customer account tag").optional(),
   bgp: z.object({
     customer_asn: z.number().int().min(0),
     extra_prefixes: z.array(z.string()),
@@ -59,12 +59,12 @@ const GlobalArgsSchema = z.object({
     "Customer end of the point-to-point link\n\nThis should always be inside the same prefix as `p2p_ip`.",
   ).optional(),
   id: z.string().optional(),
-  interconnect: z.string(),
+  interconnect: z.string().optional(),
   magic: z.object({
     conduit_name: z.string(),
     description: z.string(),
     mtu: z.number().int().min(0),
-  }),
+  }).optional(),
   p2p_ip: z.string().describe("Cloudflare end of the point-to-point link")
     .optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
@@ -126,7 +126,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Cnis. Registered at `@swamp/cloudflare/cni/cnis`. */
 export const model = {
   type: "@swamp/cloudflare/cni/cnis",
-  version: "2026.08.25.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -158,6 +158,11 @@ export const model = {
       description: "Added: bgp_mode",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -175,6 +180,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["account", "interconnect", "magic"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/cni/cnis";
         const body: Record<string, unknown> = {};
         if (g.account !== undefined) body.account = g.account;
@@ -348,6 +361,25 @@ export const model = {
         if (g.interconnect !== undefined) body.interconnect = g.interconnect;
         if (g.magic !== undefined) body.magic = g.magic;
         if (g.p2p_ip !== undefined) body.p2p_ip = g.p2p_ip;
+        const unset = ["account", "interconnect", "magic"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["account", "interconnect", "magic"].filter((
+          k,
+        ) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

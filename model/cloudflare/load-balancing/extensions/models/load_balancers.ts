@@ -58,14 +58,14 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   default_pools: z.array(z.string()).describe(
     "A list of pool IDs ordered by their failover priority. Pools defined here are used by default, or when region_pools are not configured for a given region.",
-  ),
+  ).optional(),
   description: z.string().describe("Object description.").optional(),
   enabled: z.boolean().describe(
     "Whether to enable (the default) this load balancer.",
   ).optional(),
   fallback_pool: z.string().describe(
     "The pool ID to use when all other pools are detected as unhealthy.",
-  ),
+  ).optional(),
   location_strategy: z.object({
     mode: z.enum(["pop", "resolver_ip"]).optional(),
     prefer_ecs: z.enum(["always", "never", "proximity", "geo"]).optional(),
@@ -74,7 +74,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   name: z.string().describe(
     "The DNS hostname to associate with your Load Balancer. If this hostname already exists as a DNS record in Cloudflare's DNS, the Load Balancer will take precedence and the DNS record will not be used.",
-  ),
+  ).optional(),
   networks: z.array(z.string()).describe(
     "List of networks where Load Balancer or Pool is enabled.",
   ).optional(),
@@ -424,7 +424,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Load Balancers. Registered at `@swamp/cloudflare/load-balancing/load-balancers`. */
 export const model = {
   type: "@swamp/cloudflare/load-balancing/load-balancers",
-  version: "2026.08.25.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -466,6 +466,11 @@ export const model = {
       description: "Added: account_id",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -483,6 +488,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["default_pools", "fallback_pool", "name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         if ((g.account_id == null) === (g.zone_id == null)) {
           throw new Error(
             "Exactly one of account_id or zone_id must be provided",

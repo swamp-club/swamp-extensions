@@ -48,10 +48,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   cloudflare_gre_endpoint: z.string().describe(
     "The IP address assigned to the Cloudflare side of the GRE tunnel.",
-  ),
+  ).optional(),
   customer_gre_endpoint: z.string().describe(
     "The IP address assigned to the customer side of the GRE tunnel.",
-  ),
+  ).optional(),
   description: z.string().describe("An optional description of the GRE tunnel.")
     .optional(),
   health_check: z.object({
@@ -66,7 +66,7 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   interface_address: z.string().describe(
     "A 31-bit prefix (/31 in CIDR notation) supporting two hosts, one for each side of the tunnel. Select the subnet from the following private IP space: 10.0.0.0–10.255.255.255, 172.16.0.0–172.31.255.255, 192.168.0.0–192.168.255.255.",
-  ),
+  ).optional(),
   interface_address6: z.string().describe(
     "A 127 bit IPV6 prefix from within the virtual_subnet6 prefix space with the address being the first IP of the subnet and not same as the address of virtual_subnet6. Eg if virtual_subnet6 is 2606:54c1:7:0:a9fe:12d2::/127 , interface_address6 could be 2606:54c1:7:0:a9fe:12d2:1:200/127",
   ).optional(),
@@ -75,7 +75,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   name: z.string().describe(
     "The name of the tunnel. The name cannot contain spaces or special characters, must be 15 characters or less, and cannot share a name with another GRE tunnel.",
-  ),
+  ).optional(),
   ttl: z.number().int().describe(
     "Time To Live (TTL) in number of hops of the GRE tunnel.",
   ).optional(),
@@ -180,7 +180,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Gre Tunnels. Registered at `@swamp/cloudflare/magic/gre-tunnels`. */
 export const model = {
   type: "@swamp/cloudflare/magic/gre-tunnels",
-  version: "2026.08.25.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -217,6 +217,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -234,6 +239,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "cloudflare_gre_endpoint",
+          "customer_gre_endpoint",
+          "interface_address",
+          "name",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/magic/gre_tunnels";
         const body: Record<string, unknown> = {};
         if (g.automatic_return_routing !== undefined) {
@@ -457,6 +473,31 @@ export const model = {
         if (g.mtu !== undefined) body.mtu = g.mtu;
         if (g.name !== undefined) body.name = g.name;
         if (g.ttl !== undefined) body.ttl = g.ttl;
+        const unset = [
+          "cloudflare_gre_endpoint",
+          "customer_gre_endpoint",
+          "interface_address",
+          "name",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = [
+          "cloudflare_gre_endpoint",
+          "customer_gre_endpoint",
+          "interface_address",
+          "name",
+        ].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

@@ -48,11 +48,13 @@ const GlobalArgsSchema = z.object({
   zone_id: z.string().optional().describe(
     "Cloudflare zone ID (provide account_id or zone_id)",
   ),
-  description: z.string().describe("A short description of the custom asset."),
-  url: z.string().describe("The URL where the asset content is fetched from."),
+  description: z.string().describe("A short description of the custom asset.")
+    .optional(),
+  url: z.string().describe("The URL where the asset content is fetched from.")
+    .optional(),
   name: z.string().min(1).regex(new RegExp("^[A-Za-z0-9_]+$")).describe(
     "The unique name of the custom asset. Can only contain letters (A-Z, a-z), numbers (0-9), and underscores (_).",
-  ),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -89,7 +91,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Assets. Registered at `@swamp/cloudflare/custom-pages/assets`. */
 export const model = {
   type: "@swamp/cloudflare/custom-pages/assets",
-  version: "2026.07.24.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -116,6 +118,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -133,6 +140,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["description", "name", "url"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         if ((g.account_id == null) === (g.zone_id == null)) {
           throw new Error(
             "Exactly one of account_id or zone_id must be provided",
@@ -330,6 +345,25 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.description !== undefined) body.description = g.description;
         if (g.url !== undefined) body.url = g.url;
+        const unset = ["description", "url"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.name, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["description", "url"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.name, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

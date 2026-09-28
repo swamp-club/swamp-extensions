@@ -175,10 +175,9 @@ const GlobalArgsSchema = z.object({
 
 The mutual exclusion constraint ("exactly one of account_id or zone_id") is
 enforced at **method execution time**, not on the schema. The swamp runtime
-calls `.partial()` on the `globalArguments` schema for lenient validation during
-`sync`, `lookup`, and other non-create methods — Zod disallows `.partial()` on
-refined schemas, so a `.refine()` on `GlobalArgsSchema` would break those
-methods at runtime.
+calls `.partial()` on the `globalArguments` schema when it validates global
+arguments for a method run — Zod disallows `.partial()` on refined schemas, so a
+`.refine()` on `GlobalArgsSchema` would break every method at runtime.
 
 Each generated method validates the scope parameters before constructing the
 URL:
@@ -382,6 +381,40 @@ are flagged as `createOnlyProperties`. These appear in GlobalArgs but are not
 sent in update requests. This is important for Cloudflare where many resources
 have immutable properties set at creation time (e.g., a Worker's name, a D1
 database name).
+
+### Create-required properties
+
+Method runs validate `GlobalArgsSchema` with `.partial()`, but swamp checks the
+full schema in two places: `swamp model create` with any `--global-arg`, and
+`swamp workflow validate` for steps that name a model type rather than a
+definition. A field marked required there therefore blocks a model configured
+only with its scope argument for `get`, `lookup` or `sync` — before this rule,
+`alerting/policies` with only `account_id` was rejected until callers passed
+placeholder `alert_type`, `enabled`, `mechanisms` and `name` values.
+
+So no resource property is required in `GlobalArgsSchema`. The POST body's
+required list becomes `createRequiredProperties` (limited to properties the body
+actually defines, since the flattened schema's required list is not filtered
+against them, and excluding `account_id`/`zone_id`, which are emitted
+separately). Unlike GCP, nothing stays required: no non-create method reads a
+resource property from globalArgs as required — scope args have their own lines
+and the naming field falls back when unset (see "How instance names flow through
+methods"). The synthetic `name` stays required.
+
+- **`create`** throws `create requires global arguments: <names>` before any API
+  call when one of them is unset.
+- **`PUT` update** (full replacement) must still send every create-required
+  field that is in the update body. Each one unset in globalArgs is filled from
+  a `GET` of the live resource, and the update throws
+  `update requires global arguments: <names>` before the `PUT` when the live
+  resource lacks it too. The `GET` is skipped when globalArgs set all of them.
+  The fill deliberately reads the live resource rather than stored state (GCP
+  uses stored state): stored state can be stale, and sending it would silently
+  revert changes made outside swamp since the last `get`/`sync`. The live
+  response is not always shaped like the request body, so Cloudflare can reject
+  a filled value; set the field explicitly in that case. Write-only fields (e.g.
+  secrets) never come back from `GET`, so they must be set explicitly.
+- **`PATCH` update** sends only the fields set in globalArgs, as before.
 
 ---
 

@@ -38,7 +38,7 @@ const GlobalArgsSchema = z.object({
   zone_id: z.string().describe("Cloudflare zone ID"),
   address: z.string().describe(
     "The hostname or IP address of the origin server to run health checks on.",
-  ),
+  ).optional(),
   check_regions: z.array(
     z.enum([
       "WNAM",
@@ -84,7 +84,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   name: z.string().describe(
     "A short name to identify the health check. Only alphanumeric characters, hyphens and underscores are allowed.",
-  ),
+  ).optional(),
   retries: z.number().int().describe(
     "The number of retries to attempt in case of a timeout before marking the origin as unhealthy. Retries are attempted immediately.",
   ).optional(),
@@ -199,7 +199,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Preview. Registered at `@swamp/cloudflare/load-balancing/preview`. */
 export const model = {
   type: "@swamp/cloudflare/load-balancing/preview",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -221,6 +221,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -238,6 +243,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["address", "name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/zones/" + g.zone_id + "/healthchecks/preview";
         const body: Record<string, unknown> = {};
         if (g.address !== undefined) body.address = g.address;

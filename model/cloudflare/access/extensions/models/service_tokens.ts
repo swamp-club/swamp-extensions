@@ -57,7 +57,7 @@ const GlobalArgsSchema = z.object({
   enabled: z.boolean().describe(
     "Whether the service token is enabled. A disabled service token cannot be used to authenticate; both its current and previous `client_secret` stop being accepted, but the token itself is preserved and can be re-enabled at any time. Defaults to enabled when omitted on create.",
   ).optional(),
-  name: z.string().describe("The name of the service token."),
+  name: z.string().describe("The name of the service token.").optional(),
   previous_client_secret_expires_at: z.string().describe(
     "The expiration of the previous `client_secret`. This can be modified at any point after a rotation. For example, you may extend it further into the future if you need more time to update services with the new secret; or move it into the past to immediately invalidate the previous token in case of compromise.",
   ).optional(),
@@ -102,7 +102,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Service Tokens. Registered at `@swamp/cloudflare/access/service-tokens`. */
 export const model = {
   type: "@swamp/cloudflare/access/service-tokens",
-  version: "2026.08.25.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -139,6 +139,11 @@ export const model = {
       description: "Added: enabled",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -156,6 +161,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         if ((g.account_id == null) === (g.zone_id == null)) {
           throw new Error(
             "Exactly one of account_id or zone_id must be provided",
@@ -386,6 +397,21 @@ export const model = {
         if (g.previous_client_secret_expires_at !== undefined) {
           body.previous_client_secret_expires_at =
             g.previous_client_secret_expires_at;
+        }
+        const unset = ["name"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["name"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,

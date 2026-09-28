@@ -59,7 +59,7 @@ const GlobalArgsSchema = z.object({
       content_type: z.string().max(50).optional(),
     }).optional(),
     timeout: z.number().min(1).max(86400).optional(),
-  }),
+  }).optional(),
   match: z.object({
     headers: z.array(z.object({
       name: z.string().optional(),
@@ -76,13 +76,13 @@ const GlobalArgsSchema = z.object({
     response: z.object({
       origin_traffic: z.boolean().optional(),
     }).optional(),
-  }),
+  }).optional(),
   period: z.number().min(10).max(86400).describe(
     "The time in seconds (an integer value) to count matching traffic. If the count exceeds the configured threshold within this period, Cloudflare will perform the configured action.",
-  ),
+  ).optional(),
   threshold: z.number().min(1).describe(
     "The threshold that will trigger the configured mitigation action. Configure this value along with the `period` property to establish a threshold per period.",
-  ),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -144,7 +144,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Rate Limits. Registered at `@swamp/cloudflare/firewall/rate-limits`. */
 export const model = {
   type: "@swamp/cloudflare/firewall/rate-limits",
-  version: "2026.09.22.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -171,6 +171,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -188,6 +193,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["action", "match", "period", "threshold"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/zones/" + g.zone_id + "/rate_limits";
         const body: Record<string, unknown> = {};
         if (g.action !== undefined) body.action = g.action;
@@ -352,6 +365,24 @@ export const model = {
         if (g.match !== undefined) body.match = g.match;
         if (g.period !== undefined) body.period = g.period;
         if (g.threshold !== undefined) body.threshold = g.threshold;
+        const unset = ["action", "match", "period", "threshold"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["action", "match", "period", "threshold"]
+          .filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

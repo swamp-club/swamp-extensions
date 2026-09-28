@@ -52,8 +52,8 @@ const GlobalArgsSchema = z.object({
   tlp: z.enum(["clear", "amber", "amber-strict", "green", "red"]).describe(
     "The CISA defined Traffic Light Protocol (TLP).",
   ).optional(),
-  page: z.number().int().describe("Page number of results."),
-  per_page: z.number().int().describe("Number of results per page."),
+  page: z.number().int().describe("Page number of results.").optional(),
+  per_page: z.number().int().describe("Number of results per page.").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -100,7 +100,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Priority. Registered at `@swamp/cloudflare/cloudforce-one/priority`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/priority",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -122,6 +122,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -139,6 +144,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["page", "per_page"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/cloudforce-one/requests/priority";
         const body: Record<string, unknown> = {};

@@ -159,3 +159,41 @@ Deno.test("parseResources uses empty listEndpointSuffix when base has GET", () =
   assertEquals(resources[0].listEndpointSuffix, "");
   assertEquals(resources[0].paginationStyle, "page");
 });
+
+Deno.test("parseResources records create-required fields, dropping scope args and undefined names", () => {
+  const spec = {
+    paths: {
+      "/accounts/{account_id}/alerting/v3/policies": {
+        post: {
+          requestBody: {
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    account_id: { type: "string" },
+                    name: { type: "string" },
+                    alert_type: { type: "string" },
+                    description: { type: "string" },
+                  },
+                  // `ghost` is required but never defined as a property.
+                  required: ["account_id", "name", "alert_type", "ghost"],
+                },
+              },
+            },
+          },
+        },
+      },
+      "/accounts/{account_id}/alerting/v3/policies/{policy_id}": {
+        get: getOp({ id: { type: "string" }, name: { type: "string" } }),
+        put: jsonBody({ name: { type: "string" } }),
+        delete: {},
+      },
+    },
+  } as OApiSpec;
+
+  const { resources } = parseResources(spec);
+
+  assertEquals(resources.length, 1);
+  assertEquals(resources[0].createRequiredProperties, ["name", "alert_type"]);
+});

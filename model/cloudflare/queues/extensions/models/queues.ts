@@ -72,7 +72,7 @@ const GlobalArgsSchema = z.object({
   })).optional(),
   producers_total_count: z.number().optional(),
   queue_id: z.string().optional(),
-  queue_name: z.string(),
+  queue_name: z.string().optional(),
   settings: z.object({
     delivery_delay: z.number().optional(),
     delivery_paused: z.boolean().optional(),
@@ -170,7 +170,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Queues. Registered at `@swamp/cloudflare/queues/queues`. */
 export const model = {
   type: "@swamp/cloudflare/queues/queues",
-  version: "2026.09.25.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -212,6 +212,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -229,6 +234,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["queue_name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/queues";
         const body: Record<string, unknown> = {};
         if (g.jurisdiction !== undefined) body.jurisdiction = g.jurisdiction;

@@ -45,13 +45,13 @@ const GlobalArgsSchema = z.object({
   zone_id: z.string().describe("Cloudflare zone ID"),
   action: z.enum(["allow", "log", "add_reporting_directives"]).describe(
     "The action to take if the expression matches",
-  ),
-  description: z.string().describe("A description for the policy"),
-  enabled: z.boolean().describe("Whether the policy is enabled"),
+  ).optional(),
+  description: z.string().describe("A description for the policy").optional(),
+  enabled: z.boolean().describe("Whether the policy is enabled").optional(),
   expression: z.string().describe(
     "The expression which must match for the policy to be applied, using the Cloudflare Firewall rule expression syntax",
-  ),
-  value: z.string().describe("The policy which will be applied"),
+  ).optional(),
+  value: z.string().describe("The policy which will be applied").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -89,7 +89,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Policies. Registered at `@swamp/cloudflare/page-shield/policies`. */
 export const model = {
   type: "@swamp/cloudflare/page-shield/policies",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -111,6 +111,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -128,6 +133,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "action",
+          "description",
+          "enabled",
+          "expression",
+          "value",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/zones/" + g.zone_id + "/page_shield/policies";
         const body: Record<string, unknown> = {};
         if (g.action !== undefined) body.action = g.action;
@@ -298,6 +315,33 @@ export const model = {
         if (g.enabled !== undefined) body.enabled = g.enabled;
         if (g.expression !== undefined) body.expression = g.expression;
         if (g.value !== undefined) body.value = g.value;
+        const unset = [
+          "action",
+          "description",
+          "enabled",
+          "expression",
+          "value",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = [
+          "action",
+          "description",
+          "enabled",
+          "expression",
+          "value",
+        ].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

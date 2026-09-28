@@ -45,10 +45,10 @@ const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   config: z.string().optional(),
   is_active: z.boolean().optional(),
-  name: z.string().min(1).max(100),
-  output_schema: z.string().min(1).max(4096),
-  prompt: z.string().min(1).max(4000),
-  type: z.enum(["summary", "tags"]),
+  name: z.string().min(1).max(100).optional(),
+  output_schema: z.string().min(1).max(4096).optional(),
+  prompt: z.string().min(1).max(4000).optional(),
+  type: z.enum(["summary", "tags"]).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -82,7 +82,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Skills. Registered at `@swamp/cloudflare/cloudforce-one/skills`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/skills",
-  version: "2026.09.03.1",
+  version: "2026.09.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -99,6 +106,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name", "output_schema", "prompt", "type"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/cloudforce-one/v2/threat-signals/skills";
         const body: Record<string, unknown> = {};

@@ -55,7 +55,8 @@ const GlobalArgsSchema = z.object({
   is_shared_oauth_callback_enabled: z.boolean().describe(
     "When true, the gateway worker uses the shared Cloudflare-owned OAuth callback endpoint as the redirect_uri for upstream on-behalf OAuth, instead of the customer portal hostname. Defaults to false (off); opt in per server by setting true.",
   ).optional(),
-  name: z.string().max(350).describe("Display name for the MCP server."),
+  name: z.string().max(350).describe("Display name for the MCP server.")
+    .optional(),
   secure_web_gateway: z.boolean().describe(
     "Route outbound traffic to this MCP server through Zero Trust Secure Web Gateway.",
   ).optional(),
@@ -77,10 +78,10 @@ const GlobalArgsSchema = z.object({
   })).describe("Server-wide tool capability overrides.").optional(),
   auth_type: z.enum(["oauth", "bearer", "unauthenticated"]).describe(
     "Authentication method used to connect to the upstream MCP server.",
-  ),
-  hostname: z.string().describe("URL of the upstream MCP endpoint."),
+  ).optional(),
+  hostname: z.string().describe("URL of the upstream MCP endpoint.").optional(),
   id: z.string().min(1).max(32).regex(new RegExp("^[a-z0-9]+(?:-[a-z0-9]+)*$"))
-    .describe("Unique identifier for the MCP server."),
+    .describe("Unique identifier for the MCP server.").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -188,7 +189,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Servers. Registered at `@swamp/cloudflare/access/servers`. */
 export const model = {
   type: "@swamp/cloudflare/access/servers",
-  version: "2026.09.11.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -245,6 +246,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -262,6 +268,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["auth_type", "hostname", "id", "name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/access/ai-controls/mcp/servers";
         const body: Record<string, unknown> = {};
@@ -477,6 +491,21 @@ export const model = {
           body.updated_prompts = g.updated_prompts;
         }
         if (g.updated_tools !== undefined) body.updated_tools = g.updated_tools;
+        const unset = ["name"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["name"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

@@ -47,8 +47,8 @@ const GlobalArgsSchema = z.object({
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
   comments: z.string().max(1024).optional(),
-  created_at: z.string(),
-  id: z.string().describe("Allow policy identifier."),
+  created_at: z.string().optional(),
+  id: z.string().describe("Allow policy identifier.").optional(),
   is_acceptable_sender: z.boolean().describe(
     "Exempts messages from this sender from Spam, Spoof and Bulk dispositions only; Malicious and Suspicious dispositions still apply.",
   ).optional(),
@@ -68,7 +68,7 @@ const GlobalArgsSchema = z.object({
   is_trusted_sender: z.boolean().describe(
     "Bypasses all detections and link following for messages from this sender.",
   ).optional(),
-  last_modified: z.string(),
+  last_modified: z.string().optional(),
   modified_at: z.string().optional(),
   pattern: z.string().min(1).max(1024).describe(
     "The pattern value to match. The format depends on `pattern_type`: a valid email address for EMAIL (e.g. `user@example.com`), a valid domain name for DOMAIN (e.g. `example.com`), or a plain IPv4 or IPv6 address or CIDR block for IP (e.g. `1.2.3.4`, `1.2.3.0/24`, `2606:4700:4700::1111`, or `2606:4700:4700::/48`); the API rejects private or unique-local, loopback, link-local, unspecified, and IPv4 broadcast addresses, including their IPv4-mapped IPv6 equivalents.",
@@ -136,7 +136,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Allow Policies. Registered at `@swamp/cloudflare/email-security/allow-policies`. */
 export const model = {
   type: "@swamp/cloudflare/email-security/allow-policies",
-  version: "2026.09.01.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -183,6 +183,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -200,6 +205,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["created_at", "id", "last_modified"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/email-security/settings/allow_policies";
         const body: Record<string, unknown> = {};

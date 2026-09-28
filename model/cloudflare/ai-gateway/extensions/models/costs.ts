@@ -50,7 +50,7 @@ const GlobalArgsSchema = z.object({
   cost_out: z.number().optional(),
   cost_type: z.string().optional(),
   enable: z.boolean().optional(),
-  model: z.string(),
+  model: z.string().optional(),
   model_rule: z.enum(["equals", "starts-with", "contains"]).optional(),
   token_pricing: z.object({
     input_audio_tokens: z.number().optional(),
@@ -68,7 +68,7 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   account_provider_id: z.string().describe(
     "ID of the custom provider that the pricing rule applies to.",
-  ),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -130,7 +130,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Costs. Registered at `@swamp/cloudflare/ai-gateway/costs`. */
 export const model = {
   type: "@swamp/cloudflare/ai-gateway/costs",
-  version: "2026.09.26.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -157,6 +157,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -174,6 +179,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["account_provider_id", "model"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/ai-gateway/custom-providers/costs";
         const body: Record<string, unknown> = {};

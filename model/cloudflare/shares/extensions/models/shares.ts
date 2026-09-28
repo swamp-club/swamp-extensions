@@ -43,12 +43,12 @@ import {
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  name: z.string().describe("The name of the share."),
+  name: z.string().describe("The name of the share.").optional(),
   recipients: z.array(z.object({
     account_id: z.string().optional(),
     organization_id: z.string().max(32).optional(),
     recipient_account_id: z.string().optional(),
-  })),
+  })).optional(),
   resources: z.array(z.object({
     meta: z.record(z.string(), z.unknown()),
     resource_account_id: z.string().max(32),
@@ -62,7 +62,7 @@ const GlobalArgsSchema = z.object({
       "idp-federation-grant",
       "trust-grant",
     ]),
-  })),
+  })).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -124,7 +124,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Shares. Registered at `@swamp/cloudflare/shares/shares`. */
 export const model = {
   type: "@swamp/cloudflare/shares/shares",
-  version: "2026.08.27.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -151,6 +151,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -168,6 +173,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name", "recipients", "resources"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/shares";
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
@@ -320,6 +333,21 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
+        const unset = ["name"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["name"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

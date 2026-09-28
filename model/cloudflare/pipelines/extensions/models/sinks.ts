@@ -71,7 +71,8 @@ const GlobalArgsSchema = z.object({
     type: z.enum(["json", "parquet"]),
     row_group_bytes: z.number().int().min(0).optional(),
   }).optional(),
-  name: z.string().min(1).max(128).describe("Defines the name of the Sink."),
+  name: z.string().min(1).max(128).describe("Defines the name of the Sink.")
+    .optional(),
   schema: z.object({
     fields: z.array(z.object({
       metadata_key: z.string().optional(),
@@ -84,7 +85,7 @@ const GlobalArgsSchema = z.object({
     .optional(),
   type: z.enum(["r2", "r2_data_catalog"]).describe(
     "Specifies the type of sink.",
-  ),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -200,7 +201,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Sinks. Registered at `@swamp/cloudflare/pipelines/sinks`. */
 export const model = {
   type: "@swamp/cloudflare/pipelines/sinks",
-  version: "2026.09.04.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -242,6 +243,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -259,6 +265,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name", "type"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/pipelines/v1/sinks";
         const body: Record<string, unknown> = {};
         if (g.config !== undefined) body.config = g.config;

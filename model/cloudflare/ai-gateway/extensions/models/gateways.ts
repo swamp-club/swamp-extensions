@@ -50,9 +50,9 @@ const GlobalArgsSchema = z.object({
   byok_only: z.boolean().describe(
     "Requires customer-provided provider credentials and prevents fallback to Unified Billing.",
   ).optional(),
-  cache_invalidate_on_update: z.boolean(),
-  cache_ttl: z.number().int().min(0),
-  collect_logs: z.boolean(),
+  cache_invalidate_on_update: z.boolean().optional(),
+  cache_ttl: z.number().int().min(0).optional(),
+  collect_logs: z.boolean().optional(),
   dlp: z.object({
     action: z.enum(["BLOCK", "FLAG"]).optional(),
     enabled: z.boolean(),
@@ -111,8 +111,8 @@ const GlobalArgsSchema = z.object({
     headers: z.record(z.string(), z.unknown()),
     url: z.string().max(2048),
   })).optional(),
-  rate_limiting_interval: z.number().int().min(0),
-  rate_limiting_limit: z.number().int().min(0),
+  rate_limiting_interval: z.number().int().min(0).optional(),
+  rate_limiting_limit: z.number().int().min(0).optional(),
   rate_limiting_technique: z.enum(["fixed", "sliding"]).optional(),
   retry_backoff: z.enum(["constant", "linear", "exponential"]).describe(
     "Backoff strategy for retry delays",
@@ -156,7 +156,8 @@ const GlobalArgsSchema = z.object({
   zdr: z.boolean().optional(),
   id: z.string().min(1).max(64).regex(
     new RegExp("^[a-z0-9_]+(?:-[a-z0-9_]+)*$"),
-  ).describe("Unique identifier of the AI Gateway within the account."),
+  ).describe("Unique identifier of the AI Gateway within the account.")
+    .optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -386,7 +387,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Gateways. Registered at `@swamp/cloudflare/ai-gateway/gateways`. */
 export const model = {
   type: "@swamp/cloudflare/ai-gateway/gateways",
-  version: "2026.09.26.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -443,6 +444,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -460,6 +466,19 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "cache_invalidate_on_update",
+          "cache_ttl",
+          "collect_logs",
+          "id",
+          "rate_limiting_interval",
+          "rate_limiting_limit",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/ai-gateway/gateways";
         const body: Record<string, unknown> = {};
         if (g.authentication !== undefined) {
@@ -766,6 +785,33 @@ export const model = {
           body.workers_ai_billing_mode = g.workers_ai_billing_mode;
         }
         if (g.zdr !== undefined) body.zdr = g.zdr;
+        const unset = [
+          "cache_invalidate_on_update",
+          "cache_ttl",
+          "collect_logs",
+          "rate_limiting_interval",
+          "rate_limiting_limit",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = [
+          "cache_invalidate_on_update",
+          "cache_ttl",
+          "collect_logs",
+          "rate_limiting_interval",
+          "rate_limiting_limit",
+        ].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

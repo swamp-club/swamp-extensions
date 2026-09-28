@@ -43,7 +43,7 @@ import {
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  base_url: z.string(),
+  base_url: z.string().optional(),
   beta: z.boolean().optional(),
   curl_example: z.string().optional(),
   description: z.string().optional(),
@@ -54,9 +54,9 @@ const GlobalArgsSchema = z.object({
   js_example: z.string().optional(),
   link: z.string().optional(),
   logo: z.string().optional(),
-  name: z.string(),
+  name: z.string().optional(),
   position: z.number().int().optional(),
-  slug: z.string().regex(new RegExp("^[a-zA-Z0-9_-]+$")),
+  slug: z.string().regex(new RegExp("^[a-zA-Z0-9_-]+$")).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -110,7 +110,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Custom-providers. Registered at `@swamp/cloudflare/ai-gateway/custom-providers`. */
 export const model = {
   type: "@swamp/cloudflare/ai-gateway/custom-providers",
-  version: "2026.09.26.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -152,6 +152,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -169,6 +174,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["base_url", "name", "slug"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/ai-gateway/custom-providers";
         const body: Record<string, unknown> = {};

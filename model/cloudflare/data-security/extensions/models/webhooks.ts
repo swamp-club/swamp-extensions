@@ -49,10 +49,10 @@ const GlobalArgsSchema = z.object({
     "Bearer Auth",
     "Static Headers",
     "HMAC-Signing",
-  ]).describe("Type of authentication used for the webhook."),
+  ]).describe("Type of authentication used for the webhook.").optional(),
   destination_url: z.string().describe(
     "Target URL for the webhook configuration. Where resulting data will be sent.",
-  ),
+  ).optional(),
   headers: z.array(z.object({
     key: z.string().max(255),
     value: z.string().max(4096).optional(),
@@ -60,7 +60,7 @@ const GlobalArgsSchema = z.object({
     .optional(),
   label: z.string().describe(
     "Account-specified display label for the webhook configuration.",
-  ),
+  ).optional(),
   signing_secret: z.string().describe(
     'Secret key used for HMAC signing when authentication_type is "HMAC-Signing".',
   ).optional(),
@@ -120,7 +120,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Webhooks. Registered at `@swamp/cloudflare/data-security/webhooks`. */
 export const model = {
   type: "@swamp/cloudflare/data-security/webhooks",
-  version: "2026.09.19.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.07.18.1",
@@ -134,6 +134,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.19.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -154,6 +159,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["authentication_type", "destination_url", "label"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/data-security/posture/webhooks";
         const body: Record<string, unknown> = {};
@@ -344,6 +356,26 @@ export const model = {
           body.signing_secret = g.signing_secret;
         }
         if (g.status !== undefined) body.status = g.status;
+        const unset = ["authentication_type", "destination_url", "label"]
+          .filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = [
+          "authentication_type",
+          "destination_url",
+          "label",
+        ].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

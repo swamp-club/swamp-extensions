@@ -43,10 +43,10 @@ import {
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  contents: z.string().describe("Actual contents of the PAC file"),
+  contents: z.string().describe("Actual contents of the PAC file").optional(),
   description: z.string().describe("Detailed description of the PAC file.")
     .optional(),
-  name: z.string().describe("Name of the PAC file."),
+  name: z.string().describe("Name of the PAC file.").optional(),
   slug: z.string().describe(
     "URL-friendly version of the PAC file name. If not provided, it will be auto-generated",
   ).optional(),
@@ -88,7 +88,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Pacfiles. Registered at `@swamp/cloudflare/gateway/pacfiles`. */
 export const model = {
   type: "@swamp/cloudflare/gateway/pacfiles",
-  version: "2026.09.25.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -115,6 +115,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -132,6 +137,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["contents", "name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/gateway/pacfiles";
         const body: Record<string, unknown> = {};
         if (g.contents !== undefined) body.contents = g.contents;
@@ -297,6 +308,23 @@ export const model = {
         if (g.contents !== undefined) body.contents = g.contents;
         if (g.description !== undefined) body.description = g.description;
         if (g.name !== undefined) body.name = g.name;
+        const unset = ["contents", "name"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["contents", "name"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

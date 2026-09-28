@@ -115,9 +115,8 @@ const GlobalArgsSchema = z.object({
   match: z.string().max(500).describe(
     'The wirefilter expression to match devices. Available values: "identity.email", "identity.groups.id", "identity.groups.name", "identity.groups.email", "identity.service_token_uuid", "identity.saml_attributes", "network", "os.name", "os.version".',
   ).optional(),
-  name: z.string().max(100).describe(
-    "The name of the device settings profile.",
-  ),
+  name: z.string().max(100).describe("The name of the device settings profile.")
+    .optional(),
   precedence: z.number().describe(
     "The precedence of the policy. Lower values indicate higher precedence. Policies will be evaluated in ascending order of this field.",
   ).optional(),
@@ -298,7 +297,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Policy. Registered at `@swamp/cloudflare/devices/policy`. */
 export const model = {
   type: "@swamp/cloudflare/devices/policy",
-  version: "2026.09.25.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -350,6 +349,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -367,6 +371,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/devices/policy";
         const body: Record<string, unknown> = {};
         if (g.allow_mode_switch !== undefined) {

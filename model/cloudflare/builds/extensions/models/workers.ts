@@ -54,7 +54,7 @@ const GlobalArgsSchema = z.object({
     repo_id: z.string(),
     repo_name: z.string(),
     grant_id: z.string().min(1).optional(),
-  }),
+  }).optional(),
   previews_base_config: z.object({
     build_caching_enabled: z.boolean().optional(),
     build_command: z.string(),
@@ -66,10 +66,10 @@ const GlobalArgsSchema = z.object({
     root_directory: z.string().optional(),
   }).describe(
     "Build and deploy settings when creating a Worker build configuration",
-  ),
+  ).optional(),
   previews_enabled: z.boolean().describe(
     "Whether Previews are enabled for this Worker",
-  ),
+  ).optional(),
   production_settings: z.object({
     build_caching_enabled: z.boolean().optional(),
     build_command: z.string(),
@@ -81,10 +81,10 @@ const GlobalArgsSchema = z.object({
     root_directory: z.string().optional(),
   }).describe(
     "Build and deploy settings when creating a Worker build configuration",
-  ),
+  ).optional(),
   script_tag: z.string().describe(
     "System-generated tag of the Worker. This is not the Worker name.",
-  ),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -177,7 +177,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Workers. Registered at `@swamp/cloudflare/builds/workers`. */
 export const model = {
   type: "@swamp/cloudflare/builds/workers",
-  version: "2026.09.22.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.07.18.1",
@@ -209,6 +209,11 @@ export const model = {
       description: "Added: previews_base_config, previews_enabled",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -226,6 +231,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "git_repository",
+          "previews_base_config",
+          "previews_enabled",
+          "production_settings",
+          "script_tag",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/builds/workers";
         const body: Record<string, unknown> = {};
         if (g.git_repository !== undefined) {

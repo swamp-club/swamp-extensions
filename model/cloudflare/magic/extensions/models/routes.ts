@@ -46,11 +46,13 @@ const GlobalArgsSchema = z.object({
   description: z.string().describe(
     "An optional human provided description of the static route.",
   ).optional(),
-  nexthop: z.string().describe("The next-hop IP Address for the static route."),
+  nexthop: z.string().describe("The next-hop IP Address for the static route.")
+    .optional(),
   prefix: z.string().describe(
     "IP Prefix in Classless Inter-Domain Routing format.",
-  ),
-  priority: z.number().int().describe("Priority of the static route."),
+  ).optional(),
+  priority: z.number().int().describe("Priority of the static route.")
+    .optional(),
   scope: z.object({
     colo_names: z.array(z.string()).optional(),
     colo_regions: z.array(z.string()).optional(),
@@ -108,7 +110,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Routes. Registered at `@swamp/cloudflare/magic/routes`. */
 export const model = {
   type: "@swamp/cloudflare/magic/routes",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -130,6 +132,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -147,6 +154,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["nexthop", "prefix", "priority"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/magic/routes";
         const body: Record<string, unknown> = {};
         if (g.description !== undefined) body.description = g.description;
@@ -316,6 +331,25 @@ export const model = {
         if (g.priority !== undefined) body.priority = g.priority;
         if (g.scope !== undefined) body.scope = g.scope;
         if (g.weight !== undefined) body.weight = g.weight;
+        const unset = ["nexthop", "prefix", "priority"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["nexthop", "prefix", "priority"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

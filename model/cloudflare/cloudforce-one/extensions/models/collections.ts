@@ -44,7 +44,8 @@ import {
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   metadata: z.record(z.string(), z.unknown()).optional(),
-  name: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9_]+$")),
+  name: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9_]+$"))
+    .optional(),
   columns: z.array(z.object({
     default: z.record(z.string(), z.unknown()).optional(),
     name: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9_]+$")),
@@ -110,7 +111,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Collections. Registered at `@swamp/cloudflare/cloudforce-one/collections`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/collections",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -132,6 +133,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -149,6 +155,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/cloudforce-one/v2/collections";
         const body: Record<string, unknown> = {};

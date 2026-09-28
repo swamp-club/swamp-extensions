@@ -43,7 +43,7 @@ import {
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  name: z.string().describe("A user-friendly name for a tunnel."),
+  name: z.string().describe("A user-friendly name for a tunnel.").optional(),
   tunnel_secret: z.string().describe(
     "Sets the password required to run a locally-managed tunnel. Must be at least 32 bytes and encoded as a base64 string.",
   ).optional(),
@@ -92,7 +92,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Cfd Tunnel. Registered at `@swamp/cloudflare/tunnel/cfd-tunnel`. */
 export const model = {
   type: "@swamp/cloudflare/tunnel/cfd-tunnel",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -114,6 +114,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -131,6 +136,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/cfd_tunnel";
         const body: Record<string, unknown> = {};
         if (g.config_src !== undefined) body.config_src = g.config_src;

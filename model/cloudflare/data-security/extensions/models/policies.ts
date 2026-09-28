@@ -52,25 +52,25 @@ const GlobalArgsSchema = z.object({
     })).optional(),
   }).describe(
     "Actions to execute when this policy is triggered, grouped by action type.\nA policy must contain at least one action across all groups and may include\nat most one remediation.",
-  ),
+  ).optional(),
   applies_to_all_integrations: z.boolean().describe(
     "When true, the policy applies to all integrations for the account. When false, integration_ids must be provided.",
-  ),
+  ).optional(),
   description: z.string().max(1000).describe(
     "Optional description of what this policy does.",
   ).optional(),
   display_name: z.string().max(255).describe(
     "Display name for the policy configuration.",
-  ),
+  ).optional(),
   enabled: z.boolean().describe(
     "Boolean specifying if the policy is enabled or disabled.",
-  ),
+  ).optional(),
   integration_ids: z.array(z.string()).describe(
     "The integrations this policy applies to. Required when applies_to_all_integrations is false.",
   ).optional(),
   finding_type_id: z.string().describe(
     "The finding type this policy is associated with. All remediation actions must match this finding type.",
-  ),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -133,7 +133,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Policies. Registered at `@swamp/cloudflare/data-security/policies`. */
 export const model = {
   type: "@swamp/cloudflare/data-security/policies",
-  version: "2026.08.28.1",
+  version: "2026.09.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -150,6 +157,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "actions",
+          "applies_to_all_integrations",
+          "display_name",
+          "enabled",
+          "finding_type_id",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/data-security/posture/policies";
         const body: Record<string, unknown> = {};
@@ -344,6 +363,31 @@ export const model = {
         if (g.enabled !== undefined) body.enabled = g.enabled;
         if (g.integration_ids !== undefined) {
           body.integration_ids = g.integration_ids;
+        }
+        const unset = [
+          "actions",
+          "applies_to_all_integrations",
+          "display_name",
+          "enabled",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = [
+          "actions",
+          "applies_to_all_integrations",
+          "display_name",
+          "enabled",
+        ].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,

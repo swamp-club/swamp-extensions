@@ -62,9 +62,8 @@ const GlobalArgsSchema = z.object({
       .optional(),
     row_group_bytes: z.number().int().min(0).optional(),
   }).optional(),
-  name: z.string().min(1).max(128).describe(
-    "Specifies the name of the Stream.",
-  ),
+  name: z.string().min(1).max(128).describe("Specifies the name of the Stream.")
+    .optional(),
   schema: z.object({
     fields: z.array(z.object({
       metadata_key: z.string().optional(),
@@ -163,7 +162,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Streams. Registered at `@swamp/cloudflare/pipelines/streams`. */
 export const model = {
   type: "@swamp/cloudflare/pipelines/streams",
-  version: "2026.09.02.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -200,6 +199,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -217,6 +221,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id + "/pipelines/v1/streams";
         const body: Record<string, unknown> = {};
         if (g.format !== undefined) body.format = g.format;

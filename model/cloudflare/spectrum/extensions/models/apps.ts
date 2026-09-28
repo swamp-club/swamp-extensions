@@ -46,16 +46,17 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  created_on: z.string(),
-  id: z.string().describe("Identifier."),
-  modified_on: z.string(),
+  created_on: z.string().optional(),
+  id: z.string().describe("Identifier.").optional(),
+  modified_on: z.string().optional(),
   argo_smart_routing: z.boolean().describe(
     'Enables Argo Smart Routing for this application.\nNotes: Only available for TCP or UDP applications with traffic_type set to "direct".',
   ).optional(),
   dns: z.object({
     name: z.string().optional(),
     type: z.enum(["CNAME", "ADDRESS"]).optional(),
-  }).describe("The name and type of DNS record for the Spectrum application."),
+  }).describe("The name and type of DNS record for the Spectrum application.")
+    .optional(),
   edge_ips: z.object({
     connectivity: z.enum(["all", "ipv4", "ipv6"]).optional(),
     type: z.enum(["dynamic", "static"]).optional(),
@@ -79,7 +80,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   protocol: z.string().describe(
     'The port configuration at Cloudflare\'s edge. May specify a single port, for example `"tcp/1000"`, or a range of ports, for example `"tcp/1000-2000"`.',
-  ),
+  ).optional(),
   proxy_protocol: z.enum(["off", "v1", "v2", "simple"]).describe(
     "Enables Proxy Protocol to the origin. Refer to [Enable Proxy protocol](https://developers.cloudflare.com/spectrum/getting-started/proxy-protocol/) for implementation details on PROXY Protocol V1, PROXY Protocol V2, and Simple Proxy Protocol.",
   ).optional(),
@@ -193,7 +194,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Apps. Registered at `@swamp/cloudflare/spectrum/apps`. */
 export const model = {
   type: "@swamp/cloudflare/spectrum/apps",
-  version: "2026.09.24.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -245,6 +246,11 @@ export const model = {
       description: "Added: origin_worker_id",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -262,6 +268,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["created_on", "dns", "id", "modified_on", "protocol"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/zones/" + g.zone_id + "/spectrum/apps";
         const body: Record<string, unknown> = {};
         if (g.created_on !== undefined) body.created_on = g.created_on;
@@ -488,6 +501,28 @@ export const model = {
         if (g.traffic_type !== undefined) body.traffic_type = g.traffic_type;
         if (g.virtual_network_id !== undefined) {
           body.virtual_network_id = g.virtual_network_id;
+        }
+        const unset = ["created_on", "dns", "id", "modified_on", "protocol"]
+          .filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = [
+          "created_on",
+          "dns",
+          "id",
+          "modified_on",
+          "protocol",
+        ].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,

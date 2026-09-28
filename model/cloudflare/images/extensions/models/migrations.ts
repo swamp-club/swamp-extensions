@@ -59,9 +59,8 @@ const GlobalArgsSchema = z.object({
   rootDirectory: z.string().min(1).max(128).describe(
     "Only import objects under this prefix in the source bucket.",
   ).optional(),
-  sourceId: z.string().describe(
-    "The identifier of the source to migrate from.",
-  ),
+  sourceId: z.string().describe("The identifier of the source to migrate from.")
+    .optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -116,7 +115,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Migrations. Registered at `@swamp/cloudflare/images/migrations`. */
 export const model = {
   type: "@swamp/cloudflare/images/migrations",
-  version: "2026.08.25.1",
+  version: "2026.09.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -133,6 +139,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["sourceId"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/images/v2/sourcingkit/migrations";
         const body: Record<string, unknown> = {};

@@ -48,10 +48,10 @@ const GlobalArgsSchema = z.object({
   is_default_network: z.boolean().describe(
     "If `true`, this is the default subnet for the account. There can only be one default subnet per account.",
   ).optional(),
-  name: z.string().describe("A user-friendly name for the subnet."),
+  name: z.string().describe("A user-friendly name for the subnet.").optional(),
   network: z.string().describe(
     "The private IPv4 or IPv6 range defining the subnet, in CIDR notation.",
-  ),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -94,7 +94,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Warp. Registered at `@swamp/cloudflare/zerotrust/warp`. */
 export const model = {
   type: "@swamp/cloudflare/zerotrust/warp",
-  version: "2026.08.25.2",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -126,6 +126,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -143,6 +148,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name", "network"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/zerotrust/subnets/warp";
         const body: Record<string, unknown> = {};

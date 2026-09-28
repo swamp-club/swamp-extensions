@@ -46,10 +46,11 @@ const GlobalArgsSchema = z.object({
   created_on: z.string().describe(
     "The timestamp of when the monitor group was created",
   ).optional(),
-  description: z.string().describe("A short description of the monitor group"),
+  description: z.string().describe("A short description of the monitor group")
+    .optional(),
   id: z.string().describe(
     "The ID of the Monitor Group to use for checking the health of origins within this pool.",
-  ),
+  ).optional(),
   members: z.array(z.object({
     created_at: z.string().optional(),
     enabled: z.boolean(),
@@ -57,7 +58,7 @@ const GlobalArgsSchema = z.object({
     monitoring_only: z.boolean(),
     must_be_healthy: z.boolean(),
     updated_at: z.string().optional(),
-  })).describe("List of monitors in this group"),
+  })).describe("List of monitors in this group").optional(),
   modified_on: z.string().describe(
     "The timestamp of when the monitor group was last updated",
   ).optional(),
@@ -111,7 +112,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Monitor Groups. Registered at `@swamp/cloudflare/load-balancing/monitor-groups`. */
 export const model = {
   type: "@swamp/cloudflare/load-balancing/monitor-groups",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -133,6 +134,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -150,6 +156,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["description", "id", "members"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/load_balancers/monitor_groups";
         const body: Record<string, unknown> = {};

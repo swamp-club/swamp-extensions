@@ -55,15 +55,15 @@ const GlobalArgsSchema = z.object({
       resolver_ips: z.array(z.string()).optional(),
       tunnel_id: z.string(),
     }).optional(),
-  }),
-  name: z.string(),
+  }).optional(),
+  name: z.string().optional(),
   service_id: z.string().optional(),
   tls_settings: z.object({
     cert_verification_mode: z.string(),
   }).describe(
     "TLS settings for a connectivity service.\n\nIf omitted, the default mode (`verify_full`) is used.",
   ).optional(),
-  type: z.enum(["tcp", "http"]),
+  type: z.enum(["tcp", "http"]).optional(),
   updated_at: z.string().optional(),
   http_port: z.number().int().min(1).optional(),
   https_port: z.number().int().min(1).optional(),
@@ -163,7 +163,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Services. Registered at `@swamp/cloudflare/connectivity/services`. */
 export const model = {
   type: "@swamp/cloudflare/connectivity/services",
-  version: "2026.08.11.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -190,6 +190,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -207,6 +212,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["host", "name", "type"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/accounts/" + g.account_id +
           "/connectivity/directory/services";
         const body: Record<string, unknown> = {};
@@ -407,6 +420,25 @@ export const model = {
         if (g.https_port !== undefined) body.https_port = g.https_port;
         if (g.app_protocol !== undefined) body.app_protocol = g.app_protocol;
         if (g.tcp_port !== undefined) body.tcp_port = g.tcp_port;
+        const unset = ["host", "name", "type"].filter((k) =>
+          body[k] === undefined
+        );
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["host", "name", "type"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

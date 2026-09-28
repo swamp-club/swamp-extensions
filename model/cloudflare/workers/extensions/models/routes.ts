@@ -46,10 +46,10 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  id: z.string().describe("Identifier."),
+  id: z.string().describe("Identifier.").optional(),
   pattern: z.string().describe(
     "Pattern to match incoming requests against. [Learn more](https://developers.cloudflare.com/workers/configuration/routing/routes/#matching-behavior).",
-  ),
+  ).optional(),
   script: z.string().describe("Name of the script to run if the route matches.")
     .optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
@@ -85,7 +85,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Routes. Registered at `@swamp/cloudflare/workers/routes`. */
 export const model = {
   type: "@swamp/cloudflare/workers/routes",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -107,6 +107,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -124,6 +129,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["id", "pattern"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/zones/" + g.zone_id + "/workers/routes";
         const body: Record<string, unknown> = {};
         if (g.id !== undefined) body.id = g.id;
@@ -282,6 +293,23 @@ export const model = {
         if (g.id !== undefined) body.id = g.id;
         if (g.pattern !== undefined) body.pattern = g.pattern;
         if (g.script !== undefined) body.script = g.script;
+        const unset = ["id", "pattern"].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) if (live[k] !== undefined) body[k] = live[k];
+        }
+        const missingForUpdate = ["id", "pattern"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,

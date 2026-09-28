@@ -41,13 +41,13 @@ const GlobalArgsSchema = z.object({
   ),
   ip: z.string().describe(
     "Origin IP address (IPv4 or IPv6). Normalized to canonical form before storage (RFC 5952 for IPv6).",
-  ),
+  ).optional(),
   region: z.string().describe(
     "Cloud vendor region identifier. Must be a valid region for the specified vendor as returned by the supported_regions endpoint.",
-  ),
+  ).optional(),
   vendor: z.enum(["aws", "azure", "gcp", "oci"]).describe(
     "Cloud vendor hosting the origin. Must be one of the supported vendors.",
-  ),
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -87,7 +87,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Origin Cloud Regions. Registered at `@swamp/cloudflare/cache/origin-cloud-regions`. */
 export const model = {
   type: "@swamp/cloudflare/cache/origin-cloud-regions",
-  version: "2026.07.21.1",
+  version: "2026.09.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -109,6 +109,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -126,6 +131,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ip", "region", "vendor"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/zones/" + g.zone_id + "/cache/origin_cloud_regions";
         const body: Record<string, unknown> = {};
         if (g.ip !== undefined) body.ip = g.ip;

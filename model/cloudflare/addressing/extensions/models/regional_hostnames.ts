@@ -46,10 +46,10 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  region_key: z.string().describe("Identifying key for the region"),
+  region_key: z.string().describe("Identifying key for the region").optional(),
   hostname: z.string().describe(
     "DNS hostname to be regionalized, must be a subdomain of the zone. Wildcards are supported for one level, e.g `*.example.com`",
-  ),
+  ).optional(),
   routing: z.string().describe(
     "Configure which routing method to use for the regional hostname",
   ).optional(),
@@ -88,7 +88,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Regional Hostnames. Registered at `@swamp/cloudflare/addressing/regional-hostnames`. */
 export const model = {
   type: "@swamp/cloudflare/addressing/regional-hostnames",
-  version: "2026.08.25.1",
+  version: "2026.09.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.09.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -105,6 +112,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["hostname", "region_key"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const endpoint = "/zones/" + g.zone_id +
           "/addressing/regional_hostnames";
         const body: Record<string, unknown> = {};
