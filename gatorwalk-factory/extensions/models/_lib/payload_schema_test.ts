@@ -1,0 +1,302 @@
+// Swamp, an Automation Framework Copyright (C) 2026 System Initiative, Inc.
+//
+// This file is part of Swamp.
+//
+// Swamp is free software: you can redistribute it and/or modify it under the terms
+// of the GNU Affero General Public License version 3 as published by the Free
+// Software Foundation, with the Swamp Extension and Definition Exception (found in
+// the "COPYING-EXCEPTION" file).
+//
+// Swamp is distributed in the hope that it will be useful, but WITHOUT ANY
+// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+// PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License along
+// with Swamp. If not, see <https://www.gnu.org/licenses/>.
+
+import { assert, assertEquals } from "@std/assert";
+import {
+  FINDINGS_SCHEMA,
+  lintPayloadSchema,
+  OUTCOME_SCHEMA,
+  type PayloadSchema,
+  validateArtifactPayload,
+  validatePayload,
+} from "./payload_schema.ts";
+
+function lintMessages(schema: unknown): string[] {
+  return lintPayloadSchema(schema).map((i) =>
+    `${i.path.join(".") || "(root)"}: ${i.message}`
+  );
+}
+
+function assertMentions(lines: string[] | null, ...needles: string[]) {
+  assert(lines !== null, "expected errors, got none");
+  for (const needle of needles) {
+    assert(
+      lines.some((l) => l.includes(needle)),
+      `expected an error mentioning ${JSON.stringify(needle)}; got:\n${
+        lines.join("\n")
+      }`,
+    );
+  }
+}
+
+// --- authoring lint --------------------------------------------------------
+
+Deno.test("lint: standard keywords, formats and boolean enums are accepted (#1976, #1262)", () => {
+  assertEquals(
+    lintMessages({
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      type: "object",
+      required: ["at", "flag"],
+      properties: {
+        at: { type: "string", format: "date-time" },
+        flag: { enum: [true, false] },
+        maybe: { type: ["string", "null"] },
+        tags: {
+          type: "array",
+          items: { $ref: "#/$defs/tag" },
+          uniqueItems: true,
+        },
+      },
+      $defs: { tag: { type: "string", pattern: "^[a-z]+$" } },
+      "x-owner": "platform",
+    }),
+    [],
+  );
+});
+
+Deno.test("lint: a misspelt keyword is an error with its path", () => {
+  assertEquals(
+    lintMessages({
+      type: "object",
+      properties: { steps: { type: "array", minItem: 1 } },
+    }),
+    [
+      "properties.steps.minItem: unknown JSON Schema keyword 'minItem' (draft 2020-12; prefix custom keywords with 'x-')",
+    ],
+  );
+});
+
+Deno.test("lint: Object.prototype names are unknown keywords", () => {
+  assertMentions(
+    lintMessages({ type: "object", constructor: {}, toString: 1 }),
+    "constructor: unknown JSON Schema keyword",
+    "toString: unknown JSON Schema keyword",
+  );
+});
+
+Deno.test("lint: property names are not mistaken for keywords", () => {
+  assertEquals(
+    lintMessages({
+      type: "object",
+      properties: { requried: { type: "string" }, items: { type: "string" } },
+    }),
+    [],
+  );
+});
+
+Deno.test("lint: unknown formats, bad patterns, types and values are errors", () => {
+  assertMentions(
+    lintMessages({
+      type: "object",
+      properties: {
+        a: { type: "string", format: "datetime" },
+        b: { type: "string", pattern: "(" },
+        c: { type: "strng" },
+        d: { type: "string", minLength: -1 },
+        e: { type: "string", required: "yes" },
+      },
+    }),
+    "properties.a.format: unknown format 'datetime'",
+    "properties.b.pattern: is not a valid regular expression",
+    "properties.c.type: must be one of",
+    "properties.d.minLength: must be a non-negative integer",
+    "properties.e.required: must be an array of strings",
+  );
+});
+
+Deno.test("lint: only draft 2020-12", () => {
+  assertMentions(
+    lintMessages({
+      $schema: "http://json-schema.org/draft-07/schema#",
+      type: "object",
+    }),
+    "$schema: only draft 2020-12 is supported",
+  );
+});
+
+Deno.test("lint: an unresolvable $ref is an error, and nothing is fetched", () => {
+  assertMentions(
+    lintMessages({
+      type: "object",
+      properties: { a: { $ref: "#/$defs/none" } },
+    }),
+    "properties.a.$ref: '#/$defs/none' does not resolve",
+  );
+  assertMentions(
+    lintMessages({ $ref: "https://example.com/schema.json" }),
+    "$ref: 'https://example.com/schema.json' is not a local reference",
+  );
+  assertMentions(
+    lintMessages({ type: "object", properties: { a: { $ref: "#/%E0" } } }),
+    "properties.a.$ref: '#/%E0' does not resolve",
+  );
+  assertMentions(
+    lintMessages({ type: "object", items: { $ref: "#tag" } }),
+    "items.$ref: no anchor named 'tag'",
+  );
+  assertMentions(
+    lintMessages({ $defs: { a: { $id: "https://x/a", type: "string" } } }),
+    "$defs.a.$id: $id is only supported on the root schema",
+  );
+  assertEquals(
+    lintMessages({
+      type: "array",
+      items: { $ref: "#tag" },
+      $defs: { t: { $anchor: "tag", type: "string" } },
+    }),
+    [],
+  );
+});
+
+Deno.test("lint: a schema is an object or a boolean", () => {
+  assertEquals(lintMessages({ type: "object", properties: { a: true } }), []);
+  assertMentions(lintMessages("object"), "(root): a schema must be an object");
+  assertMentions(
+    lintMessages({ allOf: [] }),
+    "allOf: must be a non-empty array of schemas",
+  );
+});
+
+// --- payload validation ----------------------------------------------------
+
+const PLAN: PayloadSchema = {
+  type: "object",
+  required: ["summary", "steps"],
+  additionalProperties: false,
+  properties: {
+    summary: { type: "string", minLength: 1 },
+    steps: {
+      type: "array",
+      minItems: 1,
+      items: {
+        type: "object",
+        required: ["description"],
+        properties: { description: { type: "string" } },
+      },
+    },
+    due: { type: "string", format: "date" },
+  },
+};
+
+Deno.test("validate: a matching payload is valid", () => {
+  assertEquals(
+    validatePayload(PLAN, {
+      summary: "s",
+      steps: [{ description: "d" }],
+      due: "2026-10-14",
+    }),
+    null,
+  );
+});
+
+Deno.test("validate: errors are the actionable leaves, with dotted paths", () => {
+  assertEquals(
+    validatePayload(PLAN, { summary: "s", steps: [{ description: 3 }] }),
+    ['steps.0.description: Instance type "number" is invalid. Expected "string".'],
+  );
+});
+
+Deno.test("validate: an undeclared key gives one line, not a cascade", () => {
+  const errors = validatePayload(PLAN, {
+    summary: "s",
+    steps: [{ description: "d" }],
+    extra: 1,
+  });
+  assertEquals(errors?.length, 1);
+  assertMentions(
+    errors,
+    '(root): Property "extra" does not match additional properties schema',
+  );
+});
+
+Deno.test("validate: formats are asserted, not just annotated", () => {
+  assertMentions(
+    validatePayload(PLAN, {
+      summary: "s",
+      steps: [{ description: "d" }],
+      due: "soon",
+    }),
+    'due: String does not match format "date"',
+  );
+});
+
+Deno.test("validate: anyOf reports the summary, not every branch", () => {
+  const errors = validatePayload(
+    { anyOf: [{ type: "string" }, { type: "integer" }] },
+    1.5,
+  );
+  assertEquals(errors?.length, 1);
+  assertMentions(errors, "(root):");
+});
+
+Deno.test("validate: the findings contract rejects drift", () => {
+  assertEquals(
+    validatePayload(FINDINGS_SCHEMA, {
+      findings: [{ id: "f1", severity: "high", description: "d" }],
+    }),
+    null,
+  );
+  assertMentions(
+    validatePayload(FINDINGS_SCHEMA, {
+      findings: [{
+        id: "f1",
+        severity: "severe",
+        description: "d",
+        sevrity: "x",
+      }],
+    }),
+    "findings.0.severity:",
+    'Property "sevrity" does not match additional properties schema',
+  );
+});
+
+Deno.test("validate: the outcome contract requires status and runId", () => {
+  assertEquals(
+    validatePayload(OUTCOME_SCHEMA, {
+      status: "succeeded",
+      runId: "r1",
+      extra: 1,
+    }),
+    null,
+  );
+  assertMentions(
+    validatePayload(OUTCOME_SCHEMA, { status: "succeeded" }),
+    'Instance does not have required property "runId"',
+  );
+});
+
+Deno.test("validateArtifactPayload: findings contract and declared schema both apply", () => {
+  const spec = {
+    kind: "findings" as const,
+    schema: {
+      type: "object",
+      required: ["reviewer"],
+      properties: { reviewer: { type: "string" } },
+    },
+  };
+  assertEquals(
+    validateArtifactPayload(spec, { reviewer: "r", findings: [] }),
+    null,
+  );
+  assertMentions(
+    validateArtifactPayload(spec, { findings: [] }),
+    'required property "reviewer"',
+  );
+  assertMentions(
+    validateArtifactPayload(spec, { reviewer: "r" }),
+    'required property "findings"',
+  );
+});

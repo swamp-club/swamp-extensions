@@ -74,7 +74,14 @@ Deno.test("harness: every extension has a check target", async () => {
       t.dir
     )
   ).sort();
-  assertEquals(checked, await extensionDirs());
+  const missing = (await extensionDirs()).filter((d) => !checked.includes(d));
+  assertEquals(missing, [], "extensions with no check target");
+  // A target without a manifest is an extension not yet published (it has
+  // none until go-live); a target without a deno.json is stale.
+  const stale = checked.filter((d) =>
+    !fsProbes(root).hasFile(`${d}/deno.json`)
+  );
+  assertEquals(stale, [], "check targets with no deno.json");
 });
 
 Deno.test("harness: verify-build runs every check group once", async () => {

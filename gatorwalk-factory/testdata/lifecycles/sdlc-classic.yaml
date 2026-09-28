@@ -1,0 +1,169 @@
+# plan → review → implement → test → release → UAT, with a cooldown after
+# release and a CEL rule on the UAT report.
+schemaVersion: 1
+name: sdlc-classic
+stages:
+  - id: planning
+    initial: true
+    work:
+      mode: interactive
+      skills: [planning]
+    artifacts:
+      - name: plan
+        schema:
+          type: object
+          required: [summary, steps, testingStrategy]
+          properties:
+            summary: { type: string }
+            steps: { type: array, minItems: 1 }
+            testingStrategy: { type: string }
+    transitions:
+      - name: submit
+        to: plan-review
+        gates:
+          - type: artifact-exists
+            config: { artifact: plan }
+
+  - id: plan-review
+    work:
+      mode: dispatch
+      skills: [adversarial-review, security-review]
+      systemPrompt: |
+        Adversarially review this plan. Your job is to refute it.
+        Record findings with severities.
+    artifacts:
+      - name: plan-review
+        kind: findings
+        reviews: plan
+    transitions:
+      - name: approve
+        to: implementing
+        gates:
+          - type: artifact-fresh
+            config: { artifact: plan-review, recordedThisCycle: true }
+          - type: findings-clear
+            config: { artifact: plan-review, blocking: [critical, high] }
+          - type: human-approval
+            config: { id: plan-approval }
+      - name: rework
+        to: planning
+
+  - id: implementing
+    work:
+      mode: interactive
+      skills: [implementation]
+    artifacts:
+      - name: change-summary
+        schema:
+          type: object
+          required: [summary]
+          properties:
+            summary: { type: string }
+    evidence:
+      - name: change-request
+        schema:
+          type: object
+          required: [branch]
+          properties:
+            branch: { type: string, minLength: 1 }
+            url: { type: string }
+    transitions:
+      - name: submit
+        to: testing
+        gates:
+          - type: evidence-recorded
+            config: { name: change-request }
+
+  - id: testing
+    description: Comprehensive test matrix; the outcome is attested evidence.
+    work:
+      mode: workflow
+      workflow:
+        name: "@acme/test-suite"
+      bindings:
+        ref: evidence["change-request"].payload.branch
+      resultEvidence: test-run
+    evidence:
+      # Restates the resultEvidence with a stricter contract than the
+      # built-in outcome schema (#897: this pairing is one declaration).
+      - name: test-run
+        schema:
+          type: object
+          required: [status, runId, passed, failed]
+          properties:
+            status: { enum: [succeeded, failed] }
+            runId: { type: string, minLength: 1 }
+            passed: { type: integer, minimum: 0 }
+            failed: { type: integer, minimum: 0 }
+    transitions:
+      - name: passed
+        to: releasing
+        gates:
+          - type: evidence-recorded
+            config: { name: test-run, requireField: { status: succeeded } }
+      - name: failed
+        to: implementing
+        gates:
+          - type: evidence-recorded
+            config: { name: test-run, requireField: { status: failed } }
+
+  - id: releasing
+    work:
+      mode: interactive
+      skills: [release]
+    evidence:
+      - name: release
+        schema:
+          type: object
+          required: [url]
+          properties:
+            url: { type: string, minLength: 1 }
+            version: { type: string }
+            draft: { enum: [true, false] }
+    transitions:
+      - name: released
+        to: uat
+        gates:
+          - type: evidence-recorded
+            config: { name: release }
+          - type: cooldown
+            config: { afterEvidence: release, seconds: 180 }
+
+  - id: uat
+    description: User acceptance testing against the released build.
+    work:
+      mode: interactive
+      skills: [uat]
+    artifacts:
+      - name: uat-report
+        kind: findings
+    transitions:
+      - name: accept
+        to: done
+        gates:
+          - type: findings-clear
+            config: { artifact: uat-report, blocking: [critical, high] }
+          - type: cel
+            config:
+              expr: size(artifacts["uat-report"].payload.findings) >= 1
+              message: >-
+                UAT must record at least one finding entry (use severity: low
+                informational entries for a clean pass) so an empty report
+                cannot be mistaken for a thorough one.
+          - type: human-approval
+            config: { id: uat-signoff }
+      - name: reject
+        to: implementing
+
+  - id: done
+    terminal: true
+
+  - id: aborted
+    terminal: true
+
+globalTransitions:
+  - name: abort
+    to: aborted
+    gates:
+      - type: human-approval
+        config: { id: abort-confirmation }

@@ -68,6 +68,11 @@ groups:
           check: extensions/models/*.ts extensions/models/_lib/*.ts extensions/reports/*.ts
           paths: extensions/models/ extensions/reports/
           testFlags: --allow-read --allow-write --allow-env --allow-net --allow-sys
+      - dir: gatorwalk-factory
+        vars:
+          check: extensions/models/*.ts extensions/models/_lib/*.ts
+          paths: extensions/models/
+          testFlags: --allow-read
       - dir: container-image
         vars:
           check: extensions/models/container_image.ts

@@ -1,0 +1,24 @@
+# The smallest useful lifecycle: one stage of work, then done.
+schemaVersion: 1
+name: minimal
+stages:
+  - id: work
+    initial: true
+    description: Do the work and summarize it.
+    work:
+      mode: interactive
+    artifacts:
+      - name: summary
+        schema:
+          type: object
+          required: [text]
+          properties:
+            text: { type: string, minLength: 1 }
+    transitions:
+      - name: finish
+        to: done
+        gates:
+          - type: artifact-exists
+            config: { artifact: summary }
+  - id: done
+    terminal: true
