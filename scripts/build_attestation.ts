@@ -38,7 +38,13 @@
  *     scripts/build_attestation.ts \
  *       --run <run-id> [--run <run-id> …] \
  *       --commit <sha> --branch <name> \
- *       [--config verification/attestation.yaml]
+ *       [--config verification/attestation.yaml] \
+ *       [--repo-dir <main-checkout>]
+ *
+ * The runs are read with `swamp workflow history get`, which finds the swamp
+ * repository from the current directory. A git worktree is not one, so from a
+ * worktree pass `--repo-dir` naming the checkout the runs were recorded in.
+ * git is still asked about the current directory, which holds the commit.
  *
  * The runs are identified by the `workflowName` on their own records, so the
  * ids may be given in any order. The attestation JSON goes to stdout and
@@ -796,14 +802,17 @@ function isEmptyDefault(value: unknown): boolean {
     value === undefined || value === "";
 }
 
-async function fetchRun(id: string): Promise<RunRecord | null> {
-  const record = await capture("swamp", [
-    "workflow",
-    "history",
-    "get",
-    id,
-    "--json",
-  ]);
+/** The swamp invocation that reads one run record, in `repoDir` if given. */
+export function historyGetArgs(id: string, repoDir?: string): string[] {
+  const args = ["workflow", "history", "get", id, "--json"];
+  return repoDir ? [...args, "--repo-dir", repoDir] : args;
+}
+
+async function fetchRun(
+  id: string,
+  repoDir?: string,
+): Promise<RunRecord | null> {
+  const record = await capture("swamp", historyGetArgs(id, repoDir));
   if (!record) return null;
   try {
     return JSON.parse(record) as RunRecord;
@@ -814,7 +823,7 @@ async function fetchRun(id: string): Promise<RunRecord | null> {
 
 async function main(): Promise<number> {
   const args = parseArgs(Deno.args, {
-    string: ["run", "commit", "branch", "config"],
+    string: ["run", "commit", "branch", "config", "repo-dir"],
     collect: ["run"],
     default: { config: DEFAULT_CONFIG },
   });
@@ -822,10 +831,11 @@ async function main(): Promise<number> {
   const runIds = (args.run ?? []) as string[];
   const requestedCommit = args.commit;
   const branch = args.branch;
+  const repoDir = args["repo-dir"];
   if (runIds.length === 0 || !requestedCommit || !branch) {
     console.error(
       "usage: build_attestation.ts --run <id> --run <id> " +
-        "--commit <sha> --branch <name>",
+        "--commit <sha> --branch <name> [--repo-dir <main-checkout>]",
     );
     return 2;
   }
@@ -862,11 +872,12 @@ async function main(): Promise<number> {
 
   const runs: RunRecord[] = [];
   for (const id of runIds) {
-    const run = await fetchRun(id);
+    const run = await fetchRun(id, repoDir);
     if (!run) {
       console.error(
         `could not read run ${id}; check the id with ` +
-          "`SWAMP_WORKFLOWS_DIR=verification swamp workflow history`",
+          "`SWAMP_WORKFLOWS_DIR=verification swamp workflow history`" +
+          (repoDir ? "" : ", and from a git worktree pass --repo-dir"),
       );
       return 1;
     }

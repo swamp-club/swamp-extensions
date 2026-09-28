@@ -69,6 +69,9 @@ pass — go to "Any step failed" below.
      --commit <SHA> --branch <branch> > /tmp/attestation-<SHA>.json
    ```
 
+   From a git worktree, add `--repo-dir <main-checkout>` so it can read the run
+   records there.
+
    If it refuses (runs of another commit, a workflow that does not match the
    commit), fix the cause and re-run verification — do not work around it.
 

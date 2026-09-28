@@ -208,6 +208,10 @@ attestation is a trust chain violation.
    pins the SHA-256 of every harness file (`pinned` in
    `verification/attestation.yaml`, plus the workflows and that file itself) as
    it stands at the commit.
+
+   From a git worktree, add `--repo-dir <main-checkout>` here too: the run
+   records live in the main checkout's `.swamp/`, and without it the generator
+   cannot read them.
 2. Only if its `gate.allPassed` is true, record the result with
    `verification_passed` (otherwise `verification_failed`).
 3. Present the checklist and **wait for the user to confirm** before posting.

@@ -27,6 +27,7 @@ import {
   checkWorkflowProvenance,
   describeSkip,
   evaluatedWorkflowPath,
+  historyGetArgs,
   matchRunsToWorkflows,
   modelNames,
   parseAttestationConfig,
@@ -670,6 +671,28 @@ Deno.test("describeSkip: each kind reads as what it was", () => {
   );
   assertEquals(describeSkip({ kind: "job_skipped" }), "job was skipped");
   assertEquals(describeSkip(undefined), "reason not recorded");
+});
+
+Deno.test("historyGetArgs: no repo dir leaves swamp to find the repository", () => {
+  assertEquals(historyGetArgs("run-1"), [
+    "workflow",
+    "history",
+    "get",
+    "run-1",
+    "--json",
+  ]);
+});
+
+Deno.test("historyGetArgs: a repo dir is handed to swamp", () => {
+  assertEquals(historyGetArgs("run-1", "/checkout"), [
+    "workflow",
+    "history",
+    "get",
+    "run-1",
+    "--json",
+    "--repo-dir",
+    "/checkout",
+  ]);
 });
 
 Deno.test("modelNames: the run id is substituted into the template", () => {
