@@ -166,7 +166,7 @@ const GlobalArgsSchema = z.object({
     .optional(),
   name: z.string().describe(
     "The organizational unit's path name. For example, an organizational unit's name within the /corp/support/sales_support parent path is sales_support. Required.",
-  ),
+  ).optional(),
   orgUnitId: z.string().describe("The unique ID of the organizational unit.")
     .optional(),
   orgUnitPath: z.string().describe(
@@ -251,7 +251,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Orgunits. Registered at `@swamp/gcp/admin/orgunits`. */
 export const model = {
   type: "@swamp/gcp/admin/orgunits",
-  version: "2026.08.13.1",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -265,6 +265,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -286,6 +291,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
@@ -411,12 +422,21 @@ export const model = {
           body["description"] = g["description"];
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
+        else if (existing["name"] !== undefined) {
+          body["name"] = existing["name"];
+        }
         if (g["orgUnitId"] !== undefined) body["orgUnitId"] = g["orgUnitId"];
         if (g["parentOrgUnitId"] !== undefined) {
           body["parentOrgUnitId"] = g["parentOrgUnitId"];
         }
         if (g["parentOrgUnitPath"] !== undefined) {
           body["parentOrgUnitPath"] = g["parentOrgUnitPath"];
+        }
+        const missingForUpdate = ["name"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         for (const key of Object.keys(existing)) {
           if (

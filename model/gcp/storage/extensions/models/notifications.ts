@@ -160,10 +160,11 @@ const GlobalArgsSchema = z.object({
   object_name_prefix: z.string().describe(
     "If present, only apply this notification configuration to object names that begin with this prefix.",
   ).optional(),
-  payload_format: z.string().describe("The desired content of the Payload."),
+  payload_format: z.string().describe("The desired content of the Payload.")
+    .optional(),
   topic: z.string().describe(
     "The Cloud PubSub topic to which this subscription publishes. Formatted as: '//pubsub.googleapis.com/projects/{project-identifier}/topics/{my-topic}'",
-  ),
+  ).optional(),
   bucket: z.string().describe("The parent bucket of the notification."),
   userProject: z.string().describe(
     "The project to be billed for this request. Required for Requester Pays buckets.",
@@ -240,7 +241,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Storage JSON Notifications. Registered at `@swamp/gcp/storage/notifications`. */
 export const model = {
   type: "@swamp/gcp/storage/notifications",
-  version: "2026.08.12.2",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -362,6 +363,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -379,6 +385,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["payload_format", "topic"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);

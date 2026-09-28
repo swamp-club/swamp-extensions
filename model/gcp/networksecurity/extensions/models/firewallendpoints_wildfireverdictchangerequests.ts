@@ -17,15 +17,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Swamp.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/gcp/drive/children
+// Auto-generated extension model for @swamp/gcp/networksecurity/firewallendpoints-wildfireverdictchangerequests
 // Do not edit manually. Re-generate with: deno task generate:gcp
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for Google Cloud Google Drive Children.
+ * Swamp extension model for Google Cloud Network Security FirewallEndpoints.WildfireVerdictChangeRequests.
  *
- * A reference to a folder's child. Some resource methods (such as `children.get`) require a `childId`. Use the `children.list` method to retrieve the ID of the child.
+ * Message for a WildfireVerdictChangeRequest.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -36,7 +36,6 @@
 import { z } from "npm:zod@4.3.6";
 import {
   createResource,
-  deleteResource,
   type ExplicitGcpCredentials,
   getProjectId,
   isResourceNotFoundError,
@@ -44,22 +43,23 @@ import {
   readResource,
 } from "./_lib/gcp.ts";
 
-const BASE_URL = "https://www.googleapis.com/drive/v2/";
+/** Construct the fully-qualified resource name from parent and short name. */
+function buildResourceName(parent: string, shortName: string): string {
+  return `${parent}/wildfireVerdictChangeRequests/${shortName}`;
+}
+
+const BASE_URL = "https://networksecurity.googleapis.com/";
 
 const GET_CONFIG = {
-  "id": "drive.children.get",
-  "path": "files/{folderId}/children/{childId}",
+  "id":
+    "networksecurity.organizations.locations.firewallEndpoints.wildfireVerdictChangeRequests.get",
+  "path": "v1/{+name}",
   "httpMethod": "GET",
   "parameterOrder": [
-    "folderId",
-    "childId",
+    "name",
   ],
   "parameters": {
-    "childId": {
-      "location": "path",
-      "required": true,
-    },
-    "folderId": {
+    "name": {
       "location": "path",
       "required": true,
     },
@@ -67,46 +67,15 @@ const GET_CONFIG = {
 } as const;
 
 const INSERT_CONFIG = {
-  "id": "drive.children.insert",
-  "path": "files/{folderId}/children",
+  "id":
+    "networksecurity.organizations.locations.firewallEndpoints.wildfireVerdictChangeRequests.create",
+  "path": "v1/{+parent}/wildfireVerdictChangeRequests",
   "httpMethod": "POST",
   "parameterOrder": [
-    "folderId",
+    "parent",
   ],
   "parameters": {
-    "enforceSingleParent": {
-      "location": "query",
-    },
-    "folderId": {
-      "location": "path",
-      "required": true,
-    },
-    "supportsAllDrives": {
-      "location": "query",
-    },
-    "supportsTeamDrives": {
-      "location": "query",
-    },
-  },
-} as const;
-
-const DELETE_CONFIG = {
-  "id": "drive.children.delete",
-  "path": "files/{folderId}/children/{childId}",
-  "httpMethod": "DELETE",
-  "parameterOrder": [
-    "folderId",
-    "childId",
-  ],
-  "parameters": {
-    "childId": {
-      "location": "path",
-      "required": true,
-    },
-    "enforceSingleParent": {
-      "location": "query",
-    },
-    "folderId": {
+    "parent": {
       "location": "path",
       "required": true,
     },
@@ -114,44 +83,29 @@ const DELETE_CONFIG = {
 } as const;
 
 const LIST_CONFIG = {
-  "id": "drive.children.list",
-  "path": "files/{folderId}/children",
+  "id":
+    "networksecurity.organizations.locations.firewallEndpoints.wildfireVerdictChangeRequests.list",
+  "path": "v1/{+parent}/wildfireVerdictChangeRequests",
   "httpMethod": "GET",
   "parameterOrder": [
-    "folderId",
+    "parent",
   ],
   "parameters": {
-    "folderId": {
-      "location": "path",
-      "required": true,
-    },
-    "maxResults": {
+    "filter": {
       "location": "query",
     },
-    "orderBy": {
+    "pageSize": {
       "location": "query",
     },
     "pageToken": {
       "location": "query",
     },
-    "q": {
-      "location": "query",
+    "parent": {
+      "location": "path",
+      "required": true,
     },
   },
 } as const;
-
-const _defaultOAuthScopes: string[] = [
-  "https://www.googleapis.com/auth/drive",
-  "https://www.googleapis.com/auth/drive.appdata",
-  "https://www.googleapis.com/auth/drive.apps.readonly",
-  "https://www.googleapis.com/auth/drive.file",
-  "https://www.googleapis.com/auth/drive.meet.readonly",
-  "https://www.googleapis.com/auth/drive.metadata",
-  "https://www.googleapis.com/auth/drive.metadata.readonly",
-  "https://www.googleapis.com/auth/drive.photos.readonly",
-  "https://www.googleapis.com/auth/drive.readonly",
-  "https://www.googleapis.com/auth/drive.scripts",
-];
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
@@ -175,18 +129,40 @@ const GlobalArgsSchema = z.object({
   apiEndpoint: z.string().describe(
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
-  id: z.string().describe("The ID of the child.").optional(),
-  folderId: z.string().describe("The ID of the folder."),
-  supportsAllDrives: z.string().describe(
-    "Whether the requesting application supports both My Drives and shared drives.",
+  comment: z.string().describe(
+    "Required. The justification for the verdict change request. Max length 2048 characters.",
+  ).optional(),
+  newVerdict: z.enum([
+    "WILDFIRE_SAMPLE_VERDICT_UNKNOWN",
+    "BENIGN",
+    "MALWARE",
+    "GRAYWARE",
+    "PHISHING",
+  ]).describe("Required. The suggested verdict to apply to the Malware Sample.")
+    .optional(),
+  sha256: z.string().describe(
+    "Required. The SHA256 hash of the Malware Sample to change the verdict of.",
+  ).optional(),
+  parent: z.string().describe(
+    "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
   ).optional(),
 });
 
 const StateSchema = z.object({
-  childLink: z.string().optional(),
-  id: z.string().optional(),
-  kind: z.string().optional(),
-  selfLink: z.string().optional(),
+  comment: z.string().optional(),
+  createTime: z.string().optional(),
+  fileName: z.string().optional(),
+  fileType: z.string().optional(),
+  finalVerdict: z.string().optional(),
+  name: z.string(),
+  newVerdict: z.string().optional(),
+  oldVerdict: z.string().optional(),
+  resolutionTime: z.string().optional(),
+  sha256: z.string().optional(),
+  sourceRegion: z.string().optional(),
+  state: z.string().optional(),
+  updateTime: z.string().optional(),
+  wildfireVerdictChangeRequestId: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -199,10 +175,22 @@ const InputsSchema = z.object({
   scopes: z.string().optional(),
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
-  id: z.string().describe("The ID of the child.").optional(),
-  folderId: z.string().describe("The ID of the folder.").optional(),
-  supportsAllDrives: z.string().describe(
-    "Whether the requesting application supports both My Drives and shared drives.",
+  comment: z.string().describe(
+    "Required. The justification for the verdict change request. Max length 2048 characters.",
+  ).optional(),
+  newVerdict: z.enum([
+    "WILDFIRE_SAMPLE_VERDICT_UNKNOWN",
+    "BENIGN",
+    "MALWARE",
+    "GRAYWARE",
+    "PHISHING",
+  ]).describe("Required. The suggested verdict to apply to the Malware Sample.")
+    .optional(),
+  sha256: z.string().describe(
+    "Required. The SHA256 hash of the Malware Sample to change the verdict of.",
+  ).optional(),
+  parent: z.string().describe(
+    "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
   ).optional(),
 });
 
@@ -224,38 +212,21 @@ function _buildGcpCredentials(
     project: g.project as string | undefined,
     scopes: typeof g.scopes === "string"
       ? g.scopes.split(",").map((s: string) => s.trim())
-      : _defaultOAuthScopes,
+      : undefined,
     quotaProject: g.quotaProject as string | undefined,
   };
 }
 
-/** Swamp extension model for Google Cloud Google Drive Children. Registered at `@swamp/gcp/drive/children`. */
+/** Swamp extension model for Google Cloud Network Security FirewallEndpoints.WildfireVerdictChangeRequests. Registered at `@swamp/gcp/networksecurity/firewallendpoints-wildfireverdictchangerequests`. */
 export const model = {
-  type: "@swamp/gcp/drive/children",
+  type:
+    "@swamp/gcp/networksecurity/firewallendpoints-wildfireverdictchangerequests",
   version: "2026.09.28.1",
-  upgrades: [
-    {
-      toVersion: "2026.07.29.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.08.12.2",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.09.28.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description:
-        "A reference to a folder's child. Some resource methods (such as `children.get...",
+      description: "Message for a WildfireVerdictChangeRequest.",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -263,30 +234,26 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a children",
+      description: "Create a wildfireVerdictChangeRequests",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const missing = ["id"].filter((k) => g[k] === undefined);
-        if (missing.length > 0) {
-          throw new Error(
-            "create requires global arguments: " + missing.join(", "),
-          );
-        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
-        if (g["folderId"] !== undefined) {
-          params["folderId"] = String(g["folderId"]);
-        }
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         const body: Record<string, unknown> = {};
-        if (g["id"] !== undefined) body["id"] = g["id"];
-        if (g["supportsAllDrives"] !== undefined) {
-          params["supportsAllDrives"] = String(g["supportsAllDrives"]);
+        if (g["comment"] !== undefined) body["comment"] = g["comment"];
+        if (g["newVerdict"] !== undefined) body["newVerdict"] = g["newVerdict"];
+        if (g["sha256"] !== undefined) body["sha256"] = g["sha256"];
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
         }
-        if (g["name"] !== undefined) params["childId"] = String(g["name"]);
         const result = await createResource(
           baseUrl,
           INSERT_CONFIG,
@@ -310,9 +277,11 @@ export const model = {
       },
     },
     get: {
-      description: "Get a children",
+      description: "Get a wildfireVerdictChangeRequests",
       arguments: z.object({
-        identifier: z.string().describe("The name of the children"),
+        identifier: z.string().describe(
+          "The name of the wildfireVerdictChangeRequests",
+        ),
       }),
       execute: async (args: { identifier: string }, context: any) => {
         const g = context.globalArgs;
@@ -321,10 +290,10 @@ export const model = {
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
-        if (g["folderId"] !== undefined) {
-          params["folderId"] = String(g["folderId"]);
-        }
-        params["childId"] = args.identifier;
+        params["name"] = buildResourceName(
+          String(g["parent"] ?? ""),
+          args.identifier,
+        );
         const result = await readResource(
           baseUrl,
           GET_CONFIG,
@@ -343,46 +312,11 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
-    delete: {
-      description: "Delete the children",
-      arguments: z.object({
-        identifier: z.string().describe("The name of the children"),
-      }),
-      execute: async (args: { identifier: string }, context: any) => {
-        const g = context.globalArgs;
-        const baseUrl = g["apiEndpoint"]?.toString() ??
-          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
-        const credentials = _buildGcpCredentials(g);
-        const projectId = await getProjectId(credentials);
-        const params: Record<string, string> = { project: projectId };
-        if (g["folderId"] !== undefined) {
-          params["folderId"] = String(g["folderId"]);
-        }
-        params["childId"] = args.identifier;
-        const { existed } = await deleteResource(
-          baseUrl,
-          DELETE_CONFIG,
-          params,
-          credentials,
-        );
-        const instanceName = (g.name?.toString() ?? args.identifier).replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
-        const handle = await context.writeResource("state", instanceName, {
-          identifier: args.identifier,
-          existed,
-          status: existed ? "deleted" : "not_found",
-          deletedAt: new Date().toISOString(),
-        });
-        return { dataHandles: [handle] };
-      },
-    },
     sync: {
-      description: "Sync children state from GCP",
+      description: "Sync wildfireVerdictChangeRequests state from GCP",
       arguments: z.object({
         identifier: z.string().describe(
-          "Target a specific children by name (e.g. one discovered by list)",
+          "Target a specific wildfireVerdictChangeRequests by name (e.g. one discovered by list)",
         ).optional(),
       }),
       execute: async (args: { identifier?: string }, context: any) => {
@@ -409,18 +343,17 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         try {
           const params: Record<string, string> = { project: projectId };
-          if (g["folderId"] !== undefined) {
-            params["folderId"] = String(g["folderId"]);
-          } else if (existing["folderId"]) {
-            params["folderId"] = String(existing["folderId"]);
-          }
-          const identifier = existing.name?.toString() ?? g["name"]?.toString();
-          if (!identifier) {
-            throw new Error(
-              "No identifier found in existing state or globalArgs",
+          const existingName = existing.name?.toString();
+          if (existingName && existingName.includes("/")) {
+            params["name"] = existingName;
+          } else {
+            const shortName = existingName ?? g["name"]?.toString();
+            if (!shortName) throw new Error("No identifier found");
+            params["name"] = buildResourceName(
+              String(g["parent"] ?? ""),
+              shortName,
             );
           }
-          params["childId"] = identifier;
           const result = await readResource(
             baseUrl,
             GET_CONFIG,
@@ -446,15 +379,14 @@ export const model = {
       },
     },
     list: {
-      description: "List children resources",
+      description: "List wildfireVerdictChangeRequests resources",
       arguments: z.object({
-        maxResults: z.number().describe("Maximum number of children to return.")
-          .optional(),
-        orderBy: z.string().describe(
-          "A comma-separated list of sort keys. Valid keys are `createdDate`, `folder`, `lastViewedByMeDate`, `modifiedByMeDate`, `modifiedDate`, `quotaBytesUsed`, `recency`, `sharedWithMeDate`, `starred`, and `title`. Each key sorts ascending by default, but may be reversed with the `desc` modifier. Example usage: ?orderBy=folder,modifiedDate desc,title. Please note that there is a current limitation for users with approximately one million files in which the requested sort order is ignored.",
+        filter: z.string().describe(
+          'Optional. Filter expression to filter the results. See AIP-160 for filtering syntax. Supported fields are: - `sha256` (string, equality only, e.g. `sha256 = "..."`) - `state` (enum, equality only, e.g. `state = "ACTIVE"`) - `create_time` (timestamp, comparisons, e.g. `create_time > "2026-01-01T00:00:00Z"`)',
         ).optional(),
-        q: z.string().describe("Query string for searching children.")
-          .optional(),
+        pageSize: z.number().describe(
+          "Optional. Requested page size. Server may return fewer items than requested. If unspecified, server will pick an appropriate default.",
+        ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
         ).optional(),
@@ -466,21 +398,18 @@ export const model = {
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);
         const params: Record<string, string> = { project: projectId };
-        if (g["folderId"] !== undefined) {
-          params["folderId"] = String(g["folderId"]);
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
         }
-        if (args["maxResults"] !== undefined) {
-          params["maxResults"] = String(args["maxResults"]);
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
         }
-        if (args["orderBy"] !== undefined) {
-          params["orderBy"] = String(args["orderBy"]);
-        }
-        if (args["q"] !== undefined) params["q"] = String(args["q"]);
         const { items, nextPageToken } = await listResources(
           baseUrl,
           LIST_CONFIG,
           params,
-          "items",
+          "wildfireVerdictChangeRequests",
           (args.maxPages as number | undefined) ?? 10,
           credentials,
         );

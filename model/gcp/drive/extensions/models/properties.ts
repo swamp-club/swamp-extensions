@@ -181,7 +181,7 @@ const GlobalArgsSchema = z.object({
   apiEndpoint: z.string().describe(
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
-  key: z.string().describe("The key of this property."),
+  key: z.string().describe("The key of this property.").optional(),
   value: z.string().describe("The value of this property.").optional(),
   visibility: z.string().describe(
     "The visibility of this property. Allowed values are PRIVATE (default) and PUBLIC. Private properties can only be retrieved using an authenticated request. An authenticated request uses an access token obtained with a OAuth 2 client ID. You cannot use an API key to retrieve private properties.",
@@ -242,7 +242,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Drive Properties. Registered at `@swamp/gcp/drive/properties`. */
 export const model = {
   type: "@swamp/gcp/drive/properties",
-  version: "2026.08.13.1",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -256,6 +256,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -277,6 +282,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["key"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
@@ -379,11 +390,18 @@ export const model = {
         params["propertyKey"] = existing["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
         if (g["key"] !== undefined) body["key"] = g["key"];
+        else if (existing["key"] !== undefined) body["key"] = existing["key"];
         if (g["value"] !== undefined) body["value"] = g["value"];
         if (g["visibility"] !== undefined) {
           params["visibility"] = String(g["visibility"]);
         } else if (existing["visibility"] !== undefined) {
           params["visibility"] = String(existing["visibility"]);
+        }
+        const missingForUpdate = ["key"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         for (const key of Object.keys(existing)) {
           if (

@@ -511,7 +511,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   metageneration: z.string().describe("The metadata generation of this bucket.")
     .optional(),
-  name: z.string().describe("The name of the bucket."),
+  name: z.string().describe("The name of the bucket.").optional(),
   objectRetention: z.object({
     mode: z.string().describe(
       "The bucket's object retention mode. Can be Enabled.",
@@ -1415,7 +1415,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Storage JSON Buckets. Registered at `@swamp/gcp/storage/buckets`. */
 export const model = {
   type: "@swamp/gcp/storage/buckets",
-  version: "2026.09.07.1",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1597,6 +1597,11 @@ export const model = {
       description: "Added: ifMetagenerationMatch, ifMetagenerationNotMatch",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1614,6 +1619,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
@@ -1833,6 +1844,9 @@ export const model = {
           body["metageneration"] = g["metageneration"];
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
+        else if (existing["name"] !== undefined) {
+          body["name"] = existing["name"];
+        }
         if (g["objectRetention"] !== undefined) {
           body["objectRetention"] = g["objectRetention"];
         }
@@ -1879,6 +1893,12 @@ export const model = {
         } else if (existing["ifMetagenerationNotMatch"] !== undefined) {
           params["ifMetagenerationNotMatch"] = String(
             existing["ifMetagenerationNotMatch"],
+          );
+        }
+        const missingForUpdate = ["name"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
           );
         }
         for (const key of Object.keys(existing)) {

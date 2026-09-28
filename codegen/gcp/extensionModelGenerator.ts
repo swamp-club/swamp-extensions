@@ -476,6 +476,19 @@ export function generateGcpExtensionModel(
       );
     }
     lines.push(`        const g = context.globalArgs;`);
+    // Create-only required fields are optional in GlobalArgsSchema so other
+    // methods can run without them; enforce them here before any API call.
+    const createRequired = [...resource.createRequiredProperties].sort();
+    if (createRequired.length > 0) {
+      lines.push(
+        `        const missing = ${
+          JSON.stringify(createRequired)
+        }.filter((k) => g[k] === undefined);`,
+      );
+      lines.push(
+        `        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));`,
+      );
+    }
     lines.push(
       `        const baseUrl = g["apiEndpoint"]?.toString() ?? Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;`,
     );
@@ -1041,6 +1054,11 @@ export function generateGcpExtensionModel(
 
     const updatePathParams = new Set(updateConfig.parameterOrder);
     const updateParameters = updateConfig.parameters;
+    // Create-only required fields are optional in GlobalArgsSchema; a
+    // full-replacement PUT update must still send them.
+    const isFullReplacement = updateConfig.httpMethod === "PUT";
+    const createRequired = new Set(resource.createRequiredProperties);
+    const updateRequired: string[] = [];
     lines.push(`        const body: Record<string, unknown> = {};`);
     for (const propName of Object.keys(resource.domainProperties)) {
       if (updatePathParams.has(propName)) continue;
@@ -1070,7 +1088,31 @@ export function generateGcpExtensionModel(
             JSON.stringify(propName)
           }] = g[${JSON.stringify(propName)}];`,
         );
+        if (isFullReplacement && createRequired.has(propName)) {
+          // A PUT body replaces the resource, so a create-required field left
+          // unset in globalArgs would be dropped. Carry it from stored state.
+          if (updateNeedsExisting) {
+            lines.push(
+              `        else if (existing[${
+                JSON.stringify(propName)
+              }] !== undefined) body[${JSON.stringify(propName)}] = existing[${
+                JSON.stringify(propName)
+              }];`,
+            );
+          }
+          updateRequired.push(propName);
+        }
       }
+    }
+    if (updateRequired.length > 0) {
+      lines.push(
+        `        const missingForUpdate = ${
+          JSON.stringify(updateRequired.sort())
+        }.filter((k) => body[k] === undefined);`,
+      );
+      lines.push(
+        `        if (missingForUpdate.length > 0) throw new Error("update requires global arguments: " + missingForUpdate.join(", "));`,
+      );
     }
 
     // Auto-compute updateMask from body keys before fingerprint carry-forward.

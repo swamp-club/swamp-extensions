@@ -187,17 +187,17 @@ const GlobalArgsSchema = z.object({
   labelListVisibility: z.enum(["labelShow", "labelShowIfUnread", "labelHide"])
     .describe(
       "The visibility of the label in the label list in the Gmail web interface.",
-    ),
+    ).optional(),
   messageListVisibility: z.enum(["show", "hide"]).describe(
     "The visibility of messages with this label in the message list in the Gmail web interface.",
-  ),
+  ).optional(),
   messagesTotal: z.number().int().describe(
     "The total number of messages with the label.",
   ).optional(),
   messagesUnread: z.number().int().describe(
     "The number of unread messages with the label.",
   ).optional(),
-  name: z.string().describe("The display name of the label."),
+  name: z.string().describe("The display name of the label.").optional(),
   threadsTotal: z.number().int().describe(
     "The total number of threads with the label.",
   ).optional(),
@@ -302,7 +302,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Gmail Users.Labels. Registered at `@swamp/gcp/gmail/users-labels`. */
 export const model = {
   type: "@swamp/gcp/gmail/users-labels",
-  version: "2026.08.12.2",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -464,6 +464,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -482,6 +487,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["labelListVisibility", "messageListVisibility", "name"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
@@ -606,9 +618,13 @@ export const model = {
         if (g["color"] !== undefined) body["color"] = g["color"];
         if (g["labelListVisibility"] !== undefined) {
           body["labelListVisibility"] = g["labelListVisibility"];
+        } else if (existing["labelListVisibility"] !== undefined) {
+          body["labelListVisibility"] = existing["labelListVisibility"];
         }
         if (g["messageListVisibility"] !== undefined) {
           body["messageListVisibility"] = g["messageListVisibility"];
+        } else if (existing["messageListVisibility"] !== undefined) {
+          body["messageListVisibility"] = existing["messageListVisibility"];
         }
         if (g["messagesTotal"] !== undefined) {
           body["messagesTotal"] = g["messagesTotal"];
@@ -617,6 +633,9 @@ export const model = {
           body["messagesUnread"] = g["messagesUnread"];
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
+        else if (existing["name"] !== undefined) {
+          body["name"] = existing["name"];
+        }
         if (g["threadsTotal"] !== undefined) {
           body["threadsTotal"] = g["threadsTotal"];
         }
@@ -624,6 +643,16 @@ export const model = {
           body["threadsUnread"] = g["threadsUnread"];
         }
         if (g["type"] !== undefined) body["type"] = g["type"];
+        const missingForUpdate = [
+          "labelListVisibility",
+          "messageListVisibility",
+          "name",
+        ].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         for (const key of Object.keys(existing)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||

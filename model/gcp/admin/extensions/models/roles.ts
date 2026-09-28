@@ -174,13 +174,14 @@ const GlobalArgsSchema = z.object({
   roleDescription: z.string().describe("A short description of the role.")
     .optional(),
   roleId: z.string().describe("ID of the role.").optional(),
-  roleName: z.string().describe("Name of the role."),
+  roleName: z.string().describe("Name of the role.").optional(),
   rolePrivileges: z.array(z.object({
     privilegeName: z.string().describe("The name of the privilege.").optional(),
     serviceId: z.string().describe(
       "The obfuscated ID of the service this privilege is for. This value is returned with [`Privileges.list()`](https://developers.google.com/workspace/admin/directory/v1/reference/privileges/list).",
     ).optional(),
-  })).describe("The set of privileges that are granted to this role."),
+  })).describe("The set of privileges that are granted to this role.")
+    .optional(),
   customer: z.string().describe(
     "Immutable ID of the Google Workspace account.",
   ),
@@ -257,7 +258,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Roles. Registered at `@swamp/gcp/admin/roles`. */
 export const model = {
   type: "@swamp/gcp/admin/roles",
-  version: "2026.08.13.1",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -271,6 +272,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -291,6 +297,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["roleName", "rolePrivileges"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
@@ -418,8 +432,21 @@ export const model = {
           body["roleDescription"] = g["roleDescription"];
         }
         if (g["roleName"] !== undefined) body["roleName"] = g["roleName"];
+        else if (existing["roleName"] !== undefined) {
+          body["roleName"] = existing["roleName"];
+        }
         if (g["rolePrivileges"] !== undefined) {
           body["rolePrivileges"] = g["rolePrivileges"];
+        } else if (existing["rolePrivileges"] !== undefined) {
+          body["rolePrivileges"] = existing["rolePrivileges"];
+        }
+        const missingForUpdate = ["roleName", "rolePrivileges"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         for (const key of Object.keys(existing)) {
           if (

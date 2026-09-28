@@ -448,7 +448,30 @@ Default: `["name"]` — most GCP resources use `name`.
 
 GCP uses `annotations.required` on properties to list which methods require
 them, plus a schema-level `required` array (rarely populated). Path-only
-parameters are always required.
+parameters are also required.
+
+swamp validates `GlobalArgsSchema` for every method, not just `create`. So the
+pipeline splits the required set (`nonCreatePathParams` in `pipeline.ts`):
+
+- **`requiredProperties`** — required fields that a non-create method reads from
+  globalArgs: path parameters of get/update/patch/delete (excluding the last
+  one, the resource identifier) and every list path parameter, plus `parent` and
+  `location`, which list/get use to build the parent path. These stay
+  non-optional in `GlobalArgsSchema`.
+- **`createRequiredProperties`** — every other required field (insert body
+  fields, insert-only path parameters). These are `.optional()` in
+  `GlobalArgsSchema`, so `list`, `get` and `delete` run without them, and the
+  generated `create` method throws `create requires global arguments: <names>`
+  before any API call when one is unset. When the resource's update is a
+  full-replacement `PUT`, the generated `update` fills each create-required body
+  field from globalArgs, falling back to the stored state that `list`/`get`
+  wrote, and throws `update requires global arguments: <names>` when neither has
+  it, so a replacement body never silently drops a required field. `PATCH`
+  updates send only the fields set in globalArgs, as before.
+
+For example, `compute/routes` requires `destRange`, `name`, `network` and
+`priority` only at create, so a routes model configured with just `project` can
+run `list`.
 
 ---
 
@@ -1099,7 +1122,9 @@ Preserves all Discovery Document constraints:
 - `integer` → `z.number().int()`
 - Nested objects extracted to top-level named schemas (from `title` field)
 
-Required fields are non-optional; everything else gets `.optional()`.
+Fields in `requiredProperties` are non-optional; everything else, including
+create-only required fields, gets `.optional()` (see "Required properties from
+annotations").
 
 ### StateSchema — simplified response parsing
 

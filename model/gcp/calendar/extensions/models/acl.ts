@@ -202,7 +202,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   role: z.string().describe(
     'The role assigned to the scope. Possible values are: - "none" - Provides no access. - "freeBusyReader" - Provides read access to free/busy information. - "reader" - Provides read access to the calendar. Private events will appear to users with reader access, but event details will be hidden. - "writerWithoutPrivateAccess" - Provides read and write access to the calendar. Private events will appear to users with writerWithoutPrivateAccess access, but event details will be hidden. - "writer" - Provides read and write access to the calendar. Private events will appear to users with writer access, and event details will be visible. Provides read access to the calendar\'s ACLs. - "owner" - Provides manager access to the calendar. This role has all of the permissions of the writer role with the additional ability to modify access levels of other users. Important: the owner role is different from the calendar\'s data owner. A calendar has a single data owner, but can have multiple users with owner role.',
-  ),
+  ).optional(),
   scope: z.object({
     type: z.string().describe(
       'The type of the scope. Possible values are: - "default" - The public scope. This is the default value. - "user" - Limits the scope to a single user. - "group" - Limits the scope to a group. - "domain" - Limits the scope to a domain. Note: The permissions granted to the "default", or public, scope apply to any user, authenticated or not.',
@@ -212,7 +212,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "The extent to which calendar access is granted by this ACL rule.",
-  ),
+  ).optional(),
   calendarId: z.string().describe(
     'Calendar identifier. To retrieve calendar IDs call the calendarList.list method. If you want to access the primary calendar of the currently logged in user, use the "primary" keyword.',
   ),
@@ -292,7 +292,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Calendar Acl. Registered at `@swamp/gcp/calendar/acl`. */
 export const model = {
   type: "@swamp/gcp/calendar/acl",
-  version: "2026.09.07.1",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -429,6 +429,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -446,6 +451,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["role", "scope"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
@@ -557,7 +568,21 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["id"] !== undefined) body["id"] = g["id"];
         if (g["role"] !== undefined) body["role"] = g["role"];
+        else if (existing["role"] !== undefined) {
+          body["role"] = existing["role"];
+        }
         if (g["scope"] !== undefined) body["scope"] = g["scope"];
+        else if (existing["scope"] !== undefined) {
+          body["scope"] = existing["scope"];
+        }
+        const missingForUpdate = ["role", "scope"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         for (const key of Object.keys(existing)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||

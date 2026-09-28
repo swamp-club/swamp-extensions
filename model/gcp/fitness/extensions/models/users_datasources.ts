@@ -259,7 +259,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   type: z.enum(["raw", "derived"]).describe(
     "A constant describing the type of this data source. Indicates whether this data source produces raw or derived data.",
-  ),
+  ).optional(),
   userId: z.string().describe(
     "Create the data source for the person identified. Use me to indicate the authenticated user. Only me is supported at this time.",
   ),
@@ -408,7 +408,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Fitness Users.DataSources. Registered at `@swamp/gcp/fitness/users-datasources`. */
 export const model = {
   type: "@swamp/gcp/fitness/users-datasources",
-  version: "2026.08.12.2",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -520,6 +520,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -538,6 +543,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["type"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
@@ -660,6 +671,15 @@ export const model = {
         if (g["dataType"] !== undefined) body["dataType"] = g["dataType"];
         if (g["device"] !== undefined) body["device"] = g["device"];
         if (g["type"] !== undefined) body["type"] = g["type"];
+        else if (existing["type"] !== undefined) {
+          body["type"] = existing["type"];
+        }
+        const missingForUpdate = ["type"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         for (const key of Object.keys(existing)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||

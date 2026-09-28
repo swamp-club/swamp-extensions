@@ -179,7 +179,7 @@ const GlobalArgsSchema = z.object({
   location: z.string().describe(
     "Geographic location of the calendar as free-form text. Optional.",
   ).optional(),
-  summary: z.string().describe("Title of the calendar."),
+  summary: z.string().describe("Title of the calendar.").optional(),
   timeZone: z.string().describe(
     'The time zone of the calendar. (Formatted as an IANA Time Zone Database name, e.g. "Europe/Zurich".) Optional.',
   ).optional(),
@@ -287,7 +287,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Calendar Calendars. Registered at `@swamp/gcp/calendar/calendars`. */
 export const model = {
   type: "@swamp/gcp/calendar/calendars",
-  version: "2026.08.12.2",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -414,6 +414,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -431,6 +436,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["summary"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
@@ -556,7 +567,18 @@ export const model = {
         }
         if (g["location"] !== undefined) body["location"] = g["location"];
         if (g["summary"] !== undefined) body["summary"] = g["summary"];
+        else if (existing["summary"] !== undefined) {
+          body["summary"] = existing["summary"];
+        }
         if (g["timeZone"] !== undefined) body["timeZone"] = g["timeZone"];
+        const missingForUpdate = ["summary"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         for (const key of Object.keys(existing)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||

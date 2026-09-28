@@ -222,7 +222,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   entity: z.string().describe(
     "The entity holding the permission, in one of the following forms: - user-userId - user-email - group-groupId - group-email - domain-domain - project-team-projectId - allUsers - allAuthenticatedUsers Examples: - The user liz@example.com would be user-liz@example.com. - The group example@googlegroups.com would be group-example@googlegroups.com. - To refer to all members of the Google Apps for Business domain example.com, the entity would be domain-example.com.",
-  ),
+  ).optional(),
   entityId: z.string().describe("The ID for the entity, if any.").optional(),
   generation: z.string().describe(
     "The content generation of the object, if applied to an object.",
@@ -236,7 +236,7 @@ const GlobalArgsSchema = z.object({
     team: z.string().describe("The team.").optional(),
   }).describe("The project team associated with the entity, if any.")
     .optional(),
-  role: z.string().describe("The access permission for the entity."),
+  role: z.string().describe("The access permission for the entity.").optional(),
   userProject: z.string().describe(
     "The project to be billed for this request. Required for Requester Pays buckets.",
   ).optional(),
@@ -325,7 +325,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Storage JSON ObjectAccessControls. Registered at `@swamp/gcp/storage/objectaccesscontrols`. */
 export const model = {
   type: "@swamp/gcp/storage/objectaccesscontrols",
-  version: "2026.08.13.1",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -452,6 +452,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -469,6 +474,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["entity", "role"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
@@ -601,6 +612,15 @@ export const model = {
           body["projectTeam"] = g["projectTeam"];
         }
         if (g["role"] !== undefined) body["role"] = g["role"];
+        else if (existing["role"] !== undefined) {
+          body["role"] = existing["role"];
+        }
+        const missingForUpdate = ["role"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         for (const key of Object.keys(existing)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||

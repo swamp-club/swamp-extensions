@@ -201,10 +201,11 @@ const GlobalArgsSchema = z.object({
   resourceEmail: z.string().describe(
     "The read-only email for the calendar resource. Generated as part of creating a new calendar resource.",
   ).optional(),
-  resourceId: z.string().describe("The unique ID for the calendar resource."),
+  resourceId: z.string().describe("The unique ID for the calendar resource.")
+    .optional(),
   resourceName: z.string().describe(
     'The name of the calendar resource. For example, "Training Room 1A".',
-  ),
+  ).optional(),
   resourceType: z.string().describe(
     "The type of the calendar resource, intended for non-room resources.",
   ).optional(),
@@ -313,7 +314,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Resources.Calendars. Registered at `@swamp/gcp/admin/resources-calendars`. */
 export const model = {
   type: "@swamp/gcp/admin/resources-calendars",
-  version: "2026.08.12.2",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -322,6 +323,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -342,6 +348,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["resourceId", "resourceName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
@@ -502,14 +516,27 @@ export const model = {
           body["resourceEmail"] = g["resourceEmail"];
         }
         if (g["resourceId"] !== undefined) body["resourceId"] = g["resourceId"];
+        else if (existing["resourceId"] !== undefined) {
+          body["resourceId"] = existing["resourceId"];
+        }
         if (g["resourceName"] !== undefined) {
           body["resourceName"] = g["resourceName"];
+        } else if (existing["resourceName"] !== undefined) {
+          body["resourceName"] = existing["resourceName"];
         }
         if (g["resourceType"] !== undefined) {
           body["resourceType"] = g["resourceType"];
         }
         if (g["userVisibleDescription"] !== undefined) {
           body["userVisibleDescription"] = g["userVisibleDescription"];
+        }
+        const missingForUpdate = ["resourceId", "resourceName"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         for (const key of Object.keys(existing)) {
           if (

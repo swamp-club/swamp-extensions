@@ -142,8 +142,9 @@ const GlobalArgsSchema = z.object({
   isEnabled: z.boolean().describe(
     "Optional. Enabling/disabling a TargetServer is useful when TargetServers are used in load balancing configurations, and one or more TargetServers need to taken out of rotation periodically. Defaults to true.",
   ).optional(),
-  name: z.string().describe("Required. The resource id of this target server.")
-    .optional(),
+  name: z.string().describe(
+    "Required. The resource id of this target server. Values must match the regular expression",
+  ).optional(),
   port: z.number().int().describe(
     "Required. The port number this target connects to on the given host. Value must be between 1 and 65535, inclusive.",
   ).optional(),
@@ -236,8 +237,9 @@ const InputsSchema = z.object({
   isEnabled: z.boolean().describe(
     "Optional. Enabling/disabling a TargetServer is useful when TargetServers are used in load balancing configurations, and one or more TargetServers need to taken out of rotation periodically. Defaults to true.",
   ).optional(),
-  name: z.string().describe("Required. The resource id of this target server.")
-    .optional(),
+  name: z.string().describe(
+    "Required. The resource id of this target server. Values must match the regular expression",
+  ).optional(),
   port: z.number().int().describe(
     "Required. The port number this target connects to on the given host. Value must be between 1 and 65535, inclusive.",
   ).optional(),
@@ -314,7 +316,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Apigee Environments.Targetservers. Registered at `@swamp/gcp/apigee/environments-targetservers`. */
 export const model = {
   type: "@swamp/gcp/apigee/environments-targetservers",
-  version: "2026.09.25.1",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -443,6 +445,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

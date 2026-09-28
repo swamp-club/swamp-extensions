@@ -159,7 +159,7 @@ const GlobalArgsSchema = z.object({
   apiEndpoint: z.string().describe(
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
-  displayName: z.string().describe("Display name for the schema."),
+  displayName: z.string().describe("Display name for the schema.").optional(),
   fields: z.array(z.object({
     displayName: z.string().describe("Display Name of the field.").optional(),
     etag: z.string().describe("The ETag of the field.").optional(),
@@ -190,13 +190,13 @@ const GlobalArgsSchema = z.object({
     readAccessType: z.string().describe(
       "Specifies who can view values of this field. See [Retrieve users as a non-administrator](https://developers.google.com/workspace/admin/directory/v1/guides/manage-users#retrieve_users_non_admin) for more information. Note: It may take up to 24 hours for changes to this field to be reflected.",
     ).optional(),
-  })).describe("A list of fields in the schema."),
+  })).describe("A list of fields in the schema.").optional(),
   schemaId: z.string().describe(
     "The unique identifier of the schema (Read-only)",
   ).optional(),
   schemaName: z.string().describe(
     "The schema's name. Each `schema_name` must be unique within a customer. Reusing a name results in a `409: Entity already exists` error.",
-  ),
+  ).optional(),
   customerId: z.string().describe(
     "Immutable ID of the Google Workspace account.",
   ),
@@ -304,7 +304,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Schemas. Registered at `@swamp/gcp/admin/schemas`. */
 export const model = {
   type: "@swamp/gcp/admin/schemas",
-  version: "2026.08.12.2",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -313,6 +313,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -334,6 +339,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["displayName", "fields", "schemaName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
@@ -450,10 +463,26 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
+        } else if (existing["displayName"] !== undefined) {
+          body["displayName"] = existing["displayName"];
         }
         if (g["fields"] !== undefined) body["fields"] = g["fields"];
+        else if (existing["fields"] !== undefined) {
+          body["fields"] = existing["fields"];
+        }
         if (g["schemaId"] !== undefined) body["schemaId"] = g["schemaId"];
         if (g["schemaName"] !== undefined) body["schemaName"] = g["schemaName"];
+        else if (existing["schemaName"] !== undefined) {
+          body["schemaName"] = existing["schemaName"];
+        }
+        const missingForUpdate = ["displayName", "fields", "schemaName"].filter(
+          (k) => body[k] === undefined,
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         for (const key of Object.keys(existing)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||

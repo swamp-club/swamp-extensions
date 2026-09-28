@@ -170,10 +170,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   accountIdentifier: z.string().describe(
     'A unique identifier you create for this user, such as "user342" or "asset#44418". Do not use personally identifiable information (PII) for this property. Must always be set for EMM-managed users. Not set for Google-managed users.',
-  ),
+  ).optional(),
   accountType: z.enum(["deviceAccount", "userAccount"]).describe(
     "The type of account that this user represents. A userAccount can be installed on multiple devices, but a deviceAccount is specific to a single device. An EMM-managed user (emmManaged) can be either type (userAccount, deviceAccount), but a Google-managed user (googleManaged) is always a userAccount.",
-  ),
+  ).optional(),
   displayName: z.string().describe(
     'The name that will appear in user interfaces. Setting this property is optional when creating EMM-managed users. If you do set this property, use something generic about the organization (such as "Example, Inc.") or your name (as EMM). Not used for Google-managed user accounts. @mutable androidenterprise.users.update',
   ).optional(),
@@ -257,7 +257,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Play EMM Users. Registered at `@swamp/gcp/androidenterprise/users`. */
 export const model = {
   type: "@swamp/gcp/androidenterprise/users",
-  version: "2026.08.12.2",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -369,6 +369,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -387,6 +392,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["accountIdentifier", "accountType"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
@@ -516,9 +529,13 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g["accountIdentifier"] !== undefined) {
           body["accountIdentifier"] = g["accountIdentifier"];
+        } else if (existing["accountIdentifier"] !== undefined) {
+          body["accountIdentifier"] = existing["accountIdentifier"];
         }
         if (g["accountType"] !== undefined) {
           body["accountType"] = g["accountType"];
+        } else if (existing["accountType"] !== undefined) {
+          body["accountType"] = existing["accountType"];
         }
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
@@ -529,6 +546,14 @@ export const model = {
         }
         if (g["primaryEmail"] !== undefined) {
           body["primaryEmail"] = g["primaryEmail"];
+        }
+        const missingForUpdate = ["accountIdentifier", "accountType"].filter((
+          k,
+        ) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         for (const key of Object.keys(existing)) {
           if (

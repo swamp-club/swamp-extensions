@@ -28,6 +28,8 @@ function createMockGcpServer(): {
   close: () => Promise<void>;
   instances: Map<string, MockInstance>;
   lastRequest: { method: string; path: string; body?: unknown } | null;
+  lastWrite: { method: string; body: unknown } | null;
+  requestCount: number;
 } {
   const instances = new Map<string, MockInstance>();
   const state = {
@@ -35,6 +37,8 @@ function createMockGcpServer(): {
     lastRequest: null as
       | { method: string; path: string; body?: unknown }
       | null,
+    lastWrite: null as { method: string; body: unknown } | null,
+    requestCount: 0,
   };
 
   const server = Deno.serve({ port: 0, onListen() {} }, async (req) => {
@@ -43,6 +47,7 @@ function createMockGcpServer(): {
     const method = req.method;
 
     state.lastRequest = { method, path };
+    state.requestCount++;
 
     // List instances: GET /compute/v1projects/{project}/zones/{zone}/instances
     // (buildUrl concatenates baseUrl + path without a separator)
@@ -73,9 +78,10 @@ function createMockGcpServer(): {
         return Response.json(inst);
       }
 
-      if (method === "PATCH") {
+      if (method === "PATCH" || method === "PUT") {
         const body = await req.json();
         state.lastRequest.body = body;
+        state.lastWrite = { method, body };
         const inst = instances.get(instanceName);
         if (!inst) {
           return Response.json(
@@ -110,6 +116,12 @@ function createMockGcpServer(): {
     get lastRequest() {
       return state.lastRequest;
     },
+    get lastWrite() {
+      return state.lastWrite;
+    },
+    get requestCount() {
+      return state.requestCount;
+    },
   };
 }
 
@@ -129,8 +141,14 @@ function makeMethodConfig(
   };
 }
 
-async function importGeneratedModel(mockPort: number): Promise<{
+async function importGeneratedModel(
+  mockPort: number,
+  opts: { putUpdate?: boolean } = {},
+): Promise<{
   model: {
+    globalArguments: {
+      safeParse: (input: unknown) => { success: boolean };
+    };
     methods: Record<
       string,
       {
@@ -173,7 +191,8 @@ async function importGeneratedModel(mockPort: number): Promise<{
       status: { type: "string" },
       fingerprint: { type: "string" },
     },
-    requiredProperties: ["name", "zone", "machineType"],
+    requiredProperties: ["zone"],
+    createRequiredProperties: ["name", "machineType"],
     createOnlyProperties: ["zone"],
     insertProperties: new Set(["name", "zone", "machineType"]),
     updateProperties: new Set(["machineType"]),
@@ -204,10 +223,12 @@ async function importGeneratedModel(mockPort: number): Promise<{
           zone: { location: "path", required: true },
         },
       }),
-      patch: makeMethodConfig({
-        id: "compute.instances.patch",
+      [opts.putUpdate ? "update" : "patch"]: makeMethodConfig({
+        id: opts.putUpdate
+          ? "compute.instances.update"
+          : "compute.instances.patch",
         path: "projects/{project}/zones/{zone}/instances/{instance}",
-        httpMethod: "PATCH",
+        httpMethod: opts.putUpdate ? "PUT" : "PATCH",
         parameterOrder: ["project", "zone", "instance"],
         parameters: {
           project: { location: "path", required: true },
@@ -249,9 +270,9 @@ async function importGeneratedModel(mockPort: number): Promise<{
     zodResult: {
       extractedSchemas: [],
       inputSchemaBody: [
-        `  name: z.string().describe("Instance name"),`,
+        `  name: z.string().describe("Instance name").optional(),`,
         `  zone: z.string().describe("Zone"),`,
-        `  machineType: z.string().describe("Machine type"),`,
+        `  machineType: z.string().describe("Machine type").optional(),`,
       ].join("\n"),
       resourceSchemaBody: [
         `  name: z.string().optional(),`,
@@ -469,6 +490,122 @@ Deno.test({
         server.lastRequest?.path.includes("/instances/web-1"),
         true,
         "update with g.name should target web-1 via the API",
+      );
+    } finally {
+      if (origToken === undefined) Deno.env.delete("GCP_ACCESS_TOKEN");
+      else Deno.env.set("GCP_ACCESS_TOKEN", origToken);
+      if (origProject === undefined) Deno.env.delete("GCP_PROJECT");
+      else Deno.env.set("GCP_PROJECT", origProject);
+      await server.close();
+      await modelCleanup();
+    }
+  },
+});
+
+// Create-only required fields are optional in GlobalArgsSchema (so list/get/
+// delete run without them) and enforced by the generated create method.
+// sanitizeResources: false for the same reason as the test above.
+Deno.test({
+  name:
+    "create-required fields: optional in GlobalArgsSchema, enforced by create",
+  sanitizeResources: false,
+  async fn() {
+    const origToken = Deno.env.get("GCP_ACCESS_TOKEN");
+    const origProject = Deno.env.get("GCP_PROJECT");
+    Deno.env.set("GCP_ACCESS_TOKEN", "test-token");
+    Deno.env.set("GCP_PROJECT", "test-project");
+
+    const server = createMockGcpServer();
+    const { model, cleanup: modelCleanup } = await importGeneratedModel(
+      server.port,
+    );
+
+    try {
+      assertEquals(
+        model.globalArguments.safeParse({ zone: "us-central1-a" }).success,
+        true,
+        "GlobalArgsSchema should accept input without create-only fields",
+      );
+      assertEquals(
+        model.globalArguments.safeParse({ name: "web-1" }).success,
+        false,
+        "zone is read by get/list/delete and must stay required",
+      );
+
+      const { context } = createMockContext({ zone: "us-central1-a" });
+      await assertRejects(
+        () => model.methods.create.execute({}, context),
+        Error,
+        "create requires global arguments: machineType, name",
+      );
+      assertEquals(
+        server.lastRequest,
+        null,
+        "create should fail before calling the API",
+      );
+    } finally {
+      if (origToken === undefined) Deno.env.delete("GCP_ACCESS_TOKEN");
+      else Deno.env.set("GCP_ACCESS_TOKEN", origToken);
+      if (origProject === undefined) Deno.env.delete("GCP_PROJECT");
+      else Deno.env.set("GCP_PROJECT", origProject);
+      await server.close();
+      await modelCleanup();
+    }
+  },
+});
+
+// A full-replacement PUT update must still send create-required fields, which
+// are optional in GlobalArgsSchema: they are carried from stored state, and
+// update fails before the API call when neither source has them.
+// sanitizeResources: false for the same reason as the tests above.
+Deno.test({
+  name: "PUT update carries create-required fields from stored state",
+  sanitizeResources: false,
+  async fn() {
+    const origToken = Deno.env.get("GCP_ACCESS_TOKEN");
+    const origProject = Deno.env.get("GCP_PROJECT");
+    Deno.env.set("GCP_ACCESS_TOKEN", "test-token");
+    Deno.env.set("GCP_PROJECT", "test-project");
+
+    const server = createMockGcpServer();
+    server.instances.set("web-1", {
+      name: "web-1",
+      zone: "us-central1-a",
+      machineType: "n1-standard-2",
+      status: "RUNNING",
+      fingerprint: "fp-1",
+    });
+    const { model, cleanup: modelCleanup } = await importGeneratedModel(
+      server.port,
+      { putUpdate: true },
+    );
+
+    try {
+      const globalArgs = { zone: "us-central1-a" };
+      const { context, artifacts } = createMockContext(globalArgs);
+      await model.methods.list.execute({}, context);
+      assertEquals(artifacts.has("web-1"), true);
+
+      await model.methods.update.execute({ identifier: "web-1" }, context);
+      assertEquals(server.lastWrite?.method, "PUT");
+      assertEquals(
+        (server.lastWrite?.body as Record<string, unknown>).machineType,
+        "n1-standard-2",
+        "PUT body should carry machineType from stored state",
+      );
+
+      const { context: bareCtx } = createMockContext(globalArgs);
+      bareCtx.writeResource("state", "web-2", { name: "web-2" });
+      const requestsBefore = server.requestCount;
+      await assertRejects(
+        () => model.methods.update.execute({ identifier: "web-2" }, bareCtx),
+        Error,
+        "update requires global arguments: machineType",
+      );
+      assertEquals(
+        server.requestCount,
+        requestsBefore,
+        "update should fail before calling the API",
       );
     } finally {
       if (origToken === undefined) Deno.env.delete("GCP_ACCESS_TOKEN");

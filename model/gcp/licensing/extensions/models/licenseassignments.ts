@@ -169,7 +169,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   userId: z.string().describe(
     "The user's current primary email address. If the user's email address changes, use the new email address in your API requests. Since a `userId` is subject to change, do not use a `userId` value as a key for persistent data. This key could break if the current user's email address changes. If the `userId` is suspended, the license status changes.",
-  ),
+  ).optional(),
   etags: z.string().describe("ETag of the resource.").optional(),
   kind: z.string().describe(
     "Identifies the resource as a LicenseAssignment, which is `licensing#licenseAssignment`.",
@@ -252,7 +252,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Enterprise License Manager LicenseAssignments. Registered at `@swamp/gcp/licensing/licenseassignments`. */
 export const model = {
   type: "@swamp/gcp/licensing/licenseassignments",
-  version: "2026.09.07.1",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -369,6 +369,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -386,6 +391,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["userId"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);

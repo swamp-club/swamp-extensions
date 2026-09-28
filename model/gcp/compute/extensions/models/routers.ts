@@ -382,7 +382,7 @@ const GlobalArgsSchema = z.object({
   name: z.string().regex(new RegExp("[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?"))
     .describe(
       "Name of the resource. Provided by the client when the resource is created. The name must be 1-63 characters long, and comply withRFC1035. Specifically, the name must be 1-63 characters long and match the regular expression `[a-z]([-a-z0-9]*[a-z0-9])?` which means the first character must be a lowercase letter, and all following characters must be a dash, lowercase letter, or digit, except the last character, which cannot be a dash.",
-    ),
+    ).optional(),
   nats: z.array(z.object({
     autoNetworkTier: z.enum([
       "FIXED_STANDARD",
@@ -518,7 +518,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   network: z.string().describe(
     "URI of the network to which this router belongs.",
-  ),
+  ).optional(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.string()).describe(
       'Tag keys/values directly bound to this resource. The field is allowed for INSERT only. The keys/values to set on the resource should be specified in either ID {: } or Namespaced format {: }. For example the following are valid inputs: * {"tagKeys/333": "tagValues/444", "tagKeys/123": "tagValues/456"} * {"123/environment": "production", "345/abc": "xyz"} Note: * Invalid combinations of ID & namespaced format is not supported. For instance: {"123/environment": "tagValues/444"} is invalid. * Inconsistent format is not supported. For instance: {"tagKeys/333": "tagValues/444", "123/env": "prod"} is invalid.',
@@ -1023,7 +1023,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Routers. Registered at `@swamp/gcp/compute/routers`. */
 export const model = {
   type: "@swamp/gcp/compute/routers",
-  version: "2026.09.25.1",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1185,6 +1185,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1203,6 +1208,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name", "network"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
@@ -1343,10 +1354,24 @@ export const model = {
           body["md5AuthenticationKeys"] = g["md5AuthenticationKeys"];
         }
         if (g["name"] !== undefined) body["name"] = g["name"];
+        else if (existing["name"] !== undefined) {
+          body["name"] = existing["name"];
+        }
         if (g["nats"] !== undefined) body["nats"] = g["nats"];
         if (g["nccGateway"] !== undefined) body["nccGateway"] = g["nccGateway"];
         if (g["network"] !== undefined) body["network"] = g["network"];
+        else if (existing["network"] !== undefined) {
+          body["network"] = existing["network"];
+        }
         if (g["params"] !== undefined) body["params"] = g["params"];
+        const missingForUpdate = ["name", "network"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         for (const key of Object.keys(existing)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||

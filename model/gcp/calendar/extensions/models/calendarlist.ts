@@ -223,7 +223,7 @@ const GlobalArgsSchema = z.object({
   hidden: z.boolean().describe(
     "Whether the calendar has been hidden from the list. Optional. The attribute is only returned when the calendar is hidden, in which case the value is true.",
   ).optional(),
-  id: z.string().describe("Identifier of the calendar."),
+  id: z.string().describe("Identifier of the calendar.").optional(),
   location: z.string().describe(
     "Geographic location of the calendar as free-form text. Optional. Read-only.",
   ).optional(),
@@ -405,7 +405,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Calendar CalendarList. Registered at `@swamp/gcp/calendar/calendarlist`. */
 export const model = {
   type: "@swamp/gcp/calendar/calendarlist",
-  version: "2026.09.07.1",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -547,6 +547,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -564,6 +569,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["id"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
@@ -718,6 +729,7 @@ export const model = {
         }
         if (g["hidden"] !== undefined) body["hidden"] = g["hidden"];
         if (g["id"] !== undefined) body["id"] = g["id"];
+        else if (existing["id"] !== undefined) body["id"] = existing["id"];
         if (g["location"] !== undefined) body["location"] = g["location"];
         if (g["notificationSettings"] !== undefined) {
           body["notificationSettings"] = g["notificationSettings"];
@@ -729,6 +741,12 @@ export const model = {
           body["summaryOverride"] = g["summaryOverride"];
         }
         if (g["timeZone"] !== undefined) body["timeZone"] = g["timeZone"];
+        const missingForUpdate = ["id"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         for (const key of Object.keys(existing)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||

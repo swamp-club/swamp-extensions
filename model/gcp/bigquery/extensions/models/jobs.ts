@@ -254,9 +254,6 @@ const GlobalArgsSchema = z.object({
       }).describe(
         "Optional. Model extract options only applicable when extracting models.",
       ).optional(),
-      nativeGeographyExportEnabled: z.boolean().describe(
-        "Optional. Applicable to formats: PARQUET. If enabled, BigQuery to Parquet export will write the native Parquet Geography type instead of the default GeoParquet type.",
-      ).optional(),
       printHeader: z.boolean().describe(
         "Optional. Whether to print out a header row in the results. Default is true. Not applicable when extracting models.",
       ).optional(),
@@ -754,13 +751,6 @@ const GlobalArgsSchema = z.object({
           "Timeout period for each statement in a script.",
         ).optional(),
       }).describe("Options controlling the execution of scripts.").optional(),
-      secureContext: z.object({
-        secureParameterEntries: z.record(z.string(), z.string()).describe(
-          "Optional. A set of key-value pairs representing the secure parameter values. They can be retrieved via the SECURE_CONTEXT() function and used to modify the run-time behavior of a query.",
-        ).optional(),
-      }).describe(
-        "Optional. A set of key-value pairs representing the secure context. This can be used to pass sensitive or context-specific information. They can be retrieved via the SECURE_CONTEXT() function and used to modify the run-time behavior of a query.",
-      ).optional(),
       systemVariables: z.object({
         types: z.record(
           z.string(),
@@ -1271,7 +1261,6 @@ const StateSchema = z.object({
       modelExtractOptions: z.object({
         trialId: z.string(),
       }),
-      nativeGeographyExportEnabled: z.boolean(),
       printHeader: z.boolean(),
       sourceModel: z.object({
         datasetId: z.string(),
@@ -1459,9 +1448,6 @@ const StateSchema = z.object({
         keyResultStatement: z.string(),
         statementByteBudget: z.string(),
         statementTimeoutMs: z.string(),
-      }),
-      secureContext: z.object({
-        secureParameterEntries: z.record(z.string(), z.unknown()),
       }),
       systemVariables: z.object({
         types: z.record(z.string(), z.unknown()),
@@ -1764,11 +1750,6 @@ const StateSchema = z.object({
         writeRatioAvg: z.number(),
         writeRatioMax: z.number(),
       })),
-      referencedLogicalViews: z.array(z.object({
-        datasetId: z.string(),
-        projectId: z.string(),
-        tableId: z.string(),
-      })),
       referencedPropertyGraphs: z.array(z.object({
         datasetId: z.string(),
         projectId: z.string(),
@@ -2032,9 +2013,6 @@ const InputsSchema = z.object({
         ).optional(),
       }).describe(
         "Optional. Model extract options only applicable when extracting models.",
-      ).optional(),
-      nativeGeographyExportEnabled: z.boolean().describe(
-        "Optional. Applicable to formats: PARQUET. If enabled, BigQuery to Parquet export will write the native Parquet Geography type instead of the default GeoParquet type.",
       ).optional(),
       printHeader: z.boolean().describe(
         "Optional. Whether to print out a header row in the results. Default is true. Not applicable when extracting models.",
@@ -2533,13 +2511,6 @@ const InputsSchema = z.object({
           "Timeout period for each statement in a script.",
         ).optional(),
       }).describe("Options controlling the execution of scripts.").optional(),
-      secureContext: z.object({
-        secureParameterEntries: z.record(z.string(), z.string()).describe(
-          "Optional. A set of key-value pairs representing the secure parameter values. They can be retrieved via the SECURE_CONTEXT() function and used to modify the run-time behavior of a query.",
-        ).optional(),
-      }).describe(
-        "Optional. A set of key-value pairs representing the secure context. This can be used to pass sensitive or context-specific information. They can be retrieved via the SECURE_CONTEXT() function and used to modify the run-time behavior of a query.",
-      ).optional(),
       systemVariables: z.object({
         types: z.record(
           z.string(),
@@ -2837,7 +2808,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Jobs. Registered at `@swamp/gcp/bigquery/jobs`. */
 export const model = {
   type: "@swamp/gcp/bigquery/jobs",
-  version: "2026.09.27.1",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3207,6 +3178,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.27.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -3631,7 +3607,6 @@ export const model = {
         queryResultsFormat: z.any().optional(),
         requestId: z.any().optional(),
         reservation: z.any().optional(),
-        secureContext: z.any().optional(),
         timeoutMs: z.any().optional(),
         useLegacySql: z.any().optional(),
         useQueryCache: z.any().optional(),
@@ -3702,9 +3677,6 @@ export const model = {
         }
         if (args["reservation"] !== undefined) {
           body["reservation"] = args["reservation"];
-        }
-        if (args["secureContext"] !== undefined) {
-          body["secureContext"] = args["secureContext"];
         }
         if (args["timeoutMs"] !== undefined) {
           body["timeoutMs"] = args["timeoutMs"];

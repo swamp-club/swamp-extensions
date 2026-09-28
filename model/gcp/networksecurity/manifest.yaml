@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/networksecurity"
-version: "2026.09.07.2"
+version: "2026.09.28.1"
 description: "Google Cloud networksecurity infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
 labels:
@@ -11,7 +11,8 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: authorizationpolicies, authzpolicies, clienttlspolicies, servertlspolicies
+  - Added: firewallendpoints_wildfireverdictchangerequests
+  - Updated: firewallendpoints, securityprofilegroups, securityprofiles
 models:
   - addressgroups.ts
   - authorizationpolicies.ts
@@ -21,6 +22,7 @@ models:
   - dnsthreatdetectors.ts
   - firewallendpointassociations.ts
   - firewallendpoints.ts
+  - firewallendpoints_wildfireverdictchangerequests.ts
   - gatewaysecuritypolicies.ts
   - gatewaysecuritypolicies_rules.ts
   - interceptdeploymentgroups.ts

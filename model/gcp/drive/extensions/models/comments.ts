@@ -192,7 +192,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   content: z.string().describe(
     "The plain text content of the comment. This field is used for setting the content, while `htmlContent` should be displayed.",
-  ),
+  ).optional(),
   createdTime: z.string().describe(
     "The time at which the comment was created (RFC 3339 date-time).",
   ).optional(),
@@ -317,7 +317,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Drive Comments. Registered at `@swamp/gcp/drive/comments`. */
 export const model = {
   type: "@swamp/gcp/drive/comments",
-  version: "2026.08.12.2",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -447,6 +447,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -465,6 +470,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["content"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);

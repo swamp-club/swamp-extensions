@@ -1,6 +1,7 @@
 import { assertEquals } from "@std/assert";
 import {
   type GcpDiscoveryDocument,
+  nonCreatePathParams,
   parseGcpDiscoveryDocument,
 } from "./pipeline.ts";
 
@@ -234,4 +235,110 @@ Deno.test("parseGcpDiscoveryDocument - listResponseArrayField uses first candida
   const resources = parseGcpDiscoveryDocument(doc);
   assertEquals(resources.length, 1);
   assertEquals(resources[0].listResponseArrayField, "gadgets");
+});
+
+// Create-only required fields must not be required in GlobalArgsSchema, or
+// list/get/delete fail validation without synthetic create values. Fields a
+// non-create method reads from globalArgs stay required.
+function makeRequiredSplitDoc(): GcpDiscoveryDocument {
+  const itemSchema = {
+    type: "object",
+    properties: {
+      name: {
+        type: "string",
+        annotations: { required: ["testapi.widgets.insert"] },
+      },
+      destRange: {
+        type: "string",
+        annotations: { required: ["testapi.widgets.insert"] },
+      },
+      region: {
+        type: "string",
+        annotations: { required: ["testapi.widgets.insert"] },
+      },
+      description: { type: "string" },
+    },
+  };
+  return makeDiscoveryDoc({
+    resources: {
+      widgets: {
+        methods: {
+          get: {
+            id: "testapi.widgets.get",
+            path: "projects/{project}/zones/{zone}/widgets/{widget}",
+            httpMethod: "GET",
+            parameterOrder: ["project", "zone", "widget"],
+            parameters: {
+              project: { type: "string", location: "path", required: true },
+              zone: { type: "string", location: "path", required: true },
+              widget: { type: "string", location: "path", required: true },
+            },
+            response: itemSchema,
+          },
+          insert: {
+            id: "testapi.widgets.insert",
+            path: "projects/{project}/zones/{zone}/widgets/{widgetId}",
+            httpMethod: "POST",
+            parameterOrder: ["project", "zone", "widgetId"],
+            parameters: {
+              project: { type: "string", location: "path", required: true },
+              zone: { type: "string", location: "path", required: true },
+              widgetId: { type: "string", location: "path", required: true },
+            },
+            request: itemSchema,
+            response: itemSchema,
+          },
+          list: {
+            id: "testapi.widgets.list",
+            path: "projects/{project}/regions/{region}/widgets",
+            httpMethod: "GET",
+            parameterOrder: ["project", "region"],
+            parameters: {
+              project: { type: "string", location: "path", required: true },
+              region: { type: "string", location: "path", required: true },
+              pageToken: { type: "string", location: "query" },
+            },
+            response: {
+              type: "object",
+              properties: { items: { type: "array", items: itemSchema } },
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+Deno.test("parseGcpDiscoveryDocument - create-only required fields move out of GlobalArgs required", () => {
+  const [resource] = parseGcpDiscoveryDocument(makeRequiredSplitDoc());
+  // Body fields required only by insert, and an insert-only path param.
+  assertEquals(
+    [...resource.createRequiredProperties].sort(),
+    ["destRange", "name", "widgetId"],
+  );
+});
+
+Deno.test("parseGcpDiscoveryDocument - fields read by non-create methods stay required", () => {
+  const [resource] = parseGcpDiscoveryDocument(makeRequiredSplitDoc());
+  // zone: get path param. region: insert-required body field that list reads.
+  assertEquals([...resource.requiredProperties].sort(), ["region", "zone"]);
+});
+
+Deno.test("nonCreatePathParams - skips the identifier of get/update/patch/delete, keeps all list params", () => {
+  const method = (parameterOrder: string[]) => ({
+    id: "x",
+    path: "",
+    httpMethod: "GET",
+    parameterOrder,
+  });
+  assertEquals(
+    nonCreatePathParams(
+      method(["project", "zone", "widget"]),
+      undefined,
+      method(["project", "zone", "widget"]),
+      method(["project", "zone", "widget"]),
+      method(["project", "region"]),
+    ).sort(),
+    ["location", "parent", "project", "region", "zone"],
+  );
 });

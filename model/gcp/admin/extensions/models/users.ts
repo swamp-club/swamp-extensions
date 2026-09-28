@@ -258,7 +258,7 @@ const GlobalArgsSchema = z.object({
   organizations: z.string().describe(
     "The list of organizations the user belongs to. The maximum allowed data size for this field is 10KB.",
   ).optional(),
-  password: z.string().describe("User's password"),
+  password: z.string().describe("User's password").optional(),
   phones: z.string().describe(
     "The list of the user's phone numbers. The maximum allowed data size for this field is 1KB.",
   ).optional(),
@@ -267,7 +267,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   primaryEmail: z.string().describe(
     "The user's primary email address. This property is required in a request to create a user account. The `primaryEmail` must be unique and cannot be an alias of another user.",
-  ),
+  ).optional(),
   recoveryEmail: z.string().describe("Recovery email of the user.").optional(),
   recoveryPhone: z.string().describe(
     "Recovery phone of the user. The phone number must be in the E.164 format, starting with the plus sign (+). Example: *+16506661212*.",
@@ -488,7 +488,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Users. Registered at `@swamp/gcp/admin/users`. */
 export const model = {
   type: "@swamp/gcp/admin/users",
-  version: "2026.09.18.1",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -510,6 +510,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -528,6 +533,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["password", "primaryEmail"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
@@ -744,12 +757,17 @@ export const model = {
           body["organizations"] = g["organizations"];
         }
         if (g["password"] !== undefined) body["password"] = g["password"];
+        else if (existing["password"] !== undefined) {
+          body["password"] = existing["password"];
+        }
         if (g["phones"] !== undefined) body["phones"] = g["phones"];
         if (g["posixAccounts"] !== undefined) {
           body["posixAccounts"] = g["posixAccounts"];
         }
         if (g["primaryEmail"] !== undefined) {
           body["primaryEmail"] = g["primaryEmail"];
+        } else if (existing["primaryEmail"] !== undefined) {
+          body["primaryEmail"] = existing["primaryEmail"];
         }
         if (g["recoveryEmail"] !== undefined) {
           body["recoveryEmail"] = g["recoveryEmail"];
@@ -763,6 +781,14 @@ export const model = {
         }
         if (g["suspended"] !== undefined) body["suspended"] = g["suspended"];
         if (g["websites"] !== undefined) body["websites"] = g["websites"];
+        const missingForUpdate = ["password", "primaryEmail"].filter((k) =>
+          body[k] === undefined
+        );
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         for (const key of Object.keys(existing)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||

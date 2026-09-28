@@ -222,7 +222,7 @@ const GlobalArgsSchema = z.object({
   name: z.string().regex(new RegExp("[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?"))
     .describe(
       "Name of the resource; provided by the client when the resource is created. The name must be 1-63 characters long, and comply withRFC1035. Specifically, the name must be 1-63 characters long and match the regular expression `[a-z]([-a-z0-9]*[a-z0-9])?`. The first character must be a lowercase letter, and all following characters (except for the last character) must be a dash, lowercase letter, or digit. The last character must be a lowercase letter or digit.",
-    ),
+    ).optional(),
   network: z.string().describe(
     "URL of the network resource for this firewall rule. If not specified when creating a firewall rule, the default network is used: global/networks/default If you choose to specify this field, you can specify the network as a full or partial URL. For example, the following are all valid URLs: - https://www.googleapis.com/compute/v1/projects/myproject/global/networks/my-network - projects/myproject/global/networks/my-network - global/networks/default",
   ).optional(),
@@ -404,7 +404,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Firewalls. Registered at `@swamp/gcp/compute/firewalls`. */
 export const model = {
   type: "@swamp/gcp/compute/firewalls",
-  version: "2026.09.23.1",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -541,6 +541,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -559,6 +564,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
@@ -696,6 +707,9 @@ export const model = {
         if (g["disabled"] !== undefined) body["disabled"] = g["disabled"];
         if (g["logConfig"] !== undefined) body["logConfig"] = g["logConfig"];
         if (g["name"] !== undefined) body["name"] = g["name"];
+        else if (existing["name"] !== undefined) {
+          body["name"] = existing["name"];
+        }
         if (g["network"] !== undefined) body["network"] = g["network"];
         if (g["params"] !== undefined) body["params"] = g["params"];
         if (g["priority"] !== undefined) body["priority"] = g["priority"];
@@ -710,6 +724,12 @@ export const model = {
           body["targetServiceAccounts"] = g["targetServiceAccounts"];
         }
         if (g["targetTags"] !== undefined) body["targetTags"] = g["targetTags"];
+        const missingForUpdate = ["name"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
+        }
         for (const key of Object.keys(existing)) {
           if (
             key === "fingerprint" || key === "labelFingerprint" ||

@@ -183,6 +183,30 @@ const GlobalArgsSchema = z.object({
     "Optional. Description of the firewall endpoint. Max length 2048 characters.",
   ).optional(),
   endpointSettings: z.object({
+    contentCloudRegion: z.enum([
+      "CONTENT_CLOUD_REGION_UNSPECIFIED",
+      "US_CENTRAL",
+      "APAC",
+      "INDIA",
+      "UK",
+      "FRANCE",
+      "JAPAN",
+      "AUSTRALIA",
+      "CANADA",
+      "SWITZERLAND",
+      "NETHERLANDS",
+      "INDONESIA",
+      "QATAR",
+      "TAIWAN",
+      "POLAND",
+      "SOUTH_KOREA",
+      "SAUDI_ARABIA",
+      "ITALY",
+    ]).describe("Optional. The content cloud region of the endpoint.")
+      .optional(),
+    httpPartialResponseBlocked: z.boolean().describe(
+      "Optional. Whether to block HTTP partial responses for the endpoint. When this is true, resumption of blocked malicious HTTP file downloads will be blocked by the firewall. False provides maximum availability, true provides maximum security.",
+    ).optional(),
     jumboFramesEnabled: z.boolean().describe(
       "Optional. Immutable. Indicates whether Jumbo Frames are enabled. Default value is false.",
     ).optional(),
@@ -192,6 +216,60 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   name: z.string().describe("Immutable. Identifier. Name of resource.")
     .optional(),
+  wildfireSettings: z.object({
+    enabled: z.boolean().describe(
+      "Optional. Indicates whether WildFire analysis is enabled. Default value is false.",
+    ).optional(),
+    wildfireInlineCloudAnalysisSettings: z.object({
+      maxAnalysisDuration: z.string().describe(
+        "Optional. Timeout in milliseconds on a file being held while WildFire inline cloud analysis is performed. Value between 1 to 240000 is valid. Default value is 30000.",
+      ).optional(),
+      submissionTimeoutLoggingDisabled: z.boolean().describe(
+        "Optional. Whether to disable WildFire submission log generation for files that timeout during WildFire inline cloud analysis.",
+      ).optional(),
+      timeoutAction: z.enum([
+        "WILDFIRE_INLINE_CLOUD_ANALYSIS_TIMEOUT_ACTION_UNSPECIFIED",
+        "ALLOW",
+        "DENY",
+      ]).describe(
+        "Optional. Action to take when WildFire inline cloud analysis times out. Default value is ALLOW.",
+      ).optional(),
+    }).describe("Optional. Settings for WildFire inline cloud analysis.")
+      .optional(),
+    wildfireRealtimeLookupDuration: z.string().describe(
+      "Optional. Duration in milliseconds on a file being held while the WildFire real time signature cloud performs a signature lookup. Value between 1 to 5000 is valid. Default value is 1000.",
+    ).optional(),
+    wildfireRealtimeLookupTimeoutAction: z.enum([
+      "WILDFIRE_REALTIME_SIGNATURE_LOOKUP_TIMEOUT_ACTION_UNSPECIFIED",
+      "ALLOW",
+      "DENY",
+    ]).describe(
+      "Optional. Action to take on WildFire real time signature lookup timeout. Default value is ALLOW.",
+    ).optional(),
+    wildfireRegion: z.enum([
+      "WILDFIRE_REGION_UNSPECIFIED",
+      "CANADA",
+      "UNITED_STATES",
+      "JAPAN",
+      "SINGAPORE",
+      "UNITED_KINGDOM",
+      "AUSTRALIA",
+      "GERMANY",
+      "INDIA",
+      "SWITZERLAND",
+      "POLAND",
+      "INDONESIA",
+      "TAIWAN",
+      "FRANCE",
+      "QATAR",
+      "SOUTH_KOREA",
+      "ISRAEL",
+      "SAUDI_ARABIA",
+      "SPAIN",
+    ]).describe(
+      "Optional. The region where WildFire analysis will be performed. Palo Alto Networks supports regions: https://docs.paloaltonetworks.com/advanced-wildfire/administration/advanced-wildfire-overview/advanced-wildfire-deployments/advanced-wildfire-global-cloud",
+    ).optional(),
+  }).describe("Optional. Settings for WildFire analysis.").optional(),
   firewallEndpointId: z.string().describe(
     "Required. Id of the requesting object. If auto-generating Id server-side, remove this field and firewall_endpoint_id from the method_signature of Create RPC.",
   ).optional(),
@@ -213,6 +291,8 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   description: z.string().optional(),
   endpointSettings: z.object({
+    contentCloudRegion: z.string(),
+    httpPartialResponseBlocked: z.boolean(),
     jumboFramesEnabled: z.boolean(),
   }).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
@@ -222,6 +302,17 @@ const StateSchema = z.object({
   satisfiesPzs: z.boolean().optional(),
   state: z.string().optional(),
   updateTime: z.string().optional(),
+  wildfireSettings: z.object({
+    enabled: z.boolean(),
+    wildfireInlineCloudAnalysisSettings: z.object({
+      maxAnalysisDuration: z.string(),
+      submissionTimeoutLoggingDisabled: z.boolean(),
+      timeoutAction: z.string(),
+    }),
+    wildfireRealtimeLookupDuration: z.string(),
+    wildfireRealtimeLookupTimeoutAction: z.string(),
+    wildfireRegion: z.string(),
+  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -240,6 +331,30 @@ const InputsSchema = z.object({
     "Optional. Description of the firewall endpoint. Max length 2048 characters.",
   ).optional(),
   endpointSettings: z.object({
+    contentCloudRegion: z.enum([
+      "CONTENT_CLOUD_REGION_UNSPECIFIED",
+      "US_CENTRAL",
+      "APAC",
+      "INDIA",
+      "UK",
+      "FRANCE",
+      "JAPAN",
+      "AUSTRALIA",
+      "CANADA",
+      "SWITZERLAND",
+      "NETHERLANDS",
+      "INDONESIA",
+      "QATAR",
+      "TAIWAN",
+      "POLAND",
+      "SOUTH_KOREA",
+      "SAUDI_ARABIA",
+      "ITALY",
+    ]).describe("Optional. The content cloud region of the endpoint.")
+      .optional(),
+    httpPartialResponseBlocked: z.boolean().describe(
+      "Optional. Whether to block HTTP partial responses for the endpoint. When this is true, resumption of blocked malicious HTTP file downloads will be blocked by the firewall. False provides maximum availability, true provides maximum security.",
+    ).optional(),
     jumboFramesEnabled: z.boolean().describe(
       "Optional. Immutable. Indicates whether Jumbo Frames are enabled. Default value is false.",
     ).optional(),
@@ -249,6 +364,60 @@ const InputsSchema = z.object({
   ).optional(),
   name: z.string().describe("Immutable. Identifier. Name of resource.")
     .optional(),
+  wildfireSettings: z.object({
+    enabled: z.boolean().describe(
+      "Optional. Indicates whether WildFire analysis is enabled. Default value is false.",
+    ).optional(),
+    wildfireInlineCloudAnalysisSettings: z.object({
+      maxAnalysisDuration: z.string().describe(
+        "Optional. Timeout in milliseconds on a file being held while WildFire inline cloud analysis is performed. Value between 1 to 240000 is valid. Default value is 30000.",
+      ).optional(),
+      submissionTimeoutLoggingDisabled: z.boolean().describe(
+        "Optional. Whether to disable WildFire submission log generation for files that timeout during WildFire inline cloud analysis.",
+      ).optional(),
+      timeoutAction: z.enum([
+        "WILDFIRE_INLINE_CLOUD_ANALYSIS_TIMEOUT_ACTION_UNSPECIFIED",
+        "ALLOW",
+        "DENY",
+      ]).describe(
+        "Optional. Action to take when WildFire inline cloud analysis times out. Default value is ALLOW.",
+      ).optional(),
+    }).describe("Optional. Settings for WildFire inline cloud analysis.")
+      .optional(),
+    wildfireRealtimeLookupDuration: z.string().describe(
+      "Optional. Duration in milliseconds on a file being held while the WildFire real time signature cloud performs a signature lookup. Value between 1 to 5000 is valid. Default value is 1000.",
+    ).optional(),
+    wildfireRealtimeLookupTimeoutAction: z.enum([
+      "WILDFIRE_REALTIME_SIGNATURE_LOOKUP_TIMEOUT_ACTION_UNSPECIFIED",
+      "ALLOW",
+      "DENY",
+    ]).describe(
+      "Optional. Action to take on WildFire real time signature lookup timeout. Default value is ALLOW.",
+    ).optional(),
+    wildfireRegion: z.enum([
+      "WILDFIRE_REGION_UNSPECIFIED",
+      "CANADA",
+      "UNITED_STATES",
+      "JAPAN",
+      "SINGAPORE",
+      "UNITED_KINGDOM",
+      "AUSTRALIA",
+      "GERMANY",
+      "INDIA",
+      "SWITZERLAND",
+      "POLAND",
+      "INDONESIA",
+      "TAIWAN",
+      "FRANCE",
+      "QATAR",
+      "SOUTH_KOREA",
+      "ISRAEL",
+      "SAUDI_ARABIA",
+      "SPAIN",
+    ]).describe(
+      "Optional. The region where WildFire analysis will be performed. Palo Alto Networks supports regions: https://docs.paloaltonetworks.com/advanced-wildfire/administration/advanced-wildfire-overview/advanced-wildfire-deployments/advanced-wildfire-global-cloud",
+    ).optional(),
+  }).describe("Optional. Settings for WildFire analysis.").optional(),
   firewallEndpointId: z.string().describe(
     "Required. Id of the requesting object. If auto-generating Id server-side, remove this field and firewall_endpoint_id from the method_signature of Create RPC.",
   ).optional(),
@@ -286,7 +455,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Security FirewallEndpoints. Registered at `@swamp/gcp/networksecurity/firewallendpoints`. */
 export const model = {
   type: "@swamp/gcp/networksecurity/firewallendpoints",
-  version: "2026.08.12.2",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -423,6 +592,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.28.1",
+      description: "Added: wildfireSettings",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -462,6 +636,9 @@ export const model = {
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["name"] !== undefined) body["name"] = g["name"];
+        if (g["wildfireSettings"] !== undefined) {
+          body["wildfireSettings"] = g["wildfireSettings"];
+        }
         if (g["firewallEndpointId"] !== undefined) {
           params["firewallEndpointId"] = String(g["firewallEndpointId"]);
         }
@@ -598,6 +775,9 @@ export const model = {
           body["endpointSettings"] = g["endpointSettings"];
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        if (g["wildfireSettings"] !== undefined) {
+          body["wildfireSettings"] = g["wildfireSettings"];
+        }
         const updateMaskKeys = Object.keys(body);
         if (updateMaskKeys.length > 0) {
           params["updateMask"] = updateMaskKeys.join(",");

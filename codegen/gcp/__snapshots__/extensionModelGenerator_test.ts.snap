@@ -143,9 +143,9 @@ const GlobalArgsSchema = z.object({
   scopes: z.string().describe(\\"Comma-separated OAuth scopes to request when minting access tokens via gcloud. Defaults to the API's Discovery Document scopes.\\").optional(),
   quotaProject: z.string().describe(\\"GCP project ID for quota and billing attribution; sets the x-goog-user-project header. Overrides GOOGLE_CLOUD_QUOTA_PROJECT environment variable. Required for APIs like Cloud Identity when using user credentials.\\").optional(),
   apiEndpoint: z.string().describe(\\"Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.\\").optional(),
-  name: z.string().describe(\\"Instance name\\"),
+  name: z.string().describe(\\"Instance name\\").optional(),
   zone: z.string().describe(\\"Zone\\"),
-  machineType: z.string().describe(\\"Machine type\\"),
+  machineType: z.string().describe(\\"Machine type\\").optional(),
 });
 
 const StateSchema = z.object({
@@ -202,6 +202,8 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [\\"machineType\\",\\"name\\"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) throw new Error(\\"create requires global arguments: \\" + missing.join(\\", \\"));
         const baseUrl = g[\\"apiEndpoint\\"]?.toString() ?? Deno.env.get(\\"GCP_API_ENDPOINT\\")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
         const projectId = await getProjectId(credentials);

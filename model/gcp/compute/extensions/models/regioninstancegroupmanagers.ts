@@ -361,7 +361,7 @@ const GlobalArgsSchema = z.object({
   name: z.string().regex(new RegExp("[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?"))
     .describe(
       "The name of the managed instance group. The name must be 1-63 characters long, and comply withRFC1035.",
-    ),
+    ).optional(),
   region: z.string().describe(
     "Output only. [Output Only] The URL of theregion where the managed instance group resides (for regional resources).",
   ).optional(),
@@ -421,7 +421,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   targetSize: z.number().int().describe(
     "The target number of running instances for this managed instance group. You can reduce this number by using the instanceGroupManager deleteInstances or abandonInstances methods. Resizing the group also changes this number.",
-  ),
+  ).optional(),
   targetSizePolicy: z.object({
     mode: z.enum(["BULK", "INDIVIDUAL", "UNSPECIFIED_MODE"]).describe(
       "The mode of target size policy based on which the MIG creates its VMs individually or all at once.",
@@ -1012,7 +1012,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine RegionInstanceGroupManagers. Registered at `@swamp/gcp/compute/regioninstancegroupmanagers`. */
 export const model = {
   type: "@swamp/gcp/compute/regioninstancegroupmanagers",
-  version: "2026.09.23.1",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1258,6 +1258,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1276,6 +1281,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["name", "targetSize"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);

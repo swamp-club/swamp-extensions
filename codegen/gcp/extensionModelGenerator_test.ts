@@ -28,6 +28,7 @@ function makeResource(
     domainProperties: {},
     resourceValueProperties: {},
     requiredProperties: [],
+    createRequiredProperties: [],
     createOnlyProperties: [],
     insertProperties: new Set<string>(),
     updateProperties: new Set<string>(),
@@ -360,7 +361,8 @@ Deno.test("generateGcpExtensionModel - all handlers, natural naming", async (t) 
       machineType: { type: "string" },
       status: { type: "string" },
     },
-    requiredProperties: ["name", "zone", "machineType"],
+    requiredProperties: ["zone"],
+    createRequiredProperties: ["name", "machineType"],
     insertProperties: new Set(["name", "zone", "machineType"]),
     updateProperties: new Set(["machineType"]),
     createOnlyProperties: ["zone"],
@@ -418,7 +420,7 @@ Deno.test("generateGcpExtensionModel - all handlers, natural naming", async (t) 
     zodResult: {
       extractedSchemas: [],
       inputSchemaBody:
-        `  name: z.string().describe("Instance name"),\n  zone: z.string().describe("Zone"),\n  machineType: z.string().describe("Machine type"),`,
+        `  name: z.string().describe("Instance name").optional(),\n  zone: z.string().describe("Zone"),\n  machineType: z.string().describe("Machine type").optional(),`,
       resourceSchemaBody:
         `  name: z.string().optional(),\n  id: z.string().optional(),\n  zone: z.string().optional(),\n  machineType: z.string().optional(),\n  status: z.string().optional(),`,
     },
@@ -1341,4 +1343,116 @@ Deno.test("generateGcpExtensionModel - action method query params routed to para
     output.includes('body["values"] = args["values"]'),
     "values should be routed to body",
   );
+});
+
+// ---------------------------------------------------------------------------
+// Create-required guard
+// ---------------------------------------------------------------------------
+
+function makeCreatableResource(
+  createRequiredProperties: string[],
+): GcpParsedResource {
+  return makeResource({
+    resourcePath: ["routes"],
+    domainProperties: {
+      name: { type: "string" },
+      destRange: { type: "string" },
+    },
+    insertProperties: new Set(["name", "destRange"]),
+    createRequiredProperties,
+    handlers: { create: true, read: true, update: false, delete: false },
+    methodConfigs: {
+      insert: makeMethodConfig({
+        id: "compute.routes.insert",
+        path: "projects/{project}/global/routes",
+        httpMethod: "POST",
+      }),
+    },
+  });
+}
+
+Deno.test("generateGcpExtensionModel - create guards create-required fields in sorted order", () => {
+  const code = generateGcpExtensionModel(
+    makeInput({ resource: makeCreatableResource(["name", "destRange"]) }),
+  );
+  assert(
+    code.includes(
+      `const missing = ["destRange","name"].filter((k) => g[k] === undefined);`,
+    ),
+  );
+  assert(
+    code.includes(
+      `throw new Error("create requires global arguments: " + missing.join(", "));`,
+    ),
+  );
+});
+
+Deno.test("generateGcpExtensionModel - create emits no guard without create-required fields", () => {
+  const code = generateGcpExtensionModel(
+    makeInput({ resource: makeCreatableResource([]) }),
+  );
+  assertEquals(code.includes("create requires global arguments"), false);
+});
+
+function makeUpdatableResource(httpMethod: "PUT" | "PATCH"): GcpParsedResource {
+  const itemPath = "projects/{project}/global/firewalls/{firewall}";
+  return makeResource({
+    resourcePath: ["firewalls"],
+    domainProperties: {
+      name: { type: "string" },
+      network: { type: "string" },
+      description: { type: "string" },
+    },
+    insertProperties: new Set(["name", "network", "description"]),
+    updateProperties: new Set(["name", "network", "description"]),
+    createRequiredProperties: ["network", "name"],
+    handlers: { create: true, read: true, update: true, delete: false },
+    methodConfigs: {
+      insert: makeMethodConfig({
+        id: "compute.firewalls.insert",
+        path: "projects/{project}/global/firewalls",
+        httpMethod: "POST",
+      }),
+      get: makeMethodConfig({
+        id: "compute.firewalls.get",
+        path: itemPath,
+        parameterOrder: ["project", "firewall"],
+      }),
+      [httpMethod === "PUT" ? "update" : "patch"]: makeMethodConfig({
+        id: "compute.firewalls.update",
+        path: itemPath,
+        httpMethod,
+        parameterOrder: ["project", "firewall"],
+      }),
+    },
+  });
+}
+
+Deno.test("generateGcpExtensionModel - PUT update carries create-required fields from state and guards them", () => {
+  const code = generateGcpExtensionModel(
+    makeInput({ resource: makeUpdatableResource("PUT") }),
+  );
+  assert(
+    code.includes(
+      `else if (existing["network"] !== undefined) body["network"] = existing["network"];`,
+    ),
+  );
+  assert(
+    code.includes(
+      `const missingForUpdate = ["name","network"].filter((k) => body[k] === undefined);`,
+    ),
+  );
+  assertEquals(
+    code.includes(`else if (existing["description"] !== undefined)`),
+    false,
+    "optional fields are not carried from state",
+  );
+});
+
+Deno.test("generateGcpExtensionModel - PATCH update does not carry or guard create-required fields", () => {
+  const code = generateGcpExtensionModel(
+    makeInput({ resource: makeUpdatableResource("PATCH") }),
+  );
+  assertEquals(code.includes("missingForUpdate"), false);
+  assertEquals(code.includes(`body["network"] = existing["network"]`), false);
 });

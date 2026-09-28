@@ -166,7 +166,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   email: z.string().describe(
     "The group's email address. If your account has multiple domains, select the appropriate domain for the email address. The `email` must be unique. This property is required when creating a group. Group email addresses are subject to the same character usage rules as usernames, see the [help center](https://support.google.com/a/answer/9193374) for details.",
-  ),
+  ).optional(),
   externalIds: z.array(z.object({
     id: z.string().describe(
       "The unique identifier string assigned by the external provider.",
@@ -272,7 +272,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Admin SDK Groups. Registered at `@swamp/gcp/admin/groups`. */
 export const model = {
   type: "@swamp/gcp/admin/groups",
-  version: "2026.08.12.2",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -281,6 +281,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.12.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -302,6 +307,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["email"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const baseUrl = g["apiEndpoint"]?.toString() ??
           Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
         const credentials = _buildGcpCredentials(g);
@@ -428,10 +439,19 @@ export const model = {
           body["directMembersCount"] = g["directMembersCount"];
         }
         if (g["email"] !== undefined) body["email"] = g["email"];
+        else if (existing["email"] !== undefined) {
+          body["email"] = existing["email"];
+        }
         if (g["id"] !== undefined) body["id"] = g["id"];
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["nonEditableAliases"] !== undefined) {
           body["nonEditableAliases"] = g["nonEditableAliases"];
+        }
+        const missingForUpdate = ["email"].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
         for (const key of Object.keys(existing)) {
           if (

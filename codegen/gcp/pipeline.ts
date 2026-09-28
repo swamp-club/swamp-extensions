@@ -157,8 +157,13 @@ export interface GcpParsedResource {
   domainProperties: Record<string, CfProperty>;
   /** Resource value properties (all, from GET response) as CfProperty */
   resourceValueProperties: Record<string, CfProperty>;
-  /** Required property names for creation */
+  /** Required property names in GlobalArgsSchema (read by non-create methods) */
   requiredProperties: string[];
+  /**
+   * Property names required by create but by no other method. Optional in
+   * GlobalArgsSchema; the generated create method rejects them when unset.
+   */
+  createRequiredProperties: string[];
   /** Create-only property names */
   createOnlyProperties: string[];
   /** Property names from the insert request schema (valid for create body) */
@@ -1304,6 +1309,29 @@ export function extractMethodsFromResource(
   return result;
 }
 
+/**
+ * Names that non-create methods read from globalArgs: the path parameters of
+ * get/update/patch/delete (excluding the last one, the resource identifier,
+ * which comes from args.identifier or stored state) and every list path
+ * parameter. `parent` and `location` are always included because list/get
+ * build the parent path from them.
+ */
+export function nonCreatePathParams(
+  getMethod: GcpMethod | undefined,
+  update: GcpMethod | undefined,
+  patch: GcpMethod | undefined,
+  deleteMethod: GcpMethod | undefined,
+  list: GcpMethod | undefined,
+): string[] {
+  const names = new Set<string>(["parent", "location"]);
+  for (const method of [getMethod, update, patch, deleteMethod]) {
+    const order = method?.parameterOrder ?? [];
+    for (const name of order.slice(0, -1)) names.add(name);
+  }
+  for (const name of list?.parameterOrder ?? []) names.add(name);
+  return [...names];
+}
+
 function buildGcpParsedResource(
   spec: ResourceSpec,
   doc: GcpDiscoveryDocument,
@@ -1591,10 +1619,20 @@ function buildGcpParsedResource(
     requiredSet.add(paramName);
   }
 
-  // Only include required properties that are in the domain
+  // Split required properties: a field stays required in GlobalArgsSchema only
+  // if a non-create method reads it from globalArgs. swamp validates
+  // GlobalArgsSchema for every method, so create-only required fields there
+  // would block list/get/delete. Those are enforced inside create instead.
+  const readByNonCreateMethods = new Set(
+    nonCreatePathParams(getMethod, update, patch, deleteMethod, list),
+  );
+  const createRequiredProperties: string[] = [];
   for (const name of requiredSet) {
-    if (domainProperties[name]) {
+    if (!domainProperties[name]) continue;
+    if (readByNonCreateMethods.has(name)) {
       requiredProperties.push(name);
+    } else {
+      createRequiredProperties.push(name);
     }
   }
 
@@ -1697,6 +1735,9 @@ function buildGcpParsedResource(
     domainProperties: sanitizePropertyNames(domainProperties),
     resourceValueProperties: sanitizePropertyNames(resourceValueProperties),
     requiredProperties: requiredProperties.map(sanitizePropertyName),
+    createRequiredProperties: createRequiredProperties.map(
+      sanitizePropertyName,
+    ),
     createOnlyProperties: createOnlyProperties.map(sanitizePropertyName),
     insertProperties: new Set(
       [...insertPropertyNames].map(sanitizePropertyName),
