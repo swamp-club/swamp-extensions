@@ -186,7 +186,7 @@ const GlobalArgsSchema = z.object({
       "Optional. Enables observability for this agent's sessions: OpenTelemetry span emission covering tool names, model names, token counts, latencies and status. If `false`, the other fields here are ignored.",
     ).optional(),
     sensitiveLoggingEnabled: z.boolean().describe(
-      "Optional. Enables sensitive logging. Sensitive logging includes customer core content (prompts, model completions, tool argument payloads and tool responses). If `false`, those are sanitized and only structural attributes are recorded. No effect unless `observability_enabled` is true. Not yet enforced: `CreateAgent` and `UpdateAgent` currently reject setting this to `true`.",
+      "Optional. Enables sensitive logging. Sensitive logging includes customer core content (prompts, model completions, tool argument payloads and tool responses). If `false`, those are sanitized and only structural attributes are recorded. No effect unless `observability_enabled` is true. Settable and returned, but NOT YET ENFORCED. Nothing reads it at runtime, so `true` does not currently cause content to be captured, and `false` is not what keeps content from being captured. Treat it as a recorded intention that takes effect when enforcement lands.",
     ).optional(),
   }).describe("Optional. Observability settings for this agent's sessions.")
     .optional(),
@@ -266,7 +266,7 @@ const InputsSchema = z.object({
       "Optional. Enables observability for this agent's sessions: OpenTelemetry span emission covering tool names, model names, token counts, latencies and status. If `false`, the other fields here are ignored.",
     ).optional(),
     sensitiveLoggingEnabled: z.boolean().describe(
-      "Optional. Enables sensitive logging. Sensitive logging includes customer core content (prompts, model completions, tool argument payloads and tool responses). If `false`, those are sanitized and only structural attributes are recorded. No effect unless `observability_enabled` is true. Not yet enforced: `CreateAgent` and `UpdateAgent` currently reject setting this to `true`.",
+      "Optional. Enables sensitive logging. Sensitive logging includes customer core content (prompts, model completions, tool argument payloads and tool responses). If `false`, those are sanitized and only structural attributes are recorded. No effect unless `observability_enabled` is true. Settable and returned, but NOT YET ENFORCED. Nothing reads it at runtime, so `true` does not currently cause content to be captured, and `false` is not what keeps content from being captured. Treat it as a recorded intention that takes effect when enforcement lands.",
     ).optional(),
   }).describe("Optional. Observability settings for this agent's sessions.")
     .optional(),
@@ -318,7 +318,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Agents. Registered at `@swamp/gcp/aiplatform/agents`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/agents",
-  version: "2026.09.20.1",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -371,6 +371,11 @@ export const model = {
     {
       toVersion: "2026.09.20.1",
       description: "Added: observabilityConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.28.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -172,6 +172,13 @@ const GlobalArgsSchema = z.object({
     }).describe(
       "Authentication using Google owned service account to assume into customer's AWS IAM Role.",
     ).optional(),
+    crossCloudCacheOptions: z.object({
+      enabled: z.boolean().describe(
+        "Optional. Whether cross-cloud caching is enabled. This only affects queries through BigQuery. If this value is `true`, read data and metadata are stored in a cache, which can increase performance and decrease network egress costs for cross-cloud queries. If this value is `false`, cross-cloud caching is disabled.",
+      ).optional(),
+    }).describe(
+      "Optional. Configuration options for cross-cloud caching of data and metadata files.",
+    ).optional(),
   }).describe("Amazon Web Services (AWS) properties.").optional(),
   azure: z.object({
     application: z.string().describe(
@@ -179,6 +186,13 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     clientId: z.string().describe(
       "Output only. The client id of the Azure Active Directory Application.",
+    ).optional(),
+    crossCloudCacheOptions: z.object({
+      enabled: z.boolean().describe(
+        "Optional. Whether cross-cloud caching is enabled. This only affects queries through BigQuery. If this value is `true`, read data and metadata are stored in a cache, which can increase performance and decrease network egress costs for cross-cloud queries. If this value is `false`, cross-cloud caching is disabled.",
+      ).optional(),
+    }).describe(
+      "Optional. Configuration options for cross-cloud caching of data and metadata files.",
     ).optional(),
     customerTenantId: z.string().describe(
       "The id of customer's directory that host the data.",
@@ -351,6 +365,13 @@ const GlobalArgsSchema = z.object({
     "Optional. The Cloud KMS key that is used for credentials encryption. If omitted, internal Google owned encryption keys are used. Example: `projects/[kms_project_id]/locations/[region]/keyRings/[key_region]/cryptoKeys/[key]`",
   ).optional(),
   salesforceDataCloud: z.object({
+    crossCloudCacheOptions: z.object({
+      enabled: z.boolean().describe(
+        "Optional. Whether cross-cloud caching is enabled. This only affects queries through BigQuery. If this value is `true`, read data and metadata are stored in a cache, which can increase performance and decrease network egress costs for cross-cloud queries. If this value is `false`, cross-cloud caching is disabled.",
+      ).optional(),
+    }).describe(
+      "Optional. Configuration options for cross-cloud caching of data and metadata files.",
+    ).optional(),
     identity: z.string().describe(
       "Output only. A unique Google-owned and Google-generated service account identity for the connection.",
     ).optional(),
@@ -395,10 +416,16 @@ const StateSchema = z.object({
       iamRoleId: z.string(),
       identity: z.string(),
     }),
+    crossCloudCacheOptions: z.object({
+      enabled: z.boolean(),
+    }),
   }).optional(),
   azure: z.object({
     application: z.string(),
     clientId: z.string(),
+    crossCloudCacheOptions: z.object({
+      enabled: z.boolean(),
+    }),
     customerTenantId: z.string(),
     federatedApplicationClientId: z.string(),
     identity: z.string(),
@@ -468,6 +495,9 @@ const StateSchema = z.object({
   lastModifiedTime: z.string().optional(),
   name: z.string(),
   salesforceDataCloud: z.object({
+    crossCloudCacheOptions: z.object({
+      enabled: z.boolean(),
+    }),
     identity: z.string(),
     instanceUri: z.string(),
     tenantId: z.string(),
@@ -504,6 +534,13 @@ const InputsSchema = z.object({
     }).describe(
       "Authentication using Google owned service account to assume into customer's AWS IAM Role.",
     ).optional(),
+    crossCloudCacheOptions: z.object({
+      enabled: z.boolean().describe(
+        "Optional. Whether cross-cloud caching is enabled. This only affects queries through BigQuery. If this value is `true`, read data and metadata are stored in a cache, which can increase performance and decrease network egress costs for cross-cloud queries. If this value is `false`, cross-cloud caching is disabled.",
+      ).optional(),
+    }).describe(
+      "Optional. Configuration options for cross-cloud caching of data and metadata files.",
+    ).optional(),
   }).describe("Amazon Web Services (AWS) properties.").optional(),
   azure: z.object({
     application: z.string().describe(
@@ -511,6 +548,13 @@ const InputsSchema = z.object({
     ).optional(),
     clientId: z.string().describe(
       "Output only. The client id of the Azure Active Directory Application.",
+    ).optional(),
+    crossCloudCacheOptions: z.object({
+      enabled: z.boolean().describe(
+        "Optional. Whether cross-cloud caching is enabled. This only affects queries through BigQuery. If this value is `true`, read data and metadata are stored in a cache, which can increase performance and decrease network egress costs for cross-cloud queries. If this value is `false`, cross-cloud caching is disabled.",
+      ).optional(),
+    }).describe(
+      "Optional. Configuration options for cross-cloud caching of data and metadata files.",
     ).optional(),
     customerTenantId: z.string().describe(
       "The id of customer's directory that host the data.",
@@ -683,6 +727,13 @@ const InputsSchema = z.object({
     "Optional. The Cloud KMS key that is used for credentials encryption. If omitted, internal Google owned encryption keys are used. Example: `projects/[kms_project_id]/locations/[region]/keyRings/[key_region]/cryptoKeys/[key]`",
   ).optional(),
   salesforceDataCloud: z.object({
+    crossCloudCacheOptions: z.object({
+      enabled: z.boolean().describe(
+        "Optional. Whether cross-cloud caching is enabled. This only affects queries through BigQuery. If this value is `true`, read data and metadata are stored in a cache, which can increase performance and decrease network egress costs for cross-cloud queries. If this value is `false`, cross-cloud caching is disabled.",
+      ).optional(),
+    }).describe(
+      "Optional. Configuration options for cross-cloud caching of data and metadata files.",
+    ).optional(),
     identity: z.string().describe(
       "Output only. A unique Google-owned and Google-generated service account identity for the connection.",
     ).optional(),
@@ -747,7 +798,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Connection Connections. Registered at `@swamp/gcp/bigqueryconnection/connections`. */
 export const model = {
   type: "@swamp/gcp/bigqueryconnection/connections",
-  version: "2026.08.13.1",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -896,6 +947,11 @@ export const model = {
     },
     {
       toVersion: "2026.08.13.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
