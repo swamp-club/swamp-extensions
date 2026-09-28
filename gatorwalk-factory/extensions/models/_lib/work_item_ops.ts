@@ -21,7 +21,12 @@ import { buildDispatch } from "./dispatch.ts";
 import { evaluateTransitions, makeGateEvaluator } from "./gates.ts";
 import { analyzeLifecycle, formatFinding } from "./graph.ts";
 import { type Actor, actorFrom, type ProductKind } from "./journal.ts";
-import { type Lifecycle, parseLifecycle } from "./lifecycle_schema.ts";
+import {
+  findStage,
+  type Lifecycle,
+  parseLifecycle,
+  transitionsFrom,
+} from "./lifecycle_schema.ts";
 import {
   advance,
   dispatchCap,
@@ -422,6 +427,29 @@ function expectationProps(run: RunRecord) {
   };
 }
 
+/**
+ * The ids of each transition's human-approval gates, by transition name. A
+ * driver needs them to tell an exit a person must decide from one it may take
+ * on its own, including once the gate is satisfied and the exit shows ready.
+ */
+function humanGatesByTransition(
+  lifecycle: Lifecycle,
+  stageId: string,
+): Map<string, string[]> {
+  const stage = findStage(lifecycle, stageId);
+  const out = new Map<string, string[]>();
+  if (stage === undefined) return out;
+  for (const transition of transitionsFrom(lifecycle, stage)) {
+    out.set(
+      transition.name,
+      (transition.gates ?? []).flatMap((gate) =>
+        gate.type === "human-approval" ? [gate.config.id] : []
+      ),
+    );
+  }
+  return out;
+}
+
 /** Everything a caller needs to act next, as data. */
 export async function describeStatus(
   ctx: MethodContextLike,
@@ -431,6 +459,7 @@ export async function describeStatus(
   const lifecycle = pinned.lifecycle;
   const context = await buildCelContext(run, store);
   const active = run.status === "active";
+  const humanGates = humanGatesByTransition(lifecycle, run.stage);
   return {
     key: run.key,
     lifecycle: {
@@ -450,6 +479,7 @@ export async function describeStatus(
         name: t.name,
         to: t.to,
         manual: t.manual,
+        humanGates: humanGates.get(t.name) ?? [],
         ready: t.ready,
         failures: t.failures,
       }))
@@ -470,13 +500,33 @@ export async function status(
     `--input expectedCycle=${view.expected.expectedCycle} ` +
     `--input expectedEra=${view.expected.expectedEra}`,
     ...view.exits.map((e) =>
-      `  exit ${e.name} -> ${e.to}${e.manual ? " (manual)" : ""}: ${
-        e.ready ? "ready" : `not ready: ${e.failures.join("; ")}`
-      }`
+      `  exit ${e.name} -> ${e.to}${e.manual ? " (manual)" : ""}${
+        e.humanGates.length > 0 ? ` [human: ${e.humanGates.join(", ")}]` : ""
+      }: ${e.ready ? "ready" : `not ready: ${e.failures.join("; ")}`}`
     ),
   ];
+  if (view.dispatch !== null && view.dispatchCap !== null) {
+    const cap = view.dispatchCap;
+    lines.push(
+      `  work: ${view.dispatch.mode}; dispatches this cycle ${cap.count} of ${
+        cap.limit + cap.granted
+      }`,
+    );
+  }
   if (view.dispatch !== null && !view.dispatch.ready) {
     lines.push(`  dispatch not ready: ${view.dispatch.problems.join("; ")}`);
+  }
+  // Rejections are retry feedback; the log is the only place a CLI caller
+  // sees them without reading the run record.
+  for (const kind of ["artifacts", "evidence"] as const) {
+    for (const [name, v] of Object.entries(view.validations[kind])) {
+      lines.push(
+        `  rejected ${kind === "artifacts" ? "artifact" : "evidence"} ` +
+          `'${name}' (stage '${v.stage}' cycle ${v.cycle}): ${
+            v.errors.join("; ")
+          }`,
+      );
+    }
   }
   ctx.logger.info("{summary}", { summary: lines.join("\n"), status: view });
   return { dataHandles: [] };
@@ -561,9 +611,12 @@ export async function dispatch(
       )),
   );
   ctx.logger.info("{summary}", {
+    // The whole packet goes into the text, since a CLI caller sees only the
+    // log message: the prompt as written, then everything else as JSON.
     summary:
       `dispatch ${recorded.value} for stage '${packet.stage}' cycle ${packet.cycle}` +
-      (packet.prompt !== undefined ? `\n${packet.prompt}` : ""),
+      (packet.prompt !== undefined ? `\n${packet.prompt}` : "") +
+      `\npacket: ${JSON.stringify({ ...packet, prompt: undefined }, null, 2)}`,
     dispatchId: recorded.value,
     packet,
   });

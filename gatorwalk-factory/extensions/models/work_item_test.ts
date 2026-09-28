@@ -190,6 +190,12 @@ Deno.test("record_artifact: a rejected payload is kept as feedback, then the cal
   );
   const run = await runOf(swamp);
   assertEquals(run.validations.artifacts.plan.rejected, { summary: "s" });
+  await call(swamp, "status");
+  const summary = String(swamp.logs.at(-1)?.props?.summary);
+  assert(
+    summary.includes("  rejected artifact 'plan' (stage 'plan' cycle 1): "),
+    summary,
+  );
 });
 
 Deno.test("writes: a stale expectation is refused and writes nothing", async () => {
@@ -215,6 +221,10 @@ Deno.test("dispatch: reports the packet, and the dispatch cap refuses a third", 
   const logged = swamp.logs.at(-1)?.props;
   assertEquals(logged?.dispatchId, 1);
   assert(String(logged?.summary).includes("Plan the change."));
+  assert(
+    String(logged?.summary).includes('packet: {\n  "stage": "plan"'),
+    String(logged?.summary),
+  );
   await call(swamp, "dispatch", await expected(swamp));
   await assertRejects(
     async () => call(swamp, "dispatch", await expected(swamp)),
@@ -243,6 +253,53 @@ Deno.test("status: a read method that logs where the work item is and what is re
   assert(
     summary.includes(
       "exit submit -> plan-review: not ready: artifact-exists: artifact 'plan' has not been recorded",
+    ),
+    summary,
+  );
+  assert(
+    summary.includes("  work: interactive; dispatches this cycle 0 of 2"),
+    summary,
+  );
+});
+
+Deno.test("status: names each exit's human gates, global exits included", async () => {
+  const swamp = await started();
+  await call(swamp, "record_artifact", {
+    name: "plan",
+    payload: JSON.stringify({
+      summary: "s",
+      steps: [{ description: "d", files: ["a.ts"] }],
+      testingStrategy: "t",
+      versionBump: { needed: false, reason: "r" },
+    }),
+    ...await expected(swamp),
+  });
+  await call(swamp, "advance", {
+    transition: "submit",
+    ...await expected(swamp),
+  });
+
+  const view = await describeStatus(swamp.context(ITEM), systemEnv);
+  assertEquals(
+    Object.fromEntries(view.exits.map((e) => [e.name, e.humanGates])),
+    {
+      approve: ["plan-approval"],
+      rework: [],
+      revise: [],
+      abandon: ["abandon-confirmation"],
+    },
+  );
+
+  await call(swamp, "status");
+  const summary = String(swamp.logs.at(-1)?.props?.summary);
+  assert(
+    summary.includes("exit approve -> implement [human: plan-approval]: "),
+    summary,
+  );
+  assert(summary.includes("exit revise -> plan (manual): "), summary);
+  assert(
+    summary.includes(
+      "exit abandon -> abandoned [human: abandon-confirmation]: ",
     ),
     summary,
   );

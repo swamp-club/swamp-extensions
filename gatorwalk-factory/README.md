@@ -35,7 +35,11 @@ extensions/models/
     test_support.ts       shared test fixtures
     fake_swamp.ts         a fake swamp method context for tests
 integration/              the real-engine suite: gatorwalk through the swamp CLI
+  skill_commands.ts       the skill's commands, pulled out to check and run
 lifecycles/               lifecycles gatorwalk-factory ships
+.claude/skills/gatorwalk-factory/
+  SKILL.md                the skill: how an agent drives a work item
+  references/             driving in full, and a worked example
 testdata/
   lifecycles/             software-factory's examples, ported
   plugins/                stage plugins
@@ -143,9 +147,10 @@ In a swamp repo, without publishing anything:
 ```bash
 swamp extension source add /path/to/swamp-extensions/gatorwalk-factory
 
-# A lifecycle holder: its globalArguments are a lifecycle, e.g. the contents
-# of lifecycles/build-swamp-extension.yaml (swamp model edit team).
-swamp model create @swamp/gatorwalk-factory/lifecycle team
+# A lifecycle holder. create prints the definition file's path; set that
+# file's globalArguments to a lifecycle, e.g. the contents of
+# lifecycles/build-swamp-extension.yaml.
+swamp model create @swamp/gatorwalk-factory/lifecycle team --json
 swamp model method run team validate --log
 swamp model method run team new_key --log        # prints a work-item key
 
@@ -155,10 +160,25 @@ swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
 swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
 ```
 
-`status` prints the stage, what it needs, and each exit's readiness, plus the
-`expectedStage`, `expectedCycle` and `expectedEra` every write must pass back.
-Writes are `record_artifact`, `record_evidence`, `dispatch`, `record_usage`,
-`approve`, `decline`, `grant_override`, `advance` and `reset`. A refused write
-fails with its reason and writes nothing. A payload that breaks its schema also
-fails, but is kept on the work item as retry feedback. Method output goes to the
-log, so pass `--log`.
+`status` prints the stage and cycle; the `expectedStage`, `expectedCycle` and
+`expectedEra` every write must pass back; each exit's readiness, with its
+failures and the ids of its human-approval gates (`[human: plan-approval]`); the
+stage's work mode and dispatch count; and any payload rejections. `dispatch`
+prints the whole dispatch packet. Writes are `record_artifact`,
+`record_evidence`, `dispatch`, `record_usage`, `approve`, `decline`,
+`grant_override`, `advance` and `reset`. A refused write fails with its reason
+and writes nothing. A payload that breaks its schema also fails, but is kept on
+the work item as retry feedback. Method output goes to the log, so pass `--log`.
+
+## Driving it
+
+The gatorwalk-factory skill, in `.claude/skills/gatorwalk-factory/`, is how an
+agent drives a work item: the loop, when it may advance on its own, where it
+must stop for a person, and what to do when a write is refused. It is tracked
+here and ships with the extension at go-live. To use it in another repo before
+then, link the directory into that repo's `.claude/skills/`.
+
+`integration/skill_test.ts` keeps it honest: every command the skill shows must
+name a real method with inputs it accepts, and the worked example
+(`references/examples/build-swamp-extension.md`) runs, as written, from start to
+done on the real engine.

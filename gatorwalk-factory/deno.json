@@ -2,8 +2,8 @@
   "tasks": {
     "check": "deno check extensions/models/*.ts extensions/models/_lib/*.ts integration/*.ts",
     "lint": "deno lint extensions/models/ integration/",
-    "fmt": "deno fmt extensions/models/ integration/ lifecycles/ testdata/",
-    "fmt:check": "deno fmt --check extensions/models/ integration/ lifecycles/ testdata/",
+    "fmt": "deno fmt extensions/models/ integration/ lifecycles/ testdata/ .claude/skills/",
+    "fmt:check": "deno fmt --check extensions/models/ integration/ lifecycles/ testdata/ .claude/skills/",
     "test": "deno test --allow-read extensions/models/",
     "test:integration": "deno test --allow-run=swamp --allow-read --allow-write --allow-env integration/"
   },

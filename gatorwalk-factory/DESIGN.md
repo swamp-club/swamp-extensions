@@ -362,8 +362,13 @@ work item is created under it. Tracker ids are kept as data (`externalRefs`),
 never as the name.
 
 **Output and failure.** Methods report through the log, as
-`@swamp/issue-lifecycle` does. `status` is a `read` method, so it takes no lock.
-A refused write throws with its reason and writes nothing. A rejected payload is
+`@swamp/issue-lifecycle` does. The CLI shows only a log message's text, never
+its properties, so the text carries everything a driver acts on: `status` prints
+each exit's readiness and the ids of its human-approval gates (a ready exit that
+a person must decide looks otherwise the same as one an agent may take), the
+stage's work mode, the dispatch count, and payload rejections; and `dispatch`
+prints the whole packet. `status` is a `read` method, so it takes no lock. A
+refused write throws with its reason and writes nothing. A rejected payload is
 committed to the run as retry feedback and then thrown: no method declares
 `rollbackOnFailure`, so the feedback survives and the caller still gets a
 non-zero exit.
@@ -384,7 +389,8 @@ through the installed swamp CLI. Each test gets a throwaway repo
 (`swamp init --tool none`, then `swamp extension source add` of this directory),
 runs methods by direct type execution with `--log`, and reads results back from
 swamp's storage with `swamp data get --json`. Code: `integration/harness.ts`,
-`integration/cli_test.ts`.
+`integration/cli_test.ts`, and `integration/skill_test.ts`, which checks every
+command the driving skill shows and runs its worked example as written.
 
 ### Why
 

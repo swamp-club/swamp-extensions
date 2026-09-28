@@ -73,6 +73,10 @@ groups:
           check: extensions/models/*.ts extensions/models/_lib/*.ts integration/*.ts
           paths: extensions/models/ integration/
         commands:
+          # The skill's markdown is format-checked too. It has its own
+          # command because {paths} also feeds lint, which has nothing to
+          # lint in a directory of markdown.
+          fmt: deno fmt --check extensions/models/ integration/ .claude/skills/
           # The unit tests stay read-only and never reach integration/.
           test: deno test --allow-read extensions/models/
           # The real-engine suite (integration/) drives the installed swamp
