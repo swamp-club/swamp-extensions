@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
+import { jsonSafe } from "./canonical.ts";
+
 // ---------------------------------------------------------------------------
 // Prompt templates: `{{name}}` placeholders in a stage's prose fields
 // (systemPrompt, command), filled from the stage's resolved bindings when it
@@ -105,7 +107,9 @@ export function renderTemplate(
     } else if (typeof value === "string") {
       text += value;
     } else if (typeof value === "object") {
-      text += JSON.stringify(value, null, 2);
+      // jsonSafe: a CEL integer inside a map or list is a BigInt, which
+      // JSON.stringify refuses.
+      text += JSON.stringify(jsonSafe(value), null, 2);
     } else {
       text += String(value);
     }

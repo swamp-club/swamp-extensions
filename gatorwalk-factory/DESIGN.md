@@ -98,3 +98,85 @@ PR titles) into the prompt, where it can carry prompt injection. Placeholders do
 not change that risk compared with software-factory. What they add is that every
 substituted value is declared and recorded, so what went into a prompt can be
 audited afterwards.
+
+## The runtime: one run record per work item
+
+**Decision.** Each work item is one model instance. Inside it, everything about
+the work item lives in a single record under the fixed name `run`: current
+stage, entries per stage, the index of recorded products, dispatches, approvals
+and the journal. Product payloads live in their own records (`artifact-<name>`,
+`evidence-<name>`, where `<name>` is declared by the lifecycle), and the run
+record indexes each one's version and digest. Code: `_lib/run_record.ts`,
+`_lib/run_ops.ts`, `_lib/run_store.ts`.
+
+### Why
+
+- **Identity by instance, not by name.** software-factory served many work items
+  from one instance and put the work item into record names. Reading by name
+  prefix let one work item read another's records (#2526), and several other
+  defects came from the same habit (#1487, #2342). Here no record name carries
+  the work item's identity, so the whole family cannot occur.
+- **One commit per change.** Every operation writes any payload first and
+  commits by writing the run record last. A crash in between leaves a payload
+  version that nothing references, which is ignored, never a half-applied change
+  (#1566). This needs no `rollbackOnFailure`, which swamp offers only per method
+  and refuses under remote placement (`method_execution_service.ts:882-888` in
+  swamp).
+- **Stale writes are refused.** The per-instance lock serialises method runs
+  that write. `advance`, `recordApproval` and `reset` also take the caller's
+  expected stage, cycle and era, and refuse a mismatch, so a writer acting on an
+  out-of-date view fails instead of applying (#1998, #2343). The lock does not
+  cover the first run that auto-creates an instance (`model_method_run.ts:431`
+  in swamp), so two concurrent first starts can still race; that is accepted for
+  solo use until swamp fixes it.
+- **Rejections are returned, not thrown.** A product that fails its schema is
+  kept on the run as retry feedback and returned to the caller. Throwing would
+  let a rollback delete the feedback a retry needs.
+- **Swamp never upgrades stored data**, only `globalArguments`. The run record
+  carries its own `schemaVersion`, and a record this runtime cannot read is an
+  error, never a fresh start.
+
+### Approvals, usage and actors
+
+- An approval records one decision (approve or decline) and a snapshot of every
+  product in the era: version and SHA-256 digest over canonical JSON. What a
+  person approves is usually declared on an earlier stage (plan-approval is
+  decided on plan-review, about the plan).
+- Token usage is attached to a dispatch by id, after the work, because it is
+  only known then. It is marked attested until a driver measures it.
+- Every event records its actor: the platform's caller
+  (`tagOverrides.initiatedBy`), or none where swamp gives none (webhook runs,
+  remote workers, nested `runModel` calls). A caller may assert who it acts for;
+  that is kept beside the principal, never in place of it.
+
+### Retention (for the model type)
+
+Old versions of `run` are safe to collect: the latest holds the whole journal.
+Product records are not: approvals and the run index reference specific
+versions, and with a numeric `garbageCollection` swamp prunes old versions on
+write. Product records need duration-based retention. Building the CEL context
+reads each referenced version and checks it against the recorded digest, so a
+pruned version, or one changed outside the runtime, is an error rather than
+wrong data.
+
+## The CEL vocabulary
+
+Bindings and `cel` gates see (`_lib/cel_context.ts`):
+
+| Name          | Value                                                       |
+| ------------- | ----------------------------------------------------------- |
+| `item`        | `{ key, externalRefs }`                                     |
+| `stage`       | `{ id, cycle }`                                             |
+| `artifacts`   | name → `{ payload, version, stage, cycle }`                 |
+| `evidence`    | name → `{ payload, version, stage, cycle }`                 |
+| `validations` | `{ artifacts, evidence }`, each name → the latest rejection |
+
+`artifacts` and `evidence` hold the latest record of each name in the current
+era, **from whichever stage recorded it**. The `evidence-recorded` gate is
+deliberately different: it only accepts evidence recorded in the current stage
+and cycle. The gate asks "did this stage produce it?", while CEL asks "what is
+the latest?". A reset starts a new era, so nothing from before it is visible.
+
+Numbers from run data are CEL doubles, as in swamp's own CEL. Comparing them
+with integer literals works (`version >= 2`), but arithmetic needs a double
+(`version + 1.0`) or a conversion (`int(version) + 1`).

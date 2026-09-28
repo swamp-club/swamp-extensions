@@ -17,11 +17,11 @@
 # Commits are full 40-character SHAs, so the same commit always compares
 # equal.
 #
-# The CEL vocabulary in bindings and cel gates (artifacts, evidence) is
-# provisional until the runtime defines it. This lifecycle relies on one rule
-# the runtime must keep: in CEL, evidence["x"] is the latest record of x from
-# any stage, unlike the evidence-recorded gate, which only accepts evidence
-# from the current stage and cycle. implement.submit depends on it.
+# The CEL vocabulary in bindings and cel gates is defined in
+# extensions/models/_lib/cel_context.ts. This lifecycle relies on one rule of
+# it: in CEL, evidence["x"] is the latest record of x in the era from any
+# stage, unlike the evidence-recorded gate, which only accepts evidence from
+# the current stage and cycle. implement.submit depends on it.
 schemaVersion: 1
 name: build-swamp-extension
 description: Build a swamp extension from plan to release.

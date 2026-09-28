@@ -19,6 +19,15 @@ extensions/models/_lib/
   lifecycle_schema.ts   the lifecycle and plugin meta-schema
   payload_schema.ts     JSON Schema 2020-12 payload schemas and contracts
   template.ts           {{name}} placeholders in prompts
+  canonical.ts          JSON safety (CEL integers) and content digests
+  journal.ts            journal events and actors
+  run_record.ts         the per-work-item run record
+  run_ops.ts            pure operations: start, record, dispatch, approve,
+                        advance, reset
+  run_store.ts          storage and the commit protocol
+  cel_context.ts        the CEL vocabulary for bindings and cel gates
+  dispatch.ts           dispatch packets: bindings, inputs, rendered prompts
+  test_support.ts       shared test fixtures
 lifecycles/             lifecycles gatorwalk-factory ships
 testdata/
   lifecycles/           software-factory's examples, ported

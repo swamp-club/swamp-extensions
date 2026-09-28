@@ -14,7 +14,8 @@ stages:
         workItem: item.key
         # The whole record, null-safe: null on the first attempt, the
         # recorded rejection on a retry.
-        feedback: '"plan" in validations ? validations["plan"] : null'
+        feedback: >-
+          "plan" in validations.artifacts ? validations.artifacts["plan"] : null
       resultEvidence: plan-run
     artifacts:
       - name: plan

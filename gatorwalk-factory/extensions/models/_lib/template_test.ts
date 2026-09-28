@@ -91,3 +91,10 @@ Deno.test("render: literal braces survive rendering", () => {
     { ok: true, text: "{{ .Values.x }} {{v}} ok" },
   );
 });
+
+Deno.test("render: a CEL integer (BigInt) inside a map or list renders as JSON", () => {
+  assertEquals(
+    renderTemplate("{{n}} {{o}}", { n: 7n, o: { counts: [1n, 2n] } }),
+    { ok: true, text: '7 {\n  "counts": [\n    1,\n    2\n  ]\n}' },
+  );
+});
