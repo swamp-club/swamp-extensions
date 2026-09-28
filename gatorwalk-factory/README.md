@@ -19,6 +19,7 @@ extensions/models/_lib/
   lifecycle_schema.ts   the lifecycle and plugin meta-schema
   payload_schema.ts     JSON Schema 2020-12 payload schemas and contracts
   template.ts           {{name}} placeholders in prompts
+lifecycles/             lifecycles gatorwalk-factory ships
 testdata/
   lifecycles/           software-factory's examples, ported
   plugins/              stage plugins
@@ -54,6 +55,35 @@ A **plugin** has the same shape plus a `contract`: `inputs` it consumes,
 `outputs` its stages produce, named `exits`, and a `parameters` schema. Its
 transitions leave through `exit:` rather than `to:`. See
 `testdata/plugins/review-plan.yaml`.
+
+## Bundled lifecycles
+
+`lifecycles/build-swamp-extension.yaml` takes a change to a swamp extension from
+plan to release:
+
+```
+plan → plan-review → implement → check → code-review → release → done
+```
+
+- **People decide at four points:** approving the plan, waiving the quality
+  score, releasing, and abandoning the work.
+- **Manual ways back:** a person can always send the work back by hand (`revise`
+  after either review, `recheck` for a flaky check). So declining an approval
+  never leaves `abandon` as the only way out.
+- **Quality waiver:** `check` normally needs `swamp extension quality` to pass.
+  An extension with no manifest yet can't be scored, so a person can waive the
+  score instead. gatorwalk-factory itself needs this until go-live.
+- **Two release routes:** `swamp extension push`, or a pull request that CI
+  publishes when it merges. A pull-request release must record its verification
+  attestation id and its merge commit. A registry push must publish the version
+  recorded in `change-summary`.
+- **Commit binding:** the checks and the release must name the commit recorded
+  in `change-summary`, which is the commit that was reviewed. A squash merge's
+  own commit is recorded separately, as `mergeCommit`.
+
+This is the tier 1 lifecycle and gatorwalk-factory's own process. Later it will
+be recomposed from stage plugins; it lives under `lifecycles/` because it is a
+lifecycle either way.
 
 ## Developing
 

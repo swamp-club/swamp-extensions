@@ -2,8 +2,8 @@
   "tasks": {
     "check": "deno check extensions/models/*.ts extensions/models/_lib/*.ts",
     "lint": "deno lint extensions/models/",
-    "fmt": "deno fmt extensions/models/ testdata/",
-    "fmt:check": "deno fmt --check extensions/models/ testdata/",
+    "fmt": "deno fmt extensions/models/ lifecycles/ testdata/",
+    "fmt:check": "deno fmt --check extensions/models/ lifecycles/ testdata/",
     "test": "deno test --allow-read extensions/models/"
   },
   "lint": {
