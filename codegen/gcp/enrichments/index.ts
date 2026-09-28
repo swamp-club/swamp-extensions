@@ -2,6 +2,7 @@ import type { GcpEnrichment } from "./types.ts";
 export { parseEnrichmentSource } from "./parser.ts";
 import { enrichment as bigqueryJobs } from "./bigquery-jobs.ts";
 import { enrichment as billingbudgetsBudgets } from "./billingbudgets-budgets.ts";
+import { enrichment as cloudassetAssets } from "./cloudasset-assets.ts";
 import { enrichment as cloudidentityGroupsMemberships } from "./cloudidentity-groups-memberships.ts";
 import { enrichment as cloudresourcemanagerOrganizations } from "./cloudresourcemanager-organizations.ts";
 import { enrichment as cloudresourcemanagerProjects } from "./cloudresourcemanager-projects.ts";
@@ -18,6 +19,7 @@ export type { GcpEnrichment };
 const ENRICHMENTS: GcpEnrichment[] = [
   bigqueryJobs,
   billingbudgetsBudgets,
+  cloudassetAssets,
   cloudidentityGroupsMemberships,
   cloudresourcemanagerOrganizations,
   cloudresourcemanagerProjects,

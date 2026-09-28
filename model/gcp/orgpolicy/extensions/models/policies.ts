@@ -440,10 +440,11 @@ const orgPolicyAuditMethods = {
       const hashHex = [...hashBytes.slice(0, 8)].map((b) =>
         b.toString(16).padStart(2, "0")
       ).join("");
+      const instanceName = `effective_policies_snapshot_${hashHex}`;
       const handle = await context.writeResource(
         "state",
-        `effective_policies_snapshot_${hashHex}`,
-        snapshot,
+        instanceName,
+        { name: instanceName, ...snapshot },
       );
       return { dataHandles: [handle] };
     },
@@ -744,7 +745,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Organization Policy Policies. Registered at `@swamp/gcp/orgpolicy/policies`. */
 export const model = {
   type: "@swamp/gcp/orgpolicy/policies",
-  version: "2026.09.17.2",
+  version: "2026.09.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -923,6 +924,11 @@ export const model = {
     },
     {
       toVersion: "2026.09.17.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

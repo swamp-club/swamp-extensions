@@ -85,7 +85,7 @@ export const serviceInventoryMethods = {
       const handle = await context.writeResource(
         "state",
         instanceName,
-        snapshot,
+        { name: instanceName, ...snapshot },
       );
       return { dataHandles: [handle] };
     },

@@ -175,6 +175,11 @@ Deno.test({
           artifacts.get("hierarchy_snapshot_organizations_123456")!,
         ),
       );
+      assertEquals(stored.name, "hierarchy_snapshot_organizations_123456");
+      assertEquals(
+        model.resources.state.schema.safeParse(stored).success,
+        true,
+      );
       assertEquals(stored.totalNodes, 3);
       assertEquals(stored.folders.length, 1);
       assertEquals(stored.projects.length, 2);

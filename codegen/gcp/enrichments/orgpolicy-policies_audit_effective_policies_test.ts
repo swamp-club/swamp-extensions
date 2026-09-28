@@ -170,6 +170,11 @@ Deno.test({
           )!,
         ),
       );
+      assertEquals(artifacts.has(stored.name), true);
+      assertEquals(
+        model.resources.state.schema.safeParse(stored).success,
+        true,
+      );
       assertEquals(stored.count, 2);
       assertEquals(stored.results[0].status, "ok");
       assertEquals(stored.results[0].policy.spec.rules[0].enforce, true);

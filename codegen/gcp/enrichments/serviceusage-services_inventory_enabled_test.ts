@@ -145,6 +145,11 @@ Deno.test({
           artifacts.get("enabled_services_snapshot_projects_123")!,
         ),
       );
+      assertEquals(stored.name, "enabled_services_snapshot_projects_123");
+      assertEquals(
+        model.resources.state.schema.safeParse(stored).success,
+        true,
+      );
       assertEquals(stored.count, 3);
       assertEquals(stored.services.length, 3);
       assertEquals(stored.parent, "projects/123");

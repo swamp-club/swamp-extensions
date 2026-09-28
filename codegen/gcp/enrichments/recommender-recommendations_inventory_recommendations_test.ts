@@ -203,6 +203,11 @@ Deno.test({
           )!,
         ),
       );
+      assertEquals(artifacts.has(stored.name), true);
+      assertEquals(
+        model.resources.state.schema.safeParse(stored).success,
+        true,
+      );
       assertEquals(stored.count, 3);
       assertEquals(stored.recommendations.length, 3);
       assertEquals(stored.perParentCounts[parent1], 2);

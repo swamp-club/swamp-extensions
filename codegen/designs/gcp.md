@@ -1289,6 +1289,8 @@ codegen/gcp/enrichments/
 ├── bigquery-jobs.enrich.ts                         # run_query: poll, paginate, persist query results
 ├── billingbudgets-budgets.ts                       # Metadata
 ├── billingbudgets-budgets.enrich.ts                # ensure_budget: convergent budget lifecycle
+├── cloudasset-assets.ts                            # Metadata
+├── cloudasset-assets.enrich.ts                     # inventory_project_metadata: project search snapshot
 ├── cloudidentity-groups-memberships.ts             # Metadata
 ├── cloudidentity-groups-memberships.enrich.ts      # set_members: authoritative reconciliation
 ├── cloudresourcemanager-organizations.ts           # Metadata
@@ -1360,6 +1362,7 @@ files. A future pipeline enhancement could eliminate it by supporting
 | ------------------------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `bigquery.jobs`                            | `run_query`                                               | Typed query: submit job, poll until DONE, paginate all result pages, persist results + job provenance with bounded maxResults                                        |
 | `billingbudgets.budgets`                   | `ensure_budget`                                           | Convergent create-or-adopt-or-update by ID or unique displayName with etag-protected updates, notification verification, and read-back                               |
+| `cloudasset.assets`                        | `inventory_project_metadata`                              | Project searchAllResources snapshot: identity/type/location/state metadata only, full pagination, maxAssets fails not truncates, caller-visible coverage             |
 | `cloudidentity.groups.memberships`         | `set_members`                                             | Authoritative group membership reconciliation — add missing, remove strays                                                                                           |
 | `cloudresourcemanager.organizations`       | `inventory_hierarchy`                                     | Recursive BFS traversal of folders and projects under an org, with maxNodes limit, repeated-token detection, and parent links                                        |
 | `iam.serviceAccounts`                      | `add_iam_binding`, `remove_iam_binding`, `manage_account` | Granular IAM binding management on service accounts via read-modify-write with etag; deterministic create-or-adopt lifecycle by email with safe 404/409/403 handling |

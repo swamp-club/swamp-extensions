@@ -98,10 +98,11 @@ export const orgPolicyAuditMethods = {
       const hashHex = [...hashBytes.slice(0, 8)].map((b) =>
         b.toString(16).padStart(2, "0")
       ).join("");
+      const instanceName = `effective_policies_snapshot_${hashHex}`;
       const handle = await context.writeResource(
         "state",
-        `effective_policies_snapshot_${hashHex}`,
-        snapshot,
+        instanceName,
+        { name: instanceName, ...snapshot },
       );
       return { dataHandles: [handle] };
     },

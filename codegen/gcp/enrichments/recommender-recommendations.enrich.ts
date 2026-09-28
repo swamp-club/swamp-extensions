@@ -97,10 +97,11 @@ export const recommenderInventoryMethods = {
       const hashHex = [...hashBytes.slice(0, 8)].map((b) =>
         b.toString(16).padStart(2, "0")
       ).join("");
+      const instanceName = `recommendations_snapshot_${hashHex}`;
       const handle = await context.writeResource(
         "state",
-        `recommendations_snapshot_${hashHex}`,
-        snapshot,
+        instanceName,
+        { name: instanceName, ...snapshot },
       );
       return { dataHandles: [handle] };
     },
