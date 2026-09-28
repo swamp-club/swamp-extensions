@@ -101,7 +101,7 @@ const SELECTOR_METHODS = [
  */
 export const model = {
   type: "@swamp/ssh",
-  version: "2026.09.26.1",
+  version: "2026.09.28.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -276,6 +276,26 @@ export const model = {
         "start without it, because sudo's env_reset drops it. The README " +
         "now documents the sshd `AcceptEnv` + sudoers `env_keep` setup and " +
         "its logging caveats. No behavior or globalArguments schema change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.28.1",
+      description:
+        "Fix (#2561, #2604): `tailscale ssh` rejects any flag before the " +
+        "destination, so every ssh argument now follows it: " +
+        "`tailscale ssh -- <dest> [sshExtraArgs] <ssh args>`. Host and " +
+        "per-call `env` are now forwarded to tailscale hosts with " +
+        "`-o SendEnv=<key>` (previously they never left the runner), so a " +
+        "Tailscale SSH server whose policy `acceptEnv` lists the key now " +
+        "receives the value — keep secrets out of `env` for hosts that " +
+        "should not see them. `forward` for tailscale hosts, which always " +
+        "failed on `-N`, now works. `sshExtraArgs`, which failed whenever " +
+        "non-empty, now reaches the system ssh. The remote command is " +
+        "preceded by `--`. For both transports, `env` keys that are not " +
+        "shell identifiers no longer get a `SendEnv` option: ssh reads `*` " +
+        "and `?` as wildcards, so a key like `AWS_*` forwarded every " +
+        "matching variable from the runner's environment. No " +
+        "globalArguments schema change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

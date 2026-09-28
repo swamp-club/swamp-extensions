@@ -28,8 +28,15 @@
  *   kind=ssh,  auth=password → same, wrapped in `sshpass -e`; the password
  *                              is fed via the SSHPASS env var (never argv,
  *                              never SendEnv — it must not reach the remote).
- *   kind=tailscale           → `tailscale ssh user@host`; ControlMaster is
- *                              bypassed entirely. Copies use scp with
+ *   kind=tailscale           → `tailscale ssh -- user@host <ssh args>`;
+ *                              ControlMaster is bypassed entirely. The
+ *                              tailscale CLI defines no flags and rejects
+ *                              any before the destination, but hands every
+ *                              argument after it to the system ssh, which
+ *                              parses options after the host. So all ssh
+ *                              options (SendEnv, -N/-L, sshExtraArgs) go
+ *                              after the destination (#2561, #2604).
+ *                              Copies use scp with
  *                              `ProxyCommand=tailscale nc %h %p`.
  *
  * Every spawn goes through `Deno.Command(bin, { args })` — never `sh -c`
@@ -146,6 +153,32 @@ function sshCommonOpts(
 function destination(host: EffectiveHost): string {
   const user = host.transport.user;
   return user ? `${user}@${host.address}` : host.address;
+}
+
+/**
+ * `tailscale ssh -- <dest> [sshExtraArgs...] [sshArgs...]` for a
+ * tailscale-transport host. `tailscale ssh` consumes the leading `--`
+ * and passes everything after the destination to the system ssh, which
+ * still parses options that follow the host. Nothing but the binary,
+ * `ssh` and `--` may precede the destination: the tailscale CLI rejects
+ * any flag there (`flag provided but not defined`).
+ */
+export function tailscaleSshArgv(
+  host: EffectiveHost,
+  tailscaleBinary: string,
+  sshArgs: readonly string[],
+): string[] {
+  if (host.transport.kind !== "tailscale") {
+    throw new Error("tailscaleSshArgv called for non-tailscale host");
+  }
+  return [
+    tailscaleBinary,
+    "ssh",
+    "--",
+    destination(host),
+    ...host.transport.sshExtraArgs,
+    ...sshArgs,
+  ];
 }
 
 /**
@@ -285,14 +318,9 @@ export function buildExecArgv(
 ): string[] {
   if (host.transport.kind === "tailscale") {
     const bin = host.transport.tailscaleBinary ?? ctx.binaries.tailscale;
-    return [
-      bin,
-      "ssh",
-      ...host.transport.sshExtraArgs,
-      "--",
-      destination(host),
-      remoteCommand,
-    ];
+    const sendEnv = ctx.sendEnvKeys.flatMap((k) => ["-o", `SendEnv=${k}`]);
+    // The trailing `--` stops ssh parsing a `-`-leading command as options.
+    return tailscaleSshArgv(host, bin, [...sendEnv, "--", remoteCommand]);
   }
 
   const t = host.transport;
@@ -440,6 +468,11 @@ export function spawnEnv(
  * The SendEnv key set for a host given a method-supplied env override.
  * Combines the host's own `env` map keys with the per-call override keys.
  * SSHPASS is never included.
+ *
+ * Keys that are not shell identifiers are dropped: ssh treats `*` and `?`
+ * in a SendEnv pattern as wildcards, so a key such as `AWS_*` would send
+ * every matching variable from the runner's own environment, not the
+ * value in `env`.
  */
 export function sendEnvKeys(
   host: EffectiveHost,
@@ -447,7 +480,7 @@ export function sendEnvKeys(
 ): string[] {
   const keys = new Set<string>(Object.keys(host.env));
   for (const k of Object.keys(methodEnv ?? {})) keys.add(k);
-  return [...keys].sort();
+  return [...keys].filter((k) => SHELL_IDENTIFIER_RE.test(k)).sort();
 }
 
 /**

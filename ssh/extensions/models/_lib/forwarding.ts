@@ -22,7 +22,9 @@
  *
  *   ssh transport       → `ssh -O forward / -O cancel` against the master.
  *                         The control connection is opened lazily if needed.
- *   tailscale transport → a detached `tailscale ssh -N -L <spec>` child
+ *   tailscale transport → a detached `tailscale ssh -- <dest> -N -L <spec>`
+ *                         child (flags after the destination — see
+ *                         tailscaleSshArgv)
  *                         whose pid is tracked in a forwardState resource;
  *                         cancel kills the pid.
  *
@@ -30,6 +32,7 @@
  */
 
 import type { EffectiveHost } from "./hosts.ts";
+import { tailscaleSshArgv } from "./runner.ts";
 
 /** Parsed `LPORT:RHOST:RPORT`. */
 export interface ForwardSpec {
@@ -86,7 +89,7 @@ export function sshForwardArgv(
   ];
 }
 
-/** `tailscale ssh -N -L <spec> <dest>` for a detached forward child. */
+/** `tailscale ssh -- <dest> -N -L <spec>` for a detached forward child. */
 export function tailscaleForwardArgv(
   tailscaleBinary: string,
   type: "L" | "R",
@@ -96,15 +99,7 @@ export function tailscaleForwardArgv(
   if (host.transport.kind !== "tailscale") {
     throw new Error("tailscaleForwardArgv called for non-tailscale host");
   }
-  return [
-    tailscaleBinary,
-    "ssh",
-    ...host.transport.sshExtraArgs,
-    "-N",
-    `-${type}`,
-    spec,
-    destination(host),
-  ];
+  return tailscaleSshArgv(host, tailscaleBinary, ["-N", `-${type}`, spec]);
 }
 
 // ---------------------------------------------------------------------------

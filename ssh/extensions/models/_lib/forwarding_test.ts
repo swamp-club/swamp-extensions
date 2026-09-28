@@ -49,14 +49,14 @@ function sshHost(): EffectiveHost {
   };
 }
 
-function tailscaleHost(): EffectiveHost {
+function tailscaleHost(sshExtraArgs: string[] = []): EffectiveHost {
   return {
     name: "edge-1",
     address: "edge-1",
     tags: [],
     attrs: {},
     env: {},
-    transport: { kind: "tailscale", user: "deploy", sshExtraArgs: [] },
+    transport: { kind: "tailscale", user: "deploy", sshExtraArgs },
   };
 }
 
@@ -140,7 +140,9 @@ Deno.test("sshForwardArgv: -O cancel -R shape", () => {
 // tailscaleForwardArgv
 // ---------------------------------------------------------------------------
 
-Deno.test("tailscaleForwardArgv: -N -L shape", () => {
+// The tailscale CLI rejects any flag before the destination (#2604), so
+// -N/-L/-R and sshExtraArgs must all follow it.
+Deno.test("tailscaleForwardArgv: -N -L after the destination", () => {
   const argv = tailscaleForwardArgv(
     "tailscale",
     "L",
@@ -150,10 +152,31 @@ Deno.test("tailscaleForwardArgv: -N -L shape", () => {
   assertEquals(argv, [
     "tailscale",
     "ssh",
+    "--",
+    "deploy@edge-1",
     "-N",
     "-L",
     "9090:localhost:9090",
+  ]);
+});
+
+Deno.test("tailscaleForwardArgv: -R with sshExtraArgs after the destination", () => {
+  const argv = tailscaleForwardArgv(
+    "/opt/ts",
+    "R",
+    "9090:localhost:9090",
+    tailscaleHost(["-o", "ServerAliveInterval=15"]),
+  );
+  assertEquals(argv, [
+    "/opt/ts",
+    "ssh",
+    "--",
     "deploy@edge-1",
+    "-o",
+    "ServerAliveInterval=15",
+    "-N",
+    "-R",
+    "9090:localhost:9090",
   ]);
 });
 

@@ -609,30 +609,85 @@ Deno.test("buildExecArgv: password NEVER appears in argv", () => {
 // exec argv — tailscale
 // ---------------------------------------------------------------------------
 
+/**
+ * The tailscale CLI defines no flags and rejects any before the
+ * destination (#2604), so nothing but `<bin> ssh --` may precede it.
+ */
+function assertNothingBeforeDestination(argv: string[], dest: string): void {
+  assertEquals(argv.indexOf(dest), 3);
+  assertEquals(argv[1], "ssh");
+  assertEquals(argv[2], "--");
+}
+
 Deno.test("buildExecArgv: tailscale ssh shape, no ControlPath", () => {
   const argv = buildExecArgv(
     tailscaleHost(),
     "uptime",
     ctx({ controlPath: "/should-not-be-used.sock" }),
   );
-  assertEquals(argv[0], "tailscale");
-  assertEquals(argv[1], "ssh");
-  assert(!argv.some((a) => a.startsWith("ControlPath=")));
-  assert(argv.includes("deploy@edge-1"));
-  assertEquals(argv[argv.length - 1], "uptime");
+  assertEquals(argv, [
+    "tailscale",
+    "ssh",
+    "--",
+    "deploy@edge-1",
+    "--",
+    "uptime",
+  ]);
 });
 
-Deno.test("buildExecArgv: tailscale honors custom binary + extra args", () => {
+Deno.test("buildExecArgv: tailscale forwards env keys via SendEnv after the destination (#2561)", () => {
+  const argv = buildExecArgv(
+    tailscaleHost(),
+    "uptime",
+    ctx({ sendEnvKeys: ["APP", "REGION"] }),
+  );
+  assertEquals(argv, [
+    "tailscale",
+    "ssh",
+    "--",
+    "deploy@edge-1",
+    "-o",
+    "SendEnv=APP",
+    "-o",
+    "SendEnv=REGION",
+    "--",
+    "uptime",
+  ]);
+  assertNothingBeforeDestination(argv, "deploy@edge-1");
+});
+
+Deno.test("buildExecArgv: tailscale honors custom binary + extra args after the destination (#2604)", () => {
   const argv = buildExecArgv(
     tailscaleHost({
       tailscaleBinary: "/opt/ts",
-      sshExtraArgs: ["--accept-risk"],
+      sshExtraArgs: ["-o", "ServerAliveInterval=15"],
     }),
     "uptime",
-    ctx(),
+    ctx({ sendEnvKeys: ["APP"] }),
   );
-  assertEquals(argv[0], "/opt/ts");
-  assert(argv.includes("--accept-risk"));
+  assertEquals(argv, [
+    "/opt/ts",
+    "ssh",
+    "--",
+    "deploy@edge-1",
+    "-o",
+    "ServerAliveInterval=15",
+    "-o",
+    "SendEnv=APP",
+    "--",
+    "uptime",
+  ]);
+  assertNothingBeforeDestination(argv, "deploy@edge-1");
+});
+
+Deno.test("buildExecArgv: tailscale keeps a dash-leading command after --", () => {
+  const argv = buildExecArgv(tailscaleHost(), "-weird", ctx());
+  assertEquals(argv.slice(-2), ["--", "-weird"]);
+});
+
+Deno.test("buildExecArgv: tailscale host without user uses bare address", () => {
+  const argv = buildExecArgv(tailscaleHost({ user: "" }), "uptime", ctx());
+  assertNothingBeforeDestination(argv, "edge-1");
 });
 
 // ---------------------------------------------------------------------------
@@ -832,6 +887,15 @@ Deno.test("sendEnvKeys: never includes SSHPASS", () => {
   assert(keys.includes("APP_ENV"));
   assert(keys.includes("EXTRA"));
   assert(!keys.includes("SSHPASS"));
+});
+
+Deno.test("sendEnvKeys: drops keys that would be SendEnv wildcards", () => {
+  const host = sshHost();
+  host.env = { APP: "1", "AWS_*": "", "A?B": "" };
+  assertEquals(sendEnvKeys(host, { "*": "x", _OK: "1", "has-dash": "1" }), [
+    "APP",
+    "_OK",
+  ]);
 });
 
 Deno.test("forwardedEnv: method env wins over host env", () => {

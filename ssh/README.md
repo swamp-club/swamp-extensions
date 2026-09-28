@@ -103,11 +103,16 @@ workflow step.
 
 ### Transport — `kind: tailscale`
 
-| Field             | Notes                                            |
-| ----------------- | ------------------------------------------------ |
-| `user`            | Remote login user.                               |
-| `tailscaleBinary` | Override the tailscale CLI binary for this host. |
-| `sshExtraArgs`    | Array of extra args passed to `tailscale ssh`.   |
+| Field             | Notes                                                                                                                               |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `user`            | Remote login user.                                                                                                                  |
+| `tailscaleBinary` | Override the tailscale CLI binary for this host.                                                                                    |
+| `sshExtraArgs`    | Array of system `ssh` arguments (e.g. `["-o", "ServerAliveInterval=15"]`). Not used by `copy`, which runs `scp` via `tailscale nc`. |
+
+`tailscale ssh` has no flags of its own and rejects any placed before the
+destination, but hands everything after the destination to the system `ssh`. The
+model therefore runs `tailscale ssh -- <user>@<host> <ssh args>`, with
+`sshExtraArgs`, `SendEnv`, and forward options all after the destination.
 
 A host's `transport` field is a partial shallow override of the fleet default.
 The `kind` is allowed to differ, so a single fleet can mix OpenSSH and Tailscale
@@ -127,20 +132,42 @@ members.
 #### Forwarded env
 
 Host `env` and the per-call `env` argument (which wins on key collision) are
-sent to `kind: ssh` hosts with `-o SendEnv=<key>`. sshd only accepts keys its
-`AcceptEnv` lists. Stock OpenSSH accepts none, and distributions that set it
-(Debian, Ubuntu) list only a few standard variables such as `LANG` and `LC_*`,
-so add your keys on each host:
+sent to both `kind: ssh` and `kind: tailscale` hosts with `-o SendEnv=<key>`.
+The server decides which keys it accepts.
+
+**OpenSSH sshd** only accepts keys its `AcceptEnv` lists. Stock OpenSSH accepts
+none, and distributions that set it (Debian, Ubuntu) list only a few standard
+variables such as `LANG` and `LC_*`, so add your keys on each host:
 
 ```
 # /etc/ssh/sshd_config
 AcceptEnv APP
 ```
 
-A key the server does not accept is silently absent in the remote shell.
-`tailscale` hosts get no `SendEnv` options. Commands run with `sudo: true` lose
-forwarded variables to sudo's `env_reset` unless sudoers keeps them — see
-[sudo](#sudo).
+**Tailscale SSH server** only accepts keys listed in the `acceptEnv` field of
+the matching SSH rule in your tailnet policy (wildcards such as `APP_*` are
+allowed). The destination must run Tailscale v1.76.0 or later:
+
+```json
+"ssh": [{
+  "action": "accept",
+  "src": ["autogroup:member"],
+  "dst": ["tag:server"],
+  "users": ["deploy"],
+  "acceptEnv": ["APP"]
+}]
+```
+
+Only keys that are shell identifiers (`[A-Za-z_][A-Za-z0-9_]*`) are forwarded.
+Other keys stay in the local spawn environment but get no `SendEnv`: ssh reads
+`*` and `?` in a `SendEnv` pattern as wildcards, so a key like `AWS_*` would
+forward every matching variable from the runner's own environment.
+
+A key the server does not accept is silently absent in the remote shell. Keep
+secrets out of `env` for hosts whose server should not see them — forwarded
+values leave the runner for every host that accepts the key. Commands run with
+`sudo: true` lose forwarded variables to sudo's `env_reset` unless sudoers keeps
+them — see [sudo](#sudo).
 
 ## Authentication
 
@@ -261,8 +288,8 @@ line names the host and the missing key. A malformed expression, or a selector
 that matches no hosts, fails the method with a clear error before any connection
 is attempted (validated when the method runs — swamp does not pass method
 arguments to pre-flight checks). The [`resolve`](#resolve) method is the one
-exception to the empty-match rule: it records zero matches as data
-(`count: 0`) instead of failing — a malformed expression still fails it.
+exception to the empty-match rule: it records zero matches as data (`count: 0`)
+instead of failing — a malformed expression still fails it.
 
 ## Methods
 
@@ -279,19 +306,19 @@ arguments:
   hosts: tag:prod # any selector form — see Selectors above
 ```
 
-Resolves the selector against the fleet and records the answer as data —
-nothing is spawned, no connection is made. Writes one `selection` resource
-named `resolve-<hash>`, where the hash is stable per selector so repeated
-resolves version the same resource instead of proliferating. The resource
-contains the normalized selector text, the match `count`, and one record per
-matched host with `name`, `address`, `port` (ssh only), `user`, `tags`,
-`attrs`, and `transport` — never credential material (auth, identity files or
-content, proxy settings).
+Resolves the selector against the fleet and records the answer as data — nothing
+is spawned, no connection is made. Writes one `selection` resource named
+`resolve-<hash>`, where the hash is stable per selector so repeated resolves
+version the same resource instead of proliferating. The resource contains the
+normalized selector text, the match `count`, and one record per matched host
+with `name`, `address`, `port` (ssh only), `user`, `tags`, `attrs`, and
+`transport` — never credential material (auth, identity files or content, proxy
+settings).
 
 **Zero matches is a success**, not an error: the resource records an empty
 `hosts` list with `count: 0`. That is the structured "matched nothing" answer
-the connecting methods cannot give — they throw on an empty selection, and
-still do. A malformed selector (e.g. bad CEL) still fails the method.
+the connecting methods cannot give — they throw on an empty selection, and still
+do. A malformed selector (e.g. bad CEL) still fails the method.
 
 The write is tagged `{fleet, method: "resolve", count}` (string values), so a
 `runModel` caller can gate on zero matches straight off the returned handle,
@@ -352,8 +379,8 @@ count as success.
 
 `sudo: true` runs the entire command as root, non-interactively (`sudo -n`):
 
-- A plain command — words made of letters, digits, and `_ - . / : @ % + , =`
-  (no word starting with `=`) separated by single spaces — is sent as
+- A plain command — words made of letters, digits, and `_ - . / : @ % + , =` (no
+  word starting with `=`) separated by single spaces — is sent as
   `sudo -n -- <command>`, e.g. `sudo -n -- systemctl reload nginx`. Sudoers
   rules that allow only specific binaries keep working.
 - Anything using shell syntax (`;`, `&&`, `||`, `|`, redirects, quotes, `$`,
@@ -370,17 +397,17 @@ count as success.
   exactly as it did before wrapping; a forwarded variable the server did not
   accept arrives empty. Like any value expanded into a sudo command line,
   re-exported values appear in sudo's log and the remote process list, so
-  forwarded variables the command does not reference are never re-exported.
-  Keys that aren't shell identifiers, and the main variables sudo resets for
-  safety (`PATH`, `HOME`, `SHELL`, `IFS`, `ENV`, `BASH_ENV`, `LD_*`, `DYLD_*`),
-  are not re-exported either. A sudoers policy scoped to specific binaries then
-  also needs to allow `env`.
+  forwarded variables the command does not reference are never re-exported. Keys
+  that aren't shell identifiers, and the main variables sudo resets for safety
+  (`PATH`, `HOME`, `SHELL`, `IFS`, `ENV`, `BASH_ENV`, `LD_*`, `DYLD_*`), are not
+  re-exported either. A sudoers policy scoped to specific binaries then also
+  needs to allow `env`.
 - Nothing else carries forwarded env across sudo. A plain command that reads a
   variable from its environment (`printenv APP`, a service binary reading
   `APP`), a wrapped command's unreferenced variables, and every
-  [`script`](#script) body start without them. To pass a variable through,
-  keep it in sudoers for the SSH user — on top of the `AcceptEnv` line from
-  [Forwarded env](#forwarded-env):
+  [`script`](#script) body start without them. To pass a variable through, keep
+  it in sudoers for the SSH user — on top of the server accepting the key (see
+  [Forwarded env](#forwarded-env)):
 
   ```
   # visudo -f /etc/sudoers.d/swamp-env
@@ -388,19 +415,19 @@ count as success.
   ```
 
   Kept variables follow sudoers rules: a key that is also in `env_check` is
-  dropped when its value contains `%` or `/`, and a value starting with `()`
-  is removed unless the `env_keep` entry also matches the value
+  dropped when its value contains `%` or `/`, and a value starting with `()` is
+  removed unless the `env_keep` entry also matches the value
   (`env_keep += "APP=()*"`). sudo's default text log records the command line,
   not kept variables, so a kept value stays out of it unless a wrapped command
-  also references it (it is still re-exported then) — use `script` when a
-  value must stay out of that log. sudo's JSON event log records the full
-  command environment either way.
+  also references it (it is still re-exported then) — use `script` when a value
+  must stay out of that log. sudo's JSON event log records the full command
+  environment either way.
 - The wrapped form assumes a POSIX-compatible login shell (sh, bash, zsh, dash,
   ksh) for the SSH user. csh/tcsh fail loudly instead of running anything
   unprivileged: they reject a multi-line command and abort when a forwarded
-  variable is not set. fish silently alters backslashes, because it treats
-  `\\` and `\'` inside single quotes as escapes. Use `script` for multi-line
-  or backslash-containing commands on those hosts.
+  variable is not set. fish silently alters backslashes, because it treats `\\`
+  and `\'` inside single quotes as escapes. Use `script` for multi-line or
+  backslash-containing commands on those hosts.
 
 ### `script`
 
@@ -451,9 +478,9 @@ arguments:
 ```
 
 For `ssh` transport: `ssh -O forward / -O cancel` against the master. For
-`tailscale`: spawns a detached `tailscale ssh -N -L <spec>` child, records the
-pid in a `forwardState` resource; `cancel` kills the pid. `list` reads the
-recorded `forwardState` resources for the selected hosts.
+`tailscale`: spawns a detached `tailscale ssh -- <dest> -N -L <spec>` child,
+records the pid in a `forwardState` resource; `cancel` kills the pid. `list`
+reads the recorded `forwardState` resources for the selected hosts.
 
 ### `collect-host-public-key`
 
@@ -680,7 +707,7 @@ timing reach the resource.
 | `forwardState`  | one per (host, type, spec)   | 50                | pid for tailscale; ControlPath for ssh.                                                                                         |
 | `masterAudit`   | append per host              | 100               | `open` / `check` / `exit` events.                                                                                               |
 | `hostPublicKey` | one per host                 | 10                | Written by `collect-host-public-key`. Raw key, algorithm, fingerprint.                                                          |
-| `selection`     | one per distinct selector    | 10                | Written by `resolve`. Instance `resolve-<hash>`, stable per selector. Tagged `{fleet, method, count}`; no credential material.   |
+| `selection`     | one per distinct selector    | 10                | Written by `resolve`. Instance `resolve-<hash>`, stable per selector. Tagged `{fleet, method, count}`; no credential material.  |
 
 ## License
 

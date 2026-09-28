@@ -679,3 +679,46 @@ Deno.test("exec error truncates stderr beyond 512 chars", async () => {
     resetCommandExecutor();
   }
 });
+
+// ---------------------------------------------------------------------------
+// runExec — forwarded env reaches tailscale hosts (#2561)
+// ---------------------------------------------------------------------------
+
+Deno.test("runExec: tailscale host forwards host + per-call env via SendEnv", async () => {
+  const requests: ExecRequest[] = [];
+  setCommandExecutor((req: ExecRequest) => {
+    requests.push(req);
+    return Promise.resolve({ code: 0, signal: null, stdout: "", stderr: "" });
+  });
+  try {
+    const g = GlobalArgsSchema.parse({
+      name: "ts-fleet",
+      transport: { kind: "tailscale", user: "deploy" },
+      hosts: [{
+        name: "edge-1",
+        address: "edge-1",
+        env: { APP: "host-value", REGION: "eu" },
+      }],
+    });
+    await runExec(
+      { hosts: "all", command: "printenv APP", env: { APP: "call-value" } },
+      execContext(g),
+    );
+    assertEquals(requests.length, 1, "expected exactly one spawn");
+    assertEquals([requests[0].command, ...requests[0].args], [
+      "tailscale",
+      "ssh",
+      "--",
+      "deploy@edge-1",
+      "-o",
+      "SendEnv=APP",
+      "-o",
+      "SendEnv=REGION",
+      "--",
+      "printenv APP",
+    ]);
+    assertEquals(requests[0].env, { APP: "call-value", REGION: "eu" });
+  } finally {
+    resetCommandExecutor();
+  }
+});
