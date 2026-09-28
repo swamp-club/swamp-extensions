@@ -175,9 +175,19 @@ groups:
       check: deno check main.ts
       lint: deno lint
       fmt: deno fmt --check
+      test: deno test --frozen --allow-read --allow-write --allow-env --allow-net --allow-sys --allow-run
       lockfile: deno install --frozen
     targets:
       - dir: codegen
+      # Excluded by codegen/deno.json, so it carries its own config and every
+      # command is overridden here.
+      - dir: codegen/cloudflare/standalone/analytics
+        commands:
+          check: deno check *.ts _lib/*.ts
+          lint: deno lint
+          fmt: deno fmt --check
+          test: deno test --frozen --allow-env --allow-net
+          lockfile: deno install --frozen
 
   # The issue-lifecycle working copy the repo's skill drives, and the scripts
   # the verification loop is made of.

@@ -178,6 +178,7 @@ async function importGeneratedModel(_mockPort: number): Promise<{
     namingField: "name",
     syntheticName: false,
     paginationStyle: "page",
+    listEndpointSuffix: "",
     updateMethod: "PATCH",
     handlers: { create: true, read: true, update: true, delete: true },
     createProperties: {

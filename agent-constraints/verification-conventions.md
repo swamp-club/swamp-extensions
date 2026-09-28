@@ -27,7 +27,7 @@ or failed.
    | `vaults`     | `vault/*`                                              | same                                                              |
    | `datastores` | `datastore/*`                                          | same                                                              |
    | `models`     | changed `model/**` directories                         | check, lockfile (`--no-config` lint/fmt for hetzner/digitalocean) |
-   | `codegen`    | `codegen/`                                             | check, lint, fmt, lockfile                                        |
+   | `codegen`    | `codegen/`, `codegen/cloudflare/standalone/analytics`  | check, lint, fmt, test (`--frozen`), lockfile                     |
    | `harness`    | root `extensions/models/` and the verification scripts | check, lint, fmt, test, lockfile                                  |
 
    Check targets and test permissions differ per extension on purpose. When

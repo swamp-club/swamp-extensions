@@ -22,11 +22,13 @@
     "jsr:@zip-js/zip-js@2.8.22": "2.8.22",
     "npm:@apidevtools/json-schema-ref-parser@11.9.3": "11.9.3",
     "npm:@aws-sdk/client-bedrock-agent-runtime@3.1090.0": "3.1090.0",
+    "npm:@aws-sdk/client-bedrock-agent-runtime@3.1127.0": "3.1127.0",
     "npm:@aws-sdk/client-cloudcontrol@3.1021.0": "3.1021.0",
     "npm:@aws-sdk/client-cloudcontrol@3.1090.0": "3.1090.0",
     "npm:@aws-sdk/client-cloudcontrol@3.1127.0": "3.1127.0",
     "npm:@aws-sdk/client-cloudformation@3.1021.0": "3.1021.0",
     "npm:@aws-sdk/client-cloudformation@3.1090.0": "3.1090.0",
+    "npm:@aws-sdk/client-cloudformation@3.1127.0": "3.1127.0",
     "npm:@aws-sdk/client-eventbridge@3.1127.0": "3.1127.0",
     "npm:@aws-sdk/client-rds@3.1021.0": "3.1021.0",
     "npm:@smithy/node-http-handler@4.9.7": "4.9.7",
@@ -175,6 +177,19 @@
         "tslib"
       ]
     },
+    "@aws-sdk/client-bedrock-agent-runtime@3.1127.0": {
+      "integrity": "sha512-AUSbdHmXd2NH1px1/Qr9LKZeNWve76Kqk8/ySe/KScQcs2jlr8TMbHspUmkRVxH8SGieMaOSnWaFAkTd9fYrgA==",
+      "dependencies": [
+        "@aws-sdk/core",
+        "@aws-sdk/credential-provider-node",
+        "@aws-sdk/types",
+        "@smithy/core",
+        "@smithy/fetch-http-handler",
+        "@smithy/node-http-handler@4.12.1",
+        "@smithy/types",
+        "tslib"
+      ]
+    },
     "@aws-sdk/client-cloudcontrol@3.1021.0": {
       "integrity": "sha512-VbrIC3iT4OveHdkjYdMdwGk60YNOmN0OsL1QEuEjOwUmjq1aYRzgtjNb9fGR9a8CWhGA7yjqWDaUeNJ+wUGzMw==",
       "dependencies": [
@@ -293,6 +308,19 @@
     },
     "@aws-sdk/client-cloudformation@3.1090.0": {
       "integrity": "sha512-7ZAFfNm8xExJtJO8XxfZj1Gxt0xQ0SEFoxKRKqb3cFhMj9MfOKmPGi7BWGRsLHznGRCX9Q1QTgk58p/fTMEjfA==",
+      "dependencies": [
+        "@aws-sdk/core",
+        "@aws-sdk/credential-provider-node",
+        "@aws-sdk/types",
+        "@smithy/core",
+        "@smithy/fetch-http-handler",
+        "@smithy/node-http-handler@4.12.1",
+        "@smithy/types",
+        "tslib"
+      ]
+    },
+    "@aws-sdk/client-cloudformation@3.1127.0": {
+      "integrity": "sha512-uWYCvCTWlIq5Q2WAmL0Zm1N0XjcBV2F1ayVUNXCIFOy5ldb4LxZqA6KGexSKPN+S6GE/RduCe28RkIQlbNUwxw==",
       "dependencies": [
         "@aws-sdk/core",
         "@aws-sdk/credential-provider-node",

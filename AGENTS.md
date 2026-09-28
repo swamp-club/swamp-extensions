@@ -99,6 +99,7 @@ Requires Docker for emulators, or set `BENCHMARK_S3_ENDPOINT` and
 deno check main.ts
 deno lint
 deno fmt
+deno test --frozen --allow-read --allow-write --allow-env --allow-net --allow-sys --allow-run
 ```
 
 After regenerating, review the diffs in `model/` to confirm only the intended
