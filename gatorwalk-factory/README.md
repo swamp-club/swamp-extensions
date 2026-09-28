@@ -27,6 +27,7 @@ extensions/models/_lib/
   run_store.ts          storage and the commit protocol
   cel_context.ts        the CEL vocabulary for bindings and cel gates
   dispatch.ts           dispatch packets: bindings, inputs, rendered prompts
+  gates.ts              gate evaluation and transition readiness
   test_support.ts       shared test fixtures
 lifecycles/             lifecycles gatorwalk-factory ships
 testdata/

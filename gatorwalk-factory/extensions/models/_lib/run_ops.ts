@@ -18,6 +18,8 @@ import type { Actor, JournalEvent, ProductKind } from "./journal.ts";
 import {
   findStage,
   type Lifecycle,
+  maxCyclesFor,
+  maxDispatchesFor,
   type StageSpec,
   transitionsFrom,
   type TransitionSpec,
@@ -164,6 +166,7 @@ export function start(
     validations: { artifacts: {}, evidence: {} },
     dispatches: [],
     approvals: [],
+    overrides: [],
     journal: [],
   };
   run.journal.push(journal(run, actor, env, {
@@ -292,12 +295,16 @@ export function rejectProduct(
 }
 
 /** Index a written payload version as the product's latest, and clear any
- * rejection it had. */
+ * rejection it had. A review also records the subject version it reviewed. */
 export function acceptProduct(
   run: RunRecord,
   kind: ProductKind,
   name: string,
-  written: { version: number; digest: string },
+  written: {
+    version: number;
+    digest: string;
+    subject?: { name: string; version: number; digest: string };
+  },
   actor: Actor,
   env: Env,
 ): RunRecord {
@@ -316,13 +323,22 @@ export function acceptProduct(
           stage: run.stage,
           cycle: currentCycle(run),
           at: env.now(),
+          ...(written.subject !== undefined
+            ? { subject: written.subject }
+            : {}),
         },
       },
     },
     validations: { ...run.validations, [plural]: validations },
     journal: [
       ...run.journal,
-      journal(run, actor, env, { type: "recorded", kind, name, ...written }),
+      journal(run, actor, env, {
+        type: "recorded",
+        kind,
+        name,
+        version: written.version,
+        digest: written.digest,
+      }),
     ],
   };
 }
@@ -335,9 +351,14 @@ export interface DispatchInput {
   command?: string;
 }
 
-/** Record that the current stage's work is being done; returns its id. */
+/**
+ * Record that the current stage's work is being done; returns its id.
+ * Refused past the stage's dispatch cap as a suspected runaway loop, unless a
+ * person has granted dispatch overrides for this stage and cycle.
+ */
 export function recordDispatch(
   run: RunRecord,
+  lifecycle: Lifecycle,
   expected: Expected,
   input: DispatchInput,
   actor: Actor,
@@ -347,6 +368,16 @@ export function recordDispatch(
   if (inactive !== null) return refuse(inactive);
   const stale = checkExpected(run, expected);
   if (stale !== null) return refuse(stale);
+  const cap = dispatchCap(run, lifecycle);
+  if (!cap.allowed) {
+    return refuse(
+      `runaway loop suspected: stage '${run.stage}' cycle ${
+        currentCycle(run)
+      } has had ${cap.count} dispatch(es), its limit is ${cap.limit}` +
+        (cap.granted > 0 ? ` plus ${cap.granted} granted` : "") +
+        "; a person must grant a dispatch override to dispatch again",
+    );
+  }
   const id = run.dispatches.length + 1;
   const dispatch = {
     id,
@@ -498,6 +529,137 @@ export function recordApproval(
   };
 }
 
+// --- circuit breakers ----------------------------------------------------------
+
+export interface Limit {
+  /** Entries into the stage so far (cycle limit), or dispatches in this
+   * stage and cycle (dispatch cap). */
+  count: number;
+  /** The lifecycle's limit. */
+  limit: number;
+  /** Overrides granted in this era; each adds one. */
+  granted: number;
+  /** Whether one more is allowed. */
+  allowed: boolean;
+}
+
+/**
+ * Whether the run may enter a stage once more: its maxCycles plus every cycle
+ * override granted for it in this era. Grants accumulate; none resets the
+ * count.
+ */
+export function cycleLimit(
+  run: RunRecord,
+  lifecycle: Lifecycle,
+  stageId: string,
+): Limit {
+  const stage = findStage(lifecycle, stageId);
+  if (stage === undefined) throw new Error(`no stage '${stageId}'`);
+  const count = run.entries[stageId] ?? 0;
+  const limit = maxCyclesFor(stage);
+  const granted =
+    run.overrides.filter((o) =>
+      o.era === run.era && o.kind === "cycle" && o.stage === stageId
+    ).length;
+  return { count, limit, granted, allowed: count + 1 <= limit + granted };
+}
+
+/**
+ * The cycle limit a transition is subject to, or null for a global
+ * transition. Global transitions are escape hatches (abort, escalate); a
+ * limit on the stage they lead to must never close the way out. Recognised by
+ * identity against the lifecycle's own list, not by name.
+ */
+export function cycleLimitFor(
+  run: RunRecord,
+  lifecycle: Lifecycle,
+  transition: TransitionSpec,
+): Limit | null {
+  if (transition.to === undefined) return null;
+  if ((lifecycle.globalTransitions ?? []).includes(transition)) return null;
+  return cycleLimit(run, lifecycle, transition.to);
+}
+
+/** Why entering a stage is refused, for the refusal and the status view. */
+export function cycleLimitMessage(stage: string, limit: Limit): string {
+  return `stage '${stage}' has been entered ${limit.count} time(s) in this ` +
+    `era, its limit is ${limit.limit}` +
+    (limit.granted > 0 ? ` plus ${limit.granted} granted` : "") +
+    `; a person must grant a cycle override for '${stage}' to enter it again`;
+}
+
+/** Whether the current stage and cycle may take one more dispatch. */
+export function dispatchCap(run: RunRecord, lifecycle: Lifecycle): Limit {
+  const cycle = currentCycle(run);
+  const count =
+    run.dispatches.filter((d) =>
+      d.era === run.era && d.stage === run.stage && d.cycle === cycle
+    ).length;
+  const limit = maxDispatchesFor(stageOf(lifecycle, run));
+  const granted =
+    run.overrides.filter((o) =>
+      o.era === run.era && o.kind === "dispatch" && o.stage === run.stage &&
+      o.cycle === cycle
+    ).length;
+  return { count, limit, granted, allowed: count + 1 <= limit + granted };
+}
+
+export type OverrideInput =
+  | { kind: "cycle"; stage: string; note?: string }
+  | { kind: "dispatch"; note?: string };
+
+/**
+ * Record a person's override: one more entry into a stage, or one more
+ * dispatch in the current stage and cycle. Overrides are records of their
+ * own, never an approval id with a reserved prefix, so no id ends up in a
+ * path or a shell word (#2290).
+ */
+export function grantOverride(
+  run: RunRecord,
+  lifecycle: Lifecycle,
+  expected: Expected,
+  input: OverrideInput,
+  actor: Actor,
+  env: Env,
+): OpResult<number> {
+  const inactive = requireActive(run);
+  if (inactive !== null) return refuse(inactive);
+  const stale = checkExpected(run, expected);
+  if (stale !== null) return refuse(stale);
+  const stage = input.kind === "cycle" ? input.stage : run.stage;
+  if (findStage(lifecycle, stage) === undefined) {
+    return refuse(`no stage '${stage}' to grant a ${input.kind} override for`);
+  }
+  const id = run.overrides.length + 1;
+  const override = {
+    id,
+    kind: input.kind,
+    stage,
+    ...(input.kind === "dispatch" ? { cycle: currentCycle(run) } : {}),
+    ...(input.note !== undefined ? { note: input.note } : {}),
+    era: run.era,
+    at: env.now(),
+    actor,
+  };
+  return {
+    ok: true,
+    value: id,
+    run: {
+      ...run,
+      overrides: [...run.overrides, override],
+      journal: [
+        ...run.journal,
+        journal(run, actor, env, {
+          type: "override",
+          overrideId: id,
+          kind: input.kind,
+          for: stage,
+        }),
+      ],
+    },
+  };
+}
+
 // --- advance -----------------------------------------------------------------
 
 /** Decides whether a transition's gates pass. GW-5 supplies the real one. */
@@ -544,6 +706,10 @@ export async function advance(
     return refuse(
       `transition '${transition.name}' is manual: a person must confirm it`,
     );
+  }
+  const limit = cycleLimitFor(run, lifecycle, transition);
+  if (limit !== null && !limit.allowed) {
+    return refuse(cycleLimitMessage(transition.to, limit));
   }
   const verdict = await gates(run, transition);
   if (!verdict.pass) {

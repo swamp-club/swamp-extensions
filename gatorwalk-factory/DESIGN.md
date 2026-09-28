@@ -123,12 +123,14 @@ record indexes each one's version and digest. Code: `_lib/run_record.ts`,
   and refuses under remote placement (`method_execution_service.ts:882-888` in
   swamp).
 - **Stale writes are refused.** The per-instance lock serialises method runs
-  that write. `advance`, `recordApproval` and `reset` also take the caller's
-  expected stage, cycle and era, and refuse a mismatch, so a writer acting on an
-  out-of-date view fails instead of applying (#1998, #2343). The lock does not
-  cover the first run that auto-creates an instance (`model_method_run.ts:431`
-  in swamp), so two concurrent first starts can still race; that is accepted for
-  solo use until swamp fixes it.
+  that write. Every write the caller makes on the strength of what it last read
+  also takes the caller's expected stage, cycle and era, and refuses a mismatch,
+  so a writer acting on an out-of-date view fails instead of applying (#1998,
+  #2343): recording a product, dispatching, approvals, overrides, `advance` and
+  `reset`. Only recording usage does not, because usage arrives after the run
+  has moved on. The lock does not cover the first run that auto-creates an
+  instance (`model_method_run.ts:431` in swamp), so two concurrent first starts
+  can still race; that is accepted for solo use until swamp fixes it.
 - **Rejections are returned, not thrown.** A product that fails its schema is
   kept on the run as retry feedback and returned to the caller. Throwing would
   let a rollback delete the feedback a retry needs.
@@ -180,3 +182,51 @@ the latest?". A reset starts a new era, so nothing from before it is visible.
 Numbers from run data are CEL doubles, as in swamp's own CEL. Comparing them
 with integer literals works (`version >= 2`), but arithmetic needs a double
 (`version + 1.0`) or a conversion (`int(version) + 1`).
+
+## Gates and limits
+
+Gates are evaluated by `_lib/gates.ts`. Every gate of a transition is evaluated
+and every failure is returned, each naming the gate, what it needed and what it
+found, so everything in the way is visible at once. Run data that cannot be read
+(a payload failing its digest check) becomes a failure on each gate that needs
+it, never an exception. The status view (`evaluateTransitions`) reports each
+exit's gates **and** the cycle limit of the stage it enters, so it never shows
+as ready a transition that `advance` would refuse; that mismatch is how a
+driving agent gets stuck (#916).
+
+### Approvals
+
+`human-approval` counts, for its gate id in the current stage, cycle and era,
+each approver's latest decision:
+
+- An approver is a distinct **platform principal**. Every decision without one
+  counts as a single unverified approver, whatever name it asserts, so asserted
+  names cannot multiply approvals.
+- Any approver's latest decline blocks the gate, and its note is shown.
+- An approval counts only while every product it was bound to is unchanged
+  (#1501). A product recorded after it does not void it; a changed one does.
+  Resolving findings means recording the findings artifact again, so it voids an
+  approval bound to the old version: what was approved has changed.
+
+Locally the agent and the person run as the same principal, so an approval
+cannot show which of them gave it, and `minApprovals` above 1 needs distinct
+principals (serve, later trackers).
+
+### Circuit breakers
+
+The limits are enforced inside `advance` and `recordDispatch` themselves, not in
+the gate evaluator, so no caller can bypass them with a different one:
+
+- **Cycle limit.** A stage may be entered `maxCycles` times (default 5) plus
+  once per cycle override granted for it in the era. Global transitions are
+  exempt: they are escape hatches (abort, escalate), and a limit on the stage
+  one leads to must never close the way out.
+- **Dispatch cap.** A stage entry may take `maxDispatchesPerCycle` dispatches
+  (default 2) plus once per dispatch override for that stage and cycle; past
+  that, dispatching is refused as a suspected runaway loop (#916, #899).
+
+Overrides are records of their own (`grantOverride`), checked against the
+caller's expected view. Every grant counts and none resets a count
+(software-factory kept only the latest grant, #1487, #2175). They are never
+approval ids with a reserved prefix, so no id is interpolated into a path or
+shell word (#2290). A reset starts a new era, and with it fresh counts.

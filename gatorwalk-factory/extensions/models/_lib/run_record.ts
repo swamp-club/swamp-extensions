@@ -38,6 +38,13 @@ export const ProductRefSchema = z.strictObject({
   stage: z.string().min(1),
   cycle: z.number().int().positive(),
   at: z.string().min(1),
+  /** For an artifact that reviews another: the version of the subject it
+   * reviewed, which artifact-fresh compares with the subject's current one. */
+  subject: z.strictObject({
+    name: z.string().min(1),
+    version: z.number().int().positive(),
+    digest: z.string().min(1),
+  }).optional(),
 });
 
 export type ProductRef = z.infer<typeof ProductRefSchema>;
@@ -104,6 +111,27 @@ export const ApprovalSchema = z.strictObject({
 
 export type Approval = z.infer<typeof ApprovalSchema>;
 
+/**
+ * A person's grant past a circuit breaker. A cycle override lets a stage be
+ * entered once more than its maxCycles; a dispatch override lets the current
+ * stage and cycle take one more dispatch than its maxDispatchesPerCycle.
+ * Grants accumulate: each one adds one, and none resets a count.
+ */
+export const OverrideSchema = z.strictObject({
+  id: z.number().int().positive(),
+  kind: z.enum(["cycle", "dispatch"]),
+  /** The stage the grant is for: the stage to enter, or the one dispatching. */
+  stage: z.string().min(1),
+  /** For a dispatch override, the cycle it applies to. */
+  cycle: z.number().int().positive().optional(),
+  note: z.string().optional(),
+  era: z.string().min(1),
+  at: z.string().min(1),
+  actor: ActorSchema,
+});
+
+export type Override = z.infer<typeof OverrideSchema>;
+
 export const RunRecordSchema = z.strictObject({
   schemaVersion: z.literal(RUN_SCHEMA_VERSION),
   /** The work item's key: swamp-generated, stable, not a ticket number. */
@@ -135,6 +163,8 @@ export const RunRecordSchema = z.strictObject({
   dispatches: z.array(DispatchSchema),
   /** Every approval decision, across eras; ids never repeat. */
   approvals: z.array(ApprovalSchema),
+  /** Every override grant, across eras; ids never repeat. */
+  overrides: z.array(OverrideSchema),
   journal: z.array(JournalEventSchema),
 });
 

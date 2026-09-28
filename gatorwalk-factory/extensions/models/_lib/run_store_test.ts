@@ -166,13 +166,29 @@ Deno.test("update: commits only when the operation succeeds", async () => {
   assert(
     !(await update(
       store,
-      (run) => recordDispatch(run, expectedOf(run), { inputs: {} }, ALICE, env),
+      (run) =>
+        recordDispatch(
+          run,
+          LIFECYCLE,
+          expectedOf(run),
+          { inputs: {} },
+          ALICE,
+          env,
+        ),
     )).ok,
   );
   await startRun(store, LIFECYCLE, START, ALICE, env);
   const ok = await update(
     store,
-    (run) => recordDispatch(run, expectedOf(run), { inputs: {} }, ALICE, env),
+    (run) =>
+      recordDispatch(
+        run,
+        LIFECYCLE,
+        expectedOf(run),
+        { inputs: {} },
+        ALICE,
+        env,
+      ),
   );
   assert(ok.ok);
   assertEquals(store.runVersions.length, 2);

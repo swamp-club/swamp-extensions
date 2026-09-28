@@ -15,12 +15,16 @@
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
 import { assert, assertEquals } from "@std/assert";
+import { parseLifecycle } from "./lifecycle_schema.ts";
 import {
   acceptProduct,
   advance,
   checkProduct,
+  cycleLimit,
+  dispatchCap,
   type Env,
   expectedOf,
+  grantOverride,
   recordApproval,
   recordDispatch,
   recordUsage,
@@ -148,6 +152,7 @@ Deno.test("recordDispatch: ids never repeat, inputs are stored as plain JSON", (
   const run = fresh(env);
   const first = recordDispatch(
     run,
+    LIFECYCLE,
     expectedOf(run),
     { inputs: { n: 3n }, prompt: "p" },
     ALICE,
@@ -158,6 +163,7 @@ Deno.test("recordDispatch: ids never repeat, inputs are stored as plain JSON", (
   assertEquals(first.run.dispatches[0].inputs, { n: 3 });
   const second = recordDispatch(
     first.run,
+    LIFECYCLE,
     expectedOf(first.run),
     { inputs: {} },
     ALICE,
@@ -172,6 +178,7 @@ Deno.test("recordUsage: attaches to a named dispatch after the run moved on, onc
   const run = fresh(env);
   const dispatched = recordDispatch(
     run,
+    LIFECYCLE,
     expectedOf(run),
     { inputs: {} },
     ALICE,
@@ -405,6 +412,7 @@ Deno.test("advance: global transitions are available; a finished run refuses eve
   assert(
     !recordDispatch(
       aborted.run,
+      LIFECYCLE,
       expectedOf(aborted.run),
       { inputs: {} },
       ALICE,
@@ -427,6 +435,7 @@ Deno.test("reset: a new era at the initial stage; old records kept but out of er
   );
   const dispatched = recordDispatch(
     run,
+    LIFECYCLE,
     expectedOf(run),
     { inputs: {} },
     ALICE,
@@ -457,6 +466,7 @@ Deno.test("recordDispatch: a stale view is refused", () => {
   const run = fresh(env);
   const stale = recordDispatch(
     run,
+    LIFECYCLE,
     { ...expectedOf(run), cycle: 2 },
     { inputs: {} },
     ALICE,
@@ -512,4 +522,282 @@ Deno.test("reset: a finished run can be started over", async () => {
   assert(again.ok);
   assertEquals(again.run.status, "active");
   assertEquals(again.run.stage, "write");
+});
+
+// --- circuit breakers ----------------------------------------------------------
+
+/** loop <-> back, loop entered at most twice, one dispatch per cycle. */
+function limited() {
+  const result = parseLifecycle({
+    schemaVersion: 1,
+    name: "limited",
+    stages: [
+      {
+        id: "loop",
+        initial: true,
+        maxCycles: 2,
+        maxDispatchesPerCycle: 1,
+        transitions: [{ name: "out", to: "back" }],
+      },
+      {
+        id: "back",
+        transitions: [{ name: "in", to: "loop" }, { name: "stop", to: "end" }],
+      },
+      { id: "end", terminal: true },
+    ],
+  });
+  if (!result.ok) throw new Error(result.errors.join("\n"));
+  return result.value;
+}
+
+async function take(
+  lifecycle: ReturnType<typeof limited>,
+  run: RunRecord,
+  transition: string,
+  env: Env,
+) {
+  return await advance(
+    run,
+    lifecycle,
+    expectedOf(run),
+    { transition },
+    PASS,
+    ALICE,
+    env,
+  );
+}
+
+Deno.test("cycle limit: entering a stage past maxCycles is refused, and says who can unblock it", async () => {
+  const lifecycle = limited();
+  const env = testEnv();
+  let run = start(
+    lifecycle,
+    { key: "wi-1", lifecycleDigest: "sha256:l" },
+    ALICE,
+    env,
+  );
+  for (const t of ["out", "in", "out"]) {
+    const moved = await take(lifecycle, run, t, env);
+    assert(moved.ok, moved.ok ? "" : moved.reason);
+    run = moved.run;
+  }
+  assertEquals(cycleLimit(run, lifecycle, "loop"), {
+    count: 2,
+    limit: 2,
+    granted: 0,
+    allowed: false,
+  });
+  const refused = await take(lifecycle, run, "in", env);
+  assert(!refused.ok);
+  assert(
+    refused.reason.includes(
+      "'loop' has been entered 2 time(s) in this era, its limit is 2",
+    ),
+    refused.reason,
+  );
+  assert(
+    refused.reason.includes("a person must grant a cycle override for 'loop'"),
+  );
+});
+
+Deno.test("cycle overrides accumulate: each grant allows one more entry, none resets the count", async () => {
+  const lifecycle = limited();
+  const env = testEnv();
+  let run = start(
+    lifecycle,
+    { key: "wi-1", lifecycleDigest: "sha256:l" },
+    ALICE,
+    env,
+  );
+  const go = async (t: string) => {
+    const moved = await take(lifecycle, run, t, env);
+    assert(moved.ok, moved.ok ? "" : moved.reason);
+    run = moved.run;
+  };
+  const grant = () => {
+    const granted = grantOverride(
+      run,
+      lifecycle,
+      expectedOf(run),
+      { kind: "cycle", stage: "loop", note: "one more" },
+      ALICE,
+      env,
+    );
+    assert(granted.ok);
+    run = granted.run;
+  };
+  await go("out");
+  await go("in");
+  await go("out");
+  grant();
+  grant();
+  await go("in"); // third entry: first grant
+  await go("out");
+  await go("in"); // fourth entry: second grant
+  await go("out");
+  assertEquals(cycleLimit(run, lifecycle, "loop"), {
+    count: 4,
+    limit: 2,
+    granted: 2,
+    allowed: false,
+  });
+  assert(!(await take(lifecycle, run, "in", env)).ok);
+  assertEquals(run.overrides.map((o) => [o.id, o.kind, o.stage]), [[
+    1,
+    "cycle",
+    "loop",
+  ], [2, "cycle", "loop"]]);
+  assertEquals(run.journal.filter((e) => e.type === "override").length, 2);
+});
+
+Deno.test("overrides belong to their era: a reset starts the counts afresh", () => {
+  const lifecycle = limited();
+  const env = testEnv();
+  let run = start(
+    lifecycle,
+    { key: "wi-1", lifecycleDigest: "sha256:l" },
+    ALICE,
+    env,
+  );
+  const granted = grantOverride(
+    run,
+    lifecycle,
+    expectedOf(run),
+    { kind: "cycle", stage: "loop" },
+    ALICE,
+    env,
+  );
+  assert(granted.ok);
+  const fresh = reset(
+    granted.run,
+    lifecycle,
+    expectedOf(granted.run),
+    ALICE,
+    env,
+  );
+  assert(fresh.ok);
+  run = fresh.run;
+  assertEquals(cycleLimit(run, lifecycle, "loop"), {
+    count: 1,
+    limit: 2,
+    granted: 0,
+    allowed: true,
+  });
+});
+
+Deno.test("dispatch cap: past maxDispatchesPerCycle is a suspected runaway loop until a person grants more", () => {
+  const lifecycle = limited();
+  const env = testEnv();
+  let run = start(
+    lifecycle,
+    { key: "wi-1", lifecycleDigest: "sha256:l" },
+    ALICE,
+    env,
+  );
+  const first = recordDispatch(
+    run,
+    lifecycle,
+    expectedOf(run),
+    { inputs: {} },
+    ALICE,
+    env,
+  );
+  assert(first.ok);
+  run = first.run;
+  const second = recordDispatch(
+    run,
+    lifecycle,
+    expectedOf(run),
+    { inputs: {} },
+    ALICE,
+    env,
+  );
+  assert(!second.ok);
+  assert(
+    second.reason.startsWith(
+      "runaway loop suspected: stage 'loop' cycle 1 has had 1 dispatch(es), its limit is 1",
+    ),
+    second.reason,
+  );
+  const granted = grantOverride(
+    run,
+    lifecycle,
+    expectedOf(run),
+    { kind: "dispatch" },
+    ALICE,
+    env,
+  );
+  assert(granted.ok);
+  assertEquals(granted.run.overrides[0].cycle, 1);
+  run = granted.run;
+  assert(
+    recordDispatch(run, lifecycle, expectedOf(run), { inputs: {} }, ALICE, env)
+      .ok,
+  );
+  assertEquals(dispatchCap(run, lifecycle).granted, 1);
+});
+
+Deno.test("grantOverride: a stale view or an unknown stage is refused", () => {
+  const lifecycle = limited();
+  const env = testEnv();
+  const run = start(
+    lifecycle,
+    { key: "wi-1", lifecycleDigest: "sha256:l" },
+    ALICE,
+    env,
+  );
+  const stale = grantOverride(
+    run,
+    lifecycle,
+    { ...expectedOf(run), cycle: 9 },
+    { kind: "dispatch" },
+    ALICE,
+    env,
+  );
+  assert(!stale.ok && stale.reason.startsWith("stale:"));
+  const unknown = grantOverride(
+    run,
+    lifecycle,
+    expectedOf(run),
+    { kind: "cycle", stage: "nowhere" },
+    ALICE,
+    env,
+  );
+  assert(!unknown.ok && unknown.reason.includes("no stage 'nowhere'"));
+});
+
+Deno.test("cycle limit: a global escape transition is never closed by it", async () => {
+  const result = parseLifecycle({
+    schemaVersion: 1,
+    name: "escape",
+    stages: [
+      { id: "work", initial: true, transitions: [{ name: "done", to: "end" }] },
+      {
+        id: "hold",
+        maxCycles: 1,
+        transitions: [{ name: "resume", to: "work" }],
+      },
+      { id: "end", terminal: true },
+    ],
+    globalTransitions: [{ name: "escalate", to: "hold" }],
+  });
+  assert(result.ok);
+  const lifecycle = result.value;
+  const env = testEnv();
+  let run = start(
+    lifecycle,
+    { key: "wi-1", lifecycleDigest: "sha256:e" },
+    ALICE,
+    env,
+  );
+  for (const t of ["escalate", "resume", "escalate"]) {
+    const moved = await take(lifecycle, run, t, env);
+    assert(moved.ok, moved.ok ? "" : moved.reason);
+    run = moved.run;
+  }
+  assertEquals(
+    run.entries.hold,
+    2,
+    "hold was entered past its maxCycles of 1 through the escape hatch",
+  );
 });

@@ -108,6 +108,13 @@ export const JournalEventSchema = z.discriminatedUnion("type", [
   }),
   z.strictObject({
     ...EVENT_BASE,
+    type: z.literal("override"),
+    overrideId: z.number().int().positive(),
+    kind: z.enum(["cycle", "dispatch"]),
+    for: z.string().min(1),
+  }),
+  z.strictObject({
+    ...EVENT_BASE,
     type: z.literal("reset"),
     previousEra: z.string().min(1),
   }),

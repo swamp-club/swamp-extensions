@@ -31,7 +31,13 @@ import {
 } from "./_lib/payload_schema.ts";
 import type { Json } from "./_lib/canonical.ts";
 import { buildCelContext, evaluateCel } from "./_lib/cel_context.ts";
-import { advance, expectedOf } from "./_lib/run_ops.ts";
+import { makeGateEvaluator } from "./_lib/gates.ts";
+import {
+  advance,
+  expectedOf,
+  grantOverride,
+  recordApproval,
+} from "./_lib/run_ops.ts";
 import {
   loadRun,
   memoryStore,
@@ -39,7 +45,7 @@ import {
   startRun,
   update,
 } from "./_lib/run_store.ts";
-import { expectNow, PASS, testEnv } from "./_lib/test_support.ts";
+import { expectNow, testEnv } from "./_lib/test_support.ts";
 
 // ---------------------------------------------------------------------------
 // The lifecycles gatorwalk-factory ships, under lifecycles/.
@@ -425,12 +431,13 @@ Deno.test("build-swamp-extension: release evidence, by route", async () => {
   assert(noVersion !== null && noVersion.some((e) => e.includes('"version"')));
 });
 
-Deno.test("build-swamp-extension: a run walks plan to release, and every CEL expression evaluates on it", async () => {
+Deno.test("build-swamp-extension: a run walks plan to release through the real gates, and every CEL expression evaluates on it", async () => {
   // The schema only syntax-checks CEL. This drives a real run through the
-  // runtime, recording each product on the stage that declares it, then
-  // evaluates every binding and cel gate against the context the runtime
-  // builds. It catches expressions cel-js parses but cannot run (has() on an
-  // indexed path, for one) and any product a stage cannot record.
+  // runtime and the real gate evaluator, recording each product on the
+  // stage that declares it and each approval the gates need, then evaluates
+  // every binding and cel gate against the context the runtime builds. It
+  // shows every gate on the path can pass on a realistic run, and catches
+  // expressions cel-js parses but cannot run (has() on an indexed path).
   const lifecycle = await load(BUILD);
   const store = memoryStore();
   const env = testEnv();
@@ -459,6 +466,7 @@ Deno.test("build-swamp-extension: a run walks plan to release, and every CEL exp
     );
     assert(result.ok, `${kind} ${name}: ${JSON.stringify(result)}`);
   };
+  const gates = makeGateEvaluator(lifecycle, store, env);
   const move = async (transition: string) => {
     const result = await update(store, (run) =>
       advance(
@@ -466,7 +474,19 @@ Deno.test("build-swamp-extension: a run walks plan to release, and every CEL exp
         lifecycle,
         expectedOf(run),
         { transition },
-        PASS,
+        gates,
+        actor,
+        env,
+      ));
+    assert(result.ok, result.ok ? "" : result.reason);
+  };
+  const approve = async (gateId: string) => {
+    const result = await update(store, (run) =>
+      recordApproval(
+        run,
+        lifecycle,
+        expectedOf(run),
+        { gateId, decision: "approve" },
         actor,
         env,
       ));
@@ -482,6 +502,7 @@ Deno.test("build-swamp-extension: a run walks plan to release, and every CEL exp
   await record("artifact", "plan-review", {
     findings: [{ id: "F1", severity: "low", description: "Naming" }],
   });
+  await approve("plan-approval");
   await move("approve");
   await record("artifact", "change-summary", {
     summary: "Added list",
@@ -502,6 +523,7 @@ Deno.test("build-swamp-extension: a run walks plan to release, and every CEL exp
   });
   await move("passed");
   await record("artifact", "code-review", { findings: [] });
+  await approve("release-approval");
   await move("accept");
   await record("evidence", "release", {
     via: "registry-push",
@@ -515,7 +537,7 @@ Deno.test("build-swamp-extension: a run walks plan to release, and every CEL exp
   assertEquals(run.stage, "release");
   const context = await buildCelContext(run, store);
   const results = new Map<string, Json>();
-  const gates = (where: string, transitions: TransitionSpec[]) => {
+  const celGates = (where: string, transitions: TransitionSpec[]) => {
     for (const t of transitions) {
       for (const gate of t.gates ?? []) {
         if (gate.type !== "cel") continue;
@@ -531,9 +553,9 @@ Deno.test("build-swamp-extension: a run walks plan to release, and every CEL exp
       evaluateCel(expr, context);
       bindings++;
     }
-    gates(s.id, s.transitions ?? []);
+    celGates(s.id, s.transitions ?? []);
   }
-  gates("global", lifecycle.globalTransitions ?? []);
+  celGates("global", lifecycle.globalTransitions ?? []);
   assert(
     bindings >= 5 && results.size >= 5,
     `${bindings} bindings, ${results.size} gates`,
@@ -545,4 +567,77 @@ Deno.test("build-swamp-extension: a run walks plan to release, and every CEL exp
   assertEquals(results.get("release.released"), true);
   assertEquals(results.get("code-review.rework"), false);
   assertEquals(results.get("implement.submit"), false);
+});
+
+Deno.test("build-swamp-extension: a run that keeps revising the plan stalls at the cycle limit, and continues after an override", async () => {
+  const lifecycle = await load(BUILD);
+  const store = memoryStore();
+  const env = testEnv();
+  const actor = { principal: "user:alice", source: "platform" as const };
+  await startRun(
+    store,
+    lifecycle,
+    { key: "wi-2", lifecycleDigest: "sha256:l" },
+    actor,
+    env,
+  );
+  const gates = makeGateEvaluator(lifecycle, store, env);
+  await recordProduct(
+    store,
+    lifecycle,
+    await expectNow(store),
+    "artifact",
+    "plan",
+    {
+      summary: "s",
+      steps: [{ description: "d", files: [] }],
+      testingStrategy: "t",
+      versionBump: { needed: false, reason: "none" },
+    },
+    actor,
+    env,
+  );
+  const move = (transition: string, manualConfirmed = false) =>
+    update(
+      store,
+      (run) =>
+        advance(
+          run,
+          lifecycle,
+          expectedOf(run),
+          { transition, manualConfirmed },
+          gates,
+          actor,
+          env,
+        ),
+    );
+  // plan is entered once at start; each revise enters it again. maxCycles
+  // defaults to 5, so the fifth revise is refused.
+  for (let i = 0; i < 4; i++) {
+    assert((await move("submit")).ok);
+    const revised = await move("revise", true);
+    assert(revised.ok, revised.ok ? "" : revised.reason);
+  }
+  assert((await move("submit")).ok);
+  const stalled = await move("revise", true);
+  assert(
+    !stalled.ok && stalled.reason.includes("cycle override for 'plan'"),
+    stalled.ok ? "" : stalled.reason,
+  );
+  const granted = await update(
+    store,
+    (run) =>
+      grantOverride(
+        run,
+        lifecycle,
+        expectedOf(run),
+        { kind: "cycle", stage: "plan", note: "one more pass" },
+        actor,
+        env,
+      ),
+  );
+  assert(granted.ok);
+  const continued = await move("revise", true);
+  assert(continued.ok, continued.ok ? "" : continued.reason);
+  assertEquals((await loadRun(store))?.entries.plan, 6);
 });

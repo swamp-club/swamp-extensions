@@ -268,7 +268,33 @@ export async function recordProduct(
     return { ok: false, rejected: true, run: next, errors: check.errors };
   }
   const version = await store.writePayload(kind, name, payload);
-  const next = acceptProduct(run, kind, name, { version, digest }, actor, env);
+  const next = acceptProduct(
+    run,
+    kind,
+    name,
+    { version, digest, subject: reviewedSubject(run, lifecycle, kind, name) },
+    actor,
+    env,
+  );
   await store.writeRun(next);
   return { ok: true, run: next, version, digest };
+}
+
+/** For an artifact that reviews another, the subject's current version and
+ * digest, which the review is recorded against. */
+function reviewedSubject(
+  run: RunRecord,
+  lifecycle: Lifecycle,
+  kind: ProductKind,
+  name: string,
+): { name: string; version: number; digest: string } | undefined {
+  if (kind !== "artifact") return undefined;
+  const reviews = lifecycle.stages
+    .flatMap((s) => s.artifacts ?? [])
+    .find((a) => a.name === name)?.reviews;
+  if (reviews === undefined) return undefined;
+  const subject = run.products.artifacts[reviews];
+  return subject === undefined
+    ? undefined
+    : { name: reviews, version: subject.version, digest: subject.digest };
 }

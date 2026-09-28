@@ -147,11 +147,27 @@ export const HumanApprovalGateSchema = z.strictObject({
   }),
 });
 
+/**
+ * Field paths to values an evidence payload must hold. A key of __proto__ is
+ * refused: zod drops it when building the record, which would silently turn
+ * the requirement into none.
+ */
+const RequireFieldSchema = z.unknown().superRefine((raw, ctx) => {
+  if (
+    raw !== null && typeof raw === "object" && Object.hasOwn(raw, "__proto__")
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      message: "requireField cannot name '__proto__'",
+    });
+  }
+}).pipe(z.record(z.string(), z.unknown()));
+
 export const EvidenceRecordedGateSchema = z.strictObject({
   type: z.literal("evidence-recorded"),
   config: z.strictObject({
     name: NameSchema,
-    requireField: z.record(z.string(), z.unknown()).optional(),
+    requireField: RequireFieldSchema.optional(),
   }),
 });
 
