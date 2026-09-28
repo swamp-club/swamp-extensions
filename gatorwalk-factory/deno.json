@@ -1,10 +1,11 @@
 {
   "tasks": {
-    "check": "deno check extensions/models/*.ts extensions/models/_lib/*.ts",
-    "lint": "deno lint extensions/models/",
-    "fmt": "deno fmt extensions/models/ lifecycles/ testdata/",
-    "fmt:check": "deno fmt --check extensions/models/ lifecycles/ testdata/",
-    "test": "deno test --allow-read extensions/models/"
+    "check": "deno check extensions/models/*.ts extensions/models/_lib/*.ts integration/*.ts",
+    "lint": "deno lint extensions/models/ integration/",
+    "fmt": "deno fmt extensions/models/ integration/ lifecycles/ testdata/",
+    "fmt:check": "deno fmt --check extensions/models/ integration/ lifecycles/ testdata/",
+    "test": "deno test --allow-read extensions/models/",
+    "test:integration": "deno test --allow-run=swamp --allow-read --allow-write --allow-env integration/"
   },
   "lint": {
     "rules": {
@@ -16,6 +17,7 @@
     "@cfworker/json-schema": "npm:@cfworker/json-schema@4.1.1",
     "cel-js": "npm:@marcbachmann/cel-js@7.6.1",
     "@std/assert": "jsr:@std/assert@1.0.19",
+    "@std/path": "jsr:@std/path@1.1.4",
     "@std/yaml": "jsr:@std/yaml@1.0.10"
   }
 }

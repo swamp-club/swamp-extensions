@@ -281,3 +281,61 @@ check each equals the constant the code compares against.
 **Known gap.** The first `start` of a new work item takes no per-instance lock
 (swamp only locks an instance once its definition exists), so two concurrent
 first starts can race. That is accepted for solo use until swamp fixes it.
+
+## Tests on the real engine
+
+**Decision.** Besides the unit tests, which run against fakes
+(`_lib/fake_swamp.ts`, `memoryStore`), an integration suite drives gatorwalk
+through the installed swamp CLI. Each test gets a throwaway repo
+(`swamp init --tool none`, then `swamp extension source add` of this directory),
+runs methods by direct type execution with `--log`, and reads results back from
+swamp's storage with `swamp data get --json`. Code: `integration/harness.ts`,
+`integration/cli_test.ts`.
+
+### Why
+
+Fakes can only show what their author believed about the engine. The GW-6 smoke
+run showed the gap: swamp reads a model's type from the source without running
+it, so a type given as a constant never registered, and no unit test could see
+that. The first suite automates that smoke run. It also closes a GW-4 question
+by checking that every payload version and the pinned lifecycle read back from
+swamp's storage still have the digest taken before they were written.
+
+### How it runs in verification
+
+The suite needs to run the swamp binary, write a temp dir and read the
+environment, so it is its own command, `integration`, on the gatorwalk-factory
+target in `verification/checks.yaml`. The unit `test` command stays at
+`--allow-read` and never reaches `integration/`. A separate command was chosen
+over widening the unit tests' flags, so that tests of the pure runtime keep
+their read-only guarantee.
+
+What those flags do not limit:
+
+- `--allow-run=swamp` is not a sandbox. The spawned binary runs with the
+  caller's full rights.
+- `--allow-write` is unscoped, because the temp dir is only known at run time.
+
+What the suite depends on:
+
+- **swamp on `PATH`.** Without it the suite fails rather than skipping, so it
+  can never pass by checking nothing.
+- **The caller's HOME.** swamp's config and stored login and deno's npm cache
+  come from the host. That is what lets the suite run with no network. With a
+  fresh HOME, swamp needed the network to load the extension.
+- **The swamp version on the host.** The suite logs `swamp --version` at the
+  start of each run, and the path of each repo it creates. It last ran against
+  swamp `20260928.205839.0`.
+- **Only gatorwalk-factory changes trigger it.** A swamp upgrade that breaks
+  gatorwalk is caught by the next gatorwalk change, or by running
+  `deno task test:integration` by hand.
+
+Each swamp call runs in the temp repo with `--no-telemetry`. Variables that
+would point swamp at another repo or server (`SWAMP_REPO_DIR`, `SWAMP_SERVE_URL`
+and the like) are removed from its environment, so nothing is written into the
+source tree or another repo.
+
+**Out of scope.** Remote workers and `swamp serve` are not covered. A holder
+read on a remote worker arrives as a plain object with `_globalArguments`, and
+that shape is still unconfirmed against the real engine. The driving skill is
+GW-8. Neither dispatch nor usage is run through the CLI yet.

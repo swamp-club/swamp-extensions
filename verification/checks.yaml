@@ -70,9 +70,18 @@ groups:
           testFlags: --allow-read --allow-write --allow-env --allow-net --allow-sys
       - dir: gatorwalk-factory
         vars:
-          check: extensions/models/*.ts extensions/models/_lib/*.ts
-          paths: extensions/models/
-          testFlags: --allow-read
+          check: extensions/models/*.ts extensions/models/_lib/*.ts integration/*.ts
+          paths: extensions/models/ integration/
+        commands:
+          # The unit tests stay read-only and never reach integration/.
+          test: deno test --allow-read extensions/models/
+          # The real-engine suite (integration/) drives the installed swamp
+          # CLI in a temp repo, so it needs more than the unit tests. These
+          # flags are not a sandbox: --allow-run=swamp lets the spawned
+          # binary do anything, and --allow-write is unscoped because the
+          # temp dir is only known at run time. They apply to integration/
+          # only. See gatorwalk-factory/DESIGN.md, "Tests on the real engine".
+          integration: deno test --allow-run=swamp --allow-read --allow-write --allow-env integration/
       - dir: container-image
         vars:
           check: extensions/models/container_image.ts

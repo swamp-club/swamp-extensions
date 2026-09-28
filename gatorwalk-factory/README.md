@@ -34,6 +34,7 @@ extensions/models/
     work_item_ops.ts      the methods of both model types
     test_support.ts       shared test fixtures
     fake_swamp.ts         a fake swamp method context for tests
+integration/              the real-engine suite: gatorwalk through the swamp CLI
 lifecycles/               lifecycles gatorwalk-factory ships
 testdata/
   lifecycles/             software-factory's examples, ported
@@ -113,10 +114,17 @@ deno task check
 deno task lint
 deno task fmt
 deno task test
+deno task test:integration
 deno install --frozen
 ```
 
 These are the same checks that `verification/checks.yaml` runs before a PR.
+
+`deno task test` runs the unit tests against fakes and needs only read access.
+`deno task test:integration` runs gatorwalk through the installed `swamp` CLI,
+each test in a throwaway swamp repo. It fails if `swamp` is not on `PATH`. It
+uses your swamp config and login and deno's npm cache, and needs no network once
+that cache is warm. See [DESIGN.md](DESIGN.md), "Tests on the real engine".
 
 ## Running it
 
