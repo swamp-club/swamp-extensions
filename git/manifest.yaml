@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/git"
-version: "2026.09.26.1"
+version: "2026.09.28.1"
 description: |
   Git repository operations for swamp workflows. Wraps the git CLI
   and returns structured data (file lists, commit objects, status
@@ -9,8 +9,9 @@ description: |
 
   Designed for CI automation: change detection via diff, dirty-tree
   checks via status, push/sync verification via upstream_state, bot
-  commits, branch management, and re-runnable checkouts via
-  ensure_checkout.
+  commits, branch management, re-runnable checkouts via
+  ensure_checkout, and per-work-item worktrees via ensure_worktree and
+  verify_worktree.
 
   ## Methods
 
@@ -33,6 +34,8 @@ description: |
   | `cherry_pick` | Cherry-pick commits or abort an in-progress cherry-pick. |
   | `branch` | Create, switch, or list branches (supports orphan branch creation; `force` makes create re-runnable). |
   | `config` | Get or set git configuration values. |
+  | `ensure_worktree` | Idempotently prepare one worktree and branch per work item: fetch an exact base, create or safely reuse a verified worktree, refuse unrelated or overlapping paths, keep in-progress rework. |
+  | `verify_worktree` | Read-only, fail-closed check of a worktree against branch, base lineage, root, and remote. |
   | `remove_worktree` | Safely remove a registered clean secondary worktree — refuses the primary checkout and dirty worktrees. |
 
   ## Usage

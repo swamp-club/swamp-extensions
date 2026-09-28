@@ -496,6 +496,116 @@ export const RemoveWorktreeResultSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// ensure_worktree / verify_worktree
+// ---------------------------------------------------------------------------
+
+// `..` is refused rather than resolved: collapsing it before symlinks are
+// resolved can name a different directory than the kernel would.
+const worktreePath = z.string().min(1).refine(
+  (v) => !v.startsWith("-"),
+  { message: "must not start with a dash (interpreted as a git flag)" },
+).refine(
+  (v) => !v.split("/").includes(".."),
+  { message: "must not contain a '..' segment" },
+);
+
+const worktreeRef = z.string().min(1).refine(
+  (v) => !v.startsWith("-"),
+  { message: "must not start with a dash (interpreted as a git flag)" },
+);
+
+// A plain branch name: refs/heads/x would become refs/heads/refs/heads/x.
+const worktreeBranch = worktreeRef.refine(
+  (v) => !v.startsWith("refs/"),
+  { message: "must be a branch name, not a ref (drop the refs/heads/ prefix)" },
+);
+
+/** A full commit id: 40 hex (SHA-1) or 64 hex (SHA-256 repositories). */
+const commitSha = z.string().regex(
+  /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/,
+  { message: "must be a full lowercase commit SHA" },
+);
+
+export const EnsureWorktreeArgsSchema = z.object({
+  path: worktreePath
+    .describe(
+      "Worktree path; created when absent or empty, reused when it is already this branch's worktree. Relative paths resolve against the current directory.",
+    ),
+  branch: worktreeBranch
+    .describe(
+      "Work-item branch: created from the base when it does not exist, attached when it exists and is not checked out elsewhere",
+    ),
+  base: worktreeRef
+    .describe(
+      "Exact base fetched from the remote: a full commit SHA, refs/heads/<name>, refs/tags/<name>, or a bare name meaning refs/heads/<name>",
+    ),
+  root: worktreePath.optional()
+    .describe("Bounded worktree root; path must be strictly inside it"),
+  expectedBaseCommit: commitSha.optional()
+    .describe(
+      "Fail unless the worktree's baseCommit (merge-base of its HEAD and the fetched base) equals this SHA",
+    ),
+  requireCleanPrimary: z.boolean().default(false)
+    .describe(
+      "Refuse when the primary checkout has changes; registered worktrees nested inside it do not count",
+    ),
+});
+
+export type EnsureWorktreeArgs = z.infer<typeof EnsureWorktreeArgsSchema>;
+
+export const WorktreeResultSchema = z.object({
+  primaryRoot: z.string()
+    .describe("Canonical path of the primary checkout (or bare repository)"),
+  subjectRoot: z.string()
+    .describe("Canonical (absolute, symlink-resolved) worktree path"),
+  branch: z.string(),
+  remote: z.string(),
+  baseRef: z.string()
+    .describe("Fully-qualified ref, or the SHA, that was fetched"),
+  baseRefCommit: z.string()
+    .describe("Commit the base pointed to on the remote at fetch time"),
+  baseCommit: z.string()
+    .describe(
+      "Merge-base of the worktree HEAD and baseRefCommit — equal to baseRefCommit on creation, stable across rework after the base moves",
+    ),
+  head: z.string(),
+  action: z.enum(["created", "attached", "reused"])
+    .describe(
+      "created: new branch and worktree; attached: existing branch checked out into a new or re-added worktree; reused: existing worktree left untouched",
+    ),
+  dirty: z.boolean()
+    .describe("Whether the worktree has uncommitted or untracked changes"),
+});
+
+export const VerifyWorktreeArgsSchema = z.object({
+  path: worktreePath
+    .describe("Worktree path to verify"),
+  branch: worktreeBranch
+    .describe("Branch the worktree must be on"),
+  expectedBaseCommit: commitSha
+    .describe("Commit that must be present locally and an ancestor of HEAD"),
+  root: worktreePath.optional()
+    .describe("Bounded worktree root; path must be strictly inside it"),
+  expectedUrl: z.string().min(1).optional()
+    .describe(
+      "Repository URL the remote must point at, compared host-and-path so https, ssh, and scp spellings match",
+    ),
+});
+
+export type VerifyWorktreeArgs = z.infer<typeof VerifyWorktreeArgsSchema>;
+
+export const WorktreeVerificationSchema = z.object({
+  primaryRoot: z.string(),
+  subjectRoot: z.string(),
+  branch: z.string(),
+  head: z.string(),
+  baseCommit: z.string(),
+  dirty: z.boolean(),
+  verifiedAt: z.string()
+    .describe("ISO 8601 time the verification ran"),
+});
+
+// ---------------------------------------------------------------------------
 // upstream_state
 // ---------------------------------------------------------------------------
 

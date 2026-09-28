@@ -117,13 +117,15 @@ Deno.test("globalArguments accepts full config", () => {
 // Resource declarations
 // ---------------------------------------------------------------------------
 
-Deno.test("all 18 resource specs exist", () => {
+Deno.test("all 20 resource specs exist", () => {
   const names = Object.keys(model.resources);
-  assertEquals(names.length, 18);
+  assertEquals(names.length, 20);
   for (
     const name of [
       "cloneResult",
       "checkoutResult",
+      "worktreeResult",
+      "worktreeVerification",
       "diffResult",
       "worktreeDiffResult",
       "statusResult",
@@ -165,9 +167,9 @@ Deno.test("resources have description and schema", () => {
 // Method declarations
 // ---------------------------------------------------------------------------
 
-Deno.test("all 18 methods exist", () => {
+Deno.test("all 20 methods exist", () => {
   const names = Object.keys(model.methods);
-  assertEquals(names.length, 18);
+  assertEquals(names.length, 20);
   for (
     const name of [
       "clone",
@@ -187,6 +189,8 @@ Deno.test("all 18 methods exist", () => {
       "remote_ref",
       "upstream_state",
       "is_ancestor",
+      "ensure_worktree",
+      "verify_worktree",
       "remove_worktree",
     ]
   ) {
@@ -259,6 +263,14 @@ Deno.test("git-available check exists and covers all methods", () => {
     model.checks["git-available"].appliesTo.includes("ensure_checkout"),
     true,
   );
+  assertEquals(
+    model.checks["git-available"].appliesTo.includes("ensure_worktree"),
+    true,
+  );
+  assertEquals(
+    model.checks["git-available"].appliesTo.includes("verify_worktree"),
+    true,
+  );
 });
 
 Deno.test("repo-initialized check exists and excludes clone and remote_ref", () => {
@@ -310,6 +322,14 @@ Deno.test("repo-initialized check exists and excludes clone and remote_ref", () 
   );
   assertEquals(
     model.checks["repo-initialized"].appliesTo.includes("remove_worktree"),
+    true,
+  );
+  assertEquals(
+    model.checks["repo-initialized"].appliesTo.includes("ensure_worktree"),
+    true,
+  );
+  assertEquals(
+    model.checks["repo-initialized"].appliesTo.includes("verify_worktree"),
     true,
   );
 });
@@ -4884,6 +4904,670 @@ Deno.test("real git: branch create with force is re-runnable", async () => {
     assertEquals(
       await rawGit(fx.seed, "symbolic-ref", "--short", "HEAD"),
       "work",
+    );
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// ensure_worktree / verify_worktree — argument schemas
+// ---------------------------------------------------------------------------
+
+const SHA_A = "a".repeat(40);
+
+Deno.test("EnsureWorktreeArgs requires path, branch, and base", () => {
+  const args = model.methods.ensure_worktree.arguments;
+  assertEquals(args.safeParse({ branch: "b", base: "main" }).success, false);
+  assertEquals(args.safeParse({ path: "p", base: "main" }).success, false);
+  assertEquals(args.safeParse({ path: "p", branch: "b" }).success, false);
+  const parsed = args.parse({ path: "p", branch: "b", base: "main" });
+  assertEquals(parsed.requireCleanPrimary, false);
+});
+
+Deno.test("EnsureWorktreeArgs refuses dashes and short SHAs", () => {
+  const args = model.methods.ensure_worktree.arguments;
+  const ok = { path: "p", branch: "b", base: "main" };
+  assertEquals(args.safeParse({ ...ok, path: "-p" }).success, false);
+  assertEquals(args.safeParse({ ...ok, branch: "-b" }).success, false);
+  assertEquals(args.safeParse({ ...ok, base: "--all" }).success, false);
+  assertEquals(args.safeParse({ ...ok, root: "-r" }).success, false);
+  assertEquals(
+    args.safeParse({ ...ok, expectedBaseCommit: "abc123" }).success,
+    false,
+  );
+  assertEquals(
+    args.safeParse({ ...ok, expectedBaseCommit: SHA_A }).success,
+    true,
+  );
+});
+
+Deno.test("worktree args refuse a ref as branch and '..' in paths", () => {
+  const ensure = model.methods.ensure_worktree.arguments;
+  const ok = { path: "p", branch: "b", base: "main" };
+  assertEquals(
+    ensure.safeParse({ ...ok, branch: "refs/heads/b" }).success,
+    false,
+  );
+  // base, unlike branch, takes fully-qualified refs.
+  assertEquals(
+    ensure.safeParse({ ...ok, base: "refs/tags/v1" }).success,
+    true,
+  );
+  assertEquals(ensure.safeParse({ ...ok, path: "a/../b" }).success, false);
+  assertEquals(ensure.safeParse({ ...ok, path: ".." }).success, false);
+  assertEquals(ensure.safeParse({ ...ok, root: "r/.." }).success, false);
+  // A name that merely contains dots is fine.
+  assertEquals(ensure.safeParse({ ...ok, path: "a/..b/c" }).success, true);
+
+  const verify = model.methods.verify_worktree.arguments;
+  const v = { path: "p", branch: "b", expectedBaseCommit: SHA_A };
+  assertEquals(
+    verify.safeParse({ ...v, branch: "refs/heads/b" }).success,
+    false,
+  );
+  assertEquals(verify.safeParse({ ...v, path: "x/../y" }).success, false);
+});
+
+Deno.test("VerifyWorktreeArgs requires expectedBaseCommit", () => {
+  const args = model.methods.verify_worktree.arguments;
+  assertEquals(args.safeParse({ path: "p", branch: "b" }).success, false);
+  assertEquals(
+    args.safeParse({ path: "p", branch: "b", expectedBaseCommit: SHA_A })
+      .success,
+    true,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// ensure_worktree / verify_worktree / remove_worktree — real git
+//
+// Real git against a local bare origin in a temp dir — no network. The temp
+// dir on macOS sits under a symlink (/var -> /private/var), so these also
+// exercise the canonical path comparisons.
+// ---------------------------------------------------------------------------
+
+interface WorktreeFixture extends Fixture {
+  primary: string;
+}
+
+async function makeWorktreeFixture(): Promise<WorktreeFixture> {
+  const fx = await makeRemoteFixture();
+  const primary = `${fx.root}/primary`;
+  await rawGit(fx.root, "clone", "-q", fx.remote, primary);
+  await rawGit(primary, "config", "user.name", "Primary");
+  await rawGit(primary, "config", "user.email", "primary@example.com");
+  await rawGit(primary, "config", "commit.gpgsign", "false");
+  return { ...fx, primary };
+}
+
+async function ensureWt(
+  fx: WorktreeFixture,
+  args: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const { ctx, writes } = makeHarness({ repoPath: fx.primary });
+  await model.methods.ensure_worktree.execute(
+    args as { path: string; branch: string; base: string },
+    ctx,
+  );
+  return writes[0].data;
+}
+
+async function verifyWt(
+  fx: WorktreeFixture,
+  args: Record<string, unknown>,
+): Promise<Harness["writes"]> {
+  const { ctx, writes } = makeHarness({ repoPath: fx.primary });
+  await model.methods.verify_worktree.execute(
+    args as { path: string; branch: string; expectedBaseCommit: string },
+    ctx,
+  );
+  return writes;
+}
+
+async function tmpRefs(repo: string): Promise<string> {
+  return await rawGit(repo, "for-each-ref", "refs/swamp/");
+}
+
+Deno.test("real git: ensure_worktree creates, then reuses idempotently", async () => {
+  const fx = await makeWorktreeFixture();
+  try {
+    const tip = await rawGit(fx.seed, "rev-parse", "HEAD");
+    const path = `${fx.root}/wt/item-1`;
+
+    const first = await ensureWt(fx, { path, branch: "wi/1", base: "main" });
+    assertEquals(first.action, "created");
+    assertEquals(first.subjectRoot, Deno.realPathSync(path));
+    assertEquals(first.primaryRoot, Deno.realPathSync(fx.primary));
+    assertEquals(first.baseRef, "refs/heads/main");
+    assertEquals(first.baseRefCommit, tip);
+    assertEquals(first.baseCommit, tip);
+    assertEquals(first.head, tip);
+    assertEquals(first.dirty, false);
+    assertEquals(
+      await rawGit(path, "symbolic-ref", "--short", "HEAD"),
+      "wi/1",
+    );
+
+    const second = await ensureWt(fx, { path, branch: "wi/1", base: "main" });
+    assertEquals(second.action, "reused");
+    assertEquals(second.subjectRoot, first.subjectRoot);
+    assertEquals(second.branch, first.branch);
+    assertEquals(second.baseCommit, first.baseCommit);
+
+    // Neither the temp ref, FETCH_HEAD, nor the remote-tracking ref changes.
+    assertEquals(await tmpRefs(fx.primary), "");
+    assertEquals(await exists(`${fx.primary}/.git/FETCH_HEAD`), false);
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: ensure_worktree preserves rework and keeps baseCommit when the base moves", async () => {
+  const fx = await makeWorktreeFixture();
+  try {
+    const originalBase = await rawGit(fx.seed, "rev-parse", "HEAD");
+    const trackingBefore = await rawGit(
+      fx.primary,
+      "rev-parse",
+      "refs/remotes/origin/main",
+    );
+    const path = `${fx.root}/wt`;
+    await ensureWt(fx, { path, branch: "wi/rework", base: "main" });
+
+    await Deno.writeTextFile(`${path}/work.txt`, "committed\n");
+    await rawGit(path, "add", "work.txt");
+    await rawGit(path, "commit", "-q", "-m", "work");
+    const workHead = await rawGit(path, "rev-parse", "HEAD");
+    await Deno.writeTextFile(`${path}/draft.txt`, "uncommitted\n");
+
+    const newTip = await pushNewCommit(fx, "moved\n");
+
+    const again = await ensureWt(fx, {
+      path,
+      branch: "wi/rework",
+      base: "main",
+      expectedBaseCommit: originalBase,
+    });
+    assertEquals(again.action, "reused");
+    assertEquals(again.dirty, true);
+    assertEquals(again.head, workHead);
+    assertEquals(again.baseRefCommit, newTip);
+    assertEquals(again.baseCommit, originalBase);
+    assertEquals(await Deno.readTextFile(`${path}/draft.txt`), "uncommitted\n");
+    assertEquals(
+      await rawGit(fx.primary, "rev-parse", "refs/remotes/origin/main"),
+      trackingBefore,
+    );
+
+    await assertRejects(
+      () =>
+        ensureWt(fx, {
+          path,
+          branch: "wi/rework",
+          base: "main",
+          expectedBaseCommit: newTip,
+        }),
+      Error,
+      `expected ${newTip}`,
+    );
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: ensure_worktree refuses a moved base before creating anything", async () => {
+  const fx = await makeWorktreeFixture();
+  try {
+    const approved = await rawGit(fx.seed, "rev-parse", "HEAD");
+    await pushNewCommit(fx, "moved\n");
+    const path = `${fx.root}/wt`;
+    await assertRejects(
+      () =>
+        ensureWt(fx, {
+          path,
+          branch: "wi/1",
+          base: "main",
+          expectedBaseCommit: approved,
+        }),
+      Error,
+      "moved since it was approved",
+    );
+    assertEquals(await exists(path), false);
+    assertEquals(
+      await rawGit(fx.primary, "branch", "--list", "wi/1"),
+      "",
+    );
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: ensure_worktree attaches an existing free branch and re-adds a missing directory", async () => {
+  const fx = await makeWorktreeFixture();
+  try {
+    const path = `${fx.root}/wt`;
+    await ensureWt(fx, { path, branch: "wi/a", base: "main" });
+    await Deno.writeTextFile(`${path}/work.txt`, "x\n");
+    await rawGit(path, "add", "work.txt");
+    await rawGit(path, "commit", "-q", "-m", "work");
+    const workHead = await rawGit(path, "rev-parse", "HEAD");
+
+    await rawGit(fx.primary, "worktree", "remove", path);
+    const attached = await ensureWt(fx, { path, branch: "wi/a", base: "main" });
+    assertEquals(attached.action, "attached");
+    assertEquals(attached.head, workHead);
+
+    await Deno.remove(path, { recursive: true });
+    const readded = await ensureWt(fx, { path, branch: "wi/a", base: "main" });
+    assertEquals(readded.action, "attached");
+    assertEquals(readded.head, workHead);
+    assertEquals(await exists(`${path}/work.txt`), true);
+
+    await rawGit(fx.primary, "worktree", "lock", path);
+    await Deno.remove(path, { recursive: true });
+    await assertRejects(
+      () => ensureWt(fx, { path, branch: "wi/a", base: "main" }),
+      Error,
+      "missing and locked",
+    );
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: ensure_worktree refuses unrelated and overlapping paths", async () => {
+  const fx = await makeWorktreeFixture();
+  try {
+    const wt = `${fx.root}/wt`;
+    await ensureWt(fx, { path: wt, branch: "wi/a", base: "main" });
+    const attempt = (path: string, branch = "wi/new", extra = {}) =>
+      assertRejects(
+        () => ensureWt(fx, { path, branch, base: "main", ...extra }),
+        Error,
+      );
+
+    await Deno.mkdir(`${fx.root}/populated`);
+    await Deno.writeTextFile(`${fx.root}/populated/f`, "x");
+    await Deno.writeTextFile(`${fx.root}/afile`, "x");
+    await Deno.symlink(`${fx.root}/nowhere`, `${fx.root}/dangling`);
+
+    const cases: [string, Promise<Error>][] = [
+      ["not an empty directory", attempt(`${fx.root}/populated`)],
+      ["not an empty directory", attempt(`${fx.root}/afile`)],
+      ["not an empty directory", attempt(`${fx.root}/dangling`)],
+      ["is the worktree for branch wi/a", attempt(wt, "wi/b")],
+      ["checked out in the worktree", attempt(`${fx.root}/wt2`, "wi/a")],
+      ["is the primary checkout", attempt(fx.primary)],
+      ["contains the worktree", attempt(fx.root)],
+      ["is inside the worktree", attempt(`${wt}/nested`)],
+      ["inside the git directory", attempt(`${fx.primary}/.git/wt`)],
+      [
+        "outside the worktree root",
+        attempt(`${fx.root}/elsewhere`, "wi/new", {
+          root: `${fx.root}/bounded`,
+        }),
+      ],
+    ];
+    for (const [message, pending] of cases) {
+      const error = await pending;
+      assertEquals(
+        error.message.includes(message),
+        true,
+        `expected "${message}" in: ${error.message}`,
+      );
+    }
+    assertEquals(await exists(`${fx.root}/elsewhere`), false);
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: ensure_worktree refuses unrelated history and an in-progress rebase", async () => {
+  const fx = await makeWorktreeFixture();
+  try {
+    // The empty tree is known to every SHA-1 repository without being stored.
+    const orphan = await rawGit(
+      fx.primary,
+      "commit-tree",
+      "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+      "-m",
+      "orphan",
+    );
+    await rawGit(fx.primary, "update-ref", "refs/heads/wi/orphan", orphan);
+    await assertRejects(
+      () =>
+        ensureWt(fx, {
+          path: `${fx.root}/orphan`,
+          branch: "wi/orphan",
+          base: "main",
+        }),
+      Error,
+      "shares no history",
+    );
+    assertEquals(await exists(`${fx.root}/orphan`), false);
+
+    const path = `${fx.root}/wt`;
+    await ensureWt(fx, { path, branch: "wi/a", base: "main" });
+    const rebaseDir = await rawGit(
+      path,
+      "rev-parse",
+      "--git-path",
+      "rebase-merge",
+    );
+    await Deno.mkdir(rebaseDir);
+    await assertRejects(
+      () => ensureWt(fx, { path, branch: "wi/a", base: "main" }),
+      Error,
+      "a rebase in progress",
+    );
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: ensure_worktree resolves base exactly", async () => {
+  const fx = await makeWorktreeFixture();
+  try {
+    const c1 = await rawGit(fx.seed, "rev-parse", "HEAD~2");
+    const c2 = await rawGit(fx.seed, "rev-parse", "HEAD~1");
+    const main = await rawGit(fx.seed, "rev-parse", "HEAD");
+    // A branch whose name ends in main must not answer for main.
+    await rawGit(
+      fx.seed,
+      "push",
+      "-q",
+      fx.remote,
+      `${c1}:refs/heads/feature/main`,
+    );
+    await rawGit(fx.seed, "tag", "-a", "annotated", "-m", "a", c2);
+    await rawGit(fx.seed, "push", "-q", fx.remote, "annotated");
+
+    const bare = await ensureWt(fx, {
+      path: `${fx.root}/bare`,
+      branch: "wi/bare",
+      base: "main",
+    });
+    assertEquals(bare.baseRefCommit, main);
+
+    const tag = await ensureWt(fx, {
+      path: `${fx.root}/tag`,
+      branch: "wi/tag",
+      base: "refs/tags/annotated",
+    });
+    assertEquals(tag.baseRef, "refs/tags/annotated");
+    assertEquals(tag.baseRefCommit, c2);
+
+    const sha = await ensureWt(fx, {
+      path: `${fx.root}/sha`,
+      branch: "wi/sha",
+      base: c1,
+    });
+    assertEquals(sha.baseRef, c1);
+    assertEquals(sha.baseRefCommit, c1);
+
+    await assertRejects(
+      () =>
+        ensureWt(fx, {
+          path: `${fx.root}/x`,
+          branch: "wi/x",
+          base: "refs/remotes/origin/main",
+        }),
+      Error,
+      "is not supported",
+    );
+    await assertRejects(
+      () =>
+        ensureWt(fx, { path: `${fx.root}/y`, branch: "wi/y", base: "nope" }),
+      Error,
+      "git fetch of refs/heads/nope",
+    );
+    assertEquals(await tmpRefs(fx.primary), "");
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: ensure_worktree resolves relative paths against the current directory, not repoPath", async () => {
+  const fx = await makeWorktreeFixture();
+  const before = Deno.cwd();
+  try {
+    Deno.chdir(fx.root);
+    const result = await ensureWt(fx, {
+      path: "rel/wt",
+      branch: "wi/rel",
+      base: "main",
+    });
+    assertEquals(result.subjectRoot, `${Deno.realPathSync(fx.root)}/rel/wt`);
+    assertEquals(await exists(`${fx.primary}/rel`), false);
+  } finally {
+    Deno.chdir(before);
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: ensure_worktree and remove_worktree see through a symlinked parent", async () => {
+  const fx = await makeWorktreeFixture();
+  try {
+    await Deno.mkdir(`${fx.root}/real`);
+    await Deno.symlink(`${fx.root}/real`, `${fx.root}/link`);
+
+    const viaLink = await ensureWt(fx, {
+      path: `${fx.root}/link/wt`,
+      branch: "wi/link",
+      base: "main",
+    });
+    assertEquals(viaLink.subjectRoot, `${Deno.realPathSync(fx.root)}/real/wt`);
+
+    const viaReal = await ensureWt(fx, {
+      path: `${fx.root}/real/wt`,
+      branch: "wi/link",
+      base: "main",
+    });
+    assertEquals(viaReal.action, "reused");
+
+    await assertRejects(
+      () =>
+        ensureWt(fx, {
+          path: `${fx.root}/link/wt/inner`,
+          branch: "wi/inner",
+          base: "main",
+        }),
+      Error,
+      "is inside the worktree",
+    );
+
+    const { ctx, writes } = makeHarness({ repoPath: fx.primary });
+    await model.methods.remove_worktree.execute(
+      { path: `${fx.root}/link/wt` },
+      ctx,
+    );
+    assertEquals(writes[0].data.removed, true);
+    assertEquals(writes[0].data.alreadyAbsent, false);
+    assertEquals(await exists(`${fx.root}/real/wt`), false);
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: requireCleanPrimary ignores nested worktrees but not other changes", async () => {
+  const fx = await makeWorktreeFixture();
+  try {
+    const nested = (n: number) => ({
+      path: `${fx.primary}/.claude/worktrees/${n}`,
+      branch: `wi/${n}`,
+      base: "main",
+      requireCleanPrimary: true,
+    });
+    assertEquals((await ensureWt(fx, nested(1))).action, "created");
+    assertEquals((await ensureWt(fx, nested(2))).action, "created");
+    // git quotes a path with a space in plain porcelain output; it must still
+    // be recognised as a nested worktree.
+    assertEquals(
+      (await ensureWt(fx, { ...nested(3), path: `${fx.primary}/.wt/item 3` }))
+        .action,
+      "created",
+    );
+    assertEquals((await ensureWt(fx, nested(4))).action, "created");
+
+    await Deno.writeTextFile(`${fx.primary}/.claude/stray.txt`, "x\n");
+    await assertRejects(
+      () => ensureWt(fx, nested(5)),
+      Error,
+      "requireCleanPrimary",
+    );
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: concurrent ensure_worktree calls against one repository all succeed", async () => {
+  const fx = await makeWorktreeFixture();
+  try {
+    const tip = await rawGit(fx.seed, "rev-parse", "HEAD");
+    const results = await Promise.all(
+      Array.from({ length: 8 }, (_, i) =>
+        ensureWt(fx, {
+          path: `${fx.root}/par/${i}`,
+          branch: `wi/par-${i}`,
+          base: "main",
+        })),
+    );
+    for (const result of results) {
+      assertEquals(result.action, "created");
+      assertEquals(result.baseRefCommit, tip);
+    }
+    assertEquals(await tmpRefs(fx.primary), "");
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: verify_worktree passes without writing to the repository", async () => {
+  const fx = await makeWorktreeFixture();
+  try {
+    const path = `${fx.root}/wt`;
+    const created = await ensureWt(fx, { path, branch: "wi/v", base: "main" });
+    await Deno.writeTextFile(`${path}/draft.txt`, "x\n");
+
+    const index = await rawGit(path, "rev-parse", "--git-path", "index");
+    const indexBefore = (await Deno.stat(index)).mtime?.getTime();
+    const refsBefore = await rawGit(fx.primary, "for-each-ref");
+
+    const writes = await verifyWt(fx, {
+      path,
+      branch: "wi/v",
+      expectedBaseCommit: created.baseCommit,
+      root: fx.root,
+      expectedUrl: `file://${fx.remote}`,
+    });
+    assertEquals(writes[0].specName, "worktreeVerification");
+    assertEquals(writes[0].name, "worktree-verification-wi-v");
+    assertEquals(writes[0].data.subjectRoot, created.subjectRoot);
+    assertEquals(writes[0].data.dirty, true);
+    assertEquals(typeof writes[0].data.verifiedAt, "string");
+
+    assertEquals((await Deno.stat(index)).mtime?.getTime(), indexBefore);
+    assertEquals(await rawGit(fx.primary, "for-each-ref"), refsBefore);
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: verify_worktree reports every mismatch at once", async () => {
+  const fx = await makeWorktreeFixture();
+  try {
+    const path = `${fx.root}/wt`;
+    await ensureWt(fx, { path, branch: "wi/v", base: "main" });
+    const error = await assertRejects(
+      () =>
+        verifyWt(fx, {
+          path,
+          branch: "wi/other",
+          expectedBaseCommit: SHA_A,
+          root: `${fx.root}/bounded`,
+          expectedUrl: "https://example.com/org/other.git",
+        }),
+      Error,
+    );
+    for (
+      const expected of [
+        "branch: expected wi/other, found wi/v",
+        `base: expected commit ${SHA_A} is not present locally`,
+        "outside the worktree root",
+        "remote: expected origin to point at https://example.com/org/other.git",
+      ]
+    ) {
+      assertEquals(
+        error.message.includes(expected),
+        true,
+        `expected "${expected}" in: ${error.message}`,
+      );
+    }
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: verify_worktree refuses a base that is not an ancestor, the primary, and unregistered paths", async () => {
+  const fx = await makeWorktreeFixture();
+  try {
+    const path = `${fx.root}/wt`;
+    await ensureWt(fx, { path, branch: "wi/v", base: "main" });
+    const newTip = await pushNewCommit(fx, "moved\n");
+    await rawGit(fx.primary, "fetch", "-q", "origin");
+
+    await assertRejects(
+      () => verifyWt(fx, { path, branch: "wi/v", expectedBaseCommit: newTip }),
+      Error,
+      "to be an ancestor of HEAD",
+    );
+    await assertRejects(
+      () =>
+        verifyWt(fx, {
+          path: fx.primary,
+          branch: "main",
+          expectedBaseCommit: newTip,
+        }),
+      Error,
+      "is the primary checkout",
+    );
+    await assertRejects(
+      () =>
+        verifyWt(fx, {
+          path: `${fx.root}/nope`,
+          branch: "wi/v",
+          expectedBaseCommit: newTip,
+        }),
+      Error,
+      "is not a registered worktree",
+    );
+  } finally {
+    await Deno.remove(fx.root, { recursive: true });
+  }
+});
+
+Deno.test("real git: a detached worktree is refused by ensure_worktree and verify_worktree", async () => {
+  const fx = await makeWorktreeFixture();
+  try {
+    const path = `${fx.root}/wt`;
+    const created = await ensureWt(fx, { path, branch: "wi/d", base: "main" });
+    await rawGit(path, "checkout", "-q", "--detach");
+
+    await assertRejects(
+      () => ensureWt(fx, { path, branch: "wi/d", base: "main" }),
+      Error,
+      "detached HEAD",
+    );
+    await assertRejects(
+      () =>
+        verifyWt(fx, {
+          path,
+          branch: "wi/d",
+          expectedBaseCommit: created.baseCommit as string,
+        }),
+      Error,
+      "branch: expected wi/d, found a detached HEAD",
     );
   } finally {
     await Deno.remove(fx.root, { recursive: true });

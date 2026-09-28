@@ -315,6 +315,99 @@ The `checkoutResult` resource carries `path` (absolute), `url` (credentials
 scrubbed), `ref`, `branch`, `sha` (HEAD after the run), and `action`
 (`cloned` / `updated` / `reused`).
 
+### Prepare a Worktree per Work Item
+
+`ensure_worktree` gives each work item its own worktree and branch, and is
+safe to re-run — a retry, or a rework pass, gets back the same worktree with
+its changes intact:
+
+```bash
+swamp model method run repo ensure_worktree \
+  --input path=.worktrees/item-42 \
+  --input branch=work/item-42 \
+  --input base=main \
+  --input root=.worktrees \
+  --json
+```
+
+`base` is fetched from the model's `remote` every run, and must name exactly
+one thing: a full commit SHA, `refs/heads/<name>`, `refs/tags/<name>`
+(annotated tags resolve to the commit they tag), or a bare name, which means
+`refs/heads/<name>` — `main` never matches `feature/main`. The fetch writes
+only a private temporary ref, deleted afterwards: not `FETCH_HEAD` and not the
+remote-tracking branch. That keeps concurrent calls for different work items
+against one repository from contending.
+
+| What is at `path` | What happens |
+| ----------------- | ------------ |
+| Nothing, or an empty directory; `branch` does not exist | Creates `branch` at the fetched base and a worktree for it → `created` |
+| Nothing, or an empty directory; `branch` exists and is not checked out | Adds a worktree for the existing branch, keeping its commits → `attached` |
+| This branch's registered worktree | Left exactly as it is — no reset, checkout, or clean; uncommitted changes survive and `dirty` reports them → `reused` |
+| This branch's registered worktree, directory deleted | Re-adds it → `attached` (refused if the worktree is locked) |
+| Another branch's worktree, or a detached one | Refuses |
+| This branch's worktree mid-rebase, -merge, -cherry-pick, or -revert | Refuses — finish or abort it first |
+| Anything else (a file, a populated directory, a dangling symlink) | Refuses |
+
+It also refuses, before touching anything:
+
+- a `path` outside `root`, when `root` is given;
+- the primary checkout, anything inside the git directory, a path that
+  contains a registered worktree, or a path inside another worktree (a path
+  inside the primary checkout is allowed — the primary's `git status` then
+  lists it as untracked unless it is ignored);
+- a `branch` checked out in a different worktree;
+- a `branch` with no history in common with the base;
+- with `expectedBaseCommit`, a `baseCommit` that differs — the base moved
+  since it was approved, or a reused branch is on another lineage;
+- with `requireCleanPrimary`, a primary checkout with changes (worktrees
+  nested inside it do not count).
+
+Relative `path` and `root` resolve against the current directory, and every
+path is compared symlink-resolved (macOS `/tmp` is `/private/tmp`). A `..`
+segment in `path` or `root` is refused. `branch` is a branch name
+(`work/item-42`), not a ref — `refs/heads/...` is refused.
+
+The `worktreeResult` resource carries `subjectRoot` (the canonical worktree
+path), `primaryRoot`, `branch`, `remote`, `baseRef`, `baseRefCommit` (what the
+base pointed at when fetched), `baseCommit`, `head`, `dirty`, and `action`.
+`baseCommit` is the merge-base of the worktree's HEAD and `baseRefCommit`: on
+creation it is the base itself, and it stays put when the base moves on during
+rework, so `worktree_diff --input base=<baseCommit>` run in the worktree shows
+only the work item's changes.
+
+Needs git 2.31 or later.
+
+### Verify a Worktree
+
+`verify_worktree` checks an existing worktree without changing anything — no
+fetch, no ref updates, and `status` runs without refreshing the index:
+
+```bash
+swamp model method run repo verify_worktree \
+  --input path=.worktrees/item-42 \
+  --input branch=work/item-42 \
+  --input expectedBaseCommit=<baseCommit from ensure_worktree> \
+  --input root=.worktrees \
+  --input expectedUrl=https://github.com/org/repo.git \
+  --json
+```
+
+It fails unless `path` is a registered secondary worktree of `repoPath` whose
+directory exists, and fails listing every mismatch at once, each with the
+expected and found value, when:
+
+- the worktree does not share `repoPath`'s git directory;
+- it is on a different branch, or detached;
+- a rebase, merge, cherry-pick, or revert is in progress;
+- `expectedBaseCommit` is not present locally, or is not an ancestor of HEAD;
+- `path` is outside `root`, or overlaps another worktree;
+- the remote does not point at `expectedUrl` (compared by host and path, as in
+  `ensure_checkout`).
+
+Uncommitted changes are reported in `dirty`, never treated as a failure. A
+passing run writes a `worktreeVerification` resource with the roots, branch,
+HEAD, base commit, `dirty`, and `verifiedAt`.
+
 ### Create a Branch Idempotently
 
 `branch` with `create: true` fails when the branch exists. Add `force: true`
@@ -479,6 +572,8 @@ swamp data query repo 'tags.clean == "false"'
 | `branch` | Create, switch, or list branches (`force` makes create re-runnable) |
 | `config` | Get or set git configuration values |
 | `is_ancestor` | Check if one commit is an ancestor of another (read-only) |
+| `ensure_worktree` | Idempotently prepare one worktree and branch per work item from an exact base, refusing unrelated or overlapping paths and keeping in-progress rework |
+| `verify_worktree` | Read-only, fail-closed check of a worktree against branch, base lineage, root, and remote |
 | `remove_worktree` | Safely remove a registered clean secondary worktree |
 
 ## Resources
@@ -502,13 +597,15 @@ swamp data query repo 'tags.clean == "false"'
 | `branchResult` | Current branch, branch list, creation status |
 | `configResult` | Config key and value |
 | `isAncestorResult` | Ancestor, descendant, isAncestor flag |
+| `worktreeResult` | Primary and worktree roots, branch, remote, base ref, base ref commit, base commit, HEAD, dirty flag, action (`created` / `attached` / `reused`) |
+| `worktreeVerification` | Primary and worktree roots, branch, HEAD, base commit, dirty flag, verifiedAt |
 | `removeWorktreeResult` | Worktree path, removed/alreadyAbsent flags, reason |
 
 ## Pre-flight Checks
 
 | Check              | Applies To | Description |
 | ------------------ | ---------- | ----------- |
-| `git-available`    | all 18 methods | Verifies `git` binary is on PATH |
+| `git-available`    | all 20 methods | Verifies `git` binary is on PATH |
 | `repo-initialized` | all except `clone`, `ensure_checkout`, and `remote_ref` | Verifies `repoPath` is inside a git work tree |
 
 ## License

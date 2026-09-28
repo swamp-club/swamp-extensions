@@ -16,6 +16,7 @@ import {
   DiffArgsSchema,
   DiffResultSchema,
   EnsureCheckoutArgsSchema,
+  EnsureWorktreeArgsSchema,
   FetchArgsSchema,
   FetchResultSchema,
   GlobalArgsSchema,
@@ -35,8 +36,11 @@ import {
   StatusResultSchema,
   UpstreamStateArgsSchema,
   UpstreamStateResultSchema,
+  VerifyWorktreeArgsSchema,
   WorktreeDiffArgsSchema,
   WorktreeDiffResultSchema,
+  WorktreeResultSchema,
+  WorktreeVerificationSchema,
 } from "./_lib/schemas.ts";
 import {
   runAmend,
@@ -47,6 +51,7 @@ import {
   runConfig,
   runDiff,
   runEnsureCheckout,
+  runEnsureWorktree,
   runFetch,
   runIsAncestor,
   runLog,
@@ -56,6 +61,7 @@ import {
   runRemoveWorktree,
   runStatus,
   runUpstreamState,
+  runVerifyWorktree,
   runWorktreeDiff,
 } from "./_lib/operations.ts";
 import { checkGitAvailable, checkRepoInitialized } from "./_lib/checks.ts";
@@ -67,10 +73,10 @@ import type { GitContext } from "./_lib/types.ts";
  * @module
  */
 
-/** Git model — clone, ensure_checkout, diff, worktree_diff, status, log, commit, amend, push, pull, fetch, cherry_pick, branch, config, remote_ref, upstream_state, is_ancestor, remove_worktree. */
+/** Git model — clone, ensure_checkout, diff, worktree_diff, status, log, commit, amend, push, pull, fetch, cherry_pick, branch, config, remote_ref, upstream_state, is_ancestor, ensure_worktree, verify_worktree, remove_worktree. */
 export const model = {
   type: "@swamp/git",
-  version: "2026.09.26.1",
+  version: "2026.09.28.1",
 
   globalArguments: GlobalArgsSchema,
 
@@ -163,6 +169,14 @@ export const model = {
         old: Record<string, unknown>,
       ): Record<string, unknown> => old,
     },
+    {
+      toVersion: "2026.09.28.1",
+      description:
+        "Add ensure_worktree: fetch an exact base ref and create or safely reuse one verified worktree and branch per work item, refusing unrelated or overlapping paths and preserving in-progress rework. New worktreeResult resource. Add verify_worktree: a read-only, fail-closed check of an existing worktree against branch, base lineage, root, and remote. New worktreeVerification resource. remove_worktree now compares symlink-resolved paths, so a path through a symlink (macOS /tmp) is removed instead of reported already absent. No globalArguments changes.",
+      upgradeAttributes: (
+        old: Record<string, unknown>,
+      ): Record<string, unknown> => old,
+    },
   ],
 
   resources: {
@@ -176,6 +190,20 @@ export const model = {
       description:
         "Result of ensure_checkout: path, scrubbed url, ref, working branch, HEAD sha, and whether the checkout was cloned, updated, or reused",
       schema: CheckoutResultSchema,
+      lifetime: "ephemeral" as const,
+      garbageCollection: 5,
+    },
+    worktreeResult: {
+      description:
+        "Result of ensure_worktree: primary and worktree roots, branch, base ref and commits, HEAD, dirty flag, and whether the worktree was created, attached, or reused",
+      schema: WorktreeResultSchema,
+      lifetime: "ephemeral" as const,
+      garbageCollection: 5,
+    },
+    worktreeVerification: {
+      description:
+        "Result of a passing verify_worktree: roots, branch, HEAD, verified base commit, dirty flag, and verification time",
+      schema: WorktreeVerificationSchema,
       lifetime: "ephemeral" as const,
       garbageCollection: 5,
     },
@@ -312,6 +340,8 @@ export const model = {
         "remote_ref",
         "upstream_state",
         "is_ancestor",
+        "ensure_worktree",
+        "verify_worktree",
         "remove_worktree",
       ],
       execute: checkGitAvailable,
@@ -334,6 +364,8 @@ export const model = {
         "config",
         "upstream_state",
         "is_ancestor",
+        "ensure_worktree",
+        "verify_worktree",
         "remove_worktree",
       ],
       execute: checkRepoInitialized,
@@ -355,6 +387,24 @@ export const model = {
         args: z.input<typeof EnsureCheckoutArgsSchema>,
         ctx: GitContext,
       ) => runEnsureCheckout(EnsureCheckoutArgsSchema.parse(args), ctx),
+    },
+    ensure_worktree: {
+      description:
+        "Idempotently prepare one worktree and branch per work item: fetch an exact base ref, create or safely reuse a verified worktree, refuse unrelated or overlapping paths, and preserve in-progress rework",
+      arguments: EnsureWorktreeArgsSchema,
+      execute: (
+        args: z.input<typeof EnsureWorktreeArgsSchema>,
+        ctx: GitContext,
+      ) => runEnsureWorktree(EnsureWorktreeArgsSchema.parse(args), ctx),
+    },
+    verify_worktree: {
+      description:
+        "Read-only, fail-closed check that an existing worktree matches the expected branch, base lineage, root, and remote — never resets or discards work",
+      arguments: VerifyWorktreeArgsSchema,
+      execute: (
+        args: z.input<typeof VerifyWorktreeArgsSchema>,
+        ctx: GitContext,
+      ) => runVerifyWorktree(VerifyWorktreeArgsSchema.parse(args), ctx),
     },
     diff: {
       description:

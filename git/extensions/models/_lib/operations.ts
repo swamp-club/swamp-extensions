@@ -11,6 +11,7 @@ import type {
   ConfigArgs,
   DiffArgs,
   EnsureCheckoutArgs,
+  EnsureWorktreeArgs,
   FetchArgs,
   GlobalArgs,
   IsAncestorArgs,
@@ -21,6 +22,7 @@ import type {
   RemoveWorktreeArgs,
   StatusArgs,
   UpstreamStateArgs,
+  VerifyWorktreeArgs,
   WorktreeDiffArgs,
 } from "./schemas.ts";
 import type { DataHandle, GitContext } from "./types.ts";
@@ -1958,44 +1960,264 @@ export async function runIsAncestor(
 }
 
 // ---------------------------------------------------------------------------
-// remove-worktree
+// worktree helpers (remove_worktree, ensure_worktree, verify_worktree)
 // ---------------------------------------------------------------------------
 
 interface WorktreeEntry {
   worktree: string;
   bare: boolean;
+  head?: string;
+  branch?: string;
+  detached: boolean;
+  locked: boolean;
+  prunable: boolean;
 }
 
 function parseWorktreeList(raw: string): WorktreeEntry[] {
   const entries: WorktreeEntry[] = [];
   let current: Partial<WorktreeEntry> = {};
 
+  const flush = () => {
+    if (current.worktree !== undefined) {
+      entries.push({
+        worktree: current.worktree,
+        bare: current.bare ?? false,
+        ...(current.head !== undefined ? { head: current.head } : {}),
+        ...(current.branch !== undefined ? { branch: current.branch } : {}),
+        detached: current.detached ?? false,
+        locked: current.locked ?? false,
+        prunable: current.prunable ?? false,
+      });
+    }
+    current = {};
+  };
+
   for (const line of raw.split("\n")) {
     if (line === "") {
-      if (current.worktree !== undefined) {
-        entries.push({
-          worktree: current.worktree,
-          bare: current.bare ?? false,
-        });
-      }
-      current = {};
+      flush();
       continue;
     }
     if (line.startsWith("worktree ")) {
       current.worktree = line.substring("worktree ".length);
     }
-    if (line === "bare") {
-      current.bare = true;
+    if (line === "bare") current.bare = true;
+    if (line.startsWith("HEAD ")) current.head = line.substring("HEAD ".length);
+    if (line.startsWith("branch ")) {
+      current.branch = line.substring("branch ".length)
+        .replace(/^refs\/heads\//, "");
+    }
+    if (line === "detached") current.detached = true;
+    if (line === "locked" || line.startsWith("locked ")) current.locked = true;
+    if (line === "prunable" || line.startsWith("prunable ")) {
+      current.prunable = true;
     }
   }
-  if (current.worktree !== undefined) {
-    entries.push({
-      worktree: current.worktree,
-      bare: current.bare ?? false,
-    });
-  }
+  flush();
   return entries;
 }
+
+/** Resolves `.` and `..` segments and repeated slashes in an absolute path. */
+function normaliseSegments(path: string): string[] {
+  const parts: string[] = [];
+  for (const part of path.split("/")) {
+    if (part === "" || part === ".") continue;
+    if (part === "..") parts.pop();
+    else parts.push(part);
+  }
+  return parts;
+}
+
+/**
+ * Absolute, symlink-resolved form of `path`, even when it does not exist yet:
+ * the nearest existing ancestor is resolved and the missing tail re-appended.
+ * git lists worktrees symlink-resolved (macOS /tmp is /private/tmp), so every
+ * worktree path comparison goes through this on both sides.
+ */
+export function canonicalPath(path: string, base: string): string {
+  const parts = normaliseSegments(absolutePath(path, base));
+  for (let i = parts.length; i >= 0; i--) {
+    let real: string;
+    try {
+      real = Deno.realPathSync(`/${parts.slice(0, i).join("/")}`);
+    } catch {
+      continue;
+    }
+    const tail = parts.slice(i);
+    if (tail.length === 0) return real;
+    return `${real === "/" ? "" : real}/${tail.join("/")}`;
+  }
+  return `/${parts.join("/")}`;
+}
+
+/** True when `child` is strictly inside `parent` (both canonical). */
+function isWithin(child: string, parent: string): boolean {
+  if (child === parent) return false;
+  return child.startsWith(parent === "/" ? "/" : `${parent}/`);
+}
+
+interface RegisteredWorktree extends WorktreeEntry {
+  /** canonicalPath of `worktree`. */
+  path: string;
+}
+
+interface RepoLayout {
+  /** Canonical path of the primary checkout, or the bare repository. */
+  primary: string;
+  /** Canonical path of the common git directory. */
+  commonDir: string;
+  /** Every registered worktree, primary first, as git lists them. */
+  worktrees: RegisteredWorktree[];
+}
+
+async function readLayout(
+  cwd: string,
+  signal: AbortSignal,
+): Promise<RepoLayout> {
+  const list = await execGit(["worktree", "list", "--porcelain"], {
+    cwd,
+    signal,
+  });
+  if (list.exitCode !== 0) {
+    throw new Error(
+      `git worktree list failed (exit ${list.exitCode}): ${list.stderr}`,
+    );
+  }
+  const common = await execGit(["rev-parse", "--git-common-dir"], {
+    cwd,
+    signal,
+  });
+  if (common.exitCode !== 0) {
+    throw new Error(
+      `git rev-parse --git-common-dir failed (exit ${common.exitCode}): ${common.stderr}`,
+    );
+  }
+  const base = absolutePath(cwd, Deno.cwd());
+  const worktrees = parseWorktreeList(list.stdout).map((entry) => ({
+    ...entry,
+    path: canonicalPath(entry.worktree, base),
+  }));
+  if (worktrees.length === 0) {
+    throw new Error(`git worktree list returned no worktrees for ${cwd}`);
+  }
+  return {
+    primary: worktrees[0].path,
+    commonDir: canonicalPath(common.stdout.trim(), base),
+    worktrees,
+  };
+}
+
+/**
+ * Refuses a worktree location that is outside `root`, inside the git
+ * directory, the primary checkout, an ancestor of any registered worktree, or
+ * inside a secondary worktree. An exact match with a secondary worktree is
+ * allowed — that is the reuse case. Nesting inside the primary is allowed
+ * (the common `.claude/worktrees` layout).
+ */
+function assertPlacement(
+  target: string,
+  layout: RepoLayout,
+  root: string | undefined,
+): void {
+  if (root !== undefined) {
+    const bound = canonicalPath(root, Deno.cwd());
+    if (!isWithin(target, bound)) {
+      throw new Error(`${target} is outside the worktree root ${bound}`);
+    }
+  }
+  if (target === layout.commonDir || isWithin(target, layout.commonDir)) {
+    throw new Error(
+      `${target} is inside the git directory ${layout.commonDir}`,
+    );
+  }
+  layout.worktrees.forEach((w, index) => {
+    if (w.path === target) {
+      if (index === 0) throw new Error(`${target} is the primary checkout`);
+      return;
+    }
+    if (isWithin(w.path, target)) {
+      throw new Error(`${target} contains the worktree at ${w.path}`);
+    }
+    if (index > 0 && isWithin(target, w.path)) {
+      throw new Error(`${target} is inside the worktree at ${w.path}`);
+    }
+  });
+}
+
+interface WorktreeState {
+  head: string;
+  dirty: boolean;
+  /** The operation left half-done, or undefined when there is none. */
+  inProgress?: string;
+}
+
+const IN_PROGRESS: Record<string, string> = {
+  "rebase-merge": "a rebase",
+  "rebase-apply": "a rebase",
+  "MERGE_HEAD": "a merge",
+  "CHERRY_PICK_HEAD": "a cherry-pick",
+  "REVERT_HEAD": "a revert",
+};
+
+async function inspectWorktree(
+  path: string,
+  signal: AbortSignal,
+): Promise<WorktreeState> {
+  const head = await execGit(["rev-parse", "--verify", "HEAD"], {
+    cwd: path,
+    signal,
+  });
+  if (head.exitCode !== 0) {
+    throw new Error(
+      `git rev-parse HEAD failed in ${path} (exit ${head.exitCode}): ${head.stderr}`,
+    );
+  }
+  // --no-optional-locks: status must not refresh the index, so verify_worktree
+  // stays read-only.
+  const status = await execGit(
+    ["--no-optional-locks", "status", "--porcelain"],
+    { cwd: path, signal },
+  );
+  if (status.exitCode !== 0) {
+    throw new Error(
+      `git status failed in ${path} (exit ${status.exitCode}): ${status.stderr}`,
+    );
+  }
+  const names = Object.keys(IN_PROGRESS);
+  const paths = await execGit(
+    ["rev-parse", ...names.flatMap((n) => ["--git-path", n])],
+    { cwd: path, signal },
+  );
+  if (paths.exitCode !== 0) {
+    throw new Error(
+      `git rev-parse --git-path failed in ${path} (exit ${paths.exitCode}): ${paths.stderr}`,
+    );
+  }
+  let inProgress: string | undefined;
+  const resolved = paths.stdout.trim().split("\n");
+  for (let i = 0; i < names.length && inProgress === undefined; i++) {
+    try {
+      // --git-path is relative to the worktree when the git dir is inside it.
+      await Deno.lstat(absolutePath(resolved[i], path));
+      inProgress = IN_PROGRESS[names[i]];
+    } catch (error) {
+      if (!(error instanceof Deno.errors.NotFound)) throw error;
+    }
+  }
+  return {
+    head: head.stdout.trim(),
+    dirty: status.stdout.trim().length > 0,
+    ...(inProgress !== undefined ? { inProgress } : {}),
+  };
+}
+
+/** Every character outside [A-Za-z0-9_-] becomes '-', as in ensure_checkout. */
+function safeDataName(value: string): string {
+  return value.replace(/[^A-Za-z0-9_-]/g, "-");
+}
+
+// ---------------------------------------------------------------------------
+// remove-worktree
+// ---------------------------------------------------------------------------
 
 export async function runRemoveWorktree(
   args: RemoveWorktreeArgs,
@@ -2021,21 +2243,25 @@ export async function runRemoveWorktree(
         const worktrees = parseWorktreeList(listResult.stdout);
 
         const resolvedPath = args.path.replace(/\/+$/, "");
+        // git lists worktrees symlink-resolved, so compare canonical forms:
+        // /tmp/wt on macOS is registered as /private/tmp/wt.
+        const base = absolutePath(cwd, Deno.cwd());
+        const target = canonicalPath(resolvedPath, Deno.cwd());
 
         const primaryPath = worktrees.length > 0
           ? worktrees[0].worktree
           : undefined;
         if (
           primaryPath !== undefined &&
-          resolvedPath === primaryPath.replace(/\/+$/, "")
+          target === canonicalPath(primaryPath, base)
         ) {
           throw new Error(
             "cannot remove the primary checkout",
           );
         }
 
-        const registered = worktrees.some(
-          (w) => w.worktree.replace(/\/+$/, "") === resolvedPath,
+        const registered = worktrees.find(
+          (w) => canonicalPath(w.worktree, base) === target,
         );
 
         if (!registered) {
@@ -2065,7 +2291,7 @@ export async function runRemoveWorktree(
 
         const statusResult = await execGit(
           ["status", "--porcelain"],
-          { cwd: resolvedPath, signal: ctx.signal },
+          { cwd: registered.worktree, signal: ctx.signal },
         );
         if (statusResult.exitCode !== 0) {
           throw new Error(
@@ -2079,7 +2305,7 @@ export async function runRemoveWorktree(
         }
 
         const removeResult = await execGit(
-          ["worktree", "remove", resolvedPath],
+          ["worktree", "remove", registered.worktree],
           { cwd, signal: ctx.signal },
         );
         if (removeResult.exitCode !== 0) {
@@ -2114,6 +2340,501 @@ export async function runRemoveWorktree(
           message: error instanceof Error ? error.message : String(error),
         });
         throw error;
+      } finally {
+        span.end();
+      }
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ensure_worktree
+// ---------------------------------------------------------------------------
+
+/**
+ * The exact ref (or SHA) `base` names. A bare name means refs/heads/<name> —
+ * never a suffix match, which would let `main` resolve to feature/main.
+ */
+function qualifyBase(base: string): string {
+  if (/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(base)) return base;
+  if (base.startsWith("refs/heads/") || base.startsWith("refs/tags/")) {
+    return base;
+  }
+  if (base.startsWith("refs/")) {
+    throw new Error(
+      `base ${base} is not supported — use a full SHA, refs/heads/<name>, or refs/tags/<name>`,
+    );
+  }
+  return `refs/heads/${base}`;
+}
+
+/**
+ * Fetches `ref` from `remote` and returns the commit it points at. The fetch
+ * lands in a private ref unique to this call, with --no-write-fetch-head
+ * (FETCH_HEAD is shared), --refmap= (without it git also updates the
+ * remote-tracking ref, and concurrent calls fail on its lock) and --no-tags,
+ * so parallel calls against one repository never contend.
+ */
+async function fetchBase(
+  cwd: string,
+  remote: string,
+  ref: string,
+  signal: AbortSignal,
+): Promise<string> {
+  const tmp = `refs/swamp/tmp/${crypto.randomUUID()}`;
+  try {
+    const fetched = await execGit(
+      [
+        "fetch",
+        "--quiet",
+        "--no-write-fetch-head",
+        "--no-tags",
+        "--refmap=",
+        remote,
+        `+${ref}:${tmp}`,
+      ],
+      { cwd, signal },
+    );
+    if (fetched.exitCode !== 0) {
+      throw new Error(
+        `git fetch of ${ref} from ${remote} failed (exit ${fetched.exitCode}): ${
+          scrubCredentials(fetched.stderr)
+        }`,
+      );
+    }
+    // ^{commit} peels an annotated tag to the commit it tags.
+    const commit = await execGit(
+      ["rev-parse", "--verify", "--end-of-options", `${tmp}^{commit}`],
+      { cwd, signal },
+    );
+    if (commit.exitCode !== 0) {
+      throw new Error(`${ref} on ${remote} does not point at a commit`);
+    }
+    return commit.stdout.trim();
+  } finally {
+    // No signal, and errors ignored: an aborted run should still remove the
+    // temp ref, and a failed cleanup must not mask the fetch error.
+    await Promise.resolve(execGit(["update-ref", "-d", tmp], { cwd }))
+      .catch(() => {});
+  }
+}
+
+/**
+ * Throws when the primary checkout has changes. An untracked entry that is
+ * exactly a registered worktree nested inside the primary does not count —
+ * otherwise the first nested worktree would make every later call fail.
+ */
+async function assertCleanPrimary(
+  layout: RepoLayout,
+  signal: AbortSignal,
+): Promise<void> {
+  const primary = layout.worktrees[0];
+  if (primary.bare) return;
+  const status = await execGit(
+    [
+      "--no-optional-locks",
+      "status",
+      "--porcelain",
+      "-z",
+      "--untracked-files=all",
+    ],
+    { cwd: primary.worktree, signal },
+  );
+  if (status.exitCode !== 0) {
+    throw new Error(
+      `git status failed in the primary checkout (exit ${status.exitCode}): ${status.stderr}`,
+    );
+  }
+  // -z: paths are NUL-terminated and never C-quoted, so a path with a space
+  // still matches. A rename or copy carries its source as a second entry.
+  const nested = new Set(layout.worktrees.slice(1).map((w) => w.path));
+  const entries = status.stdout.split("\0");
+  const changes: string[] = [];
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    if (entry === "") continue;
+    if (entry[0] === "R" || entry[0] === "C") i++;
+    if (
+      entry.startsWith("?? ") &&
+      nested.has(canonicalPath(entry.substring(3), primary.path))
+    ) {
+      continue;
+    }
+    changes.push(entry);
+  }
+  if (changes.length > 0) {
+    throw new Error(
+      `the primary checkout ${primary.path} has changes and requireCleanPrimary is set: ${
+        changes.slice(0, 5).join("; ")
+      }`,
+    );
+  }
+}
+
+export async function runEnsureWorktree(
+  args: EnsureWorktreeArgs,
+  ctx: GitContext,
+): Promise<{ dataHandles: DataHandle[] }> {
+  return await getTracer().startActiveSpan(
+    "git.ensure_worktree",
+    async (span) => {
+      try {
+        const globals = resolveGlobalArgs(ctx.globalArgs);
+        const cwd = globals.repoPath;
+        const remote = globals.remote;
+        const signal = ctx.signal;
+
+        const git = async (argv: string[], at: string = cwd) => {
+          const result = await execGit(argv, { cwd: at, signal });
+          if (result.exitCode !== 0) {
+            throw new Error(
+              `git ${argv[0]} ${
+                argv[1] ?? ""
+              } failed (exit ${result.exitCode}): ${result.stderr}`,
+            );
+          }
+          return result.stdout.trim();
+        };
+
+        const layout = await readLayout(cwd, signal);
+        // Resolved once, against the current directory as ensure_checkout
+        // does; git only ever sees the absolute path, so it cannot resolve a
+        // relative one against repoPath instead.
+        const target = canonicalPath(args.path, Deno.cwd());
+        assertPlacement(target, layout, args.root);
+        if (args.requireCleanPrimary) await assertCleanPrimary(layout, signal);
+
+        const baseRef = qualifyBase(args.base);
+        const baseRefCommit = await fetchBase(cwd, remote, baseRef, signal);
+
+        const existing = layout.worktrees.find((w) => w.path === target);
+        const holder = layout.worktrees.find((w) =>
+          w.branch === args.branch && w.path !== target
+        );
+        if (holder) {
+          throw new Error(
+            `branch ${args.branch} is checked out in the worktree at ${holder.path}`,
+          );
+        }
+
+        // Where the work item's history ends, read before anything changes so
+        // a lineage failure leaves the repository untouched.
+        let tip: string;
+        let plan: "create" | "attach" | "readd" | "reuse";
+        if (existing) {
+          if (existing.detached || existing.branch === undefined) {
+            throw new Error(
+              `${target} is a worktree with a detached HEAD, not branch ${args.branch}`,
+            );
+          }
+          if (existing.branch !== args.branch) {
+            throw new Error(
+              `${target} is the worktree for branch ${existing.branch}, not ${args.branch}`,
+            );
+          }
+          // git does not mark a locked worktree prunable, so check the
+          // directory itself as well.
+          const missing = existing.prunable ||
+            (await inspectPath(target)) === "absent";
+          if (missing && existing.locked) {
+            throw new Error(
+              `${target} is registered but missing and locked — unlock it (git worktree unlock) before it can be re-added`,
+            );
+          }
+          if (!missing) {
+            const state = await inspectWorktree(target, signal);
+            if (state.inProgress) {
+              throw new Error(
+                `${target} has ${state.inProgress} in progress — finish or abort it first`,
+              );
+            }
+          }
+          tip = await git([
+            "rev-parse",
+            "--verify",
+            `refs/heads/${args.branch}`,
+          ]);
+          plan = missing ? "readd" : "reuse";
+        } else {
+          const state = await inspectPath(target);
+          if (state !== "absent" && state !== "empty") {
+            throw new Error(
+              `refusing to create a worktree at ${target}: it exists and is not an empty directory`,
+            );
+          }
+          const branchTip = await execGit(
+            ["rev-parse", "--verify", "--quiet", `refs/heads/${args.branch}`],
+            { cwd, signal },
+          );
+          if (branchTip.exitCode === 0) {
+            tip = branchTip.stdout.trim();
+            plan = "attach";
+          } else {
+            tip = baseRefCommit;
+            plan = "create";
+          }
+        }
+
+        const mergeBase = await execGit(["merge-base", tip, baseRefCommit], {
+          cwd,
+          signal,
+        });
+        // Exit 1 means no common ancestor; anything else is a git failure.
+        if (mergeBase.exitCode === 1) {
+          throw new Error(
+            `branch ${args.branch} shares no history with ${baseRef} (${baseRefCommit})`,
+          );
+        }
+        if (mergeBase.exitCode !== 0) {
+          throw new Error(
+            `git merge-base failed (exit ${mergeBase.exitCode}): ${mergeBase.stderr}`,
+          );
+        }
+        const baseCommit = mergeBase.stdout.trim();
+        if (
+          args.expectedBaseCommit !== undefined &&
+          baseCommit !== args.expectedBaseCommit
+        ) {
+          throw new Error(
+            `baseCommit is ${baseCommit}, expected ${args.expectedBaseCommit} — ${baseRef} moved since it was approved, or ${args.branch} is on a different lineage`,
+          );
+        }
+
+        if (plan === "create") {
+          await git([
+            "worktree",
+            "add",
+            "--quiet",
+            "-b",
+            args.branch,
+            "--",
+            target,
+            baseRefCommit,
+          ]);
+        } else if (plan === "attach") {
+          await git(["worktree", "add", "--quiet", "--", target, args.branch]);
+        } else if (plan === "readd") {
+          // The directory is gone but still registered; --force re-adds it.
+          await git([
+            "worktree",
+            "add",
+            "--quiet",
+            "--force",
+            "--",
+            target,
+            args.branch,
+          ]);
+        }
+        const action = plan === "create"
+          ? "created"
+          : plan === "reuse"
+          ? "reused"
+          : "attached";
+
+        const state = await inspectWorktree(target, signal);
+
+        span.setAttribute(Attr.METHOD, "ensure_worktree");
+        span.setAttribute(Attr.BRANCH, args.branch);
+        span.setAttribute(Attr.BASE_REF, baseRef);
+
+        ctx.logger.info(
+          `${action} worktree ${target} on ${args.branch} (base ${baseCommit})`,
+        );
+
+        const handle = await ctx.writeResource(
+          "worktreeResult",
+          `worktree-${safeDataName(args.branch)}`,
+          {
+            primaryRoot: layout.primary,
+            subjectRoot: target,
+            branch: args.branch,
+            remote,
+            baseRef,
+            baseRefCommit,
+            baseCommit,
+            head: state.head,
+            action,
+            dirty: state.dirty,
+          },
+          { tags: { method: "ensure_worktree", action } },
+        );
+
+        return { dataHandles: [handle] };
+      } catch (error) {
+        span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: scrubCredentials(
+            error instanceof Error ? error.message : String(error),
+          ),
+        });
+        throw scrubError(error);
+      } finally {
+        span.end();
+      }
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// verify_worktree
+// ---------------------------------------------------------------------------
+
+export async function runVerifyWorktree(
+  args: VerifyWorktreeArgs,
+  ctx: GitContext,
+): Promise<{ dataHandles: DataHandle[] }> {
+  return await getTracer().startActiveSpan(
+    "git.verify_worktree",
+    async (span) => {
+      try {
+        const globals = resolveGlobalArgs(ctx.globalArgs);
+        const cwd = globals.repoPath;
+        const remote = globals.remote;
+        const signal = ctx.signal;
+
+        const layout = await readLayout(cwd, signal);
+        const target = canonicalPath(args.path, Deno.cwd());
+        const index = layout.worktrees.findIndex((w) => w.path === target);
+        if (index === -1) {
+          throw new Error(
+            `${target} is not a registered worktree of ${layout.primary}`,
+          );
+        }
+        if (index === 0) {
+          throw new Error(`${target} is the primary checkout, not a worktree`);
+        }
+        const entry = layout.worktrees[index];
+        if (entry.prunable || (await inspectPath(target)) === "absent") {
+          throw new Error(
+            `${target} is registered but its directory is missing`,
+          );
+        }
+
+        // Every check runs, so one failure lists every mismatch at once.
+        const mismatches: string[] = [];
+        try {
+          assertPlacement(target, layout, args.root);
+        } catch (error) {
+          mismatches.push(
+            error instanceof Error ? error.message : String(error),
+          );
+        }
+
+        const common = await execGit(["rev-parse", "--git-common-dir"], {
+          cwd: target,
+          signal,
+        });
+        const linked = common.exitCode === 0
+          ? canonicalPath(common.stdout.trim(), target)
+          : `(unreadable: ${common.stderr.trim()})`;
+        if (linked !== layout.commonDir) {
+          mismatches.push(
+            `git directory: expected ${layout.commonDir}, found ${linked}`,
+          );
+        }
+
+        const actualBranch = entry.detached || entry.branch === undefined
+          ? "a detached HEAD"
+          : entry.branch;
+        if (actualBranch !== args.branch) {
+          mismatches.push(
+            `branch: expected ${args.branch}, found ${actualBranch}`,
+          );
+        }
+
+        const state = await inspectWorktree(target, signal);
+        if (state.inProgress) {
+          mismatches.push(
+            `state: expected no operation in progress, found ${state.inProgress}`,
+          );
+        }
+
+        const present = await execGit(
+          ["cat-file", "-e", `${args.expectedBaseCommit}^{commit}`],
+          { cwd: target, signal },
+        );
+        if (present.exitCode !== 0) {
+          mismatches.push(
+            `base: expected commit ${args.expectedBaseCommit} is not present locally`,
+          );
+        } else {
+          const ancestor = await execGit(
+            ["merge-base", "--is-ancestor", args.expectedBaseCommit, "HEAD"],
+            { cwd: target, signal },
+          );
+          if (ancestor.exitCode === 1) {
+            mismatches.push(
+              `base: expected ${args.expectedBaseCommit} to be an ancestor of HEAD ${state.head}, it is not`,
+            );
+          } else if (ancestor.exitCode !== 0) {
+            throw new Error(
+              `git merge-base --is-ancestor failed (exit ${ancestor.exitCode}): ${ancestor.stderr}`,
+            );
+          }
+        }
+
+        if (args.expectedUrl !== undefined) {
+          const stored = await execGit(["remote", "get-url", remote], {
+            cwd: target,
+            signal,
+          });
+          if (stored.exitCode !== 0) {
+            mismatches.push(
+              `remote: expected ${remote} to point at ${
+                scrubCredentials(args.expectedUrl)
+              }, but there is no remote named ${remote}`,
+            );
+          } else if (
+            !sameRemote(
+              normaliseRemote(stored.stdout.trim(), target),
+              normaliseRemote(args.expectedUrl, Deno.cwd()),
+            )
+          ) {
+            mismatches.push(
+              `remote: expected ${remote} to point at ${
+                scrubCredentials(args.expectedUrl)
+              }, found ${scrubCredentials(stored.stdout.trim())}`,
+            );
+          }
+        }
+
+        if (mismatches.length > 0) {
+          throw new Error(
+            `worktree ${target} failed verification:\n- ${
+              mismatches.join("\n- ")
+            }`,
+          );
+        }
+
+        span.setAttribute(Attr.METHOD, "verify_worktree");
+        span.setAttribute(Attr.BRANCH, args.branch);
+
+        ctx.logger.info(`verified worktree ${target} on ${args.branch}`);
+
+        const handle = await ctx.writeResource(
+          "worktreeVerification",
+          `worktree-verification-${safeDataName(args.branch)}`,
+          {
+            primaryRoot: layout.primary,
+            subjectRoot: target,
+            branch: args.branch,
+            head: state.head,
+            baseCommit: args.expectedBaseCommit,
+            dirty: state.dirty,
+            verifiedAt: new Date().toISOString(),
+          },
+          { tags: { method: "verify_worktree" } },
+        );
+
+        return { dataHandles: [handle] };
+      } catch (error) {
+        span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: scrubCredentials(
+            error instanceof Error ? error.message : String(error),
+          ),
+        });
+        throw scrubError(error);
       } finally {
         span.end();
       }
