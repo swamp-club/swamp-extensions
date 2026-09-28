@@ -138,10 +138,12 @@ export const RunRecordSchema = z.strictObject({
   key: z.string().min(1),
   /** Tracker ids (a Linear UUID, a display identifier), kept as data. */
   externalRefs: z.record(z.string(), z.string()),
-  /** The lifecycle pinned at start: its name and content digest. */
+  /** The lifecycle pinned at start: its name, content digest, and the
+   * version of the pinned copy the run uses. */
   lifecycle: z.strictObject({
     name: z.string().min(1),
     digest: z.string().min(1),
+    version: z.number().int().positive().optional(),
   }),
   /** Changes on reset; every record carries the era it belongs to. */
   era: z.string().min(1),
@@ -163,8 +165,9 @@ export const RunRecordSchema = z.strictObject({
   dispatches: z.array(DispatchSchema),
   /** Every approval decision, across eras; ids never repeat. */
   approvals: z.array(ApprovalSchema),
-  /** Every override grant, across eras; ids never repeat. */
-  overrides: z.array(OverrideSchema),
+  /** Every override grant, across eras; ids never repeat. Defaults to none,
+   * so a record written before overrides existed still reads. */
+  overrides: z.array(OverrideSchema).default([]),
   journal: z.array(JournalEventSchema),
 });
 

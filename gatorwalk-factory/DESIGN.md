@@ -48,7 +48,7 @@ below handle the common clashes.
 A placeholder holds a binding name, never CEL. Every expression lives in one
 place, `work.bindings`, where:
 
-- it is syntax-checked when the lifecycle is saved;
+- it is syntax-checked when the lifecycle is checked;
 - its resolved value is recorded on the dispatch, typed, so a stage can later be
   replayed and evaluated against a changed prompt;
 - it can also feed a workflow's or method's inputs and be handed to an agent as
@@ -61,14 +61,14 @@ prompt.
 
 | Text                                                                    | Meaning                                                                                                                              |
 | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `{{name}}` or `{{ name }}`                                              | Placeholder. `name` must be a declared binding, or the lifecycle is rejected when saved, with the error's path.                      |
+| `{{name}}` or `{{ name }}`                                              | Placeholder. `name` must be a declared binding, or the lifecycle is rejected when checked, with the error's path.                    |
 | `{{` around anything else (`{{ .Values.x }}`, `{{#each}}`, `{{ a.b }}`) | Literal text, so most Helm, Handlebars and Go template snippets pass through unescaped.                                              |
 | `{{` directly after `{` (`{{{body}}}`)                                  | Literal text, so Handlebars triple-stash passes through.                                                                             |
 | `\{{`                                                                   | A literal `{{`, for text that would otherwise be a placeholder.                                                                      |
 | `${{`                                                                   | Rejected anywhere in a lifecycle. swamp would evaluate it on save, and it has no escape, so a prompt cannot contain a literal `${{`. |
 
 Bare-word template tags such as Go's `{{end}}` or Handlebars' `{{else}}` look
-exactly like placeholders. They are rejected when the lifecycle is saved, as
+exactly like placeholders. They are rejected when the lifecycle is checked, as
 undeclared bindings, and are written `\{{end}}`. The failure is loud and the
 error names the escape. There is no way to write a literal `\` directly before a
 live placeholder.
@@ -230,3 +230,54 @@ caller's expected view. Every grant counts and none resets a count
 (software-factory kept only the latest grant, #1487, #2175). They are never
 approval ids with a reserved prefix, so no id is interpolated into a path or
 shell word (#2290). A reset starts a new era, and with it fresh counts.
+
+## The model types: a lifecycle holder and work items
+
+**Decision.** Two model types (`extensions/models/lifecycle.ts`, `work_item.ts`,
+logic in `_lib/work_item_ops.ts`):
+
+- A **lifecycle holder** is an instance whose `globalArguments` are a team's
+  lifecycle.
+- A **work item** is one instance per piece of work, named by a key. `start`
+  reads the holder and **pins a copy** of its lifecycle with its digest. Every
+  later method uses that copy, so editing the holder never changes a running
+  work item. `reset` keeps the pinned copy unless `repin=true` adopts the
+  holder's current one.
+
+**The pinned copy is chosen by version.** The run record names the version of
+the pinned copy it uses, and methods read exactly that version and check its
+digest. A repin writes the new copy first and commits the run record last, the
+same payloads-first rule as products, so an interrupted repin leaves an unused
+copy, never a mismatch. Pinned copies are kept by age for ten years, not by
+count: they are small and rarely written, and retention must never collect the
+one a run reads.
+
+**The holder's schema is plain, on purpose.** swamp validates a model's
+`globalArguments` on every run with `schema.partial()`, and zod refuses
+`.partial()` on a schema with refinements, which the full lifecycle schema is
+made of. So the holder's schema only names the top-level fields, and the full
+check is gatorwalk's own: the holder's `validate` method, and every `start`.
+Both read the holder's **raw** definition through the definition repository,
+never swamp's evaluated `globalArguments`, so a `${{ }}` reaches the lifecycle
+schema's own error. On a remote worker that definition arrives as a plain object
+with `_globalArguments`; both shapes are read.
+
+**Keys are gatorwalk's.** swamp cannot generate instance names, so the holder's
+`new_key` generates an unused `<lifecycle>-<8 base32 characters>` key, and the
+work item is created under it. Tracker ids are kept as data (`externalRefs`),
+never as the name.
+
+**Output and failure.** Methods report through the log, as
+`@swamp/issue-lifecycle` does. `status` is a `read` method, so it takes no lock.
+A refused write throws with its reason and writes nothing. A rejected payload is
+committed to the run as retry feedback and then thrown: no method declares
+`rollbackOnFailure`, so the feedback survives and the caller still gets a
+non-zero exit.
+
+**Model types are string literals.** swamp reads a model's `type` from the
+source without running it, so each model file writes its type literally; tests
+check each equals the constant the code compares against.
+
+**Known gap.** The first `start` of a new work item takes no per-instance lock
+(swamp only locks an instance once its definition exists), so two concurrent
+first starts can race. That is accepted for solo use until swamp fixes it.

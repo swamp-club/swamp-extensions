@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { digestOf } from "./canonical.ts";
+import { digestOf, jsonSafe } from "./canonical.ts";
 import type { Actor, ProductKind } from "./journal.ts";
 import type { Lifecycle } from "./lifecycle_schema.ts";
 import {
@@ -88,8 +88,15 @@ export interface ResourceContext {
   ): Promise<Record<string, unknown> | null>;
 }
 
-/** A RunStore over a swamp method context's writeResource/readResource. */
-export function contextStore(context: ResourceContext): RunStore {
+/**
+ * A RunStore over a swamp method context's writeResource/readResource. Every
+ * handle swamp returns is pushed onto `handles`, so a method can report what
+ * it wrote.
+ */
+export function contextStore(
+  context: ResourceContext,
+  handles: unknown[] = [],
+): RunStore {
   if (
     context.writeResource === undefined || context.readResource === undefined
   ) {
@@ -104,7 +111,7 @@ export function contextStore(context: ResourceContext): RunStore {
   return {
     readRun: () => readResource(RUN_NAME),
     writeRun: async (run) => {
-      await writeResource(RUN_SPEC, RUN_NAME, run);
+      handles.push(await writeResource(RUN_SPEC, RUN_NAME, run));
     },
     writePayload: async (kind, name, payload) => {
       const spec = kind === "artifact" ? ARTIFACT_SPEC : EVIDENCE_SPEC;
@@ -113,6 +120,7 @@ export function contextStore(context: ResourceContext): RunStore {
         payloadName(kind, name),
         payload,
       );
+      handles.push(handle);
       return handle.version;
     },
     readPayload: (kind, name, version) =>
@@ -267,7 +275,13 @@ export async function recordProduct(
     await store.writeRun(next);
     return { ok: false, rejected: true, run: next, errors: check.errors };
   }
-  const version = await store.writePayload(kind, name, payload);
+  // Store the JSON-safe form: the digest was taken over it, so the stored
+  // version reads back with the same digest.
+  const version = await store.writePayload(
+    kind,
+    name,
+    jsonSafe(payload) as Record<string, unknown>,
+  );
   const next = acceptProduct(
     run,
     kind,

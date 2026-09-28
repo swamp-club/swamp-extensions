@@ -15,35 +15,45 @@ adds the manifest and deletes that test.
 ## Layout
 
 ```
-extensions/models/_lib/
-  lifecycle_schema.ts   the lifecycle and plugin meta-schema
-  payload_schema.ts     JSON Schema 2020-12 payload schemas and contracts
-  template.ts           {{name}} placeholders in prompts
-  canonical.ts          JSON safety (CEL integers) and content digests
-  journal.ts            journal events and actors
-  run_record.ts         the per-work-item run record
-  run_ops.ts            pure operations: start, record, dispatch, approve,
-                        advance, reset
-  run_store.ts          storage and the commit protocol
-  cel_context.ts        the CEL vocabulary for bindings and cel gates
-  dispatch.ts           dispatch packets: bindings, inputs, rendered prompts
-  gates.ts              gate evaluation and transition readiness
-  test_support.ts       shared test fixtures
-lifecycles/             lifecycles gatorwalk-factory ships
+extensions/models/
+  lifecycle.ts            the lifecycle holder model type
+  work_item.ts            the work-item model type
+  _lib/
+    lifecycle_schema.ts   the lifecycle and plugin meta-schema
+    payload_schema.ts     JSON Schema 2020-12 payload schemas and contracts
+    template.ts           {{name}} placeholders in prompts
+    canonical.ts          JSON safety (CEL integers) and content digests
+    journal.ts            journal events and actors
+    run_record.ts         the per-work-item run record
+    run_ops.ts            pure operations: start, record, dispatch, approve,
+                          advance, reset
+    run_store.ts          storage and the commit protocol
+    cel_context.ts        the CEL vocabulary for bindings and cel gates
+    dispatch.ts           dispatch packets: bindings, inputs, rendered prompts
+    gates.ts              gate evaluation and transition readiness
+    work_item_ops.ts      the methods of both model types
+    test_support.ts       shared test fixtures
+    fake_swamp.ts         a fake swamp method context for tests
+lifecycles/               lifecycles gatorwalk-factory ships
 testdata/
-  lifecycles/           software-factory's examples, ported
-  plugins/              stage plugins
+  lifecycles/             software-factory's examples, ported
+  plugins/                stage plugins
 ```
 
 ## The lifecycle format
+
+A lifecycle is **checked** by the holder's `validate` method and again whenever
+a work item starts on it, and every problem is reported with its path. Editing a
+holder with `swamp model edit` does not check it: swamp only applies a lenient
+version of a model's schema, so the full check is gatorwalk's own.
 
 A lifecycle is ported from software-factory's definition schema: stages, work,
 artifacts, evidence, transitions and gates. Three things change:
 
 - **Payload schemas are standard JSON Schema, draft 2020-12**, with standard
-  meaning. Two stricter rules apply when a lifecycle is saved: unknown keywords
-  and unknown `format` names are rejected, so a typo is an error, not a silent
-  no-op. References must be local (`#/...` or `#anchor`), and nothing is
+  meaning. Two stricter rules apply when a lifecycle is checked: unknown
+  keywords and unknown `format` names are rejected, so a typo is an error, not a
+  silent no-op. References must be local (`#/...` or `#anchor`), and nothing is
   fetched.
 - **Runtime values are bare CEL**, in `work.bindings` and `cel` gates. Never use
   `${{ }}`: a lifecycle lives in a model's `globalArguments`, where the platform
@@ -52,14 +62,14 @@ artifacts, evidence, transitions and gates. Three things change:
   has no escape for it.
 - **Prompts refer to bindings as `{{name}}`**, in `systemPrompt` and `command`.
   A placeholder holds a binding name, never an expression, and an undeclared
-  name is an error when the lifecycle is saved. `{{` around anything that is not
-  a bare name (`{{ .Values.x }}`, `{{#each}}`) is literal text, and `\{{` is a
-  literal `{{`. At dispatch, a null or missing value fails the stage rather than
-  rendering blank. See [DESIGN.md](DESIGN.md) for why.
-- **References are checked when the lifecycle is saved.** This covers transition
-  targets, gate references, `reviews` links and injected context, and every
-  problem is reported with its path. Graph analysis (reachability, dead ends,
-  ambiguous exits) is separate.
+  name is an error when the lifecycle is checked. `{{` around anything that is
+  not a bare name (`{{ .Values.x }}`, `{{#each}}`) is literal text, and `\{{` is
+  a literal `{{`. At dispatch, a null or missing value fails the stage rather
+  than rendering blank. See [DESIGN.md](DESIGN.md) for why.
+- **References are checked when the lifecycle is checked.** This covers
+  transition targets, gate references, `reviews` links and injected context, and
+  every problem is reported with its path. Graph analysis (reachability, dead
+  ends, ambiguous exits) is separate.
 
 A **plugin** has the same shape plus a `contract`: `inputs` it consumes,
 `outputs` its stages produce, named `exits`, and a `parameters` schema. Its
@@ -108,11 +118,29 @@ deno install --frozen
 
 These are the same checks that `verification/checks.yaml` runs before a PR.
 
-To try the extension in a scratch swamp repo without publishing it:
+## Running it
+
+In a swamp repo, without publishing anything:
 
 ```bash
 swamp extension source add /path/to/swamp-extensions/gatorwalk-factory
+
+# A lifecycle holder: its globalArguments are a lifecycle, e.g. the contents
+# of lifecycles/build-swamp-extension.yaml (swamp model edit team).
+swamp model create @swamp/gatorwalk-factory/lifecycle team
+swamp model method run team validate --log
+swamp model method run team new_key --log        # prints a work-item key
+
+# A work item, named by that key.
+swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
+  --input lifecycle=team --log
+swamp model @swamp/gatorwalk-factory/work-item method run status <key> --log
 ```
 
-There is no model type to run yet. The work-item type and lifecycle holder come
-later.
+`status` prints the stage, what it needs, and each exit's readiness, plus the
+`expectedStage`, `expectedCycle` and `expectedEra` every write must pass back.
+Writes are `record_artifact`, `record_evidence`, `dispatch`, `record_usage`,
+`approve`, `decline`, `grant_override`, `advance` and `reset`. A refused write
+fails with its reason and writes nothing. A payload that breaks its schema also
+fails, but is kept on the work item as retry feedback. Method output goes to the
+log, so pass `--log`.

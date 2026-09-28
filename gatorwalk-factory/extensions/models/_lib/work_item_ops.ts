@@ -1,0 +1,755 @@
+// Swamp, an Automation Framework Copyright (C) 2026 System Initiative, Inc.
+//
+// This file is part of Swamp.
+//
+// Swamp is free software: you can redistribute it and/or modify it under the terms
+// of the GNU Affero General Public License version 3 as published by the Free
+// Software Foundation, with the Swamp Extension and Definition Exception (found in
+// the "COPYING-EXCEPTION" file).
+//
+// Swamp is distributed in the hope that it will be useful, but WITHOUT ANY
+// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+// PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License along
+// with Swamp. If not, see <https://www.gnu.org/licenses/>.
+
+import { z } from "npm:zod@4.3.6";
+import { digestOf, jsonSafe } from "./canonical.ts";
+import { buildCelContext } from "./cel_context.ts";
+import { buildDispatch } from "./dispatch.ts";
+import { evaluateTransitions, makeGateEvaluator } from "./gates.ts";
+import { type Actor, actorFrom, type ProductKind } from "./journal.ts";
+import { type Lifecycle, parseLifecycle } from "./lifecycle_schema.ts";
+import {
+  advance,
+  dispatchCap,
+  type Env,
+  type Expected,
+  expectedOf,
+  grantOverride,
+  type OpResult,
+  recordApproval,
+  recordDispatch,
+  recordUsage,
+  reset,
+} from "./run_ops.ts";
+import { currentCycle, type RunRecord } from "./run_record.ts";
+import {
+  contextStore,
+  loadRun,
+  recordProduct,
+  type ResourceContext,
+  type RunStore,
+  startRun,
+  update,
+} from "./run_store.ts";
+
+// ---------------------------------------------------------------------------
+// The methods of the two model types, written against a narrow view of
+// swamp's method context so they can be tested with a fake one.
+//
+// Output: methods return swamp data handles; what a person or agent reads
+// (the status, a dispatch packet, a refusal) goes through the logger, as in
+// @swamp/issue-lifecycle. A refusal throws with its reason after writing
+// nothing. A rejected payload is committed to the run as retry feedback and
+// then thrown: no method declares rollbackOnFailure, so the feedback
+// survives and the caller still gets a non-zero exit.
+// ---------------------------------------------------------------------------
+
+export const HOLDER_TYPE = "@swamp/gatorwalk-factory/lifecycle";
+export const WORK_ITEM_TYPE = "@swamp/gatorwalk-factory/work-item";
+
+/** The resource spec and fixed name of a work item's pinned lifecycle. */
+export const LIFECYCLE_SPEC = "lifecycle";
+export const LIFECYCLE_NAME = "lifecycle";
+
+export interface Logger {
+  info(message: string, props?: Record<string, unknown>): void;
+}
+
+/** The part of swamp's definition repository the methods use. */
+export interface DefinitionLookup {
+  findByNameGlobal(
+    name: string,
+  ): Promise<{ definition: unknown; type: unknown } | null>;
+}
+
+/** The part of swamp's method context the methods use. */
+export interface MethodContextLike extends ResourceContext {
+  definition?: { name: string };
+  tagOverrides?: Record<string, string>;
+  logger: Logger;
+  definitionRepository?: DefinitionLookup;
+}
+
+export interface MethodOutput {
+  dataHandles: unknown[];
+}
+
+// --- inputs (CLI inputs arrive as strings) --------------------------------------
+
+export const ExpectedInputs = {
+  expectedStage: z.string().min(1).describe(
+    "The stage status reported; a write is refused if the item has moved",
+  ),
+  expectedCycle: z.coerce.number().int().positive().describe(
+    "The cycle status reported",
+  ),
+  expectedEra: z.string().min(1).describe("The era status reported"),
+};
+
+export const ActorInputs = {
+  onBehalfOf: z.string().min(1).optional().describe(
+    "Who the caller acts for; recorded beside the platform principal, unverified",
+  ),
+};
+
+/** A payload as an object (from --input-file) or a JSON string (--input). */
+export const PayloadInput = z.union([
+  z.record(z.string(), z.unknown()),
+  z.string(),
+]).describe("The payload: an object, or a JSON object as a string");
+
+function payloadFrom(input: Record<string, unknown> | string) {
+  if (typeof input !== "string") return input;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(input);
+  } catch (error) {
+    throw new Error(
+      `payload is not valid JSON: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("payload must be a JSON object");
+  }
+  return parsed as Record<string, unknown>;
+}
+
+function expectedFrom(args: {
+  expectedStage: string;
+  expectedCycle: number;
+  expectedEra: string;
+}): Expected {
+  return {
+    stage: args.expectedStage,
+    cycle: args.expectedCycle,
+    era: args.expectedEra,
+  };
+}
+
+function actorOf(ctx: MethodContextLike, onBehalfOf?: string): Actor {
+  return actorFrom(ctx, onBehalfOf);
+}
+
+// --- the lifecycle holder -----------------------------------------------------
+
+function typeNameOf(type: unknown): string {
+  if (typeof type === "string") return type.toLowerCase();
+  if (type !== null && typeof type === "object") {
+    const t = type as { normalized?: unknown; raw?: unknown };
+    if (typeof t.normalized === "string") return t.normalized;
+    if (typeof t.raw === "string") return t.raw.toLowerCase();
+  }
+  return String(type);
+}
+
+/**
+ * The raw, unevaluated globalArguments of a lifecycle holder. Read through
+ * the definition repository, never the evaluated context.globalArgs, so a
+ * ${{ }} reaches the lifecycle schema's own error. On a remote worker the
+ * definition arrives as a plain object with _globalArguments.
+ */
+export async function readHolderArguments(
+  ctx: MethodContextLike,
+  name: string,
+): Promise<unknown> {
+  if (ctx.definitionRepository === undefined) {
+    throw new Error("this method context cannot read model definitions");
+  }
+  const found = await ctx.definitionRepository.findByNameGlobal(name);
+  if (found === null) throw new Error(`no lifecycle holder named '${name}'`);
+  const type = typeNameOf(found.type);
+  if (type !== HOLDER_TYPE) {
+    throw new Error(
+      `'${name}' is a ${type}, not a lifecycle holder (${HOLDER_TYPE})`,
+    );
+  }
+  const definition = found.definition as {
+    globalArguments?: unknown;
+    _globalArguments?: unknown;
+  };
+  return definition.globalArguments ?? definition._globalArguments ?? {};
+}
+
+/** A holder's lifecycle, validated in full; throws with every error. */
+export async function loadHolderLifecycle(
+  ctx: MethodContextLike,
+  name: string,
+): Promise<Lifecycle> {
+  const parsed = parseLifecycle(await readHolderArguments(ctx, name));
+  if (!parsed.ok) {
+    throw new Error(
+      `lifecycle holder '${name}' is not a valid lifecycle:\n${
+        parsed.errors.join("\n")
+      }`,
+    );
+  }
+  return parsed.value;
+}
+
+/** The holder's validate method: every error, or a summary of the lifecycle. */
+export async function validateHolder(
+  ctx: MethodContextLike,
+): Promise<MethodOutput> {
+  const name = selfName(ctx);
+  const lifecycle = await loadHolderLifecycle(ctx, name);
+  ctx.logger.info("{summary}", {
+    summary: `lifecycle '${lifecycle.name}' in '${name}' is valid: ` +
+      `${lifecycle.stages.length} stages (${
+        lifecycle.stages.map((s) => s.id).join(", ")
+      })`,
+    lifecycle: lifecycle.name,
+    digest: await digestOf(lifecycle),
+  });
+  return { dataHandles: [] };
+}
+
+const KEY_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567";
+
+/** A fresh work-item key: <lifecycle>-<8 base32 characters>. */
+export function generateKey(lifecycleName: string): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  const suffix = Array.from(bytes, (b) => KEY_ALPHABET[b % 32]).join("");
+  // Instance names are at most 64 characters.
+  return `${lifecycleName.slice(0, 55)}-${suffix}`;
+}
+
+/** The holder's new_key method: a key no definition uses yet. */
+export async function newKey(ctx: MethodContextLike): Promise<MethodOutput> {
+  const lifecycle = await loadHolderLifecycle(ctx, selfName(ctx));
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const key = generateKey(lifecycle.name);
+    if (await ctx.definitionRepository?.findByNameGlobal(key) == null) {
+      ctx.logger.info("{key}", {
+        key,
+        next:
+          `swamp model @swamp/gatorwalk-factory/work-item method run start ${key} --input lifecycle=${
+            selfName(ctx)
+          }`,
+      });
+      return { dataHandles: [] };
+    }
+  }
+  throw new Error("could not find a free work-item key; try again");
+}
+
+function selfName(ctx: MethodContextLike): string {
+  const name = ctx.definition?.name;
+  if (name === undefined || name === "") {
+    throw new Error("this method context has no definition name");
+  }
+  return name;
+}
+
+// --- the pinned lifecycle ------------------------------------------------------
+
+interface Pinned {
+  holder: string;
+  digest: string;
+  lifecycle: Lifecycle;
+}
+
+/** Pin a lifecycle to the work item; returns the version written. */
+async function pin(
+  ctx: MethodContextLike,
+  handles: unknown[],
+  holder: string,
+  lifecycle: Lifecycle,
+): Promise<{ digest: string; version: number }> {
+  if (ctx.writeResource === undefined) {
+    throw new Error("this method context cannot write resources");
+  }
+  const digest = await digestOf(lifecycle);
+  const handle = await ctx.writeResource(LIFECYCLE_SPEC, LIFECYCLE_NAME, {
+    holder,
+    digest,
+    lifecycle: jsonSafe(lifecycle),
+  });
+  handles.push(handle);
+  return { digest, version: handle.version };
+}
+
+/**
+ * The lifecycle this run is pinned to: exactly the version its run record
+ * names, checked against its digest. A copy pinned by an interrupted reset
+ * is never used by mistake.
+ */
+async function readPinned(
+  ctx: MethodContextLike,
+  run: RunRecord,
+): Promise<Pinned> {
+  if (run.lifecycle.version === undefined) {
+    // Every run the model types start names its pinned version; reading the
+    // latest copy instead could pick up an unused one.
+    throw new Error("the run names no pinned lifecycle version to read");
+  }
+  const record = await ctx.readResource?.(
+    LIFECYCLE_NAME,
+    run.lifecycle.version,
+  );
+  if (record === null || record === undefined) {
+    throw new Error("the work item's pinned lifecycle is missing");
+  }
+  const parsed = parseLifecycle(record.lifecycle);
+  if (!parsed.ok) {
+    throw new Error(
+      `the pinned lifecycle is invalid:\n${parsed.errors.join("\n")}`,
+    );
+  }
+  if (await digestOf(parsed.value) !== run.lifecycle.digest) {
+    throw new Error(
+      "the pinned lifecycle does not match the digest the run recorded",
+    );
+  }
+  return {
+    holder: String(record.holder),
+    digest: run.lifecycle.digest,
+    lifecycle: parsed.value,
+  };
+}
+
+interface Session {
+  store: RunStore;
+  handles: unknown[];
+  run: RunRecord;
+  pinned: Pinned;
+}
+
+async function open(ctx: MethodContextLike): Promise<Session> {
+  const handles: unknown[] = [];
+  const store = contextStore(ctx, handles);
+  const run = await loadRun(store);
+  if (run === null) {
+    throw new Error(
+      "the work item has not started; run start with --input lifecycle=<holder>",
+    );
+  }
+  return { store, handles, run, pinned: await readPinned(ctx, run) };
+}
+
+function unwrap<T>(result: OpResult<T>): { run: RunRecord; value: T } {
+  if (!result.ok) throw new Error(result.reason);
+  return result;
+}
+
+// --- the work-item methods ------------------------------------------------------
+
+export async function startWorkItem(
+  ctx: MethodContextLike,
+  args: {
+    lifecycle: string;
+    externalRefs?: Record<string, string>;
+    onBehalfOf?: string;
+  },
+  env: Env,
+): Promise<MethodOutput> {
+  const key = selfName(ctx);
+  const handles: unknown[] = [];
+  const store = contextStore(ctx, handles);
+  const existing = await loadRun(store);
+  if (existing !== null) {
+    throw new Error(
+      `work item '${key}' has already started; run status to see where it is`,
+    );
+  }
+  const lifecycle = await loadHolderLifecycle(ctx, args.lifecycle);
+  // Pin first, then commit the run that names the pinned version.
+  const pinned = await pin(ctx, handles, args.lifecycle, lifecycle);
+  const started = unwrap(
+    await startRun(
+      store,
+      lifecycle,
+      {
+        key,
+        externalRefs: args.externalRefs ?? {},
+        lifecycleDigest: pinned.digest,
+        lifecycleVersion: pinned.version,
+      },
+      actorOf(ctx, args.onBehalfOf),
+      env,
+    ),
+  );
+  ctx.logger.info("{summary}", {
+    summary: `started '${key}' at stage '${started.run.stage}' ` +
+      `(lifecycle '${lifecycle.name}' from '${args.lifecycle}')`,
+    ...expectationProps(started.run),
+  });
+  return { dataHandles: handles };
+}
+
+function expectationProps(run: RunRecord) {
+  return {
+    expectedStage: run.stage,
+    expectedCycle: currentCycle(run),
+    expectedEra: run.era,
+  };
+}
+
+/** Everything a caller needs to act next, as data. */
+export async function describeStatus(
+  ctx: MethodContextLike,
+  env: Env,
+) {
+  const { store, run, pinned } = await open(ctx);
+  const lifecycle = pinned.lifecycle;
+  const context = await buildCelContext(run, store);
+  const active = run.status === "active";
+  return {
+    key: run.key,
+    lifecycle: {
+      name: lifecycle.name,
+      holder: pinned.holder,
+      digest: pinned.digest,
+    },
+    status: run.status,
+    stage: run.stage,
+    cycle: currentCycle(run),
+    era: run.era,
+    expected: expectationProps(run),
+    dispatch: active ? buildDispatch(lifecycle, run, context) : null,
+    dispatchCap: active ? dispatchCap(run, lifecycle) : null,
+    exits: active
+      ? (await evaluateTransitions(run, lifecycle, store, env)).map((t) => ({
+        name: t.name,
+        to: t.to,
+        manual: t.manual,
+        ready: t.ready,
+        failures: t.failures,
+      }))
+      : [],
+    validations: run.validations,
+    products: run.products,
+  };
+}
+
+export async function status(
+  ctx: MethodContextLike,
+  env: Env,
+): Promise<MethodOutput> {
+  const view = await describeStatus(ctx, env);
+  const lines = [
+    `${view.key}: ${view.status} at stage '${view.stage}' cycle ${view.cycle}`,
+    `  expect: --input expectedStage=${view.expected.expectedStage} ` +
+    `--input expectedCycle=${view.expected.expectedCycle} ` +
+    `--input expectedEra=${view.expected.expectedEra}`,
+    ...view.exits.map((e) =>
+      `  exit ${e.name} -> ${e.to}${e.manual ? " (manual)" : ""}: ${
+        e.ready ? "ready" : `not ready: ${e.failures.join("; ")}`
+      }`
+    ),
+  ];
+  if (view.dispatch !== null && !view.dispatch.ready) {
+    lines.push(`  dispatch not ready: ${view.dispatch.problems.join("; ")}`);
+  }
+  ctx.logger.info("{summary}", { summary: lines.join("\n"), status: view });
+  return { dataHandles: [] };
+}
+
+export async function recordProductMethod(
+  ctx: MethodContextLike,
+  kind: ProductKind,
+  args: {
+    name: string;
+    payload: Record<string, unknown> | string;
+    expectedStage: string;
+    expectedCycle: number;
+    expectedEra: string;
+    onBehalfOf?: string;
+  },
+  env: Env,
+): Promise<MethodOutput> {
+  const { store, handles, pinned } = await open(ctx);
+  const result = await recordProduct(
+    store,
+    pinned.lifecycle,
+    expectedFrom(args),
+    kind,
+    args.name,
+    payloadFrom(args.payload),
+    actorOf(ctx, args.onBehalfOf),
+    env,
+  );
+  if (!result.ok && result.rejected) {
+    throw new Error(
+      `${kind} '${args.name}' was rejected and kept as retry feedback:\n${
+        result.errors.join("\n")
+      }`,
+    );
+  }
+  if (!result.ok) throw new Error(result.reason);
+  ctx.logger.info("{summary}", {
+    summary: `recorded ${kind} '${args.name}' version ${result.version}`,
+    version: result.version,
+    digest: result.digest,
+  });
+  return { dataHandles: handles };
+}
+
+export async function dispatch(
+  ctx: MethodContextLike,
+  args: {
+    expectedStage: string;
+    expectedCycle: number;
+    expectedEra: string;
+    onBehalfOf?: string;
+  },
+  env: Env,
+): Promise<MethodOutput> {
+  const { store, handles, run, pinned } = await open(ctx);
+  const packet = buildDispatch(
+    pinned.lifecycle,
+    run,
+    await buildCelContext(run, store),
+  );
+  if (!packet.ready) {
+    throw new Error(
+      `stage '${packet.stage}' is not ready to dispatch:\n${
+        packet.problems.join("\n")
+      }`,
+    );
+  }
+  const recorded = unwrap(
+    await update(store, (current) =>
+      recordDispatch(
+        current,
+        pinned.lifecycle,
+        expectedFrom(args),
+        {
+          inputs: packet.inputs ?? packet.values,
+          ...(packet.prompt !== undefined ? { prompt: packet.prompt } : {}),
+          ...(packet.command !== undefined ? { command: packet.command } : {}),
+        },
+        actorOf(ctx, args.onBehalfOf),
+        env,
+      )),
+  );
+  ctx.logger.info("{summary}", {
+    summary:
+      `dispatch ${recorded.value} for stage '${packet.stage}' cycle ${packet.cycle}` +
+      (packet.prompt !== undefined ? `\n${packet.prompt}` : ""),
+    dispatchId: recorded.value,
+    packet,
+  });
+  return { dataHandles: handles };
+}
+
+export async function recordUsageMethod(
+  ctx: MethodContextLike,
+  args: {
+    dispatchId: number;
+    inputTokens: number;
+    outputTokens: number;
+    model?: string;
+    onBehalfOf?: string;
+  },
+  env: Env,
+): Promise<MethodOutput> {
+  const { store, handles } = await open(ctx);
+  unwrap(
+    await update(store, (run) =>
+      recordUsage(
+        run,
+        args.dispatchId,
+        {
+          inputTokens: args.inputTokens,
+          outputTokens: args.outputTokens,
+          ...(args.model !== undefined ? { model: args.model } : {}),
+        },
+        actorOf(ctx, args.onBehalfOf),
+        env,
+      )),
+  );
+  ctx.logger.info("{summary}", {
+    summary: `recorded usage for dispatch ${args.dispatchId}`,
+  });
+  return { dataHandles: handles };
+}
+
+export async function decide(
+  ctx: MethodContextLike,
+  decision: "approve" | "decline",
+  args: {
+    gateId: string;
+    note?: string;
+    expectedStage: string;
+    expectedCycle: number;
+    expectedEra: string;
+    onBehalfOf?: string;
+  },
+  env: Env,
+): Promise<MethodOutput> {
+  const { store, handles, pinned } = await open(ctx);
+  const recorded = unwrap(
+    await update(store, (run) =>
+      recordApproval(
+        run,
+        pinned.lifecycle,
+        expectedFrom(args),
+        {
+          gateId: args.gateId,
+          decision,
+          ...(args.note !== undefined ? { note: args.note } : {}),
+        },
+        actorOf(ctx, args.onBehalfOf),
+        env,
+      )),
+  );
+  ctx.logger.info("{summary}", {
+    summary:
+      `${decision === "approve" ? "approved" : "declined"} '${args.gateId}' ` +
+      `(decision ${recorded.value})`,
+  });
+  return { dataHandles: handles };
+}
+
+export async function grantOverrideMethod(
+  ctx: MethodContextLike,
+  args: {
+    kind: "cycle" | "dispatch";
+    stage?: string;
+    note?: string;
+    expectedStage: string;
+    expectedCycle: number;
+    expectedEra: string;
+    onBehalfOf?: string;
+  },
+  env: Env,
+): Promise<MethodOutput> {
+  if (args.kind === "cycle" && args.stage === undefined) {
+    throw new Error(
+      "a cycle override names the stage it is for: --input stage=<id>",
+    );
+  }
+  const { store, handles, pinned } = await open(ctx);
+  const input = args.kind === "cycle"
+    ? { kind: "cycle" as const, stage: args.stage as string, note: args.note }
+    : { kind: "dispatch" as const, note: args.note };
+  const granted = unwrap(
+    await update(store, (run) =>
+      grantOverride(
+        run,
+        pinned.lifecycle,
+        expectedFrom(args),
+        input,
+        actorOf(ctx, args.onBehalfOf),
+        env,
+      )),
+  );
+  ctx.logger.info("{summary}", {
+    summary: `granted ${args.kind} override ${granted.value}`,
+  });
+  return { dataHandles: handles };
+}
+
+export async function advanceMethod(
+  ctx: MethodContextLike,
+  args: {
+    transition: string;
+    confirm?: boolean;
+    expectedStage: string;
+    expectedCycle: number;
+    expectedEra: string;
+    onBehalfOf?: string;
+  },
+  env: Env,
+): Promise<MethodOutput> {
+  const { store, handles, pinned } = await open(ctx);
+  const gates = makeGateEvaluator(pinned.lifecycle, store, env);
+  const moved = unwrap(
+    await update(store, (run) =>
+      advance(
+        run,
+        pinned.lifecycle,
+        expectedFrom(args),
+        { transition: args.transition, manualConfirmed: args.confirm === true },
+        gates,
+        actorOf(ctx, args.onBehalfOf),
+        env,
+      )),
+  );
+  ctx.logger.info("{summary}", {
+    summary:
+      `took '${args.transition}' to stage '${moved.run.stage}' cycle ${
+        currentCycle(moved.run)
+      }` + (moved.run.status === "terminal" ? " (finished)" : ""),
+    ...expectationProps(moved.run),
+  });
+  return { dataHandles: handles };
+}
+
+export async function resetMethod(
+  ctx: MethodContextLike,
+  args: {
+    confirm: string;
+    repin?: boolean;
+    expectedStage: string;
+    expectedCycle: number;
+    expectedEra: string;
+    onBehalfOf?: string;
+  },
+  env: Env,
+): Promise<MethodOutput> {
+  if (args.confirm !== "reset") {
+    throw new Error(
+      "reset starts the work item over in a new era; pass --input confirm=reset",
+    );
+  }
+  const { store, handles, run, pinned } = await open(ctx);
+  // Check the expectation before writing a new pin.
+  const current = expectedOf(run);
+  const expected = expectedFrom(args);
+  if (
+    current.stage !== expected.stage || current.cycle !== expected.cycle ||
+    current.era !== expected.era
+  ) {
+    unwrap(
+      reset(
+        run,
+        pinned.lifecycle,
+        expected,
+        actorOf(ctx, args.onBehalfOf),
+        env,
+      ),
+    );
+  }
+  let lifecycle = pinned.lifecycle;
+  let repinned: { digest: string; version: number } | undefined;
+  if (args.repin === true) {
+    lifecycle = await loadHolderLifecycle(ctx, pinned.holder);
+    repinned = await pin(ctx, handles, pinned.holder, lifecycle);
+  }
+  const result = unwrap(
+    await update(
+      store,
+      (latest) =>
+        reset(
+          latest,
+          lifecycle,
+          expected,
+          actorOf(ctx, args.onBehalfOf),
+          env,
+          repinned,
+        ),
+    ),
+  );
+  ctx.logger.info("{summary}", {
+    summary: `reset: new era ${result.value} at stage '${result.run.stage}'` +
+      (repinned !== undefined ? ` with lifecycle ${repinned.digest}` : ""),
+    ...expectationProps(result.run),
+  });
+  return { dataHandles: handles };
+}

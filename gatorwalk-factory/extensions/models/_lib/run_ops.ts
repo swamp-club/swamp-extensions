@@ -142,6 +142,8 @@ export interface StartInput {
   key: string;
   externalRefs?: Record<string, string>;
   lifecycleDigest: string;
+  /** The version of the pinned lifecycle copy the run uses. */
+  lifecycleVersion?: number;
 }
 
 /** A new run at the lifecycle's initial stage. */
@@ -157,7 +159,13 @@ export function start(
     schemaVersion: RUN_SCHEMA_VERSION,
     key: input.key,
     externalRefs: input.externalRefs ?? {},
-    lifecycle: { name: lifecycle.name, digest: input.lifecycleDigest },
+    lifecycle: {
+      name: lifecycle.name,
+      digest: input.lifecycleDigest,
+      ...(input.lifecycleVersion !== undefined
+        ? { version: input.lifecycleVersion }
+        : {}),
+    },
     era: env.newEra(),
     status: "active",
     stage: initial.id,
@@ -188,6 +196,9 @@ export function reset(
   expected: Expected,
   actor: Actor,
   env: Env,
+  /** The pinned copy of `lifecycle` when the reset adopts a new one;
+   * omitted, the run keeps the lifecycle it was pinned to. */
+  repinned?: { digest: string; version?: number },
 ): OpResult<string> {
   const stale = checkExpected(run, expected);
   if (stale !== null) return refuse(stale);
@@ -196,6 +207,9 @@ export function reset(
   const previousEra = run.era;
   const next: RunRecord = {
     ...run,
+    ...(repinned !== undefined
+      ? { lifecycle: { name: lifecycle.name, ...repinned } }
+      : {}),
     era: env.newEra(),
     status: "active",
     stage: initial.id,
@@ -204,7 +218,11 @@ export function reset(
     validations: { artifacts: {}, evidence: {} },
     journal: [...run.journal],
   };
-  next.journal.push(journal(next, actor, env, { type: "reset", previousEra }));
+  next.journal.push(journal(next, actor, env, {
+    type: "reset",
+    previousEra,
+    ...(repinned !== undefined ? { repinned } : {}),
+  }));
   return { ok: true, run: next, value: next.era };
 }
 

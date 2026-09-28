@@ -107,6 +107,7 @@ stages:
           - type: cel
             config:
               expr: >-
+                "plan-review" in artifacts &&
                 artifacts["plan-review"].payload.findings.exists(f,
                 (f.severity == "critical" || f.severity == "high") &&
                 !(has(f.resolved) && f.resolved))
@@ -316,6 +317,7 @@ stages:
           - type: cel
             config:
               expr: >-
+                "code-review" in artifacts &&
                 artifacts["code-review"].payload.findings.exists(f,
                 (f.severity == "critical" || f.severity == "high") &&
                 !(has(f.resolved) && f.resolved))
