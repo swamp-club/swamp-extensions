@@ -415,10 +415,9 @@ export function buildAttestation(
           status: step.status,
           durationMs: step.duration,
           // A review step's status IS the gate decision: every review
-          // delegates to check_review_verdict.ts, whose exit code decides the
-          // step. Reading a verdict out of the reviewer's prose would be
-          // reading the input to that decision rather than the decision, and
-          // the two can differ when a marker appears mid-sentence.
+          // ends with the review-record model's decide, whose exit status
+          // decides the step from the reviewer's submitted record. The
+          // reviewer's prose is never read, so the status is the decision.
           verdict: job.name === config.reviewJob && step.status === "succeeded"
             ? "pass"
             : undefined,

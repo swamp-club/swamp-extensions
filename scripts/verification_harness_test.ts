@@ -18,8 +18,8 @@
  * Fitness rules for this repository's pre-PR verification harness. Pull-request
  * CI builds nothing, so each rule guards a way the harness could stop checking
  * something without anything failing at the time: an extension no check
- * covers, a group verify-build never runs, a review whose verdict bypasses the
- * checker, a pinned file CI's integrity audit never looks at, a workflow step
+ * covers, a group verify-build never runs, a review whose verdict bypasses its
+ * submitted record, a pinned file CI's integrity audit never looks at, a workflow step
  * that depends on the host's extension state.
  */
 
@@ -119,7 +119,7 @@ Deno.test("harness: verify workflows depend on no registry extension", async () 
   }
 });
 
-Deno.test("harness: every review is decided by check_review_verdict.ts", async () => {
+Deno.test("harness: every review is decided by its submitted record", async () => {
   const workflow = attestation.workflows.find((w) =>
     w.name === "verify-reviews"
   );
@@ -130,9 +130,29 @@ Deno.test("harness: every review is decided by check_review_verdict.ts", async (
   const pinnedPaths = new Set(pinned.map((f) => f.path));
   for (const step of job.steps) {
     const run = step.task?.inputs?.run ?? "";
+    // The reviewer records its result with submit, and decide's exit status
+    // is the step's verdict. The reviewer's prose is never read.
+    const submit =
+      `swamp model @swamp/review-record method run submit ${step.name} ` +
+      "--input-file $RECORD_FILE --no-telemetry";
     assert(
-      run.includes("scripts/check_review_verdict.ts"),
-      `${step.name} does not decide its verdict with check_review_verdict.ts`,
+      run.includes(`SUBMIT="${submit}"`),
+      `${step.name} does not submit through its own review-record definition`,
+    );
+    assert(
+      run.includes(
+        `swamp model @swamp/review-record method run decide ${step.name} ` +
+          "--no-telemetry ||",
+      ),
+      `${step.name} is not decided by its review-record definition`,
+    );
+    // The reviewer may write one file and run one command: anything broader
+    // would let a manipulated reviewer act outside the review.
+    const allowed = run.match(/--allowedTools "([^"]*)"/g) ?? [];
+    assertEquals(
+      allowed,
+      ['--allowedTools "Read,Glob,Grep,Edit(/$RECORD_FILE),Bash($SUBMIT)"'],
+      `${step.name} grants the reviewer more than its record and submit`,
     );
     const prompt = run.match(/verification\/review-prompts\/[\w-]+\.md/)?.[0];
     assert(prompt, `${step.name} names no review prompt`);

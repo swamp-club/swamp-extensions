@@ -3,7 +3,8 @@ name: verify-reviews
 description: |
   Agent code reviews using the claude CLI. Detects changed files, hands each
   reviewer the merge-base diff as a file, and runs the reviews in parallel.
-  A review passes only on an explicit VERDICT: pass (scripts/check_review_verdict.ts).
+  Each reviewer records its result through the @swamp/review-record model
+  (extensions/models/review_record.ts), whose decide method decides the step.
   Runs on the host in a fresh git worktree so CLAUDE.md, skills, and file
   reads reflect the verified commit.
 version: 1
@@ -107,9 +108,9 @@ jobs:
             run: |
               set -o pipefail
               fail() { echo "::error::$1"; exit 1; }
-              DIFF_FILE=$(mktemp) && PROMPT_FILE=$(mktemp) && RESULT_FILE=$(mktemp) ||
+              DIFF_FILE=$(mktemp) && PROMPT_FILE=$(mktemp) && RECORD_DIR=$(mktemp -d) ||
                 fail "could not create temporary files"
-              trap 'rm -f "$DIFF_FILE" "$PROMPT_FILE" "$RESULT_FILE"' EXIT
+              trap 'rm -rf "$DIFF_FILE" "$PROMPT_FILE" "$RECORD_DIR"' EXIT
               MERGE_BASE=$(git merge-base origin/main HEAD) ||
                 fail "no merge base with origin/main"
               # --text and --no-textconv: a .gitattributes in the change could
@@ -117,17 +118,23 @@ jobs:
               # reviewer.
               git diff --text --no-textconv --no-ext-diff "$MERGE_BASE" > "$DIFF_FILE" || fail "git diff failed"
               # Without its prompt the reviewer would review with no
-              # instructions and could still answer VERDICT: pass.
+              # instructions and could still submit a pass.
               cat verification/review-prompts/code-review.md > "$PROMPT_FILE" ||
                 fail "review prompt verification/review-prompts/code-review.md is missing"
-              printf '\n\nThe diff to review is at: %s\nRead that file to see the changes.\n\nIMPORTANT: You MUST begin your response with exactly one of these two lines:\nVERDICT: pass\nVERDICT: fail\n\nThen provide your full review below the verdict line.\n' "$DIFF_FILE" >> "$PROMPT_FILE"
+              # The reviewer records its result through the review-record
+              # model at this commit: it writes JSON to RECORD_FILE and submits
+              # it. The allowlist grants that one file and that one command,
+              # nothing broader. Its prose goes to the log and is never read.
+              RECORD_FILE="$RECORD_DIR/review.json"
+              SUBMIT="swamp model @swamp/review-record method run submit code-review --input-file $RECORD_FILE --no-telemetry"
+              printf '\n\nThe diff to review is at: %s\nRead that file to see the changes.\n\nRecord your review by writing it as JSON to %s and then running exactly this command:\n%s\nIf the command reports an error, fix the file and run the command again. Your text output is not read; only the submitted record counts.\n' "$DIFF_FILE" "$RECORD_FILE" "$SUBMIT" >> "$PROMPT_FILE"
               claude -p - \
                 --model claude-opus-5-5 \
-                --allowedTools "Read,Glob,Grep" < "$PROMPT_FILE" | tee "$RESULT_FILE"
+                --allowedTools "Read,Glob,Grep,Edit(/$RECORD_FILE),Bash($SUBMIT)" < "$PROMPT_FILE"
               CLAUDE_EXIT=$?
               [ $CLAUDE_EXIT -eq 0 ] || fail "claude exited with status $CLAUDE_EXIT"
-              deno run --allow-read="$RESULT_FILE" \
-                scripts/check_review_verdict.ts "$RESULT_FILE" "Code review"
+              swamp model @swamp/review-record method run decide code-review --no-telemetry ||
+                fail "Code review did not pass"
             workingDir: "/tmp/swamp-verify-reviews-${{ run.id }}"
 
       - name: adversarial-review
@@ -142,9 +149,9 @@ jobs:
             run: |
               set -o pipefail
               fail() { echo "::error::$1"; exit 1; }
-              DIFF_FILE=$(mktemp) && PROMPT_FILE=$(mktemp) && RESULT_FILE=$(mktemp) ||
+              DIFF_FILE=$(mktemp) && PROMPT_FILE=$(mktemp) && RECORD_DIR=$(mktemp -d) ||
                 fail "could not create temporary files"
-              trap 'rm -f "$DIFF_FILE" "$PROMPT_FILE" "$RESULT_FILE"' EXIT
+              trap 'rm -rf "$DIFF_FILE" "$PROMPT_FILE" "$RECORD_DIR"' EXIT
               MERGE_BASE=$(git merge-base origin/main HEAD) ||
                 fail "no merge base with origin/main"
               # --text and --no-textconv: a .gitattributes in the change could
@@ -152,17 +159,23 @@ jobs:
               # reviewer.
               git diff --text --no-textconv --no-ext-diff "$MERGE_BASE" > "$DIFF_FILE" || fail "git diff failed"
               # Without its prompt the reviewer would review with no
-              # instructions and could still answer VERDICT: pass.
+              # instructions and could still submit a pass.
               cat verification/review-prompts/adversarial-review.md > "$PROMPT_FILE" ||
                 fail "review prompt verification/review-prompts/adversarial-review.md is missing"
-              printf '\n\nThe diff to review is at: %s\nRead that file to see the changes.\n\nIMPORTANT: You MUST begin your response with exactly one of these two lines:\nVERDICT: pass\nVERDICT: fail\n\nThen provide your full review below the verdict line.\n' "$DIFF_FILE" >> "$PROMPT_FILE"
+              # The reviewer records its result through the review-record
+              # model at this commit: it writes JSON to RECORD_FILE and submits
+              # it. The allowlist grants that one file and that one command,
+              # nothing broader. Its prose goes to the log and is never read.
+              RECORD_FILE="$RECORD_DIR/review.json"
+              SUBMIT="swamp model @swamp/review-record method run submit adversarial-review --input-file $RECORD_FILE --no-telemetry"
+              printf '\n\nThe diff to review is at: %s\nRead that file to see the changes.\n\nRecord your review by writing it as JSON to %s and then running exactly this command:\n%s\nIf the command reports an error, fix the file and run the command again. Your text output is not read; only the submitted record counts.\n' "$DIFF_FILE" "$RECORD_FILE" "$SUBMIT" >> "$PROMPT_FILE"
               claude -p - \
                 --model claude-opus-5-5 \
-                --allowedTools "Read,Glob,Grep" < "$PROMPT_FILE" | tee "$RESULT_FILE"
+                --allowedTools "Read,Glob,Grep,Edit(/$RECORD_FILE),Bash($SUBMIT)" < "$PROMPT_FILE"
               CLAUDE_EXIT=$?
               [ $CLAUDE_EXIT -eq 0 ] || fail "claude exited with status $CLAUDE_EXIT"
-              deno run --allow-read="$RESULT_FILE" \
-                scripts/check_review_verdict.ts "$RESULT_FILE" "Adversarial review"
+              swamp model @swamp/review-record method run decide adversarial-review --no-telemetry ||
+                fail "Adversarial review did not pass"
             workingDir: "/tmp/swamp-verify-reviews-${{ run.id }}"
 
       - name: ci-security-review
@@ -177,9 +190,9 @@ jobs:
             run: |
               set -o pipefail
               fail() { echo "::error::$1"; exit 1; }
-              DIFF_FILE=$(mktemp) && PROMPT_FILE=$(mktemp) && RESULT_FILE=$(mktemp) ||
+              DIFF_FILE=$(mktemp) && PROMPT_FILE=$(mktemp) && RECORD_DIR=$(mktemp -d) ||
                 fail "could not create temporary files"
-              trap 'rm -f "$DIFF_FILE" "$PROMPT_FILE" "$RESULT_FILE"' EXIT
+              trap 'rm -rf "$DIFF_FILE" "$PROMPT_FILE" "$RECORD_DIR"' EXIT
               MERGE_BASE=$(git merge-base origin/main HEAD) ||
                 fail "no merge base with origin/main"
               # --text and --no-textconv: a .gitattributes in the change could
@@ -187,17 +200,23 @@ jobs:
               # reviewer.
               git diff --text --no-textconv --no-ext-diff "$MERGE_BASE" > "$DIFF_FILE" || fail "git diff failed"
               # Without its prompt the reviewer would review with no
-              # instructions and could still answer VERDICT: pass.
+              # instructions and could still submit a pass.
               cat verification/review-prompts/ci-security-review.md > "$PROMPT_FILE" ||
                 fail "review prompt verification/review-prompts/ci-security-review.md is missing"
-              printf '\n\nThe diff to review is at: %s\nRead that file to see the changes.\n\nIMPORTANT: You MUST begin your response with exactly one of these two lines:\nVERDICT: pass\nVERDICT: fail\n\nThen provide your full review below the verdict line.\n' "$DIFF_FILE" >> "$PROMPT_FILE"
+              # The reviewer records its result through the review-record
+              # model at this commit: it writes JSON to RECORD_FILE and submits
+              # it. The allowlist grants that one file and that one command,
+              # nothing broader. Its prose goes to the log and is never read.
+              RECORD_FILE="$RECORD_DIR/review.json"
+              SUBMIT="swamp model @swamp/review-record method run submit ci-security-review --input-file $RECORD_FILE --no-telemetry"
+              printf '\n\nThe diff to review is at: %s\nRead that file to see the changes.\n\nRecord your review by writing it as JSON to %s and then running exactly this command:\n%s\nIf the command reports an error, fix the file and run the command again. Your text output is not read; only the submitted record counts.\n' "$DIFF_FILE" "$RECORD_FILE" "$SUBMIT" >> "$PROMPT_FILE"
               claude -p - \
                 --model claude-opus-5-5 \
-                --allowedTools "Read,Glob,Grep" < "$PROMPT_FILE" | tee "$RESULT_FILE"
+                --allowedTools "Read,Glob,Grep,Edit(/$RECORD_FILE),Bash($SUBMIT)" < "$PROMPT_FILE"
               CLAUDE_EXIT=$?
               [ $CLAUDE_EXIT -eq 0 ] || fail "claude exited with status $CLAUDE_EXIT"
-              deno run --allow-read="$RESULT_FILE" \
-                scripts/check_review_verdict.ts "$RESULT_FILE" "CI security review"
+              swamp model @swamp/review-record method run decide ci-security-review --no-telemetry ||
+                fail "CI security review did not pass"
             workingDir: "/tmp/swamp-verify-reviews-${{ run.id }}"
 
   # ── Cleanup ──────────────────────────────────────────────────

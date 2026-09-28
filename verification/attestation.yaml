@@ -45,6 +45,8 @@ pinned:
     at: [scripts, check-upgrades]
   - path: scripts/check_review_verdict.ts
     at: [scripts, check-review-verdict]
+  - path: extensions/models/review_record.ts
+    at: [scripts, review-record]
   - path: scripts/build_attestation.ts
     at: [scripts, build-attestation]
   - path: scripts/validate_attestation.ts

@@ -73,13 +73,27 @@ skills, and the codebase — in a fresh `git worktree` at the verified commit
 (`/tmp/swamp-verify-reviews-<run-id>`), so `claude -p`'s Read/Glob/Grep see the
 committed file state, not the caller's working tree.
 
-Each reviewer gets the merge-base diff as a file and must begin its answer with
-`VERDICT: pass` or `VERDICT: fail`. `scripts/check_review_verdict.ts` decides
-the step: it passes only when the review's opening line is exactly
-`VERDICT: pass` (markdown emphasis allowed). A marker further down is quoted,
-never the verdict. A missing marker, empty output, or provider error (rate
-limit, auth, credit) fails the step — a review that did not answer is exactly
-when a human should look.
+Each reviewer gets the merge-base diff as a file and records its result through
+the `@swamp/review-record` model (`extensions/models/review_record.ts`), which
+the verify worktree's swamp repo loads at the verified commit. The reviewer
+writes a JSON record (verdict, findings with severities, the review text) to a
+file the step chooses, then runs `submit` for its own review
+(`code-review`, `adversarial-review` or `ci-security-review`). `submit`
+rejects a malformed record, and a verdict that contradicts the findings (the
+verdict is `fail` exactly when a finding is critical or high), with an error
+the reviewer can fix and resubmit. After the reviewer exits, the step runs
+`decide`, which re-validates the stored record and logs `GATE_VERDICT` and the
+review; its exit status is the step's verdict. The reviewer's prose is logged
+but never read. No record, a malformed record, a fail verdict, or a provider
+error (the claude CLI exits non-zero, or nothing was submitted) fails the step —
+a review that did not answer is exactly when a human should look.
+
+The reviewer's `--allowedTools` is `Read,Glob,Grep` plus exactly two entries:
+an `Edit` rule for its one record file and a `Bash` rule for its one `submit`
+command. It cannot run tests or any other command, and a reviewer steered by
+the diff can at most submit a verdict, as it could print one before.
+`scripts/verification_harness_test.ts` pins that allowlist and the
+submit/decide wiring for every review step.
 
 | Review             | Runs when these paths change                                               | Model           |
 | ------------------ | -------------------------------------------------------------------------- | --------------- |
@@ -165,8 +179,8 @@ Verification Checklist (commit <short-sha>)
 ○ Codegen Verify
   ○ idempotency        skipped (guard: no codegen change)
 ✓ Reviews
-  ✓ code-review        claude-opus-5-5   87.0s   VERDICT: pass
-  ✓ adversarial-review claude-opus-5-5   92.0s   VERDICT: pass
+  ✓ code-review        claude-opus-5-5   87.0s   GATE_VERDICT: pass
+  ✓ adversarial-review claude-opus-5-5   92.0s   GATE_VERDICT: pass
   ○ ci-security-review skipped (guard: no CI changes)
 
 Gate: 12/12 passed, 2 skipped

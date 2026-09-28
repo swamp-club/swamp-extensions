@@ -17,9 +17,10 @@
 /**
  * The verdict rule for the pre-PR agent reviews.
  *
- * This is the single place that decides whether a review passed. It is shared
- * by every review step in `verification/workflow-verify-reviews.yaml`; the
- * steps own the reviewer invocation, this owns the decision.
+ * CI's review-integrity job decides its review here; the job owns the
+ * reviewer invocation, this owns the decision. The pre-PR reviews in
+ * `verification/workflow-verify-reviews.yaml` do not parse prose: they are
+ * decided by the review-record model (`extensions/models/review_record.ts`).
  *
  * A review passes only when the reviewer states an explicit `VERDICT: pass`
  * marker. There is deliberately no inference: a reviewer that does not answer

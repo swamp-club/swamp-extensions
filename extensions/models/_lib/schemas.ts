@@ -317,8 +317,8 @@ export const AttestationStepSchema = z.object({
   ),
   verdict: z.string().optional().describe(
     "For a review step, the gate decision. The step's status is that " +
-      "decision — check_review_verdict.ts sets both — so this is a restating " +
-      "of the status, not a second reading of the reviewer's prose.",
+      "decision — the review-record model's decide sets both — so this is a " +
+      "restating of the status, not a second reading of the reviewer's prose.",
   ),
   findings: z.number().optional().describe("Findings the review reported."),
   reason: z.string().optional().describe(

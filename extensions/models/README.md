@@ -249,3 +249,21 @@ Create only the files you want to customize.
 - swamp initialized in the repository (`swamp init`)
 - `SWAMP_API_KEY` env var (or `swamp auth login`) for swamp-club access
 - The target lab issue must already exist in swamp-club
+
+# Review Record Model
+
+`@swamp/review-record` (`review_record.ts`) records the verdict of each pre-PR
+agent review in `verification/workflow-verify-reviews.yaml`. It is repo-local
+and not published: the verify worktree's swamp repo loads it at the verified
+commit, one definition per review (`code-review`, `adversarial-review`,
+`ci-security-review`).
+
+| Method   | What it does                                                                                                                                                                                                    |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `submit` | Called by the reviewer. Validates the verdict (`pass`/`fail`), findings (severity `critical`/`high`/`medium`/`low`) and review text, and that the verdict is `fail` exactly when a finding is critical or high. |
+| `decide` | Called by the workflow after the reviewer exits. Re-validates the stored record, logs `GATE_VERDICT` and the review, and fails unless the verdict is `pass`.                                                    |
+
+```bash
+swamp model @swamp/review-record method run submit code-review --input-file review.json
+swamp model @swamp/review-record method run decide code-review
+```
