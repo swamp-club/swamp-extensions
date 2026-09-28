@@ -198,7 +198,7 @@ function notifyUndecided(reason: string): Error {
 
 export const model = {
   type: "@swamp/issue-lifecycle",
-  version: "2026.09.25.3",
+  version: "2026.09.28.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -429,6 +429,14 @@ export const model = {
         "swamp-club status forward one transition at a time, so an issue " +
         "left at open by an offline triage no longer rejects every later " +
         "transition. verificationResult gains an optional failureReason; no " +
+        "globalArguments changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.28.1",
+      description: "A status step swamp-club already took no longer logs a " +
+        "swamp-club patch failed warning before it is confirmed as a " +
+        "no-op; real failures still raise from the method. No " +
         "globalArguments changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

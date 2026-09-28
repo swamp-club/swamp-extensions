@@ -246,8 +246,14 @@ interface RecordedCall {
  */
 function withScriptedFetch(
   respond: (call: RecordedCall, index: number) => Response | Error,
-): { client: SwampClubClient; calls: RecordedCall[]; restore: () => void } {
+): {
+  client: SwampClubClient;
+  calls: RecordedCall[];
+  warnings: string[];
+  restore: () => void;
+} {
   const calls: RecordedCall[] = [];
+  const warnings: string[] = [];
   const originalFetch = globalThis.fetch;
 
   globalThis.fetch = ((
@@ -269,8 +275,14 @@ function withScriptedFetch(
   }) as typeof fetch;
 
   return {
-    client: new SwampClubClient("https://fake.swamp-club.com", "fake-key", 42),
+    client: new SwampClubClient(
+      "https://fake.swamp-club.com",
+      "fake-key",
+      42,
+      { info: () => {}, warning: (msg) => warnings.push(msg) },
+    ),
     calls,
+    warnings,
     restore: () => {
       globalThis.fetch = originalFetch;
     },
@@ -392,7 +404,7 @@ Deno.test("transitionStatus: a 422 is a no-op when a re-read confirms the reques
 });
 
 Deno.test("transitionStatus: a 422 is a real failure when the re-read shows another status", async () => {
-  const { client, restore } = withScriptedFetch((call) =>
+  const { client, warnings, restore } = withScriptedFetch((call) =>
     call.method === "PATCH"
       ? new Response("precondition", { status: 422 })
       : issueResponse("open")
@@ -403,6 +415,9 @@ Deno.test("transitionStatus: a 422 is a real failure when the re-read shows anot
     if (!outcome.ok && outcome.reason === "rejected") {
       assertEquals(outcome.status, 422);
     }
+    // The failure is carried by the outcome, which the method raises through
+    // recordUpstreamChange — the client itself does not warn about it.
+    assertEquals(warnings, []);
   } finally {
     restore();
   }
@@ -451,6 +466,25 @@ Deno.test("advanceStatus: a step already taken is a no-op on the way", async () 
   try {
     assertEquals(await client.advanceStatus("in_progress"), { ok: true });
     assertEquals(calls.map((c) => c.method), ["PATCH", "GET", "PATCH"]);
+  } finally {
+    restore();
+  }
+});
+
+Deno.test("advanceStatus: a step already taken logs no warning (swamp-club #2624)", async () => {
+  const { client, warnings, restore } = withScriptedFetch((call, index) =>
+    call.method === "PATCH" && index === 0
+      ? new Response(
+        'Cannot triage issue in status "triaged". Expected "open".',
+        { status: 422 },
+      )
+      : call.method === "GET"
+      ? issueResponse("triaged")
+      : new Response("{}", { status: 200 })
+  );
+  try {
+    assertEquals(await client.advanceStatus("in_progress"), { ok: true });
+    assertEquals(warnings, []);
   } finally {
     restore();
   }
@@ -533,6 +567,30 @@ Deno.test("updateAssignees: stays best-effort and never throws on rejection", as
   try {
     await client.updateAssignees(["u1"]);
     assertEquals(calls.length, 1);
+  } finally {
+    restore();
+  }
+});
+
+Deno.test("updateAssignees: logs a warning when the patch is rejected", async () => {
+  const { client, warnings, restore } = withScriptedFetch(() =>
+    new Response("nope", { status: 422 })
+  );
+  try {
+    await client.updateAssignees(["u1"]);
+    assertEquals(warnings, ["swamp-club patch failed: {status} {text}"]);
+  } finally {
+    restore();
+  }
+});
+
+Deno.test("updateAssignees: logs a warning when swamp-club is unreachable", async () => {
+  const { client, warnings, restore } = withScriptedFetch(() =>
+    new TypeError("connection refused")
+  );
+  try {
+    await client.updateAssignees(["u1"]);
+    assertEquals(warnings, ["swamp-club patch error: {error}"]);
   } finally {
     restore();
   }

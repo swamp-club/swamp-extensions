@@ -430,10 +430,19 @@ export class SwampClubClient {
   /**
    * Update the issue's assignees. Deliberately best-effort: assignment is a
    * courtesy action, not an audit record, and must never break the triage
-   * flow. `patchIssue` already logs the failure.
+   * flow. The failure is logged here, since nothing downstream reads it.
    */
   async updateAssignees(userIds: string[]): Promise<void> {
-    await this.patchIssue({ assignees: userIds });
+    const outcome = await this.patchIssue({ assignees: userIds });
+    if (outcome.ok) return;
+    if (outcome.reason === "rejected") {
+      this.log("swamp-club patch failed: {status} {text}", {
+        status: outcome.status,
+        text: outcome.body,
+      });
+    } else {
+      this.log("swamp-club patch error: {error}", { error: outcome.detail });
+    }
   }
 
   /**
@@ -442,7 +451,8 @@ export class SwampClubClient {
    * Deliberately free of any benign-failure classification: this helper
    * carries status, type and assignees patches alike, so it cannot reason
    * about a target status it may not have been given. Callers that know what
-   * they asked for interpret the outcome.
+   * they asked for interpret the outcome — and log it. Logging here would warn
+   * about a 422 that `transitionStatus` goes on to confirm as a no-op.
    */
   private async patchIssue(
     patch: Record<string, unknown>,
@@ -460,10 +470,6 @@ export class SwampClubClient {
       });
       if (!res.ok) {
         const text = await res.text().catch(() => "");
-        this.log("swamp-club patch failed: {status} {text}", {
-          status: res.status,
-          text,
-        });
         return {
           ok: false,
           reason: "rejected",
@@ -473,9 +479,6 @@ export class SwampClubClient {
       }
       return { ok: true };
     } catch (err) {
-      this.log("swamp-club patch error: {error}", {
-        error: String(err),
-      });
       return { ok: false, reason: "unavailable", detail: String(err) };
     }
   }
