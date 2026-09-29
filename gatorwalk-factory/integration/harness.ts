@@ -45,6 +45,11 @@ export const BUILD_LIFECYCLE = new URL(
   import.meta.url,
 );
 
+export const SWAMP_EXTENSIONS_LIFECYCLE = new URL(
+  "../lifecycles/swamp-extensions.yaml",
+  import.meta.url,
+);
+
 export { HOLDER_TYPE, WORK_ITEM_TYPE };
 
 // Variables that would point swamp at another repo, server or workflow dir

@@ -34,6 +34,7 @@ import { makeGateEvaluator } from "./_lib/gates.ts";
 import { analyzeLifecycle, formatFinding } from "./_lib/graph.ts";
 import {
   advance,
+  type Env,
   expectedOf,
   grantOverride,
   recordApproval,
@@ -96,6 +97,7 @@ Deno.test("every file under lifecycles/ is a valid lifecycle", async () => {
 // --- build-swamp-extension -------------------------------------------------
 
 const BUILD = "build-swamp-extension.yaml";
+const SWX = "swamp-extensions.yaml";
 const SHA = "c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd";
 
 Deno.test("build-swamp-extension: the stages, in order", async () => {
@@ -122,6 +124,7 @@ Deno.test("every file under lifecycles/ passes graph analysis, with only the exp
       "default-cycle-bound stages.0 (from stage 'plan')",
       "default-cycle-bound stages.2 (from stage 'implement')",
     ],
+    [SWX]: [],
   };
   const files: string[] = [];
   for await (const entry of Deno.readDir(LIFECYCLES)) {
@@ -628,4 +631,584 @@ Deno.test("build-swamp-extension: a run that keeps revising the plan stalls at t
   const continued = await move("revise", true);
   assert(continued.ok, continued.ok ? "" : continued.reason);
   assertEquals((await loadRun(store))?.entries.plan, 6);
+});
+
+// --- swamp-extensions --------------------------------------------------------
+
+const SHA_2 = "8a25dbbfc0e8f3c1d4a2b6e7f9012345678abcde";
+const PR_URL =
+  "https://git.swamp-club.com/swamp-club/swamp-extensions/pulls/346";
+
+/** A clock the test moves: one second per reading, and wait() jumps ahead. */
+function movableEnv(): { env: Env; wait: (seconds: number) => void } {
+  let ms = Date.UTC(2026, 8, 28, 12, 0, 0);
+  let era = 0;
+  return {
+    env: {
+      now: () => new Date(ms += 1000).toISOString(),
+      newEra: () => `era-${++era}`,
+    },
+    wait: (seconds) => {
+      ms += seconds * 1000;
+    },
+  };
+}
+
+/** Record, approve and advance on a fresh run, through the real gates. */
+async function drive(lifecycle: Lifecycle, env: Env) {
+  const store = memoryStore();
+  const actor = { principal: "user:alice", source: "platform" as const };
+  await startRun(
+    store,
+    lifecycle,
+    { key: "wi-swx", lifecycleDigest: "sha256:l" },
+    actor,
+    env,
+  );
+  const gates = makeGateEvaluator(lifecycle, store, env);
+  return {
+    store,
+    record: async (
+      kind: "artifact" | "evidence",
+      name: string,
+      payload: Record<string, unknown>,
+    ) => {
+      const result = await recordProduct(
+        store,
+        lifecycle,
+        await expectNow(store),
+        kind,
+        name,
+        payload,
+        actor,
+        env,
+      );
+      assert(result.ok, `${kind} ${name}: ${JSON.stringify(result)}`);
+    },
+    approve: async (gateId: string) => {
+      const result = await update(store, (run) =>
+        recordApproval(
+          run,
+          lifecycle,
+          expectedOf(run),
+          { gateId, decision: "approve" },
+          actor,
+          env,
+        ));
+      assert(result.ok, result.ok ? "" : result.reason);
+    },
+    /** Take a transition; returns the refusal reason, or null. */
+    tryMove: async (transition: string, manualConfirmed = false) => {
+      const result = await update(store, (run) =>
+        advance(
+          run,
+          lifecycle,
+          expectedOf(run),
+          { transition, manualConfirmed },
+          gates,
+          actor,
+          env,
+        ));
+      return result.ok ? null : result.reason;
+    },
+  };
+}
+
+const SWX_PLAN = {
+  summary: "Fix the retry",
+  scopeAnalysis: "Vault extension; one file",
+  steps: [{ order: 1, description: "Retry on 503", files: ["x.ts"] }],
+  testingStrategy: "A failing test against a mock server",
+  potentialChallenges: [],
+};
+
+function changeSummary(commit: string) {
+  return {
+    summary: "Retry on 503",
+    commit,
+    branch: "fix-retry",
+    files: ["x.ts"],
+  };
+}
+
+Deno.test("swamp-extensions: the stages, in order", async () => {
+  const lifecycle = await load(SWX);
+  assertEquals(lifecycle.stages.map((s) => s.id), [
+    "triage",
+    "reproduce",
+    "plan",
+    "plan-review",
+    "implement",
+    "conformance-review",
+    "verify-build",
+    "verify-reviews",
+    "attest",
+    "pull-request",
+    "merge",
+    "release",
+    "notify",
+    "summary",
+    "done",
+    "abandoned",
+  ]);
+});
+
+Deno.test("swamp-extensions: graph analysis finishes, and stays small", async () => {
+  // Measured at 145 structural and 18632 count states. With the default
+  // cycle limit the count pass stops at its cap; triage, plan, implement and
+  // pull-request set maxCycles for that reason (swamp-extensions.md, gap 8).
+  const report = analyzeLifecycle(await load(SWX));
+  assert(!report.truncated);
+  assert(
+    report.statesExplored.structural <= 200 &&
+      report.statesExplored.counts <= 25000,
+    JSON.stringify(report.statesExplored),
+  );
+});
+
+Deno.test("swamp-extensions: people decide at an unreproduced bug, the plan, the checklist, opening the PR and abandon", async () => {
+  const lifecycle = await load(SWX);
+  const approvals = new Set<string>();
+  for (
+    const t of lifecycle.stages.flatMap((s) => s.transitions ?? [])
+      .concat(lifecycle.globalTransitions ?? [])
+  ) {
+    for (const gate of t.gates ?? []) {
+      if (gate.type === "human-approval") approvals.add(gate.config.id);
+    }
+  }
+  assertEquals([...approvals].sort(), [
+    "abandon-confirmation",
+    "checklist-confirmed",
+    "open-pr",
+    "plan-approval",
+    "proceed-unreproduced",
+  ]);
+});
+
+Deno.test("swamp-extensions: triage has one exit per type, and none while confidence is low", async () => {
+  const exits = stage(await load(SWX), "triage").transitions ?? [];
+  assertEquals(
+    exits.map((t) => [t.name, t.to]),
+    [
+      ["bug", "reproduce"],
+      ["feature", "plan"],
+      ["platform", "plan"],
+      ["security", "plan"],
+    ],
+  );
+  for (const t of exits) {
+    const gates = t.gates ?? [];
+    assert(
+      gates.some((g) =>
+        g.type === "evidence-recorded" &&
+        g.config.requireField?.type === t.name
+      ),
+      `${t.name} does not require its type`,
+    );
+    assert(
+      gates.some((g) =>
+        g.type === "cel" && g.config.expr.includes('confidence != "low"')
+      ),
+      `${t.name} does not wait out low confidence`,
+    );
+  }
+});
+
+Deno.test("swamp-extensions: every exit from verification to the merge is bound to the change-summary commit", async () => {
+  const lifecycle = await load(SWX);
+  const bound = (stageId: string, name: string) => {
+    const t = (stage(lifecycle, stageId).transitions ?? []).find((t) =>
+      t.name === name
+    );
+    assert(t !== undefined, `no ${stageId}.${name}`);
+    assert(
+      (t.gates ?? []).some((g) =>
+        g.type === "cel" &&
+        g.config.expr.includes('artifacts["change-summary"].payload.commit')
+      ),
+      `${stageId}.${name} is not bound to the change-summary commit`,
+    );
+  };
+  bound("implement", "submit");
+  bound("verify-build", "passed");
+  bound("verify-reviews", "passed");
+  bound("attest", "attested");
+  bound("pull-request", "opened");
+});
+
+Deno.test("swamp-extensions: a person can always send the work back without abandoning it", async () => {
+  const lifecycle = await load(SWX);
+  const manual = (stageId: string, name: string, to: string) =>
+    (stage(lifecycle, stageId).transitions ?? []).some((t) =>
+      t.name === name && t.manual === true && t.to === to
+    );
+  assert(manual("reproduce", "reclassify", "triage"));
+  assert(manual("plan-review", "revise", "plan"));
+  assert(manual("implement", "recheck", "verify-build"));
+  assert(manual("conformance-review", "rework", "implement"));
+  assert(manual("verify-reviews", "revise", "implement"));
+  assert(manual("attest", "revise", "implement"));
+  assert(manual("merge", "new-pr", "pull-request"));
+  assert(manual("merge", "rework", "implement"));
+});
+
+Deno.test("swamp-extensions: realistic payloads validate", async () => {
+  const lifecycle = await load(SWX);
+  const evidence = (name: string, payload: Json) =>
+    assertEquals(
+      validatePayload(evidenceSchema(lifecycle, name), payload),
+      null,
+      name,
+    );
+  const artifact = (name: string, payload: Json) =>
+    assertEquals(
+      validateArtifactPayload(artifactSchema(lifecycle, name), payload),
+      null,
+      name,
+    );
+  evidence("classification", {
+    type: "bug",
+    confidence: "high",
+    reasoning: "The retry never fires",
+    isRegression: true,
+    regressionEvidence: "Passed at 2026.09.20.1",
+    regressionCounterEvidence: "The test never covered 503",
+    regressionVerdict: "confirmed",
+    regressionVerdictReasoning: "A bisect lands on the refactor",
+    regressionIntroducedIn: "2026.09.21.1",
+  });
+  evidence("classification", {
+    type: "feature",
+    confidence: "low",
+    reasoning: "Unclear whether this is new",
+    clarifyingQuestions: ["Did this ever work?"],
+  });
+  evidence("reproduction", {
+    reproduced: true,
+    commands: ["deno test extensions/vaults/"],
+    observed: "1 failed",
+    expected: "retry after 503",
+    fixScope: "vault/aws-sm",
+    blastRadius: "one vault",
+  });
+  artifact("plan", SWX_PLAN);
+  artifact("plan-review", {
+    findings: [{
+      id: "ADV-1",
+      severity: "high",
+      category: "test-fidelity",
+      description: "No malformed response",
+      resolved: true,
+      resolutionNote: "Added",
+    }],
+  });
+  artifact("change-summary", changeSummary(SHA));
+  artifact("conformance", {
+    steps: [
+      { order: 1, status: "implemented", description: "Retry added" },
+      {
+        order: 2,
+        status: "added",
+        description: "Logged the retry",
+        justification: "Needed to debug",
+      },
+    ],
+  });
+  evidence("verify-build", { status: "succeeded", runId: "r1", commit: SHA });
+  evidence("verify-reviews", { status: "failed", runId: "r2", commit: SHA });
+  evidence("attestation", {
+    attestationId: "f1a4a927-819e-4142-82b7-a010a62bc821",
+    commit: SHA,
+    buildRunId: "r1",
+    reviewsRunId: "r2",
+  });
+  evidence("pull-request", { url: PR_URL, commit: SHA });
+  evidence("merge", { status: "merged", mergeCommit: SHA_2 });
+  evidence("merge", { status: "failed", reason: "CI: no attestation" });
+  evidence("release", { outcome: "shipped", version: "2026.09.28.1" });
+  evidence("release", { outcome: "completed" });
+  evidence("notification", {
+    action: "skipped",
+    author: "skunk-ape",
+    reason: "on the swamp-club team",
+  });
+  artifact("summary", {
+    originalProblem: "The retry never fired",
+    deliveredOutcome: "It retries on 503",
+    outcomeMet: true,
+  });
+});
+
+Deno.test("swamp-extensions: drifted payloads are rejected", async () => {
+  const lifecycle = await load(SWX);
+  const rejects = (
+    kind: "artifact" | "evidence",
+    name: string,
+    payload: Json,
+  ) =>
+    kind === "artifact"
+      ? validateArtifactPayload(artifactSchema(lifecycle, name), payload)
+      : validatePayload(evidenceSchema(lifecycle, name), payload);
+  const cases: [string, "artifact" | "evidence", string, Json][] = [
+    ["low confidence without questions", "evidence", "classification", {
+      type: "bug",
+      confidence: "low",
+      reasoning: "r",
+    }],
+    ["a regression without its argument", "evidence", "classification", {
+      type: "bug",
+      confidence: "high",
+      reasoning: "r",
+      isRegression: true,
+      regressionEvidence: "e",
+    }],
+    ["a regression that is not a bug", "evidence", "classification", {
+      type: "feature",
+      confidence: "high",
+      reasoning: "r",
+      isRegression: true,
+      regressionEvidence: "e",
+      regressionCounterEvidence: "c",
+      regressionVerdict: "confirmed",
+      regressionVerdictReasoning: "v",
+    }],
+    ["a finding without a category", "artifact", "plan-review", {
+      findings: [{ id: "ADV-1", severity: "low", description: "d" }],
+    }],
+    ["a short commit", "artifact", "change-summary", changeSummary("8a25dbb")],
+    ["a branch with shell characters", "artifact", "change-summary", {
+      ...changeSummary(SHA),
+      branch: "x;rm -rf ~",
+    }],
+    ["a misspelt verify outcome field", "evidence", "verify-build", {
+      status: "succeeded",
+      runId: "r1",
+      commit: SHA,
+      comit: SHA,
+    }],
+    ["an unknown conformance status", "artifact", "conformance", {
+      steps: [{ order: 1, status: "done", description: "d" }],
+    }],
+    ["a verify outcome without its commit", "evidence", "verify-build", {
+      status: "succeeded",
+      runId: "r1",
+    }],
+    ["a merge without its merge commit", "evidence", "merge", {
+      status: "merged",
+    }],
+    ["a failed merge without a reason", "evidence", "merge", {
+      status: "failed",
+    }],
+    ["a notification without a reason", "evidence", "notification", {
+      action: "posted",
+      author: "a",
+    }],
+  ];
+  for (const [what, kind, name, payload] of cases) {
+    assert(rejects(kind, name, payload) !== null, what);
+  }
+});
+
+Deno.test("swamp-extensions: a bug walks triage to done through the real gates, and every CEL expression evaluates on it", async () => {
+  // As build-swamp-extension's run, plus the stops this lifecycle adds: low
+  // confidence holds triage, a failed verification needs a new commit, and
+  // the merge waits out the cooldown.
+  const lifecycle = await load(SWX);
+  const { env, wait } = movableEnv();
+  const { store, record, approve, tryMove } = await drive(lifecycle, env);
+  const move = async (transition: string, manual = false) => {
+    const refused = await tryMove(transition, manual);
+    assertEquals(refused, null, transition);
+  };
+
+  await record("evidence", "classification", {
+    type: "bug",
+    confidence: "low",
+    reasoning: "Maybe a bug",
+    clarifyingQuestions: ["Is a 503 retried today?"],
+  });
+  assert((await tryMove("bug"))?.includes("waits for the person's answers"));
+  await record("evidence", "classification", {
+    type: "bug",
+    confidence: "high",
+    reasoning: "The person says 503 was never retried",
+  });
+  assert((await tryMove("feature")) !== null, "a bug took the feature exit");
+  await move("bug");
+  await record("evidence", "reproduction", {
+    reproduced: true,
+    commands: ["deno test extensions/vaults/"],
+    observed: "1 failed",
+    expected: "retry after 503",
+    fixScope: "vault/aws-sm",
+  });
+  await move("reproduced");
+  await record("artifact", "plan", SWX_PLAN);
+  await move("submit");
+  await record("artifact", "plan-review", {
+    findings: [{
+      id: "ADV-1",
+      severity: "low",
+      category: "test-fidelity",
+      description: "Naming",
+    }],
+  });
+  await approve("plan-approval");
+  await move("approve");
+
+  // The first commit fails verify-build, and cannot be submitted again.
+  await record("artifact", "change-summary", changeSummary(SHA));
+  await move("submit");
+  await record("artifact", "conformance", {
+    steps: [{ order: 1, status: "implemented", description: "Retry added" }],
+  });
+  await move("conforms");
+  await record("evidence", "verify-build", {
+    status: "failed",
+    runId: "b1",
+    commit: SHA,
+  });
+  assert((await tryMove("passed")) !== null);
+  await move("failed");
+  assert(
+    (await tryMove("submit"))?.includes("commit already verified"),
+    "the verified commit was submitted again",
+  );
+
+  // recheck only re-verifies that commit: a new one goes through
+  // conformance-review, and recheck refuses it.
+  await record("artifact", "change-summary", changeSummary(SHA_2));
+  assert(
+    (await tryMove("recheck", true))?.includes("re-verifies the commit"),
+    "a new commit skipped conformance-review",
+  );
+
+  await record("artifact", "change-summary", changeSummary(SHA_2));
+  await move("submit");
+  await record("artifact", "conformance", {
+    steps: [{ order: 1, status: "deviated", description: "Retry on 5xx" }],
+  });
+  assert((await tryMove("conforms"))?.includes("needs a justification"));
+  await record("artifact", "conformance", {
+    steps: [{
+      order: 1,
+      status: "deviated",
+      description: "Retry on 5xx",
+      justification: "502 fails the same way",
+    }],
+  });
+  await move("conforms");
+  await record("evidence", "verify-build", {
+    status: "succeeded",
+    runId: "b2",
+    commit: SHA_2,
+  });
+  await move("passed");
+  await record("evidence", "verify-reviews", {
+    status: "succeeded",
+    runId: "v2",
+    commit: SHA_2,
+  });
+  await approve("checklist-confirmed");
+  await move("passed");
+  // An attestation from the failed run is refused.
+  await record("evidence", "attestation", {
+    attestationId: "a-old",
+    commit: SHA_2,
+    buildRunId: "b1",
+    reviewsRunId: "v2",
+  });
+  await approve("open-pr");
+  assert((await tryMove("attested"))?.includes("this commit's verify-build"));
+  await record("evidence", "attestation", {
+    attestationId: "a-2",
+    commit: SHA_2,
+    buildRunId: "b2",
+    reviewsRunId: "v2",
+  });
+  // The approval was bound to the attestation it saw, which has changed.
+  assert((await tryMove("attested"))?.includes("no longer count"));
+  await approve("open-pr");
+  await move("attested");
+  await record("evidence", "pull-request", { url: PR_URL, commit: SHA_2 });
+  await move("opened");
+  await record("evidence", "merge", { status: "merged", mergeCommit: SHA });
+  assert((await tryMove("merged")) !== null, "merged before the cooldown");
+  wait(180);
+  await move("merged");
+  await record("evidence", "release", {
+    outcome: "shipped",
+    version: "2026.09.28.1",
+  });
+  await move("released");
+  await record("evidence", "notification", {
+    action: "posted",
+    author: "someone-outside",
+    reason: "not on the swamp-club team",
+  });
+  await move("notified");
+  await record("artifact", "summary", {
+    originalProblem: "503 was never retried",
+    deliveredOutcome: "5xx responses are retried",
+    outcomeMet: true,
+  });
+  await move("finish");
+
+  const run = await loadRun(store);
+  assert(run !== null);
+  assertEquals(run.stage, "done");
+  const context = await buildCelContext(run, store);
+  const results = new Map<string, Json>();
+  let bindings = 0;
+  for (const s of lifecycle.stages) {
+    for (const expr of Object.values(s.work?.bindings ?? {})) {
+      evaluateCel(expr, context);
+      bindings++;
+    }
+    for (const t of s.transitions ?? []) {
+      for (const gate of t.gates ?? []) {
+        if (gate.type !== "cel") continue;
+        const result = evaluateCel(gate.config.expr, context);
+        assertEquals(typeof result, "boolean", `${s.id}.${t.name}`);
+        results.set(`${s.id}.${t.name}`, result);
+      }
+    }
+  }
+  assert(
+    bindings >= 10 && results.size >= 10,
+    `${bindings} bindings, ${results.size} gates`,
+  );
+  assertEquals(results.get("triage.bug"), true);
+  assertEquals(results.get("plan-review.rework"), false);
+  assertEquals(results.get("implement.submit"), false);
+  assertEquals(results.get("conformance-review.conforms"), true);
+  assertEquals(results.get("verify-build.passed"), true);
+  assertEquals(results.get("verify-reviews.passed"), true);
+  assertEquals(results.get("attest.attested"), true);
+  assertEquals(results.get("pull-request.opened"), true);
+});
+
+Deno.test("swamp-extensions: a failed pull request goes to a new PR or back to implement, by a person's choice", async () => {
+  const lifecycle = await load(SWX);
+  const merge = stage(lifecycle, "merge").transitions ?? [];
+  for (const name of ["new-pr", "rework"]) {
+    const t = merge.find((t) => t.name === name);
+    assert(t?.manual === true, `${name} is not manual`);
+    assert(
+      (t.gates ?? []).some((g) =>
+        g.type === "evidence-recorded" &&
+        g.config.requireField?.status === "failed"
+      ),
+    );
+  }
+  for (const t of merge) {
+    assert(
+      (t.gates ?? []).some((g) =>
+        g.type === "cooldown" && g.config.seconds === 180 &&
+        g.config.afterEvidence === "pull-request"
+      ),
+      `${t.name} does not wait for CI`,
+    );
+  }
 });

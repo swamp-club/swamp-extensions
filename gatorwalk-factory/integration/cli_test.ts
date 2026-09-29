@@ -26,6 +26,7 @@ import { parseLifecycle } from "../extensions/models/_lib/lifecycle_schema.ts";
 import {
   BUILD_LIFECYCLE,
   HOLDER_TYPE,
+  SWAMP_EXTENSIONS_LIFECYCLE,
   type SwampRepo,
   withRepo,
   WORK_ITEM_TYPE,
@@ -151,6 +152,23 @@ Deno.test("cli: holder validate reports a valid lifecycle, every schema error an
       ),
       design.output,
     );
+  });
+});
+
+Deno.test("cli: swamp-extensions validates on the real engine, and a work item starts on it", async () => {
+  await withRepo(async (repo) => {
+    const lifecycle = parseYaml(
+      await Deno.readTextFile(SWAMP_EXTENSIONS_LIFECYCLE),
+    ) as Record<string, unknown>;
+    await repo.holder("process", lifecycle);
+    const ok = await repo.holderMethod("process", "validate");
+    assert(
+      ok.output.includes("lifecycle 'swamp-extensions' in 'process' is valid"),
+      ok.output,
+    );
+    const key = await repo.newKey("process");
+    await repo.workItem(key, "start", { lifecycle: "process" });
+    assertEquals((await repo.expected(key)).expectedStage, "triage");
   });
 });
 

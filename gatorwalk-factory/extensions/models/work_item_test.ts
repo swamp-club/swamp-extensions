@@ -18,13 +18,17 @@ import { assert, assertEquals, assertRejects } from "@std/assert";
 import { parse as parseYaml } from "@std/yaml";
 import { model } from "./work_item.ts";
 import { type FakeSwamp, fakeSwamp } from "./_lib/fake_swamp.ts";
-import { systemEnv } from "./_lib/run_ops.ts";
+import { type Env, systemEnv } from "./_lib/run_ops.ts";
 import type { RunRecord } from "./_lib/run_record.ts";
 import { contextStore, loadRun } from "./_lib/run_store.ts";
 import {
+  advanceMethod,
+  decide,
   describeStatus,
   HOLDER_TYPE,
   type MethodContextLike,
+  recordProductMethod,
+  startWorkItem,
   WORK_ITEM_TYPE,
 } from "./_lib/work_item_ops.ts";
 
@@ -392,4 +396,156 @@ Deno.test("status: a run naming no pinned lifecycle version fails clearly", asyn
     Error,
     "the run names no pinned lifecycle version",
   );
+});
+
+Deno.test("swamp-extensions: a feature from triage to done through the work-item operations, with CLI string inputs", async () => {
+  // The methods run on the system clock, and merge waits three minutes
+  // after the pull request. So this calls the operations the methods wrap,
+  // with the methods' own argument schemas and a clock the test moves.
+  const item = "swamp-extensions-abcdefgh";
+  let ms = Date.UTC(2026, 8, 28, 12, 0, 0);
+  const env: Env = {
+    now: () => new Date(ms += 1000).toISOString(),
+    newEra: () => "era-1",
+  };
+  const swamp = fakeSwamp();
+  swamp.definitions.set("team", {
+    globalArguments: parseYaml(
+      await Deno.readTextFile(
+        new URL("../../lifecycles/swamp-extensions.yaml", import.meta.url),
+      ),
+    ),
+    type: HOLDER_TYPE,
+  });
+  const ctx = () => swamp.context(item);
+  const { methods } = model;
+  const expectation = async () => {
+    const view = await describeStatus(ctx(), env);
+    return {
+      expectedStage: view.expected.expectedStage,
+      expectedCycle: String(view.expected.expectedCycle),
+      expectedEra: view.expected.expectedEra,
+    };
+  };
+  const record = async (
+    kind: "artifact" | "evidence",
+    name: string,
+    payload: Record<string, unknown>,
+  ) =>
+    recordProductMethod(
+      ctx(),
+      kind,
+      (kind === "artifact" ? methods.record_artifact : methods.record_evidence)
+        .arguments.parse({
+          name,
+          payload: JSON.stringify(payload),
+          ...await expectation(),
+        }),
+      env,
+    );
+  const go = async (transition: string) =>
+    advanceMethod(
+      ctx(),
+      methods.advance.arguments.parse({
+        transition,
+        ...await expectation(),
+      }),
+      env,
+    );
+  const approve = async (gateId: string) =>
+    decide(
+      ctx(),
+      "approve",
+      methods.approve.arguments.parse({ gateId, ...await expectation() }),
+      env,
+    );
+
+  await startWorkItem(
+    ctx(),
+    methods.start.arguments.parse({
+      lifecycle: "team",
+      externalRefs: { lab: "2630" },
+    }),
+    env,
+  );
+  await record("evidence", "classification", {
+    type: "feature",
+    confidence: "high",
+    reasoning: "New lifecycle",
+  });
+  await go("feature");
+  await record("artifact", "plan", {
+    summary: "Add the lifecycle",
+    scopeAnalysis: "gatorwalk-factory only",
+    steps: [{ order: 1, description: "Write it", files: ["x.yaml"] }],
+    testingStrategy: "Lifecycle tests",
+  });
+  await go("submit");
+  await record("artifact", "plan-review", { findings: [] });
+  await approve("plan-approval");
+  await go("approve");
+  await record("artifact", "change-summary", {
+    summary: "Added the lifecycle",
+    commit: SHA,
+    branch: "gw",
+    files: ["x.yaml"],
+  });
+  await go("submit");
+  await record("artifact", "conformance", {
+    steps: [{ order: 1, status: "implemented", description: "Written" }],
+  });
+  await go("conforms");
+  await record("evidence", "verify-build", {
+    status: "succeeded",
+    runId: "b1",
+    commit: SHA,
+  });
+  await go("passed");
+  await record("evidence", "verify-reviews", {
+    status: "succeeded",
+    runId: "v1",
+    commit: SHA,
+  });
+  await approve("checklist-confirmed");
+  await go("passed");
+  await record("evidence", "attestation", {
+    attestationId: "a-1",
+    commit: SHA,
+    buildRunId: "b1",
+    reviewsRunId: "v1",
+  });
+  await approve("open-pr");
+  await go("attested");
+  await record("evidence", "pull-request", {
+    url: "https://git.swamp-club.com/swamp-club/swamp-extensions/pulls/346",
+    commit: SHA,
+  });
+  await go("opened");
+  await record("evidence", "merge", {
+    status: "merged",
+    mergeCommit: "8a25dbbfc0e8f3c1d4a2b6e7f9012345678abcde",
+  });
+  await assertRejects(() => go("merged"), Error, "cooldown");
+  ms += 180_000;
+  await go("merged");
+  await record("evidence", "release", { outcome: "completed" });
+  await go("released");
+  await record("evidence", "notification", {
+    action: "skipped",
+    author: "skunk-ape",
+    reason: "on the swamp-club team",
+  });
+  await go("notified");
+  await record("artifact", "summary", {
+    originalProblem: "No lifecycle for this repo",
+    deliveredOutcome: "swamp-extensions.yaml",
+    outcomeMet: true,
+  });
+  await go("finish");
+
+  const run = await loadRun(contextStore(ctx()));
+  assert(run !== null);
+  assertEquals(run.stage, "done");
+  assertEquals(run.status, "terminal");
+  assertEquals(run.externalRefs, { lab: "2630" });
 });

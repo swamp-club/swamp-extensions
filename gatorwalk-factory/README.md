@@ -36,7 +36,8 @@ extensions/models/
     fake_swamp.ts         a fake swamp method context for tests
 integration/              the real-engine suite: gatorwalk through the swamp CLI
   skill_commands.ts       the skill's commands, pulled out to check and run
-lifecycles/               lifecycles gatorwalk-factory ships
+lifecycles/               lifecycles gatorwalk-factory ships, and the
+                          swamp-extensions mapping (a .md)
 .claude/skills/gatorwalk-factory/
   SKILL.md                the skill: how an agent drives a work item
   references/             driving in full, and a worked example
@@ -119,6 +120,32 @@ plan → plan-review → implement → check → code-review → release → don
 This is the tier 1 lifecycle and gatorwalk-factory's own process. Later it will
 be recomposed from stage plugins; it lives under `lifecycles/` because it is a
 lifecycle either way.
+
+`lifecycles/swamp-extensions.yaml` is the process this repository runs with
+`@swamp/issue-lifecycle` and its verification conventions, from a Lab issue to
+the session summary:
+
+```
+triage → [reproduce] → plan → plan-review → implement → conformance-review
+  → verify-build → verify-reviews → attest → pull-request → merge → release
+  → notify → summary → done
+```
+
+- **It describes the process; it does not replace issue-lifecycle.** The
+  repository keeps issue-lifecycle until gatorwalk has a swamp-club adapter.
+  Where the process posts to swamp-club (the attestation, the contributor's
+  thank-you), a person does it and the stage records the result.
+- **People decide at six points:** a bug that cannot be reproduced, plan
+  approval, the verification checklist, opening the pull request, what to do
+  after a failed pull request, and abandoning the work. Five are approvals;
+  after a failed pull request the person picks one of two manual exits.
+- **Verification runs as workflow stages**, verify-build then verify-reviews,
+  each recording its run's outcome. Every exit from verification to the merge is
+  bound to the commit in `change-summary`.
+
+`lifecycles/swamp-extensions.md` is not a lifecycle. It maps every phase, gate
+and human stop of today's process onto the format, and lists what the format
+could not express.
 
 ## Developing
 

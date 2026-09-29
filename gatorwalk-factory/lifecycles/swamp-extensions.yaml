@@ -1,0 +1,784 @@
+# The swamp-extensions process: a swamp-club Lab issue from triage to the
+# session summary.
+#
+# This is the process swamp-extensions runs today with @swamp/issue-lifecycle
+# and agent-constraints/verification-conventions.md, written as a gatorwalk
+# lifecycle. It describes that process; it does not replace issue-lifecycle,
+# which the repository keeps until gatorwalk has a swamp-club adapter.
+# swamp-extensions.md maps every phase, gate and human stop onto this file and
+# lists what the format could not express.
+#
+# Nothing here talks to swamp-club. Where the process posts to it (the
+# attestation, the contributor's thank-you), a person does it and the stage
+# records the result as evidence.
+#
+# People decide at: a bug that cannot be reproduced, plan approval, the
+# verification checklist, opening the pull request, what to do after a
+# failed pull request, and abandoning the work. Every exit past implement is
+# bound to the commit named in change-summary, the commit that was reviewed
+# and verified. Commits are full 40-character SHAs.
+#
+# The CEL vocabulary is in extensions/models/_lib/cel_context.ts. In CEL,
+# evidence["x"] is the latest record of x in the era from any stage, unlike
+# the evidence-recorded gate, which only accepts evidence from the current
+# stage and cycle. implement.submit and attest.attested depend on it.
+schemaVersion: 1
+name: swamp-extensions
+description: >-
+  A swamp-club Lab issue in swamp-extensions, from triage through
+  verification, the pull request and release to the session summary.
+
+stages:
+  - id: triage
+    initial: true
+    # One reclassification before a person grants another; see plan.
+    maxCycles: 2
+    description: >-
+      Classify the issue. A low-confidence classification carries the
+      questions for the person and stops here until it is recorded again with
+      their answers. A bug goes to reproduction; anything else to planning.
+    work:
+      mode: interactive
+      skills: [issue-lifecycle]
+      systemPrompt: |
+        Read the issue and the code it touches, following
+        agent-constraints/triage-conventions.md. Classify it as bug, feature,
+        platform or security. If you believe it is a regression, gather the
+        evidence for it, argue against it, reach a verdict and show both sides
+        to the person before recording. If you cannot classify it
+        confidently, record confidence low with your questions, and record the
+        classification again once the person has answered.
+    evidence:
+      - name: classification
+        schema:
+          type: object
+          required: [type, confidence, reasoning]
+          additionalProperties: false
+          properties:
+            type: { enum: [bug, feature, platform, security] }
+            confidence: { enum: [high, medium, low] }
+            reasoning: { type: string, minLength: 1 }
+            clarifyingQuestions:
+              type: array
+              minItems: 1
+              items: { type: string, minLength: 1 }
+            isRegression: { type: boolean }
+            regressionEvidence: { type: string, minLength: 1 }
+            regressionCounterEvidence: { type: string, minLength: 1 }
+            regressionVerdict: { enum: [confirmed, downgraded] }
+            regressionVerdictReasoning: { type: string, minLength: 1 }
+            regressionIntroducedIn: { type: string, minLength: 1 }
+          allOf:
+            - if:
+                properties: { confidence: { const: low } }
+              then:
+                required: [clarifyingQuestions]
+            # A regression is a bug with both sides of the argument and a
+            # verdict.
+            - if:
+                required: [isRegression]
+                properties: { isRegression: { const: true } }
+              then:
+                required:
+                  - regressionEvidence
+                  - regressionCounterEvidence
+                  - regressionVerdict
+                  - regressionVerdictReasoning
+                properties: { type: { const: bug } }
+    transitions:
+      # One exit per type: requireField only matches equal values, and it is
+      # what lets the graph analysis prove these exits exclusive.
+      - name: bug
+        to: reproduce
+        gates:
+          - type: evidence-recorded
+            config: { name: classification, requireField: { type: bug } }
+          - type: cel
+            config:
+              expr: evidence["classification"].payload.confidence != "low"
+              message: >-
+                a low-confidence classification waits for the person's
+                answers; record it again once they have answered
+      - name: feature
+        to: plan
+        gates:
+          - type: evidence-recorded
+            config: { name: classification, requireField: { type: feature } }
+          - type: cel
+            config:
+              expr: evidence["classification"].payload.confidence != "low"
+              message: >-
+                a low-confidence classification waits for the person's
+                answers; record it again once they have answered
+      - name: platform
+        to: plan
+        gates:
+          - type: evidence-recorded
+            config: { name: classification, requireField: { type: platform } }
+          - type: cel
+            config:
+              expr: evidence["classification"].payload.confidence != "low"
+              message: >-
+                a low-confidence classification waits for the person's
+                answers; record it again once they have answered
+      - name: security
+        to: plan
+        gates:
+          - type: evidence-recorded
+            config: { name: classification, requireField: { type: security } }
+          - type: cel
+            config:
+              expr: evidence["classification"].payload.confidence != "low"
+              message: >-
+                a low-confidence classification waits for the person's
+                answers; record it again once they have answered
+
+  - id: reproduce
+    description: >-
+      Reproduce the bug before planning a fix. A bug that cannot be
+      reproduced goes on to planning only with a person's approval.
+    work:
+      mode: interactive
+      systemPrompt: |
+        Reproduce the bug as agent-constraints/triage-conventions.md
+        describes for its scope: a failing deno test for an extension, a
+        generator diff for codegen, the failing CI run for a publish. Record
+        the commands, what you observed verbatim, what was expected, the scope
+        the fix belongs in and the blast radius. If it does not reproduce,
+        say so and ask the person how to proceed.
+      context:
+        inject: [classification]
+    evidence:
+      - name: reproduction
+        schema:
+          type: object
+          required: [reproduced, commands, observed, expected, fixScope]
+          additionalProperties: false
+          properties:
+            reproduced: { type: boolean }
+            commands:
+              type: array
+              minItems: 1
+              items: { type: string, minLength: 1 }
+            observed: { type: string, minLength: 1 }
+            expected: { type: string, minLength: 1 }
+            fixScope: { type: string, minLength: 1 }
+            blastRadius: { type: string, minLength: 1 }
+    transitions:
+      - name: reproduced
+        to: plan
+        gates:
+          - type: evidence-recorded
+            config: { name: reproduction, requireField: { reproduced: true } }
+      - name: not-reproduced
+        to: plan
+        gates:
+          - type: evidence-recorded
+            config: { name: reproduction, requireField: { reproduced: false } }
+          - type: human-approval
+            config: { id: proceed-unreproduced }
+      - name: reclassify
+        to: triage
+        manual: true
+        description: >-
+          The person declined to go on without a reproduction, or the issue
+          is not the bug it looked like. Manual, so it never fires on its own.
+
+  - id: plan
+    description: Plan the change, following the repository's planning conventions.
+    # Three plans before a person grants another round. The limits on triage,
+    # plan, implement and pull-request also keep the graph analysis complete:
+    # with the default of 5, its count pass stops at 100,000 states
+    # (swamp-extensions.md, gap 8).
+    maxCycles: 3
+    work:
+      mode: interactive
+      skills: [issue-lifecycle]
+      systemPrompt: |
+        Plan the change following agent-constraints/planning-conventions.md.
+        Name the files each step touches, the scope and blast radius, how it
+        will be tested, and the challenges you expect. After rework, address
+        every open critical and high finding of the last review.
+      context:
+        inject: [classification]
+    artifacts:
+      - name: plan
+        schema:
+          type: object
+          required: [summary, scopeAnalysis, steps, testingStrategy]
+          additionalProperties: false
+          properties:
+            summary: { type: string, minLength: 1 }
+            scopeAnalysis: { type: string, minLength: 1 }
+            steps:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                required: [order, description, files]
+                additionalProperties: false
+                properties:
+                  order: { type: integer, minimum: 1 }
+                  description: { type: string, minLength: 1 }
+                  files: { type: array, items: { type: string, minLength: 1 } }
+                  risks: { type: string, minLength: 1 }
+            testingStrategy: { type: string, minLength: 1 }
+            potentialChallenges:
+              type: array
+              items: { type: string, minLength: 1 }
+    transitions:
+      - name: submit
+        to: plan-review
+        gates:
+          - type: artifact-exists
+            config: { artifact: plan }
+
+  - id: plan-review
+    description: >-
+      Adversarial review of the current plan. Approval needs a fresh review
+      with no open critical or high findings and a person's sign-off; open
+      critical or high findings send the plan back, and so can the person.
+    work:
+      mode: dispatch
+      systemPrompt: |
+        You are an adversarial reviewer. Try to refute this plan:
+        {{planSummary}}
+        Challenge it on every dimension in
+        agent-constraints/adversarial-dimensions.md and verify each step
+        against the code. Record findings with a severity and the dimension
+        as category; do not soften them.
+      bindings:
+        planSummary: artifacts["plan"].payload.summary
+      context:
+        inject: [plan]
+    artifacts:
+      - name: plan-review
+        kind: findings
+        reviews: plan
+        schema:
+          type: object
+          properties:
+            findings:
+              type: array
+              items: { type: object, required: [category] }
+    transitions:
+      - name: approve
+        to: implement
+        gates:
+          - type: artifact-fresh
+            config: { artifact: plan-review, recordedThisCycle: true }
+          - type: findings-clear
+            config: { artifact: plan-review, blocking: [critical, high] }
+          - type: human-approval
+            config: { id: plan-approval }
+      - name: rework
+        to: plan
+        gates:
+          - type: artifact-fresh
+            config: { artifact: plan-review, recordedThisCycle: true }
+          - type: cel
+            config:
+              expr: >-
+                "plan-review" in artifacts &&
+                artifacts["plan-review"].payload.findings.exists(f,
+                (f.severity == "critical" || f.severity == "high") &&
+                !(has(f.resolved) && f.resolved))
+              message: rework needs an open critical or high finding
+      - name: revise
+        to: plan
+        manual: true
+        description: >-
+          The person has feedback on the plan, or declined it without a
+          blocking finding. Manual, so it never fires on its own.
+
+  - id: implement
+    description: >-
+      Implement the approved plan and commit it. Each pass through
+      verification needs a new commit; recheck re-runs it on the same one.
+    # Three commits through verification before a person grants another
+    # round; see plan.
+    maxCycles: 3
+    work:
+      mode: interactive
+      skills: [issue-lifecycle]
+      systemPrompt: |
+        Implement the approved plan following
+        agent-constraints/implementation-conventions.md. Commit the work, with
+        the co-author trailer in the original commit, then record
+        change-summary with the full SHA and the branch. After rework, record
+        it again for the new commit.
+      context:
+        inject: [plan, plan-review]
+    artifacts:
+      - name: change-summary
+        schema:
+          type: object
+          required: [summary, commit, branch, files]
+          additionalProperties: false
+          properties:
+            summary: { type: string, minLength: 1 }
+            commit: { type: string, pattern: "^[0-9a-f]{40}$" }
+            branch: { type: string, pattern: "^[A-Za-z0-9._/-]+$" }
+            files: { type: array, minItems: 1, items: { type: string } }
+    transitions:
+      - name: submit
+        to: conformance-review
+        gates:
+          - type: artifact-exists
+            config: { artifact: change-summary }
+          - type: cel
+            config:
+              expr: >-
+                !("verify-build" in evidence) ||
+                evidence["verify-build"].payload.commit !=
+                artifacts["change-summary"].payload.commit
+              message: >-
+                change-summary still names the commit already verified; record
+                it for the new commit
+      - name: recheck
+        to: verify-build
+        manual: true
+        description: >-
+          Verify the same commit again, for a failure that was not the code's
+          (a flaky test, a review provider error). A person decides. Only for
+          the commit verify-build already ran on: a new commit goes through
+          conformance-review first.
+        gates:
+          - type: cel
+            config:
+              expr: >-
+                "verify-build" in evidence &&
+                "change-summary" in artifacts &&
+                evidence["verify-build"].payload.commit ==
+                artifacts["change-summary"].payload.commit
+              message: >-
+                recheck re-verifies the commit verify-build already ran on; a
+                new commit goes through submit
+
+  - id: conformance-review
+    description: >-
+      Compare the committed code with the approved plan, step by step. Every
+      step not implemented as planned needs a justification; recording the
+      review again with them is how deviations are justified.
+    work:
+      mode: dispatch
+      systemPrompt: |
+        Compare commit {{commit}} with the approved plan, following
+        .claude/skills/issue-lifecycle/references/code-conformance-review.md.
+        Give every plan step a status, add a step for each unplanned change,
+        and justify each one that is not implemented as planned.
+      bindings:
+        commit: artifacts["change-summary"].payload.commit
+      context:
+        inject: [plan, change-summary]
+    artifacts:
+      - name: conformance
+        reviews: change-summary
+        schema:
+          type: object
+          required: [steps]
+          additionalProperties: false
+          properties:
+            steps:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                required: [order, status, description]
+                additionalProperties: false
+                properties:
+                  order: { type: integer, minimum: 1 }
+                  status:
+                    enum:
+                      - implemented
+                      - deviated
+                      - partially_implemented
+                      - missing
+                      - added
+                  description: { type: string, minLength: 1 }
+                  justification: { type: string, minLength: 1 }
+    transitions:
+      - name: conforms
+        to: verify-build
+        gates:
+          - type: artifact-fresh
+            config: { artifact: conformance, recordedThisCycle: true }
+          - type: cel
+            config:
+              expr: >-
+                artifacts["conformance"].payload.steps.all(s,
+                s.status == "implemented" || has(s.justification))
+              message: >-
+                every step not implemented as planned needs a justification
+      - name: rework
+        to: implement
+        manual: true
+        description: >-
+          The code has to change to match the plan. A person decides.
+
+  - id: verify-build
+    description: >-
+      The verify-build workflow at the change-summary commit: every check in
+      verification/checks.yaml for the directories the change touches, the
+      audits, codegen idempotency and the upgrade gate.
+    work:
+      mode: workflow
+      workflow: { name: verify-build }
+      command: >-
+        SWAMP_WORKFLOWS_DIR=<absolute path to the checkout>/verification
+        swamp workflow run verify-build --input commit={{commit}}
+        --input branch={{branch}} (from a worktree, add --repo-dir with the
+        main checkout)
+      bindings:
+        commit: artifacts["change-summary"].payload.commit
+        branch: artifacts["change-summary"].payload.branch
+      inputsSchema:
+        type: object
+        required: [commit, branch]
+        properties:
+          commit: { type: string, pattern: "^[0-9a-f]{40}$" }
+          branch: { type: string, pattern: "^[A-Za-z0-9._/-]+$" }
+      resultEvidence: verify-build
+    evidence:
+      - name: verify-build
+        description: >-
+          The run's outcome: succeeded only when every step that was not
+          skipped succeeded.
+        schema:
+          type: object
+          required: [status, runId, commit]
+          additionalProperties: false
+          properties:
+            status: { enum: [succeeded, failed] }
+            runId: { type: string, minLength: 1 }
+            commit: { type: string, pattern: "^[0-9a-f]{40}$" }
+            outputs: { type: object }
+    transitions:
+      - name: passed
+        to: verify-reviews
+        gates:
+          - type: evidence-recorded
+            config: { name: verify-build, requireField: { status: succeeded } }
+          - type: cel
+            config:
+              expr: >-
+                evidence["verify-build"].payload.commit ==
+                artifacts["change-summary"].payload.commit
+              message: verify-build must have run on the change-summary commit
+      - name: failed
+        to: implement
+        gates:
+          - type: evidence-recorded
+            config: { name: verify-build, requireField: { status: failed } }
+
+  - id: verify-reviews
+    description: >-
+      The verify-reviews workflow at the same commit: the agent reviews that
+      the change's paths call for. A person then sees the combined checklist
+      of both runs and confirms it before the attestation is posted.
+    work:
+      mode: workflow
+      workflow: { name: verify-reviews }
+      command: >-
+        SWAMP_WORKFLOWS_DIR=<absolute path to the checkout>/verification
+        swamp workflow run verify-reviews --input commit={{commit}}
+        --input branch={{branch}} (from a worktree, add --repo-dir with the
+        main checkout)
+      bindings:
+        commit: artifacts["change-summary"].payload.commit
+        branch: artifacts["change-summary"].payload.branch
+      inputsSchema:
+        type: object
+        required: [commit, branch]
+        properties:
+          commit: { type: string, pattern: "^[0-9a-f]{40}$" }
+          branch: { type: string, pattern: "^[A-Za-z0-9._/-]+$" }
+      resultEvidence: verify-reviews
+    evidence:
+      - name: verify-reviews
+        description: >-
+          The run's outcome: succeeded only when every review that ran passed.
+          A missing record or a provider error is a failure.
+        schema:
+          type: object
+          required: [status, runId, commit]
+          additionalProperties: false
+          properties:
+            status: { enum: [succeeded, failed] }
+            runId: { type: string, minLength: 1 }
+            commit: { type: string, pattern: "^[0-9a-f]{40}$" }
+            outputs: { type: object }
+    transitions:
+      - name: passed
+        to: attest
+        gates:
+          - type: evidence-recorded
+            config:
+              name: verify-reviews
+              requireField: { status: succeeded }
+          - type: cel
+            config:
+              expr: >-
+                evidence["verify-reviews"].payload.commit ==
+                artifacts["change-summary"].payload.commit
+              message: verify-reviews must have run on the change-summary commit
+          - type: human-approval
+            config: { id: checklist-confirmed }
+      - name: failed
+        to: implement
+        gates:
+          - type: evidence-recorded
+            config: { name: verify-reviews, requireField: { status: failed } }
+      - name: revise
+        to: implement
+        manual: true
+        description: >-
+          The person did not confirm the checklist. Manual, so it never fires
+          on its own.
+
+  - id: attest
+    description: >-
+      Build the attestation from the two runs and post it to swamp-club, then
+      record its id. Posting is done by hand until gatorwalk has a swamp-club
+      adapter. The pull request opens only once a person says so.
+    work:
+      mode: interactive
+      systemPrompt: |
+        Build the attestation with deno task build-attestation from run
+        {{buildRun}} and run {{reviewsRun}} at commit {{commit}}. Post it to
+        swamp-club, then record its id. Never change the commit after this:
+        the attestation is bound to it. Ask the person before opening the
+        pull request.
+      bindings:
+        commit: artifacts["change-summary"].payload.commit
+        buildRun: evidence["verify-build"].payload.runId
+        reviewsRun: evidence["verify-reviews"].payload.runId
+    evidence:
+      - name: attestation
+        schema:
+          type: object
+          required: [attestationId, commit, buildRunId, reviewsRunId]
+          additionalProperties: false
+          properties:
+            attestationId: { type: string, minLength: 1 }
+            commit: { type: string, pattern: "^[0-9a-f]{40}$" }
+            buildRunId: { type: string, minLength: 1 }
+            reviewsRunId: { type: string, minLength: 1 }
+    transitions:
+      - name: attested
+        to: pull-request
+        gates:
+          - type: evidence-recorded
+            config: { name: attestation }
+          - type: cel
+            config:
+              expr: >-
+                evidence["attestation"].payload.commit ==
+                artifacts["change-summary"].payload.commit &&
+                evidence["attestation"].payload.buildRunId ==
+                evidence["verify-build"].payload.runId &&
+                evidence["attestation"].payload.reviewsRunId ==
+                evidence["verify-reviews"].payload.runId
+              message: >-
+                the attestation must be built from this commit's verify-build
+                and verify-reviews runs
+          - type: human-approval
+            config: { id: open-pr }
+      - name: revise
+        to: implement
+        manual: true
+        description: >-
+          The person did not want the pull request opened for this commit.
+          Manual, so it never fires on its own.
+
+  - id: pull-request
+    description: Open the pull request for the attested commit.
+    # One replacement pull request before a person grants another; see plan.
+    maxCycles: 2
+    work:
+      mode: interactive
+      systemPrompt: |
+        Open the pull request for commit {{commit}} with
+        fj -H git.swamp-club.com pr create, then record its url.
+      bindings:
+        commit: artifacts["change-summary"].payload.commit
+    evidence:
+      - name: pull-request
+        schema:
+          type: object
+          required: [url, commit]
+          additionalProperties: false
+          properties:
+            url: { type: string, format: uri }
+            commit: { type: string, pattern: "^[0-9a-f]{40}$" }
+    transitions:
+      - name: opened
+        to: merge
+        gates:
+          - type: evidence-recorded
+            config: { name: pull-request }
+          - type: cel
+            config:
+              expr: >-
+                evidence["pull-request"].payload.commit ==
+                artifacts["change-summary"].payload.commit
+              message: the pull request must be for the attested commit
+
+  - id: merge
+    description: >-
+      Wait for CI and the merge. The outcome is reported no sooner than three
+      minutes after the pull request was recorded, to give CI time to run. A
+      failed pull request goes to a new pull request or back to implement; a
+      person decides.
+    work:
+      mode: interactive
+      systemPrompt: |
+        Check the pull request {{url}}. When it has merged, record the merge
+        commit. If it failed (CI, or it was closed), record why.
+      bindings:
+        url: evidence["pull-request"].payload.url
+    evidence:
+      - name: merge
+        schema:
+          type: object
+          required: [status]
+          additionalProperties: false
+          properties:
+            status: { enum: [merged, failed] }
+            mergeCommit: { type: string, pattern: "^[0-9a-f]{40}$" }
+            reason: { type: string, minLength: 1 }
+          allOf:
+            - if:
+                properties: { status: { const: merged } }
+              then:
+                required: [mergeCommit]
+            - if:
+                properties: { status: { const: failed } }
+              then:
+                required: [reason]
+    transitions:
+      - name: merged
+        to: release
+        gates:
+          - type: evidence-recorded
+            config: { name: merge, requireField: { status: merged } }
+          - type: cooldown
+            config: { afterEvidence: pull-request, seconds: 180 }
+      - name: new-pr
+        to: pull-request
+        manual: true
+        description: >-
+          Open a new pull request for the same commit, for a failure that was
+          not the code's.
+        gates:
+          - type: evidence-recorded
+            config: { name: merge, requireField: { status: failed } }
+          - type: cooldown
+            config: { afterEvidence: pull-request, seconds: 180 }
+      - name: rework
+        to: implement
+        manual: true
+        description: The pull request failed because of the code; change it.
+        gates:
+          - type: evidence-recorded
+            config: { name: merge, requireField: { status: failed } }
+          - type: cooldown
+            config: { afterEvidence: pull-request, seconds: 180 }
+
+  - id: release
+    description: >-
+      Check that the change was released: CI publishes an extension whose
+      manifest changed on main. completed is the fallback when there is no
+      release build to check.
+    work:
+      mode: interactive
+      systemPrompt: |
+        Check the release build for merge commit {{mergeCommit}}. Record
+        shipped with the published version once it is in the registry, or
+        completed when nothing was published.
+      bindings:
+        mergeCommit: evidence["merge"].payload.mergeCommit
+    evidence:
+      - name: release
+        schema:
+          type: object
+          required: [outcome]
+          additionalProperties: false
+          properties:
+            outcome: { enum: [shipped, completed] }
+            version:
+              type: string
+              pattern: "^[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}\\.[0-9]+$"
+            detail: { type: string, minLength: 1 }
+    transitions:
+      - name: released
+        to: notify
+        gates:
+          - type: evidence-recorded
+            config: { name: release }
+
+  - id: notify
+    description: >-
+      Thank the issue's author, unless they are on the swamp-club team. Done by
+      hand until gatorwalk has a swamp-club adapter.
+    work:
+      mode: interactive
+      systemPrompt: |
+        Check the issue's author against the swamp-club team roster (never
+        against GitHub). Post a thank-you ripple to an author outside the
+        team; skip it for a team member. If the lookup fails, ask the person
+        whether to post anyway or skip. Record what you did and why.
+    evidence:
+      - name: notification
+        schema:
+          type: object
+          required: [action, author, reason]
+          additionalProperties: false
+          properties:
+            action: { enum: [posted, skipped] }
+            author: { type: string, minLength: 1 }
+            reason: { type: string, minLength: 1 }
+    transitions:
+      - name: notified
+        to: summary
+        gates:
+          - type: evidence-recorded
+            config: { name: notification }
+
+  - id: summary
+    description: >-
+      Restate the original problem and the delivered outcome, and say whether
+      the outcome met the problem.
+    work:
+      mode: interactive
+      context:
+        inject: [plan, change-summary]
+    artifacts:
+      - name: summary
+        schema:
+          type: object
+          required: [originalProblem, deliveredOutcome, outcomeMet]
+          additionalProperties: false
+          properties:
+            originalProblem: { type: string, minLength: 1 }
+            deliveredOutcome: { type: string, minLength: 1 }
+            outcomeMet: { type: boolean }
+    transitions:
+      - name: finish
+        to: done
+        gates:
+          - type: artifact-exists
+            config: { artifact: summary }
+
+  - id: done
+    terminal: true
+
+  - id: abandoned
+    terminal: true
+
+globalTransitions:
+  - name: abandon
+    to: abandoned
+    gates:
+      - type: human-approval
+        config: { id: abandon-confirmation }
