@@ -203,21 +203,38 @@ Deno.test("swamp-club model: credentials come from SWAMP_API_KEY, then the store
   });
 });
 
-Deno.test("swamp-club model: assign defaults to the stored login's user", async () => {
+Deno.test("swamp-club model: assign defaults to the stored login's user, on its own server", async () => {
   await withLab(
     (fake) => ({ apiKey: ADMIN_KEY, url: fake.url }),
     async (swamp, fake) => {
-      const withLogin = swampClubMethods({
-        sources: sources({}, {
-          serverUrl: "https://ignored.example",
-          apiKey: "swamp_other",
-          username: "seth",
-        }),
-      });
-      await call(withLogin, swamp, "assign", { issue: ISSUE });
+      const login = (serverUrl: string) =>
+        swampClubMethods({
+          sources: sources({}, {
+            serverUrl,
+            apiKey: "swamp_other",
+            username: "seth",
+          }),
+        });
+      await call(login(`${fake.url}/`), swamp, "assign", { issue: ISSUE });
       assertEquals(fake.issues[0].assignees.map((a) => a.username), ["seth"]);
 
-      await call(withLogin, swamp, "assign", {
+      // A login for another server does not name a user on this one.
+      const elsewhere = await assertRejects(
+        () =>
+          call(login("https://ignored.example"), swamp, "assign", {
+            issue: ISSUE,
+          }),
+        TrackerError,
+      );
+      assertEquals(elsewhere.kind, "invalid");
+      assert(
+        elsewhere.message.includes("https://ignored.example"),
+        elsewhere.message,
+      );
+      assert(elsewhere.message.includes("pass username"), elsewhere.message);
+      assertEquals(fake.requests.filter((r) => r.method === "PATCH").length, 1);
+
+      await call(login("https://ignored.example"), swamp, "assign", {
         issue: ISSUE,
         username: "skunk-ape",
       });
@@ -232,6 +249,22 @@ Deno.test("swamp-club model: assign defaults to the stored login's user", async 
         TrackerError,
         "no username",
       );
+    },
+  );
+});
+
+Deno.test("swamp-club model: assign says which assignees it dropped", async () => {
+  await withLab(
+    (fake) => ({ apiKey: ADMIN_KEY, url: fake.url }),
+    async (swamp, fake) => {
+      fake.issues[0].assignees = [{ userId: "user-gone", username: "gone" }];
+      const methods = swampClubMethods({ sources: sources() });
+      await call(methods, swamp, "assign", { issue: ISSUE, username: "seth" });
+      assertEquals(fake.issues[0].assignees.map((a) => a.username), ["seth"]);
+      const summary = String(swamp.logs.at(-1)?.props?.summary);
+      assert(summary.includes("assigned #2631 to seth"), summary);
+      assert(summary.includes("gone"), summary);
+      assert(summary.includes("no longer"), summary);
     },
   );
 });

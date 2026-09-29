@@ -316,6 +316,7 @@ Deno.test("swamp-club: assign adds to the assignees, and a repeat writes nothing
       changed: true,
       username: "seth",
       userId: "user-seth",
+      dropped: [],
     });
     assertEquals(fake.issues[0].assignees.map((a) => a.userId), [
       "user-ape",
@@ -332,6 +333,45 @@ Deno.test("swamp-club: assign adds to the assignees, and a repeat writes nothing
       () => adapter.assign(ISSUE, "nobody"),
       "eligible",
     );
+  });
+});
+
+Deno.test("swamp-club: assign drops, and names, assignees no longer on the team", async () => {
+  await withFake(async (fake) => {
+    fake.issues[0].assignees = [
+      { userId: "user-ape", username: "skunk-ape" },
+      { userId: "user-gone", username: "gone" },
+    ];
+    assertEquals(await adapterFor(fake).assign(ISSUE, "seth"), {
+      changed: true,
+      username: "seth",
+      userId: "user-seth",
+      dropped: [{ userId: "user-gone", username: "gone" }],
+    });
+    const patches = fake.requests.filter((r) => r.method === "PATCH");
+    assertEquals(patches.map((r) => r.body), [
+      { assignees: ["user-ape", "user-seth"] },
+    ]);
+  });
+});
+
+Deno.test("swamp-club: assign to a user already there writes nothing, stale assignees included", async () => {
+  await withFake(async (fake) => {
+    fake.issues[0].assignees = [
+      { userId: "user-seth", username: "seth" },
+      { userId: "user-gone", username: "gone" },
+    ];
+    assertEquals(await adapterFor(fake).assign(ISSUE, "seth"), {
+      changed: false,
+      username: "seth",
+      userId: "user-seth",
+      dropped: [],
+    });
+    assertEquals(fake.requests.filter((r) => r.method === "PATCH"), []);
+    assertEquals(fake.issues[0].assignees.map((a) => a.userId), [
+      "user-seth",
+      "user-gone",
+    ]);
   });
 });
 
@@ -478,6 +518,42 @@ Deno.test("swamp-club: assignees that are not a list are upstream", async () => 
       () => adapterFor(fake).assign(ISSUE, "seth"),
       "not a list",
     );
+    // An assignee without a userId could not be kept by a write, so the
+    // read fails rather than dropping it.
+    for (const entry of [{ username: "skunk-ape" }, null, "user-ape"]) {
+      fake.queue.push({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          issue: { title: "t", status: "open", assignees: [entry] },
+        }),
+      });
+      await failsWith(
+        "upstream",
+        () => adapterFor(fake).fetchIssue(ISSUE),
+        "without a userId",
+      );
+    }
+    fake.respond = (r) =>
+      r.method === "GET" && r.path === `/api/v1/lab/issues/${ISSUE}`
+        ? {
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            issue: {
+              title: "t",
+              status: "open",
+              assignees: [{ username: "skunk-ape" }],
+            },
+          }),
+        }
+        : undefined;
+    await failsWith(
+      "upstream",
+      () => adapterFor(fake).assign(ISSUE, "seth"),
+      "without a userId",
+    );
+    assertEquals(fake.requests.filter((r) => r.method === "PATCH"), []);
   });
 });
 
@@ -521,6 +597,29 @@ Deno.test("swamp-club credentials: the stored login's key only goes to its own s
     ),
     { url: "https://swamp-club.com", apiKey: "swamp_from_file" },
   );
+  // The same origin in another spelling is the same server.
+  for (const url of ["https://SWAMP-CLUB.com", "https://swamp-club.com:443"]) {
+    assertEquals(
+      (await resolveLabCredentials({ url }, sources({}, file))).apiKey,
+      "swamp_from_file",
+      url,
+    );
+  }
+  // Another port or scheme is another server.
+  for (const url of ["https://swamp-club.com:8443", "http://127.0.0.1:1"]) {
+    await assertRejects(
+      () => resolveLabCredentials({ url }, sources({}, file)),
+      TrackerError,
+      "stored login is for",
+    );
+  }
+  // A url that is not one is refused as such, not as another server.
+  const malformed = await assertRejects(
+    () => resolveLabCredentials({ url: "not a url" }, sources({}, file)),
+    TrackerError,
+  );
+  assertEquals(malformed.kind, "invalid");
+  assert(malformed.message.includes("must be https"), malformed.message);
   // A key given for the other server is used there.
   assertEquals(
     await resolveLabCredentials(
@@ -545,6 +644,18 @@ Deno.test("swamp-club: the stored login is read from XDG_CONFIG_HOME, with the l
       username: "seth",
     },
   );
+  // Any url on the legacy host is rewritten, not only the exact string.
+  assertEquals(
+    (await readSwampAuthFile(
+      env({ XDG_CONFIG_HOME: `${AUTH_FIXTURES}legacy-slash` }),
+    ))?.serverUrl,
+    SWAMP_CLUB_URL,
+  );
+  // A file without a key is "not logged in".
+  assertEquals(
+    await readSwampAuthFile(env({ XDG_CONFIG_HOME: `${AUTH_FIXTURES}empty` })),
+    null,
+  );
   // No file is "not logged in".
   assertEquals(
     await readSwampAuthFile(env({ XDG_CONFIG_HOME: `${AUTH_FIXTURES}none` })),
@@ -566,6 +677,35 @@ Deno.test("swamp-club: a stored login that cannot be read is an auth error, not 
     error.message.includes("could not read the stored login"),
     error.message,
   );
+});
+
+Deno.test("swamp-club: a stored login with fields of the wrong type is an auth error, not a crash", async () => {
+  for (
+    const [fixture, says] of [
+      ["server-not-string", "serverUrl"],
+      ["key-not-string", "apiKey"],
+      ["username-not-string", "username"],
+      ["json-null", "not a JSON object"],
+      ["json-array", "not a JSON object"],
+    ]
+  ) {
+    const error = await assertRejects(
+      () =>
+        readSwampAuthFile((name) =>
+          name === "XDG_CONFIG_HOME" ? `${AUTH_FIXTURES}${fixture}` : undefined
+        ),
+      TrackerError,
+      undefined,
+      fixture,
+    );
+    assertEquals(error.kind, "auth", fixture);
+    assert(error.message.includes(says), error.message);
+    assert(error.message.includes("swamp auth login"), error.message);
+    assert(
+      !error.message.includes("swamp_fixture_key_not_real"),
+      "never the key",
+    );
+  }
 });
 
 Deno.test("swamp-club credentials: the key only goes to https, or to plain http on loopback", async () => {

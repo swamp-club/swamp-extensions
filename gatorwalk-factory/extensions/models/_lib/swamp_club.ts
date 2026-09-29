@@ -88,6 +88,24 @@ export function serverUrlProblem(url: string): string | undefined {
   return rule;
 }
 
+/** Whether two urls name the same server: the same parsed origin. */
+export function sameServer(a: string, b: string): boolean {
+  try {
+    return new URL(a).origin === new URL(b).origin;
+  } catch {
+    return false;
+  }
+}
+
+/** Whether a url is on swamp-club's legacy domain. */
+function isLegacyDomain(url: string): boolean {
+  try {
+    return new URL(url).hostname === "swamp.club";
+  } catch {
+    return false;
+  }
+}
+
 export interface AuthFile {
   serverUrl: string;
   apiKey: string;
@@ -135,26 +153,42 @@ export async function readSwampAuthFile(
       }`,
     );
   }
-  let creds: { serverUrl?: string; apiKey?: string; username?: string };
-  try {
-    creds = JSON.parse(text);
-  } catch {
-    throw new TrackerError(
+  const broken = (why: string) =>
+    new TrackerError(
       "auth",
       SWAMP_CLUB,
-      `the stored login at ${path} is not valid JSON; run \`swamp auth login\``,
+      `the stored login at ${path} ${why}; run \`swamp auth login\``,
     );
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw broken("is not valid JSON");
   }
-  if (!creds?.apiKey) return null;
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw broken("is not a JSON object");
+  }
+  const creds = parsed as Record<string, unknown>;
+  for (const field of ["serverUrl", "apiKey", "username"]) {
+    if (creds[field] !== undefined && typeof creds[field] !== "string") {
+      throw broken(`has a ${field} that is not a string`);
+    }
+  }
+  const { serverUrl: stored, apiKey, username } = creds as {
+    serverUrl?: string;
+    apiKey?: string;
+    username?: string;
+  };
+  if (!apiKey) return null;
   // The CLI rewrites the legacy domain when it saves the file; here we only
   // read it, so translate at the read site.
-  const serverUrl = creds.serverUrl === "https://swamp.club"
+  const serverUrl = stored === undefined || isLegacyDomain(stored)
     ? SWAMP_CLUB_URL
-    : creds.serverUrl ?? SWAMP_CLUB_URL;
+    : stored;
   return {
     serverUrl,
-    apiKey: creds.apiKey,
-    username: creds.username || undefined,
+    apiKey,
+    username: username || undefined,
   };
 }
 
@@ -184,7 +218,10 @@ export async function resolveLabCredentials(
   if (apiKey === undefined) {
     const file = await sources.readAuthFile();
     if (file !== null) {
-      if (url !== undefined && trim(url) !== trim(file.serverUrl)) {
+      // A url that is not one is refused as such, not as another server.
+      const problem = url === undefined ? undefined : serverUrlProblem(url);
+      if (problem !== undefined) fail("invalid", problem);
+      if (url !== undefined && !sameServer(url, file.serverUrl)) {
         throw new TrackerError(
           "auth",
           SWAMP_CLUB,
@@ -212,11 +249,23 @@ export async function resolveLabCredentials(
   return { url: resolved, apiKey };
 }
 
+/** A user on an issue's assignees. */
+export interface LabAssignee {
+  userId: string;
+  /** Absent when swamp-club's reply does not carry it. */
+  username?: string;
+}
+
 export interface AssignResult {
   /** False when the user was already assigned: nothing was written. */
   changed: boolean;
   username: string;
   userId: string;
+  /**
+   * Assignees taken off the issue because they are no longer on swamp-club's
+   * team, which would otherwise refuse the whole write. Empty when none were.
+   */
+  dropped: LabAssignee[];
 }
 
 export interface PostedAttestation {
@@ -227,7 +276,10 @@ export interface PostedAttestation {
 
 /** The tracker contract plus what only the Lab has. */
 export interface SwampClubAdapter extends TrackerAdapter {
-  /** Add a user to the issue's assignees, keeping those already there. */
+  /**
+   * Add a user to the issue's assignees, keeping those already there that
+   * are still on swamp-club's team.
+   */
   assign(issueId: string, username: string): Promise<AssignResult>;
   /** Post a verification attestation, built elsewhere, as it is. */
   postAttestation(
@@ -415,9 +467,21 @@ export function swampClubAdapter(options: SwampClubOptions): SwampClubAdapter {
         `GET #${issue} returned assignees that are not a list`,
       );
     }
-    const assignees = (found.assignees ?? []).flatMap((a) =>
-      typeof a?.userId === "string" ? [a.userId] : []
-    );
+    // A write sends the whole list back, so an assignee it cannot name
+    // would be unassigned: refuse the reply rather than drop one.
+    const assignees: LabAssignee[] = [];
+    for (const a of found.assignees ?? []) {
+      if (typeof a?.userId !== "string") {
+        return fail(
+          "upstream",
+          `GET #${issue} returned an assignee without a userId`,
+        );
+      }
+      assignees.push({
+        userId: a.userId,
+        ...(typeof a.username === "string" ? { username: a.username } : {}),
+      });
+    }
     return { title: found.title, status: found.status, assignees };
   }
 
@@ -516,13 +580,22 @@ export function swampClubAdapter(options: SwampClubOptions): SwampClubAdapter {
       }
       const userId = match.userId as string;
       const { assignees } = await getIssue(issue);
-      if (assignees.includes(userId)) {
-        return { changed: false, username, userId };
+      if (assignees.some((a) => a.userId === userId)) {
+        return { changed: false, username, userId, dropped: [] };
       }
+      // swamp-club refuses the whole list if any id on it has left the
+      // team, so keep only those still eligible and say who was dropped.
+      const team = new Set(
+        eligible.assignees.flatMap((a) =>
+          typeof a?.userId === "string" ? [a.userId] : []
+        ),
+      );
+      const kept = assignees.filter((a) => team.has(a.userId));
+      const dropped = assignees.filter((a) => !team.has(a.userId));
       await call("PATCH", `/api/v1/lab/issues/${issue}`, {
-        assignees: [...assignees, userId],
+        assignees: [...kept.map((a) => a.userId), userId],
       });
-      return { changed: true, username, userId };
+      return { changed: true, username, userId, dropped };
     },
 
     async postAttestation(

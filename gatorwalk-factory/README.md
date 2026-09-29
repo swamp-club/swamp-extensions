@@ -371,7 +371,10 @@ swamp model method run lab post_attestation \
   --input attestation="$(cat /tmp/attestation-<SHA>.json)" --log
 ```
 
-`comment` posts a ripple. Statuses only move forward, one step at a time, which
+`assign` without `username` assigns your stored login's user, and only on the
+server that login is for. It drops, and names, any assignee no longer on
+swamp-club's team, since swamp-club refuses the whole list otherwise. `comment`
+posts a ripple. Statuses only move forward, one step at a time, which
 `set_status` walks for you; moving back is refused. `publish` works as it does
 for Linear (above), and skips a status move the issue cannot make, such as back
 to `triaged` after a reset, rather than failing. Do not publish to an issue that

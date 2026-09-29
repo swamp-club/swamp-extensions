@@ -20,7 +20,9 @@ import {
   type CredentialSources,
   DEFAULT_SOURCES,
   LAB_STATUSES,
+  type LabCredentials,
   resolveLabCredentials,
+  sameServer,
   SWAMP_CLUB,
   swampClubAdapter,
 } from "./_lib/swamp_club.ts";
@@ -105,7 +107,8 @@ const COMMIT = /^[0-9a-f]{40}$/;
 const assignArguments = z.object({
   issue: z.string().min(1).describe("The issue's stable id, its number"),
   username: z.string().min(1).optional().describe(
-    "The swamp-club user to assign; defaults to the user of swamp's stored login",
+    "The swamp-club user to assign; defaults to the user of swamp's stored " +
+      "login when the server is that login's own",
   ),
 });
 
@@ -167,10 +170,13 @@ function parseAttestation(
 export function swampClubMethods(options: SwampClubMethodOptions = {}) {
   const sources = options.sources ?? DEFAULT_SOURCES;
   const now = options.now ?? (() => new Date());
-  const adapterOf = (globalArgs: Record<string, unknown>) => {
+  const adapterOf = (
+    globalArgs: Record<string, unknown>,
+    credentials?: () => Promise<LabCredentials>,
+  ) => {
     const args = argumentsOf(globalArgs);
     return swampClubAdapter({
-      credentials: () => resolveLabCredentials(args, sources),
+      credentials: credentials ?? (() => resolveLabCredentials(args, sources)),
     });
   };
   const argsOf = (ctx: TrackerContext) => ctx.globalArgs ?? {};
@@ -184,30 +190,55 @@ export function swampClubMethods(options: SwampClubMethodOptions = {}) {
     }),
     assign: {
       description:
-        "Add a user to a Lab issue's assignees, keeping those already there; already assigned writes nothing",
+        "Add a user to a Lab issue's assignees, keeping those already there that are still on the team; already assigned writes nothing",
       arguments: assignArguments,
       execute: async (
         args: z.infer<typeof assignArguments>,
         ctx: TrackerContext,
       ): Promise<MethodOutput> => {
-        const username = args.username ??
-          (await sources.readAuthFile())?.username;
+        // Resolved once, here and for the adapter, so the default username
+        // is checked against the server the write really goes to. Lazily, so
+        // a failure is only raised where it is awaited.
+        let resolved: Promise<LabCredentials> | undefined;
+        const credentials = () =>
+          resolved ??= resolveLabCredentials(argumentsOf(argsOf(ctx)), sources);
+        let username = args.username;
         if (username === undefined) {
-          throw new TrackerError(
-            "invalid",
-            SWAMP_CLUB,
-            "no username: pass username, or run `swamp auth login` so the " +
-              "stored login names you",
-          );
+          const { url } = await credentials();
+          const login = await sources.readAuthFile();
+          if (login?.username === undefined) {
+            throw new TrackerError(
+              "invalid",
+              SWAMP_CLUB,
+              "no username: pass username, or run `swamp auth login` so the " +
+                "stored login names you",
+            );
+          }
+          // A user of one server is not a user of another.
+          if (!sameServer(url, login.serverUrl)) {
+            throw new TrackerError(
+              "invalid",
+              SWAMP_CLUB,
+              `no username: the stored login is for ${login.serverUrl}, not ` +
+                `${url}; pass username`,
+            );
+          }
+          username = login.username;
         }
-        const result = await adapterOf(argsOf(ctx)).assign(
+        const result = await adapterOf(argsOf(ctx), credentials).assign(
           args.issue,
           username,
         );
+        const done = result.changed
+          ? `assigned #${args.issue} to ${username}`
+          : `#${args.issue} is already assigned to ${username}; wrote nothing`;
+        const dropped = result.dropped.map((a) => a.username ?? a.userId);
         ctx.logger.info("{summary}", {
-          summary: result.changed
-            ? `assigned #${args.issue} to ${username}`
-            : `#${args.issue} is already assigned to ${username}; wrote nothing`,
+          summary: dropped.length === 0
+            ? done
+            : `${done}; dropped ${
+              dropped.join(", ")
+            }, no longer on swamp-club's team`,
         });
         return { dataHandles: [] };
       },

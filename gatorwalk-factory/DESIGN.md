@@ -953,16 +953,21 @@ to it:
   The `statuses` argument defaults to each Lab status mapped to itself.
 - **Beyond the contract.** `assign` adds a user (by swamp-club username) to the
   issue's assignees, keeping those already there; an already-assigned user
-  writes nothing. Without a `username` input it takes the stored login's user,
-  as issue-lifecycle does, even when the key came from the argument or
-  `SWAMP_API_KEY`. `post_attestation` posts a verification attestation that was
-  built elsewhere (`deno task build-attestation`); the adapter only checks that
-  `subject.commit` is a full lowercase SHA, and swamp-club validates the rest.
-  swamp-club stores every attestation POST, never deduplicating by commit, so
-  the adapter keeps an `attestation-<commit>` record of what it posted with a
-  digest of the body. The exact same body again posts nothing. A rebuilt
-  attestation differs (its timing, at least) and is posted, which is right: CI
-  reads the latest attestation for a commit.
+  writes nothing. swamp-club refuses the whole list if any id on it has left the
+  team, so `assign` keeps only assignees still on the eligible list it has
+  already fetched, and names each one it dropped in its result and log line. An
+  assignee in the issue's reply without a `userId` could not be kept, so that
+  reply is `upstream` rather than a silent unassign. Without a `username` input
+  `assign` takes the stored login's user, as issue-lifecycle does, but only when
+  the server it writes to is that login's own; otherwise it asks for `username`.
+  `post_attestation` posts a verification attestation that was built elsewhere
+  (`deno task build-attestation`); the adapter only checks that `subject.commit`
+  is a full lowercase SHA, and swamp-club validates the rest. swamp-club stores
+  every attestation POST, never deduplicating by commit, so the adapter keeps an
+  `attestation-<commit>` record of what it posted with a digest of the body. The
+  exact same body again posts nothing. A rebuilt attestation differs (its
+  timing, at least) and is posted, which is right: CI reads the latest
+  attestation for a commit.
 - **An admin key.** swamp-club lets any user read issues and ripple, but only an
   admin may move a status past `open` or `closed`, assign, look up assignees or
   post attestations. A 403 says so.
@@ -975,8 +980,11 @@ to it:
   assignee lookup. It differs where the contract asks: the issue number is per
   call, failures are `TrackerError`s rather than best-effort nulls and warnings,
   there is no `/healthz` probe, assignment fails loudly, and the stored key
-  stays with its own server. A reply that stalls or breaks off after its headers
-  is `upstream` too.
+  stays with its own server. "Own server" compares parsed origins, so case and a
+  default port do not matter. An `auth.json` that is not a JSON object, or has a
+  `serverUrl`, `apiKey` or `username` that is not a string, is an `auth` error;
+  any url on the `swamp.club` host is rewritten. A reply that stalls or breaks
+  off after its headers is `upstream` too.
 - **Known gaps.** swamp-club refuses some payload text (swamp-club#2284: a
   string that begins with a dollar sign, among others). The adapter does not
   guess at those rules; the refusal arrives as `invalid` with swamp-club's own
