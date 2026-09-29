@@ -21,6 +21,8 @@
 // the runtime stores, renders or hashes goes through jsonSafe first. Digests
 // are SHA-256 over canonical JSON (object keys sorted, no whitespace), so the
 // same payload always hashes the same whatever order its keys arrived in.
+// fieldAt resolves a dotted field path, as requireField names one, so the
+// gate and the graph analysis read a path the same way.
 // ---------------------------------------------------------------------------
 
 /** A value JSON can hold. */
@@ -144,4 +146,27 @@ export async function digestOf(value: unknown): Promise<string> {
   return `sha256:${
     Array.from(hash, (b) => b.toString(16).padStart(2, "0")).join("")
   }`;
+}
+
+/**
+ * The value at a dotted field path (`a.b` is field `b` of field `a`), or
+ * undefined when a segment is missing or a step is not an object (or is an
+ * array).
+ */
+export function fieldAt(
+  payload: Json | undefined,
+  path: string,
+): Json | undefined {
+  let current: Json | undefined = payload;
+  for (const segment of path.split(".")) {
+    if (
+      current === null || typeof current !== "object" || Array.isArray(current)
+    ) {
+      return undefined;
+    }
+    // Own properties only: a path like __proto__ must not reach the prototype.
+    if (!Object.hasOwn(current, segment)) return undefined;
+    current = current[segment];
+  }
+  return current;
 }

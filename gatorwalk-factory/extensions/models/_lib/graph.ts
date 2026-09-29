@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { canonicalJson } from "./canonical.ts";
+import { canonicalJson, fieldAt, type Json } from "./canonical.ts";
 import {
   type GateSpec,
   type Lifecycle,
@@ -101,6 +101,8 @@ interface Edge {
   /** Target stage, or undefined for a plugin exit. */
   to?: string;
   exit?: string;
+  /** Why the transition's own requirements can never all hold, or null. */
+  contradiction: string | null;
 }
 
 interface Graph {
@@ -162,6 +164,7 @@ function buildGraph(doc: Lifecycle | Plugin): Graph {
           global,
           to: transition.to,
           exit: transition.exit,
+          contradiction: contradiction(transition),
         };
         edges.push(edge);
         out.push(edge);
@@ -292,10 +295,90 @@ function edgeBlockers(
   edge: Edge,
   entered: ReadonlySet<string>,
 ): string[] {
-  return (edge.transition.gates ?? []).flatMap((gate) => {
+  const reasons = (edge.transition.gates ?? []).flatMap((gate) => {
     const reason = structuralBlocker(g, gate, edge.from, entered);
     return reason === null ? [] : [reason];
   });
+  return edge.contradiction === null
+    ? reasons
+    : [edge.contradiction, ...reasons];
+}
+
+// --- requireField, read as field paths --------------------------------------
+
+type Requirements = Record<string, unknown>;
+
+/**
+ * The first pair of requireField entries, one from each map, that no single
+ * payload can satisfy, or null. Keys are dotted field paths, read with fieldAt
+ * as gates.ts reads them: equal paths need equal values, and a path below
+ * another must hold, inside the value required there, the value it requires.
+ */
+function requireFieldConflict(
+  left: Requirements,
+  right: Requirements,
+): string | null {
+  for (const [lk, lv] of Object.entries(left)) {
+    for (const [rk, rv] of Object.entries(right)) {
+      if (!requirementsAgree(lk, lv, rk, rv)) {
+        return `'${lk}' to be ${JSON.stringify(lv)} and '${rk}' to be ${
+          JSON.stringify(rv)
+        }`;
+      }
+    }
+  }
+  return null;
+}
+
+function requirementsAgree(
+  aKey: string,
+  aValue: unknown,
+  bKey: string,
+  bValue: unknown,
+): boolean {
+  const a = aKey.split(".");
+  const b = bKey.split(".");
+  const [short, shortValue, long, longValue] = a.length <= b.length
+    ? [a, aValue, b, bValue]
+    : [b, bValue, a, aValue];
+  // By segment, not by string: 'ab' is not above 'a.b'.
+  if (!short.every((segment, i) => long[i] === segment)) return true;
+  const rest = long.slice(short.length);
+  const held = rest.length === 0
+    ? shortValue
+    : fieldAt(shortValue as Json, rest.join("."));
+  return held !== undefined && canonicalJson(held) === canonicalJson(longValue);
+}
+
+/**
+ * Why a transition's evidence-recorded gates can never all pass together, or
+ * null. gates.ts evaluates every gate of a transition against one context, so
+ * gates on the same evidence read the same payload.
+ */
+function contradiction(transition: TransitionSpec): string | null {
+  const byEvidence = new Map<string, Requirements[]>();
+  for (const gate of transition.gates ?? []) {
+    if (
+      gate.type !== "evidence-recorded" ||
+      gate.config.requireField === undefined
+    ) {
+      continue;
+    }
+    const maps = byEvidence.get(gate.config.name) ?? [];
+    maps.push(gate.config.requireField);
+    byEvidence.set(gate.config.name, maps);
+  }
+  for (const [name, maps] of byEvidence) {
+    for (let i = 0; i < maps.length; i++) {
+      for (let j = i; j < maps.length; j++) {
+        const conflict = requireFieldConflict(maps[i], maps[j]);
+        if (conflict !== null) {
+          return `evidence-recorded on '${name}' requires ${conflict}, which no payload can hold`;
+        }
+      }
+    }
+  }
+  return null;
 }
 
 // --- breadth-first exploration ----------------------------------------------
@@ -493,16 +576,11 @@ function exclusive(a: TransitionSpec, b: TransitionSpec): boolean {
         x.type === "evidence-recorded" && y.type === "evidence-recorded" &&
         x.config.name === y.config.name
       ) {
-        const left = x.config.requireField ?? {};
-        const right = y.config.requireField ?? {};
-        for (const field of Object.keys(left)) {
-          if (
-            Object.hasOwn(right, field) &&
-            canonicalJson(left[field]) !== canonicalJson(right[field])
-          ) {
-            return true;
-          }
-        }
+        const conflict = requireFieldConflict(
+          x.config.requireField ?? {},
+          y.config.requireField ?? {},
+        );
+        if (conflict !== null) return true;
       }
       if (
         x.type === "max-cycles" && y.type === "max-cycles" &&

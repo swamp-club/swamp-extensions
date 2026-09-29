@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { canonicalJson, type Json } from "./canonical.ts";
+import { canonicalJson, fieldAt, type Json } from "./canonical.ts";
 import {
   buildCelContext,
   type CelContext,
@@ -440,19 +440,4 @@ function findingsOf(payload: Json): Finding[] {
       typeof f.id === "string" && typeof f.severity === "string"
     )
     : [];
-}
-
-function fieldAt(payload: Json | undefined, path: string): Json | undefined {
-  let current: Json | undefined = payload;
-  for (const segment of path.split(".")) {
-    if (
-      current === null || typeof current !== "object" || Array.isArray(current)
-    ) {
-      return undefined;
-    }
-    // Own properties only: a path like __proto__ must not reach the prototype.
-    if (!Object.hasOwn(current, segment)) return undefined;
-    current = current[segment];
-  }
-  return current;
 }

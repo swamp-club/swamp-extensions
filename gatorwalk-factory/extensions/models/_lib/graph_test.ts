@@ -443,6 +443,165 @@ stages:
   assertEquals(report.warnings, []);
 });
 
+/** Two sibling exits gated on the same evidence, one requireField each. */
+function siblings(left: string, right: string): GraphReport {
+  return analyzeLifecycle(lifecycle(`
+stages:
+  - id: check
+    initial: true
+    maxCycles: 3
+    evidence: [{ name: checks, schema: ${OBJECT} }]
+    transitions:
+      - name: passed
+        to: done
+        gates:
+          - type: evidence-recorded
+            config: { name: checks, requireField: ${left} }
+      - name: failed
+        to: fix
+        gates:
+          - type: evidence-recorded
+            config: { name: checks, requireField: ${right} }
+  - id: fix
+    maxCycles: 3
+    transitions: [{ name: recheck, to: check }]
+  - id: done
+    terminal: true
+`));
+}
+
+Deno.test("graph: requireField keys are compared as field paths, not literally", () => {
+  const exclusive: [string, string][] = [
+    // A dotted key and a nested object naming the same field.
+    ["{ a.b: 1 }", "{ a: { b: 2 } }"],
+    ["{ a: { b: 2 } }", "{ a.b: 1 }"],
+    // The nested value lacks the field the dotted key requires.
+    ["{ a: { c: 1 } }", "{ a.b: 1 }"],
+    // A scalar has no fields.
+    ["{ a: 5 }", "{ a.b: 1 }"],
+    // Neither does an array: a path never steps into one.
+    ["{ a: [{ b: 1 }] }", "{ a.0.b: 1 }"],
+    ["{ a.b: { c: 1 } }", "{ a.b.c: 2 }"],
+  ];
+  for (const [left, right] of exclusive) {
+    const report = siblings(left, right);
+    assertEquals(report.errors, [], `${left} / ${right}`);
+    assertEquals(report.warnings, [], `${left} / ${right}`);
+  }
+});
+
+Deno.test("graph: requireField paths that can both hold stay ambiguous", () => {
+  const ambiguous: [string, string][] = [
+    ["{ a.b: 1 }", "{ a: { b: 1 } }"],
+    // 'ab' is not above 'a.b': only whole segments nest.
+    ["{ ab: { b: 1 } }", "{ a.b: 2 }"],
+  ];
+  for (const [left, right] of ambiguous) {
+    assertEquals(codes(siblings(left, right).warnings), [
+      "ambiguous-exit stages.0.transitions.0 [check]",
+    ], `${left} / ${right}`);
+  }
+});
+
+/** A stage that can always finish, plus one transition gated by `gates`. */
+function guarded(gates: string): GraphReport {
+  return analyzeLifecycle(lifecycle(`
+stages:
+  - id: check
+    initial: true
+    evidence: [{ name: checks, schema: ${OBJECT} }, { name: other, schema: ${OBJECT} }]
+    transitions:
+      - name: guarded
+        to: done
+        gates: ${gates}
+      - name: finish
+        to: done
+  - id: done
+    terminal: true
+`));
+}
+
+Deno.test("graph: requireField entries no payload can satisfy never pass", () => {
+  const cases: [string, string][] = [
+    [
+      "[{ type: evidence-recorded, config: { name: checks, requireField: { a: { b: 1 }, a.b: 2 } } }]",
+      `'a' to be {"b":1} and 'a.b' to be 2`,
+    ],
+    [
+      "[{ type: evidence-recorded, config: { name: checks, requireField: { a: 5, a.b: 1 } } }]",
+      "'a' to be 5 and 'a.b' to be 1",
+    ],
+    // Every gate of a transition reads the same payload.
+    [
+      "[{ type: evidence-recorded, config: { name: checks, requireField: { status: passed } } }, " +
+      "{ type: evidence-recorded, config: { name: checks, requireField: { status: failed } } }]",
+      `'status' to be "passed" and 'status' to be "failed"`,
+    ],
+  ];
+  for (const [gates, conflict] of cases) {
+    const report = guarded(gates);
+    assertEquals(codes(report.errors), [
+      "gate-never-passes stages.0.transitions.0 [check]",
+    ], gates);
+    assert(
+      report.errors[0].message.includes(
+        `evidence-recorded on 'checks' requires ${conflict}, which no payload can hold`,
+      ),
+      report.errors[0].message,
+    );
+  }
+});
+
+Deno.test("graph: requireField entries that can all hold do not block", () => {
+  for (
+    const gates of [
+      "[{ type: evidence-recorded, config: { name: checks, requireField: { a: { b: 1 }, a.b: 1 } } }]",
+      // Different evidence, different payloads.
+      "[{ type: evidence-recorded, config: { name: checks, requireField: { status: passed } } }, " +
+      "{ type: evidence-recorded, config: { name: other, requireField: { status: failed } } }]",
+    ]
+  ) {
+    assertEquals(guarded(gates).errors, [], gates);
+  }
+});
+
+Deno.test("graph: a global transition that contradicts itself gives a finding per stage", () => {
+  const report = analyzeLifecycle(lifecycle(`
+stages:
+  - id: a
+    initial: true
+    evidence: [{ name: blocked, schema: ${OBJECT} }]
+    transitions: [{ name: next, to: b }]
+  - id: b
+    transitions: [{ name: finish, to: done }]
+  - id: done
+    terminal: true
+  - id: parked
+    terminal: true
+globalTransitions:
+  - name: park
+    to: parked
+    gates:
+      - type: evidence-recorded
+        config: { name: blocked, requireField: { reason: { code: 1 }, reason.code: 2 } }
+`));
+  assertEquals(codes(report.errors), [
+    "gate-never-passes globalTransitions.0 [a]",
+    "gate-never-passes globalTransitions.0 [b]",
+    "unreachable-stage stages.3 [parked]",
+  ]);
+  // The contradiction holds from every stage, alongside any other reason.
+  for (const finding of report.errors.slice(0, 2)) {
+    assert(
+      finding.message.includes(
+        `'reason' to be {"code":1} and 'reason.code' to be 2`,
+      ),
+      finding.message,
+    );
+  }
+  assert(report.errors[1].message.includes("which stage 'b' does not record"));
+});
+
 // --- global transitions ------------------------------------------------------
 
 Deno.test("graph: a global transition that fails from two stages gives a finding per stage", () => {

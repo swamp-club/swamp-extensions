@@ -309,7 +309,10 @@ Errors:
   finish.
 - **`gate-never-passes`:** a transition from a reachable stage that no path can
   satisfy, with the gate and the reason. A global transition is judged from each
-  stage separately, and the finding names the stage.
+  stage separately, and the finding names the stage. This includes a transition
+  whose `evidence-recorded` gates on one evidence require values no single
+  payload can hold, such as `a: { b: 1 }` with `a.b: 2`, since every gate of a
+  transition reads the same payload.
 - **`exit-unreachable`:** a plugin contract exit that no transition that can
   pass takes.
 
@@ -318,9 +321,11 @@ Warnings:
 - **`ambiguous-exit`:** two sibling exits to different stages, neither of them
   manual or behind a `human-approval` gate, whose gates are not provably
   exclusive. Exclusive means `evidence-recorded` on the same evidence requiring
-  different values of a field, or `max-cycles` on the same stage and limit with
-  opposite `invert`. CEL cannot be compared. Two exits to the same stage are not
-  ambiguous, since the driver reaches the same place whichever it picks.
+  values of a field no single payload can hold, or `max-cycles` on the same
+  stage and limit with opposite `invert`. `requireField` keys are compared as
+  the field paths the gate reads, so `a.b: 1` and `a: { b: 2 }` are exclusive.
+  CEL cannot be compared. Two exits to the same stage are not ambiguous, since
+  the driver reaches the same place whichever it picks.
 - **`escape-only`:** a stage or loop whose only way to finish is a global
   transition, such as `abandon`.
 - **`default-cycle-bound`:** a loop in which no stage sets `maxCycles` and no
