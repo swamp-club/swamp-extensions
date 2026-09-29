@@ -29,7 +29,7 @@ Placeholders are in angle brackets: `<key>`, `<holder>`, `<stage>`, `<cycle>`,
 
 - **`@swamp/gatorwalk-factory/lifecycle`**, the holder: one instance whose
   `globalArguments` are a lifecycle (stages, work, products, transitions,
-  gates). Methods: `validate`, `new_key`.
+  gates). Methods: `validate`, `design_page`, `new_key`, `apply`.
 - **`@swamp/gatorwalk-factory/work-item`**: one instance per piece of work,
   named by a key from `new_key`. `start` pins a copy of the holder's lifecycle,
   so editing the holder never changes a running item. Every other method works
@@ -65,6 +65,15 @@ swamp model method run <holder> validate --log
 
 `validate` reports every problem with its path. Fix them all before starting
 work.
+
+To see the lifecycle as a page (the stage graph, gates, human stops, handoffs
+and the graph findings with their traces), render it, then save the `content`
+field of the stored page to an `.html` file and open that in a browser:
+
+```sh
+swamp model method run <holder> design_page --log
+swamp data get <holder> design-page --json
+```
 
 ## Start a work item
 

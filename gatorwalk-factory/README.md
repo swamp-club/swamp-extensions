@@ -38,6 +38,7 @@ extensions/models/
     dispatch.ts           dispatch packets: bindings, inputs, rendered prompts
     gates.ts              gate evaluation and transition readiness
     graph.ts              graph analysis of a lifecycle or stage template
+    design_page.ts        a lifecycle as a static HTML page
     stage_template.ts     a stage template's $param placeholders, filled in
     apply.ts              a stage template's stages, copied into a lifecycle
     work_item_ops.ts      the methods of the holder, template holder and
@@ -299,6 +300,8 @@ swamp extension source add /path/to/swamp-extensions/gatorwalk-factory
 # lifecycles/build-swamp-extension.yaml.
 swamp model create @swamp/gatorwalk-factory/lifecycle team --json
 swamp model method run team validate --log
+swamp model method run team design_page --log    # the lifecycle as a page
+swamp data get team design-page --json | jq -r .content > team.html
 swamp model method run team new_key --log        # prints a work-item key
 
 # A template holder, applied in place of team's placeholder stage.

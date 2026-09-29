@@ -19,6 +19,8 @@ import {
   APPLIED_SPEC,
   type ApplyArgs,
   applyMethod,
+  DESIGN_PAGE_SPEC,
+  designPageMethod,
   KEY_SPEC,
   type MethodContextLike,
   newKey,
@@ -40,6 +42,9 @@ import {
 // apply copies a template holder's stages into this lifecycle in place of a
 // placeholder stage, and hands the result back to be saved; it never edits
 // the holder's definition.
+//
+// design_page renders the lifecycle, with its graph findings, as a static
+// HTML page stored as the holder's design-page file.
 // ---------------------------------------------------------------------------
 
 export const HolderArgumentsSchema = z.object({
@@ -84,6 +89,16 @@ export const model = {
       garbageCollection: 10,
     },
   },
+  files: {
+    [DESIGN_PAGE_SPEC]: {
+      description:
+        "The lifecycle as a static HTML page: the stage graph, gates, human " +
+        "stops, handoffs and graph findings",
+      contentType: "text/html",
+      lifetime: "infinite" as const,
+      garbageCollection: 10,
+    },
+  },
   methods: {
     validate: {
       description:
@@ -92,6 +107,14 @@ export const model = {
       arguments: z.object({}),
       execute: (_args: Record<string, never>, context: MethodContextLike) =>
         validateHolder(context),
+    },
+    design_page: {
+      description:
+        "Render the lifecycle, with its graph findings, as a static HTML page stored as the design-page file",
+      // Not a read method: it stores the page.
+      arguments: z.object({}),
+      execute: (_args: Record<string, never>, context: MethodContextLike) =>
+        designPageMethod(context),
     },
     new_key: {
       description:

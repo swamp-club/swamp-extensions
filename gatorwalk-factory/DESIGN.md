@@ -904,6 +904,69 @@ open until the gate passes.
 The summary shows product versions and digests, never payload contents. Team
 roll-ups are out of scope: they are a query over these records.
 
+## The design page
+
+**Decision.** The lifecycle holder's `design_page` method renders the lifecycle
+as one static HTML page and stores it as the holder's `design-page` file
+(`text/html`). The page shows the stage graph, each transition's gates, the
+human stops, each stage's handoff (work mode, what it calls, skills, injected
+context, bindings, result evidence, prompts) and products, and the graph
+analysis's findings with their traces (`_lib/design_page.ts`).
+
+**A method, not a report.** A swamp report produces markdown and JSON, is kept
+for 30 days and five versions, and only exists once a run triggers it. The page
+is HTML an author asks for when they want to look, so it is a file the method
+writes on demand, kept like the holder's other records. A report could wrap the
+same renderer later. swamp stores the file without an extension, so the page is
+saved for a browser with
+`swamp data get <holder> design-page --json | jq -r .content > <name>.html`, the
+command the method logs.
+
+**It renders what `validate` refuses.** A lifecycle the schema rejects fails the
+method with every error, as `validate` does. Graph errors and a truncated
+analysis do not: the page is where an author sees them. A finding that has a
+trace can be selected, and the page walks the trace across the graph one stage
+at a time.
+
+**Mermaid from a CDN, pinned.** The issue asked for no network at view time; in
+triage it was agreed that loading a standard JS dependency is fine, and that the
+diagram may later be animated. The page loads Mermaid from `cdn.jsdelivr.net` at
+one exact version (`MERMAID_VERSION`) with a Subresource Integrity hash
+(`MERMAID_INTEGRITY`), with `securityLevel: strict`. To move to a new version,
+change both together: the hash is the `sha384` of that version's
+`dist/mermaid.min.js`, base64 encoded. The script runs only in the viewer's
+browser, never in swamp or in tests. Without it (offline, or a refused hash) the
+page shows the Mermaid source as text, and every table still renders.
+
+**The view is embedded.** Everything the page shows is derived once, as a view
+(`designView`), embedded in the page as JSON and read by the page's own script.
+A later view, such as an animated d3 one, reads the same data rather than
+re-deriving the graph. Diagram nodes are `s<index>` rather than stage ids,
+because a stage id can be a Mermaid keyword (`end`); lifecycle text never
+reaches the diagram, only names, and every piece of text is escaped in the HTML
+and the embedded JSON. Global transitions are drawn once, from an "any
+non-terminal stage" node, when that layer is on. The page reads no clock, so the
+same lifecycle always gives the same bytes.
+
+**The forward flow first; loops and escapes are layers.** A real process has
+many rework edges, and drawn all at once they bury the main line. The graph
+first shows only the forward flow. Two checkboxes add layers: **loops back**,
+the transitions that close a cycle, and **global transitions**. A transition
+closes a cycle when a depth-first walk along stage transitions (from the initial
+stage, then from any stage it never reached, in document order) meets its target
+on its current path. Leaving those out leaves a graph with no cycles in which
+every stage keeps the edge it was entered by, so hiding loops never strands a
+stage. A stage only a global transition enters (`abandoned`) appears with the
+global layer. Loops are drawn thin and dotted even when a person takes them.
+Selecting a finding whose trace takes a hidden edge turns that edge's layer on
+first. The page carries one diagram per combination of layers, so Mermaid lays
+each out afresh.
+
+**Human stops.** A manual transition and a human-approval gate without `when`
+are human stops, drawn as thick arrows. A human-approval gate with `when` is a
+conditional one, shown with its condition, because the graph analysis treats it
+the same way: it may not apply.
+
 ## Trackers
 
 **Decision.** A tracker (Linear, and the swamp-club Lab) is reached only through

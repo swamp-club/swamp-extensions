@@ -20,6 +20,8 @@ import { HolderArgumentsSchema, model as holder } from "./lifecycle.ts";
 import { fakeSwamp } from "./_lib/fake_swamp.ts";
 import {
   APPLIED_NAME,
+  DESIGN_PAGE_NAME,
+  DESIGN_PAGE_SPEC,
   generateKey,
   HOLDER_TYPE,
   STAGE_TEMPLATE_TYPE,
@@ -174,6 +176,78 @@ Deno.test("holder: validate reads the raw definition, so a platform expression g
   const text = (error as Error).message;
   assert(text.includes("stages.0.work.systemPrompt: contains ${{ }}"), text);
   assert(text.includes("targets unknown stage 'missing'"), text);
+});
+
+Deno.test("holder: design_page stores the lifecycle as an HTML page", async () => {
+  const swamp = fakeSwamp();
+  swamp.definitions.set("team", {
+    globalArguments: await buildLifecycle(),
+    type: HOLDER_TYPE,
+  });
+  const out = await holder.methods.design_page.execute(
+    {},
+    swamp.context("team"),
+  );
+  assertEquals(out.dataHandles.length, 1);
+  const pages = swamp.files.get("team")?.get(
+    `${DESIGN_PAGE_SPEC}/${DESIGN_PAGE_NAME}`,
+  );
+  assertEquals(pages?.length, 1);
+  const html = pages?.[0] ?? "";
+  assert(html.startsWith("<!doctype html>"));
+  assert(html.includes("<h1>build-swamp-extension</h1>"));
+  assertEquals(holder.files[DESIGN_PAGE_SPEC].contentType, "text/html");
+  const summary = String(swamp.logs.at(-1)?.props?.summary);
+  assert(
+    summary.startsWith(
+      "design page for lifecycle 'build-swamp-extension' in 'team': 8 stages, 0 error(s), 2 warning(s)",
+    ),
+    summary,
+  );
+});
+
+Deno.test("holder: design_page renders a lifecycle whose graph has errors", async () => {
+  const swamp = fakeSwamp();
+  const lifecycle = await buildLifecycle();
+  const stages = lifecycle.stages as { transitions: unknown[] }[];
+  // The same unpassable shortcut validate fails on.
+  stages[0].transitions.push({
+    name: "shortcut",
+    to: "code-review",
+    gates: [{ type: "evidence-recorded", config: { name: "checks" } }],
+  });
+  swamp.definitions.set("team", {
+    globalArguments: lifecycle,
+    type: HOLDER_TYPE,
+  });
+  await holder.methods.design_page.execute({}, swamp.context("team"));
+  const html =
+    swamp.files.get("team")?.get(`${DESIGN_PAGE_SPEC}/${DESIGN_PAGE_NAME}`)
+      ?.[0] ??
+      "";
+  assert(html.includes("gate-never-passes"), "the error is on the page");
+  assert(html.includes("1 error(s), 2 warning(s)"));
+  assertEquals(swamp.logs.at(-1)?.props?.errors, 1);
+});
+
+Deno.test("holder: design_page fails with every schema error, writing nothing", async () => {
+  const swamp = fakeSwamp();
+  const lifecycle = await buildLifecycle();
+  const stages = lifecycle.stages as { transitions: unknown[] }[];
+  stages[1].transitions.push({ name: "nowhere", to: "missing" });
+  stages[2].transitions.push({ name: "elsewhere", to: "absent" });
+  swamp.definitions.set("team", {
+    globalArguments: lifecycle,
+    type: HOLDER_TYPE,
+  });
+  const error = await assertRejects(() =>
+    holder.methods.design_page.execute({}, swamp.context("team"))
+  );
+  const text = (error as Error).message;
+  assert(text.includes("lifecycle holder 'team' is not a valid lifecycle"));
+  assert(text.includes("targets unknown stage 'missing'"), text);
+  assert(text.includes("targets unknown stage 'absent'"), text);
+  assertEquals(swamp.files.size, 0);
 });
 
 Deno.test("holder: new_key logs and records an unused key for this lifecycle", async () => {

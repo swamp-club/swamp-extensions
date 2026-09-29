@@ -196,6 +196,40 @@ Deno.test("cli: swamp-extensions validates on the real engine, and a work item s
   });
 });
 
+Deno.test("cli: design_page stores the swamp-extensions lifecycle as an HTML file", async () => {
+  await withRepo(async (repo) => {
+    const lifecycle = parseYaml(
+      await Deno.readTextFile(SWAMP_EXTENSIONS_LIFECYCLE),
+    ) as Record<string, unknown>;
+    await repo.holder("process", lifecycle);
+    const run = await repo.holderMethod("process", "design_page");
+    assert(
+      run.output.includes(
+        "design page for lifecycle 'swamp-extensions' in 'process'",
+      ),
+      run.output,
+    );
+    // The command the log gives for saving the page, less the jq.
+    const { stdout } = await repo.swamp([
+      "data",
+      "get",
+      "process",
+      "design-page",
+      "--json",
+    ]);
+    const page = JSON.parse(stdout) as {
+      contentType: string;
+      content: string;
+      tags: Record<string, string>;
+    };
+    assertEquals(page.contentType, "text/html");
+    assertEquals(page.tags.specName, "design-page");
+    assert(page.content.startsWith("<!doctype html>"));
+    assert(page.content.includes("<h1>swamp-extensions</h1>"));
+    assert(page.content.includes('id="stage-triage"'));
+  });
+});
+
 Deno.test("cli: start, status, a rejected payload and a stale write", async () => {
   await withRepo(async (repo) => {
     const key = await started(repo);

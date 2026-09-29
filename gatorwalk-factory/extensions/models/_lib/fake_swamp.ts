@@ -19,8 +19,8 @@ import type { ClaimContext, ModelDataRecord } from "./claim.ts";
 // ---------------------------------------------------------------------------
 // A fake of the parts of swamp the model types use: versioned resources per
 // instance, readModelData across instances, a definition repository,
-// globalArgs per instance, tagOverrides and a logger. Not used by production
-// code.
+// globalArgs per instance, tagOverrides, file writers and a logger. Not used
+// by production code.
 // ---------------------------------------------------------------------------
 
 export interface FakeSwamp {
@@ -33,6 +33,8 @@ export interface FakeSwamp {
   globalArgs: Map<string, Record<string, unknown>>;
   /** Resources per instance: name -> versions. */
   resources: Map<string, Map<string, Record<string, unknown>[]>>;
+  /** Files per instance: "<spec>/<name>" -> the text of each version. */
+  files: Map<string, Map<string, string[]>>;
   logs: { message: string; props?: Record<string, unknown> }[];
   context(
     name: string,
@@ -51,6 +53,7 @@ export function fakeSwamp(): FakeSwamp {
   const definitions: FakeSwamp["definitions"] = new Map();
   const globalArgs: FakeSwamp["globalArgs"] = new Map();
   const resources: FakeSwamp["resources"] = new Map();
+  const files: FakeSwamp["files"] = new Map();
   const logs: FakeSwamp["logs"] = [];
   // The spec each resource was written under, per instance.
   const specs = new Map<string, Map<string, string>>();
@@ -66,6 +69,7 @@ export function fakeSwamp(): FakeSwamp {
     definitions,
     globalArgs,
     resources,
+    files,
     logs,
     versionsWritten: (instance) =>
       [...of(instance).values()].reduce((n, v) => n + v.length, 0),
@@ -87,6 +91,21 @@ export function fakeSwamp(): FakeSwamp {
         map.set(resource, versions);
         return Promise.resolve({ version: versions.length });
       },
+      createFileWriter: (spec, file) => ({
+        writeText: (content) => {
+          if (!files.has(name)) files.set(name, new Map());
+          const map = files.get(name) as Map<string, string[]>;
+          const versions = map.get(`${spec}/${file}`) ?? [];
+          versions.push(content);
+          map.set(`${spec}/${file}`, versions);
+          return Promise.resolve({
+            name: file,
+            specName: spec,
+            kind: "file",
+            version: versions.length,
+          });
+        },
+      }),
       readResource: (resource, version) => {
         const versions = of(name).get(resource) ?? [];
         const value = versions[(version ?? versions.length) - 1];
