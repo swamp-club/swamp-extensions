@@ -179,15 +179,15 @@ deliberately different: it only accepts evidence recorded in the current stage
 and cycle. The gate asks "did this stage produce it?", while CEL asks "what is
 the latest?". A reset starts a new era, so nothing from before it is visible.
 
-These names are reserved. A comprehension macro (`all`, `exists`, `map`, ...)
-or `cel.bind` may not bind a variable called `item`, `stage`, `artifacts`,
-`evidence` or `validations`; the lifecycle schema rejects it. CEL allows it,
-and the variable would hide the context's value for the rest of the
-expression, which is almost always a mistake. The rule also lets tools that
-read CEL (eject's renames) take these names to mean the context's. The list
-is `CEL_VOCABULARY` in `lifecycle_schema.ts`, checked against `CelContext` when
-it compiles. Putting the vocabulary under a single prefix would also do this,
-at the cost of changing every lifecycle; that is left for later.
+These names are reserved. A comprehension macro (`all`, `exists`, `map`, ...) or
+`cel.bind` may not bind a variable called `item`, `stage`, `artifacts`,
+`evidence` or `validations`; the lifecycle schema rejects it. CEL allows it, and
+the variable would hide the context's value for the rest of the expression,
+which is almost always a mistake. The rule also lets tools that read CEL
+(eject's renames) take these names to mean the context's. The list is
+`CEL_VOCABULARY` in `lifecycle_schema.ts`, checked against `CelContext` when it
+compiles. Putting the vocabulary under a single prefix would also do this, at
+the cost of changing every lifecycle; that is left for later.
 
 Numbers from run data are CEL doubles, as in swamp's own CEL. Comparing them
 with integer literals works (`version >= 2`), but arithmetic needs a double
@@ -296,8 +296,8 @@ In both passes a gate is judged like this:
 - **`human-approval` and `cel`** are unknowns, so they are assumed to pass.
 
 Each pass stops at 100,000 states. If the structural pass stops early, its
-errors are reported as warnings, because they rest on a partial exploration.
-The holder's `validate` fails whenever either pass stops at the cap: a partial
+errors are reported as warnings, because they rest on a partial exploration. The
+holder's `validate` fails whenever either pass stops at the cap: a partial
 exploration cannot show the lifecycle is sound. It names the cap and the pass
 that stopped, and still lists the partial findings as warnings.
 
@@ -338,11 +338,11 @@ Warnings:
 - **`needs-cycle-override`:** a transition only an override opens (for example
   an inverted `max-cycles` above the stage's limit). Running out of cycles is a
   designed stop for a person, never a dead end.
-- **`exploration-truncated`:** a pass hit the state cap. `validate` fails on
-  it, although it is a warning in the report.
+- **`exploration-truncated`:** a pass hit the state cap. `validate` fails on it,
+  although it is a warning in the report.
 
-The analysis looks at one document at a time. A plugin's inputs are checked
-once it is ejected into a lifecycle, on the composed lifecycle (below).
+The analysis looks at one document at a time. A plugin's inputs are checked once
+it is ejected into a lifecycle, on the composed lifecycle (below).
 
 ## Stage plugins: eject only
 
@@ -405,10 +405,10 @@ Every error carries its path. There is no substitution inside strings: a
 parameter that shapes a prompt is a value the prompt refers to, not text spliced
 into it. An object whose only key is `$param` is always a placeholder, so a
 payload schema cannot have a property called `$param` and nothing else. An
-object that looks like a placeholder but is not one is an error, never kept
-as it is: a `$param` whose value is not a name (`{ $param: 3 }`), or a name
-beside other keys. A `$param` key holding an object is left alone, so a
-payload schema may still have a property of that name.
+object that looks like a placeholder but is not one is an error, never kept as
+it is: a `$param` whose value is not a name (`{ $param: 3 }`), or a name beside
+other keys. A `$param` key holding an object is left alone, so a payload schema
+may still have a property of that name.
 
 ### How eject wires a plugin in
 
@@ -437,30 +437,28 @@ prefix, so the defect family this rebuild exists to remove (records told apart
 by name conventions) cannot come back through plugins.
 
 Within one lifecycle or plugin, a name is also one kind: an artifact and
-evidence may not share it (the schema rejects it, and eject reports such a
-clash with the `names` entry to add). `context.inject` lists
-products by name alone, so a shared name was ambiguous to the dispatch packet,
-to the graph analysis, and to eject's renames.
+evidence may not share it (the schema rejects it, and eject reports such a clash
+with the `names` entry to add). `context.inject` lists products by name alone,
+so a shared name was ambiguous to the dispatch packet, to the graph analysis,
+and to eject's renames.
 
 Renames follow identity through every reference: stage ids, `max-cycles` gates,
 gate products, `reviews`, `context.inject`, `resultEvidence`, and CEL. In CEL,
 `artifacts.x`, `artifacts["x"]`, `evidence.x`, `validations.artifacts.x` and
-`validations["artifacts"]["x"]` are rewritten by editing the source text at
-each node's range, so the rest of an expression keeps its spelling.
+`validations["artifacts"]["x"]` are rewritten by editing the source text at each
+node's range, so the rest of an expression keeps its spelling.
 `has(artifacts.x)` renamed to a name that is not an identifier becomes
-`("x-y" in artifacts)`: `has()` only takes a field selection, and cel-js
-accepts `has(artifacts["x-y"])` when it is checked but refuses it when it runs.
-This
-relies on `artifacts`, `evidence` and `validations` always meaning the
-context's maps, which the lifecycle schema guarantees (see "The CEL
-vocabulary"). A name held in a CEL string cannot be told apart from any other
-string: `stage.id == "review"`, or `artifacts.exists(k, k == "plan")`, where
-the product is looked up by a value only known at run time. So a CEL string
-equal to a renamed stage or product is left as written, with a warning; so is
-one equal to the placeholder's id, anywhere in the lifecycle, global
-transitions included. Approval gate ids are not renamed:
-approvals are counted per gate id within the current stage (`gates.ts`), so
-distinct stage ids already keep two uses apart.
+`("x-y" in artifacts)`: `has()` only takes a field selection, and cel-js accepts
+`has(artifacts["x-y"])` when it is checked but refuses it when it runs. This
+relies on `artifacts`, `evidence` and `validations` always meaning the context's
+maps, which the lifecycle schema guarantees (see "The CEL vocabulary"). A name
+held in a CEL string cannot be told apart from any other string:
+`stage.id == "review"`, or `artifacts.exists(k, k == "plan")`, where the product
+is looked up by a value only known at run time. So a CEL string equal to a
+renamed stage or product is left as written, with a warning; so is one equal to
+the placeholder's id, anywhere in the lifecycle, global transitions included.
+Approval gate ids are not renamed: approvals are counted per gate id within the
+current stage (`gates.ts`), so distinct stage ids already keep two uses apart.
 
 ### What is checked
 
@@ -498,8 +496,8 @@ logic in `_lib/work_item_ops.ts`):
   work item. `reset` keeps the pinned copy unless `repin=true` adopts the
   holder's current one.
 
-The plugin holder, another model type, only serves `eject`; see "Stage
-plugins: eject only".
+The plugin holder, another model type, only serves `eject`; see "Stage plugins:
+eject only".
 
 **The pinned copy is chosen by version.** The run record names the version of
 the pinned copy it uses, and methods read exactly that version and check its
@@ -549,11 +547,12 @@ first starts can race. That is accepted for solo use until swamp fixes it.
 
 ## Trackers
 
-**Decision.** A tracker (Linear now, swamp-club Lab next) is reached only
-through an **adapter**: its own model type, never part of the work item. The
-contract is written once, in `_lib/tracker.ts` and `_lib/tracker_methods.ts`,
-and each tracker is a thin model over it (`extensions/models/linear.ts`, with
-its client in `_lib/linear.ts`).
+**Decision.** A tracker (Linear, and the swamp-club Lab) is reached only through
+an **adapter**: its own model type, never part of the work item. The contract is
+written once, in `_lib/tracker.ts` and `_lib/tracker_methods.ts`, and each
+tracker is a thin model over it (`extensions/models/linear.ts`, with its client
+in `_lib/linear.ts`; `extensions/models/swamp_club.ts`, with its client in
+`_lib/swamp_club.ts`).
 
 The contract:
 
@@ -571,69 +570,137 @@ The contract:
 - **Tracker ids are data.** A work item records them in `externalRefs`: the
   stable id under the tracker's name, and the human identifier under
   `<tracker>.display`, for example
-  `{"linear": "<issue UUID>", "linear.display": "ABC-1"}`. Neither is ever an
+  `{"linear": "<issue UUID>", "linear.display": "ABC-1"}` or
+  `{"swamp-club": "2631", "swamp-club.display": "#2631"}`. Neither is ever an
   instance name. Linear identifiers change when an issue moves team, so Linear
   keys on the UUID: `comment` and `set_status` refuse an identifier, and
   `fetch_issue`, which accepts either, reports the UUID and the `externalRefs`
   to start a work item with.
-- **Credentials come from a vault.** An adapter's credential is a sensitive
-  global argument wired with `${{ vault.get(<vault>, <key>) }}`, so swamp
-  resolves it at run time and redacts it from logs. It is never read from
-  lifecycle data, method inputs or the environment. (The Lab adapter may use
-  swamp auth instead.) Linear's `apiUrl` must be https; plain http is allowed
-  only for 127.0.0.1 and `[::1]`, where the tests run a local fake.
+- **Credentials never come from lifecycle data or method inputs.** An adapter's
+  credential is a sensitive global argument, which can be wired with
+  `${{ vault.get(<vault>, <key>) }}` so swamp resolves it at run time and
+  redacts it from logs. The Linear adapter reads that argument only. The Lab
+  adapter resolves its key as issue-lifecycle does: the `apiKey` argument, then
+  the `SWAMP_API_KEY` environment variable, then swamp's stored login
+  (`auth.json`, written by `swamp auth login`). Its server is the `url`
+  argument, then `SWAMP_CLUB_URL`, then the stored login's server (only when the
+  key came from there), then `https://swamp-club.com`. Reading the environment
+  is reasonable here: it is the credential swamp and issue-lifecycle already use
+  for the same service, and it keeps the key out of every definition. One
+  difference from issue-lifecycle: the stored login's key is only sent to the
+  stored login's own server. A `url` or `SWAMP_CLUB_URL` naming another server,
+  with no key of its own, is refused as `auth` rather than handed that key. A
+  stored login that exists but cannot be read is also `auth`, never taken as
+  "not logged in". Linear's `apiUrl` must be https; plain http is allowed only
+  for 127.0.0.1 and `[::1]`, where the tests run a local fake. The swamp-club
+  adapter applies the same rule to its resolved server url, wherever it came
+  from.
 - **Delivery is idempotent on (work item, journal version).** The journal
   version is the length of the run record's journal array. The journal only
   grows (`reset` carries it forward, and only `start` begins one), and its
   length does not depend on swamp's data versions or their retention. A
   `comment` or `set_status` given `workItem` and `journalVersion` records what
   the tracker returned (a comment's id and url, or the status) in the adapter
-  instance's delivery ledger, as `delivery-<action>-<workItem>-<journalVersion>`.
-  A later call with the same key finds that record and writes nothing to the
-  tracker, even if the `statuses` mapping has changed since. The record keeps a
-  digest of what was asked (the comment body or the status key), so the same
-  key for a different ticket or a different request is refused rather than
-  silently skipped.
+  instance's delivery ledger, as
+  `delivery-<action>-<workItem>-<journalVersion>`. A later call with the same
+  key finds that record and writes nothing to the tracker, even if the
+  `statuses` mapping has changed since. The record keeps a digest of what was
+  asked (the comment body or the status key), so the same key for a different
+  ticket or a different request is refused rather than silently skipped.
 
 Every adapter provides three operations, as swamp methods built by
 `trackerMethods`:
 
-| Method        | Inputs                                              | Writes                              |
-| ------------- | --------------------------------------------------- | ----------------------------------- |
-| `fetch_issue` | `issue`: stable id or display identifier            | `issue-<id>`: a snapshot            |
-| `comment`     | `issue` (stable id), `body`, optional delivery key  | the ledger record, when keyed       |
-| `set_status`  | `issue` (stable id), `status` key, optional key     | the ledger record, when keyed       |
+| Method        | Inputs                                             | Writes                        |
+| ------------- | -------------------------------------------------- | ----------------------------- |
+| `fetch_issue` | `issue`: stable id or display identifier           | `issue-<id>`: a snapshot      |
+| `comment`     | `issue` (stable id), `body`, optional delivery key | the ledger record, when keyed |
+| `set_status`  | `issue` (stable id), `status` key, optional key    | the ledger record, when keyed |
 
 `set_status` takes a gatorwalk **status key**, which the `statuses` global
-argument maps to the tracker's own status name (Linear statuses belong to a
-team and are matched by exact name, then resolved to an id at call time). An
-unmapped key is refused, listing the mapped keys; a name the team lacks is
-refused, listing the team's statuses. Moving a ticket to the status it already
-has writes nothing.
+argument maps to the tracker's own status name (Linear statuses belong to a team
+and are matched by exact name, then resolved to an id at call time). An unmapped
+key is refused, listing the mapped keys; a name the team lacks is refused,
+listing the team's statuses. Moving a ticket to the status it already has writes
+nothing.
 
 Failures are a `TrackerError` with one of five kinds: `auth`, `not_found`,
 `rate_limited`, `invalid` or `upstream`. Nothing is retried: every write is
 idempotent through the ledger or by being a no-op, so the caller re-runs.
 `_lib/tracker_conformance.ts` checks this contract the same way for every
-adapter, against that adapter's local fake of its tracker.
+adapter, against that adapter's local fake of its tracker. It checks a bad
+credential on a write (`comment`), not a read: swamp-club serves reads to
+anyone, so a bad key only shows once the adapter writes.
 
 **Known gaps.** The ledger is read, then the tracker is written, then the
-ledger. That relies on swamp running one method at a time per adapter
-instance, so keep one adapter instance per tracker workspace. A crash after
-the tracker accepted a write but before the ledger record landed repeats that
-one write on retry. For a comment that means a duplicate. A hidden marker in
-the comment body, searched on retry, would close it if that matters. Ledger
-records are kept by age for a year; a replay of a key older than that would
-write again. Linear status lookup reads up to 250 statuses per team, Linear's
-page limit.
+ledger. That relies on swamp running one method at a time per adapter instance,
+so keep one adapter instance per tracker workspace. A crash after the tracker
+accepted a write but before the ledger record landed repeats that one write on
+retry. For a comment that means a duplicate. A hidden marker in the comment
+body, searched on retry, would close it if that matters. Ledger records are kept
+by age for a year; a replay of a key older than that would write again. Linear
+status lookup reads up to 250 statuses per team, Linear's page limit.
+
+### The swamp-club Lab adapter
+
+`@swamp/gatorwalk-factory/swamp-club` is the Lab's adapter. What is particular
+to it:
+
+- **Ids.** The stable id is the issue number as a string (`2631`); the display
+  form is `#2631`. `fetch_issue` accepts either; writes take the number only, as
+  every adapter's writes take the stable id.
+- **A ripple is a comment.** `comment` posts a ripple and records its id. A
+  ripple has no anchor of its own, so its url is the issue's
+  (`<server>/lab/<n>`, since the API returns no url either).
+- **Statuses only move forward.** The Lab has five statuses: `open`, `triaged`,
+  `in_progress`, `shipped` and `closed`. swamp-club accepts only the next step
+  along open, triaged, in_progress, shipped, so `set_status` reads the issue's
+  current status and PATCHes each step in turn. Moving backwards is `invalid`,
+  as is a name that is not one of the five (the message lists them). `closed` is
+  one move from anything but `shipped`; a closed issue reopens to `open` and
+  walks forward from there. A walk that fails partway says which steps landed,
+  and records no delivery, so a re-run starts from wherever the issue really is.
+  The `statuses` argument defaults to each Lab status mapped to itself.
+- **Beyond the contract.** `assign` adds a user (by swamp-club username) to the
+  issue's assignees, keeping those already there; an already-assigned user
+  writes nothing. Without a `username` input it takes the stored login's user,
+  as issue-lifecycle does, even when the key came from the argument or
+  `SWAMP_API_KEY`. `post_attestation` posts a verification attestation that was
+  built elsewhere (`deno task build-attestation`); the adapter only checks that
+  `subject.commit` is a full lowercase SHA, and swamp-club validates the rest.
+  swamp-club stores every attestation POST, never deduplicating by commit, so
+  the adapter keeps an `attestation-<commit>` record of what it posted with a
+  digest of the body. The exact same body again posts nothing. A rebuilt
+  attestation differs (its timing, at least) and is posted, which is right: CI
+  reads the latest attestation for a commit.
+- **An admin key.** swamp-club lets any user read issues and ripple, but only an
+  admin may move a status past `open` or `closed`, assign, look up assignees or
+  post attestations. A 403 says so.
+- **Forked, not shared.** The client is a fork of issue-lifecycle's
+  (`extensions/models/_lib/swamp_club.ts` at the repository root). The two are
+  published as separate packages, so neither can import the other, and
+  issue-lifecycle is left unchanged for now. The fork keeps the endpoints,
+  Bearer auth, the one-step status order, the `auth.json` reader (with its
+  `swamp.club` to `swamp-club.com` rewrite), the credential precedence and the
+  assignee lookup. It differs where the contract asks: the issue number is per
+  call, failures are `TrackerError`s rather than best-effort nulls and warnings,
+  there is no `/healthz` probe, assignment fails loudly, and the stored key
+  stays with its own server. A reply that stalls or breaks off after its headers
+  is `upstream` too.
+- **Known gaps.** swamp-club refuses some payload text (swamp-club#2284: a
+  string that begins with a dollar sign, among others). The adapter does not
+  guess at those rules; the refusal arrives as `invalid` with swamp-club's own
+  reason, and the caller rephrases. Issue reads are rate limited per IP.
+  `assign` reads the assignees and then writes their union, so an edit made in
+  between is lost.
 
 **Designed for, not built here.**
 
 - **The projection publisher (GW-17)** reads a work item's run record through
-  `context.readModelData(<key>, "run")`, takes the journal length as its
-  cursor, and calls `comment` and `set_status` with that length as the
-  delivery key. A replay after a crash re-sends keys already delivered, and the
-  ledger skips them.
+  `context.readModelData(<key>, "run")`, takes the journal length as its cursor,
+  and calls `comment` and `set_status` with that length as the delivery key. A
+  replay after a crash re-sends keys already delivered, and the ledger skips
+  them.
 - **Start from a ticket (GW-18)** calls `fetch_issue`, starts a work item with
   the `externalRefs` it reports, and keeps an index from ticket id to work-item
   key on the adapter instance, so a ticket finds its work item without scanning
@@ -649,8 +716,9 @@ runs methods by direct type execution with `--log`, and reads results back from
 swamp's storage with `swamp data get --json`. Code: `integration/harness.ts`,
 `integration/cli_test.ts`; `integration/skill_test.ts`, which checks every
 command the driving skill shows and runs its worked example as written; and
-`integration/tracker_test.ts`, which runs the Linear adapter with its token in
-a vault made inside the temp repo, against the local Linear fake.
+`integration/tracker_test.ts`, which runs the Linear and swamp-club adapters
+with their credentials in a vault made inside the temp repo, against their local
+fakes.
 
 ### Why
 
@@ -671,9 +739,9 @@ flags, so that tests of the pure runtime keep their guarantee: they read files
 and nothing else.
 
 Both commands also have `--allow-net=127.0.0.1`, only because the tracker tests
-serve a local fake of each tracker's API (`_lib/linear_fake.ts`) on a free
-port. Nothing reaches a live service. The state piece still makes no network
-calls; its tests would pass without the flag.
+serve a local fake of each tracker's API (`_lib/linear_fake.ts`,
+`_lib/swamp_club_fake.ts`) on a free port. Nothing reaches a live service. The
+state piece still makes no network calls; its tests would pass without the flag.
 
 What those flags do not limit:
 
@@ -719,7 +787,10 @@ missed several. `SWAMP_HOME` is kept because it moves swamp's user directory
 (config, stored login, the runtime that loads extensions), which the suite takes
 from the caller like `HOME`. The cost: `SWAMP_DEBUG` and `SWAMP_LOG_LEVEL` are
 removed too, so to see more of swamp's logging, run swamp by hand in the repo
-the suite logs. Code: `swampEnv` in `integration/harness.ts`.
+the suite logs. Code: `swampEnv` in `integration/harness.ts`. That includes
+`SWAMP_API_KEY` and `SWAMP_CLUB_URL`, so the swamp-club adapter never picks up
+the host's key; its test also sets `apiKey` and `url`, so the host's stored
+login is not read either.
 
 **Out of scope.** Remote workers and `swamp serve` are not covered. A holder
 read on a remote worker arrives as a plain object with `_globalArguments`, and

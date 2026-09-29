@@ -6,7 +6,8 @@ expresses every lifecycle the old format could. `lifecycles/eject-target.yaml`
 is a lifecycle with a placeholder stage for the `review-plan` plugin to be
 ejected into. `plugins/` holds stage plugins; their `{ $param: <name> }`
 placeholders are filled in with the parameters' defaults before they are
-checked.
+checked. `auth/` holds stored swamp logins (`<dir>/swamp/auth.json`) for the
+swamp-club adapter's credential tests; the key in them is not a real one.
 
 Prompts refer to bindings as `{{name}}`. The CEL vocabulary in `bindings` and
 `cel` gates (`item`, `stage`, `artifacts`, `evidence`, `validations`) is defined

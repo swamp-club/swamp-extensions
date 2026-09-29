@@ -28,6 +28,7 @@ import {
   HOLDER_TYPE,
   LINEAR_TYPE,
   PLUGIN_TYPE,
+  SWAMP_CLUB_TYPE,
   SWAMP_EXTENSIONS_LIFECYCLE,
   type SwampRepo,
   withRepo,
@@ -108,7 +109,8 @@ Deno.test("cli: every model type registers from the extension source", async () 
       .results.map((r) => r.raw).sort();
     assertEquals(
       types,
-      [HOLDER_TYPE, LINEAR_TYPE, PLUGIN_TYPE, WORK_ITEM_TYPE].sort(),
+      [HOLDER_TYPE, LINEAR_TYPE, PLUGIN_TYPE, SWAMP_CLUB_TYPE, WORK_ITEM_TYPE]
+        .sort(),
     );
   });
 });

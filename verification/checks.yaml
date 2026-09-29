@@ -78,15 +78,16 @@ groups:
           # lint in a directory of markdown.
           fmt: deno fmt --check extensions/models/ integration/ .claude/skills/
           # The unit tests only read files and never reach integration/.
-          # --allow-net=127.0.0.1 is for the local fake of Linear's API the
-          # tracker tests serve; nothing reaches a live service.
+          # --allow-net=127.0.0.1 is for the local fakes of Linear's and
+          # swamp-club's APIs the tracker tests serve; nothing reaches a live
+          # service.
           test: deno test --allow-read --allow-net=127.0.0.1 extensions/models/
           # The real-engine suite (integration/) drives the installed swamp
           # CLI in a temp repo, so it needs more than the unit tests. These
           # flags are not a sandbox: --allow-run=swamp lets the spawned
           # binary do anything, and --allow-write is unscoped because the
           # temp dir is only known at run time. They apply to integration/
-          # only. --allow-net=127.0.0.1 serves the local Linear fake. See
+          # only. --allow-net=127.0.0.1 serves the local tracker fakes. See
           # gatorwalk-factory/DESIGN.md, "Tests on the real engine".
           integration: deno test --allow-run=swamp --allow-read --allow-write --allow-env --allow-net=127.0.0.1 integration/
       - dir: container-image

@@ -86,7 +86,9 @@ export async function assertTrackerConformance(
     () => adapter.setStatus(f.issue.id, "No Such Status"),
   );
   assert(unknown.message.includes(second), "lists the valid status names");
-  await rejectsWith("auth", () => f.badAuth.fetchIssue(f.issue.id));
+  // A write, not a read: some trackers (the swamp-club Lab) serve reads to
+  // anyone, so a bad credential only shows once the adapter writes.
+  await rejectsWith("auth", () => f.badAuth.comment(f.issue.id, "x"));
   await rejectsWith("not_found", () => adapter.fetchIssue(f.missing));
   await rejectsWith("not_found", () => adapter.comment(f.missing, "x"));
 

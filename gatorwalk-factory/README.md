@@ -20,6 +20,7 @@ extensions/models/
   plugin.ts               the plugin holder model type
   work_item.ts            the work-item model type
   linear.ts               the Linear tracker adapter model type
+  swamp_club.ts           the swamp-club Lab tracker adapter model type
   _lib/
     lifecycle_schema.ts   the lifecycle and plugin meta-schema
     payload_schema.ts     JSON Schema 2020-12 payload schemas and contracts
@@ -43,6 +44,8 @@ extensions/models/
     tracker_conformance.ts  the contract, checked the same way per adapter
     linear.ts             the Linear GraphQL client
     linear_fake.ts        a local fake of Linear's API, for tests
+    swamp_club.ts         the swamp-club Lab REST client
+    swamp_club_fake.ts    a local fake of the Lab API, for tests
     test_support.ts       shared test fixtures
     fake_swamp.ts         a fake swamp method context for tests
 integration/              the real-engine suite: gatorwalk through the swamp CLI
@@ -190,9 +193,11 @@ triage → [reproduce] → plan → plan-review → implement → conformance-re
 ```
 
 - **It describes the process; it does not replace issue-lifecycle.** The
-  repository keeps issue-lifecycle until gatorwalk has a swamp-club adapter.
-  Where the process posts to swamp-club (the attestation, the contributor's
-  thank-you), a person does it and the stage records the result.
+  repository keeps issue-lifecycle for now. gatorwalk has a swamp-club adapter
+  (`@swamp/gatorwalk-factory/swamp-club`), but this lifecycle does not use it
+  yet; wiring it in is a follow-up. Until then, where the process posts to
+  swamp-club (the attestation, the contributor's thank-you), a person does it
+  and the stage records the result.
 - **People decide at six points:** a bug that cannot be reproduced, plan
   approval, the verification checklist, opening the pull request, what to do
   after a failed pull request, and abandoning the work. Five are approvals;
@@ -220,12 +225,12 @@ deno install --frozen
 These are the same checks that `verification/checks.yaml` runs before a PR.
 
 `deno task test` runs the unit tests against fakes. It needs read access, and
-network access to 127.0.0.1 only, where the tracker tests serve a fake of
-Linear's API.
-`deno task test:integration` runs gatorwalk through the installed `swamp` CLI,
-each test in a throwaway swamp repo. It fails if `swamp` is not on `PATH`. It
-uses your swamp config and login and deno's npm cache, and needs no network once
-that cache is warm. See [DESIGN.md](DESIGN.md), "Tests on the real engine".
+network access to 127.0.0.1 only, where the tracker tests serve fakes of
+Linear's and swamp-club's APIs. `deno task test:integration` runs gatorwalk
+through the installed `swamp` CLI, each test in a throwaway swamp repo. It fails
+if `swamp` is not on `PATH`. It uses your swamp config and login and deno's npm
+cache, and needs no network once that cache is warm. See [DESIGN.md](DESIGN.md),
+"Tests on the real engine".
 
 ## Running it
 
@@ -283,6 +288,29 @@ swamp model method run linear fetch_issue --input issue=ABC-1 --log
 `fetch_issue` prints the issue's UUID and the `externalRefs` to start a work
 item with. `comment` and `set_status` take the UUID; given `workItem` and
 `journalVersion`, a repeat of the same pair writes nothing to Linear.
+
+## swamp-club Lab
+
+`@swamp/gatorwalk-factory/swamp-club` connects a swamp-club server. It uses the
+same key as swamp and issue-lifecycle: the `apiKey` global argument if set,
+otherwise `SWAMP_API_KEY`, otherwise your `swamp auth login` (whose key is only
+ever sent to the server you logged in to). Status moves past open or closed,
+assignment and attestations need an admin key. See [DESIGN.md](DESIGN.md), "The
+swamp-club Lab adapter".
+
+```bash
+swamp model create @swamp/gatorwalk-factory/swamp-club lab --json
+swamp model method run lab fetch_issue --input issue=2631 --log
+swamp model method run lab set_status --input issue=2631 --input status=triaged --log
+swamp model method run lab assign --input issue=2631 --log
+swamp model method run lab post_attestation \
+  --input attestation="$(cat /tmp/attestation-<SHA>.json)" --log
+```
+
+`comment` posts a ripple. Statuses only move forward, one step at a time, which
+`set_status` walks for you; moving back is refused. `post_attestation` posts an
+attestation built elsewhere (`deno task build-attestation`), and posting the
+same one again for a commit writes nothing.
 
 ## Driving it
 

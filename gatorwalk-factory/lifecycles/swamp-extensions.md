@@ -9,8 +9,10 @@ listed under [Format gaps](#format-gaps) at the end. Each gap is a finding about
 the format; none was worked around silently.
 
 `swamp-extensions.yaml` describes the process. It does not replace
-issue-lifecycle: this repository keeps issue-lifecycle until gatorwalk has a
-swamp-club adapter and can stand in for it completely.
+issue-lifecycle: this repository keeps issue-lifecycle for now. gatorwalk has a
+swamp-club adapter (`@swamp/gatorwalk-factory/swamp-club`), but this lifecycle
+does not use it yet; wiring it in, so gatorwalk can stand in for issue-lifecycle
+completely, is a follow-up.
 
 ## The process, stage by stage
 
@@ -110,8 +112,10 @@ Candidates for issues. None has been filed.
    classifying it (the type PATCH), moving its status, posting lifecycle
    entries, posting the attestation and thanking the contributor all happen
    outside the lifecycle. The attestation id is recorded, but nothing checks
-   that it was posted or that it matches. This is the swamp-club adapter the
-   issue already names as out of scope; listed so the mapping is complete.
+   that it was posted or that it matches. The swamp-club adapter now exists
+   (`@swamp/gatorwalk-factory/swamp-club`: fetch, ripple, status, assign and
+   posting an attestation), but this lifecycle does not call it yet; listed so
+   the mapping is complete.
 2. **No parallel stages.** verify-build and verify-reviews run at the same time
    today and are judged together as one checklist. A lifecycle is in one stage
    at a time, so they run one after the other, and a reviews failure is only

@@ -21,7 +21,12 @@ import {
   ISSUE_UUID,
   linearFake,
 } from "../extensions/models/_lib/linear_fake.ts";
-import { LINEAR_TYPE, withRepo } from "./harness.ts";
+import {
+  ADMIN_KEY,
+  LAB_ISSUE,
+  swampClubFake,
+} from "../extensions/models/_lib/swamp_club_fake.ts";
+import { LINEAR_TYPE, SWAMP_CLUB_TYPE, withRepo } from "./harness.ts";
 
 // ---------------------------------------------------------------------------
 // The Linear adapter on the real engine: its token comes from a vault made
@@ -106,6 +111,104 @@ Deno.test("tracker: the Linear adapter takes its token from a vault and delivers
       assert(
         !(await Deno.readTextFile(path)).includes(FAKE_TOKEN),
         "the definition keeps the vault expression, not the token",
+      );
+    });
+  } finally {
+    await fake.close();
+  }
+});
+
+Deno.test("tracker: the swamp-club adapter takes its key from a vault, ripples once per key and posts an attestation once", async () => {
+  const fake = swampClubFake();
+  const issue = String(LAB_ISSUE);
+  const commit = "0123456789abcdef0123456789abcdef01234567";
+  try {
+    await withRepo(async (repo) => {
+      await repo.swamp(["vault", "create", "local_encryption", "secrets"]);
+      await repo.swamp(["vault", "put", "secrets", "lab-key", ADMIN_KEY]);
+
+      const { stdout } = await repo.swamp([
+        "model",
+        "create",
+        SWAMP_CLUB_TYPE,
+        "lab",
+        "--json",
+      ]);
+      const path = (JSON.parse(stdout) as { path: string }).path;
+      const definition = parseYaml(await Deno.readTextFile(path)) as Record<
+        string,
+        unknown
+      >;
+      // The key and url are always set, so neither the host's
+      // SWAMP_API_KEY (scrubbed anyway) nor its auth.json is read.
+      definition.globalArguments = {
+        apiKey: "${{ vault.get(secrets, lab-key) }}",
+        url: fake.url,
+      };
+      await Deno.writeTextFile(path, stringifyYaml(definition));
+
+      const method = (name: string, inputs: Record<string, string>) =>
+        repo.swamp([
+          "model",
+          "method",
+          "run",
+          "lab",
+          name,
+          ...Object.entries(inputs).flatMap((
+            [k, v],
+          ) => ["--input", `${k}=${v}`]),
+          "--log",
+        ]);
+
+      const fetched = await method("fetch_issue", { issue: `#${issue}` });
+      assert(fetched.output.includes(`#${issue} (${issue})`), fetched.output);
+      const snapshot = await repo.data("lab", `issue-${issue}`);
+      assertEquals(snapshot.tracker, "swamp-club");
+      assertEquals(fake.requests[0].authorization, `Bearer ${ADMIN_KEY}`);
+
+      const key = { workItem: "build-abcdefgh", journalVersion: "3" };
+      const first = await method("comment", {
+        issue,
+        body: "Planned",
+        ...key,
+      });
+      const second = await method("comment", {
+        issue,
+        body: "Planned",
+        ...key,
+      });
+      assertEquals(fake.comments.length, 1);
+      assert(second.output.includes("already delivered"), second.output);
+      const ledger = await repo.data(
+        "lab",
+        "delivery-comment-build-abcdefgh-3",
+      );
+      assertEquals((ledger.result as { id: string }).id, fake.comments[0].id);
+
+      await method("set_status", { issue, status: "in_progress" });
+      assertEquals(fake.issues[0].status, "in_progress");
+
+      await method("assign", { issue, username: "seth" });
+      assertEquals(fake.issues[0].assignees.map((a) => a.username), ["seth"]);
+
+      const attestation = JSON.stringify({
+        version: "1",
+        subject: { commit, branch: "main" },
+        gate: { allPassed: true },
+      });
+      const posted = await method("post_attestation", { attestation });
+      const repeat = await method("post_attestation", { attestation });
+      assertEquals(fake.attestations.length, 1);
+      assert(repeat.output.includes("already posted"), repeat.output);
+      const record = await repo.data("lab", `attestation-${commit}`);
+      assertEquals(record.id, fake.attestations[0].id);
+
+      for (const result of [fetched, first, second, posted, repeat]) {
+        assert(!result.output.includes(ADMIN_KEY), "the key is not output");
+      }
+      assert(
+        !(await Deno.readTextFile(path)).includes(ADMIN_KEY),
+        "the definition keeps the vault expression, not the key",
       );
     });
   } finally {

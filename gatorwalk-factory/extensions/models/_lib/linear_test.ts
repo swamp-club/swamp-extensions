@@ -73,6 +73,15 @@ Deno.test("linear: sends the API key as the Authorization header, to the configu
   });
 });
 
+Deno.test("linear: a wrong token fails a read as auth", async () => {
+  await withFake(async (fake) => {
+    await failsWith(
+      "auth",
+      () => adapterFor(fake, "lin_api_wrong").fetchIssue("GW-16"),
+    );
+  });
+});
+
 Deno.test("linear: writes key on the UUID, so an identifier is refused before any call", async () => {
   await withFake(async (fake) => {
     const adapter = adapterFor(fake);

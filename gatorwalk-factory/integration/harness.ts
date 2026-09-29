@@ -22,6 +22,7 @@ import {
   type RunRecord,
 } from "../extensions/models/_lib/run_record.ts";
 import { LINEAR_TYPE } from "../extensions/models/_lib/linear.ts";
+import { SWAMP_CLUB_TYPE } from "../extensions/models/_lib/swamp_club.ts";
 import {
   HOLDER_TYPE,
   PLUGIN_TYPE,
@@ -52,7 +53,13 @@ export const SWAMP_EXTENSIONS_LIFECYCLE = new URL(
   import.meta.url,
 );
 
-export { HOLDER_TYPE, LINEAR_TYPE, PLUGIN_TYPE, WORK_ITEM_TYPE };
+export {
+  HOLDER_TYPE,
+  LINEAR_TYPE,
+  PLUGIN_TYPE,
+  SWAMP_CLUB_TYPE,
+  WORK_ITEM_TYPE,
+};
 
 // The only inherited SWAMP_ variable kept. SWAMP_HOME relocates swamp's user
 // directory (config, stored login, and the runtime that loads extensions),

@@ -4,7 +4,9 @@
 # This is the process swamp-extensions runs today with @swamp/issue-lifecycle
 # and agent-constraints/verification-conventions.md, written as a gatorwalk
 # lifecycle. It describes that process; it does not replace issue-lifecycle,
-# which the repository keeps until gatorwalk has a swamp-club adapter.
+# which the repository keeps for now. gatorwalk has a swamp-club adapter
+# (@swamp/gatorwalk-factory/swamp-club), but this lifecycle does not use it
+# yet; wiring it in is a follow-up.
 # swamp-extensions.md maps every phase, gate and human stop onto this file and
 # lists what the format could not express.
 #
@@ -539,8 +541,8 @@ stages:
   - id: attest
     description: >-
       Build the attestation from the two runs and post it to swamp-club, then
-      record its id. Posting is done by hand until gatorwalk has a swamp-club
-      adapter. The pull request opens only once a person says so.
+      record its id. Posting is done by hand until this lifecycle uses the
+      swamp-club adapter. The pull request opens only once a person says so.
     work:
       mode: interactive
       systemPrompt: |
@@ -720,7 +722,7 @@ stages:
   - id: notify
     description: >-
       Thank the issue's author, unless they are on the swamp-club team. Done by
-      hand until gatorwalk has a swamp-club adapter.
+      hand until this lifecycle uses the swamp-club adapter.
     work:
       mode: interactive
       systemPrompt: |

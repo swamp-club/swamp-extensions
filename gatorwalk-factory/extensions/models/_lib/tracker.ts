@@ -78,7 +78,8 @@ export class TrackerError extends Error {
   constructor(
     readonly kind: TrackerErrorKind,
     readonly tracker: string,
-    detail: string,
+    /** The message without the tracker and kind in front. */
+    readonly detail: string,
   ) {
     super(`${tracker} ${kind}: ${detail}`);
     this.name = "TrackerError";
