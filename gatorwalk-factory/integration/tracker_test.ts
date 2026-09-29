@@ -26,7 +26,13 @@ import {
   LAB_ISSUE,
   swampClubFake,
 } from "../extensions/models/_lib/swamp_club_fake.ts";
-import { LINEAR_TYPE, SWAMP_CLUB_TYPE, withRepo } from "./harness.ts";
+import {
+  LINEAR_TYPE,
+  SWAMP_CLUB_TYPE,
+  type SwampRepo,
+  withRepo,
+} from "./harness.ts";
+import { splitWords } from "./skill_commands.ts";
 
 // ---------------------------------------------------------------------------
 // The Linear adapter on the real engine: its token comes from a vault made
@@ -210,6 +216,96 @@ Deno.test("tracker: the swamp-club adapter takes its key from a vault, ripples o
         !(await Deno.readTextFile(path)).includes(ADMIN_KEY),
         "the definition keeps the vault expression, not the key",
       );
+    });
+  } finally {
+    await fake.close();
+  }
+});
+
+/** A swamp-club adapter named lab on the fake, its key from a vault. */
+async function labAdapter(repo: SwampRepo, url: string): Promise<void> {
+  await repo.swamp(["vault", "create", "local_encryption", "secrets"]);
+  await repo.swamp(["vault", "put", "secrets", "lab-key", ADMIN_KEY]);
+  const { stdout } = await repo.swamp([
+    "model",
+    "create",
+    SWAMP_CLUB_TYPE,
+    "lab",
+    "--json",
+  ]);
+  const path = (JSON.parse(stdout) as { path: string }).path;
+  const definition = parseYaml(await Deno.readTextFile(path)) as Record<
+    string,
+    unknown
+  >;
+  definition.globalArguments = {
+    apiKey: "${{ vault.get(secrets, lab-key) }}",
+    url,
+  };
+  await Deno.writeTextFile(path, stringifyYaml(definition));
+}
+
+const MINIMAL = new URL("../testdata/lifecycles/minimal.yaml", import.meta.url);
+
+Deno.test("tracker: claim starts a work item from a Lab issue once, and hands back a reservation after an interrupted start", async () => {
+  const fake = swampClubFake();
+  const issue = String(LAB_ISSUE);
+  try {
+    await withRepo(async (repo) => {
+      await labAdapter(repo, fake.url);
+      await repo.holder(
+        "team",
+        parseYaml(await Deno.readTextFile(MINIMAL)),
+      );
+      const claim = (inputs: Record<string, string>) =>
+        repo.swamp([
+          "model",
+          "method",
+          "run",
+          "lab",
+          "claim",
+          ...Object.entries(inputs).flatMap((
+            [k, v],
+          ) => ["--input", `${k}=${v}`]),
+          "--log",
+        ]);
+      const printed = (output: string) => {
+        const match = output.match(/Start it: (swamp .* --log)/);
+        assert(match !== null, output);
+        return match[1];
+      };
+
+      const first = await claim({ issue: `#${issue}`, lifecycle: "team" });
+      const command = printed(first.output);
+      const index = await repo.data("lab", `ticket-${issue}`);
+      const key = String(index.key);
+      assert(key.startsWith("minimal-"), key);
+      assertEquals(index.holder, "team");
+      assert(first.output.includes(`is claimed as '${key}'`), first.output);
+
+      // The start never ran: claiming again hands back the same key.
+      const again = await claim({ issue });
+      assert(again.output.includes("not started yet"), again.output);
+      assertEquals(printed(again.output), command);
+
+      // The printed command, as written.
+      await repo.swamp(splitWords(command).slice(1));
+      const run = await repo.run(key);
+      assertEquals(run.externalRefs, {
+        "swamp-club": issue,
+        "swamp-club.display": `#${issue}`,
+      });
+
+      // Read across models on the real engine: the ticket finds its item.
+      const started = await claim({ issue: `#${issue}`, lifecycle: "team" });
+      assert(
+        started.output.includes(
+          `is already started: '${key}' at stage 'work'`,
+        ),
+        started.output,
+      );
+      assertEquals((await repo.data("lab", `ticket-${issue}`)).key, key);
+      assertEquals(fake.comments.length, 0, "claim never writes the ticket");
     });
   } finally {
     await fake.close();

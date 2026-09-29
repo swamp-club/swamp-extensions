@@ -349,27 +349,36 @@ export function generateKey(lifecycleName: string): string {
   return `${lifecycleName.slice(0, 55)}-${suffix}`;
 }
 
-/** The holder's new_key method: a key no definition uses yet. */
-export async function newKey(ctx: MethodContextLike): Promise<MethodOutput> {
-  const lifecycle = await loadHolderLifecycle(ctx, selfName(ctx));
+/** A fresh work-item key that no definition uses yet. */
+export async function freshKey(
+  ctx: { definitionRepository?: DefinitionLookup },
+  lifecycleName: string,
+): Promise<string> {
   for (let attempt = 0; attempt < 5; attempt++) {
-    const key = generateKey(lifecycle.name);
+    const key = generateKey(lifecycleName);
     if (await ctx.definitionRepository?.findByNameGlobal(key) == null) {
-      if (ctx.writeResource === undefined) {
-        throw new Error("this method context cannot write resources");
-      }
-      const handle = await ctx.writeResource(KEY_SPEC, KEY_NAME, { key });
-      ctx.logger.info("{key}", {
-        key,
-        next:
-          `swamp model @swamp/gatorwalk-factory/work-item method run start ${key} --input lifecycle=${
-            selfName(ctx)
-          }`,
-      });
-      return { dataHandles: [handle] };
+      return key;
     }
   }
   throw new Error("could not find a free work-item key; try again");
+}
+
+/** The holder's new_key method: a key no definition uses yet. */
+export async function newKey(ctx: MethodContextLike): Promise<MethodOutput> {
+  const lifecycle = await loadHolderLifecycle(ctx, selfName(ctx));
+  const key = await freshKey(ctx, lifecycle.name);
+  if (ctx.writeResource === undefined) {
+    throw new Error("this method context cannot write resources");
+  }
+  const handle = await ctx.writeResource(KEY_SPEC, KEY_NAME, { key });
+  ctx.logger.info("{key}", {
+    key,
+    next:
+      `swamp model @swamp/gatorwalk-factory/work-item method run start ${key} --input lifecycle=${
+        selfName(ctx)
+      }`,
+  });
+  return { dataHandles: [handle] };
 }
 
 function selfName(ctx: MethodContextLike): string {

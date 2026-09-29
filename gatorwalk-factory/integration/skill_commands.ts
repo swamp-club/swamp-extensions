@@ -16,6 +16,8 @@
 
 import { fromFileUrl } from "@std/path";
 import { model as holderModel } from "../extensions/models/lifecycle.ts";
+import { model as linearModel } from "../extensions/models/linear.ts";
+import { model as swampClubModel } from "../extensions/models/swamp_club.ts";
 import { model as workItemModel } from "../extensions/models/work_item.ts";
 import {
   HOLDER_TYPE,
@@ -185,6 +187,7 @@ const SAMPLE: Record<string, string> = {
   "<key>": "build-swamp-extension-abcdefgh",
   "<era>": "00000000-0000-0000-0000-000000000000",
   "<holder>": "team",
+  "<ticket>": "ABC-1",
   "<cycle>": "1",
   "<dispatch-id>": "1",
   "<tokens>": "1000",
@@ -247,6 +250,16 @@ export function checkCommand(words: string[]): string | null {
     const [name, _key, ...rest] = args.slice(4);
     const method = (workItemModel.methods as Record<string, MethodLike>)[name];
     if (method === undefined) return `no work-item method '${name}'`;
+    return checkInputs(method, rest, ["--log"]);
+  }
+  // Tracker methods, by instance name: <tracker> stands for any tracker
+  // adapter, so the method must be one every tracker has.
+  if (is("model", "method", "run", "<tracker>")) {
+    const [name, ...rest] = args.slice(4);
+    const method = (linearModel.methods as Record<string, MethodLike>)[name];
+    if (method === undefined || !(name in swampClubModel.methods)) {
+      return `no method '${name}' that every tracker has`;
+    }
     return checkInputs(method, rest, ["--log"]);
   }
   // Holder methods, by instance name.

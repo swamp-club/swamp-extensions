@@ -45,6 +45,7 @@ extensions/models/
     tracker.ts            the tracker adapter contract
     tracker_methods.ts    the methods every tracker model has, and its ledger
     tracker_conformance.ts  the contract, checked the same way per adapter
+    claim.ts              start from a ticket: the ticket index and claim
     linear.ts             the Linear GraphQL client
     linear_fake.ts        a local fake of Linear's API, for tests
     swamp_club.ts         the swamp-club Lab REST client
@@ -353,6 +354,27 @@ swamp model method run lab post_attestation \
 `set_status` walks for you; moving back is refused. `post_attestation` posts an
 attestation built elsewhere (`deno task build-attestation`), and posting the
 same one again for a commit writes nothing.
+
+## Start from a ticket
+
+Every tracker adapter has `claim`, which starts a work item from a ticket and
+makes sure the same ticket never starts two at once:
+
+```bash
+swamp model method run lab claim --input issue=2631 --input lifecycle=team --log
+```
+
+With no work item for the ticket, `claim` reserves a fresh key, records it in
+the adapter's ticket index (`ticket-<stable id>`), and prints the work-item
+`start` command to run, with the ticket's `externalRefs`. The record is written
+before the work item starts, so if anything fails in between, `claim` again
+hands back the same key and command. Once the work item has started, `claim`
+names it and its stage. Once it has finished, the ticket can claim a new one;
+the record keeps the earlier keys. `lifecycle` is needed only when a new key is
+reserved. `claim` never writes to the tracker, and a refused claim writes
+nothing. A repeat claim refreshes only the ticket's snapshot, not the index
+record, so read the key with `swamp data get lab ticket-2631 --json`. See
+[DESIGN.md](DESIGN.md), "Start from a ticket".
 
 ## Driving it
 

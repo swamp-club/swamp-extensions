@@ -16,18 +16,24 @@
 
 import { z } from "npm:zod@4.3.6";
 import { digestOf } from "./canonical.ts";
-import type { ResourceContext } from "./run_store.ts";
+import {
+  type ClaimContext,
+  claimTicket,
+  TICKET_SPEC,
+  TicketClaimSchema,
+} from "./claim.ts";
 import {
   type DeliveryKey,
   type TrackerAdapter,
   TrackerError,
   type TrackerIssue,
 } from "./tracker.ts";
-import type { Logger, MethodOutput } from "./work_item_ops.ts";
+import type { MethodOutput } from "./work_item_ops.ts";
 
 // ---------------------------------------------------------------------------
 // The methods every tracker model type has, written once over the adapter
-// contract: fetch_issue, comment and set_status.
+// contract: fetch_issue, comment and set_status, and claim, which starts
+// from a ticket (claim.ts).
 //
 // Delivery ledger: a comment or status write that carries a delivery key
 // (workItem + journalVersion) records what the tracker returned under a name
@@ -69,9 +75,8 @@ export const IssueSchema = z.object({
 });
 
 /** What the methods need from swamp's method context. */
-export interface TrackerContext extends ResourceContext {
+export interface TrackerContext extends ClaimContext {
   globalArgs?: Record<string, unknown>;
-  logger: Logger;
 }
 
 // Record names come from ids and keys; keep them to a path-safe alphabet.
@@ -194,6 +199,20 @@ const setStatusArguments = z.object({
   ...DeliveryInputs,
 });
 
+export function ticketName(issueId: string): string {
+  return `ticket-${safePart("issue id", issueId)}`;
+}
+
+const claimArguments = z.object({
+  issue: z.string().min(1).describe(
+    "The ticket: its stable id, or its display identifier",
+  ),
+  lifecycle: z.string().min(1).optional().describe(
+    "The lifecycle holder to start a new work item under; needed only when " +
+      "the ticket has no work item, or its last one has finished",
+  ),
+});
+
 /** The resource specs every tracker model declares. */
 export const trackerResources = {
   [ISSUE_SPEC]: {
@@ -212,12 +231,34 @@ export const trackerResources = {
     // key, so retention never counts versions here.
     garbageCollection: "1y",
   },
+  [TICKET_SPEC]: {
+    description:
+      "The ticket index: each ticket's work item, reserved or started, one record per ticket",
+    schema: TicketClaimSchema,
+    lifetime: "infinite" as const,
+    // Only the latest version is read, and a ticket's record must outlive
+    // its work item, so retention counts versions and never age.
+    garbageCollection: 20,
+  },
 };
 
-/** The fetch_issue, comment and set_status methods, over one adapter. */
+/** The fetch_issue, claim, comment and set_status methods, over one adapter. */
 export function trackerMethods(options: TrackerModelOptions) {
   const now = options.now ?? (() => new Date());
   const argsOf = (ctx: TrackerContext) => ctx.globalArgs ?? {};
+
+  const fetch = (ctx: TrackerContext, ref: string): Promise<TrackerIssue> =>
+    options.adapter(argsOf(ctx)).fetchIssue(ref);
+  const recordSnapshot = (ctx: TrackerContext, issue: TrackerIssue) =>
+    resources(ctx).write(
+      ISSUE_SPEC,
+      `issue-${safePart("issue id", issue.id)}`,
+      {
+        tracker: options.tracker,
+        ...issue,
+        fetchedAt: now().toISOString(),
+      },
+    );
 
   return {
     fetch_issue: {
@@ -228,17 +269,8 @@ export function trackerMethods(options: TrackerModelOptions) {
         args: z.infer<typeof fetchIssueArguments>,
         ctx: TrackerContext,
       ): Promise<MethodOutput> => {
-        const adapter = options.adapter(argsOf(ctx));
-        const issue: TrackerIssue = await adapter.fetchIssue(args.issue);
-        const handle = await resources(ctx).write(
-          ISSUE_SPEC,
-          `issue-${safePart("issue id", issue.id)}`,
-          {
-            tracker: options.tracker,
-            ...issue,
-            fetchedAt: now().toISOString(),
-          },
-        );
+        const issue = await fetch(ctx, args.issue);
+        const handle = await recordSnapshot(ctx, issue);
         ctx.logger.info("{summary}", {
           summary: `${issue.display} (${issue.id}): ${issue.title} ` +
             `[${issue.status.name}]`,
@@ -249,6 +281,28 @@ export function trackerMethods(options: TrackerModelOptions) {
           }),
         });
         return { dataHandles: [handle] };
+      },
+    },
+    claim: {
+      description:
+        "Start from a ticket: report its work item, or reserve a key for a new one (recorded before it starts) and print the start command",
+      arguments: claimArguments,
+      execute: async (
+        args: z.infer<typeof claimArguments>,
+        ctx: TrackerContext,
+      ): Promise<MethodOutput> => {
+        const issue = await fetch(ctx, args.issue);
+        const written = await claimTicket(ctx, {
+          tracker: options.tracker,
+          issue,
+          recordName: ticketName(issue.id),
+          lifecycle: args.lifecycle,
+          now: now(),
+        });
+        // The snapshot only once the claim has succeeded: a refused claim
+        // writes nothing.
+        const handle = await recordSnapshot(ctx, issue);
+        return { dataHandles: [...written, handle] };
       },
     },
     comment: {

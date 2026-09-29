@@ -14,14 +14,15 @@ Placeholders are in angle brackets: `<key>`, `<holder>`, `<stage>`, `<cycle>`,
 1. [The two model types](#the-two-model-types)
 2. [Set up a lifecycle holder](#set-up-a-lifecycle-holder)
 3. [Start a work item](#start-a-work-item)
-4. [Read status](#read-status)
-5. [The loop](#the-loop)
-6. [Do the stage's work](#do-the-stages-work)
-7. [Record products](#record-products)
-8. [Advance: the propulsion rule](#advance-the-propulsion-rule)
-9. [Human stops](#human-stops)
-10. [When something fails](#when-something-fails)
-11. [Resuming](#resuming)
+4. [Start from a ticket](#start-from-a-ticket)
+5. [Read status](#read-status)
+6. [The loop](#the-loop)
+7. [Do the stage's work](#do-the-stages-work)
+8. [Record products](#record-products)
+9. [Advance: the propulsion rule](#advance-the-propulsion-rule)
+10. [Human stops](#human-stops)
+11. [When something fails](#when-something-fails)
+12. [Resuming](#resuming)
 
 ## The two model types
 
@@ -82,6 +83,34 @@ swamp model @swamp/gatorwalk-factory/work-item method run start <key> \
   --input lifecycle=<holder> \
   --input 'externalRefs={"linear":"<issue UUID>"}' --log
 ```
+
+## Start from a ticket
+
+When the work comes from a tracker ticket (a Linear issue, a swamp-club Lab
+issue), start it through the tracker's adapter instance, so the same ticket
+never starts twice:
+
+```sh
+swamp model method run <tracker> claim --input issue=<ticket> \
+  --input lifecycle=<holder> --log
+```
+
+`issue` is the ticket's id or its display identifier (`ABC-1`, `#2631`). `claim`
+answers in one of three ways:
+
+- **`is claimed as '<key>'. Start it: swamp model ...`**: the ticket had no work
+  item, so `claim` reserved a key and recorded it in the adapter's ticket index.
+  Run the printed `start` command exactly as printed; it carries the ticket's
+  `externalRefs`.
+- **`not started yet. Start it: ...`**: an earlier claim reserved this key but
+  its `start` never ran (or failed). Run the printed command.
+- **`is already started: '<key>' at stage '<stage>'`**: drive that work item.
+
+If anything fails between `claim` and `start`, run `claim` again: it hands back
+the same key and command. `lifecycle` is only needed when a new key is reserved;
+once a ticket's work item has finished, claiming it again reserves a new one.
+`claim` never comments on or moves the ticket. Never name a work item after its
+ticket.
 
 ## Read status
 

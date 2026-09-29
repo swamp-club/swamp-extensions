@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import type { MethodContextLike } from "./work_item_ops.ts";
+import type { ClaimContext } from "./claim.ts";
 
 // ---------------------------------------------------------------------------
 // A fake of the parts of swamp the model types use: versioned resources per
@@ -36,7 +36,7 @@ export interface FakeSwamp {
   context(
     name: string,
     initiatedBy?: string,
-  ): MethodContextLike & { globalArgs: Record<string, unknown> };
+  ): ClaimContext & { globalArgs: Record<string, unknown> };
   versionsWritten(instance: string): number;
 }
 
@@ -45,6 +45,8 @@ export function fakeSwamp(): FakeSwamp {
   const globalArgs: FakeSwamp["globalArgs"] = new Map();
   const resources: FakeSwamp["resources"] = new Map();
   const logs: FakeSwamp["logs"] = [];
+  // The spec each resource was written under, per instance.
+  const specs = new Map<string, Map<string, string>>();
   const of = (instance: string) => {
     let map = resources.get(instance);
     if (map === undefined) {
@@ -69,7 +71,9 @@ export function fakeSwamp(): FakeSwamp {
           logs.push({ message, props });
         },
       },
-      writeResource: (_spec, resource, data) => {
+      writeResource: (spec, resource, data) => {
+        if (!specs.has(name)) specs.set(name, new Map());
+        specs.get(name)?.set(resource, spec);
         const map = of(name);
         const versions = map.get(resource) ?? [];
         versions.push(structuredClone(data));
@@ -82,6 +86,22 @@ export function fakeSwamp(): FakeSwamp {
         return Promise.resolve(
           value === undefined ? null : structuredClone(value),
         );
+      },
+      // Another instance's records of a spec, every version, as swamp's
+      // readModelData returns them (only the fields claim reads).
+      readModelData: (modelName, specName) => {
+        const records = [...of(modelName).entries()]
+          .filter(([resource]) =>
+            specName === undefined ||
+            specs.get(modelName)?.get(resource) === specName
+          )
+          .flatMap(([, versions]) =>
+            versions.map((attributes, i) => ({
+              version: i + 1,
+              attributes: structuredClone(attributes),
+            }))
+          );
+        return Promise.resolve(records);
       },
       definitionRepository: {
         findByNameGlobal: (defName) => {

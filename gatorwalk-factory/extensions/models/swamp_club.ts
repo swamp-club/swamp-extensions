@@ -160,8 +160,9 @@ function parseAttestation(
 }
 
 /**
- * The adapter's methods: the shared fetch_issue, comment and set_status, plus
- * assign and post_attestation. Tests pass their own credential sources.
+ * The adapter's methods: the shared fetch_issue, claim, comment and
+ * set_status, plus assign and post_attestation. Tests pass their own
+ * credential sources.
  */
 export function swampClubMethods(options: SwampClubMethodOptions = {}) {
   const sources = options.sources ?? DEFAULT_SOURCES;

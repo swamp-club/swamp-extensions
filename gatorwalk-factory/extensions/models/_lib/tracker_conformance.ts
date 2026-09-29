@@ -21,7 +21,13 @@ import {
   TrackerError,
   type TrackerErrorKind,
 } from "./tracker.ts";
-import { type TrackerContext, trackerMethods } from "./tracker_methods.ts";
+import {
+  ticketName,
+  type TrackerContext,
+  trackerMethods,
+} from "./tracker_methods.ts";
+import { smallLifecycle } from "./test_support.ts";
+import { HOLDER_TYPE } from "./work_item_ops.ts";
 
 // ---------------------------------------------------------------------------
 // What every tracker adapter must do, checked the same way for each: an
@@ -118,4 +124,28 @@ export async function assertTrackerConformance(
   await methods.set_status.execute(statusArgs, ctx);
   await methods.set_status.execute(statusArgs, ctx);
   assertEquals((await adapter.fetchIssue(f.issue.id)).status.name, second);
+
+  // Claim: the display identifier and the stable id find one index record,
+  // named by the stable id, and the start command carries both ids.
+  const swamp = fakeSwamp();
+  swamp.definitions.set("team", {
+    globalArguments: smallLifecycle(),
+    type: HOLDER_TYPE,
+  });
+  const claim = (issue: string) =>
+    methods.claim.execute(
+      methods.claim.arguments.parse({ issue, lifecycle: "team" }),
+      swamp.context("tracker"),
+    );
+  await claim(f.issue.display);
+  await claim(f.issue.id);
+  const records = swamp.resources.get("tracker")?.get(ticketName(f.issue.id));
+  assertEquals(records?.length, 1, "one reservation per ticket");
+  assertEquals(records?.[0].issue, f.issue.id);
+  const summary = String(swamp.logs.at(-1)?.props?.summary);
+  const refs = JSON.stringify({
+    [adapter.tracker]: f.issue.id,
+    [`${adapter.tracker}.display`]: f.issue.display,
+  });
+  assert(summary.includes(refs), summary);
 }

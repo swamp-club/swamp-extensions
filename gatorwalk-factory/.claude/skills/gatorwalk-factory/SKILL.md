@@ -93,6 +93,12 @@ Holder methods run by instance name:
 `swamp model method run <holder> new_key --log` makes a key to start a work item
 under.
 
+Work from a tracker ticket starts through the tracker's adapter instance:
+`swamp model method run <tracker> claim --input issue=<ticket> --input lifecycle=<holder> --log`
+reserves a key for the ticket and prints the `start` command to run, or names
+the work item the ticket already has. Re-run it after any failure. See
+[references/driving.md](references/driving.md#start-from-a-ticket).
+
 ## When something is refused
 
 | Refusal                                   | Do                                                                |

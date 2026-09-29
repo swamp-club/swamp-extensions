@@ -120,6 +120,20 @@ Deno.test("skill: the checker refuses an unknown method or input", () => {
     "a write without its expectation is refused",
   );
   assert(
+    checkCommand([
+      "swamp",
+      "model",
+      "method",
+      "run",
+      "<tracker>",
+      "assign",
+      "--input",
+      "issue=1",
+      "--log",
+    ])?.includes("every tracker has"),
+    "a method only one tracker has is not a <tracker> method",
+  );
+  assert(
     checkCommand(["swamp", "model", "edit", "team"])?.includes(
       "not a command form",
     ),

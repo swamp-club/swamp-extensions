@@ -825,14 +825,15 @@ The contract:
   asked (the comment body or the status key), so the same key for a different
   ticket or a different request is refused rather than silently skipped.
 
-Every adapter provides three operations, as swamp methods built by
+Every adapter provides four operations, as swamp methods built by
 `trackerMethods`:
 
-| Method        | Inputs                                             | Writes                        |
-| ------------- | -------------------------------------------------- | ----------------------------- |
-| `fetch_issue` | `issue`: stable id or display identifier           | `issue-<id>`: a snapshot      |
-| `comment`     | `issue` (stable id), `body`, optional delivery key | the ledger record, when keyed |
-| `set_status`  | `issue` (stable id), `status` key, optional key    | the ledger record, when keyed |
+| Method        | Inputs                                             | Writes                                                    |
+| ------------- | -------------------------------------------------- | --------------------------------------------------------- |
+| `fetch_issue` | `issue`: stable id or display identifier           | `issue-<id>`: a snapshot                                  |
+| `comment`     | `issue` (stable id), `body`, optional delivery key | the ledger record, when keyed                             |
+| `set_status`  | `issue` (stable id), `status` key, optional key    | the ledger record, when keyed                             |
+| `claim`       | `issue`: id or display, optional `lifecycle`       | the snapshot, and the ticket index when it reserves a key |
 
 `set_status` takes a gatorwalk **status key**, which the `statuses` global
 argument maps to the tracker's own status name (Linear statuses belong to a team
@@ -918,10 +919,68 @@ to it:
   and calls `comment` and `set_status` with that length as the delivery key. A
   replay after a crash re-sends keys already delivered, and the ledger skips
   them.
-- **Start from a ticket (GW-18)** calls `fetch_issue`, starts a work item with
-  the `externalRefs` it reports, and keeps an index from ticket id to work-item
-  key on the adapter instance, so a ticket finds its work item without scanning
-  every instance.
+
+### Start from a ticket
+
+**Decision.** Every adapter has a `claim` method (`_lib/claim.ts`, exposed by
+`trackerMethods`). It keeps a **ticket index** on the adapter instance: one
+`ticket-<stable id>` record per ticket, naming the ticket's current work-item
+key, the lifecycle holder it starts under, and the keys of its earlier, finished
+work items. A ticket finds its work item without scanning every instance.
+
+`claim` fetches the ticket (by stable id or display identifier), reads its
+record, and reads the named work item's run through swamp's `readModelData`:
+
+- **No record:** it loads the holder (checked in full), generates a key no
+  definition uses, **writes the record first**, and prints the work-item `start`
+  command with the ticket's `externalRefs`. The driver runs it.
+- **A record whose key has no run:** a reservation whose start never ran. The
+  same key and command are printed again, and the index is not written. A
+  different holder is refused.
+- **An active run:** reported with its stage; the index is not written.
+- **A terminal run** (done or abandoned): the ticket may start a new work item.
+  A new key is reserved, and the old one goes to the front of `previous`.
+- **A run whose `externalRefs` name another ticket:** refused, since the index
+  and the work item disagree.
+
+**Two claims of one ticket.** `claim` reads the record and then writes it, so it
+relies on swamp running one method at a time per adapter instance, as the
+delivery ledger does. The adapter instance exists before any claim, so swamp's
+per-instance lock applies, and a second claim of the ticket waits and then finds
+the first one's reservation.
+
+A claim that succeeds also refreshes the ticket's `issue-<id>` snapshot, as
+`fetch_issue` does, after the index is settled. A refused claim writes nothing.
+
+`lifecycle` is only needed when a new key is reserved. `claim` never comments,
+moves or assigns the ticket; that is the projection's (GW-17).
+
+**Why write the index first.** A crash between reserving and starting then
+leaves a reservation, which the next `claim` hands back, and the start command
+is safe to repeat (`start` refuses a work item that has started). Writing the
+index after the start would leave a started work item that no index names, and
+finding it again would mean scanning every work item.
+
+**Why a method that prints a command.** A swamp method cannot create or run
+another model instance, so `claim` cannot start the work item itself. The
+printed command is the whole hand-off.
+
+**Retention.** Index records are never collected by age: a ticket's record must
+outlive its work items. Only the latest version is read, so twenty versions are
+kept.
+
+**Only the run's own key counts.** swamp's `readModelData` labels every record
+it returns with the name asked for, including data it attributes to that name
+from an earlier definition. `claim` therefore uses only a run record whose `key`
+is the claimed key.
+
+**Known gaps.** The index lives per adapter instance, like the ledger, so keep
+one instance per tracker workspace. A work item started directly with
+`externalRefs`, not through `claim`, is not in the index. A reserved key has no
+definition until it starts, so a fresh key only avoids existing definitions; a
+collision with a reservation is about 1 in 32^8 per key drawn. Two drivers
+running the printed `start` at once race as any first start does (see "The model
+types").
 
 ## Tests on the real engine
 
