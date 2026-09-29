@@ -737,6 +737,28 @@ Deno.test("evidence-recorded: match and message are accepted beside requireField
   assertEquals(Reflect.ownKeys(match?.confidence as object), ["enum"]);
 });
 
+Deno.test("payload schemas: a parsed lifecycle parses again (#2704)", () => {
+  const doc = base();
+  set(doc, "stages.0.evidence", [{
+    name: "out",
+    schema: {
+      type: "object",
+      properties: {
+        run: { type: "object", properties: { ok: { type: "boolean" } } },
+      },
+    },
+  }]);
+  const first = parseLifecycle(doc);
+  assert(first.ok, first.ok ? "" : first.errors.join("\n"));
+  // assertEquals ignores non-enumerable keys, which compiling adds.
+  const schema = first.value.stages[0].evidence![0].schema!;
+  assertEquals(Reflect.ownKeys(schema), ["type", "properties"]);
+  const run = (schema.properties as Raw).run as object;
+  assertEquals(Reflect.ownKeys(run), ["type", "properties"]);
+  const second = parseLifecycle(first.value);
+  assert(second.ok, second.ok ? "" : second.errors.join("\n"));
+});
+
 Deno.test("evidence-recorded: a bad match fragment is refused at its path", () => {
   assertRejects(
     evidenceGate({ match: { status: { enmu: ["x"] } } }),

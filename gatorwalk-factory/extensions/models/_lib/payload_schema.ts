@@ -209,9 +209,7 @@ export function lintFieldSchema(schema: unknown): SchemaIssue[] {
     }
   }
   if (issues.length > 0) return issues;
-  // A copy: compiling marks the schema object it is given, and a fragment is
-  // copied again when the gate config is parsed, which would keep the marks.
-  return lintPayloadSchema(structuredClone(schema));
+  return lintPayloadSchema(schema);
 }
 
 function lintSubschema(
@@ -437,8 +435,14 @@ function compileProblem(schema: PayloadSchema): string | null {
   }
 }
 
+// Compiles a copy: compiling marks every subschema of the object it is given
+// with a non-enumerable __absolute_uri__, which a later lint refuses (#2704).
 function validatorFor(schema: PayloadSchema | boolean): Validator {
-  return new Validator(schema as Schema | boolean, "2020-12", false);
+  return new Validator(
+    structuredClone(schema) as Schema | boolean,
+    "2020-12",
+    false,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -539,8 +543,7 @@ export function validateField(
   field: string,
   value: unknown,
 ): string[] | null {
-  // A copy, so the lifecycle's own gate config is never marked by compiling.
-  const result = validatorFor(structuredClone(schema)).validate(value);
+  const result = validatorFor(schema).validate(value);
   if (result.valid) return null;
   const errors = actionableErrors(result.errors, field);
   return errors.length > 0 ? errors : [`${field}: does not match the schema`];

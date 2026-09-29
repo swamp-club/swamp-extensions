@@ -332,6 +332,15 @@ Deno.test("field schema: references and definitions are refused, with their path
   ]);
 });
 
+Deno.test("payload schema: lint and validation leave the schema unmarked (#2704)", () => {
+  const run = { type: "object", properties: { ok: { type: "boolean" } } };
+  const schema = { type: "object", properties: { run } };
+  assertEquals(lintPayloadSchema(schema), []);
+  assertEquals(validatePayload(schema, { run: { ok: true } }), null);
+  assertEquals(Reflect.ownKeys(schema), ["type", "properties"]);
+  assertEquals(Reflect.ownKeys(run), ["type", "properties"]);
+});
+
 Deno.test("field schema: lint and validation leave the fragment unmarked", () => {
   const schema = { enum: ["a"] };
   lintFieldSchema(schema);
